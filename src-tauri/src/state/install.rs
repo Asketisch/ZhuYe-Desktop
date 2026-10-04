@@ -131,7 +131,7 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
 /// 全部工具零参数构造(除 ToolSearchTool)。
 fn register_builtin_tools(tools: &Arc<ToolRegistry>) {
     // 文件/执行类。
-    tools.register(Arc::new(BashTool));
+    tools.register(Arc::new(BashTool::default()));
     tools.register(Arc::new(ReadTool));
     tools.register(Arc::new(WriteTool));
     tools.register(Arc::new(EditTool));
