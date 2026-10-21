@@ -29,6 +29,10 @@ import { ConfigForm } from './ConfigForm';
 import { DisplaySection } from './sections/DisplaySection';
 import { NotificationsSection } from './sections/NotificationsSection';
 import { PlansSection } from './sections/PlansSection';
+import { PermissionRulesSection } from './sections/PermissionRulesSection';
+import { ConfigInfoLine } from './sections/ConfigInfoLine';
+import { SecurityScanCard } from './sections/SecurityScanCard';
+import { UpdatesSection } from './sections/UpdatesSection';
 import s from './SettingsView.module.css';
 
 type PermissionMode = 'auto' | 'prompt' | 'deny' | 'plan' | 'accept_edits' | 'bubble' | 'bypass';
@@ -112,6 +116,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
     <div className={s.root}>
       <aside className={s.nav}>
         <h2 className={s.title}>{t('settings.title')}</h2>
+        {/* 配置位置 / 分析健康度 / 活跃 agent —— 手改 config.toml 的用户
+            需要知道「应用读的是哪个文件」;这些信息此前完全没有出口。 */}
+        <ConfigInfoLine />
         <nav className={s.navList}>
           <NavBtn active={section === 'provider'} onClick={() => setSection('provider')}>
             {t('settings.provider')}
@@ -236,6 +243,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
               {/* bypass 不再提供：core v1.3 安全基线把 SetPermissionMode(Bypass)
                   一律降级 Prompt，UI 提供该选项只会造成「切了没生效」的错觉。 */}
             </div>
+            {/* 生效的权限规则（核心三层 store）—— 权限「模式」之外的另一半：
+                哪些工具被 allow / deny / ask。 */}
+            <PermissionRulesSection />
           </section>
         )}
 
@@ -258,6 +268,12 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             />
           </section>
         )}
+
+        {/* 安全扫描(cargo audit)—— 核心真实实现,GUI 此前只能开终端跑。 */}
+        <SecurityScanCard />
+
+        {/* 更新检查 —— 后端早有 reflect_check_update,界面此前无入口。 */}
+        <UpdatesSection />
 
         <div className={s.saveBar}>
           <Button

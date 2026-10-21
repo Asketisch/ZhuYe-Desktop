@@ -34,6 +34,17 @@ const memory: Record<string, StringEntry> = {
   'memory.toast.removeFail': { en: 'Remove failed: {msg}',    'zh-CN': '移除失败：{msg}' },
   'memory.toast.updateFail': { en: 'Update failed: {msg}',    'zh-CN': '更新失败：{msg}' },
   'memory.toast.keyRequired': { en: 'Key is required.',       'zh-CN': '键不能为空。' },
+  // 会话笔记(agent 写下的持久结论)
+  'notes.title':            { en: 'Session notes',                  'zh-CN': '会话笔记' },
+  'notes.empty':           { en: 'No session notes',               'zh-CN': '暂无会话笔记' },
+  'notes.emptyHint':       { en: 'Notes the agent records during a session appear here.', 'zh-CN': 'agent 在会话中记下的结论会显示在这里。' },
+  'notes.pickSession':     { en: 'Pick a session',                  'zh-CN': '选择会话' },
+  'notes.currentSession':  { en: 'Current session',                 'zh-CN': '当前会话' },
+  // 记忆作用域提示(核心按 agent 显式启用记忆)
+  'memory.scopeNotDeclared': { en: 'Agent “{agent}” declares no memory scope, so entries here are not injected into the prompt. Add memory = ["project", "user"] to its definition in Agents.', 'zh-CN': '当前 agent「{agent}」未声明记忆作用域,这里写的内容不会被注入 prompt。可在 Agents 里给它的定义加上 memory = ["project", "user"]。' },
+  // 记忆分段(agent 实际注入的结构)
+  'memory.sections.title':  { en: 'Memory sections',                   'zh-CN': '记忆分段' },
+  'memory.sections.budget': { en: '{used} / {total} chars injected',  'zh-CN': '注入 {used} / {total} 字符' },
 };
 
 export default memory;

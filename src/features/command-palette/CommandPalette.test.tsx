@@ -16,6 +16,7 @@ const baseProps = {
   newSession: noop,
   clearAllSessions: noop,
   exportActive: noop,
+  exportActiveMarkdown: noop,
   saveConfig: noop,
   runSlash: noop,
 };

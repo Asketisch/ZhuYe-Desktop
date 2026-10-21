@@ -178,8 +178,18 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     case 'insights':
     case 'ctx_viz':
       return {
-        kind: 'no-op',
+        kind: 'submit_with_submission',
+        submission: 'open_usage',
         message: 'Token 用量见底部状态栏 / 右侧 Inspector 的 Token Usage。',
+      };
+
+    // v1.6.1:提示词层(/prompt)—— 打开提示词层面板并拉取可用层/生效层。
+    // 面板消费 `prompt_list` 事件(reducer 写 store.prompt)。
+    case 'prompt':
+      return {
+        kind: 'submit_with_submission',
+        submission: 'prompt_list',
+        message: 'Prompt layers — 查询可用层与当前生效层。',
       };
 
     // ===== Tier C — 路由到 settings / no-op 的 stub =====

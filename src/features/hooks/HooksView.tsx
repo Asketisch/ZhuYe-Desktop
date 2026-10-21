@@ -15,6 +15,8 @@ import { useAgentStore } from '@/stores/agentStore';
 import { reflect_list_hooks, reflect_toggle_hook, type ReflectHookInfo } from '@/utils/commands';
 import s from './HooksView.module.css';
 
+import { HookEventsPanel } from './HookEventsPanel';
+
 export function HooksView() {
   const { t } = useI18n();
   const pushToast = useAgentStore((st) => st.pushToast);
@@ -106,6 +108,9 @@ export function HooksView() {
           </ul>
         </Card>
       )}
+
+      {/* 可挂载的事件类型 —— 用户此前不知道 hook 能在哪些时机触发、能做什么决策。 */}
+      <HookEventsPanel />
     </PageShell>
   );
 }

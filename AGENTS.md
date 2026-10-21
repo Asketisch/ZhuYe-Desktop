@@ -8,6 +8,7 @@
 详细的导航手册见：
 
 - `docs/codebase-map.md`（面向任务的代码映射："需要改 X，编辑 Y"）
+- `docs/CAPABILITIES.md`（核心能力 → GUI 覆盖矩阵：基座能力是否都能用、能看到）
 - `docs/PROTOCOL_BRIDGE.md`（Tauri ↔ reflect-protocol 协议信封规范）
 - `README.md`（环境设置、构建、发布和项目文档）
 - `docs/CHANGELOG.md`（版本更新日志）
@@ -19,7 +20,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 - 前端：React 19 + Vite + TanStack Router/Query（`src/`）
 - 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
 - 子模块：`reflect-*` 核心 crate 通过 git submodule 复用（见 `reflect-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
-- 共享核心：`app-core/`（UI 无关的领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / actor，供 `src-tauri` 命令层复用）
+- 共享核心：`app-core/`（UI 无关的领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / sandbox / stats，供 `src-tauri` 命令层复用）
 
 ## 不可妥协的架构规则
 
@@ -37,6 +38,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 2. 应用适配层和 Tauri 命令表（`src-tauri/src/lib.rs` + `commands/mod.rs`）。
 3. 前端 IPC 包装（`src/utils/commands/{domain}.ts`）。
 4. 如果新增后端命令，需同步更新所有相关层级 + 测试 + `docs/PROTOCOL_BRIDGE.md` + `docs/CHANGELOG.md`。
+5. 核心 crate 新增能力时，同步更新 `docs/CAPABILITIES.md`（基座能力 → GUI 覆盖矩阵）——「有命令但无 UI 消费面」视为半接线。
 
 ## 前端路由规则
 
@@ -108,7 +110,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 
 1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`）已更新
 2. 前端 IPC（`src/utils/commands/{domain}.ts`）已更新
-3. 功能设置 UI（`src/features/settings/SettingsView.tsx`、`ConfigForm.tsx`、`sections/DisplaySection.tsx`、`sections/NotificationsSection.tsx`、`sections/UpdatesSection.tsx`、`components/StructuredField.tsx`、`components/ComplexEditors.tsx`、`config/schema.ts`）已更新
+3. 功能设置 UI（`src/features/settings/SettingsView.tsx`、`ConfigForm.tsx`、`sections/DisplaySection.tsx`、`sections/NotificationsSection.tsx`、`sections/UpdatesSection.tsx`、`sections/PlansSection.tsx`、`sections/PermissionRulesSection.tsx`、`sections/SecurityScanCard.tsx`、`components/StructuredField.tsx`、`components/ComplexEditors.tsx`、`config/schema.ts`）已更新
 4. 测试覆盖率已补充
 5. `docs/PROTOCOL_BRIDGE.md` 已更新（如果线格式有变更）
 6. `docs/CHANGELOG.md` 已添加条目

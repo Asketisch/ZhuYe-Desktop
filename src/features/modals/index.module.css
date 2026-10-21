@@ -32,6 +32,38 @@
   line-height: var(--lh-normal);
 }
 
+/* 「始终允许这条命令」—— 写进核心权限文件的一次性授权入口。 */
+.allowAlwaysBtn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.allowAlwaysBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.allowAlwaysBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.errorText {
+  font-size: var(--fs-xs);
+  color: var(--danger);
+  margin: 0 0 var(--space-2);
+}
+
 .questionItem {
   margin-bottom: var(--space-3);
 }

@@ -25,12 +25,15 @@ pub use remote_config::{RemoteConfig, RemoteStatus};
 mod activity;
 mod agent;
 mod install;
+pub(crate) mod permissions;
 pub(crate) mod plugins;
 pub(crate) mod quota;
 pub(crate) mod rebind;
 pub(crate) mod reload;
 mod remote_config;
+pub(crate) mod sandbox;
 mod session;
+pub(crate) mod subagents;
 mod submit;
 mod thread_factory;
 

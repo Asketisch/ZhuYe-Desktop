@@ -12,6 +12,7 @@ import {
   reflect_hook_approval,
   reflect_interrupt,
   reflect_plan_approval,
+  reflect_prompt_command,
   reflect_query_subagents,
   reflect_rewind,
   reflect_save_config,
@@ -77,7 +78,22 @@ export const useAgentStore = create<AgentState>((set, get) => {
     // goalActive 一并复位:goal 挂在后端线程上,rebind 造新线程即丢,
     // 换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
     // subagents 同为会话作用域投影,replay 的历史不含子代理实时流。
-    set({ turns, compactions, loadedSessionId: id, lastError: null, queuedMessages: [], goalActive: false, subagents: EMPTY_SUBAGENTS });
+    // token 投影同理:live 的按模型累计(per-model)属于**上一个**会话,
+    // 换会话后必须清空 —— 否则 Inspector 的「按模型」会挂着旧会话的行。
+    // 落盘侧的累计由 `/usage` 视图按 session id 现查,不受影响。
+    set({
+      turns,
+      compactions,
+      loadedSessionId: id,
+      lastError: null,
+      queuedMessages: [],
+      goalActive: false,
+      subagents: EMPTY_SUBAGENTS,
+      todos: [],
+      planSteps: [],
+      tokens: null,
+      contextWindowSize: null,
+    });
   },
   clearSession: () =>
     set({
@@ -94,9 +110,11 @@ export const useAgentStore = create<AgentState>((set, get) => {
       session: null,
       tokens: null,
       contextWindowSize: null,
-      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
+      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
       lastRouting: null,
       subagents: EMPTY_SUBAGENTS,
+      todos: [],
+      planSteps: [],
     }),
   tokens: null,
   contextWindowSize: null,
@@ -106,10 +124,18 @@ export const useAgentStore = create<AgentState>((set, get) => {
   lastRouting: null,
   configReloadedAt: null,
   planFailover: null,
-  compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
+  compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
   toasts: [],
   goalActive: false,
   subagents: EMPTY_SUBAGENTS,
+  todos: [],
+  planSteps: [],
+  loadedPlugins: [],
+  // 提示词层状态(v1.6.1)—— 进程级,不随会话切换重置。
+  prompt: null,
+  promptPanelOpen: false,
+  openPromptPanel: () => set({ promptPanelOpen: true }),
+  closePromptPanel: () => set({ promptPanelOpen: false }),
   setGoalActive: (active) => set({ goalActive: active }),
 
   subscribe: () => {
@@ -250,6 +276,23 @@ export const useAgentStore = create<AgentState>((set, get) => {
   querySubagents: async (childId) => {
     // 应答经 subagent_status 事件异步到达,reducer 写 subagents.lastStatus。
     await reflect_query_subagents(childId);
+  },
+
+  /**
+   * v1.6.1:查询提示词层。应答经 `prompt_list` 事件异步到达,
+   * reducer 写入 `prompt`(进程级状态,不随会话切换重置)。
+   */
+  promptList: async () => {
+    await reflect_prompt_command({ type: 'list' });
+  },
+
+  /**
+   * v1.6.1:重扫提示词库 —— 用户改了 `.reflect/prompts/*.md` 后让改动
+   * 即时生效。应答经 `prompt_switched` 事件异步到达,reducer 写入
+   * `prompt` 并弹 toast。
+   */
+  promptRescan: async (layer) => {
+    await reflect_prompt_command({ type: 'switch', layer: layer ?? null });
   },
 
   enqueueMessage: (items, workspace) => {
@@ -403,10 +446,13 @@ export const useAgentStore = create<AgentState>((set, get) => {
       lastRouting: null,
       configReloadedAt: null,
       planFailover: null,
-      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
+      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
       toasts: [],
       goalActive: false,
       subagents: EMPTY_SUBAGENTS,
+      todos: [],
+      planSteps: [],
+      loadedPlugins: [],
     });
   },
   };

@@ -38,6 +38,9 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     // 2. 注册内置工具到共享 registry(MCP/LSP 后续也注册进来)。
     let tools = agent.inner.tools.clone();
     register_builtin_tools(&tools);
+    // 2a. 任务工具 —— GUI 里有任务板,agent 也得能驱动它(此前只有 GUI 侧
+    //     的 CRUD,agent 既看不到也改不了任务)。
+    super::subagents::register_task_tools(&tools, agent.task_manager());
 
     // 3. 构造 ModelRegistry(provider / degraded 两分支)。
     let registry = super::thread_factory::build_registry(&cfg_snapshot, Arc::clone(&tools));
@@ -47,12 +50,16 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     //     构建(Some);全无声明 → None(与 headless 行为对齐)。
     super::quota::install_quota_tracker(agent, &cfg_snapshot);
 
+    // 3b. 旧版桌面端记忆目录(`agent-memory/reflect/`)→ 当前活跃 agent
+    //     目录的迁移。记忆路径由 agent 名派生,不迁就会「GUI 写的记忆
+    //     agent 读不到」。失败只记日志,不阻断启动。
+    crate::memory_store::migrate_legacy_memory_dir(&workspace);
+
     // 4. 构造占位 AgentThread(sid = None,不挂 recorder / 不固定 id)。
     //    占位 thread 给首条消息前的 health-check / 状态命令兜底;
     //    `reflect_bind_session` 会触发 rebind 把它换成带 recorder 的真 thread。
     let thread = super::thread_factory::construct_thread(agent, None, vec![], None)
         .expect("install: construct_thread(占位) 不应失败");
-
     // 5. 写回 inner + 把共享 registry 记入 inner(rebind 复用)。
     *agent.inner.thread.lock() = Some(thread.clone());
     *agent.inner.model_spec.write() = model_spec.clone();
@@ -184,6 +191,38 @@ mod tests {
             assert!(
                 names.contains(&expected.to_string()),
                 "missing tool: {expected}"
+            );
+        }
+    }
+
+    /// 任务工具必须注册 —— GUI 里有任务板,agent 也得能驱动它。
+    ///
+    /// 此前桌面端只注册 15 个基础工具,任务工具**缺失** → GUI 建的 task
+    /// agent 既看不到也改不了(CLI 侧经 `reflect_task::register_task_tools`
+    /// 注册)。
+    #[test]
+    fn task_tools_are_registered() {
+        use reflect_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager};
+        use std::sync::Arc;
+
+        let tools = Arc::new(ToolRegistry::new());
+        let mgr = Arc::new(TaskManager::new(
+            Arc::new(InMemoryTaskStore::new()),
+            Arc::new(InMemoryTeamStore::new()),
+        ));
+        crate::state::subagents::register_task_tools(&tools, mgr);
+        let names = tools.list();
+        for expected in [
+            "TaskCreate",
+            "TaskGet",
+            "TaskUpdate",
+            "TaskList",
+            "TaskStop",
+            "TaskOutput",
+        ] {
+            assert!(
+                names.contains(&expected.to_string()),
+                "missing task tool: {expected}"
             );
         }
     }

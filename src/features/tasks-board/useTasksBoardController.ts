@@ -17,11 +17,16 @@ import {
   reflect_claim_task,
   reflect_create_task,
   reflect_delete_task,
+  reflect_delete_team,
   reflect_list_tasks,
   reflect_list_teams,
+  reflect_release_task,
+  reflect_stop_task,
   reflect_update_task,
+  reflect_upsert_team,
   type ReflectTask,
   type ReflectTaskStatus,
+  type ReflectTeam,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 
@@ -58,8 +63,16 @@ export interface TasksBoardController {
   error: unknown;
   refetch: () => void;
 
-  // Team 查询（驱动列表选择器）
+  // Team 查询(驱动列表选择器)
   teamNames: string[];
+  /** 团队全量数据(团队编辑器用)。 */
+  teams: ReflectTeam[];
+  /** 保存团队(核心 `upsert_team`)。失败时抛错,由编辑器展示。 */
+  upsertTeam: (team: ReflectTeam) => Promise<void>;
+  /** 删除团队(核心 `delete_team`)。失败时抛错。 */
+  deleteTeam: (name: string) => Promise<void>;
+  /** 团队写操作进行中。 */
+  teamBusy: boolean;
 
   // 视图 + 列表状态
   view: BoardView;
@@ -82,6 +95,15 @@ export interface TasksBoardController {
   claim: (task: ReflectTask) => Promise<void>;
   advance: (task: ReflectTask, status: ReflectTaskStatus) => Promise<void>;
   remove: (task: ReflectTask) => Promise<void>;
+  /** 停止进行中的任务(与核心 `TaskStopTool` 同语义)。 */
+  stop: (task: ReflectTask) => Promise<void>;
+  /** 释放已认领的任务(与核心 `TaskReleaseTool` 同语义)。 */
+  release: (task: ReflectTask) => Promise<void>;
+
+  // 详情抽屉(产出 / 描述)
+  /** 当前展开详情的任务(null = 未展开)。 */
+  selected: ReflectTask | null;
+  selectTask: (task: ReflectTask | null) => void;
 
   isMutating: boolean;
 }
@@ -157,6 +179,31 @@ export function useTasksBoardController(): TasksBoardController {
     mutationFn: ({ list, id }: { list: string; id: number }) =>
       reflect_delete_task(list, id),
     onSuccess: () => void invalidateTasks(),
+  });
+
+  // 停止 / 释放 —— 与核心 `TaskStopTool` / `TaskReleaseTool` 同款命令
+  // (守卫在命令层,不在前端重复实现)。
+  const stopMut = useMutation({
+    mutationFn: ({ list, id }: { list: string; id: number }) =>
+      reflect_stop_task(list, id),
+    onSuccess: () => void invalidateTasks(),
+  });
+
+  const releaseMut = useMutation({
+    mutationFn: ({ list, id }: { list: string; id: number }) =>
+      reflect_release_task(list, id),
+    onSuccess: () => void invalidateTasks(),
+  });
+
+  // 团队建 / 改 / 删 —— 核心 `TaskManager::upsert_team` / `delete_team`。
+  const upsertTeamMut = useMutation({
+    mutationFn: (team: ReflectTeam) => reflect_upsert_team(team),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['teams'] }),
+  });
+
+  const deleteTeamMut = useMutation({
+    mutationFn: (name: string) => reflect_delete_team(name),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['teams'] }),
   });
 
   const tasks = useMemo(() => tasksQ.data ?? [], [tasksQ.data]);
@@ -274,6 +321,73 @@ export function useTasksBoardController(): TasksBoardController {
     [deleteMut, pushToast],
   );
 
+  const stop = useCallback(
+    async (task: ReflectTask) => {
+      try {
+        await stopMut.mutateAsync({ list: task.list_id, id: task.id });
+        pushToast({ kind: 'success', message: `Stopped #${task.id}` });
+      } catch (e) {
+        pushToast({
+          kind: 'error',
+          message: `Stop failed: ${(e as Error).message}`,
+        });
+      }
+    },
+    [pushToast, stopMut],
+  );
+
+  const release = useCallback(
+    async (task: ReflectTask) => {
+      try {
+        await releaseMut.mutateAsync({ list: task.list_id, id: task.id });
+        pushToast({ kind: 'success', message: `Released #${task.id}` });
+      } catch (e) {
+        pushToast({
+          kind: 'error',
+          message: `Release failed: ${(e as Error).message}`,
+        });
+      }
+    },
+    [pushToast, releaseMut],
+  );
+
+  const [selected, setSelected] = useState<ReflectTask | null>(null);
+
+  /** 团队全量数据(团队编辑器用)。 */
+  const teams = useMemo(() => teamsQ.data ?? [], [teamsQ.data]);
+
+  const upsertTeam = useCallback(
+    async (team: ReflectTeam) => {
+      try {
+        await upsertTeamMut.mutateAsync(team);
+        pushToast({ kind: 'success', message: `Saved team “${team.name}”` });
+      } catch (e) {
+        pushToast({
+          kind: 'error',
+          message: `Save team failed: ${(e as Error).message}`,
+        });
+        throw e;
+      }
+    },
+    [pushToast, upsertTeamMut],
+  );
+
+  const deleteTeam = useCallback(
+    async (name: string) => {
+      try {
+        await deleteTeamMut.mutateAsync(name);
+        pushToast({ kind: 'success', message: `Deleted team “${name}”` });
+      } catch (e) {
+        pushToast({
+          kind: 'error',
+          message: `Delete team failed: ${(e as Error).message}`,
+        });
+        throw e;
+      }
+    },
+    [deleteTeamMut, pushToast],
+  );
+
   return {
     tasks,
     grouped,
@@ -282,6 +396,10 @@ export function useTasksBoardController(): TasksBoardController {
     refetch: tasksQ.refetch,
 
     teamNames,
+    teams,
+    upsertTeam,
+    deleteTeam,
+    teamBusy: upsertTeamMut.isPending || deleteTeamMut.isPending,
 
     view,
     setView,
@@ -301,11 +419,18 @@ export function useTasksBoardController(): TasksBoardController {
     claim,
     advance,
     remove,
+    stop,
+    release,
+
+    selected,
+    selectTask: setSelected,
 
     isMutating:
       createMut.isPending ||
       claimMut.isPending ||
       updateMut.isPending ||
-      deleteMut.isPending,
+      deleteMut.isPending ||
+      stopMut.isPending ||
+      releaseMut.isPending,
   };
 }

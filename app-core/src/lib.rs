@@ -14,11 +14,17 @@
 pub mod activity;
 pub mod actor;
 pub mod autopilot;
+pub mod discussion;
 pub mod kms;
 pub mod media;
+pub mod pipeline;
+pub mod pricing;
+pub mod sandbox;
 pub mod side_channel;
 pub mod squad;
+pub mod stats;
 pub mod tailscale;
+pub mod traces;
 
 /// 语义版本号（与 workspace 同步）。
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

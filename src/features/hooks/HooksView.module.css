@@ -70,3 +70,61 @@
   display: inline-flex;
   cursor: pointer;
 }
+
+/* ====== 可挂载的事件类型 ====== */
+.eventsPanel {
+  margin-top: var(--space-3);
+}
+
+.eventsToggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.eventsToggle:hover {
+  color: var(--text-primary);
+}
+
+.eventsCard {
+  margin-top: var(--space-2);
+}
+
+.eventsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.eventsRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--fs-xs);
+}
+
+.eventsMain {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.eventsDecisions {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}

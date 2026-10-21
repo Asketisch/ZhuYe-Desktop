@@ -43,6 +43,11 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 | 更改会话列表（侧栏） | `src/features/sessions/components/{Sidebar,WorkspaceGroup}.tsx`、`src/features/sessions/utils/workspaceGroups.ts`、`src/features/sessions/hooks/{useSessions,useCollapsedGroups}.ts`（HomeView / ThreadsView 的时间分桶在 `src/features/sessions/utils/buckets.ts` + `BucketGroup.tsx`） |
 | 更改设置持久化 | `src/features/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml,plans}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection,PlansSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
 | 更改 coding plan / 供应商切换 / 额度 failover | `src/features/settings/config/plans.ts`（纯函数）、`src/features/settings/sections/PlansSection.tsx`（设置入口）、`src/features/models/ModelsView.tsx`(一键切换)、`src/stores/agent/planFailover.ts`（耗尽自动切换）、`src-tauri/src/state/{quota,reload}.rs`（tracker 构建 + 热重载） |
+| 更改 OS 沙箱开关的生效口径 | `app-core/src/sandbox.rs`（唯一事实源：原始 TOML 表态 → 有效值 → 协议策略）、`src-tauri/src/state/sandbox.rs`（env 优先解析）、`src-tauri/src/state/submit.rs`（每轮盖章 `thread_settings.sandbox_policy`）、`src-tauri/src/commands/sandbox.rs`（状态口径）、`src/features/shell/StatusBar.tsx`（徽标）。见 `docs/CAPABILITIES.md` §3.19 |
+| 增删命令面板条目 | `src/features/command-palette/registry.ts`（条目表）、`src/features/command-palette/CommandPalette.tsx`（props 透传）、`src/features/shell/hooks/usePaletteActions.ts`（动作实现）、`src/features/shell/AppShell.tsx`（接线） |
+| 渲染 plan 执行进度 / 插件挂载 | `src/stores/agent/reducer.ts`（`plan_step` / `plugin_loaded` 分支）、`src/stores/agent/types.ts`（`PlanStepState` / `PluginLoadedInfo`）、`src/features/plan/PlanView.tsx`、`src/features/collaboration/PluginsPanel.tsx` |
+| 改动任务板 / 团队管理 | `src/features/tasks-board/{TasksBoardView,useTasksBoardController,TeamEditor}.tsx/ts`、`src/utils/commands/teams.ts`（团队 CRUD 包装 + `SystemTime` 形态） |
+| 改动审批弹窗的「始终允许」 | `src/features/modals/ApprovalModal.tsx`、`src/features/modals/allowRule.ts`（规则推导，纯函数）、`src-tauri/src/commands/permissions.rs`（`reflect_add_permission_rule` → 核心用户级权限文件）、`src/stores/agent/types.ts`（`PendingApproval.args` 原始参数） |
 | 更改主题 / 设计令牌 | `src/styles/tokens.css`、`src/features/design-system/DesignSystemView.tsx` |
 | 添加托盘图标 / 菜单 / 快捷键 | `src-tauri/src/{tray,menu,shortcut}.rs`、`src-tauri/src/lib.rs` |
 | macOS dock 徽标 | `src-tauri/src/dock.rs` |
@@ -77,10 +82,10 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 | `home` | `features/home/HomeView.tsx` | 仪表盘 / 快速操作 |
 | `messages` | `features/messages/{ChatView,MessageList,ToolCells,Collapsible,Composer,Composer.module,MessageList.module,ChatView.module,ToolCells.module,Collapsible.module}.{tsx,css}` | 聊天滚动回退 + 行；Composer 现在是薄 re-export 存根 → `features/composer/Composer` |
 | `composer` | `features/composer/{Composer,SlashPopup,MentionPicker,AttachmentBar}.tsx` + `slashCommands.ts` + `slashEngine.ts` + `useComposerInput.ts` + `useComposerSubmission.ts` + `useAttachments.ts` + `usePromptHistory.ts` | 自有 Composer + 斜杠引擎 |
-| `shell` | `features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx` + `features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts` | IDE 5 栏布局 + 有状态 shell 钩子 |
+| `shell` | `features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell,TodoPanel}.tsx` + `features/shell/RuntimeStatusSections.tsx` + `features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts` | IDE 5 栏布局 + 有状态 shell 钩子；`TodoPanel` 渲染 agent 的 todo 清单（来自 `TodoWrite` 工具输出元数据） |
 | `modals` | `features/modals/{ModalShell,index}.tsx` + `{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal}.tsx` | 审批 / 问题 / 计划 / AskUser |
 | `sessions` | `features/sessions/{components/{Sidebar,WorkspaceGroup},hooks/useSessions}.{tsx,ts}` + `utils/{workspaceGroups,pins}.ts` + 测试 | 项目目录分组侧栏（可折叠；置顶区 + 归档区；时间分桶仍服务 HomeView / ThreadsView） |
-| `settings` | `features/settings/{SettingsView,ConfigForm,configSchema}.tsx` + `features/settings/config/{schema,toml}.ts` + `features/settings/components/{StructuredField,ComplexEditors}.tsx` + `features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection}.tsx` | 显示 / 编辑器 / 提供程序 + 结构化配置表单 |
+| `settings` | `features/settings/{SettingsView,ConfigForm,configSchema}.tsx` + `features/settings/config/{schema,toml}.ts` + `features/settings/components/{StructuredField,ComplexEditors}.tsx` + `features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection,PlansSection,PermissionRulesSection,SecurityScanCard}.tsx` | 显示 / 编辑器 / 提供程序 + 结构化配置表单 + 更新检查 / 安全扫描 |
 | `models` | `features/models/ModelsView.tsx` | 模型选择器 |
 | `workspaces` | `features/workspaces/WorkspacesView.tsx` | 工作区选择器（M3.x） |
 | `git` | `features/git/{GitView,PullRequestsView}.tsx` | Git 面板（stage/unstage/commit 操作化）+ gh PR 列表（/pulls） |
@@ -156,7 +161,7 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 
 `reflect-agent/` 是上游 `Reflect-Agent` 仓库 reflect-* crate 的只读 git submodule 镜像，通过 `git submodule update --remote` 升级（完整流程见 `SUBMODULE.md`）。引用的 crate 集合由根 `Cargo.toml` 的 `[workspace.dependencies]` 声明（如 `reflect-agent/crates/protocol/reflect-protocol/`、`reflect-agent/crates/runtime/reflect-core/` 等）。
 
-`app-core/`（与 `reflect-agent/` 平级的本仓库 crate）承载 Tauri 命令层的 UI 无关领域服务（activity / kms / media / squad / side-channel / tailscale / autopilot / actor）；GUI 渲染状态由前端 `src/stores/agent/` 负责。上游核心改动优先改 Reflect-Agent 仓库，再升级 submodule。
+`app-core/`（与 `reflect-agent/` 平级的本仓库 crate）承载 Tauri 命令层的 UI 无关领域服务（activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / stats / sandbox）；GUI 渲染状态由前端 `src/stores/agent/` 负责。上游核心改动优先改 Reflect-Agent 仓库，再升级 submodule。
 
 ---
 

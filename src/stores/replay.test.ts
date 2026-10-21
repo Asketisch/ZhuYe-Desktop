@@ -213,6 +213,7 @@ describe('turnsFromRollout', () => {
       removedMessages: 15,
       tokensSaved: 0,
       last: 'smart_prune: 3 msgs',
+      records: [],
     });
   });
 
@@ -231,7 +232,7 @@ describe('turnsFromRollout', () => {
   it('returns empty turns and zeroed stats for an empty record stream', () => {
     expect(turnsFromRollout([])).toEqual({
       turns: [],
-      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
+      compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
     });
   });
 });

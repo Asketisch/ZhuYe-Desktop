@@ -134,3 +134,71 @@
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
+
+/* ====== LSP 诊断(Problems)面板 ====== */
+.problems {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.problemsHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.problemsEmpty {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.problemsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.problemRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.problemRow[data-severity='error'] {
+  color: var(--danger);
+}
+
+.problemRow[data-severity='warning'] {
+  color: var(--warning);
+}
+
+.problemLoc {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.problemMsg {
+  flex: 1;
+  color: inherit;
+  word-break: break-word;
+}
+
+.problemSource {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}

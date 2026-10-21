@@ -10,7 +10,8 @@
  * `src-tauri/src/commands/agents.rs` ↔ `reflect-agent/crates/abilities/reflect-agent-def`。
  * 存储：`~/.reflect/agents/<name>.md`，与 TUI/CLI 共享。
  */
-import { Bot, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Bot, Plus, Pencil, Trash2, Check } from 'lucide-react';
+import { useState } from 'react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Badge, Card, EmptyState, Icon, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
@@ -21,11 +22,16 @@ import {
   type ReflectAgentDef,
 } from './useAgentsController';
 import { AgentEditor } from './AgentEditor';
+import { SubagentSpecsPanel } from './SubagentSpecsPanel';
 import s from './AgentsView.module.css';
 
 export function AgentsView() {
   const ctrl = useAgentsController();
   const { t } = useI18n();
+  // 两个页签:**agent 定义**(主 agent 的 system prompt / 工具白名单)与
+  // **子代理 spec**(`call_<role>` 工具的来源)—— 是两套不同的东西,
+  // 此前后者完全没有编辑面。
+  const [tab, setTab] = useState<'defs' | 'subagents'>('defs');
 
   return (
     <PageShell
@@ -34,17 +40,71 @@ export function AgentsView() {
       subtitle={t('agents.subtitle')}
       width="lg"
       actions={
-        <button
-          type="button"
-          className={s.addBtn}
-          onClick={ctrl.beginCreate}
-          disabled={ctrl.isEditing}
-          data-testid="agents-add-btn"
-        >
-          <Icon icon={Plus} size={12} /> {t('agents.new')}
-        </button>
+        <>
+          <div className={s.tabBar} role="tablist" aria-label={t('agents.tabs')}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'defs'}
+              className={s.tab}
+              data-active={tab === 'defs' || undefined}
+              onClick={() => setTab('defs')}
+              data-testid="agents-tab-defs"
+            >
+              {t('agents.tab.defs')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'subagents'}
+              className={s.tab}
+              data-active={tab === 'subagents' || undefined}
+              onClick={() => setTab('subagents')}
+              data-testid="agents-tab-subagents"
+            >
+              {t('agents.tab.subagents')}
+            </button>
+          </div>
+          {tab === 'defs' && (
+            <button
+              type="button"
+              className={s.addBtn}
+              onClick={ctrl.beginCreate}
+              disabled={ctrl.isEditing}
+              data-testid="agents-add-btn"
+            >
+              <Icon icon={Plus} size={12} /> {t('agents.new')}
+            </button>
+          )}
+        </>
       }
     >
+      {tab === 'subagents' ? (
+        <SubagentSpecsPanel />
+      ) : (
+        <>
+      {/* 活跃 agent —— 运行时实际加载的那条定义。桌面端此前硬编码 agent
+          名,这个视图能编辑定义但运行时永远不加载 —— 现在可以切换。 */}
+      {ctrl.activeAgent && (
+        <Card level="flat" padding="sm" className={s.activeCard} data-testid="agents-active">
+          <div className={s.activeHeader}>
+            <span className={s.activeLabel}>{t('agents.active.current')}</span>
+            <code className={s.activeName}>{ctrl.activeAgent.name}</code>
+            {!ctrl.activeAgent.defFound && (
+              <Badge variant="neutral">{t('agents.active.builtin')}</Badge>
+            )}
+          </div>
+          <p className={s.activeMeta}>
+            {t('agents.active.memoryScopes')}:{' '}
+            {ctrl.activeAgent.memoryScopes.length > 0
+              ? ctrl.activeAgent.memoryScopes.join(', ')
+              : t('agents.active.noMemoryScopes')}
+            {' · '}
+            {t('agents.active.budget')}: {ctrl.activeAgent.injectBudgetChars}
+          </p>
+        </Card>
+      )}
+
       {/* Editor */}
       {ctrl.isEditing && ctrl.draft && (
         <AgentEditor
@@ -82,11 +142,16 @@ export function AgentsView() {
             <AgentRow
               key={def.name}
               def={def}
+              active={ctrl.activeAgent?.name === def.name}
+              switching={ctrl.isSwitchingAgent}
+              onActivate={() => void ctrl.setActiveAgent(def.name)}
               onEdit={() => ctrl.beginEdit(def)}
               onRemove={() => void ctrl.remove(def)}
             />
           ))}
         </div>
+      )}
+        </>
       )}
     </PageShell>
   );
@@ -94,25 +159,44 @@ export function AgentsView() {
 
 function AgentRow({
   def,
+  active,
+  switching,
+  onActivate,
   onEdit,
   onRemove,
 }: {
   def: ReflectAgentDef;
+  active: boolean;
+  switching: boolean;
+  onActivate: () => void;
   onEdit: () => void;
   onRemove: () => void;
 }) {
   const { t } = useI18n();
   return (
-    <div className={s.row} data-testid={`agent-row-${def.name}`}>
+    <div className={s.row} data-testid={`agent-row-${def.name}`} data-active={active || undefined}>
       <div className={s.rowMain}>
         <code className={s.rowName}>{def.name}</code>
         <span className={s.rowDesc}>{def.description}</span>
         {def.model && <Badge variant="accent">{def.model}</Badge>}
         {def.readonly && <Badge variant="neutral">{t('agents.readonly')}</Badge>}
         {def.spawnable && <Badge variant="success">{t('agents.spawnable')}</Badge>}
+        {active && <Badge variant="info">{t('agents.active.badge')}</Badge>}
       </div>
       <div className={s.rowSide}>
         <div className={s.rowActions}>
+          {!active && (
+            <button
+              type="button"
+              className={s.actionBtn}
+              onClick={onActivate}
+              disabled={switching}
+              title={t('agents.active.set')}
+              data-testid={`agent-activate-${def.name}`}
+            >
+              <Icon icon={Check} size={12} />
+            </button>
+          )}
           <button
             type="button"
             className={s.actionBtn}

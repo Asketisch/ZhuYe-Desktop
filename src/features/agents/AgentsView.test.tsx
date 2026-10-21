@@ -35,6 +35,7 @@ vi.mock('@/utils/commands', async () => {
           memory: ['project'],
           mcp_collections: [],
           system_prompt: 'You are strict.',
+          source: 'custom',
         },
       ];
     }),
@@ -48,6 +49,23 @@ vi.mock('@/utils/commands', async () => {
     }),
     reflect_get_agent_def: vi.fn(async () => null),
     reflect_parse_agent_md: vi.fn(async () => null),
+    reflect_get_active_agent: vi.fn(async () => ({
+      name: 'default',
+      defFound: false,
+      memoryScopes: [],
+      injectBudgetChars: 8000,
+      memoryPaths: [],
+    })),
+    reflect_set_active_agent: vi.fn(async (name: string) => {
+      calls.push({ cmd: 'reflect_set_active_agent', args: { name } });
+      return {
+        name,
+        defFound: true,
+        memoryScopes: ['project'],
+        injectBudgetChars: 8000,
+        memoryPaths: [],
+      };
+    }),
   };
 });
 
@@ -119,6 +137,33 @@ describe('AgentsView', () => {
         calls.some(
           (c) =>
             c.cmd === 'reflect_delete_agent_def' &&
+            (c.args as { name: string }).name === 'reviewer',
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it('shows the active agent and its memory scopes', async () => {
+    // 活跃 agent 卡片 —— 让「GUI 编辑的 agent 定义 / 记忆,运行时用不用」
+    // 变得可见(此前桌面端硬编码 agent 名,这个视图是死胡同)。
+    render(wrap(<AgentsView />));
+    await waitFor(() => screen.getByTestId('agents-active'));
+    const card = screen.getByTestId('agents-active');
+    expect(card.textContent).toContain('default');
+    expect(card.textContent).toContain('Memory scopes');
+    // 未声明作用域时必须点明「不会注入记忆」。
+    expect(card.textContent).toContain('none declared');
+  });
+
+  it('switches the active agent through reflect_set_active_agent', async () => {
+    render(wrap(<AgentsView />));
+    await waitFor(() => screen.getByTestId('agent-activate-reviewer'));
+    fireEvent.click(screen.getByTestId('agent-activate-reviewer'));
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (c) =>
+            c.cmd === 'reflect_set_active_agent' &&
             (c.args as { name: string }).name === 'reviewer',
         ),
       ).toBe(true);

@@ -11,7 +11,7 @@
  * active 态从当前 location 派生。
  */
 import { useEffect, useRef, useState } from 'react';
-import { MessageSquare, FolderGit2, Wrench, GitBranch, Bell, Settings, Info, Terminal, Home, FolderKanban, Clock, Bot, Workflow, Wifi, Mic, BookOpen, Zap, Users, Image, Search, Ellipsis, GitPullRequestArrow, Webhook } from 'lucide-react';
+import { MessageSquare, FolderGit2, Wrench, GitBranch, Bell, Settings, Info, Terminal, Home, FolderKanban, Clock, Bot, Workflow, Wifi, Mic, BookOpen, Zap, Users, Image, Search, Ellipsis, GitPullRequestArrow, Webhook, Activity, Gauge } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useRouter, useLocation } from '@tanstack/react-router';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
@@ -46,6 +46,8 @@ const PRIMARY: NavItem[] = [
   { to: '/autopilot', labelKey: 'shell.nav.autopilot', icon: Zap },
   { to: '/squad', labelKey: 'shell.nav.squad', icon: Users },
   { to: '/media', labelKey: 'shell.nav.media', icon: Image },
+  { to: '/traces', labelKey: 'shell.nav.traces', icon: Activity },
+  { to: '/usage', labelKey: 'shell.nav.usage', icon: Gauge },
 ];
 
 const SECONDARY: NavItem[] = [
@@ -70,6 +72,8 @@ const MORE_GROUPS: { titleKey: LocaleKey; items: NavItem[] }[] = [
       { to: '/terminal', labelKey: 'shell.nav.terminal', icon: Terminal },
       { to: '/skills', labelKey: 'shell.nav.skills', icon: Wrench },
       { to: '/hooks', labelKey: 'shell.nav.hooks', icon: Webhook },
+      { to: '/traces', labelKey: 'shell.nav.traces', icon: Activity },
+      { to: '/usage', labelKey: 'shell.nav.usage', icon: Gauge },
     ],
   },
   {

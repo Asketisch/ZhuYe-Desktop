@@ -4,6 +4,365 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — 核心能力覆盖审计:把「harness 基座的能力」真正在 GUI 里用起来、看起来
+
+此前的工作止于**协议对齐**(Op/EventMsg 有对应命令与类型),但基座的
+能力面远大于此 —— 大量能力在 GUI 里既用不到也看不到。本轮以
+`docs/CAPABILITIES.md`(核心能力 → GUI 覆盖矩阵)为纲,闭合其中六块:
+
+- **权限层接线(安全行为分叉修复)** —— CLI 装了三层权限 store
+  (`config.toml [permissions]` > `<workspace>/.reflect/permissions.toml` >
+  `~/.reflect/permissions.toml`),桌面端**根本没挂**
+  `AgentConfig::with_permission_resolver`(`reflect-permissions` 在
+  `src-tauri/Cargo.toml` 声明却从未使用):同一份配置在 CLI 里生效的
+  `deny` 规则,在桌面端被静默忽略。现按 CLI(`reflect-exec` 的
+  `apply_permission_layers`)同构装配(`state/permissions.rs`),
+  并新增 `reflect_list_permission_rules` + Settings → Permissions
+  分节的「生效的权限规则」列表(只读,按匹配顺序展示)。
+- **Skills 列表与运行时对齐** —— 桌面端手写的扫描器扫的是 `cwd`
+  而运行时扫 `<workspace>`,且**漏掉** `merge_bundled` 的内置技能:
+  GUI 列出的技能少于 agent 实际能激活的。改用核心的
+  `reflect_skills::{scan_skills_dirs, bundled_skills}`,目录与合并
+  语义与运行时逐行一致;DTO 补 `bundled` / `whenPaths` / `version` /
+  `body` / `pluginId`,UI 加「内置」徽标与路径自动激活条件。
+- **会话笔记只读面** —— agent 经 `AddSessionNoteTool` 写进
+  `<notes_home>/session-notes/<thread_id>.jsonl` 的持久结论,此前
+  **只有写、没有读**。新增 `reflect_list_session_notes` /
+  `reflect_list_note_sessions` + Memory 视图的「会话笔记」面板。
+- **Span 日志(trace 树)** —— Traces 视图此前只读 model-io,从不读
+  span 日志:turn → model → tool 的父子链、耗时归因、`reflect_goal`
+  事件全部不可见。新增 `app-core::traces::{list_span_logs,
+  read_span_log}`(含树深度推导,父链缺失/成环均有防护)+
+  `reflect_list_span_logs` / `reflect_read_span_log` + Traces 视图
+  「Span 树」页。
+- **OS 沙箱有效状态** —— 设置页有 `[sandbox].os_level` 开关,却看不到
+  实际是否在 Seatbelt / Landlock 里跑。新增 `reflect_sandbox_status`
+  + 状态栏徽标。(口径后由下方「OS 沙箱开关真正生效」重做)
+- **OS 沙箱开关真正生效(此前是死旋钮)** —— `[sandbox].os_level` 是 GUI 里
+  唯一一个**写了不生效**的安全开关:核心的 OS 沙箱有三条来源(配置 /
+  协议 `sandbox_policy` / env `REFLECT_SANDBOX_OS_LEVEL`),桌面端此前
+  **一条都没接** → `ctx.os_sandbox` 恒为 `None` → BashTool 走
+  `OsSandbox::from_env()` → env 未设置时**默认开启** → 配置写 `false`
+  也没用,状态栏显示的还是 env 推导值。CLI 侧同样如此(桥接只处理
+  `true`,`false` 分支落空)—— 该旋钮在**两个前端**都是死的。
+  - `app-core/src/sandbox.rs`(新,纯函数):原始 TOML 里
+    `[sandbox].os_level` 是否显式写过 → **没表态走核心基线(开启)**,
+    显式值原样;env 优先于配置(与核心 CLI 注释一致)。
+  - 每轮提交时在 `Op::UserInput.thread_settings.sandbox_policy` 盖策略
+    (开 → `OsSandbox`,关 → `WorkspaceOnly`;核心映射为
+    `ctx.os_sandbox`)→ **前台 bash 与后台 bash 同时生效**,配置改动
+    下一轮即生效。走协议通道而非改进程 env(Rust 2024 下
+    `std::env::set_var` 是 `unsafe`,多线程进程改 env 有 UB 风险),
+    且**无条件覆盖**客户端传来的策略(沙箱是安全设置)。
+  - 状态口径重做:改用与工具同一个构造器 `OsSandbox::with_enabled`,
+    新增 `enabled` / `envOverride` 字段 —— 用户用 env 覆盖时在 tooltip
+    里如实标注,否则「拨开关看不到变化」会被当成 bug。
+  - 上游残留建议:核心 `SandboxSection::os_level` 应为 `Option<bool>`
+    (现在是 `bool` + `#[serde(default)]`,「没写」与「写了 false」在
+    核心侧不可区分);桌面端已用「原始 TOML 是否含该 key」侧补齐。
+- **Token 计算做深(模型级用量 + 计价可解释)** ——
+  - store 侧:`TokenSnapshot` 增 `byModel`(会话内**按模型**累计)与
+    `sessionTotal`(真实会话累计 —— 此前「累计 tokens」实为单次值);
+    切会话时一并清空(否则 Inspector 的「按模型」挂着上个会话的行)。
+  - Inspector:token 段增「模型」行 + 「按模型（会话累计）」子区块;
+    「累计 tokens」改用 `sessionTotal`。
+  - `/usage` 视图:新增「实时（本次会话）」与「费率」两个区块。
+  - `app-core/src/pricing.rs`:用 4 次合成用量**反解**核心静态费率表
+    (`price()` 对 usage 线性)得每模型输入/输出/缓存读/缓存写单价 ——
+    唯一事实源仍是核心的表,桌面端不持第二份,表更新后 GUI 自动跟随。
+  - 逐次压缩明细:`CompactionStats` 增 `records`(封顶 50 条),Inspector
+    增可展开的明细列表(此前只有一行 hover 摘要)。
+  - 提示词生效正文:`reflect_get_effective_prompt` 返回当前模型经
+    `reflect_prompt::library().resolve(spec)` 解析后的 section 正文,
+    PromptLayersModal 按需展开 —— 模型真正吃到的那段提示词。
+- **活跃 agent 接线(GUI 的 Agents 视图此前是死胡同)** —— 核心按
+  **名字**找 agent 定义(CLI 用 `--agent`,缺省 `"default"`),桌面端却
+  **硬编码 `"desktop"`**,导致两个后果:(1) 用户在 GUI 的 Agents 视图
+  创建/编辑的 agent 定义,运行时**永远不加载**;(2) 记忆文件路径由
+  agent 名派生,GUI 写 `agent-memory/reflect/`、运行时读
+  `agent-memory/<agent>/` —— **GUI 里编辑的记忆,agent 根本读不到**。
+  修复:新增 `src-tauri/src/agent_state.rs`(活跃 agent 名存桌面端
+  偏好 `~/.reflect/desktop.json`,缺省 `"default"` 与 CLI 一致);线程
+  构造改用该名;记忆路径改经**核心的 `reflect_memory::resolve_path`**
+  解析(与运行时 pre_loop 注入逐字一致);旧版 `agent-memory/reflect/`
+  数据在启动时一次性迁移(目标存在则不覆盖);新增
+  `reflect_get_active_agent` / `reflect_set_active_agent`(切换后
+  replay 历史并强制重绑,与 provider 热重载同款语义),Agents 视图新增
+  「当前活跃」卡片 + 逐条「设为活跃」按钮,Memory 视图新增提示:agent
+  未声明 `memory` 作用域时写入内容不会被注入 system prompt。
+  另加不变量测试:GUI 记忆路径 == 核心 `resolve_path` 结果。
+- **LSP 诊断(Problems)** —— LSP 开着、文件也预热了,但编译/检查器反馈
+  **一条都看不到**:诊断只进了 core 的 `DiagnosticRegistry` 被动缓存。
+  新增 `reflect_lsp_diagnostics(path)`(读 core 的
+  `LspConnectionManager::diagnostics()`,与核心 `LspTool` 同款「只读被动
+  缓存」语义),`LspStatus` 增诊断聚合,Files 视图编辑区下方新增
+  **Problems 面板**(当前文件的诊断,随打开轮询)。
+- **任务产出 / 停止 / 释放** —— 任务板此前只能看到 subject / 状态 /
+  认领人,**看不到 worker 产出了什么**,也停不下卡住的 worker。新增三个
+  命令,语义与核心工具**同款**(守卫在命令层):`reflect_get_task_output`
+  (读任务 `output_path`,不阻塞)、`reflect_stop_task`(守卫
+  `in_progress`,退回 pending + 清 owner)、`reflect_release_task`
+  (守卫存在 `claimed_by`,退回 pending + 清 claimed_by/claimed_at)。
+  任务板行内加「详情 / 停止 / 释放」+ **详情抽屉**(描述 + 产出路径 +
+  产出内容)。
+- **MCP 服务管理(扩展机制的自助入口)** —— MCP 是基座最主要的扩展机制,
+  但 GUI 此前**只能观测**:加一个 server 必须手改 `config.toml` 的
+  `[mcp_servers.<name>]`(Collaboration 视图空态原话就是「Add an
+  `[mcp_servers.<name>]` section in Settings → Advanced」)。新增 4 个命令:
+  `reflect_list_mcp_servers`(配置 + 运行状态)、`reflect_mcp_catalog`
+  (核心内置的**精选 catalog**,离线清单 + 安装提示,解决「我不知道能装
+  哪些」)、`reflect_upsert_mcp_server` / `reflect_delete_mcp_server`
+  (改内存 config → 经**核心 `mcp_server_configs()` 编译校验**(非法配置
+  不落盘)→ 落盘 → 运行时起停 + 注册/反注册其工具)。运行时起停复用
+  `mcp::start_one_server` / `stop_one_server`,与启动时的 `bootstrap_mcp`
+  同款路径(含 `McpToolInvoked` 事件通道)。Collaboration 视图新增
+  **McpManager 面板**:已配置列表(运行状态 + 失败原因 + 删除)、新增表单
+  (stdio command+args / http+sse url)、精选 catalog 一键加入。
+- **插件管理** —— GUI 此前只能看到插件带来的 **slash 命令**:装了什么、
+  哪个加载失败、启用哪些、marketplace 有哪些全部不可见;启停只能手改
+  `config.toml` 的 `[plugins] enabled_plugins`,卸载只能手改
+  `installed_plugins.json`。新增 `reflect_list_plugins`(已装 + 是否启用,
+  启用态与运行时挂载集合同源)、`reflect_list_marketplaces`、
+  `reflect_toggle_plugin`(改 config → 落盘 → 核心 `reload_plugins`
+  diff 同步,挂/卸不打断会话)、`reflect_uninstall_plugin` /
+  `reflect_install_plugin`(经核心 `PluginManager`,含 manifest 校验)。
+  Collaboration 视图新增 **PluginsPanel**(启停开关 + 卸载 + marketplace
+  + 本地安装表单,目录选择器复用既有的 `reflect_pick_workspace_folder`)。
+- **工具注册表补齐(agent 侧「能不能用」的关键缺口)** —— 桌面端此前只注册
+  **15 个基础工具**,缺三族:① 任务工具(`reflect_task::register_task_tools`)
+  —— GUI 建的 task,agent **既看不到也改不了**,任务板对 agent 是单向的;
+  ② 会话笔记工具(`AddSessionNoteTool`)—— agent 写不了笔记,本次新增的
+  笔记读取面**永远是空的**;③ 子代理 `call_<role>` 工具 —— agent 无法
+  委派子任务,Inspector 的子代理区块**永远是空的**。CLI 三族都注册
+  (`reflect-exec` 的 `bootstrap_m5` + `headless.rs`),两个前端能力不一致。
+  新增 `state/subagents.rs`:任务工具进程级注册、笔记工具每会话注册
+  (store 路径含 thread id)、子代理按 CLI 口径合并 spec(TOML >
+  workspace md > home md > 硬编码 explorer)并把 `call_<role>` 补进
+  always-on 可见集(否则模型请求里没有子代理 schema,LLM 永远无法委派)。
+- **运行时状态可观测(S 级批量)** —— 四项基座有、GUI 完全看不到的「系统此刻
+  怎么了」,补齐只读面:① **凭证池健康度**
+  (`reflect_credential_pool_status` → Inspector;核心的 cooldown 集合是私有
+  字段,用 `healthy_clients()` 的健康集合反推「总数 − 健康 = 冷却中」,冷却
+  **原因**在核心内不公开故不编造);② **已完成的子代理调用**
+  (`reflect_recovery_state` → Inspector;读 core 的 `SubagentRegistry` 快照,
+  回答「agent 刚才派了哪些子代理、结论是什么」);③ **记忆分段**
+  (`reflect_memory_sections` → Memory 视图;用 core 的 `split_sections` 按
+  `## ` 切分 + 注入预算占用 —— GUI 此前显示整份原文,而 agent 实际吃的是
+  切分 + 筛选后的条目);④ **配置位置与分析健康度**
+  (`reflect_config_info` → Settings 侧栏顶部;手改 config.toml 的用户终于
+  知道应用读的是哪个文件)。
+  AST 语言网格**有意不接**:核心的 grammar 由 `lang-*` feature 编译,桌面端
+  未启用任何 grammar → 列表恒为空,启用会把 tree-sitter 语法包拉进桌面
+  构建(独立的构建决策,非接线缺口)。
+- **又一批能力面** —— ① **worktree 状态**(`reflect_list_worktrees` → Git
+  视图;核心的 worktree 状态在 `ToolContext` 里读不到,但 worktree 文件系统
+  可见 —— `git worktree list --porcelain` + 核心 `worktree_dirty` 判脏,
+  标出 `isolated` 与 **`stranded`**(隔离 + 有未提交改动 → 改动还没落回
+  主分支,丢工风险));② **MCP 资源 / prompt**
+  (`reflect_list_mcp_resources` / `_prompts` → McpManager;三大原语里此前
+  只有 tools 对用户可达,现直接问 rmcp peer,与核心 `ListMcp*Tool` 同源);
+  ③ **子代理 spec**(`reflect_list/get/save/delete_subagent_spec` → Agents
+  视图新增页签;与 agent 定义是两套东西,此前 `call_<role>` 工具的来源
+  **无任何编辑面**,现按运行时同款口径合并(TOML > workspace md > home md
+  > 硬编码 explorer),编辑器改原始 md,写前由后端 `parse_subagent_str` 校验);
+  ④ **BM25 搜索**(`reflect_search_files` 增 `rank` 参数 → Search 视图;
+  复用核心 `reflect_tools::bm25::{tokenize, rank_lines}`,`k1=1.2`/`b=0.75`
+  与核心 grep 工具逐字一致);⑤ **Hook 事件类型**
+  (`reflect_list_hook_events` → Hooks 视图;此前只列 name/kind/enabled,
+  用户不知道能在哪些时机挂 hook、能做什么决策,现列出 12 个事件 + 可用决策)。
+- **Pipeline 配置编辑** —— 此前 GUI 只能**跑**一个已有的 TOML 文件(还得
+  手写),新增拓扑只能靠「手改文件 + 跑失败才知道写错了」。新增
+  `reflect_validate_pipeline`(校验走核心 `Pipeline::from_toml`,与**实际运行
+  同一条路径**;结构摘要只读顶层 `nodes` 表,不复刻核心 schema)、
+  `reflect_list_pipeline_configs` / `reflect_save_pipeline_config`
+  (落盘 `~/.reflect/pipelines/<name>.toml`,**写前先校验,非法不落盘**)。
+  Collaboration 视图新增 Pipeline 编辑器(TOML 文本框 + 防抖实时校验 +
+  节点徽标 + 缺 team 提示 + 保存)。
+- **安全扫描** —— 审计初稿把核心的 `reflect_integration::security_scan`
+  标为「上游 stub」,**核实后是错的**:它是**真实实现**(`cargo audit`、
+  30s 超时、管道排空、IO 错误落结构化报告而非 panic)。新增
+  `reflect_run_security_scan`(阻塞调用放 `spawn_blocking`,不占住 async
+  worker)+ Settings → Advanced 的「安全扫描」卡片。
+- **审计结论修正**:① `reflect-integration` 的安全扫描**不是** stub;② 核心的
+  `TodoWriteTool` **工具本身是实装的**(占位的只是它的 `manager` 字段 ——
+  上游注释「Phase 1 不用,仅占位避免破坏 register_all 签名」指该字段)。
+- **agent 的 todo 清单(`TodoWrite`)** —— 核心把清单写进
+  `ToolOutput.metadata.todos`(`{ content, status, activeForm }`,整体覆盖
+  语义),此前 GUI **完全看不到**。现由 reducer 在 `tool_call_end` 分支按
+  `toolName === 'TodoWrite'` 提取到 `AgentState.todos`,Inspector「概览」新增
+  Todo 清单面板(完成数 / 总数徽标 + 每项状态徽标 + 已完成项删除线)。
+  纯前端接线,零后端改动。
+  > 注:核心 `TodoRow` 带 `rename_all = "camelCase"` → 线上字段是
+  > **`activeForm`** 而非 `active_form`;reducer 同时接受两种写法。
+- **能力覆盖矩阵文档** —— 新增 `docs/CAPABILITIES.md`:基座 30+ 能力族
+  逐项标注 ✅ / 🟡 / ❌ / ⛔,含本轮闭合项的根因说明,以及剩余 1 项
+  (**需上游变更**:todo 清单**只出不进** —— 基座无消费方,清单没回灌
+  模型上下文,LLM 写完即忘)。
+  缺口(按用户感知价值排序、含落点与规模估计)与 2 项需上游 API 变更的
+  说明(`GoalController` 无公开 `GoalState` 读取口;todo 清单回灌需上游
+  reducer)。
+  > 原先并列的「`[sandbox].os_level` 语义差」已由本批次的「OS 沙箱开关
+  > 真正生效」在**桌面端闭环**,不再是缺口。
+- **反向审计:「有命令无界面」的三处漏网** —— 换成矩阵自己的判定标准
+  (「命令存在 + 前端有消费面」两项都满足)去扫**全部** 182 个后端命令
+  与 114 个前端包装,而不再只问「基座有什么没接」。
+  - 扫描结论:**零死命令**;12 个前端包装无界面消费,逐个核实后分三类
+    (详见 `docs/CAPABILITIES.md` §3.20 的分类表)。
+  - **Markdown 转录导出有入口了** —— 命令面板新增「导出当前会话(Markdown)」
+    (核心 `to_markdown` + 用量小节)。此前 GUI 只能导出 JSON 原始记录,
+    核心的 `to_markdown` 能力**完全用不到**。
+  - **更新检查有界面了** —— 新建 `src/features/settings/sections/UpdatesSection.tsx`
+    (正是 `AGENTS.md` 同步检查表点名的路径,此前**文件不存在**):当前版本、
+    点按探测、「已是最新 / 有新版 vX」徽标、发布说明、发布页链接;探测失败
+    **如实展示** `error`。顺带把后端 `UpdateInfo` 的 DTO 改成 camelCase
+    (桌面端出线约定,此前是 snake_case)。
+  - **两条「有类型无渲染」的事件接上了** —— reducer 里 `plan_step` 与
+    `plugin_loaded` 的分支原本是 `return {}`(注释写着「TODO:接入 plan
+    步骤 UI」/「TODO:展示到 plugins panel」):**事件在流里,界面上什么
+    都不发生**。
+    - `plan_step` → reducer 按 `index` 就地更新或追加(与核心 TUI 语义
+      同构),Plan 视图新增「执行进度」清单。此前 agent 执行已批准的 plan
+      时**执行到哪一步完全不可见**(GUI 只在审批前展示 plan 正文)。
+    - `plugin_loaded` → reducer 记 `store.loadedPlugins`(进程级),Plugins
+      面板新增「运行时已挂载」列表。此前只能从**配置**反推「装了什么」,
+      看不到**运行时真正挂载了什么**。
+  - **协议文档过期订正** —— `docs/PROTOCOL_BRIDGE.md` 的事件表此前漏登
+    `plan_draft_updated` / `plan_step` / `plugin_loaded` 三个事件,段落
+    计数停在升级前(Lifecycle 5→7、Plan 5→7,新增 §3.12 Plugin / Quota);
+    能力矩阵的「43/43 EventMsg」也过期 —— 实际是 **45/45**(逐条核对)。
+  - **团队可建可改可删** —— §3.20 反向审计里唯一一个还属于**基座能力**
+    的缺口。核心 `TaskManager::upsert_team` / `delete_team` 早已实现
+    (存储 `~/.reflect/teams/<name>.json`,与 CLI/TUI 共享),GUI 却只能
+    在列表选择器里点一下切到某个 team —— 想加团队只能**手写 JSON**。
+    任务板头部新增「团队」按钮 → 团队管理面板(列出 / 新建 / 编辑 /
+    删除 + 成员增删行)。口径与核心对齐:`lead_agent_id` 前端按
+    `team-lead@<name>` 推导(核心会校验,不该让用户手填必然量)、名字规则
+    `[a-z0-9_-]{1,64}` 与核心 `validate_team_name` 一致。顺带订正 TS 侧
+    把 `created_at` / `joined_at` 标成 `number | string` 的类型错误 ——
+    核心 `SystemTime` 的 JSON 形态是 `{ secs_since_epoch, nanos_since_epoch }`。
+  - **「始终允许这条命令」写进核心权限层(消灭第二套真值)** —— 桌面端
+    原本有一套私有的 `~/.reflect/approval_allowlist.json`(前缀匹配),
+    后端注释描述的「审批弹窗勾选 Always allow」流程**从未在 GUI 存在**。
+    但核心 `reflect-permissions` 已是同一件事的正规实现,且真值唯一
+    (CLI/GUI 共用)、**写完即生效**(核心 resolver 每次评估都重读文件)、
+    可见(Settings → Permissions 列表实时显示)—— 所以本轮**没有**再接
+    一套机制,而是把审批弹窗的「始终允许」直接写进核心的用户级权限文件。
+    授权范围刻意保守:Bash = **整条命令**精确匹配(不用「首词 + 通配」,
+    那会顺带放行 `rm` / `curl|sh`);只读工具 = 整个工具;**写类工具不给
+    按钮**(核心规则模型没有路径维度,放行整个写工具等于一次性打开
+    AcceptEdits)。
+- 审计结论(有意不接线的项):`Op::RegisterTools` /
+  `Op::ToolExecutionResponse` / `EventMsg::ToolExecutionRequest` 为
+  serve 模式 SDK 远程工具专用(文档已记录);`reflect notes` 经 M4
+  bootstrap 自动装配(工具面已通);CLI `doctor` / `security audit`
+  为维护工具,GUI 由 health / About 覆盖。
+
+### 新增 — submodule 能力全量接线收尾:traces / discussion / pipeline + 协议类型对齐
+
+对照 submodule 全部 crate 能力面(protocol Op / EventMsg 全变体 + CLI
+`reflect` 子命令)审计 GUI 接线状态,补齐最后三块未接线能力与一处协议
+类型漂移:
+
+- **Traces(模型调用记录)**:新增 `reflect_list_traces` /
+  `reflect_get_trace` 命令(`app-core/src/traces.rs` 只读包装
+  `reflect-telemetry` 的 model-io JSONL,支持前 8 字符前缀定位)+
+  `/traces` 路由的 TracesView(session 摘要列表 + 逐条调用详情:
+  模型 / 耗时 / 来源 / token 用量 / 脱敏请求响应)。CLI
+  `reflect traces ls / show` 的 GUI 对应。
+- **多 agent 讨论**:新增 `reflect_list_discussions` /
+  `reflect_run_discussion`(`app-core/src/discussion.rs` 重组
+  `reflect-discussion` 的 LLM 组装,provider 不可用降级 `run_noop`,
+  与 CLI 同语义)。运行期间 Collab* 事件经 `event_sink` 桥进
+  session broadcast —— 前端 collab_* reducer(此前为死代码路径)
+  实时渲染,`agent store` 的 `collabSessions` 状态首次有了 UI 消费方。
+  Collaboration 视图新增「多智能体讨论」区(历史列表 + TOML 配置
+  选择 + 运行 + transcript 展示),替换原「后续阶段添加」占位卡。
+- **DAG 流水线**:新增 `reflect_run_team_pipeline` /
+  `reflect_run_pipeline`(`app-core/src/pipeline.rs`,registry 从配置
+  引导、`REFLECT_MODEL=mock` 可离线跑通)。team 预设四阶段
+  (plan → prd → exec → verify)+ TOML DAG 两条入口,与 Squad 视图
+  共享 `~/.reflect/tasks|teams/` 存储。Collaboration 视图新增
+  「团队流水线」区。
+- **`reflect_pick_file`**:原生文件选择框(`tauri-plugin-dialog`
+  Rust API,扩展名白名单过滤),discussion / pipeline 的 TOML 配置入口。
+- **协议类型对齐**:Rust `EventMsg` 的 `submission_closed` 变体补进
+  TS `EventMsgType` / `EventMsgByType`(此前手动同步漂移;reducer 补
+  no-op case 保穷尽性守卫)。Desktop 内嵌线程不发该事件(serve SDK
+  专用),纯类型完整性修复。
+- 审计结论(有意不接线的项):`Op::RegisterTools` /
+  `Op::ToolExecutionResponse` / `EventMsg::ToolExecutionRequest` 为
+  serve 模式 SDK 远程工具专用(文档已记录);`reflect notes` 经 M4
+  bootstrap 自动装配(工具面已通);CLI `doctor` / `security audit`
+  为维护工具,GUI 由 health / About 覆盖。
+- 测试:app-core 新增 traces / discussion / pipeline 单测(81 通过);
+  前端新增 TracesView / CollaborationView 编排区测试 + fakeBackend
+  新命令 handler + 路由矩阵条目(1009 通过);Rust 132 通过。
+- 文档:`PROTOCOL_BRIDGE.md` §2.0 命令表(七条新命令)+ §3 事件表
+  (`submission_closed`)同步。
+
+### 新增 — submodule v1.6.1 接线:提示词层 + 模型级 token 统计
+
+submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
+模型级 token 统计与记忆访问审计。本次把这些能力接到 GUI:
+
+- **提示词层(`/prompt`)**:`Op::PromptCommand { action }` 是新增 Op 变体
+  (协议内联判别联合 `PromptAction::List` / `PromptAction::Switch`)——
+  按 AGENTS.md 的「所有 Op 变体 → Tauri 命令」不变量,新增
+  `reflect_prompt_command`(`commands/prompts.rs`)+ 前端 IPC 包装
+  (`utils/commands/prompts.ts`)。应答事件 `EventMsg::PromptList` /
+  `EventMsg::PromptSwitched` 补进 TS `EventMsgType` / `EventMsgByType`
+  + reducer(写 `store.prompt`,**进程级** —— 提示词库不随会话切换重置)。
+  新增 `PromptLayersModal`(展示当前模型 / 生效层 / 可用层 + 「重新扫描」
+  按钮),`/prompt` slash 展开它;重扫应答按协议约定弹「提示词已刷新」toast。
+- **模型级 token 统计**:新增 `reflect_session_stats` /
+  `reflect_all_model_usage`(`app-core/src/stats.rs` 只读包装
+  `reflect-rollout` 的 `session_stats` / `all_model_usage`,与 CLI
+  `reflect session stats` 同源,桌面端不复刻聚合)。新 `/usage` 视图
+  (当前会话统计 + 按模型拆分表 + 全部会话合计),`/usage` slash 路由到
+  该视图,ActivityBar 加「用量」入口。
+- **`TokenCountEvent.model`**:协议新增模型级字段(本轮命中的模型 spec),
+  TS `TokenCountPayload` / `TokenSnapshot` 同步(reducer 落 `model`,
+  旧引擎不上报 → `null`)。
+- **记忆访问审计 + 压缩 token 前后量**:协议 `RolloutRecord` 新增
+  `MemoryAccess` 变体,`Compaction` 新增 `before_tokens` /
+  `after_tokens`,`TokenCount` 新增 `model` / `provider`。Markdown 导出
+  (`reflect_export_session_markdown`)据此补齐:记忆读写审计行、压缩前后
+  token 与节省量、文末「Usage」段(复用 `app_core::stats` 的规范聚合)。
+  `SessionStats` 相应暴露 `memoryReads` / `memoryWrites` /
+  `compactionTokensSaved`,在 `/usage` 视图展示。
+- **`AgentDefinition.source`(v1.6)**:协议新增 `source: SystemPromptSource`
+  (`custom` / `builtin_default`)—— 决定 system prompt 用用户 md 原文
+  还是按模型从提示词库解析 `system.main`。前端 `ReflectAgentDef` 同步该
+  字段;桌面端 agent 文件的 frontmatter **不写** `source`(上游 parser 对
+  文件来源强制 `Custom`,写了也会被覆盖),`BuiltinDefault` 只属引擎自带
+  的默认 agent。
+- **编译断裂修复**:新增协议变体打破了两处穷尽匹配 —— `state/activity.rs`
+  的 `EventMsg` match(补 `PromptList` / `PromptSwitched`)与
+  `commands/export.rs` 的 `RolloutRecord` match(补 `MemoryAccess`)。
+- **子模块指针**:`reflect-agent` → `e4bc182`。
+- 测试:app-core 新增 stats 聚合单测(3 通过);`commands/export.rs` 抽出
+  纯渲染函数并补 6 条单测(记忆审计 / 压缩 token / Usage 段);前端新增
+  reducer 用例(`prompt_list` / `prompt_switched` / `token_count.model`)+
+  slash 用例(`/prompt` → `prompt_list`、`/usage` → `open_usage`)+
+  UsageView / PromptLayersModal 视图测试 + fakeBackend 新命令 handler +
+  路由矩阵 `/usage` 条目。Rust 149 通过,前端 1023 通过。
+- 文档:`PROTOCOL_BRIDGE.md` §2.0 命令表(三条新命令)+ §3.2
+  (`token_count.model`)+ 新增 §3.11 提示词层事件表同步。
+- 审计结论(本轮新增的有意不接线项):
+  - `reflect_protocol::bash_command`(`BASH_COMMAND_KEYS` /
+    `resolve_bash_command` / `split_shell_segments`)是 BashTool 参数解析
+    与 `reflect-permissions` shell_pattern 匹配之间的**内部契约**,
+    桌面端不解析 Bash 工具参数、不做 shell 权限匹配 —— 由引擎承担。
+  - `reflect_protocol::text`(`truncate_chars` 等)是 Rust 侧按字符边界
+    截断的工具函数;桌面端的截断在 TS 侧(`String.slice` 本身按 UTF-16
+    码元安全),不重复实现。
+  - `reflect_telemetry` 的 `list_span_log_files` / `read_span_log_file`
+    (span 日志)目前**无 CLI / GUI 对应面**(CLI `reflect traces` 只读
+    model-io),桌面端 Traces 视图与 CLI 保持同口径;span 读取面留待
+    后续有明确用户需求时再接。
+  - `reflect::ReflectBuilder::with_telemetry` 不适用 —— 桌面端内嵌
+    `reflect_core::AgentThread`(经 `MinimalAgent`),不走 `ReflectBuilder`。
+
 ### 新增 — 插件系统接线(v1.x):`[plugins]` 挂载 + `/plugin:*` 命令展开
 
 子模块 `f7a8f24 → b359883`(插件运行时自 reflect-exec 下沉为

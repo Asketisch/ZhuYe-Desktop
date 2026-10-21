@@ -28,13 +28,20 @@ const emptyState = (): AgentState => ({
   contextWindowSize: null,
   queuedMessages: [],
   planFailover: null,
-  compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null },
+  compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
   collabSessions: [],
   mcpInvocations: [],
   lastRouting: null,
   configReloadedAt: null,
   toasts: [],
   goalActive: false,
+  todos: [],
+  planSteps: [],
+  loadedPlugins: [],
+  prompt: null,
+  promptPanelOpen: false,
+  openPromptPanel: () => {},
+  closePromptPanel: () => {},
   setGoalActive: () => {},
   // Actions（reducer 测试中未使用；严格的 AgentState 类型要求它们存在）。
   subscribe: () => () => {},
@@ -42,6 +49,8 @@ const emptyState = (): AgentState => ({
   submitItems: async () => {},
   steer: async () => {},
   querySubagents: async () => {},
+  promptList: async () => {},
+  promptRescan: async () => {},
   subagents: { feed: [], lastStatus: null },
   enqueueMessage: () => {},
   removeQueued: () => {},
@@ -166,6 +175,13 @@ describe('reduceEvent — lifecycle', () => {
     const patch = reduceEvent(emptyState(), ev('', { type: 'shutdown_complete' } as never));
     expect(patch.lastError).toBe('agent shut down');
   });
+
+  it('submission_closed is a no-op (serve-mode marker)', () => {
+    // v1.3 SDK serve 模式的 per-submission 排空标记;Desktop 内嵌线程
+    // 不发,类型联合补齐后 reducer no-op 保穷尽。
+    const patch = reduceEvent(emptyState(), ev('sub-1', { type: 'submission_closed' } as never));
+    expect(patch).toEqual({});
+  });
 });
 
 // ====== LLM output (4) ======
@@ -214,6 +230,7 @@ describe('reduceEvent — LLM output', () => {
         total_tokens: 1500,
         provider: 'anthropic',
         credential_label: 'main-key',
+        model: 'anthropic/claude-sonnet-4',
       }),
     );
     expect(patch.tokens).toEqual({
@@ -224,9 +241,76 @@ describe('reduceEvent — LLM output', () => {
       total: 1500,
       provider: 'anthropic',
       credentialLabel: 'main-key',
+      model: 'anthropic/claude-sonnet-4',
       cost: null,
       sessionCost: 0,
+      // 会话累计 total(区别于 total = 最后一次调用)。
+      sessionTotal: 1500,
+      // 按模型累计(v1.x 模型级统计):首次事件 → 该模型 1 次调用。
+      byModel: {
+        'anthropic/claude-sonnet-4': {
+          model: 'anthropic/claude-sonnet-4',
+          provider: 'anthropic',
+          calls: 1,
+          input: 1200,
+          output: 300,
+          cached: 200,
+          cacheWrite: 500,
+          total: 1500,
+          cost: 0,
+        },
+      },
     });
+  });
+
+  it('token_count accumulates per model across events', () => {
+    // v1.x 模型级统计:两个模型各一次调用 → byModel 分组累计。
+    let s: AgentState = emptyState();
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t1', {
+          type: 'token_count',
+          input_tokens: 100, output_tokens: 10, cached_tokens: 0,
+          cache_write_tokens: 0, total_tokens: 110,
+          provider: 'anthropic', model: 'anthropic/claude-sonnet-4',
+        }),
+      ),
+    };
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t2', {
+          type: 'token_count',
+          input_tokens: 200, output_tokens: 20, cached_tokens: 0,
+          cache_write_tokens: 0, total_tokens: 220,
+          provider: 'openai', model: 'openai/gpt-4o',
+        }),
+      ),
+    };
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t3', {
+          type: 'token_count',
+          input_tokens: 300, output_tokens: 30, cached_tokens: 0,
+          cache_write_tokens: 0, total_tokens: 330,
+          provider: 'anthropic', model: 'anthropic/claude-sonnet-4',
+        }),
+      ),
+    };
+    const byModel = s.tokens!.byModel!;
+    expect(Object.keys(byModel)).toHaveLength(2);
+    // 同一模型累计 2 次调用。
+    expect(byModel['anthropic/claude-sonnet-4']).toMatchObject({
+      calls: 2, input: 400, output: 40, total: 440,
+    });
+    expect(byModel['openai/gpt-4o']).toMatchObject({ calls: 1, total: 220 });
+    // 会话累计 total = 110 + 220 + 330。
+    expect(s.tokens!.sessionTotal).toBe(660);
   });
 
   it('token_count tolerates missing optional provider/credential_label', () => {
@@ -246,6 +330,8 @@ describe('reduceEvent — LLM output', () => {
       provider: null,
       credentialLabel: null,
       cacheWrite: 0,
+      // v1.x:旧引擎不上报 model → null。
+      model: null,
     });
   });
 });
@@ -292,6 +378,64 @@ describe('reduceEvent — tool', () => {
     if (outItem && outItem.kind === 'tool_output') {
       expect(outItem.text).toBe('ok');
     }
+  });
+
+  it('TodoWrite 工具输出里的 todo 清单被提取到 state.todos', () => {
+    let s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
+    s = {
+      ...s,
+      ...reduceEvent(s, ev('t1', { type: 'tool_call_begin', call_id: 'c1', tool_name: 'TodoWrite', args: {} })),
+    };
+    const patch = reduceEvent(
+      s,
+      ev('t1', {
+        type: 'tool_call_end',
+        call_id: 'c1',
+        output: {
+          content: [{ type: 'text', text: 'Wrote 2 todos.' }],
+          is_error: false,
+          // 核心 `TodoRow` 带 `rename_all = "camelCase"` —— 线上字段是 `activeForm`。
+          metadata: {
+            todos: [
+              { content: 'design schema', status: 'in_progress', activeForm: 'Designing' },
+              { content: 'write tests', status: 'pending', activeForm: null },
+            ],
+            count: 2,
+          },
+          elapsed_ms: 0,
+        },
+        is_error: false,
+        elapsed_ms: 0,
+      }),
+    );
+    expect(patch.todos).toEqual([
+      { content: 'design schema', status: 'in_progress', active_form: 'Designing' },
+      { content: 'write tests', status: 'pending', active_form: null },
+    ]);
+  });
+
+  it('非 TodoWrite 工具不产出 todo 清单', () => {
+    let s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
+    s = {
+      ...s,
+      ...reduceEvent(s, ev('t1', { type: 'tool_call_begin', call_id: 'c1', tool_name: 'Bash', args: {} })),
+    };
+    const patch = reduceEvent(
+      s,
+      ev('t1', {
+        type: 'tool_call_end',
+        call_id: 'c1',
+        output: {
+          content: [{ type: 'text', text: 'ok' }],
+          is_error: false,
+          metadata: { todos: [{ content: 'x', status: 'pending' }] },
+          elapsed_ms: 0,
+        },
+        is_error: false,
+        elapsed_ms: 0,
+      }),
+    );
+    expect(patch.todos).toBeUndefined();
   });
 });
 
@@ -352,7 +496,7 @@ describe('reduceEvent — compaction / error', () => {
     const s: AgentState = {
       ...emptyState(),
       turns: [{ id: 't1', items: [], status: 'streaming' }],
-      compactions: { count: 1, removedMessages: 2, tokensSaved: 100, last: 'microcompact: 2 msgs' },
+      compactions: { count: 1, removedMessages: 2, tokensSaved: 100, last: 'microcompact: 2 msgs', records: [] },
     };
     const patch = reduceEvent(
       s,
@@ -365,11 +509,19 @@ describe('reduceEvent — compaction / error', () => {
       }),
     );
     expect(patch.turns).toBeUndefined();
-    expect(patch.compactions).toEqual({
+    expect(patch.compactions).toMatchObject({
       count: 2,
       removedMessages: 2,
       tokensSaved: 100 + (7731 - 5344),
       last: 'smart_prune: 0 msgs (7731 → 5344 tokens)',
+    });
+    // 逐次明细:让「压缩省了多少」可核对,不再只有一行 hover 摘要。
+    expect(patch.compactions!.records).toHaveLength(1);
+    expect(patch.compactions!.records![0]).toMatchObject({
+      strategy: 'smart_prune',
+      beforeTokens: 7731,
+      afterTokens: 5344,
+      tokensSaved: 7731 - 5344,
     });
   });
 
@@ -432,6 +584,66 @@ describe('reduceEvent — config / routing', () => {
       }),
     );
     expect(patch.lastRouting).toMatchObject({ kind: 'switched', from: 'work', to: 'personal' });
+  });
+});
+
+// ====== Prompt layers (v1.6.1) ======
+
+describe('reduceEvent — prompt layers', () => {
+  it('prompt_list writes available/active layers and current spec', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'prompt_list',
+        available: ['claude', 'gpt', 'my-layer'],
+        current_spec: 'anthropic/claude-sonnet-4',
+        active_layers: ['my-layer'],
+      }),
+    );
+    expect(patch.prompt).toEqual({
+      available: ['claude', 'gpt', 'my-layer'],
+      currentSpec: 'anthropic/claude-sonnet-4',
+      activeLayers: ['my-layer'],
+      switchedAt: null,
+    });
+  });
+
+  it('prompt_switched updates active layers, keeps available, sets timestamp', () => {
+    let s: AgentState = emptyState();
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('', {
+          type: 'prompt_list',
+          available: ['claude', 'my-layer'],
+          current_spec: 'anthropic/claude-sonnet-4',
+          active_layers: [],
+        }),
+      ),
+    };
+    const before = Date.now();
+    const patch = reduceEvent(
+      s,
+      ev('', { type: 'prompt_switched', action: 'reload', active_layers: ['my-layer'] }),
+    );
+    expect(patch.prompt).toMatchObject({
+      available: ['claude', 'my-layer'],
+      currentSpec: 'anthropic/claude-sonnet-4',
+      activeLayers: ['my-layer'],
+    });
+    expect(patch.prompt!.switchedAt).toBeGreaterThanOrEqual(before);
+    // 协议约定:UI 提示「提示词已刷新」→ reducer 附带 toast。
+    expect(patch.toasts?.length).toBe(1);
+    expect(patch.toasts![0].message).toContain('my-layer');
+  });
+
+  it('prompt_switched keeps available list even without a prior prompt_list', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', { type: 'prompt_switched', action: 'reload', active_layers: [] }),
+    );
+    expect(patch.prompt).toMatchObject({ available: [], currentSpec: '', activeLayers: [] });
   });
 });
 
@@ -574,7 +786,7 @@ describe('reduceEvent — plugin / quota', () => {
     expect(patch.toasts![0].ttlMs).toBe(6000);
   });
 
-  it('plan_step 是 no-op(待接入 plan 步骤 UI)', () => {
+  it('plan_step 记录执行进度(按 index 就地更新或追加)', () => {
     const patch = reduceEvent(
       emptyState(),
       ev('', {
@@ -586,10 +798,46 @@ describe('reduceEvent — plugin / quota', () => {
         title: 'analyze',
       }),
     );
-    expect(patch).toEqual({});
+    expect(patch.planSteps).toEqual([
+      { index: 0, total: 3, status: 'in_progress', title: 'analyze', planId: 'p1' },
+    ]);
   });
 
-  it('plugin_loaded 是 no-op(待接入 plugins panel)', () => {
+  it('plan_step 同 index 再来一条 → 就地更新,不追加', () => {
+    let s: AgentState = { ...emptyState() };
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('', { type: 'plan_step', plan_id: 'p1', index: 0, total: 2, status: 'in_progress', title: 'a' }),
+      ),
+    };
+    const patch = reduceEvent(
+      s,
+      ev('', { type: 'plan_step', plan_id: 'p1', index: 0, total: 2, status: 'done', title: 'a' }),
+    );
+    expect(patch.planSteps).toHaveLength(1);
+    expect(patch.planSteps![0].status).toBe('done');
+  });
+
+  it('plan_ready 到达时清空上一份执行进度', () => {
+    let s: AgentState = { ...emptyState() };
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('', { type: 'plan_step', plan_id: 'p1', index: 0, total: 1, status: 'done' }),
+      ),
+    };
+    expect(s.planSteps).toHaveLength(1);
+    const patch = reduceEvent(
+      s,
+      ev('', { type: 'plan_ready', plan_id: 'p2', markdown: '## Plan' }),
+    );
+    expect(patch.planSteps).toEqual([]);
+  });
+
+  it('plugin_loaded 记录运行时挂载的插件', () => {
     const patch = reduceEvent(
       emptyState(),
       ev('', {
@@ -598,9 +846,34 @@ describe('reduceEvent — plugin / quota', () => {
         scope: 'user',
         version: '1.0',
         skill_count: 2,
+        command_count: 5,
       }),
     );
-    expect(patch).toEqual({});
+    expect(patch.loadedPlugins).toHaveLength(1);
+    expect(patch.loadedPlugins![0]).toMatchObject({
+      plugin: 'demo',
+      scope: 'user',
+      version: '1.0',
+      skillCount: 2,
+      commandCount: 5,
+    });
+  });
+
+  it('plugin_loaded 同插件再来 → 覆盖而非追加', () => {
+    let s: AgentState = { ...emptyState() };
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('', { type: 'plugin_loaded', plugin: 'demo', scope: 'user', version: '1.0', skill_count: 2 }),
+      ),
+    };
+    const patch = reduceEvent(
+      s,
+      ev('', { type: 'plugin_loaded', plugin: 'demo', scope: 'project', version: '2.0', skill_count: 3 }),
+    );
+    expect(patch.loadedPlugins).toHaveLength(1);
+    expect(patch.loadedPlugins![0].version).toBe('2.0');
   });
 
   // ====== 子代理可观测(v1.4 C1)======

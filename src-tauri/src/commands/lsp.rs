@@ -21,11 +21,43 @@ use crate::state::MinimalAgent;
 
 /// LSP 当前状态。
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LspStatus {
     /// 是否已开启(注册了 `lsp` tool 且 manager 存活)。
     pub enabled: bool,
     /// 已启动的 server 名单。
     pub servers: Vec<String>,
+    /// 诊断聚合(被动缓存的 `textDocument/publishDiagnostics`)。
+    pub diagnostics: LspDiagnosticCounts,
+}
+
+/// 诊断聚合计数(camelCase 出线)。
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LspDiagnosticCounts {
+    /// 已缓存诊断的文档数。
+    pub documents: usize,
+    /// 诊断总条数。
+    pub count: usize,
+    /// 核心给出的状态描述(一行,用于 tooltip)。
+    pub status_line: String,
+}
+
+/// 一条诊断(camelCase 出线;行/列均 1-based,便于直接展示)。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LspDiagnostic {
+    pub line: u32,
+    pub column: u32,
+    pub end_line: u32,
+    pub end_column: u32,
+    /// `error` / `warning` / `info` / `hint`。
+    pub severity: String,
+    pub message: String,
+    /// 诊断来源(如 `rustc` / `clippy`)。
+    pub source: Option<String>,
+    /// 诊断代码。
+    pub code: Option<String>,
 }
 
 /// 文件预热结果。
@@ -40,13 +72,22 @@ pub struct LspWarmupResult {
 async fn status(agent: &MinimalAgent) -> LspStatus {
     let mgr = agent.inner.lsp_manager.lock().clone();
     match mgr {
-        Some(m) => LspStatus {
-            enabled: true,
-            servers: m.server_names().await,
-        },
+        Some(m) => {
+            let reg = m.diagnostics();
+            LspStatus {
+                enabled: true,
+                servers: m.server_names().await,
+                diagnostics: LspDiagnosticCounts {
+                    documents: reg.document_count(),
+                    count: reg.diagnostic_count(),
+                    status_line: reg.status_line(),
+                },
+            }
+        }
         None => LspStatus {
             enabled: false,
             servers: vec![],
+            diagnostics: LspDiagnosticCounts::default(),
         },
     }
 }
@@ -135,6 +176,63 @@ pub async fn reflect_lsp_warmup(
         warmed: true,
         server: Some(route.server_name),
     })
+}
+
+/// 查询某文件的 LSP 诊断(编译器 / 检查器反馈)。
+///
+/// 诊断来自 core 的 `DiagnosticRegistry` —— server 推
+/// `textDocument/publishDiagnostics` 时被动缓存。**只读被动缓存**,不主动
+/// pull(LSP 规范:诊断由 server 推送,客户端不该反复请求)。
+///
+/// 文件未被 server 打开过(未预热)→ 返回空列表。LSP 未开启 → 同样空列表,
+/// 不报错。
+#[tauri::command]
+pub async fn reflect_lsp_diagnostics(
+    agent: State<'_, MinimalAgent>,
+    path: String,
+) -> CommandResult<Vec<LspDiagnostic>> {
+    let mgr = agent.inner.lsp_manager.lock().clone();
+    let Some(mgr) = mgr else {
+        return Ok(Vec::new());
+    };
+    let abs = crate::commands::files::resolve_under_workspace(&agent.workspace(), &path)?;
+    let uri = file_uri(&abs)?;
+    let reg = mgr.diagnostics();
+    let out = reg
+        .get(&uri)
+        .into_iter()
+        .map(|d| LspDiagnostic {
+            // LSP 的 line/character 是 0-based;UI 侧按 1-based 展示。
+            line: d.range.start.line + 1,
+            column: d.range.start.character + 1,
+            end_line: d.range.end.line + 1,
+            end_column: d.range.end.character + 1,
+            severity: severity_str(d.severity).to_string(),
+            message: d.message,
+            source: d.source,
+            code: d.code.map(|c| match c {
+                lsp_types::NumberOrString::Number(n) => n.to_string(),
+                lsp_types::NumberOrString::String(s) => s,
+            }),
+        })
+        .collect();
+    Ok(out)
+}
+
+/// LSP 诊断严重级别 → 线格式字符串。
+///
+/// `lsp_types::DiagnosticSeverity` 是 newtype + 关联常量(1-based 数值):
+/// ERROR=1 / WARNING=2 / INFORMATION=3 / HINT=4。越界值(未来 LSP 扩展
+/// 的新级别)归为 `info` —— 诊断本身不丢,只是级别不精确。
+fn severity_str(s: Option<lsp_types::DiagnosticSeverity>) -> &'static str {
+    use lsp_types::DiagnosticSeverity;
+    match s {
+        Some(DiagnosticSeverity::ERROR) => "error",
+        Some(DiagnosticSeverity::WARNING) => "warning",
+        Some(DiagnosticSeverity::INFORMATION) => "info",
+        Some(DiagnosticSeverity::HINT) => "hint",
+        _ => "info",
+    }
 }
 
 /// 绝对路径 → LSP `file://` URI。与 reflect-lsp `tool.rs::path_to_uri`

@@ -27,8 +27,7 @@ export interface ReflectGitLogEntry {
   short_hash: string;
   author: string;
   timestamp: number;
-  subject: string;
-}
+  subject: string;}
 
 /** 获取当前仓库状态(branch、upstream、entries、原始 porcelain 输出)。 */
 export async function reflect_git_status(): Promise<ReflectGitStatus> {
@@ -75,4 +74,36 @@ export interface ReflectGhPullRequest {
 
 export async function reflect_gh_pr_list(limit = 20): Promise<ReflectGhPullRequest[]> {
   return invoke<ReflectGhPullRequest[]>('reflect_gh_pr_list', { limit });
+}
+
+/**
+ * 一个 git worktree。
+ *
+ * `isolated` = 非主工作树(agent 的 `EnterWorktree` 建的就是这种);
+ * `stranded` = 隔离 worktree 且有未提交改动 → 改动**还没落回主分支**。
+ */
+export interface ReflectWorktreeInfo {
+  /** worktree 绝对路径。 */
+  path: string;
+  /** HEAD 指向的分支名(detached HEAD 时为空串)。 */
+  branch: string;
+  /** HEAD commit sha。 */
+  head: string;
+  /** 是否有未提交改动。 */
+  dirty: boolean;
+  /** 是否为隔离 worktree。 */
+  isolated: boolean;
+  /** 改动是否滞留在隔离 worktree(丢工风险)。 */
+  stranded: boolean;
+}
+
+/**
+ * 列出仓库的 worktree,标出「改动被困在隔离 worktree」的风险。
+ *
+ * 核心的 worktree 状态存在 `ToolContext` 里(进程内),GUI 读不到;
+ * 但 worktree 本身文件系统可见 —— `git worktree list --porcelain` + 核心的
+ * `worktree_dirty` 判脏。
+ */
+export function reflect_list_worktrees(): Promise<ReflectWorktreeInfo[]> {
+  return invoke('reflect_list_worktrees');
 }

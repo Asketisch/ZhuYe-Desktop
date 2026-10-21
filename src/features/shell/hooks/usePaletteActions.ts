@@ -9,6 +9,8 @@
  *   - `clearAllSessions` 通过 qc 复用 sessions 缓存,无会话直接提示,否则逐个删除并
  *     invalidate,最后统计 toast。
  *   - `exportActive` 若无 active id 提示 warn;否则调 `reflect_export_session` 并 toast。
+ *   - `exportActiveMarkdown` 同上,但调 `reflect_export_session_markdown`
+ *     (核心 `to_markdown` 转录 + 用量小节)—— 此前该命令有后端无入口。
  *   - `saveConfig` 调 `reflect_save_config('')` 并 toast;失败提示。
  *   - `runSlash` 直接 fire-and-forget 调 `submit(slash)`,让 /compact 等命令无需输入。
  *
@@ -16,6 +18,7 @@
  */
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { useAgentStore } from '@/stores/agentStore';
 import { executeSlash, parseSlash } from '@/features/composer/slashEngine';
 import { dispatchSubmission } from '@/features/composer/dispatchSubmission';
@@ -25,6 +28,7 @@ import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import {
   reflect_export_session,
+  reflect_export_session_markdown,
   reflect_save_config,
   reflect_list_sessions,
   reflect_delete_session,
@@ -51,6 +55,10 @@ export interface PaletteToasts {
   exportedNoPath: string;
   /** "导出失败：{msg}" */
   exportFailed: (msg: string) => string;
+  /** "已导出 Markdown → {path}" */
+  exportedMarkdown: (path: string) => string;
+  /** "已导出 Markdown →（无路径）" */
+  exportedMarkdownNoPath: string;
   /** "配置已重新加载。" */
   configReloaded: string;
   /** "保存失败：{msg}" */
@@ -67,12 +75,14 @@ export interface UsePaletteActionsResult {
   newSession: () => void;
   clearAllSessions: () => Promise<void>;
   exportActive: () => Promise<void>;
+  exportActiveMarkdown: () => Promise<void>;
   saveConfig: () => Promise<void>;
   runSlash: (slash: string) => void;
 }
 
 export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteActionsResult {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const submit = useAgentStore((st) => st.submit);
   const pushToast = useAgentStore((st) => st.pushToast);
   const { rename } = useSessions();
@@ -127,6 +137,30 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
     }
   }, [activeId, pushToast, toasts]);
 
+  /**
+   * 导出当前会话为 **Markdown 转录**（核心 `reflect_rollout::to_markdown`）。
+   *
+   * 与 `exportActive`(JSON 原始记录)并列 —— JSON 供程序消费,
+   * Markdown 供人阅读/分享(带用量小节)。此前该命令存在但无任何
+   * 界面入口,核心的 `to_markdown` 能力在 GUI 里完全用不到。
+   */
+  const exportActiveMarkdown = useCallback(async () => {
+    if (!activeId) {
+      pushToast({ kind: 'warn', message: toasts.noActiveToExport });
+      return;
+    }
+    try {
+      const result = await reflect_export_session_markdown(activeId);
+      const path = result?.path ?? null;
+      pushToast({
+        kind: 'success',
+        message: path ? toasts.exportedMarkdown(path) : toasts.exportedMarkdownNoPath,
+      });
+    } catch (e) {
+      pushToast({ kind: 'error', message: toasts.exportFailed((e as Error).message) });
+    }
+  }, [activeId, pushToast, toasts]);
+
   const saveConfig = useCallback(async () => {
     try {
       await reflect_save_config('');
@@ -158,6 +192,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
                 ensureSessionReady: () => ensureSessionReady(activeId ?? null),
                 invalidateSessions: () =>
                   void qc.invalidateQueries({ queryKey: ['sessions'] }),
+                navigate: (to) => void navigate({ to }),
               });
             } else if (result.kind === 'submit') {
               await submit(result.payload ?? slash);
@@ -174,8 +209,8 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
         }
       })();
     },
-    [activeId, pushToast, rename, submit, t, ensureSessionReady, qc],
+    [activeId, pushToast, rename, submit, t, ensureSessionReady, qc, navigate],
   );
 
-  return { newSession, clearAllSessions, exportActive, saveConfig, runSlash };
+  return { newSession, clearAllSessions, exportActive, exportActiveMarkdown, saveConfig, runSlash };
 }

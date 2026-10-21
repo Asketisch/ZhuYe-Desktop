@@ -158,8 +158,14 @@ describe('reduceEvent', () => {
       total: 150,
       provider: null,
       credentialLabel: null,
+      // v1.x:旧引擎不上报 model → null。
+      model: null,
       cost: null,
       sessionCost: 0,
+      // 会话累计 total。
+      sessionTotal: 150,
+      // 旧引擎不上报 model → 无按模型归属(不编造)。
+      byModel: {},
     });
   });
 });

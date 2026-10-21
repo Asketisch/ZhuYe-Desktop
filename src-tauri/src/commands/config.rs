@@ -27,7 +27,10 @@ pub async fn reflect_get_config(agent: State<'_, MinimalAgent>) -> CommandResult
 
 /// 新配置写盘 + 热替换共享 cfg(校验由调用方完成)。返回旧快照供调用方
 /// 做变更检测(`hot_reload_provider_stack` 需要 old/new 对比)。
-fn persist_config(
+///
+/// `pub(crate)`:MCP 管理命令也要走同一条落盘路径(改 `[mcp_servers]` 后
+/// 落盘 + 换内存快照),避免各自拼一套写盘逻辑。
+pub(crate) fn persist_config(
     agent: &MinimalAgent,
     new_cfg: reflect_config::ReflectConfig,
 ) -> CommandResult<reflect_config::ReflectConfig> {
@@ -67,7 +70,14 @@ pub async fn reflect_save_config(
     toml: String,
 ) -> CommandResult<()> {
     // 1. 校验:能否解析回 ReflectConfig。
-    let new_cfg = load_from_str(&toml)?;
+    let mut new_cfg = load_from_str(&toml)?;
+    // 1.5 `[sandbox].os_level` 归一:核心 schema 是 `bool` + `#[serde(default)]`,
+    //     解析后无法区分「没写」与「写了 false」。原始 TOML 里没这个 key
+    //     → 走核心基线(默认要求 OS sandbox),不因一次保存把沙箱静默关掉。
+    //     显式写了 → 尊重用户的显式表态。
+    new_cfg.sandbox.os_level = reflect_app_core::sandbox::normalize_os_level(
+        reflect_app_core::sandbox::sandbox_intent_from_toml(&toml),
+    );
     // 2. 写盘 + 热更新共享 cfg(保留旧快照供变更检测)。
     let old_cfg = persist_config(&agent, new_cfg.clone())?;
     // 3. provider 栈变化 → 重建 registry/tracker + 重绑当前会话。

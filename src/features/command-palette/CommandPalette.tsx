@@ -23,6 +23,7 @@ export interface CommandPaletteProps {
   newSession: () => void;
   clearAllSessions: () => void;
   exportActive: () => void;
+  exportActiveMarkdown: () => void;
   saveConfig: () => void;
   runSlash: (slash: string) => void;
 }
@@ -32,7 +33,7 @@ const MAX_VISIBLE = 30;
 export function CommandPalette(props: CommandPaletteProps) {
   const {
     open, onClose, navigate, cycleTheme, setTheme, resolvedTheme,
-    newSession, clearAllSessions, exportActive, saveConfig, runSlash,
+    newSession, clearAllSessions, exportActive, exportActiveMarkdown, saveConfig, runSlash,
   } = props;
   const { t } = useI18n();
 
@@ -52,9 +53,10 @@ export function CommandPalette(props: CommandPaletteProps) {
         newSession,
         clearAllSessions,
         exportActive,
+        exportActiveMarkdown,
         saveConfig,
       }),
-    [navigate, cycleTheme, setTheme, resolvedTheme, newSession, clearAllSessions, exportActive, saveConfig],
+    [navigate, cycleTheme, setTheme, resolvedTheme, newSession, clearAllSessions, exportActive, exportActiveMarkdown, saveConfig],
   );
 
   const hits = useMemo(() => {

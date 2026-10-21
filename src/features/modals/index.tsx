@@ -6,6 +6,7 @@
  * - QuestionModal    → ./QuestionModal
  * - AskUserModal     → ./AskUserModal
  * - PlanReadyModal   → ./PlanReadyModal
+ * - PromptLayersModal→ ./PromptLayersModal
  *
  * 行为契约:ModalStack 把 agentStore 的 pendingApprovals / pendingQuestions /
  * pendingAskUser / pendingPlan 渲染为对应 modal;关闭/批准等动作交由 modal
@@ -16,6 +17,7 @@ import { ApprovalModal } from './ApprovalModal';
 import { QuestionModal } from './QuestionModal';
 import { AskUserModal } from './AskUserModal';
 import { PlanReadyModal } from './PlanReadyModal';
+import { PromptLayersModal } from './PromptLayersModal';
 
 /** 聚合所有 modal。 */
 export function ModalStack() {
@@ -36,6 +38,9 @@ export function ModalStack() {
         <AskUserModal key={`u-${u.id}`} askUser={u} />
       ))}
       {plan && <PlanReadyModal plan={plan} />}
+      {/* v1.6.1：提示词层面板(`/prompt` slash 打开)—— 进程级,常驻挂载,
+          自身按 `promptPanelOpen` 决定是否渲染。 */}
+      <PromptLayersModal />
     </>
   );
 }

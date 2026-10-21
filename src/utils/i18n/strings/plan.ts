@@ -22,6 +22,11 @@ const plan: Record<string, StringEntry> = {
   'plan.rejected':  { en: 'Rejected',                                  'zh-CN': '已拒绝' },
   'plan.sampleData': { en: 'sample data',                              'zh-CN': '示例数据' },
   'plan.usePlanHint': { en: 'Use /plan in chat to create one.',        'zh-CN': '在对话中使用 /plan 创建计划。' },
+  'plan.progressTitle': { en: 'Execution progress',                   'zh-CN': '执行进度' },
+  'plan.stepStatus.pending':    { en: 'pending',                        'zh-CN': '待执行' },
+  'plan.stepStatus.in_progress': { en: 'in progress',                  'zh-CN': '执行中' },
+  'plan.stepStatus.done':       { en: 'done',                           'zh-CN': '已完成' },
+  'plan.stepStatus.skipped':    { en: 'skipped',                        'zh-CN': '已跳过' },
 };
 
 export default plan;

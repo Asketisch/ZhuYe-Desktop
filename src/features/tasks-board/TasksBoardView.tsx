@@ -11,7 +11,7 @@
  * `~/.reflect/teams/`，与 TUI/CLI 共享。
  */
 import { useState } from 'react';
-import { KanbanSquare, List as ListIcon, Plus, X, FolderKanban } from 'lucide-react';
+import { KanbanSquare, List as ListIcon, Plus, X, FolderKanban, Users } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import {
   Card,
@@ -30,6 +30,8 @@ import {
 } from './useTasksBoardController';
 import { TaskRow } from './TaskRow';
 import { TaskCreateForm } from './TaskCreateForm';
+import { TaskDetail } from './TaskDetail';
+import { TeamEditor } from './TeamEditor';
 import type { ReflectTaskStatus } from '@/utils/commands';
 import s from './TasksBoardView.module.css';
 
@@ -45,6 +47,8 @@ export function TasksBoardView() {
   const { t } = useI18n();
   // 自定义列表 ID 输入框可见性（允许用户输入不关联任何 team 的任意列表 ID）。
   const [showListPicker, setShowListPicker] = useState(false);
+  // 团队管理面板可见性。
+  const [showTeams, setShowTeams] = useState(false);
 
   return (
     <PageShell
@@ -68,6 +72,16 @@ export function TasksBoardView() {
               data-testid="tasks-list-picker-toggle"
             >
               <Icon icon={FolderKanban} size={12} /> {ctrl.listId}
+            </button>
+          </Tooltip>
+          <Tooltip label={t('tasks.teamManager')} side="bottom">
+            <button
+              type="button"
+              className={s.listBtn}
+              onClick={() => setShowTeams((v) => !v)}
+              data-testid="tasks-team-manager-toggle"
+            >
+              <Icon icon={Users} size={12} /> {t('tasks.teams')}
             </button>
           </Tooltip>
           <button
@@ -117,6 +131,17 @@ export function TasksBoardView() {
         </Card>
       )}
 
+      {/* 团队管理(建 / 改 / 删)—— 核心 `upsert_team` / `delete_team`
+          此前只有后端命令,界面里只能「看」不能「改」。 */}
+      {showTeams && (
+        <TeamEditor
+          teams={ctrl.teams}
+          onSave={ctrl.upsertTeam}
+          onDelete={ctrl.deleteTeam}
+          busy={ctrl.teamBusy}
+        />
+      )}
+
       {/* Create form */}
       {ctrl.showForm && (
         <TaskCreateForm
@@ -160,6 +185,9 @@ export function TasksBoardView() {
               onClaim={(t) => void ctrl.claim(t)}
               onAdvance={(t, st) => void ctrl.advance(t, st)}
               onRemove={(t) => void ctrl.remove(t)}
+              onSelect={ctrl.selectTask}
+              onStop={(t) => void ctrl.stop(t)}
+              onRelease={(t) => void ctrl.release(t)}
             />
           ))}
         </div>
@@ -184,6 +212,9 @@ export function TasksBoardView() {
                       onClaim={(t) => void ctrl.claim(t)}
                       onAdvance={(t, st) => void ctrl.advance(t, st)}
                       onRemove={(t) => void ctrl.remove(t)}
+                      onSelect={ctrl.selectTask}
+                      onStop={(t) => void ctrl.stop(t)}
+                      onRelease={(t) => void ctrl.release(t)}
                     />
                   ))
                 )}
@@ -191,6 +222,11 @@ export function TasksBoardView() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* 任务详情(描述 + 产出)—— 任务板的产出视图。 */}
+      {ctrl.selected && (
+        <TaskDetail task={ctrl.selected} onClose={() => ctrl.selectTask(null)} />
       )}
     </PageShell>
   );

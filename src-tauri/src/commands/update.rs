@@ -4,14 +4,23 @@ use serde::{Deserialize, Serialize};
 
 use crate::commands::error::CommandResult;
 
+/// 更新信息(camelCase 出线,遵循桌面端 DTO 约定)。
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
+    /// 当前应用版本。
     pub current_version: String,
+    /// 最新发布版本;探测失败时为 `None`。
     pub latest_version: Option<String>,
+    /// 是否存在比当前版本更新的发布。
     pub update_available: bool,
+    /// 发布页 URL(有更新时可打开)。
     pub release_url: Option<String>,
+    /// 发布说明正文。
     pub release_notes: Option<String>,
+    /// 探测时间(epoch 秒)。
     pub probed_at: i64,
+    /// 探测错误(离线 / 非 200);不阻断 UI。
     pub error: Option<String>,
 }
 

@@ -47,6 +47,8 @@ import { AutopilotView } from '@/features/autopilot';
 import { SquadView } from '@/features/squad';
 import { MediaView } from '@/features/media';
 import { HooksView } from '@/features/hooks/HooksView';
+import { TracesView } from '@/features/traces/TracesView';
+import { UsageView } from '@/features/usage/UsageView';
 
 // ====== 路由树 (TanStack Router v1 API) ======
 
@@ -89,6 +91,8 @@ const kmsRoute = new Route({ getParentRoute: () => rootRoute, path: 'kms', compo
 const autopilotRoute = new Route({ getParentRoute: () => rootRoute, path: 'autopilot', component: AutopilotView });
 const squadRoute = new Route({ getParentRoute: () => rootRoute, path: 'squad', component: SquadView });
 const mediaRoute = new Route({ getParentRoute: () => rootRoute, path: 'media', component: MediaView });
+const tracesRoute = new Route({ getParentRoute: () => rootRoute, path: 'traces', component: TracesView });
+const usageRoute = new Route({ getParentRoute: () => rootRoute, path: 'usage', component: UsageView });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -125,6 +129,8 @@ const routeTree = rootRoute.addChildren([
   autopilotRoute,
   squadRoute,
   mediaRoute,
+  tracesRoute,
+  usageRoute,
 ]);
 
 // ====== 路由实例 ======

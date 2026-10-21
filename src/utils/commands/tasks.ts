@@ -111,6 +111,45 @@ export async function reflect_get_task(list: string, id: number): Promise<Reflec
 }
 
 /**
+ * 读取任务产出文件的内容(worker 的交付物)。
+ *
+ * 与核心 `TaskOutputTool` 同款语义:读 `task.output_path` 指向的文件。
+ * **不阻塞** —— 产出还没写好时返回空串(不报错),GUI 是拉取式视图。
+ */
+export async function reflect_get_task_output(
+  list: string,
+  id: number,
+): Promise<string> {
+  return invoke<string>('reflect_get_task_output', { list, id });
+}
+
+/**
+ * 停止一个进行中的 task(与核心 `TaskStopTool` 同语义)。
+ *
+ * 守卫:状态必须是 `in_progress`,否则后端报错。动作 = 退回 `pending` +
+ * 清空 owner。
+ */
+export async function reflect_stop_task(
+  list: string,
+  id: number,
+): Promise<ReflectTaskUpdateResult> {
+  return invoke<ReflectTaskUpdateResult>('reflect_stop_task', { list, id });
+}
+
+/**
+ * 释放一个已被认领的 task(与核心 `TaskReleaseTool` 同语义)。
+ *
+ * 守卫:必须存在 `claimed_by`,否则后端报错。动作 = 退回 `pending` +
+ * 清空 `claimed_by` / `claimed_at`。
+ */
+export async function reflect_release_task(
+  list: string,
+  id: number,
+): Promise<ReflectTaskUpdateResult> {
+  return invoke<ReflectTaskUpdateResult>('reflect_release_task', { list, id });
+}
+
+/**
  * 更新 task。仅传入需要修改的字段。
  * `status = "completed"` 会触发 `TaskCompleted` hook(在 hook engine 接入后);
  * 其他变更触发 `TaskUpdated`。

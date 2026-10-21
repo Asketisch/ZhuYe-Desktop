@@ -49,6 +49,8 @@ import tasks from './tasks';
 import terminal from './terminal';
 import threads from './threads';
 import toast from './toast';
+import traces from './traces';
+import usage from './usage';
 import workspaces from './workspaces';
 
 export const STRINGS: Record<string, StringEntry> = {
@@ -94,6 +96,8 @@ export const STRINGS: Record<string, StringEntry> = {
   ...terminal,
   ...threads,
   ...toast,
+  ...traces,
+  ...usage,
   ...workspaces,
 };
 

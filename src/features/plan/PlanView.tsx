@@ -20,6 +20,7 @@ import s from './PlanView.module.css';
 export function PlanView() {
   const pendingPlan = useAgentStore((st) => st.pendingPlan);
   const approvePlan = useAgentStore((st) => st.approvePlan);
+  const planSteps = useAgentStore((st) => st.planSteps);
   const { t } = useI18n();
 
   const payload = pendingPlan?.payload as {
@@ -42,15 +43,29 @@ export function PlanView() {
       subtitle={t('plan.subtitle')}
       width="md"
     >
-      {!pendingPlan ? (
-        <Card level="flat" padding="none">
-          <EmptyState
-            icon={<Icon icon={FileText} />}
-            title={t('plan.empty')}
-            description={t('plan.usePlanHint')}
-          />
+      {/* plan 执行进度 —— 来自核心 `plan_step` 事件。审批前只有 plan 正文,
+          审批后 agent 逐 step 上报状态;此前这一步完全不可见。 */}
+      {planSteps.length > 0 && (
+        <Card level="outlined" padding="lg" className={s.planCard} data-testid="plan-steps">
+          <div className={s.header}>
+            <div className={s.titleRow}>
+              <PlanStepBadge status="in_progress" />
+              <span className={s.task}>{t('plan.progressTitle')}</span>
+            </div>
+          </div>
+          <ol className={s.steps}>
+            {planSteps.map((step) => (
+              <li key={step.index} className={s.step} data-status={step.status}>
+                <span className={s.stepNum}>{step.index + 1}</span>
+                <span className={s.stepText}>{step.title ?? t(`plan.stepStatus.${step.status}`)}</span>
+                <PlanStepBadge status={step.status} />
+              </li>
+            ))}
+          </ol>
         </Card>
-      ) : (
+      )}
+
+      {pendingPlan && (
         <div className={s.list}>
           <Card level="outlined" padding="lg" className={s.planCard} data-status="pending">
             <div className={s.header}>
@@ -101,6 +116,17 @@ export function PlanView() {
           </Card>
         </div>
       )}
+
+      {/* 什么都没有(既无待审批 plan,也无执行进度)→ 空状态。 */}
+      {!pendingPlan && planSteps.length === 0 && (
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={FileText} />}
+            title={t('plan.empty')}
+            description={t('plan.usePlanHint')}
+          />
+        </Card>
+      )}
     </PageShell>
   );
 }
@@ -109,4 +135,24 @@ function PlanStatusBadge({ status }: { status: 'pending' | 'approved' | 'rejecte
   if (status === 'approved') return <Badge variant="success" solid>approved</Badge>;
   if (status === 'rejected') return <Badge variant="danger" solid>rejected</Badge>;
   return <Badge variant="warning" solid>pending</Badge>;
+}
+
+/**
+ * plan step 状态徽标 —— 对应核心 `PlanStepStatus`
+ * (`pending` / `in_progress` / `done` / `skipped`)。
+ */
+function PlanStepBadge({ status }: { status: string }) {
+  const variant =
+    status === 'done'
+      ? 'success'
+      : status === 'in_progress'
+        ? 'accent'
+        : status === 'skipped'
+          ? 'neutral'
+          : 'warning';
+  return (
+    <Badge variant={variant} data-status={status}>
+      {status}
+    </Badge>
+  );
 }

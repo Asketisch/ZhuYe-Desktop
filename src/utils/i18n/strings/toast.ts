@@ -17,6 +17,8 @@ const toast: Record<string, StringEntry> = {
   'toast.clearedSessions':    { en: 'Cleared {count} session{plural}.',  'zh-CN': '已清除 {count} 个会话。' },
   'toast.noActiveToExport':   { en: 'No active session to export.',      'zh-CN': '没有可导出的当前会话。' },
   'toast.exportFailed':       { en: 'Export failed: {msg}',              'zh-CN': '导出失败: {msg}' },
+  'toast.exportedMarkdown':   { en: 'Exported Markdown → {path}',          'zh-CN': '已导出 Markdown → {path}' },
+  'toast.exportedMarkdownNoPath': { en: 'Exported Markdown (no path).',  'zh-CN': '已导出 Markdown(无路径)。' },
   'toast.configReloaded':     { en: 'Config reloaded.',                  'zh-CN': '配置已重载。' },
   'toast.saveFailed':         { en: 'Save failed: {msg}',                'zh-CN': '保存失败: {msg}' },
 };

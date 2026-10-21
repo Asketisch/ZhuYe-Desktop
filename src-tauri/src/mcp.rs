@@ -17,7 +17,7 @@
 //! 注意:**返回 manager Arc 给 MinimalAgent 持有**,供后续 config 热重载的
 //! diff 重启用(reload task 在阶段 4 接入)。
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use reflect_config::ReflectConfig;
 use reflect_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
@@ -25,6 +25,12 @@ use reflect_mcp::{McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpT
 use reflect_protocol::{EVENT_ID_NONE, Event, EventMsg};
 use reflect_tools::{ToolRegistry, ToolSource};
 use tokio::sync::broadcast;
+
+/// MCP 工具调用事件通道(进程级单例,mpsc)。
+///
+/// `bootstrap_mcp` 建好后存这里,供 GUI **运行时新增** server 复用 ——
+/// 否则新增的 server 发的工具调用事件不会进 session broadcast,前端看不到。
+static MCP_INVOKED_TX: OnceLock<tokio::sync::mpsc::Sender<Event>> = OnceLock::new();
 
 /// bootstrap MCP servers + 返回 manager 句柄(供热重载)。
 ///
@@ -52,6 +58,9 @@ pub(crate) async fn bootstrap_mcp(
     // 转发,前端按 msg.type 分发即可看到工具调用记录。
     // (clone 必须在 lifecycle forwarder move session_tx 之前。)
     let (invoked_tx, mut invoked_rx) = tokio::sync::mpsc::channel::<Event>(64);
+    // 存进进程级单例:GUI 运行时新增 server 时复用同一通道(否则新增 server
+    // 的工具调用事件不会进 session broadcast)。
+    let _ = MCP_INVOKED_TX.set(invoked_tx.clone());
     let invoked_forward = session_tx.clone();
     tokio::spawn(async move {
         while let Some(ev) = invoked_rx.recv().await {
@@ -104,6 +113,61 @@ pub(crate) async fn bootstrap_mcp(
         "MCP bootstrap: spawning start tasks"
     );
     Some(manager)
+}
+
+/// 运行时启动**单个** MCP server 并注册其工具。
+///
+/// 与 `bootstrap_mcp` 的逐 server 启动路径同款 —— 复用同一个
+/// `invoked_tx`,因此 GUI 新增的 server 与启动时的 server 行为一致
+/// (工具注册 + 调用事件都进同一通道)。
+///
+/// 返回注册成功的工具全名列表;启动失败 → `Err(原因)`。
+pub(crate) async fn start_one_server(
+    manager: &Arc<McpConnectionManager>,
+    tools: &Arc<ToolRegistry>,
+    cfg: McpServerConfig,
+) -> Result<Vec<String>, String> {
+    let handle = manager
+        .start_server(cfg.clone())
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut names = Vec::new();
+    for desc in &handle.tools {
+        let adapter = McpToolAdapter::from_descriptor(
+            handle.inner.clone(),
+            desc,
+            &cfg.name,
+            cfg.timeout,
+            MCP_INVOKED_TX.get().cloned(),
+        );
+        let arc: Arc<dyn reflect_tools::Tool> = Arc::new(adapter);
+        if tools.register_if_absent(ToolSource::Runtime, arc) {
+            names.push(desc.full_name.clone());
+        } else {
+            tracing::warn!(
+                tool = %desc.full_name,
+                "MCP tool name collision, skipped"
+            );
+        }
+    }
+    Ok(names)
+}
+
+/// 运行时停止单个 MCP server 并反注册其工具。
+///
+/// 返回被反注册的工具全名列表;server 未在跑 → `Ok(vec![])`(幂等)。
+pub(crate) async fn stop_one_server(
+    manager: &Arc<McpConnectionManager>,
+    tools: &Arc<ToolRegistry>,
+    name: &str,
+) -> Vec<String> {
+    let Some(tool_names) = manager.stop_server(name).await else {
+        return Vec::new();
+    };
+    for tool_name in &tool_names {
+        tools.unregister(tool_name);
+    }
+    tool_names
 }
 
 /// bootstrap LSP servers + 返回 manager 句柄。

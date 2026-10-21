@@ -130,6 +130,24 @@ describe('executeSlash — Tier A real dispatch', () => {
     }
   });
 
+  it('/prompt → prompt_list submission', () => {
+    // v1.6.1:提示词层查询 —— 展开面板并拉取可用层/生效层。
+    const p = parseSlash('/prompt');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('submit_with_submission');
+    expect(r.submission).toBe('prompt_list');
+  });
+
+  it('/usage → open_usage submission', () => {
+    // 模型级用量视图 —— 路由到 /usage。
+    const p = parseSlash('/usage');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('submit_with_submission');
+    expect(r.submission).toBe('open_usage');
+  });
+
   it('/effort (no arg) → reject', () => {
     const p = parseSlash('/effort');
     if (!p.isSlash) throw new Error('not slash');

@@ -39,6 +39,8 @@ const TOASTS: PaletteToasts = {
   exported: (path) => `Exported → ${path}`,
   exportedNoPath: 'Exported → (no path)',
   exportFailed: (msg) => `Export failed: ${msg}`,
+  exportedMarkdown: (path) => `Exported Markdown → ${path}`,
+  exportedMarkdownNoPath: 'Exported Markdown → (no path)',
   configReloaded: 'Config reloaded.',
   saveFailed: (msg) => `Save failed: ${msg}`,
 };
@@ -149,8 +151,73 @@ describe('usePaletteActions', () => {
     expect(toasts[toasts.length - 1].message).toBe('Exported → (no path)');
   });
 
-  it('saveConfig: success toast', async () => {
-    mockInvoke('reflect_save_config', async () => undefined);
+  // ── markdown 转录导出（核心 `to_markdown`；此前有后端无入口）──
+
+  it('exportActiveMarkdown: calls reflect_export_session_markdown + success toast', async () => {
+    const spy = vi.fn(async () => ({ path: '/tmp/foo.md', bytes: 42 }));
+    mockInvoke('reflect_export_session_markdown', spy);
+
+    const { result } = renderHook(
+      () =>
+        usePaletteActions({
+          activeId: 'sess-1',
+          onNewChat,
+          toasts: TOASTS,
+        }),
+      { wrapper: wrapper(qc) },
+    );
+    await act(async () => {
+      await result.current.exportActiveMarkdown();
+    });
+    expect(spy).toHaveBeenCalledWith(
+      'reflect_export_session_markdown',
+      expect.objectContaining({ id: 'sess-1' }),
+    );
+    const toasts = useAgentStore.getState().toasts;
+    const last = toasts[toasts.length - 1];
+    expect(last.kind).toBe('success');
+    expect(last.message).toBe('Exported Markdown → /tmp/foo.md');
+  });
+
+  it('exportActiveMarkdown: no active session → warn toast', async () => {
+    const { result } = renderHook(
+      () =>
+        usePaletteActions({
+          activeId: null,
+          onNewChat,
+          toasts: TOASTS,
+        }),
+      { wrapper: wrapper(qc) },
+    );
+    await act(async () => {
+      await result.current.exportActiveMarkdown();
+    });
+    const toasts = useAgentStore.getState().toasts;
+    expect(toasts[toasts.length - 1].kind).toBe('warn');
+    expect(toasts[toasts.length - 1].message).toBe('No active session to export.');
+  });
+
+  it('exportActiveMarkdown: failure → error toast', async () => {
+    mockInvoke('reflect_export_session_markdown', async () => {
+      throw new Error('boom');
+    });
+    const { result } = renderHook(
+      () =>
+        usePaletteActions({
+          activeId: 'sess-1',
+          onNewChat,
+          toasts: TOASTS,
+        }),
+      { wrapper: wrapper(qc) },
+    );
+    await act(async () => {
+      await result.current.exportActiveMarkdown();
+    });
+    const toasts = useAgentStore.getState().toasts;
+    expect(toasts[toasts.length - 1].kind).toBe('error');
+  });
+
+  it('saveConfig: success toast', async () => {    mockInvoke('reflect_save_config', async () => undefined);
     const { result } = renderHook(
       () =>
         usePaletteActions({

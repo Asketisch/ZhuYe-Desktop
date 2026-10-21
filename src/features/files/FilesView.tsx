@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderOpen, RefreshCcw, ChevronRight, Check, Undo2, Zap } from 'lucide-react';
+import { FolderOpen, RefreshCcw, ChevronRight, Check, Undo2, Zap, AlertTriangle } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Icon, Spinner, EmptyState, Badge, Button } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
@@ -20,6 +20,7 @@ import {
   reflect_lsp_set_enabled,
   reflect_lsp_status,
   reflect_lsp_warmup,
+  reflect_lsp_diagnostics,
   type LspStatus,
   type ReflectFileReadResult,
 } from '@/utils/commands';
@@ -74,11 +75,19 @@ export function FilesView() {
   });
 
   // LSP:按工作区手动开启(默认关);开启状态跨会话恢复。
-  const [lsp, setLsp] = useState<LspStatus>({ enabled: false, servers: [] });
+  const [lsp, setLsp] = useState<LspStatus>({
+    enabled: false,
+    servers: [],
+    diagnostics: { documents: 0, count: 0, statusLine: '' },
+  });
   useEffect(() => {
     // 切工作区:恢复该工作区的偏好(默认关)。
     const pref = readLspPref(workspace);
-    setLsp({ enabled: false, servers: [] });
+    setLsp({
+      enabled: false,
+      servers: [],
+      diagnostics: { documents: 0, count: 0, statusLine: '' },
+    });
     reflect_lsp_status()
       .then((st) => {
         if (st.enabled !== pref) {
@@ -107,6 +116,17 @@ export function FilesView() {
     if (!lsp.enabled || !fileQ.data || fileQ.data.binary || !selected) return;
     void reflect_lsp_warmup(fileQ.data.path).catch(() => {/* 尽力而为 */});
   }, [lsp.enabled, fileQ.data, selected]);
+
+  // 当前文件的 LSP 诊断(编译器 / 检查器反馈)。诊断由 server 推送后
+  // 被动缓存 —— 预热后才有内容,故随文件打开后短暂轮询几次。
+  const diagQ = useQuery({
+    queryKey: ['lsp-diagnostics', selected],
+    queryFn: () => reflect_lsp_diagnostics(selected as string),
+    enabled: !!selected && lsp.enabled,
+    staleTime: 5_000,
+    refetchInterval: lsp.enabled ? 15_000 : false,
+  });
+  const diagnostics = diagQ.data ?? [];
 
   const pending = useEditorStore((st) => (selected ? st.pending[selected] : undefined));
   const lastEditedPath = useEditorStore((st) => st.lastEditedPath);
@@ -284,6 +304,40 @@ export function FilesView() {
                 onRejectHunk={onRejectHunk}
                 bufferRef={bufferRef}
               />
+              {/* LSP 诊断(Problems)—— 编译器 / 检查器反馈。LSP 开着但
+                  看不到诊断是此前的能力缺口:诊断只进了 core 的被动缓存。 */}
+              {lsp.enabled && (
+                <div className={s.problems} data-testid="files-problems">
+                  <div className={s.problemsHeader}>
+                    <Icon icon={AlertTriangle} size={12} />
+                    <span>{t('files.problems.title')}</span>
+                    <Badge variant={diagnostics.length > 0 ? 'warning' : 'neutral'}>
+                      {diagnostics.length}
+                    </Badge>
+                  </div>
+                  {diagnostics.length === 0 ? (
+                    <p className={s.problemsEmpty}>
+                      {diagQ.isLoading ? t('common.loading') : t('files.problems.empty')}
+                    </p>
+                  ) : (
+                    <ul className={s.problemsList}>
+                      {diagnostics.map((d, i) => (
+                        <li
+                          key={`${d.line}-${d.column}-${i}`}
+                          className={s.problemRow}
+                          data-severity={d.severity}
+                        >
+                          <span className={s.problemLoc}>
+                            {t('files.problems.at', { line: String(d.line), col: String(d.column) })}
+                          </span>
+                          <span className={s.problemMsg}>{d.message}</span>
+                          {d.source && <span className={s.problemSource}>{d.source}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           ) : null}
         </section>

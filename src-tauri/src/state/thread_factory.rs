@@ -101,11 +101,18 @@ pub(crate) fn construct_thread(
         // 时为 Some;model_call 节点据此在调用后记录用量,窗口耗尽 → 冷却 +
         // `QuotaExhausted` 事件 + 池内 failover(与 TUI/headless 行为对齐)。
         .with_quota_tracker(agent.inner.quota_tracker.lock().clone());
+    // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
+    // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
+    cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
     let mut mounted_m4: Option<(ThreadId, reflect_core::config::M4Deps)> = None;
     if let Some(sid) = sid {
+        // 活跃 agent 名:桌面端偏好(缺省 "default",与 CLI 一致)——
+        // 决定加载哪条 agent 定义,以及记忆目录(`.reflect/agent-memory/<agent>/`)，
+        // 与 GUI 的 Agents 视图 / Memory 视图同源。
+        let active_agent = crate::agent_state::AgentState::active_agent();
         let m4 = match reflect::m4_bootstrap::build_default_m4(
             &agent.workspace(),
-            "desktop",
+            &active_agent,
             &cfg.current_model(),
             &registry,
             sid,
@@ -123,6 +130,21 @@ pub(crate) fn construct_thread(
             }
         };
         cfg = cfg.with_m4(m4.clone()).with_session_id(sid);
+        // 会话笔记工具 + 子代理 `call_<role>` 工具 —— 此前桌面端**都没注册**:
+        // agent 既写不了会话笔记(GUI 的笔记面板因此永远是空的),也委派不了
+        // 子任务(Inspector 的子代理区块因此永远是空的)。口径与 CLI 的
+        // `bootstrap_m5` 同款(见 `state/subagents.rs`)。
+        super::subagents::register_note_tool(&agent.inner.tools, &m4);
+        let _subagent_factory = super::subagents::bootstrap_subagents(
+            &agent.workspace(),
+            &cfg.current_model(),
+            &registry,
+            sid,
+            m4.recorder.clone(),
+            &m4,
+            &agent.inner.tools,
+            &cfg_snapshot,
+        );
         mounted_m4 = Some((sid, m4));
     }
     if !preload.is_empty() {

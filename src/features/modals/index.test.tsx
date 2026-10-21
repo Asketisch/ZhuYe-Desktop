@@ -7,8 +7,8 @@
  * 3. AskUserModal 提交文本调 answerInput
  * 4. PlanReadyModal 从 pendingPlan 渲染
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ModalStack } from '@/features/modals';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
@@ -68,8 +68,65 @@ describe('ModalStack', () => {
     expect(useAgentStore.getState().pendingAskUser.length).toBe(0);
   });
 
-  it('renders PlanReadyModal from pendingPlan', () => {
+  // —— 「始终允许这条命令」(写进核心的用户级权限文件)——
+
+  it('Bash 审批出现「始终允许」入口,点击后写规则 + 批准', async () => {
+    const addRule = vi.fn(async (_cmd: string, _args: unknown) => undefined);
+    mockInvoke('reflect_add_permission_rule', addRule);
+    mockInvoke('reflect_tool_approval', async () => 'sub-1');
     useAgentStore.setState({
+      pendingApprovals: [
+        {
+          id: 'a1',
+          kind: 'tool',
+          toolName: 'bash',
+          argsSummary: 'git status',
+          args: { cmd: 'git status' },
+          turnId: 't1',
+        },
+      ],
+    });
+    render(wrap(<ModalStack />));
+
+    const btn = screen.getByTestId('approval-allow-always');
+    expect(btn.textContent).toContain('git status');
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(addRule).toHaveBeenCalledTimes(1);
+    });
+    expect(addRule.mock.calls[0][1]).toMatchObject({
+      rule: {
+        tool: 'Bash',
+        action: 'allow',
+        shellPattern: 'git status',
+      },
+    });
+    // 写完规则即批准本次调用。
+    await waitFor(() => {
+      expect(useAgentStore.getState().pendingApprovals.length).toBe(0);
+    });
+  });
+
+  it('写类工具审批不出现「始终允许」入口(核心规则模型没有路径维度)', () => {
+    mockInvoke('reflect_tool_approval', async () => 'sub-1');
+    useAgentStore.setState({
+      pendingApprovals: [
+        {
+          id: 'a1',
+          kind: 'tool',
+          toolName: 'write',
+          argsSummary: '{"path":"/tmp/a"}',
+          args: { path: '/tmp/a' },
+          turnId: 't1',
+        },
+      ],
+    });
+    render(wrap(<ModalStack />));
+    expect(screen.queryByTestId('approval-allow-always')).toBeNull();
+  });
+
+  it('renders PlanReadyModal from pendingPlan', () => {    useAgentStore.setState({
       pendingPlan: { id: 'p1', payload: { summary: 'Step 1: do X' }, turnId: 't1' },
     });
     render(wrap(<ModalStack />));

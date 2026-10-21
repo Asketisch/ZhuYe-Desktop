@@ -146,6 +146,21 @@ const ROUTES: RouteSpec[] = [
   },
   { route: '/media' },
   {
+    route: '/traces',
+    commands: ['reflect_list_traces'],
+    shows: ['demo-session'],
+  },
+  {
+    route: '/usage',
+    commands: ['reflect_all_model_usage'],
+    shows: ['openai/gpt-4o'],
+  },
+  {
+    route: '/collaboration',
+    commands: ['reflect_list_discussions'],
+    shows: ['demo-session'],
+  },
+  {
     route: '/chat/sess-alpha',
     commands: ['reflect_replay_session'],
     shows: ['Summarize the auth flow'],

@@ -39,6 +39,97 @@ pub struct GitLogEntry {
     pub subject: String,
 }
 
+/// 一个 git worktree(camelCase 出线)。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeInfo {
+    /// worktree 绝对路径。
+    pub path: String,
+    /// HEAD 指向的分支名(detached HEAD 时为空串)。
+    pub branch: String,
+    /// HEAD commit sha。
+    pub head: String,
+    /// 是否有未提交改动。
+    pub dirty: bool,
+    /// true = 隔离 worktree(非主工作树)—— agent 的 `EnterWorktree` 会建这种。
+    pub isolated: bool,
+    /// true = 隔离 worktree 且有未提交改动 → 改动**还没落回主分支**（丢工风险）。
+    pub stranded: bool,
+}
+
+/// 列出仓库的 worktree,标出「改动被困在隔离 worktree」的风险。
+///
+/// 核心的 worktree 状态存在 `ToolContext` 里（进程内），GUI 读不到；
+/// 但 worktree 本身是**文件系统可见**的 —— `git worktree list --porcelain`
+/// 列出全部工作树，配合核心的 `reflect_tools::worktree::worktree_dirty`
+/// 判脏。
+///
+/// 关键价值：agent 经 `EnterWorktree` 进隔离工作树后，GUI 此前完全不知情 ——
+/// 用户的改动可能滞留在那里、没落回主分支。现在明确标出 `stranded`。
+#[tauri::command]
+pub async fn reflect_list_worktrees() -> CommandResult<Vec<WorktreeInfo>> {
+    let out = run_git(&["worktree", "list", "--porcelain"])?;
+    if !out.status.success() {
+        // 不是 git 仓库 / 无 worktree 支持 → 空列表(不报错)。
+        return Ok(Vec::new());
+    }
+    let raw = String::from_utf8_lossy(&out.stdout).to_string();
+
+    // porcelain 格式:空行分隔的块,每块含 worktree/HEAD/branch 行。
+    let mut blocks: Vec<Vec<String>> = Vec::new();
+    let mut current: Vec<String> = Vec::new();
+    for line in raw.lines() {
+        if line.trim().is_empty() {
+            if !current.is_empty() {
+                blocks.push(std::mem::take(&mut current));
+            }
+            continue;
+        }
+        current.push(line.to_string());
+    }
+    if !current.is_empty() {
+        blocks.push(current);
+    }
+
+    let mut infos: Vec<WorktreeInfo> = Vec::new();
+    for block in blocks {
+        let mut path = String::new();
+        let mut head = String::new();
+        let mut branch = String::new();
+        for line in &block {
+            if let Some(p) = line.strip_prefix("worktree ") {
+                path = p.trim().to_string();
+            } else if let Some(h) = line.strip_prefix("HEAD ") {
+                head = h.trim().to_string();
+            } else if let Some(b) = line.strip_prefix("branch ") {
+                // `refs/heads/<name>` → `<name>`
+                branch = b.trim().rsplit('/').next().unwrap_or("").to_string();
+            }
+        }
+        if path.is_empty() {
+            continue;
+        }
+        // 判脏走核心的实现(与 agent 侧同款语义)。
+        let dirty =
+            reflect_tools::worktree::worktree_dirty(std::path::Path::new(&path)).unwrap_or(false);
+        infos.push(WorktreeInfo {
+            path,
+            branch,
+            head,
+            dirty,
+            isolated: false, // 下面统一回填
+            stranded: false,
+        });
+    }
+    // 第一个条目是主工作树;其余为隔离 worktree。
+    let main_path = infos.first().map(|w| w.path.clone()).unwrap_or_default();
+    for w in infos.iter_mut() {
+        w.isolated = !w.path.is_empty() && w.path != main_path;
+        w.stranded = w.isolated && w.dirty;
+    }
+    Ok(infos)
+}
+
 fn git_in_workspace() -> Option<PathBuf> {
     if let Some(p) = MinimalAgent::workspace_override() {
         return Some(p);

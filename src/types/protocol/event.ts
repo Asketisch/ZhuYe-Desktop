@@ -28,12 +28,13 @@ export const EVENT_ID_NONE = '';
  * TypeScript 的判别联合,使消费者可以用 `switch (event.msg.type)` 收窄 payload 形状。
  */
 export type EventMsgType =
-  // 生命周期 (6)
+  // 生命周期 (7)
   | 'session_configured'
   | 'turn_started'
   | 'turn_complete'
   | 'turn_aborted'
   | 'turn_rewound'
+  | 'submission_closed'
   | 'shutdown_complete'
   // LLM 输出 (4)
   | 'agent_message'
@@ -84,7 +85,10 @@ export type EventMsgType =
   | 'permission_mode_changed'
   // 插件 / 配额
   | 'plugin_loaded'
-  | 'quota_exhausted';
+  | 'quota_exhausted'
+  // 提示词层 (2;v1.6.1)
+  | 'prompt_list'
+  | 'prompt_switched';
 
 // ============================================================================
 // EventMsg payload 结构体
@@ -139,6 +143,35 @@ export interface ThinkingDeltaPayload {
 
 export interface TokenCountPayload extends TokenUsagePayload {
   // 与 TokenUsagePayload 结构一致
+  /**
+   * v1.x 模型级 token 统计:本轮实际命中的模型 spec(如 `"openai/gpt-4o"`)。
+   * 旧引擎不上报该字段 → 缺省 `undefined`。
+   */
+  model?: string;
+}
+
+/**
+ * `prompt_list` —— v1.6.1:`Op::PromptCommand { action: List }` 的应答。
+ * payload 镜像 Rust `PromptListEvent`(wire 为 snake_case)。
+ */
+export interface PromptListPayload {
+  /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 用户目录层,去重)。 */
+  available: string[];
+  /** 当前 model spec(如 `"anthropic/claude-sonnet-5-5"`)。 */
+  current_spec: string;
+  /** 当前 spec 实际命中的用户层文件名(诊断用,内嵌层不记录)。 */
+  active_layers: string[];
+}
+
+/**
+ * `prompt_switched` —— v1.6.1:`Op::PromptCommand { action: Switch }` 的应答。
+ * payload 镜像 Rust `PromptSwitchedEvent`(wire 为 snake_case)。
+ */
+export interface PromptSwitchedPayload {
+  /** 触发重扫的动作名(`"reload"`;预留未来聚焦切换的层名)。 */
+  action: string;
+  /** 重扫后当前 spec 的生效用户层(让 UI 立即看到新命中)。 */
+  active_layers: string[];
 }
 
 export interface ToolCallBeginPayload {
@@ -328,6 +361,13 @@ export interface PlanRequestPayload {
 export interface PlanReadyPayload {
   plan_id: string;
   markdown: string;
+  /**
+   * plan markdown 落盘路径(`<workspace>/.reflect/plan/<plan_id>.md`)。
+   *
+   * core 在 dispatch_plan_ready 时把 plan 写成文件,使其成为可引用、可
+   * `cat` 的持久产物;写盘是 best-effort,失败时字段缺省。
+   */
+  path?: string;
 }
 
 export interface PlanApprovedPayload {
@@ -377,6 +417,8 @@ export interface PluginLoadedPayload {
   scope?: string;
   version?: string;
   skill_count?: number;
+  /** 该插件贡献的 slash 命令数(核心 v1.7 起上报)。 */
+  command_count?: number;
 }
 
 /** `quota_exhausted` —— credential 配额耗尽,agent 因此停止。 */
@@ -460,6 +502,8 @@ export interface EventMsgByType {
   turn_complete: TurnCompletePayload;
   turn_aborted: TurnAbortedPayload;
   turn_rewound: TurnRewoundPayload;
+  /** v1.3 SDK:某条 submission 的 per-turn 通道已排空(serve drain task 发出)。Desktop 内嵌线程不产生本事件,reducer no-op 保穷尽。 */
+  submission_closed: Record<string, never>;
   shutdown_complete: Record<string, never>;
   // LLM 输出
   agent_message: AgentMessagePayload;
@@ -509,6 +553,9 @@ export interface EventMsgByType {
   // 插件 / 配额
   plugin_loaded: PluginLoadedPayload;
   quota_exhausted: QuotaExhaustedPayload;
+  // 提示词层 (v1.6.1)
+  prompt_list: PromptListPayload;
+  prompt_switched: PromptSwitchedPayload;
 }
 
 /** ReflectEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */

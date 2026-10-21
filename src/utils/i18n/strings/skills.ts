@@ -24,6 +24,8 @@ const skills: Record<string, StringEntry> = {
   'skills.installedEmpty':    { en: 'No skills installed. Add SKILL.md folders under ~/.reflect/skills/.',      'zh-CN': '尚未安装技能。将 SKILL.md 目录放入 ~/.reflect/skills/ 即可。' },
   'skills.triggers':          { en: 'Triggers',                                                                 'zh-CN': '触发词' },
   'skills.allowedTools':      { en: 'Tools',                                                                    'zh-CN': '允许工具' },
+  'skills.bundled':           { en: 'Built-in',                                                                'zh-CN': '内置' },
+  'skills.whenPaths':         { en: 'Auto-activate on paths',                                                  'zh-CN': '路径自动激活' },
 };
 
 export default skills;

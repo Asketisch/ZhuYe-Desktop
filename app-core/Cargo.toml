@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Reflect Desktop 领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot 等命令逻辑（UI 无关，供 src-tauri 复用）"
+description = "Reflect Desktop 领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / traces / discussion / pipeline 等命令逻辑（UI 无关，供 src-tauri 复用）"
 
 [lints]
 workspace = true
@@ -17,8 +17,20 @@ path = "src/lib.rs"
 
 [dependencies]
 # Reflect crates（仅保留保留模块实际使用的）
-reflect-protocol = { workspace = true }
-reflect-task     = { workspace = true }
+reflect-protocol  = { workspace = true }
+reflect-task      = { workspace = true }
+# traces:只读查询 telemetry model-io JSONL + rollout 标题映射
+reflect-telemetry = { workspace = true }
+reflect-rollout   = { workspace = true }
+# discussion:多 agent 讨论编排(CLI `reflect discussion` 的 GUI 对应)
+reflect-discussion = { workspace = true }
+# discussion/pipeline 组装:模型注册表 / 工具注册表 / 子代理工厂 / 配置
+reflect-llm        = { workspace = true }
+reflect-tools      = { workspace = true }
+reflect-subagent   = { workspace = true }
+reflect-config     = { workspace = true }
+# pipeline:DAG 流水线 + team 四阶段预设(CLI `reflect pipeline` 的 GUI 对应)
+reflect-pipeline   = { workspace = true }
 
 # 通用
 dirs        = { workspace = true }
@@ -28,4 +40,8 @@ tokio       = { workspace = true, features = ["sync", "rt", "macros", "process",
 tokio-util  = { workspace = true, features = ["rt"] }
 parking_lot = { workspace = true }
 tracing     = { workspace = true }
+chrono      = { workspace = true }
+anyhow      = { workspace = true }
+# pipeline TOML 校验(结构摘要:只读顶层 `nodes` 表,字段语义交核心校验)
+toml        = { workspace = true }
 tempfile    = "3"

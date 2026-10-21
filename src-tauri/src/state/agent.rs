@@ -173,7 +173,7 @@ pub struct AgentStatus {
 pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let (session_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let cfg = reflect_config::load_default();
+    let cfg = reflect_app_core::sandbox::load_config_with_sandbox_baseline();
     // Task/Team 存储复用 核心 crate 默认 home(REFLECT_HOME 或 $HOME/.reflect),
     // 与 TUI/CLI 共享 `~/.reflect/tasks/` 与 `~/.reflect/teams/`。
     // home 解析失败时回退到 cwd 下的 `.reflect`,保证进程仍可启动(命令会报 I/O 错)。

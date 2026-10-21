@@ -136,6 +136,16 @@ describe('Inspector tabs', () => {
         removedMessages: 3,
         tokensSaved: 2387,
         last: 'smart_prune: 0 msgs (7731 → 5344 tokens)',
+        records: [
+          {
+            strategy: 'smart_prune',
+            removedMessages: 3,
+            beforeTokens: 7731,
+            afterTokens: 5344,
+            tokensSaved: 2387,
+            at: 1_700_000_000_000,
+          },
+        ],
       },
     } as never);
     render(wrap(<Inspector />));
@@ -173,5 +183,40 @@ describe('Inspector tabs', () => {
     await waitFor(() => {
       expect(screen.getByTestId('inspector-changes').textContent).toContain('+hello');
     });
+  });
+});
+
+// ===========================================================================
+// agent 的 todo 清单（来自 `TodoWrite` 工具输出元数据）
+// ===========================================================================
+
+describe('Inspector — todo 清单', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    useAgentStore.getState().reset();
+  });
+  afterEach(() => cleanup());
+
+  it('清单为空时不渲染面板', () => {
+    render(wrap(<Inspector />));
+    expect(screen.queryByTestId('inspector-todos')).toBeNull();
+  });
+
+  it('渲染清单条目与完成数徽标', () => {
+    useAgentStore.setState({
+      todos: [
+        { content: 'design schema', status: 'in_progress', active_form: 'Designing' },
+        { content: 'write tests', status: 'completed', active_form: null },
+        { content: 'ship it', status: 'pending', active_form: null },
+      ],
+    } as never);
+    render(wrap(<Inspector />));
+
+    const panel = screen.getByTestId('inspector-todos');
+    expect(panel.textContent).toContain('design schema');
+    expect(panel.textContent).toContain('write tests');
+    expect(panel.textContent).toContain('ship it');
+    // 完成数 / 总数
+    expect(panel.textContent).toContain('1 / 3');
   });
 });

@@ -78,20 +78,190 @@
   border-radius: var(--radius-xs);
 }
 
-.futureCard {
+
+/* —— 多智能体编排:discussion / pipeline(接线自 reflect-discussion / reflect-pipeline)—— */
+
+.orchForm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.orchPath {
+  flex: 1;
+  min-width: 200px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.orchTopic {
+  flex: 1;
+  min-width: 220px;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.historyRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.historyTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.liveSession {
+  margin-top: var(--space-2);
+}
+
+.liveHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.liveMessages {
+  margin-top: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.liveMsg {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.liveFrom {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin-right: var(--space-1);
+}
+
+.reportBlock {
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.errorText {
+  color: var(--danger);
+  font-size: var(--fs-xs);
+  margin-top: var(--space-1);
+}
+
+/* ====== MCP 服务管理面板 ====== */
+.mcpForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.mcpFormRow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.mcpCatalog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.mcpCatalogRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ====== Pipeline 编辑器 ====== */
+.pipelineEditor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin-top: var(--space-3);
 }
 
-.futureTitle {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
+.pipelineToml {
+  width: 100%;
+  min-height: 200px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
-  margin-bottom: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+  outline: none;
+  resize: vertical;
 }
 
-.futureText {
+.pipelineToml:focus {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-focus);
+}
+
+.orchForm input,
+.orchForm select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: var(--space-1) var(--space-2);
   font-size: var(--fs-sm);
-  color: var(--text-secondary);
-  line-height: var(--lh-relaxed);
-  margin: 0;
+  outline: none;
+}
+
+.detailLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
 }

@@ -9,11 +9,11 @@
  * 仿 AppShell.test.tsx 模式：QueryClient 包裹 + resetMockInvoke + store.setState。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from '@/features/shell/StatusBar';
 import { useAgentStore } from '@/stores/agentStore';
-import { resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
+import { resetMockInvoke, createTestQueryClient, mockInvoke } from '@/test/setup.tsx';
 import type { TokenSnapshot } from '@/stores/agent/types';
 
 vi.mock('@tanstack/react-router', async () => {
@@ -107,5 +107,69 @@ describe('StatusBar — token indicator', () => {
     useAgentStore.setState({ tokens });
     render(wrap(<StatusBar />));
     expect(screen.queryByTestId('statusbar-cost')).toBeNull();
+  });
+});
+
+// ===========================================================================
+// OS 沙箱徽标 —— 报的是「真正生效」的状态
+// ===========================================================================
+
+describe('StatusBar — OS 沙箱徽标', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    useAgentStore.getState().reset();
+  });
+  afterEach(() => cleanup());
+
+  it('显示有效状态(而非配置值)', async () => {
+    mockInvoke('reflect_sandbox_status', async () => ({
+      osLevel: true,
+      status: 'seatbelt',
+      active: true,
+      backend: 'seatbelt',
+      statusLine: 'os-sandbox: seatbelt 已启用',
+      enabled: true,
+      envOverride: null,
+    }));
+    render(wrap(<StatusBar />));
+    await waitFor(() => {
+      expect(screen.getByTestId('statusbar-sandbox').textContent).toContain('seatbelt');
+    });
+  });
+
+  it('沙箱被关闭时徽标显示 disabled', async () => {
+    mockInvoke('reflect_sandbox_status', async () => ({
+      osLevel: false,
+      status: 'disabled',
+      active: false,
+      backend: 'seatbelt',
+      statusLine: 'os-sandbox: 未启用',
+      enabled: false,
+      envOverride: null,
+    }));
+    render(wrap(<StatusBar />));
+    await waitFor(() => {
+      expect(screen.getByTestId('statusbar-sandbox').textContent).toContain('disabled');
+    });
+    expect(screen.getByTestId('statusbar-sandbox').getAttribute('data-active')).toBeNull();
+  });
+
+  it('env 覆盖生效时在 tooltip 里标注(否则用户在设置里拨开关看不到变化会困惑)', async () => {
+    mockInvoke('reflect_sandbox_status', async () => ({
+      osLevel: true,
+      status: 'disabled',
+      active: false,
+      backend: 'seatbelt',
+      statusLine: 'os-sandbox: 未启用',
+      enabled: false,
+      envOverride: '0',
+    }));
+    render(wrap(<StatusBar />));
+    await waitFor(() => {
+      expect(screen.getByTestId('statusbar-sandbox')).toBeTruthy();
+    });
+    const sandbox = screen.getByTestId('statusbar-sandbox');
+    // tooltip 是该徽标的兄弟节点(Tooltip 纯 CSS,label 常驻 DOM)。
+    expect(sandbox.parentElement?.textContent).toContain('REFLECT_SANDBOX_OS_LEVEL=0');
   });
 });

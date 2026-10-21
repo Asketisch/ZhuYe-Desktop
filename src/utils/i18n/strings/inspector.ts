@@ -28,6 +28,9 @@ const inspector: Record<string, StringEntry> = {
   'inspector.lastError':         { en: 'Last error',                  'zh-CN': '最近错误' },
   'inspector.dismiss':           { en: 'Dismiss',                     'zh-CN': '忽略' },
 
+  // ===== agent 的 todo 清单(来自 `TodoWrite` 工具输出元数据)=====
+  'inspector.todoList':          { en: 'Todo list',                   'zh-CN': 'Todo 清单' },
+
   // ===== Token usage（最近一次 token_count 事件的快照）=====
   'inspector.tokenUsage':        { en: 'Token usage',                 'zh-CN': 'Token 用量' },
   'inspector.tokenEmpty':        { en: 'No token data yet.',          'zh-CN': '暂无 token 数据。' },
@@ -40,6 +43,15 @@ const inspector: Record<string, StringEntry> = {
   'inspector.tokenTotal':        { en: 'Total',                       'zh-CN': '合计' },
   'inspector.tokenProvider':     { en: 'Provider',                    'zh-CN': '提供商' },
   'inspector.tokenCredential':   { en: 'Credential',                  'zh-CN': '凭据' },
+  'inspector.tokenModel':        { en: 'Model',                       'zh-CN': '模型' },
+  'inspector.byModel':           { en: 'By model (session total)',    'zh-CN': '按模型（会话累计）' },
+  'inspector.callsUnit':         { en: 'calls',                      'zh-CN': '次调用' },
+  'inspector.compactionsDetail': { en: 'Per-compaction detail',      'zh-CN': '逐次压缩明细' },
+  // 运行时状态(凭证池 / 已完成的子代理调用)
+  'inspector.credentialPool':     { en: 'Credential pool',             'zh-CN': '凭证池' },
+  'inspector.credentialPoolOk':   { en: 'all healthy',                 'zh-CN': '全部健康' },
+  'inspector.credentialPoolCooling': { en: '{count} cooling',          'zh-CN': '{count} 个冷却中' },
+  'inspector.subagentCalls':      { en: 'Completed subagent calls',    'zh-CN': '已完成的子代理调用' },
   'inspector.contextWindow':     { en: 'Context window: {tokens} tokens', 'zh-CN': '上下文窗口: {tokens} tokens' },
 
   // ===== v1.x P2：概览 / 文件 / 改动 三 tab =====

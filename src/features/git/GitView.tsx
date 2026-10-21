@@ -30,6 +30,7 @@ import { Card, Icon, Button } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { DiffViewer } from './DiffViewer';
+import { WorktreePanel } from './WorktreePanel';
 import s from './GitView.module.css';
 
 type Tab = 'working' | 'staged';
@@ -153,6 +154,8 @@ export function GitView() {
   return (
     <PageShell icon={GitBranch} title={t('git.title')} subtitle={t('git.subtitle')} width="lg">
       {error && <Card level="outlined" padding="md"><p className={s.error}>{t('common.error')}: {error}</p></Card>}
+      {/* Worktree 列表 —— agent 进隔离工作树后,改动是否滞留在那里一眼可见。 */}
+      <WorktreePanel />
 
       <Card level="elevated" padding="md" className={s.headerCard}>
         <div className={s.branchRow}>

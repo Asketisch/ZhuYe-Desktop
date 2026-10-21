@@ -167,3 +167,110 @@
 .saveBtn:hover {
   background: rgba(108, 192, 112, 0.2);
 }
+
+/* 活跃 agent 卡片(运行时实际加载的那条定义) */
+.activeCard {
+  margin-bottom: var(--space-3);
+}
+
+.activeHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.activeLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.activeName {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
+.activeMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+  line-height: var(--lh-normal);
+}
+
+/* 活跃 agent 行高亮 */
+.row[data-active] {
+  border-color: var(--accent-border);
+}
+
+/* ====== 子代理 spec 面板 ====== */
+.specEditor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.specEditorHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.specRole {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.specTextarea {
+  width: 100%;
+  min-height: 220px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+  outline: none;
+  resize: vertical;
+}
+
+.specTextarea:focus {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-focus);
+}
+
+.specError {
+  font-size: var(--fs-xs);
+  color: var(--danger);
+  margin: 0;
+}
+
+/* ====== 页签(agent 定义 / 子代理 spec) ====== */
+.tabBar {
+  display: flex;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  padding: 2px;
+}
+
+.tab {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.tab[data-active] {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}

@@ -59,6 +59,13 @@ git submodule update --remote reflect-agent
 - `EventMsg` 新增 variant → `src-tauri/src/state/activity.rs` 的 match 补全
 - `Op` 变体形态变更 → `src-tauri/src/commands/` 的命令封装适配
 - `AgentDefinition` 字段变更 → `src-tauri/src/commands/agents.rs` 适配
+- `RolloutRecord` 新增 variant / 字段 → `src-tauri/src/commands/export.rs`
+  的 match 补全
+
+> **注意**:`cargo check` 不编译 `#[cfg(test)]` 代码 —— 协议结构变更
+> 可能只在 `cargo test` 时才暴露编译错误。升级核心后两个命令都要跑
+> (`cargo check` + `cargo test`)。同理,前端 `pnpm typecheck` 不覆盖
+> 测试文件,需补跑 `pnpm test`。
 
 ## 当前 submodule 指针
 

@@ -1,0 +1,199 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sessionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.sessionRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.sessionRow[data-selected='true'] {
+  border-color: var(--accent);
+}
+
+.sessionTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.sessionId {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12ch;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.callCard {
+  overflow: hidden;
+}
+
+.callHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.callModel {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.callBody {
+  margin-top: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: var(--lh-relaxed);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.emptyDetail {
+  padding: var(--space-6) 0;
+}
+
+/* ====== 标签切换(调用详情 / Span 树) ====== */
+.tabBar {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tab {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.tab[data-active] {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+/* ====== Span 树 ====== */
+.spansWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.spanBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.spanDayLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.spanEmpty {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.spanList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.spanRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.spanRow:hover {
+  background: var(--bg-hover);
+}
+
+.spanEvent {
+  color: var(--text-primary);
+}
+
+.spanModule {
+  color: var(--text-muted);
+}
+
+.spanDuration {
+  color: var(--text-secondary);
+}
+
+.spanTime {
+  color: var(--text-muted);
+  margin-left: auto;
+}

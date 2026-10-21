@@ -64,6 +64,7 @@ const slash: Record<string, StringEntry> = {
   'slash.copy.desc':           { en: 'Copy the current turn',                'zh-CN': '复制当前 turn' },
   'slash.editor.desc':         { en: 'Open external editor',                 'zh-CN': '外部编辑器' },
   'slash.stats.desc':          { en: 'Show session stats',                   'zh-CN': '查看会话统计' },
+  'slash.prompt.desc':         { en: 'Prompt layers (list / rescan)',         'zh-CN': '提示词层（查看 / 重扫）' },
   'slash.insights.desc':       { en: 'Show AI insights',                     'zh-CN': '查看 AI insights' },
   'slash.context.desc':        { en: 'Show context usage details',           'zh-CN': '查看 context 用量详情' },
   'slash.ctxViz.desc':         { en: 'Visualize context',                    'zh-CN': '可视化 context' },

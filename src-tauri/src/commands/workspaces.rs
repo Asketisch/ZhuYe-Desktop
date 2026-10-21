@@ -148,6 +148,32 @@ pub async fn reflect_pick_workspace_folder(app: tauri::AppHandle) -> CommandResu
     Ok(picked)
 }
 
+/// 弹出原生文件选择框（discussion / pipeline 的 TOML 配置入口）；取消 → `None`。
+///
+/// `extensions` 为扩展名白名单（不含点，如 `["toml"]`）；空列表 = 不过滤。
+#[tauri::command]
+pub async fn reflect_pick_file(
+    app: tauri::AppHandle,
+    extensions: Option<Vec<String>>,
+) -> CommandResult<Option<String>> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let mut builder = app.dialog().file();
+    if let Some(exts) = extensions.filter(|e| !e.is_empty()) {
+        let str_exts: Vec<&str> = exts.iter().map(String::as_str).collect();
+        builder = builder.add_filter("Config", &str_exts);
+    }
+    builder.pick_file(move |file| {
+        let picked = file
+            .and_then(|f| f.into_path().ok())
+            .map(|p| p.display().to_string());
+        let _ = tx.send(picked);
+    });
+    let picked = rx.await.map_err(|e| CommandError {
+        msg: format!("file picker closed unexpectedly: {e}"),
+    })?;
+    Ok(picked)
+}
+
 /// 在系统文件管理器中定位并选中 `path`（Finder 显示 / 资源管理器选中 /
 /// xdg-open 打开所在目录）。
 #[tauri::command]

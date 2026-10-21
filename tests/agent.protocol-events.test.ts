@@ -322,11 +322,20 @@ describe('context / error / routing events', () => {
       after_tokens: 20_000,
     });
     expect(turnItems(TURN).find((i) => i.kind === 'compacted')).toBeUndefined();
-    expect(st().compactions).toEqual({
+    expect(st().compactions).toMatchObject({
       count: 1,
       removedMessages: 12,
       tokensSaved: 80_000,
       last: 'llm_summarize: 12 msgs (100000 → 20000 tokens)',
+    });
+    // 逐次明细:压缩前后的 token 可核对。
+    expect(st().compactions.records).toHaveLength(1);
+    expect(st().compactions.records[0]).toMatchObject({
+      strategy: 'llm_summarize',
+      removedMessages: 12,
+      beforeTokens: 100_000,
+      afterTokens: 20_000,
+      tokensSaved: 80_000,
     });
   });
 

@@ -40,6 +40,7 @@ export function turnsFromRollout(records: ReflectRolloutRecord[]): {
     removedMessages: 0,
     tokensSaved: 0, // 历史 record 不带 token 数,仅 live 事件累计。
     last: null,
+    records: [], // 历史压缩无 before/after 明细,只累计计数。
   };
 
   for (const record of records) {

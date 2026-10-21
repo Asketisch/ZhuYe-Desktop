@@ -39,7 +39,32 @@ export interface CompactionStats {
   tokensSaved: number;
   /** 最近一次摘要（strategy + msgs + tokens）。 */
   last: string | null;
+  /**
+   * 逐次压缩明细（新到旧，封顶 50 条防长会话无界增长）。
+   *
+   * 让「压缩到底省了多少」可核对 —— 不再只有一行 hover 摘要。
+   */
+  records: CompactionRecord[];
 }
+
+/** 单次压缩的明细。 */
+export interface CompactionRecord {
+  /** 压缩策略（如 `smart_prune` / `microcompact`）。 */
+  strategy: string;
+  /** 移除的消息数。 */
+  removedMessages: number;
+  /** 压缩前上下文 token 估算。 */
+  beforeTokens: number;
+  /** 压缩后上下文 token 估算。 */
+  afterTokens: number;
+  /** 节省的 token（before − after）。 */
+  tokensSaved: number;
+  /** 发生时间（ms）。 */
+  at: number;
+}
+
+/** 压缩明细封顶条数。 */
+export const COMPACTION_RECORD_CAP = 50;
 
 export type TurnStatus = 'streaming' | 'done' | 'aborted';
 
@@ -67,6 +92,13 @@ export interface PendingApproval {
   kind: 'tool' | 'hook';
   toolName?: string;
   argsSummary?: string;
+  /**
+   * 工具调用的**原始参数**(仅 tool 审批)。
+   *
+   * 审批弹窗要据此推导「始终允许这条命令」的匹配模式(如 Bash 的
+   * `args.cmd`),所以必须保留原值 —— `argsSummary` 是截断过的展示串。
+   */
+  args?: unknown;
   /** Permission bubble 审批的 risk level(非 bubble 流程省略)。 */
   risk?: RiskLevel;
   turnId: string;
@@ -101,17 +133,114 @@ export interface TokenSnapshot {
   provider?: string | null;
   /** 命中的 credential label,未上报时为 null。 */
   credentialLabel?: string | null;
+  /**
+   * v1.x 模型级统计:本轮实际命中的模型 spec(如 `"openai/gpt-4o"`)。
+   * 旧引擎不上报该字段 → null。
+   */
+  model?: string | null;
   /** 最近一次 model 调用的费用(USD,引擎按价目表计算),模型未定价时为 null。 */
   cost: number | null;
   /** 会话累计费用(USD):Σ 每次 token_count 事件的 cost_usd。
    *  仅累计 live 事件;回放 hydrate 的历史不含(与 CompactionStats.tokensSaved 同策略)。 */
   sessionCost: number;
+  /**
+   * 会话累计 total token(Σ 每次 token_count 事件的 total_tokens)。
+   *
+   * 与 `total` 的区别:`total` 是**最后一次调用**的 total(用于上下文
+   * 占比计算),`sessionTotal` 才是整个会话的累计量。
+   */
+  sessionTotal?: number;
+  /**
+   * 会话内**按模型**的累计用量(键 = model spec)。
+   *
+   * v1.x 模型级统计:引擎在 `token_count` 事件里带上本轮命中的模型,
+   * 这里按模型分组累计,让 GUI 能回答「这次会话各花了多少」。
+   * 旧引擎不上报 `model` → 该表为空。
+   */
+  byModel?: Record<string, LiveModelUsage>;
 }
 
-export interface McpInvocation {
-  server: string;
+/** 单个模型的会话内累计用量(按 `token_count` 事件累加)。 */
+export interface LiveModelUsage {
+  /** 完整 model spec(如 `"openai/gpt-4o"`)。 */
+  model: string;
+  /** 命中的 provider;未上报时为 null。 */
+  provider: string | null;
+  /** LLM 调用次数。 */
+  calls: number;
+  input: number;
+  output: number;
+  /** cache_read 分段(input 子集)。 */
+  cached: number;
+  /** cache_creation 分段(input 子集)。 */
+  cacheWrite: number;
+  /** 计费总量(input + output)。 */
+  total: number;
+  /** 累计 USD(引擎按价目算好随事件携带;未定价模型累计为 0)。 */
+  cost: number;
+}
+
+/**
+ * agent 的 todo 清单条目。
+ *
+ * 来源:`TodoWrite` 工具的 `output.metadata.todos`(核心把清单放进工具
+ * 输出元数据,事件流里就有)。核心目前**没有消费方**(reducer 缺失,LLM
+ * 看不到清单)—— 但清单本身在事件里,GUI 可以如实展示。
+ */
+export interface TodoItem {
+  /** todo 正文(一句话)。 */
+  content: string;
+  /** `pending` / `in_progress` / `completed`。 */
+  status: string;
+  /** 进行时态描述(可选,用于 spinner 文案)。 */
+  active_form?: string | null;
+}
+
+export interface McpInvocation {  server: string;
   tool: string;
   callId: string;
+  at: number;
+}
+
+/**
+ * plan 的单个执行步骤状态。
+ *
+ * 来源:核心 `EventMsg::PlanStep`(`plan_step` 事件)—— agent 执行已批准
+ * 的 plan 时逐 step 上报状态。核心注释指明 TUI reducer 的语义是
+ * 「按 `index` 就地更新或追加」,本实现与之同构。
+ */
+export interface PlanStepState {
+  /** step 在 plan 中的序号(0 起)。 */
+  index: number;
+  /** 已知 step 总数(0 = 未知 / 动态)。 */
+  total: number;
+  /** `pending` / `in_progress` / `done` / `skipped`。 */
+  status: string;
+  /** step 简短描述(可选)。 */
+  title?: string | null;
+  /** 所属 plan id —— 换 plan 时清空上一份进度。 */
+  planId: string;
+}
+
+/**
+ * 本次运行已挂载的插件。
+ *
+ * 来源:核心 `EventMsg::PluginLoaded`(`plugin_loaded` 事件)—— 插件
+ * 运行时挂载完成时上报,含它贡献的 skill / 命令数量。此前 GUI 只能从
+ * 配置文件反推「装了什么」,看不到**运行时实际挂载了什么**。
+ */
+export interface PluginLoadedInfo {
+  /** 插件 id。 */
+  plugin: string;
+  /** 作用域(`user` / `project` / `local` / `managed`)。 */
+  scope: string;
+  /** 版本号。 */
+  version: string;
+  /** 贡献的 skill 数。 */
+  skillCount: number;
+  /** 贡献的 slash 命令数。 */
+  commandCount: number;
+  /** 上报时间(ms)。 */
   at: number;
 }
 
@@ -204,6 +333,24 @@ export interface SubagentsState {
 /** feed 封顶条数:超出丢弃最旧(诊断流,不要求完整审计)。 */
 export const SUBAGENT_FEED_CAP = 200;
 
+/**
+ * 提示词层状态(v1.6.1)—— `prompt_list` / `prompt_switched` 事件的投影。
+ *
+ * **进程级而非会话级**:提示词库由 `Op::PromptCommand` 作用在引擎的
+ * 进程级库上(按模型自动匹配),切会话不重置 —— 因此 hydrate/clear
+ * 不清理此字段。
+ */
+export interface PromptState {
+  /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 用户目录层,去重)。 */
+  available: string[];
+  /** 当前 model spec(如 `"anthropic/claude-sonnet-5-5"`)。 */
+  currentSpec: string;
+  /** 当前 spec 实际命中的用户层文件名(诊断用,内嵌层不记录)。 */
+  activeLayers: string[];
+  /** 最近一次提示词库重扫时间(ms);null = 尚未重扫过。 */
+  switchedAt: number | null;
+}
+
 export interface AgentState {
   turns: Turn[];
   session: AgentSession | null;
@@ -241,6 +388,42 @@ export interface AgentState {
   goalActive: boolean;
   /** 子代理可观测(v1.4 C1)—— 会话作用域,见 SubagentsState。 */
   subagents: SubagentsState;
+  /**
+   * agent 的 todo 清单(来自 `TodoWrite` 工具的输出元数据)。
+   *
+   * 会话作用域:agent 每次 `TodoWrite` **整体覆盖**上一轮清单。
+   * 空数组 = 当前没有清单。
+   */
+  todos: TodoItem[];
+  /**
+   * plan 执行进度(来自 `plan_step` 事件)—— 会话作用域。
+   *
+   * 核心在 agent 执行已批准的 plan 时逐 step 上报;此前 GUI 只在
+   * 审批前展示 plan 正文,**执行到哪一步完全不可见**。
+   */
+  planSteps: PlanStepState[];
+  /**
+   * 本次运行已挂载的插件(来自 `plugin_loaded` 事件)—— **进程级**。
+   *
+   * 与「配置里装了哪些」是**两件事**:这里记的是运行时真正挂载成功的。
+   * 插件在 AgentThread 装配 / 配置重载时挂载,与会话无关,故不随会话
+   * 切换重置(与 `prompt` 同级)。
+   */
+  loadedPlugins: PluginLoadedInfo[];
+  /**
+   * 提示词层状态(v1.6.1)—— 进程级,见 PromptState。尚未收到
+   * `prompt_list` 事件时为 null。
+   */
+  prompt: PromptState | null;
+  /**
+   * 提示词层面板是否展开(v1.6.1)—— `/prompt` slash 打开,
+   * 展示可用层与当前生效层。
+   */
+  promptPanelOpen: boolean;
+  /** 展开提示词层面板。 */
+  openPromptPanel: () => void;
+  /** 收起提示词层面板。 */
+  closePromptPanel: () => void;
   setGoalActive: (active: boolean) => void;
 
   subscribe: () => () => void;
@@ -264,6 +447,16 @@ export interface AgentState {
    * reducer 写入 `subagents.lastStatus`。
    */
   querySubagents: (childId?: string) => Promise<void>;
+  /**
+   * v1.6.1:查询提示词层。应答 `prompt_list` 事件异步到达,reducer
+   * 写入 `prompt`(进程级,不随会话切换重置)。
+   */
+  promptList: () => Promise<void>;
+  /**
+   * v1.6.1:重扫提示词库(`.reflect/prompts/*.md` 改动即时生效)。
+   * 应答 `prompt_switched` 事件异步到达,reducer 写入 `prompt` 并弹 toast。
+   */
+  promptRescan: (layer?: string | null) => Promise<void>;
   /** C：把一条跟进消息加入前端队列（turn 运行中不直发后端）。 */
   enqueueMessage: (items: UserInputItem[], workspace?: string | null) => void;
   /** C：移除队列中的一条待发送消息。 */

@@ -22,6 +22,8 @@ import { reflect_git_diff } from '@/utils/commands/git';
 import { FileTree } from '@/features/files/FileTree';
 import { DiffViewer } from '@/features/git/DiffViewer';
 import { useContextRatio } from './useContextRatio';
+import { CredentialPoolSection, SubagentCallsSection } from './RuntimeStatusSections';
+import { TodoPanel } from './TodoPanel';
 import s from './Inspector.module.css';
 
 type InspectorTab = 'overview' | 'files' | 'changes';
@@ -63,6 +65,7 @@ function OverviewTab() {
   const tokens = useAgentStore((st) => st.tokens);
   const turnCount = useAgentStore((st) => st.turns.length);
   const compactions = useAgentStore((st) => st.compactions);
+  const [showCompactionDetail, setShowCompactionDetail] = useState(false);
   const ctx = useContextRatio();
   const { t } = useI18n();
 
@@ -96,18 +99,46 @@ function OverviewTab() {
         {/* 压缩聚合统计（context_compacted / 历史 compaction record）。
             hover 展示最近一次明细，如 `smart_prune: 0 msgs (7731 → 5344 tokens)`。 */}
         {compactions.count > 0 && (
-          <ul className={s.list} data-testid="inspector-compactions" title={compactions.last ?? undefined}>
-            <li className={s.row}>
-              <span className={s.name}>{t('inspector.compactions')}</span>
-              <span className={s.value}>{compactions.count}</span>
-            </li>
-            {compactions.tokensSaved > 0 && (
+          <>
+            <ul className={s.list} data-testid="inspector-compactions" title={compactions.last ?? undefined}>
               <li className={s.row}>
-                <span className={s.name}>{t('inspector.compactionsSaved')}</span>
-                <span className={s.value}>{compactions.tokensSaved.toLocaleString()}</span>
+                <span className={s.name}>{t('inspector.compactions')}</span>
+                <span className={s.value}>{compactions.count}</span>
               </li>
+              {compactions.tokensSaved > 0 && (
+                <li className={s.row}>
+                  <span className={s.name}>{t('inspector.compactionsSaved')}</span>
+                  <span className={s.value}>{compactions.tokensSaved.toLocaleString()}</span>
+                </li>
+              )}
+            </ul>
+            {/* 逐次压缩明细 —— 让「每次压缩省了多少」可核对,而不只是一行 hover。 */}
+            {compactions.records.length > 0 && (
+              <button
+                type="button"
+                className={s.subToggle}
+                onClick={() => setShowCompactionDetail((v) => !v)}
+                aria-expanded={showCompactionDetail}
+                data-testid="inspector-compactions-toggle"
+              >
+                {showCompactionDetail ? '▾' : '▸'} {t('inspector.compactionsDetail')}
+              </button>
             )}
-          </ul>
+            {showCompactionDetail && compactions.records.length > 0 && (
+              <ul className={s.list} data-testid="inspector-compactions-detail">
+                {compactions.records.map((r, i) => (
+                  <li key={`${r.at}-${i}`} className={s.row} title={new Date(r.at).toLocaleString()}>
+                    <span className={s.name}>{r.strategy}</span>
+                    <span className={s.value}>
+                      {r.beforeTokens.toLocaleString()} → {r.afterTokens.toLocaleString()}
+                      {' · '}
+                      {r.tokensSaved.toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
 
@@ -116,7 +147,9 @@ function OverviewTab() {
           <h3 className={s.sectionTitle}>
             <Icon icon={Coins} size={14} />
             {t('inspector.tokenUsage')}
-            <Badge variant="neutral">{tokens.total.toLocaleString()}</Badge>
+            <Badge variant="neutral">
+              {(tokens.sessionTotal ?? tokens.total).toLocaleString()}
+            </Badge>
           </h3>
           <TokenComposition />
           <ul className={s.list}>
@@ -154,7 +187,14 @@ function OverviewTab() {
                 <span className={s.value}>{tokens.credentialLabel}</span>
               </li>
             )}
+            {tokens.model && (
+              <li className={s.row} data-testid="inspector-token-model">
+                <span className={s.name}>{t('inspector.tokenModel')}</span>
+                <span className={s.value}>{tokens.model}</span>
+              </li>
+            )}
           </ul>
+          <TokenByModel />
         </section>
       )}
 
@@ -167,7 +207,9 @@ function OverviewTab() {
           </li>
           <li className={s.row}>
             <span className={s.name}>{t('inspector.metricTotalTokens')}</span>
-            <span className={s.value}>{(tokens?.total ?? 0).toLocaleString()}</span>
+            <span className={s.value} data-testid="inspector-session-total">
+              {(tokens?.sessionTotal ?? tokens?.total ?? 0).toLocaleString()}
+            </span>
           </li>
         </ul>
       </section>
@@ -220,6 +262,13 @@ function OverviewTab() {
       />
 
       <SubagentsSection />
+
+      {/* agent 的 todo 清单(来自 `TodoWrite` 工具输出元数据)。 */}
+      <TodoPanel />
+
+      {/* 运行时状态:凭证池健康度 + 已完成的子代理调用。 */}
+      <CredentialPoolSection />
+      <SubagentCallsSection />
 
       {lastError && (
         <section className={s.section}>
@@ -274,8 +323,37 @@ function TokenComposition() {
   );
 }
 
-// ====== 服务器状态（MCP / LSP 共用渲染） ======
+/**
+ * 按模型的会话累计用量(v1.x 模型级统计)。
+ *
+ * 引擎在 `token_count` 事件里带上本轮命中的模型,store 按模型分组累计。
+ * 这里回答「这次会话各模型调了多少次、用了多少 token」。金额明细在
+ * `/usage` 视图(Inspector 按既定产品决策不展示金额)。
+ */
+function TokenByModel() {
+  const byModel = useAgentStore((st) => st.tokens?.byModel);
+  const { t } = useI18n();
+  const entries = Object.values(byModel ?? {});
+  if (entries.length === 0) return null;
+  const sorted = [...entries].sort((a, b) => b.total - a.total);
+  return (
+    <div className={s.byModel} data-testid="inspector-token-by-model">
+      <div className={s.subTitle}>{t('inspector.byModel')}</div>
+      <ul className={s.list}>
+        {sorted.map((m) => (
+          <li key={m.model} className={s.row} title={m.model}>
+            <span className={s.name}>{m.model}</span>
+            <span className={s.value}>
+              {m.calls} {t('inspector.callsUnit')} · {m.total.toLocaleString()}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
+// ====== 服务器状态（MCP / LSP 共用渲染） ======
 function ServersSection({ icon: SectionIcon, title, count, emptyText, entries }: {
   icon: typeof Server;
   title: string;

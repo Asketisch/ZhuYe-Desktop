@@ -4,7 +4,7 @@
  * 展示 id、主题、状态徽标、认领人和按状态区分的操作
  * （claim / advance / delete）。纯展示组件；所有行为通过 props 传入。
  */
-import { CheckCircle, Play, Trash2, Hand } from 'lucide-react';
+import { CheckCircle, Play, Trash2, Hand, Square, FileText, Unlock } from 'lucide-react';
 import type { ReflectTask, ReflectTaskStatus } from '@/utils/commands';
 import { Badge, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
@@ -23,9 +23,23 @@ export interface TaskRowProps {
   onClaim: (task: ReflectTask) => void;
   onAdvance: (task: ReflectTask, status: ReflectTaskStatus) => void;
   onRemove: (task: ReflectTask) => void;
+  /** 展开任务详情(描述 + 产出)。 */
+  onSelect: (task: ReflectTask) => void;
+  /** 停止进行中的任务。 */
+  onStop: (task: ReflectTask) => void;
+  /** 释放已认领的任务。 */
+  onRelease: (task: ReflectTask) => void;
 }
 
-export function TaskRow({ task, onClaim, onAdvance, onRemove }: TaskRowProps) {
+export function TaskRow({
+  task,
+  onClaim,
+  onAdvance,
+  onRemove,
+  onSelect,
+  onStop,
+  onRelease,
+}: TaskRowProps) {
   const { t } = useI18n();
   return (
     <div className={s.row} data-testid={`task-row-${task.id}`}>
@@ -41,6 +55,15 @@ export function TaskRow({ task, onClaim, onAdvance, onRemove }: TaskRowProps) {
       <div className={s.rowSide}>
         <Badge variant={STATUS_VARIANT[task.status]}>{STATUS_LABELS[task.status]}</Badge>
         <div className={s.rowActions}>
+          <button
+            type="button"
+            className={s.actionBtn}
+            onClick={() => onSelect(task)}
+            title={t('tasks.details')}
+            data-testid={`task-details-${task.id}`}
+          >
+            <Icon icon={FileText} size={12} />
+          </button>
           {task.status === 'pending' && (
             <>
               <button
@@ -63,14 +86,38 @@ export function TaskRow({ task, onClaim, onAdvance, onRemove }: TaskRowProps) {
             </>
           )}
           {task.status === 'in_progress' && (
+            <>
+              <button
+                type="button"
+                className={s.actionBtn}
+                onClick={() => onAdvance(task, 'completed')}
+                title={t('tasks.complete')}
+                data-testid={`task-complete-${task.id}`}
+              >
+                <Icon icon={CheckCircle} size={12} /> {t('tasks.complete')}
+              </button>
+              {/* 停止进行中的任务(与核心 TaskStopTool 同语义)。 */}
+              <button
+                type="button"
+                className={s.actionBtn}
+                onClick={() => onStop(task)}
+                title={t('tasks.stop')}
+                data-testid={`task-stop-${task.id}`}
+              >
+                <Icon icon={Square} size={12} /> {t('tasks.stop')}
+              </button>
+            </>
+          )}
+          {/* 释放认领(worker 卡住时把任务退回队列)。 */}
+          {task.claimed_by && task.status !== 'completed' && task.status !== 'deleted' && (
             <button
               type="button"
               className={s.actionBtn}
-              onClick={() => onAdvance(task, 'completed')}
-              title={t('tasks.complete')}
-              data-testid={`task-complete-${task.id}`}
+              onClick={() => onRelease(task)}
+              title={t('tasks.release')}
+              data-testid={`task-release-${task.id}`}
             >
-              <Icon icon={CheckCircle} size={12} /> {t('tasks.complete')}
+              <Icon icon={Unlock} size={12} /> {t('tasks.release')}
             </button>
           )}
           {task.status !== 'deleted' && (

@@ -37,6 +37,11 @@ export interface DispatchSubmissionCtx {
   workspace?: string | null;
   /** /goal 首条消息会派生会话标题，提交后刷新会话列表缓存。 */
   invalidateSessions?: () => void;
+  /**
+   * 路由跳转（`/usage` 等「打开某个视图」类命令）。缺省时退化为 toast
+   * 提示 —— 命令面板与 Composer 都提供。
+   */
+  navigate?: (to: string) => void;
 }
 
 /** 执行一个 slash submission kind。kind 来自 slashEngine.executeSlash 的结果。 */
@@ -112,6 +117,22 @@ export async function dispatchSubmission(
       if (activeSessionId && name) await rename(activeSessionId, name);
       break;
     }
+    // v1.6.1:提示词层 —— 展开面板并拉取层列表。应答 `prompt_list` 事件
+    // 异步到达 → reducer 写 store.prompt → 面板渲染可用层/生效层。
+    case 'prompt_list': {
+      const store = useAgentStore.getState();
+      store.openPromptPanel();
+      await store.promptList();
+      break;
+    }
+    // 模型级用量视图 —— 路由到 /usage(会话统计 + 按模型拆分)。
+    case 'open_usage':
+      if (ctx.navigate) {
+        ctx.navigate('/usage');
+      } else {
+        pushToast({ kind: 'info', message: t('usage.title') });
+      }
+      break;
     default:
       pushToast({ kind: 'warn', message: t('composer.unhandledSlash', { kind }) });
   }

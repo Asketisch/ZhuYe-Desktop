@@ -17,6 +17,7 @@ const hooks: Record<string, StringEntry> = {
   'hooks.loadFailed':   { en: 'Could not load hooks',      'zh-CN': '无法加载 hooks' },
   'hooks.empty':        { en: 'No hooks registered.',      'zh-CN': '没有已注册的 hook。' },
   'hooks.emptyDesc':    { en: 'Built-in hooks appear once the agent thread is installed; custom hooks come from the [hooks] config section.', 'zh-CN': 'agent 线程安装后内置 hook 会出现在这里；自定义 hook 来自 [hooks] 配置段。' },
+  'hooks.events.title': { en: 'Hookable events',                                           'zh-CN': '可挂载的事件' },
 };
 
 export default hooks;

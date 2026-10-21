@@ -26,6 +26,12 @@ const git: Record<string, StringEntry> = {
   'git.subtitle':       { en: 'Working tree, diff, and recent log.',                                                                           'zh-CN': '工作区、diff 和最近日志。' },
   'git.notRepo':        { en: 'No git repository found.',                                                                                      'zh-CN': '未找到 git 仓库。' },
   'git.notRepoDesc':    { en: 'The current workspace is not a git repository. Run git init or open a folder that contains a .git directory.',  'zh-CN': '当前工作区不是 git 仓库。运行 git init 或打开一个包含 .git 目录的文件夹。' },
+  // Worktree 面板(隔离工作树 + 滞留改动告警)
+  'git.worktrees.title':        { en: 'Worktrees',                          'zh-CN': 'Worktree' },
+  'git.worktrees.dirty':        { en: 'uncommitted',                       'zh-CN': '有未提交改动' },
+  'git.worktrees.isolated':     { en: 'isolated',                          'zh-CN': '隔离' },
+  'git.worktrees.stranded':     { en: '{count} stranded',                   'zh-CN': '{count} 个改动滞留' },
+  'git.worktrees.strandedHint': { en: 'Changes in an isolated worktree are not on the main branch yet — merge or copy them before discarding the worktree.', 'zh-CN': '隔离 worktree 里的改动还没落回主分支 —— 丢弃 worktree 前请先合并或复制。' },
   'git.ahead':          { en: 'ahead',                                                                                                         'zh-CN': '领先' },
   'git.behind':         { en: 'behind',                                                                                                        'zh-CN': '落后' },
   'git.working':        { en: 'Working',                                                                                                       'zh-CN': '工作区' },

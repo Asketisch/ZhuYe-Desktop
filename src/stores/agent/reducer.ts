@@ -1,6 +1,6 @@
 import type { ReflectEvent } from '@/types/protocol';
-import type { AgentState, PendingApproval } from './types';
-import { SUBAGENT_FEED_CAP } from './types';
+import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, PluginLoadedInfo, TodoItem } from './types';
+import { COMPACTION_RECORD_CAP, SUBAGENT_FEED_CAP } from './types';
 import { upsertServer } from './servers';
 import {
   appendItem,
@@ -52,6 +52,12 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     case 'shutdown_complete':
       return { lastError: 'agent shut down' };
 
+    // v1.3 SDK serve 模式的 per-submission 通道排空标记。Desktop 内嵌
+    // AgentThread 不发本事件(收尾由 turn_complete / turn_aborted 承担);
+    // 类型联合补齐后此处 no-op,保住上方穷尽性守卫。
+    case 'submission_closed':
+      return {};
+
     case 'agent_message_delta':
       return msg.delta ? { turns: upsertDelta(state.turns, turnId, msg.delta) } : {};
 
@@ -61,7 +67,26 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     case 'thinking_delta':
       return msg.delta ? { turns: upsertThinking(state.turns, turnId, msg.delta) } : {};
 
-    case 'token_count':
+    case 'token_count': {
+      // v1.x 模型级统计:按 model 分组累计,让 GUI 能回答「各模型花了多少」。
+      // 旧引擎不上报 model → byModel 保持为空(不编造归属)。
+      const model = msg.model ?? null;
+      const prevByModel = state.tokens?.byModel ?? {};
+      const byModel: NonNullable<AgentState['tokens']>['byModel'] = { ...prevByModel };
+      if (model) {
+        const cur = prevByModel[model];
+        byModel[model] = {
+          model,
+          provider: msg.provider ?? cur?.provider ?? null,
+          calls: (cur?.calls ?? 0) + 1,
+          input: (cur?.input ?? 0) + msg.input_tokens,
+          output: (cur?.output ?? 0) + msg.output_tokens,
+          cached: (cur?.cached ?? 0) + msg.cached_tokens,
+          cacheWrite: (cur?.cacheWrite ?? 0) + msg.cache_write_tokens,
+          total: (cur?.total ?? 0) + msg.total_tokens,
+          cost: (cur?.cost ?? 0) + (msg.cost_usd ?? 0),
+        };
+      }
       return {
         tokens: {
           input: msg.input_tokens,
@@ -71,12 +96,18 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
           total: msg.total_tokens,
           provider: msg.provider ?? null,
           credentialLabel: msg.credential_label ?? null,
+          // v1.x 模型级统计:本轮实际命中的模型 spec。旧引擎不上报 → null。
+          model: msg.model ?? null,
           // 费用:引擎按模型价目算好随事件携带;未定价模型为 null。
           // sessionCost 只累计 live 事件,回放 hydrate 不重复计费。
           cost: msg.cost_usd ?? null,
           sessionCost: (state.tokens?.sessionCost ?? 0) + (msg.cost_usd ?? 0),
+          // 会话累计 total(区别于 `total` = 最后一次调用的 total)。
+          sessionTotal: (state.tokens?.sessionTotal ?? 0) + msg.total_tokens,
+          byModel,
         },
       };
+    }
 
     case 'tool_call_begin':
       return {
@@ -99,9 +130,21 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         path: summary.path,
         isError: msg.is_error,
       });
+      // TodoWrite 工具把 todo 清单放在 `output.metadata.todos` —— 事件流里
+      // 就有。核心目前没有消费方(LLM 看不到清单),但清单本身可展示。
+      const patch: Partial<AgentState> = {};
+      const turnOfCall = withOutput.find((t) => t.id === turnId);
+      const toolCall = turnOfCall?.items.find(
+        (i): i is Extract<typeof i, { kind: 'tool_call' }> =>
+          i.kind === 'tool_call' && i.callId === msg.call_id,
+      );
+      if (toolCall?.toolName === 'TodoWrite') {
+        const todos = extractTodos(msg.output.metadata);
+        if (todos) patch.todos = todos;
+      }
       // 只重写拥有对应 tool_call 的 turn,其他 turn 重写毫无意义。
       const targetTurnIdx = withOutput.findIndex((t) => t.id === turnId);
-      if (targetTurnIdx < 0) return { turns: withOutput };
+      if (targetTurnIdx < 0) return { turns: withOutput, ...patch };
       const target = withOutput[targetTurnIdx];
       const nextStatus: 'done' | 'error' = msg.is_error ? 'error' : 'done';
       const updatedTurn = {
@@ -114,7 +157,7 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       };
       const turns = withOutput.slice();
       turns[targetTurnIdx] = updatedTurn;
-      return { turns };
+      return { turns, ...patch };
     }
 
     case 'tool_execution_request':
@@ -161,6 +204,8 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         kind: msg.kind.type,
         toolName: msg.kind.type === 'tool' ? msg.kind.tool_name : undefined,
         argsSummary: msg.kind.type === 'tool' ? summarizeArgs(msg.kind.args) : undefined,
+        // 原始参数:审批弹窗要据此推导「始终允许这条命令」的匹配模式。
+        args: msg.kind.type === 'tool' ? msg.kind.args : undefined,
         turnId,
       };
       return { pendingApprovals: [...state.pendingApprovals, approval] };
@@ -207,12 +252,22 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       if (msg.before_tokens === msg.after_tokens && msg.removed_messages === 0) return {};
       const saved = Math.max(0, msg.before_tokens - msg.after_tokens);
       const prev = state.compactions;
+      const record: CompactionRecord = {
+        strategy: msg.strategy,
+        removedMessages: msg.removed_messages,
+        beforeTokens: msg.before_tokens,
+        afterTokens: msg.after_tokens,
+        tokensSaved: saved,
+        at: Date.now(),
+      };
       return {
         compactions: {
           count: prev.count + 1,
           removedMessages: prev.removedMessages + msg.removed_messages,
           tokensSaved: prev.tokensSaved + saved,
           last: `${msg.strategy}: ${msg.removed_messages} msgs (${msg.before_tokens} → ${msg.after_tokens} tokens)`,
+          // 逐次明细(新到旧,封顶防无界增长)。
+          records: [record, ...(prev.records ?? [])].slice(0, COMPACTION_RECORD_CAP),
         },
       };
     }
@@ -237,6 +292,42 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
 
     case 'config_reloaded':
       return { configReloadedAt: Date.now() };
+
+    // v1.6.1:提示词层查询应答 —— `Op::PromptCommand { action: List }`。
+    // 提示词库是**进程级**状态(按模型自动匹配),切会话不重置。
+    case 'prompt_list':
+      return {
+        prompt: {
+          available: msg.available,
+          currentSpec: msg.current_spec,
+          activeLayers: msg.active_layers,
+          switchedAt: state.prompt?.switchedAt ?? null,
+        },
+      };
+
+    // v1.6.1:提示词库重扫完成 —— 立即 toast 提示「提示词已刷新」并
+    // 展示新命中层(协议约定由 UI 提示)。
+    case 'prompt_switched': {
+      const toast: AgentState['toasts'][number] = {
+        id: `prompt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        kind: 'info',
+        message:
+          msg.active_layers.length > 0
+            ? `提示词已刷新,生效层:${msg.active_layers.join(', ')}`
+            : '提示词已刷新',
+        ttlMs: 4000,
+        createdAt: Date.now(),
+      };
+      return {
+        prompt: {
+          available: state.prompt?.available ?? [],
+          currentSpec: state.prompt?.currentSpec ?? '',
+          activeLayers: msg.active_layers,
+          switchedAt: Date.now(),
+        },
+        toasts: [...state.toasts, toast],
+      };
+    }
 
     case 'routing':
       return {
@@ -341,7 +432,8 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       return { pendingPlan: { id: msg.task, payload: msg, turnId } };
 
     case 'plan_ready':
-      return { pendingPlan: { id: msg.plan_id, payload: msg, turnId } };
+      // 新 plan → 上一份执行进度作废(step 进度按 plan_id 归属)。
+      return { pendingPlan: { id: msg.plan_id, payload: msg, turnId }, planSteps: [] };
 
     case 'plan_approved':
     case 'plan_rejected':
@@ -352,16 +444,43 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       // plan_ready → PlanReadyModal,草稿正文暂不渲染;先占位保穷尽。
       return {};
 
-    case 'plan_step':
-      // plan 执行进度。TODO:接入 plan 步骤 UI(目前仅补全类型,不渲染)。
-      return {};
+    case 'plan_step': {
+      // plan 执行进度 —— 核心语义「按 index 就地更新或追加」。
+      // 换 plan(plan_id 变)时丢弃上一份进度。
+      const planId = String(msg.plan_id);
+      const base = state.planSteps[0]?.planId === planId ? state.planSteps : [];
+      const step: PlanStepState = {
+        index: msg.index,
+        total: msg.total,
+        status: msg.status,
+        title: msg.title ?? null,
+        planId,
+      };
+      const at = base.findIndex((s) => s.index === msg.index);
+      const steps = at >= 0 ? base.slice() : [...base, step];
+      if (at >= 0) steps[at] = { ...steps[at], ...step };
+      steps.sort((a, b) => a.index - b.index);
+      return { planSteps: steps };
+    }
 
     case 'permission_mode_changed':
       return { permissionMode: msg.to };
 
-    case 'plugin_loaded':
-      // 插件运行时挂载完成。TODO:展示到 plugins panel;目前仅补全类型。
-      return {};
+    case 'plugin_loaded': {
+      // 插件运行时挂载完成 —— 记「实际挂上了什么」(与配置里的启用列表不同)。
+      const info: PluginLoadedInfo = {
+        plugin: msg.plugin,
+        scope: msg.scope ?? '',
+        version: msg.version ?? '',
+        skillCount: msg.skill_count ?? 0,
+        commandCount: msg.command_count ?? 0,
+        at: Date.now(),
+      };
+      const at = state.loadedPlugins.findIndex((p) => p.plugin === info.plugin);
+      const loadedPlugins = at >= 0 ? state.loadedPlugins.slice() : [...state.loadedPlugins, info];
+      if (at >= 0) loadedPlugins[at] = info;
+      return { loadedPlugins };
+    }
 
     case 'quota_exhausted': {
       // 配额耗尽 → 立即 toast warn,告知用户 agent 因此停止。
@@ -391,4 +510,33 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       return {};
     }
   }
+}
+
+/**
+ * 从 `TodoWrite` 工具的输出元数据里取 todo 清单。
+ *
+ * 核心的 `TodoWrite` 把清单放进 `ToolOutput.metadata.todos`
+ * (`{ content, status, activeForm }`);agent 每次调用**整体覆盖**上一轮。
+ * 元数据形状不对 → 返回 null(不是空数组)—— 区分「没有清单」与「清单为空」。
+ *
+ * 注:核心 `TodoRow` 带 `#[serde(rename_all = "camelCase")]`,所以线上
+ * 字段是 `activeForm` 而非 `active_form`;这里同时接受两种写法。
+ */
+function extractTodos(metadata: unknown): TodoItem[] | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const todos = (metadata as { todos?: unknown }).todos;
+  if (!Array.isArray(todos)) return null;
+  const out: TodoItem[] = [];
+  for (const row of todos) {
+    if (!row || typeof row !== 'object') continue;
+    const r = row as { content?: unknown; status?: unknown; activeForm?: unknown; active_form?: unknown };
+    if (typeof r.content !== 'string' || !r.content) continue;
+    const activeForm = typeof r.activeForm === 'string' ? r.activeForm : r.active_form;
+    out.push({
+      content: r.content,
+      status: typeof r.status === 'string' ? r.status : 'pending',
+      active_form: typeof activeForm === 'string' ? activeForm : null,
+    });
+  }
+  return out;
 }

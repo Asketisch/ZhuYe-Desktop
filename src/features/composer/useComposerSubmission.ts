@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { dispatch } from './slashEngine';
 import { dispatchSubmission } from './dispatchSubmission';
 import type { UseAttachmentsResult } from './useAttachments';
@@ -67,6 +68,7 @@ export function useComposerSubmission({
   const pushToast = useAgentStore((state) => state.pushToast);
   const { t } = useI18n();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   // slash submission 分发已抽到 dispatchSubmission.ts（Composer 与命令面板共用）。
   const runSubmission = useCallback(
@@ -79,8 +81,9 @@ export function useComposerSubmission({
         ensureSessionReady: () => ensureSessionReady(activeId),
         workspace: currentWorkspace ?? null,
         invalidateSessions: () => void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY }),
+        navigate: (to) => void navigate({ to }),
       }),
-    [activeId, pushToast, rename, t, ensureSessionReady, currentWorkspace, qc],
+    [activeId, pushToast, rename, t, ensureSessionReady, currentWorkspace, qc, navigate],
   );
 
   return useCallback(async (options?: { reverseMode?: boolean }) => {

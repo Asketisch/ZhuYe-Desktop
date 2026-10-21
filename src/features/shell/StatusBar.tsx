@@ -14,11 +14,11 @@
  * 替代旧的 widgets/StatusBar（Topbar/BottomBar），移除所有 "M1.7 scaffold" 字样。
  */
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, AlertCircle, MessagesSquare, Coins } from 'lucide-react';
+import { Sun, Moon, Monitor, AlertCircle, MessagesSquare, Coins, Shield } from 'lucide-react';
 import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useQuery } from '@tanstack/react-query';
-import { reflect_agent_status, reflect_list_sessions } from '@/utils/commands';
+import { reflect_agent_status, reflect_list_sessions, reflect_sandbox_status } from '@/utils/commands';
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
 import { useI18n } from '@/utils/i18n';
 import { useContextRatio } from './useContextRatio';
@@ -44,6 +44,14 @@ export function StatusBar() {
   const sessionsQ = useQuery({
     queryKey: ['sessions'],
     queryFn: () => reflect_list_sessions(),
+    staleTime: 60_000,
+  });
+  // OS 沙箱有效状态 —— 安全相关的开关必须可见(是否真的在 Seatbelt /
+  // Landlock 里跑)。口径 = 每轮真正下发的策略(后端按配置快照盖章),
+  // 与 BashTool 实际使用的构造器同源。
+  const sandboxQ = useQuery({
+    queryKey: ['sandbox-status'],
+    queryFn: reflect_sandbox_status,
     staleTime: 60_000,
   });
   const sessionCount = sessionsQ.data?.length ?? 0;
@@ -173,6 +181,28 @@ export function StatusBar() {
             <Icon icon={MessagesSquare} size={11} /> {sessionCount}
           </span>
         </Tooltip>
+        {sandboxQ.data && (
+          <Tooltip
+            label={`${t('shell.sandbox')}: ${sandboxQ.data.status}${
+              sandboxQ.data.statusLine ? `\n${sandboxQ.data.statusLine}` : ''
+            }${
+              sandboxQ.data.envOverride
+                ? `\n${t('shell.sandboxEnvOverride', { value: sandboxQ.data.envOverride })}`
+                : ''
+            }`}
+            side="top"
+            multiline
+          >
+            <span
+              className={s.itemMuted}
+              data-testid="statusbar-sandbox"
+              data-active={sandboxQ.data.active || undefined}
+            >
+              <Icon icon={Shield} size={11} />
+              {sandboxQ.data.status}
+            </span>
+          </Tooltip>
+        )}
         <Tooltip label={t('shell.themeCurrent', { mode: mode })} side="top">
           <IconButton
             label={t('shell.themeCurrent', { mode: mode })}

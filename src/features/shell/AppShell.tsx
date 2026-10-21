@@ -25,7 +25,7 @@
  * 结构化重构（A11+）：
  *   - 主题切换状态机 → `./hooks/useThemeCycle`。
  *   - 全局快捷键（⌘K / Esc）→ `./hooks/useCommandPaletteShortcut`。
- *   - 命令面板动作（newSession / clearAllSessions / exportActive / saveConfig / runSlash）
+ *   - 命令面板动作（newSession / clearAllSessions / exportActive / exportActiveMarkdown / saveConfig / runSlash）
  *     → `./hooks/usePaletteActions`。
  *   - AppShell 本身只负责布局与 DOM 拼装。
  */
@@ -220,7 +220,7 @@ export function AppShell() {
   };
 
   // palette action handlers (集中到 hook)
-  const { newSession, clearAllSessions, exportActive, saveConfig, runSlash } = usePaletteActions({
+  const { newSession, clearAllSessions, exportActive, exportActiveMarkdown, saveConfig, runSlash } = usePaletteActions({
     activeId,
     onNewChat: handleNewChat,
     toasts: {
@@ -234,6 +234,8 @@ export function AppShell() {
       exported: (path) => t('composer.exported', { path }),
       exportedNoPath: t('composer.exportedNoPath'),
       exportFailed: (msg) => t('toast.exportFailed', { msg }),
+      exportedMarkdown: (path) => t('toast.exportedMarkdown', { path }),
+      exportedMarkdownNoPath: t('toast.exportedMarkdownNoPath'),
       configReloaded: t('toast.configReloaded'),
       saveFailed: (msg) => t('toast.saveFailed', { msg }),
     },
@@ -305,6 +307,7 @@ export function AppShell() {
         newSession={newSession}
         clearAllSessions={() => void clearAllSessions()}
         exportActive={() => void exportActive()}
+        exportActiveMarkdown={() => void exportActiveMarkdown()}
         saveConfig={() => void saveConfig()}
         runSlash={runSlash}
       />

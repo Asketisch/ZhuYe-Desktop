@@ -32,6 +32,9 @@ pub(crate) async fn submit(
     // 0.5 插件命令展开:挂载完成前直通,不阻塞提交。
     let submission = super::plugins::expand_submission(&agent.plugin_runtime(), submission).await?;
 
+    // 0.6 OS 沙箱策略:按**后端**配置快照盖到本轮的 thread_settings。
+    let submission = stamp_sandbox_policy(agent, submission);
+
     // 1. 拿 per-turn handle。
     let mut handle: reflect_core::TurnHandle = thread.submit(submission.clone()).await;
 
@@ -82,6 +85,44 @@ pub(crate) async fn submit_op(
     Ok(id)
 }
 
+/// 把当前生效的 OS 沙箱策略盖到本轮的 `thread_settings` 上。
+///
+/// 核心在 `submission_loop` 里把 `thread_settings.sandbox_policy` 映射成
+/// `ToolContext.os_sandbox`（`OsSandbox` = 开 OS 层，其余 = 关 OS 层），
+/// 前台 `BashTool` 与后台 bash 两条路径都读它 —— 比改进程 env 干净
+/// （Rust 2024 下 `std::env::set_var` 是 `unsafe`，多线程进程里改 env
+/// 有 UB 风险），且天然按轮生效、配置改动下一轮即生效。
+///
+/// 桌面端**无条件覆盖**客户端传来的 `sandbox_policy`：沙箱是安全设置，
+/// 事实源只能是后端的配置快照，不能由客户端决定。
+///
+/// 仅 `Op::UserInput` 会真正执行工具，其余 op 不带 `thread_settings`，
+/// 保持原样。
+fn stamp_sandbox_policy(
+    agent: &MinimalAgent,
+    submission: reflect_protocol::Submission,
+) -> reflect_protocol::Submission {
+    let cfg_os_level = agent.cfg().read().sandbox.os_level;
+    let enabled = super::sandbox::effective_os_sandbox_enabled(cfg_os_level);
+    stamp_sandbox_policy_with(enabled, submission)
+}
+
+/// 纯函数版:给定生效开关,盖上对应的协议策略。
+fn stamp_sandbox_policy_with(
+    enabled: bool,
+    submission: reflect_protocol::Submission,
+) -> reflect_protocol::Submission {
+    let policy = reflect_app_core::sandbox::sandbox_policy_for(enabled);
+    let mut submission = submission;
+    if let reflect_protocol::Op::UserInput {
+        thread_settings, ..
+    } = &mut submission.op
+    {
+        thread_settings.sandbox_policy = Some(policy);
+    }
+    submission
+}
+
 /// 中断当前 turn —— 调用 AgentThread 的 cancel token。
 /// CancellationToken 的 cancel 是幂等的,重复调用安全。
 pub(crate) fn interrupt(agent: &MinimalAgent) {
@@ -94,6 +135,78 @@ pub(crate) fn interrupt(agent: &MinimalAgent) {
 #[cfg(test)]
 mod tests {
     use crate::state::MinimalAgent;
+    use reflect_protocol::{Op, Submission, ThreadSettingsOverrides};
+
+    /// UserInput 的 submission,带空 thread_settings。
+    fn user_input_submission() -> Submission {
+        Submission::with_id(
+            "s1",
+            Op::UserInput {
+                items: vec![],
+                thread_settings: ThreadSettingsOverrides::default(),
+            },
+        )
+    }
+
+    /// 取 submission 上的 sandbox_policy。
+    fn policy_of(sub: &Submission) -> Option<reflect_protocol::SandboxPolicy> {
+        match &sub.op {
+            Op::UserInput {
+                thread_settings, ..
+            } => thread_settings.sandbox_policy,
+            _ => None,
+        }
+    }
+
+    /// 沙箱开启 → 每轮下发 `OsSandbox`(核心映射为 `ctx.os_sandbox = Some(true)`)。
+    #[test]
+    fn stamps_os_sandbox_policy_when_enabled() {
+        let sub = super::stamp_sandbox_policy_with(true, user_input_submission());
+        assert_eq!(
+            policy_of(&sub),
+            Some(reflect_protocol::SandboxPolicy::OsSandbox)
+        );
+    }
+
+    /// 沙箱关闭 → 每轮下发 `WorkspaceOnly`(核心映射为 `ctx.os_sandbox = Some(false)`)。
+    #[test]
+    fn stamps_workspace_only_policy_when_disabled() {
+        let sub = super::stamp_sandbox_policy_with(false, user_input_submission());
+        assert_eq!(
+            policy_of(&sub),
+            Some(reflect_protocol::SandboxPolicy::WorkspaceOnly)
+        );
+    }
+
+    /// 客户端传来的 `sandbox_policy` 必须被**无条件覆盖** —— 沙箱是安全设置,
+    /// 事实源只能是后端配置快照,不能由客户端决定。
+    #[test]
+    fn overrides_client_supplied_policy() {
+        let sub = Submission::with_id(
+            "s1",
+            Op::UserInput {
+                items: vec![],
+                thread_settings: ThreadSettingsOverrides {
+                    sandbox_policy: Some(reflect_protocol::SandboxPolicy::FullAccess),
+                    ..Default::default()
+                },
+            },
+        );
+        let stamped = super::stamp_sandbox_policy_with(true, sub);
+        assert_eq!(
+            policy_of(&stamped),
+            Some(reflect_protocol::SandboxPolicy::OsSandbox),
+            "客户端指定的策略必须被后端配置覆盖"
+        );
+    }
+
+    /// 非 UserInput 的 op 不带 thread_settings —— 原样透传。
+    #[test]
+    fn non_user_input_ops_are_untouched() {
+        let sub = Submission::with_id("s1", Op::Compact);
+        let stamped = super::stamp_sandbox_policy_with(false, sub);
+        assert!(matches!(stamped.op, Op::Compact));
+    }
 
     /// submit_op 在未 install 时必须返回 Err(instead of panic)。
     /// 这是 AGENTS.md「修复根因，而非打补丁」的体现:

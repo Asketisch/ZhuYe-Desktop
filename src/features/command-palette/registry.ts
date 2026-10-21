@@ -23,6 +23,7 @@ import {
   Bell,
   Wrench,
   Layers,
+  Gauge,
   Smartphone,
   Mic,
   AppWindow,
@@ -37,6 +38,7 @@ import {
   Plus,
   Trash2,
   Download,
+  FileText,
   Save,
   Search,
   Brain,
@@ -83,12 +85,14 @@ export interface BuildPaletteArgs {
   newSession: () => void;
   clearAllSessions: () => void;
   exportActive: () => void;
+  exportActiveMarkdown: () => void;
   saveConfig: () => void;
 }
 
 export function buildPaletteItems(args: BuildPaletteArgs): PaletteItem[] {
   const {
-    cycleTheme, setTheme, resolvedTheme, newSession, clearAllSessions, exportActive, saveConfig,
+    cycleTheme, setTheme, resolvedTheme, newSession, clearAllSessions, exportActive,
+    exportActiveMarkdown, saveConfig,
   } = args;
   return [
     // ---- Navigation ----
@@ -129,6 +133,7 @@ export function buildPaletteItems(args: BuildPaletteArgs): PaletteItem[] {
     { id: 'sess.new',    labelKey: 'palette.item.newSession',    hintKey: 'palette.item.newSessionHint',   kind: 'session', icon: Plus,    run: newSession, weight: 5 },
     { id: 'sess.clear',  labelKey: 'palette.item.clearSessions', hintKey: 'palette.item.clearSessionsHint', kind: 'session', icon: Trash2,  run: clearAllSessions, weight: 5 },
     { id: 'sess.export', labelKey: 'palette.item.exportActive',  hintKey: 'palette.item.exportActiveHint', kind: 'session', icon: Download, run: exportActive, weight: 5 },
+    { id: 'sess.exportMarkdown', labelKey: 'palette.item.exportActiveMarkdown', hintKey: 'palette.item.exportActiveMarkdownHint', kind: 'session', icon: FileText, run: exportActiveMarkdown, weight: 5 },
     { id: 'cfg.save',    labelKey: 'palette.item.saveConfig',    hintKey: 'palette.item.saveConfigHint',   kind: 'system',  icon: Save,    run: saveConfig, weight: 5 },
 
     // ---- Slash actions ----
@@ -139,6 +144,9 @@ export function buildPaletteItems(args: BuildPaletteArgs): PaletteItem[] {
     { id: 'slash.rename',    labelKey: 'palette.item.runRename',      slash: '/rename ',   kind: 'slash', icon: Wrench,    keywords: ['title', 'label'], weight: 4 },
     { id: 'slash.export',    labelKey: 'palette.item.runExport',      slash: '/export',    kind: 'slash', icon: Download,  weight: 4 },
     { id: 'slash.new',       labelKey: 'palette.item.runNewSession',  slash: '/new',       kind: 'slash', icon: Plus,      weight: 4 },
+    // v1.6.1:提示词层(/prompt)与模型级用量(/usage)—— 与 slash 引擎同源。
+    { id: 'slash.prompt',    labelKey: 'palette.item.runPrompt',      slash: '/prompt',    kind: 'slash', icon: Layers,    keywords: ['prompt', 'layer', '提示词'], weight: 4 },
+    { id: 'slash.usage',     labelKey: 'palette.item.runUsage',       slash: '/usage',     kind: 'slash', icon: Gauge,      keywords: ['tokens', 'cost', 'stats', '用量'], weight: 4 },
 
     // ---- Theme ----
     { id: 'theme.cycle',     labelKey: 'palette.item.toggleTheme',    kind: 'theme', icon: Palette, run: cycleTheme, weight: 3 },

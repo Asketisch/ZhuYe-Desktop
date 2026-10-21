@@ -29,6 +29,7 @@ export type {
   SubagentsState,
   Toast,
   ToastKind,
+  TodoItem,
   TokenSnapshot,
   Turn,
   TurnItem,

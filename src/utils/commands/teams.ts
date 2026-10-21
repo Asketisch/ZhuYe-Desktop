@@ -10,6 +10,24 @@
  */
 import { invoke } from '../bridge';
 
+/**
+ * 核心 `SystemTime` 的 JSON 形态(serde 默认实现)。
+ *
+ * 核心的 `TeamFile.created_at` / `TeamMemberSpec.joined_at` 都是
+ * `SystemTime`,序列化成 `{ secs_since_epoch, nanos_since_epoch }` —— 不是
+ * 数字也不是 ISO 字符串。构造 team 时必须按这个形状给值,否则后端
+ * 反序列化失败。
+ */
+export interface ReflectSystemTime {
+  secs_since_epoch: number;
+  nanos_since_epoch: number;
+}
+
+/** 当前时刻(核心 `SystemTime` 形态)。 */
+export function systemTimeNow(): ReflectSystemTime {
+  return { secs_since_epoch: Math.floor(Date.now() / 1000), nanos_since_epoch: 0 };
+}
+
 // ── Team 成员(对应 `reflect_task::TeamMemberSpec`,snake_case) ──────────
 
 export interface ReflectTeamMember {
@@ -24,7 +42,7 @@ export interface ReflectTeamMember {
   /** 成员可调用的父工具名子集;为空表示纯文本。 */
   allowed_tools: string[];
   color?: string | null;
-  joined_at: number | string;
+  joined_at: ReflectSystemTime;
   session_id?: string | null;
   /** 该成员订阅的频道(M9;Phase 2 留空)。 */
   subscriptions: string[];
@@ -39,7 +57,7 @@ export interface ReflectTeam {
   lead_agent_id: string;
   lead_session_id?: string | null;
   members: ReflectTeamMember[];
-  created_at: number | string;
+  created_at: ReflectSystemTime;
 }
 
 // ── Commands ───────────────────────────────────────────────────────────

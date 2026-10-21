@@ -1,0 +1,112 @@
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.meta dt {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.meta dd {
+  margin: 0;
+}
+
+.spec {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+
+.section {
+  margin-bottom: var(--space-3);
+}
+
+.sectionTitle {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+.layers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.layer {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.layerActive {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--text-primary);
+}
+
+.empty {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: var(--lh-normal);
+}
+
+/* 生效提示词正文(层解析后的结果) */
+.toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--text-primary);
+}
+
+.bodyBlock {
+  margin-top: var(--space-2);
+}
+
+.bodyKey {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.bodyText {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  margin: var(--space-1) 0 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}

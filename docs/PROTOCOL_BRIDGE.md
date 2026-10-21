@@ -63,6 +63,8 @@ pub struct Event {
 | `reflect_get_effort` | `null` | `string`（`low \| medium \| high`） | `commands/agent.rs` / `commands/permissions.ts`。直读线程内 `AgentConfig::current_effort()`（协议无 effort 回读事件）；线程未安装时回落 `low`。Composer 内联思考深度与 Models 页分段控件初始化用 |
 | `reflect_list_tools` | `null` | `Vec<{ name, description }>` | `commands/agent.rs` / `commands/agent.ts` |
 | `reflect_list_plugin_commands` | `null` | `Vec<PluginCommandInfo>`（`{ name, description? }`） | `commands/plugins.rs` / `commands/plugins.ts`。已挂载插件的 slash 命令只读快照（composer 弹层候选数据源）：取插件运行时的 `CommandRegistry.list()`；未挂载（占位线程 / 无 enabled 插件 / HOME 缺失）返回空列表。`name` 为命令全名（`plugin:ns:name` 形式），前端以 `/name args` 提交，展开仍由后端 submit 边界 `expand_submission` 统一做 —— 此命令无文件 IO |
+| `reflect_credential_pool_status` / `reflect_recovery_state` / `reflect_memory_sections` / `reflect_config_info` | `null` | `CredentialPoolStatus[]` / `SubagentCallRecord[]` / `MemorySectionInfo[]` / `ConfigInfo`（均 camelCase） | `commands/runtime_status.rs` / `commands/runtimeStatus.ts`。**运行时状态只读面**：① 凭证池健康度（`total` / `healthy` / `healthyLabels`；核心 cooldown 集合私有 → 用 `healthy_clients()` 的健康集合反推冷却数，冷却**原因**核心内不公开故不编造）；② 已完成的子代理调用（core `SubagentRegistry::snapshot()`：工具名 / 任务摘要 / 结果摘要 / 迭代 / 时间）；③ 记忆分段（core `split_sections` 按 `## ` 切分 + 字符数，与 8000 字注入预算对照）；④ 配置位置与分析健康度（配置路径 / 是否存在 / 分析开关与状态 / 工作区 / 活跃 agent）。落点：Inspector（①②）、Memory 视图（③）、Settings 侧栏（④） |
+| `reflect_list_plugins` / `reflect_list_marketplaces` / `reflect_toggle_plugin` / `reflect_uninstall_plugin` / `reflect_install_plugin` | `null` / `null` / `{ id, enabled }` / `{ id, scope }` / `{ path, marketplace, scope }` | `PluginInfo[]` / `MarketplaceInfo[]` / `null` / `null` / `null`（均 camelCase；`scope` 线上为小写枚举 `managed`/`user`/`project`/`local`） | `commands/plugins.rs` / `commands/plugins.ts`。**插件管理** —— 此前 GUI 只能看到插件带来的 slash 命令。`list_plugins` 给出已安装插件（id / 版本 / scope / 安装路径 / **是否启用**，启用态取自 config 的 `enabled_plugins`，与运行时挂载集合同源）；`list_marketplaces` 给出 config 的 `[plugins].marketplaces`（名字 / 源类型 directory·file·github·url / 安装位置 / 自动更新）；`toggle` 改 config → 落盘 → 核心 `reload_plugins` diff 同步（挂/卸插件，**不打断运行中的会话**）；`uninstall` / `install` 经核心 `PluginManager` 读写 `installed_plugins.json`（含 manifest 校验）。Collaboration 视图 PluginsPanel 消费 |
 | `reflect_list_provider_models` | `{ baseUrl, apiKey, endpoint }` | `ProviderModelsResult`（`{ endpoint, models: [{ id, display_name, supports_vision }] }`） | `commands/models.rs` / `commands/models.ts`。对着 base_url + api_key 拉取可用模型列表：`openai` → `GET {base}/models`（Bearer）、`anthropic` → `GET {base}/v1/models`（`x-api-key` + `anthropic-version`）。`supports_vision` 取自 OpenRouter 风格 `architecture.input_modalities` / `input_modalities`（含 `image` 即视觉），官方 API 未返回时为 `null` → 由用户自行判断。Composer 模型选择器与 Coding Plans 表单消费。**兼作零 token 连通测试**（Plans 表单「测试连接」） |
 | `reflect_test_provider_chat` | `{ baseUrl, apiKey, endpoint, model }` | `{ reply }` | `commands/models.rs` / `commands/models.ts`。发送测试消息「你好」验证鉴权/网络/推理链路：单条 user 消息，**刻意无 system 提示词、无 tools 定义**，`max_tokens = 32` 压低无效消耗。`openai` → `POST {base}/chat/completions`；`anthropic` → `POST {base}/v1/messages`（回复取 `content[]` text 块拼接）。Plans 表单「发送测试消息」按钮消费 |
 | `reflect_list_sessions` / `reflect_rename_session` / `reflect_delete_session` / `reflect_replay_session` | `{ workspace?, limit?, offset? }` / — / — / — | `SessionInfo[]` / — / — / — | `commands/sessions.rs` / `commands/sessions.ts`。`workspace` 为可选过滤（`SessionInfo.workspace` 精确匹配；旧会话 `workspace = None` 仅在全量列表出现） |
@@ -79,7 +81,7 @@ pub struct Event {
 | `reflect_run_shell` | `{ cmd }` | `ShellSession { id, command, cwd }` | `commands/shell.rs` / `commands/terminal.ts`; `reflect_terminal_output` event streams output |
 | `reflect_kill_shell` | `{ session_id }` | `null` | `commands/shell.rs` / `commands/terminal.ts` |
 | `reflect_list_shell_sessions` | `null` | `string[]` | `commands/shell.rs` / `commands/terminal.ts` |
-| `reflect_list_dir` / `reflect_read_file` / `reflect_search_files` | `{ path?, maxDepth? }` / `{ path }` / `{ query, ... }` | `DirListing` / `FileReadResult` / search results | `commands/files.rs` / `commands/files.ts`; `commands/search.rs` / `commands/search.ts` |
+| `reflect_list_dir` / `reflect_read_file` / `reflect_search_files` | `{ path?, maxDepth? }` / `{ path }` / `{ query, path?, maxResults?, rank? }` | `DirListing` / `FileReadResult` / search results | `commands/files.rs` / `commands/files.ts`; `commands/search.rs` / `commands/search.ts`。`rank` 缺省 `substring`（子串匹配）；`bm25` 走**相关性排序** —— 复用核心 `reflect_tools::bm25::{tokenize, rank_lines}`（`k1=1.2` / `b=0.75`，与核心 grep 工具逐字一致），GUI 搜索不再弱于 agent 自己的 grep |
 | `reflect_write_file` | `{ path, content }` | `string`（写入的绝对路径） | `commands/files.rs` / `commands/files.ts`。工作区沙盒内写回文本文件；编辑器 Reject 恢复原文时由 inverse-patch 重建内容后调用，文件不存在则创建（含父目录） |
 | `reflect_read_image_base64` | `{ path }` | `ImageBase64Result { path, mime_type, base64, size }` | `commands/files.rs` / `commands/files.ts`。Composer 拖拽图片附件管线：读任意路径的图片文件（**不做工作区沙盒**，拖拽来源任意）返回 base64，前端拼 data-URL 作 inline `Image` item 提交（core 的 `LocalImage` item 尚未接通）。扩展名白名单 png/jpg/jpeg/gif/webp/bmp，上限 20 MiB |
 | `reflect_lsp_set_enabled` / `reflect_lsp_status` / `reflect_lsp_warmup` | `{ enabled }` / `null` / `{ path }` | `LspStatus`（`{ enabled, servers }`）/ 同左 / `{ warmed, server }` | `commands/lsp.rs` / `commands/lsp.ts`。LSP 按工作区**手动开启**（默认关）：开启 = bootstrap `[lsp_servers]`（注册 `lsp` tool + 起 server，幂等），关闭 = 反注册 tool + 停全部 server；关闭时不注入 `lsp` tool。`warmup` 对命中的 server `ensure_open`（didOpen 建索引）——编辑器打开代码文件时触发；未开启 / 无匹配 server 时 `warmed = false` 不报错。开启偏好的持久化（localStorage，按 workspace 路径）在 GUI 层 |
@@ -94,7 +96,8 @@ pub struct Event {
 | `reflect_list_tasks` / `reflect_create_task` / `reflect_get_task` / `reflect_update_task` / `reflect_claim_task` / `reflect_delete_task` | `{ list }` / `{ list, subject, description, active_form?, owner?, metadata? }` / `{ list, id }` / `{ list, id, patch }` / `{ list, claimer }` / `{ list, id }` | `Task[]` / `Task` / `Task` / `{ task, updatedFields, statusChange? }` / `Task?` / `null` | `commands/tasks.rs` (Phase 1 multi-agent) / `commands/tasks.ts` |
 | `reflect_list_teams` / `reflect_upsert_team` / `reflect_get_team` / `reflect_delete_team` | `null` / `{ team }` / `{ name }` / `{ name }` | `TeamFile[]` / `null` / `TeamFile` / `null` | `commands/tasks.rs` (Phase 1 multi-agent) / `commands/teams.ts` |
 | `reflect_list_schedules` / `reflect_add_schedule` / `reflect_update_schedule` / `reflect_remove_schedule` / `reflect_get_schedule_status` | `null` / `{ schedule, prompt, name? }` / `{ id, schedule?, prompt?, name?, enabled? }` / `{ id }` / `null` | `CronJobSpec[]` / `CronJobSpec` / `CronJobSpec` / `bool` / `{ status, line, total, enabled }` | `commands/schedule.rs` (Phase 1 item 2) / `commands/schedule.ts` |
-| `reflect_list_agent_defs` / `reflect_get_agent_def` / `reflect_save_agent_def` / `reflect_delete_agent_def` / `reflect_parse_agent_md` | `null` / `{ name }` / `{ def }` / `{ name }` / `{ text }` | `AgentDefinition[]` / `AgentDefinition` / `AgentDefinition` / `bool` / `AgentDefinition` | `commands/agents.rs` (Phase 1 item 3) / `commands/agents.ts` |
+| `reflect_list_agent_defs` / `reflect_get_agent_def` / `reflect_save_agent_def` / `reflect_delete_agent_def` / `reflect_parse_agent_md` | `null` / `{ name }` / `{ def }` / `{ name }` / `{ text }` | `AgentDefinition[]` / `AgentDefinition` / `AgentDefinition` / `bool` / `AgentDefinition` | `commands/agents.rs` (Phase 1 item 3) / `commands/agents.ts`。v1.6:`AgentDefinition` 新增 `source: SystemPromptSource`(`custom` / `builtin_default`)—— 决定 system prompt 是用用户 md 原文(`custom`)还是按当前模型 spec 从提示词库解析 `system.main`(`builtin_default`)。**桌面端读写的 agent 文件恒为 `custom`**(上游 parser 对文件来源强制 Custom,frontmatter 不写该字段);`builtin_default` 只属引擎自带的默认 agent |
+| `reflect_get_active_agent` / `reflect_set_active_agent` | `null` / `{ name }` | `ActiveAgentInfo`（camelCase） | `commands/agents.rs` / `commands/agents.ts`。**活跃 agent** —— 决定运行时加载哪条 agent 定义、以及记忆目录(`.reflect/agent-memory/<agent>/`)。桌面端此前硬编码 `"desktop"`,导致 GUI 的 Agents 视图是死胡同(能编辑定义,运行时永不加载)、且 GUI 写的记忆 agent 读不到。现由桌面端偏好(`~/.reflect/desktop.json`,缺省 `"default"` 与 CLI 一致)决定;`set` 会 replay 当前会话历史并强制重绑(新定义立即生效,与 provider 热重载同款语义)。`ActiveAgentInfo` 含 `defFound` / `memoryScopes`(空 = 不加载记忆,GUI 写入不会被注入)/ `injectBudgetChars`(核心 `MAX_MEMORY_INJECT_CHARS`)/ `memoryPaths` |
 | `reflect_start_side_channel` / `reflect_cancel_side_channel` / `reflect_list_side_channels` / `reflect_get_side_channel` | `{ agent_name, prompt }` / `{ id }` / `null` / `{ id }` | `StartSideChannelResult` / `bool` / `SideChannelInfo[]` / `SideChannelInfo` | `commands/side_channel.rs` (Phase 2 item 1) / `commands/side_channel.ts` |
 | `reflect_get_remote_config` / `reflect_update_remote_config` / `reflect_get_remote_status` | `null` / `{ host?, port?, auth_token?, auto_connect? }` / `null` | `RemoteConfigSnapshot { config, endpoint, isReady }` / `null` / `RemoteStatus { state, message, endpoint, sinceMs }` | `commands/remote.rs` (Phase 2 item 2) / `commands/remote.ts` |
 | `reflect_tailscale_status` / `reflect_tailscale_daemon_command_preview` / `reflect_tailscale_daemon_start` / `reflect_tailscale_daemon_stop` / `reflect_tailscale_daemon_status` | `null` (all) | `TailscaleStatus { installed, running, dnsName, ipv4, ipv6, suggestedRemoteHost }` / `string` / `string` / `string` / `{ running, pid }` | `commands/remote.rs` (Phase 2 item 2) / `commands/remote.ts` |
@@ -103,6 +106,27 @@ pub struct Event {
 | `reflect_list_activity` / `reflect_search_activity` / `reflect_clear_activity` / `reflect_activity_count` | `{ filter? }` / `{ query }` / `null` / `null` | `ActivityEvent[]` (camelCase; `id`, `tsMs`, `kind`, `actor`, `summary`, `taskId?`, `teamName?`, `level`) / `ActivityEvent[]` / `null` / `number` | `commands/activity.rs` (Phase 3 item 9) / `commands/activity.ts` |
 | `reflect_list_squads` / `reflect_create_squad` / `reflect_get_squad` / `reflect_delete_squad` / `reflect_delegate_next` / `reflect_assign_squad_task` | `null` / `{ spec }` / `{ name }` / `{ name }` / `{ name, leaderActorId }` / `{ name, taskId, assignee? }` | `SquadSpec[]` / `null` / `SquadSpec` / `null` / `Task?` / `Task` | `commands/squad.rs` (Phase 3 item 11) / `commands/squad.ts` |
 | `reflect_list_media` / `reflect_image_process` / `reflect_screenshot` / `reflect_computer_use` / `reflect_media_capabilities` | `{ dir }` / `{ spec }` / `null` / `{ action }` / `null` | `MediaAsset[]` / `ImageProcessResult` / `string` (base64 PNG) / `null` / `MediaCapabilities` | `commands/media.rs` (Phase 3 item 13) / `commands/media.ts` |
+| `reflect_list_traces` / `reflect_get_trace` | `{ limit? }` / `{ id }` | `TraceSessionSummary[]`（camelCase） / `TraceCall[]`（camelCase） | `commands/traces.rs` / `commands/traces.ts`。CLI `reflect traces ls / show` 的 GUI 对应：只读查询 `~/.reflect/traces/model-io/` 的脱敏 JSONL（`reflect-telemetry`）。列表按最近降序带 rollout 标题 fallback；`id` 支持完整 UUID 或唯一前 8 字符前缀。Traces 视图（`/traces`）消费 |
+| `reflect_list_discussions` / `reflect_run_discussion` | `{ discussionId? }` / `{ configPath }` | `DiscussionSessionInfo[]`（camelCase） / `DiscussionRunOutcome`（camelCase） | `commands/discussion.rs` / `commands/discussion.ts`。CLI `reflect discussion ls / run` 的 GUI 对应：逻辑在 `app-core/src/discussion.rs`（重组 `reflect-discussion` 的 LLM 组装，provider 不可用降级 `run_noop`）。运行期间 Collab* 事件经 `event_sink` 桥进 MinimalAgent session broadcast（信封 `id = EVENT_ID_NONE`），前端 collab_* reducer 实时渲染；`ls` 扫 rollout JSONL 的 `DiscussionTranscript` 记录。Collaboration 视图消费 |
+| `reflect_run_team_pipeline` / `reflect_run_pipeline` | `{ teamName, topic }` / `{ configPath, topic, failurePolicy?, inputs? }` | `PipelineReport`（snake_case 直传 submodule 类型） | `commands/pipeline.rs` / `commands/pipeline.ts`。CLI `reflect pipeline team / run -c` 的 GUI 对应：逻辑在 `app-core/src/pipeline.rs`（registry 从配置引导、`REFLECT_MODEL=mock` 可离线跑通）。team 预设 = plan → prd → exec → verify 四阶段；TOML 路径跑任意 DAG。共享 `~/.reflect/tasks\|teams/` 存储（与 Squad 视图同源）。Collaboration 视图消费 |
+| `reflect_validate_pipeline` / `reflect_list_pipeline_configs` / `reflect_save_pipeline_config` | `{ tomlSrc }` / `null` / `{ name, tomlSrc }` | `PipelineConfigSummary`（camelCase：`name` / `failurePolicy` / `nodes` / `nodeCount` / `missingTeams` / `valid` / `error?`）/ `PipelineConfigFile[]` / `PipelineConfigFile` | `commands/pipeline.rs` / `commands/pipeline.ts`。**Pipeline 配置编辑** —— 此前 GUI 只能跑一个已有的 TOML 文件（还得手写）。`validate` 走核心的 `Pipeline::from_toml`（与**实际运行同一条校验路径**，配置级 + wiring 级错误都如实返回），结构摘要只读顶层 `nodes` 表（不复刻核心 schema）；`save` 落盘 `~/.reflect/pipelines/<name>.toml`，**写前先校验，非法不落盘**。Collaboration 视图 Pipeline 编辑器消费 |
+| `reflect_run_security_scan` | `null` | `SecurityScanResult`（camelCase：`ran` / `exitCode?` / `output` / `summary`） | `commands/security.rs` / `commands/security.ts`。在当前工作区跑一次 `cargo audit` —— 核心 `reflect_integration::security_scan::run_cargo_audit` 的**真实实现**（30s 超时、管道排空、IO 错误落结构化报告而非 panic）。阻塞调用放 `spawn_blocking`（可能跑 30s，不占住 async worker）。Settings → Advanced「安全扫描」卡片消费 |
+| `reflect_pick_file` | `{ extensions? }` | `string?`（原生文件选择框，取消 → `null`；`tauri-plugin-dialog` Rust API，可选扩展名白名单过滤） | `commands/workspaces.rs` / `commands/workspaces.ts`。discussion / pipeline 的 TOML 配置入口 |
+| `reflect_prompt_command` | `{ action }` | `string`（submission id） | `commands/prompts.rs` / `commands/prompts.ts`。`Op::PromptCommand` 派生命令（v1.6.1 提示词层管理）：`action` 是协议内联判别联合 —— `{ type: "list" }` 查询可用层 + 生效层（应答 `prompt_list` 事件），`{ type: "switch", layer: null }` 重扫提示词库（应答 `prompt_switched` 事件，`layer` 槽位预留，当前固定走全量重扫）。两个动作都不开 turn；前端 `/prompt` slash 展开 `PromptLayersModal` |
+| `reflect_get_effective_prompt` | `null` | `EffectivePrompt`（camelCase：`model` / `layers` / `sections[{key, content}]`） | `commands/prompts.rs` / `commands/prompts.ts`。当前模型**实际生效**的提示词正文 —— 用核心的 `reflect_prompt::library().resolve(spec)` 解析（`PromptSet` 只公开 `get(key)`，故按核心 builder 引用的 key 列表取 `system.main` / `system.facade-main` / `system.plan-mode`）。与 `reflect_prompt_command` 的 `list` 互补：后者报**层文件名**,本命令报**层解析后的正文**。PromptLayersModal 按需展开 |
+| `reflect_session_stats` / `reflect_all_model_usage` | `{ id }` / `null` | `SessionStats?` / `ModelUsage[]`（均 camelCase） | `commands/stats.rs` / `commands/stats.ts`。只读扫描 rollout JSONL（`~/.reflect/sessions/`）的**模型级 token 统计**：复用 `reflect-rollout::index::session_stats` / `all_model_usage`（与 CLI `reflect session stats` 同源，桌面端不复刻聚合）。`SessionStats` 含总量 + `perModel` 按模型拆分 + 压缩前后 token（`compactionTokensSaved`）+ 记忆读写次数 + 缓存命中率；会话尚无落盘记录 → `null`。`/usage` 视图消费 |
+| `reflect_model_rate_cards` | `{ models }` | `RateCard[]`（camelCase） | `commands/stats.rs` / `commands/stats.ts`。模型**费率卡** —— 让费用在 GUI 里可解释。用 4 次合成用量反解核心静态费率表（`app_core::pricing`：`price()` 对 usage 线性），得每 1M token 的输入/输出/缓存读/缓存写单价。唯一事实源仍是核心的表（桌面端不持第二份），表更新后 GUI 自动跟随。模型不在表内 → `priced: false`，不给编造的数字 |
+| `reflect_list_worktrees` | `null` | `WorktreeInfo[]`（camelCase） | `commands/git.rs` / `commands/git.ts`。列出仓库的 worktree，标出**改动被困在隔离 worktree**的风险。核心的 worktree 状态存在 `ToolContext` 里（进程内）读不到，但 worktree 文件系统可见 —— `git worktree list --porcelain` + 核心 `reflect_tools::worktree::worktree_dirty` 判脏。`isolated` = 非主工作树；`stranded` = 隔离 + 有未提交改动（**改动还没落回主分支**，丢工风险）。Git 视图「Worktrees」面板消费 |
+| `reflect_list_mcp_resources` / `reflect_list_mcp_prompts` | `null` | `McpResourceInfo[]` / `McpPromptInfo[]`（camelCase） | `commands/mcp.rs` / `commands/mcp.ts`。MCP 三大原语里此前只有 tools 对用户可达 —— resources / prompts 只能被 LLM 调用，用户想复用某个 server 的资源或 prompt 模板时没有路径。直接问 rmcp peer（`list_all_resources()` / `list_all_prompts()`），与核心 `ListMcp*Tool` 同源 |
+| `reflect_list_subagent_specs` / `reflect_get_subagent_spec` / `reflect_save_subagent_spec` / `reflect_delete_subagent_spec` | `null` / `{ role }` / `{ role, markdown }` / `{ role }` | `SubagentSpecInfo[]` / `string?` / `null` / `null`（均 camelCase） | `commands/subagents.rs` / `commands/subagents.ts`。**子代理 spec**（`call_<role>` 工具的来源，`~/.reflect/subagents/*.md` 或工作区同名目录）—— 与 agent 定义（`~/.reflect/agents/*.md`）是两套东西，此前**无任何编辑面**。合并口径与运行时同款（TOML `[[subagents]]` > workspace md > home md > 硬编码 explorer）。`markdown` 是完整文件内容（frontmatter + body），写前由后端 `parse_subagent_str` 校验，非法不落盘 |
+| `reflect_list_hook_events` | `null` | `HookEventInfo[]`（camelCase：`kind` / `description` / `decisions`） | `commands/hooks.rs` / `commands/hooks.ts`。核心支持的 hook 事件类型（12 个 `HookEventKind`）与每个事件可用的 `HookDecision` —— 此前 GUI 只列 hook 的 name / kind / enabled，用户不知道能在哪些时机挂 hook、能做什么决策 |
+| `reflect_list_permission_rules` | `null` | `PermissionRuleInfo[]`（camelCase） | `commands/permissions.rs` / `commands/permissions.ts`。**核心三层权限 store 的生效规则**（只读）：`config`（`config.toml` 的 `[permissions]`）> `project`（`<workspace>/.reflect/permissions.toml`）> `user`（`~/.reflect/permissions.toml`）。数组顺序即匹配顺序（first-match-wins，deny 优先）。Settings → Permissions 分节消费。**运行时同构**：桌面端线程构造按 CLI（`reflect-exec` 的 `apply_permission_layers`）同款方式挂载解析器 —— 此前桌面端未挂，CLI 生效的 deny 规则被静默忽略 |
+| `reflect_lsp_diagnostics` | `{ path }` | `LspDiagnostic[]`（camelCase；行/列 1-based） | `commands/lsp.rs` / `commands/lsp.ts`。某文件的 **LSP 诊断**（编译器 / 检查器反馈）—— 读 core 的 `LspConnectionManager::diagnostics()` → `DiagnosticRegistry::get(uri)`。语义与核心 `LspTool` 同款：**只读被动缓存**（server 推 `textDocument/publishDiagnostics`，客户端不主动 pull）；文件未预热或 LSP 未开启 → 空列表。`LspStatus` 增 `diagnostics` 聚合（文档数 / 条数 / 状态描述）。Files 视图 Problems 面板消费 |
+| `reflect_list_mcp_servers` / `reflect_mcp_catalog` / `reflect_upsert_mcp_server` / `reflect_delete_mcp_server` | `null` / `null` / `{ name, entry }` / `{ name }` | `McpServerInfo[]` / `McpCatalogEntry[]` / `null` / `null`（均 camelCase） | `commands/mcp.rs` / `commands/mcp.ts`。**MCP 服务管理** —— 此前 GUI 只能观测,加服务得手改 `config.toml` 的 `[mcp_servers.<name>]`。`list` 给出配置里的 server + transport + 启动命令 + **运行状态**；`catalog` 给出核心内置的精选清单（离线）+ 安装提示（`reflect_mcp::registry`）；`upsert` / `delete` 改内存 `ReflectConfig.mcp_servers` → 经**核心 `mcp_server_configs()` 编译校验**（非法配置不落盘）→ 落盘 → 运行时起/停（注册/反注册其工具，路径与启动时的 `bootstrap_mcp` 同款）。`entry` 的 transport 线上字段名是 **`type`**（配置里写 `type = "stdio"`）。Collaboration 视图 McpManager 面板消费 |
+| `reflect_get_task_output` / `reflect_stop_task` / `reflect_release_task` | `{ list, id }` | `string` / `TaskUpdateResult` / `TaskUpdateResult` | `commands/tasks.rs` / `commands/tasks.ts`。任务**产出 / 停止 / 释放** —— 与核心工具同款语义（守卫在命令层，不在前端重复实现）：`get_task_output` 读任务 `output_path` 指向的文件（**不阻塞**，产出未写好时返回空串）；`stop_task` 守卫 `status == in_progress`，退回 `pending` + 清 `owner`（同 `TaskStopTool`）；`release_task` 守卫存在 `claimed_by`，退回 `pending` + 清 `claimed_by` / `claimed_at`（同 `TaskReleaseTool`）。任务板详情抽屉 + 行内按钮消费 |
+| `reflect_list_session_notes` / `reflect_list_note_sessions` | `{ id }` / `null` | `SessionNoteInfo[]` / `NoteSessionInfo[]`（camelCase） | `commands/notes.rs` / `commands/notes.ts`。agent 经 `AddSessionNoteTool` 写入的持久会话笔记（`<notes_home>/session-notes/<thread_id>.jsonl`，`notes_home` = `$REFLECT_HOME` > `$HOME/.reflect`）的**只读**面 —— 此前后端只有写、没有读。Memory 视图「会话笔记」面板消费 |
+| `reflect_list_span_logs` / `reflect_read_span_log` | `{ days? }` / `{ day, sessionId? }` | `SpanLogFile[]` / `TraceSpan[]`（camelCase） | `commands/traces.rs` / `commands/traces.ts`。**span 日志**（`~/.reflect/traces/log/reflect-YYYY-MM-DD.jsonl`）—— turn → model → tool 的父子 span 链（含耗时、状态、`reflect_goal` 事件）。model-io 的姊妹产物：model-io 给「每次调用的请求/响应全文」，span 给「turn 的结构与耗时归因」。`TraceSpan.depth` 由 `parentSpanId` 链推导（父缺失/成环均有防护）。Traces 视图「Span 树」页消费 |
+| `reflect_sandbox_status` | `null` | `SandboxStatus`（camelCase） | `commands/sandbox.rs` / `commands/sandbox.ts`。**OS 沙箱有效状态**：`status`（disabled / seatbelt / landlock / no_backend）、`active`、`backend`、核心的 `statusLine`。用 `OsSandbox::from_env()` —— 与 `BashTool::execute` 读 env 的路径同一逻辑，故状态栏显示的与 bash 实际跑在哪个沙箱里一致 |
 | `reflect_set_dock_badge` | `{ count? }` | `null` | `src-tauri/src/dock.rs` (macOS) / `src/utils/tauri.ts` (compat) |
 
 **`reflect_terminal_output` event** (B8-01):
@@ -160,6 +184,20 @@ pub struct Submission {
   在 `SessionConfiguredEvent::new` 后覆盖 `sc.session_id = session_id`）。旧版本曾发出
   随机 UUID，仅作 turn 事件标识。
 
+### 2.3 `ThreadSettingsOverrides` —— 后端盖章的字段
+
+`Op::UserInput.thread_settings`（`ThreadSettingsOverrides`）里有两个字段是
+**后端说了算**，前端传什么都不算数：
+
+| 字段 | 桌面端行为 |
+|---|---|
+| `sandbox_policy` | **无条件覆盖**为后端配置推导出的值（`OsSandbox` = 开 OS 沙箱，`WorkspaceOnly` = 关）。沙箱是安全设置，事实源只能是后端的配置快照。见 `docs/CAPABILITIES.md` §3.19。 |
+| `model` / `approval_policy` / `max_tool_concurrency` | 原样透传（前端目前不设；`max_tool_concurrency` 可用于每轮调工具并发上限） |
+
+核心把这三个字段映射成每轮的真实行为（`reflect-core/src/submission_loop.rs`）：
+`sandbox_policy` → `ToolContext.os_sandbox`（`OsSandbox` → `Some(true)`，
+其余 → `Some(false)`）→ 前台 `BashTool` 与后台 bash 两条路径都读它。
+
 ---
 
 ## 3. 事件（后端 → UI）
@@ -168,7 +206,7 @@ pub struct Submission {
 
 > **命名**：Rust `enum` 使用 **PascalCase 结构变体**（如 `TurnStarted(TurnStartedEvent)`），但 serde 发出 **snake_case** 鉴别器（`turn_started`）供前端使用。前端 TypeScript 使用 snake_case 形式。
 
-### 3.1 Lifecycle (5)
+### 3.1 Lifecycle (7)
 
 | 变体 | 触发方 | UI 影响 |
 |---|---|---|
@@ -177,6 +215,7 @@ pub struct Submission {
 | `turn_complete` | LLM turn finished | Spinner off; unlock composer; accumulate cost |
 | `turn_aborted` | `Op::Interrupt` / error | Red toast |
 | `turn_rewound` | `Op::Rewind` success | Truncate local scrollback; redraw |
+| `submission_closed` | v1.3 SDK serve 模式的 per-submission 通道排空标记 | none —— Desktop 内嵌 AgentThread 不发本事件；TS 类型联合已补齐，reducer no-op 保穷尽 |
 | `shutdown_complete` | `Op::Shutdown` | Quit / hide |
 
 ### 3.2 LLM output (4)
@@ -186,14 +225,14 @@ pub struct Submission {
 | `agent_message` | `text: String` | Non-streaming final bubble |
 | `agent_message_delta` | `delta: String` | Stream chunk → append to last assistant bubble |
 | `thinking_delta` | `delta: String` | Reasoning block (collapsible) |
-| `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?` |
+| `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential/model). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?`、`model?`（v1.x 模型级统计:本轮实际命中的模型 spec 如 `"openai/gpt-4o"`；旧引擎不上报 → 缺省） |
 
 ### 3.3 Tools (4)
 
 | 变体 | 字段 | UI |
 |---|---|---|
 | `tool_call_begin` | `ToolCallBeginEvent` | Tool row running indicator |
-| `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled |
+| `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled；`tool_name == "TodoWrite"` 时另取 `output.metadata.todos` → Inspector「Todo 清单」面板（`{ content, status, activeForm }`，`activeForm` 为 camelCase） |
 | `tool_call_output_delta` | `ToolCallOutputDeltaEvent` (v1.4 A3) | none —— 长工具执行期间逐段 stdout/stderr 增量预览（完整输出仍以 `tool_call_end` 为准）；reducer no-op 保穷尽，避免高频重渲染 |
 | `tool_execution_request` | `ToolExecutionRequestEvent` (v1.3 SDK) | none —— serve 模式下 core 请求客户端本地执行其经 `Op::RegisterTools` 注册的远程工具（回执 `Op::ToolExecutionResponse`，`call_id` 配对）。Desktop 内嵌 AgentThread 不注册远程工具，reducer no-op 保穷尽 |
 
@@ -223,7 +262,7 @@ pub struct Submission {
 | `collab_started` / `collab_message` / `collab_finished` | Collab sidebar / timeline |
 
 > **Coding plan 自动切换**：前端 `stores/agent/planFailover.ts` 消费
-> `quota_exhausted`（§3.x 生命周期/插件组）与耗尽特征的 `error` 事件，
+> `quota_exhausted`（见 §3.12 插件/配额组）与耗尽特征的 `error` 事件，
 > 自动改写 `[active].provider` 并 `reflect_save_config`（触发 §2.0 的热
 > 重载链路），toast 告知切换结果。
 
@@ -242,7 +281,7 @@ pub struct Submission {
 | `lsp_server_started` | Status bar LSP segment |
 | `lsp_server_failed` | Error toast |
 
-### 3.9 Plan (5)
+### 3.9 Plan (7)
 
 | Variant | UI |
 |---|---|
@@ -250,6 +289,8 @@ pub struct Submission {
 | `plan_ready` | Plan markdown modal (Accept / Submit Changes) |
 | `plan_approved` | Status bar plan badge |
 | `plan_rejected` | Status hint |
+| `plan_draft_updated` | none —— 草稿正文覆盖式刷新(TUI 用于预览);GUI 决策路径走 `plan_ready` → PlanReadyModal,reducer no-op 保穷尽 |
+| `plan_step` | Plan 视图「执行进度」清单 —— 核心在 agent 执行已批准 plan 时逐 step 上报;reducer 按 `index` 就地更新或追加(与核心 TUI 语义同构),`plan_ready` 到达时清空上一份 |
 | `permission_mode_changed` | Status bar mode badge updates |
 
 ### 3.10 Subagent observability (2) — v1.4+
@@ -258,6 +299,21 @@ pub struct Submission {
 |---|---|---|
 | `subagent_progress` | `SubagentProgressEvent`（通道一:推送） | Inspector 子代理区块滚动 feed（封顶 200 条）—— 父级 `CallSubAgentTool` 转发的子代理中间进度（message / tool_begin / tool_end） |
 | `subagent_status` | `SubagentStatusEvent`（通道二:查询应答） | Inspector 子代理区块状态快照（`reflect_query_subagents` 发起;turn 收尾且 feed 非空时自动刷新,亦可手动） |
+
+### 3.11 Prompt layers (2) — v1.6.1
+提示词按模型自动匹配外置到 `.reflect/prompts/*.md`（`.reflect/prompts/` 用户目录层 + 内置厂商层，三级回退 default → 厂商 → 精确模型名）。引擎侧经 `Op::PromptCommand` 暴露查询与重扫，两个动作都**不开 turn** —— 应答事件经 per-submission 通道 + 会话扇出双路送达。
+
+| 变体 | 字段 | UI |
+|---|---|---|
+| `prompt_list` | `PromptListEvent`：`available: Vec<String>`（可绑定的层文件名，不含 `.md`）、`current_spec: String`（当前 model spec）、`active_layers: Vec<String>`（当前 spec 实际命中的用户层，内嵌厂商层不记录） | `PromptLayersModal` 展示「当前模型 / 生效层 / 可用层」；`/prompt` slash 展开（经 `reflect_prompt_command` 的 `list` 动作发起）。reducer 写 `store.prompt`（**进程级** —— 提示词库不随会话切换重置） |
+| `prompt_switched` | `PromptSwitchedEvent`：`action: String`（`"reload"`；预留未来聚焦切换的层名）、`active_layers: Vec<String>`（重扫后当前 spec 的生效用户层） | toast 提示「提示词已刷新」并展示新命中层；reducer 更新 `store.prompt.activeLayers` + 记 `switchedAt`。「重新扫描」按钮发起 `switch` 动作（用户改了 `.reflect/prompts/*.md` 后让改动即时生效） |
+
+### 3.12 Plugin / Quota (2)
+
+| 变体 | 字段 | UI |
+|---|---|---|
+| `plugin_loaded` | `PluginLoadedEvent`：`plugin: String`、`scope: String`、`version: String`、`skill_count: usize`、`command_count: usize` | Collaboration → Plugins 面板「运行时已挂载」列表 —— 与「配置里启用了哪些」是**两件事**，这里记的是运行时真正挂载成功的（挂载失败 / 被 scope 过滤时不会到这）。reducer 写 `store.loadedPlugins`（**进程级** —— 插件在 AgentThread 装配 / 配置重载时挂载，与会话无关），同 id 再来一条则覆盖 |
+| `quota_exhausted` | `QuotaExhaustedEvent`：`provider: String`、`label: String`、`used_tokens: u64`、`max_tokens: u64`、`window_ends_secs: u64` | toast warn「配额耗尽」+ coding plan 自动 failover（`stores/agent/planFailover.ts` 消费） |
 
 ---
 

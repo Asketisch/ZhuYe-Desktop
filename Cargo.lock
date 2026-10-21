@@ -4418,6 +4418,7 @@ dependencies = [
  "reflect-skills",
  "reflect-subagent",
  "reflect-task",
+ "reflect-telemetry",
  "reflect-tools",
  "serde_json",
  "tempfile",
@@ -4446,15 +4447,26 @@ dependencies = [
 name = "reflect-app-core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "chrono",
  "dirs 5.0.1",
  "parking_lot",
+ "reflect-config",
+ "reflect-discussion",
+ "reflect-llm",
+ "reflect-pipeline",
  "reflect-protocol",
+ "reflect-rollout",
+ "reflect-subagent",
  "reflect-task",
+ "reflect-telemetry",
+ "reflect-tools",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
  "tokio-util",
+ "toml 0.8.2",
  "tracing",
 ]
 
@@ -4518,6 +4530,7 @@ dependencies = [
  "parking_lot",
  "reflect-llm",
  "reflect-memory",
+ "reflect-prompt",
  "reflect-protocol",
  "reflect-telemetry",
  "serde",
@@ -4610,21 +4623,28 @@ dependencies = [
  "reflect-app-core",
  "reflect-config",
  "reflect-core",
+ "reflect-discussion",
  "reflect-hooks",
+ "reflect-integration",
  "reflect-llm",
  "reflect-lsp",
  "reflect-mcp",
  "reflect-memory",
+ "reflect-notes",
  "reflect-permissions",
+ "reflect-pipeline",
  "reflect-plugin",
+ "reflect-prompt",
  "reflect-protocol",
  "reflect-rollout",
+ "reflect-sandbox",
  "reflect-skills",
  "reflect-stream",
  "reflect-subagent",
  "reflect-task",
  "reflect-tools",
  "reqwest 0.12.28",
+ "rmcp",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -4654,6 +4674,7 @@ dependencies = [
  "reflect-config",
  "reflect-core",
  "reflect-llm",
+ "reflect-prompt",
  "reflect-protocol",
  "reflect-subagent",
  "reflect-tools",
@@ -4678,6 +4699,7 @@ dependencies = [
  "futures",
  "parking_lot",
  "reflect-llm",
+ "reflect-prompt",
  "reflect-protocol",
  "reflect-telemetry",
  "serde",
@@ -4706,6 +4728,18 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml 0.8.2",
+ "tracing",
+]
+
+[[package]]
+name = "reflect-integration"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
  "tracing",
 ]
 
@@ -4823,6 +4857,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "reflect-pipeline"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "parking_lot",
+ "reflect-llm",
+ "reflect-protocol",
+ "reflect-subagent",
+ "reflect-task",
+ "reflect-tools",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "toml 0.8.2",
+ "tracing",
+]
+
+[[package]]
 name = "reflect-plugin"
 version = "0.1.0"
 dependencies = [
@@ -4860,7 +4917,9 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
+ "tempfile",
  "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]

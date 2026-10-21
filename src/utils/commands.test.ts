@@ -495,14 +495,20 @@ describe('commands forwarding (mapping)', () => {
 
   // ----- 搜索 -----
 
-  it('reflect_search_files forwards { query, path, maxResults } with defaults', async () => {
+  it('reflect_search_files forwards { query, path, maxResults, rank } with defaults', async () => {
     const none = await captureCmd('reflect_search_files', () => reflect_search_files('foo'));
-    expectArgs(none, { query: 'foo', path: null, maxResults: 200 });
+    expectArgs(none, { query: 'foo', path: null, maxResults: 200, rank: 'substring' });
 
     const some = await captureCmd('reflect_search_files', () =>
       reflect_search_files('foo', '/tmp', 50),
     );
-    expectArgs(some, { query: 'foo', path: '/tmp', maxResults: 50 });
+    expectArgs(some, { query: 'foo', path: '/tmp', maxResults: 50, rank: 'substring' });
+
+    // BM25 相关性排序(与 agent 的 grep 同款)。
+    const ranked = await captureCmd('reflect_search_files', () =>
+      reflect_search_files('foo', null, 20, 'bm25'),
+    );
+    expectArgs(ranked, { query: 'foo', path: null, maxResults: 20, rank: 'bm25' });
   });
 
   // ----- 任务（Phase 1 多 agent）-----
@@ -581,7 +587,8 @@ describe('commands forwarding (mapping)', () => {
       name: 'rocket',
       lead_agent_id: 'team-lead@rocket',
       members: [],
-      created_at: 0,
+      // 核心 `SystemTime` 的 JSON 形态(不是数字)。
+      created_at: { secs_since_epoch: 0, nanos_since_epoch: 0 },
     };
     const args = await captureCmd('reflect_upsert_team', () => reflect_upsert_team(team));
     expectArgs(args, { team });
@@ -669,6 +676,7 @@ describe('commands forwarding (mapping)', () => {
       memory: [],
       mcp_collections: [],
       system_prompt: 'body',
+      source: 'custom' as const,
     };
     const args = await captureCmd('reflect_save_agent_def', () => reflect_save_agent_def(def));
     expectArgs(args, { def });

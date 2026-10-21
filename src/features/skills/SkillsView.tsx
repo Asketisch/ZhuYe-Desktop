@@ -65,6 +65,8 @@ export function SkillsView() {
                     </div>
                     <div className={s.toolBody}>
                       <code className={s.toolName}>{skill.name}</code>
+                      {/* 内置技能来自 crate(无磁盘文件)—— 与用户/工作区技能区分。 */}
+                      {skill.bundled && <Badge variant="neutral">{t('skills.bundled')}</Badge>}
                       <p className={s.toolDesc}>{skill.description}</p>
                       {(skill.triggers.length > 0 || skill.tools.length > 0) && (
                         <p className={s.skillMeta}>
@@ -74,6 +76,11 @@ export function SkillsView() {
                           {skill.tools.length > 0 && (
                             <span>{t('skills.allowedTools')}: {skill.tools.join(', ')}</span>
                           )}
+                        </p>
+                      )}
+                      {skill.whenPaths && skill.whenPaths.length > 0 && (
+                        <p className={s.skillMeta}>
+                          <span>{t('skills.whenPaths')}: {skill.whenPaths.join(', ')}</span>
                         </p>
                       )}
                     </div>

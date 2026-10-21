@@ -1,148 +1,91 @@
-//! Skills 列表 + 轻量 YAML frontmatter 解析。
+//! Skills 列表 —— 与核心运行时**同源**。
+//!
+//! ## 为什么不再自己扫盘
+//!
+//! 此前桌面端手写了一份扫描 + YAML 解析(扫 `~/.reflect/skills` 与
+//! `cwd/.reflect/skills`),与核心运行时的实际技能集有两处分叉:
+//!
+//! 1. **目录不同**:核心 `m4_bootstrap` 扫的是 `<workspace>/.reflect/skills`
+//!    + `~/.reflect/skills`;桌面端扫的是 `cwd` —— 进程工作目录与 agent
+//!    工作区不是一回事,列表因此可能为空或指向错误的目录。
+//! 2. **漏掉内置技能**:核心在扫描后还会 `merge_bundled`(把 crate 内置的
+//!    15+ 个 skill 合进 catalog),桌面端没有这一步 —— GUI 列出的技能
+//!    少于 agent 实际能激活的。
+//!
+//! 现在直接复用核心的 `reflect_skills::{scan_skills_dirs, bundled_skills}`,
+//! 目录与合并语义与运行时逐行一致,GUI 不再可能与 agent 分叉。
 
-use std::path::{Path, PathBuf};
+use std::collections::HashSet;
+use std::path::PathBuf;
 
+use reflect_skills::{bundled_skills, scan_skills_dirs};
 use serde::Serialize;
+use tauri::State;
 
 use crate::commands::error::CommandResult;
+use crate::state::MinimalAgent;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SkillInfo {
     pub name: String,
     pub description: String,
     pub path: String,
     pub tools: Vec<String>,
     pub triggers: Vec<String>,
+    /// 技能版本号(frontmatter `version:`;可选)。
+    pub version: Option<String>,
+    /// 路径 glob 条件 —— workspace 相对路径匹配时自动激活。
+    pub when_paths: Vec<String>,
+    /// v1 MCP 预留:该 skill 需要的 MCP 集合。
+    pub mcp_collections: Vec<String>,
+    /// Markdown 正文(system-prompt / 工作流)—— 供详情视图展示。
+    pub body: String,
+    /// true = crate 内置技能(无磁盘文件路径,来自 `bundled_skills()`)。
+    pub bundled: bool,
+    /// 提供该 skill 的插件 id(插件技能时非空)。
+    pub plugin_id: Option<String>,
 }
 
+/// 列出 agent 当前可用的全部技能(与运行时 catalog 同集)。
 #[tauri::command]
-pub async fn reflect_list_skills() -> CommandResult<Vec<SkillInfo>> {
-    // 扫描 `~/.reflect/skills/**/SKILL.md` 与 `<cwd>/.reflect/skills/**/SKILL.md`。
-    let mut out = Vec::new();
-    let search_dirs: Vec<PathBuf> = [
-        dirs::home_dir().map(|h| h.join(".reflect/skills")),
-        std::env::current_dir()
-            .ok()
-            .map(|c| c.join(".reflect/skills")),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    for dir in search_dirs {
-        if !dir.exists() {
-            continue;
+pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SkillInfo>> {
+    let ws_skills: PathBuf = agent.workspace().join(".reflect").join("skills");
+    let home_skills: PathBuf = dirs::home_dir()
+        .map(|h| h.join(".reflect").join("skills"))
+        .unwrap_or_else(|| PathBuf::from(".reflect/skills"));
+    let dirs = [ws_skills.as_path(), home_skills.as_path()];
+
+    // 与核心 `m4_bootstrap` 同序:工作区在前、用户级在后。
+    let mut metas = scan_skills_dirs(&dirs);
+    let mut seen: HashSet<String> = metas.iter().map(|m| m.name.clone()).collect();
+    // `merge_bundled` 的语义:同名不覆盖(用户/工作区技能优先)。
+    let mut bundled: HashSet<String> = HashSet::new();
+    for b in bundled_skills() {
+        if seen.insert(b.name.clone()) {
+            bundled.insert(b.name.clone());
+            metas.push(b);
         }
-        collect_skills_in(&dir, &mut out)?;
     }
+
+    let out = metas
+        .into_iter()
+        .map(|m| {
+            let is_bundled = bundled.contains(&m.name);
+            SkillInfo {
+                name: m.name,
+                description: m.description,
+                path: m.path.display().to_string(),
+                tools: m.tools,
+                triggers: m.triggers,
+                version: m.version,
+                when_paths: m.when_paths,
+                mcp_collections: m.mcp_collections,
+                body: m.body,
+                bundled: is_bundled,
+                plugin_id: m.plugin_id,
+            }
+        })
+        .collect();
     Ok(out)
-}
-
-fn collect_skills_in(dir: &PathBuf, out: &mut Vec<SkillInfo>) -> CommandResult<()> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(it) => it,
-        Err(_) => return Ok(()),
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        // file_type() 基于 symlink_metadata,不跟随链接:目录符号链接
-        // 可能成环(或指回祖先目录),is_dir() 会跟随导致无限递归 abort。
-        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-        if is_dir {
-            collect_skills_in(&path, out)?;
-        } else if path.file_name().and_then(|s| s.to_str()) == Some("SKILL.md") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Some(info) = parse_skill_frontmatter(&content, &path) {
-                    out.push(info);
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-fn parse_skill_frontmatter(content: &str, path: &Path) -> Option<SkillInfo> {
-    // 极简 YAML frontmatter 解析器:抽取首个 `---\n...\n---` 块。
-    let stripped = content.strip_prefix("---")?;
-    let rest = stripped.trim_start_matches('\n');
-    let end = rest.find("\n---")?;
-    let yaml = &rest[..end];
-    let body = rest[end + 4..].trim();
-
-    let name = extract_yaml_field(yaml, "name").unwrap_or_else(|| {
-        path.parent()
-            .and_then(|p| p.file_name())
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string()
-    });
-    let description = extract_yaml_field(yaml, "description").unwrap_or_default();
-    let tools = extract_yaml_list(yaml, "tools");
-    let triggers = extract_yaml_list(yamml_safe(yaml), "triggers");
-
-    let _ = body; // body 在 summary 中暂未使用,留给未来 `/skills/<name>` 详情页。
-
-    Some(SkillInfo {
-        name,
-        description,
-        path: path.display().to_string(),
-        tools,
-        triggers,
-    })
-}
-
-fn yamml_safe(s: &str) -> &str {
-    s
-}
-
-fn extract_yaml_field(yaml: &str, key: &str) -> Option<String> {
-    for line in yaml.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix(&format!("{key}:")) {
-            let v = rest.trim().trim_matches('"').trim_matches('\'');
-            if !v.is_empty() {
-                return Some(v.to_string());
-            }
-        }
-    }
-    None
-}
-
-fn extract_yaml_list(yaml: &str, key: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut in_list = false;
-    for line in yaml.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix(&format!("{key}:")) {
-            // 行内列表 `[a, b, c]`
-            if rest.trim_start().starts_with('[') {
-                let inside = rest
-                    .trim_start()
-                    .trim_start_matches('[')
-                    .trim_end_matches(']');
-                for item in inside.split(',') {
-                    let s = item.trim().trim_matches('"').trim_matches('\'');
-                    if !s.is_empty() {
-                        out.push(s.to_string());
-                    }
-                }
-                in_list = false;
-            } else if rest.trim().is_empty() {
-                in_list = true;
-            } else {
-                return out; // 单值,不算列表
-            }
-            continue;
-        }
-        if in_list {
-            if let Some(item) = trimmed.strip_prefix("- ") {
-                let s = item.trim().trim_matches('"').trim_matches('\'');
-                if !s.is_empty() {
-                    out.push(s.to_string());
-                }
-            } else if !trimmed.is_empty() {
-                in_list = false;
-            }
-        }
-    }
-    out
 }

@@ -45,6 +45,12 @@ reflect-app-core            = { workspace = true }
 reflect-config              = { workspace = true }
 reflect-rollout             = { workspace = true }
 reflect-skills              = { workspace = true }
+# 会话笔记只读查询(agent 经 AddSessionNoteTool 写入,这里只读展示)
+reflect-notes               = { workspace = true }
+# OS 沙箱状态查询(Seatbelt / Landlock 是否真的生效)
+reflect-sandbox             = { workspace = true }
+# 提示词库(按模型匹配的外置层)—— 查询当前模型实际生效的 prompt 正文
+reflect-prompt              = { workspace = true }
 reflect-memory              = { workspace = true }
 reflect-permissions         = { workspace = true }
 reflect-tools               = { workspace = true }
@@ -52,6 +58,10 @@ reflect-llm                 = { workspace = true }
 reflect-hooks               = { workspace = true }
 # 阶段 3d:MCP / LSP 运行时接入。
 reflect-mcp                 = { workspace = true }
+# 安全扫描(cargo audit)—— 核心的真实实现,GUI 此前没有这个面
+reflect-integration         = { workspace = true }
+# MCP 资源 / prompt 浏览:直接问 rmcp peer(与核心 ListMcp*Tool 同源)
+rmcp                        = { workspace = true }
 reflect-lsp                 = { workspace = true }
 # LSP 预热:file:// URI 构造(url)与 lsp_types::Uri(与 reflect-lsp 同版本)。
 url                         = { workspace = true }
@@ -75,6 +85,11 @@ reflect-plugin              = { workspace = true }
 # 插件 agents 能力的宿主:SubAgentFactory(仅作 loader 挂载点,桌面端
 # 不注册内置子代理 spec —— 内置 call_* 工具是独立 feature)。
 reflect-subagent            = { workspace = true }
+# 多 agent 讨论编排(CLI `reflect discussion` 的 GUI 对应;逻辑在 app-core,
+# 这里仅 PipelineReport/类型直传需要 reflect-pipeline)。
+reflect-discussion          = { workspace = true }
+# DAG 流水线(CLI `reflect pipeline` 的 GUI 对应;命令签名直传 PipelineReport)。
+reflect-pipeline            = { workspace = true }
 # 阶段 1:真实 agent 集成所需 — sanitizer / 工具输出脱敏(默认 10 pattern)。
 # Sanitizer::with_defaults() 直接可用,无需 reflect-config 的 SanitizeSection 转换。
 uuid                        = { workspace = true }

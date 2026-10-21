@@ -18,6 +18,10 @@ const files: Record<string, StringEntry> = {
   'files.lspOn':              { en: 'LSP on ({count} servers)',                            'zh-CN': 'LSP 已开启({count} 个服务)' },
   'files.lspOffHint':         { en: 'Enable LSP for this workspace? It starts language servers (higher tooling accuracy for the agent), at the cost of system resources.', 'zh-CN': '为当前工作区开启 LSP?将启动语言服务,agent 的代码理解(定义/引用/诊断)更准确,但会增加系统资源占用。' },
   'files.lspOnHint':          { en: 'LSP enabled — files are warmed up as you open them. Click to disable.', 'zh-CN': 'LSP 已开启——打开文件时会自动预热建立索引。点击关闭。' },
+  // LSP 诊断(Problems)
+  'files.problems.title':     { en: 'Problems',                                           'zh-CN': '问题' },
+  'files.problems.empty':     { en: 'No diagnostics for this file.',                     'zh-CN': '该文件暂无诊断。' },
+  'files.problems.at':        { en: 'Ln {line}, Col {col}',                             'zh-CN': '第 {line} 行 第 {col} 列' },
   'files.open':               { en: 'Open',                                                'zh-CN': '打开' },
   'files.refresh':            { en: 'Refresh',                                             'zh-CN': '刷新' },
   'files.empty':              { en: 'empty',                                               'zh-CN': '空' },
@@ -43,6 +47,10 @@ const files: Record<string, StringEntry> = {
   'files.findTruncated':      { en: 'truncated at 200',                                    'zh-CN': '截断于 200 条' },
   'search.tab.sessions':      { en: 'Sessions',                                            'zh-CN': '会话' },
   'search.tab.files':         { en: 'Files',                                               'zh-CN': '文件' },
+  // 搜索排序方式
+  'search.rank.substring':    { en: 'substring',                                          'zh-CN': '子串' },
+  'search.rank.substringHint':{ en: 'Substring match (fast).',                             'zh-CN': '子串匹配（快）。' },
+  'search.rank.bm25Hint':     { en: 'BM25 relevance ranking — same as the agent grep tool.', 'zh-CN': 'BM25 相关性排序 —— 与 agent 的 grep 工具同款。' },
   'search.sessionHits':       { en: '{count} session{plural}',                             'zh-CN': '{count} 个会话' },
 };
 

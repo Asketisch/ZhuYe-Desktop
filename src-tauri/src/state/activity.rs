@@ -211,6 +211,12 @@ fn map_event(event: &Event) -> Option<ActivityEvent> {
         // SubmissionClosed:submission 生命周期收尾信号(无用户可见语义),
         // 与其余 lifecycle 事件一样不进 activity timeline。
         | EventMsg::SubmissionClosed
+        // PromptList:`Op::PromptCommand { action: List }` 的拉取式应答快照
+        // (前端提示词层选择面板消费),与 SubagentStatus 同性质 —— 非里程碑。
+        | EventMsg::PromptList(_)
+        // PromptSwitched:提示词库重扫完成,前端以 toast 提示「提示词已刷新」
+        // 并展示新命中层;activity timeline 不重复记录(同一语义两处留痕会噪音)。
+        | EventMsg::PromptSwitched(_)
         | EventMsg::ShutdownComplete => return None,
 
         // QuotaExhausted —— 配额耗尽(独立分支,展示为 Warn)。

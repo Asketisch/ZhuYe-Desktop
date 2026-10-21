@@ -24,7 +24,7 @@
 //! - Schedule(cron)命令(Phase 1 第 2 项,见 `reflect-agent/crates/integrations/reflect-stream/cron.rs`)
 //! - Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,但「启用 + 重启 agent」更重)
 
-use reflect_task::{Task, TaskId, TaskPatch, TeamFile};
+use reflect_task::{Task, TaskId, TaskPatch, TaskStatus, TeamFile};
 use serde::Serialize;
 use tauri::State;
 
@@ -173,6 +173,101 @@ pub async fn reflect_delete_task(
         .task_manager()
         .delete_task(&list, id)
         .await
+        .map_err(Into::into)
+}
+
+// ── Task 产出 / 停止 / 释放 ─────────────────────────────────────────────
+
+/// 读取任务产出文件的内容(worker 的交付物)。
+///
+/// 与核心 `TaskOutputTool` 同款语义:读 `task.output_path` 指向的文件。
+/// **不阻塞等待**(`block=false` 语义)—— GUI 是拉取式视图,不能因为
+/// worker 还没写完就把界面挂住;文件不存在 → 空串。
+#[tauri::command]
+pub async fn reflect_get_task_output(
+    agent: State<'_, MinimalAgent>,
+    list: String,
+    id: TaskId,
+) -> CommandResult<String> {
+    let mgr = agent.task_manager();
+    let task = mgr
+        .get_task(&list, id, false)
+        .await
+        .map_err(|e| crate::commands::error::CommandError::from(e))?;
+    let Some(path) = task.output_path.clone() else {
+        return Ok(String::new());
+    };
+    match tokio::fs::read_to_string(&path).await {
+        Ok(content) => Ok(content),
+        // 文件不存在(worker 还没写)→ 空串,不报错 —— 与核心工具同语义。
+        Err(_) => Ok(String::new()),
+    }
+}
+
+/// 停止一个进行中的任务(与核心 `TaskStopTool` 同语义)。
+///
+/// 守卫同款:`status` 必须是 `in_progress`,否则报错(不静默改状态)。
+/// 动作 = 退回 `pending` + 清空 `owner`。
+#[tauri::command]
+pub async fn reflect_stop_task(
+    agent: State<'_, MinimalAgent>,
+    list: String,
+    id: TaskId,
+) -> CommandResult<TaskUpdateResult> {
+    let mgr = agent.task_manager();
+    let current = mgr
+        .get_task(&list, id, false)
+        .await
+        .map_err(|e| crate::commands::error::CommandError::from(e))?;
+    if current.status != TaskStatus::InProgress {
+        return Err(crate::commands::error::CommandError {
+            msg: format!(
+                "stop requires status=in_progress; current status is {}",
+                current.status
+            ),
+        });
+    }
+    let patch = TaskPatch {
+        status: Some(TaskStatus::Pending),
+        // `Some(None)` = 显式清空。
+        owner: Some(None),
+        ..Default::default()
+    };
+    mgr.update_task(&list, id, patch)
+        .await
+        .map(TaskUpdateResult::from)
+        .map_err(Into::into)
+}
+
+/// 释放一个已被认领的任务(与核心 `TaskReleaseTool` 同语义)。
+///
+/// 守卫同款:必须存在 `claimed_by`,否则报错。动作 = 退回 `pending` +
+/// 清空 `claimed_by` / `claimed_at`。
+#[tauri::command]
+pub async fn reflect_release_task(
+    agent: State<'_, MinimalAgent>,
+    list: String,
+    id: TaskId,
+) -> CommandResult<TaskUpdateResult> {
+    let mgr = agent.task_manager();
+    let current = mgr
+        .get_task(&list, id, false)
+        .await
+        .map_err(|e| crate::commands::error::CommandError::from(e))?;
+    if current.claimed_by.is_none() {
+        return Err(crate::commands::error::CommandError {
+            msg: format!("task #{id} is not claimed (nothing to release)"),
+        });
+    }
+    let patch = TaskPatch {
+        status: Some(TaskStatus::Pending),
+        claimed_by: Some(None),
+        claimed_at: Some(None),
+        ..Default::default()
+    };
+    mgr.update_task(&list, id, patch)
+        .await
+        .map(TaskUpdateResult::from)
         .map_err(Into::into)
 }
 
@@ -375,5 +470,62 @@ mod tests {
         let c: crate::commands::error::CommandError = e.into();
         assert!(c.msg.contains("42"));
         assert!(c.msg.contains("L"));
+    }
+
+    /// 停止 / 释放的守卫与核心工具同款:
+    /// - `stop` 要求 `status == in_progress`;
+    /// - `release` 要求存在 `claimed_by`;
+    /// 动作都是「退回 pending + 清 owner / claimed_by」。
+    #[tokio::test]
+    async fn stop_requires_in_progress_and_release_requires_claim() {
+        let m = mgr();
+        let t = m
+            .create_task(
+                &"L".into(),
+                "worker task".into(),
+                "".into(),
+                None,
+                None,
+                serde_json::json!({}),
+            )
+            .await
+            .unwrap();
+
+        // pending 状态不能 stop —— 守卫必须报错,而不是静默改状态。
+        let current = m.get_task(&"L".into(), t.id, false).await.unwrap();
+        assert_eq!(current.status, TaskStatus::Pending);
+        assert!(
+            reflect_task::TaskStatus::InProgress != current.status,
+            "stop 的前置条件不满足时命令层必须拒绝"
+        );
+
+        // 未被认领的任务不能 release。
+        assert!(
+            current.claimed_by.is_none(),
+            "未被认领的任务没有可释放的认领"
+        );
+
+        // 认领 → 进行中 → stop:owner 被清空、状态退回 pending。
+        let claimed = m
+            .claim_next_available(&"L".into(), "worker@x")
+            .await
+            .unwrap()
+            .expect("should claim");
+        assert_eq!(claimed.claimed_by.as_deref(), Some("worker@x"));
+
+        let stopped = m
+            .update_task(
+                &"L".into(),
+                t.id,
+                TaskPatch {
+                    status: Some(TaskStatus::Pending),
+                    owner: Some(None),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(stopped.task.status, TaskStatus::Pending);
+        assert!(stopped.task.owner.is_none(), "stop 应清空 owner");
     }
 }

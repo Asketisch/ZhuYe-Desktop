@@ -140,3 +140,22 @@
   border-color: var(--accent-border);
   color: var(--accent);
 }
+
+/* 排序方式切换(子串 / BM25 相关性) */
+.rankToggle {
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rankToggle[data-active] {
+  color: var(--text-primary);
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}

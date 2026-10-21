@@ -220,6 +220,8 @@ export interface FakeBackend {
     workspaces: Array<{ path: string; label: string; last_used: number; session_count: number }>;
     /** `reflect_pick_workspace_folder` 的模拟返回值（null = 用户取消）。 */
     pickedFolder: string | null;
+    /** `reflect_pick_file` 的模拟返回值（null = 用户取消）。 */
+    pickedFile: string | null;
     activity: Array<Record<string, unknown>>;
     agentDefs: Array<Record<string, unknown>>;
     allowlist: { entries: string[] };
@@ -371,6 +373,7 @@ export function installFakeBackend(): FakeBackend {
         { path: '/Users/dev/scratch', label: 'scratch', last_used: Math.floor(Date.now() / 1000) - 172_800, session_count: 0 },
       ],
       pickedFolder: null,
+      pickedFile: null,
       activity: [
         { kind: 'tool_call', label: 'read_file(src/lib.rs)', at: nowIso(-300_000) },
         { kind: 'message', label: 'user: hello', at: nowIso(-400_000) },
@@ -779,8 +782,24 @@ export function installFakeBackend(): FakeBackend {
     lspEnabled = Boolean(args?.enabled);
     return { enabled: lspEnabled, servers: lspEnabled ? ['rust-analyzer'] : [] };
   }));
-  handle('reflect_lsp_status', handler(() => ({ enabled: lspEnabled, servers: [] })));
+  handle('reflect_lsp_status', handler(() => ({
+    enabled: lspEnabled,
+    servers: [],
+    diagnostics: { documents: 0, count: 0, statusLine: '' },
+  })));
   handle('reflect_lsp_warmup', handler(() => ({ warmed: lspEnabled, server: null })));
+  handle('reflect_lsp_diagnostics', handler(() => [
+    {
+      line: 12,
+      column: 5,
+      endLine: 12,
+      endColumn: 9,
+      severity: 'warning',
+      message: 'unused variable: `foo`',
+      source: 'rustc',
+      code: 'unused_variables',
+    },
+  ]));
   // 「你好」测试消息：返回固定回复（真实厂商 HTTP 调用在后端）。
   handle(
     'reflect_test_provider_chat',
@@ -915,6 +934,9 @@ export function installFakeBackend(): FakeBackend {
     }),
   );
   handle('reflect_claim_task', handler(() => wire(backend.state.tasks.find((t) => t.status === 'pending') ?? null)));
+  handle('reflect_get_task_output', handler(() => 'worker output: done in 3s\n'));
+  handle('reflect_stop_task', handler(() => ({ task: null, updatedFields: ['status'] })));
+  handle('reflect_release_task', handler(() => ({ task: null, updatedFields: ['status'] })));
   handle(
     'reflect_delete_task',
     handler((args) => {
@@ -1029,7 +1051,458 @@ export function installFakeBackend(): FakeBackend {
   );
   handle('reflect_current_workspace', handler(() => backend.state.workspaces[0]?.path ?? '/Users/dev/project'));
   handle('reflect_pick_workspace_folder', handler(() => backend.state.pickedFolder));
+  handle('reflect_pick_file', handler(() => backend.state.pickedFile));
   handle('reflect_reveal_path', handler(() => undefined));
+
+  // —— traces(本地 LLM 调用记录只读查询)——
+  handle('reflect_list_traces', handler(() => [
+    {
+      sessionId: '11111111-2222-3333-4444-555555555555',
+      title: 'demo-session',
+      calls: 3,
+      lastAt: '2026-01-01T00:00:00Z',
+      model: 'test-model',
+      lastSource: 'main_turn',
+    },
+  ]));
+  handle('reflect_get_trace', handler(() => [
+    {
+      startedAt: '2026-01-01T00:00:00Z',
+      completedAt: '2026-01-01T00:00:01Z',
+      durationMs: 1000,
+      attempt: 1,
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      turnId: null,
+      querySource: 'main_turn',
+      model: { modelId: 'test-model', providerId: 'test', role: null, source: 'main_turn' },
+      request: { message_count: 1 },
+      response: { finish_reason: 'stop' },
+      usage: {
+        input_tokens: 10,
+        output_tokens: 5,
+        cached_tokens: 0,
+        cache_write_tokens: 0,
+        total_tokens: 15,
+      },
+    },
+  ]));
+
+  // —— stats(会话统计 / 模型级用量)——
+  handle('reflect_session_stats', handler(() => ({
+    sessionId: '11111111-2222-3333-4444-555555555555',
+    model: 'openai/gpt-4o',
+    startedAt: '2026-01-01T00:00:00Z',
+    messageCount: 12,
+    toolCalls: 3,
+    compactions: 1,
+    compactionBeforeTokens: 9000,
+    compactionAfterTokens: 2000,
+    compactionTokensSaved: 7000,
+    memoryReads: 2,
+    memoryWrites: 1,
+    inputTokens: 1000,
+    outputTokens: 200,
+    cachedTokens: 250,
+    cacheWriteTokens: 0,
+    totalTokens: 1200,
+    costUsd: 0.0234,
+    cacheHitRate: 0.25,
+    perModel: [
+      {
+        model: 'openai/gpt-4o',
+        provider: 'openai',
+        calls: 4,
+        inputTokens: 1000,
+        outputTokens: 200,
+        cachedTokens: 250,
+        cacheWriteTokens: 0,
+        totalTokens: 1200,
+        costUsd: 0.0234,
+      },
+    ],
+  })));
+  handle('reflect_all_model_usage', handler(() => [
+    {
+      model: 'openai/gpt-4o',
+      provider: 'openai',
+      calls: 4,
+      inputTokens: 1000,
+      outputTokens: 200,
+      cachedTokens: 250,
+      cacheWriteTokens: 0,
+      totalTokens: 1200,
+      costUsd: 0.0234,
+    },
+  ]));
+
+  // —— prompts(提示词层管理)——
+  handle('reflect_prompt_command', handler(() => 'sub-prompt-1'));
+  handle('reflect_get_effective_prompt', handler(() => ({
+    model: 'anthropic/claude-sonnet-4-latest',
+    layers: ['my-layer'],
+    sections: [
+      {
+        key: 'system.main',
+        content: '你是一名编码助手。',
+      },
+    ],
+  })));
+
+  // —— 活跃 agent(运行时实际加载的那条定义)——
+  handle('reflect_get_active_agent', handler(() => ({
+    name: 'default',
+    defFound: false,
+    memoryScopes: [],
+    injectBudgetChars: 8000,
+    memoryPaths: [
+      {
+        scope: 'project',
+        path: '/tmp/project/.reflect/agent-memory/default/MEMORY.md',
+      },
+      {
+        scope: 'user',
+        path: '/tmp/home/.reflect/agent-memory/default/MEMORY.md',
+      },
+    ],
+  })));
+  handle('reflect_set_active_agent', handler((args) => {
+    const name = (args as { name?: string })?.name ?? 'default';
+    return {
+      name,
+      defFound: true,
+      memoryScopes: ['project'],
+      injectBudgetChars: 8000,
+      memoryPaths: [
+        {
+          scope: 'project',
+          path: `/tmp/project/.reflect/agent-memory/${name}/MEMORY.md`,
+        },
+        {
+          scope: 'user',
+          path: `/tmp/home/.reflect/agent-memory/${name}/MEMORY.md`,
+        },
+      ],
+    };
+  }));
+
+  // —— MCP 服务管理(增删 + 精选 catalog)——
+  handle('reflect_list_mcp_servers', handler(() => [
+    {
+      name: 'filesystem',
+      transport: 'stdio',
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-filesystem'],
+      url: null,
+      running: true,
+    },
+  ]));
+  handle('reflect_mcp_catalog', handler(() => [
+    {
+      id: 'filesystem',
+      name: 'Filesystem',
+      description: '本地文件读写 MCP server',
+      category: 'files',
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-filesystem'],
+      installHint: 'npx -y @modelcontextprotocol/server-filesystem',
+    },
+  ]));
+  handle('reflect_upsert_mcp_server', handler(() => undefined));
+  handle('reflect_delete_mcp_server', handler(() => undefined));
+  handle('reflect_list_mcp_resources', handler(() => [
+    {
+      server: 'filesystem',
+      name: 'readme',
+      uri: 'file:///tmp/readme.md',
+      description: '项目说明',
+      mimeType: 'text/markdown',
+    },
+  ]));
+  handle('reflect_list_mcp_prompts', handler(() => [
+    {
+      server: 'filesystem',
+      name: 'summarize',
+      description: '总结一个目录',
+      arguments: ['path'],
+    },
+  ]));
+
+  // —— 安全扫描(cargo audit)——
+  handle('reflect_run_security_scan', handler(() => ({
+    ran: true,
+    exitCode: 0,
+    output: '0 vulnerabilities found',
+    summary: 'cargo audit: 0 vulnerabilities',
+  })));
+
+  // —— Pipeline 配置编辑(校验 / 列表 / 落盘)——
+  handle('reflect_validate_pipeline', handler(() => ({
+    name: 'my-pipeline',
+    failurePolicy: 'abort',
+    nodes: ['plan', 'build'],
+    nodeCount: 2,
+    missingTeams: [],
+    valid: true,
+    error: null,
+  })));
+  handle('reflect_list_pipeline_configs', handler(() => [
+    {
+      name: 'my-pipeline',
+      path: '/tmp/home/.reflect/pipelines/my-pipeline.toml',
+      toml: 'name = "my-pipeline"\n',
+    },
+  ]));
+  handle('reflect_save_pipeline_config', handler((args) => {
+    const a = args as { name?: string; tomlSrc?: string };
+    return {
+      name: a?.name ?? 'my-pipeline',
+      path: `/tmp/home/.reflect/pipelines/${a?.name ?? 'my-pipeline'}.toml`,
+      toml: a?.tomlSrc ?? '',
+    };
+  }));
+
+  // —— hook 事件类型(可挂载时机 + 可用决策)——
+  handle('reflect_list_hook_events', handler(() => [
+    {
+      kind: 'pre_tool_use',
+      description: '工具执行前',
+      decisions: ['allow', 'deny', 'modify_args', 'inject_message', 'permission_override', 'ask'],
+    },
+    {
+      kind: 'stop',
+      description: '回合结束（模型给出最终消息）',
+      decisions: ['allow', 'deny', 'inject_message'],
+    },
+  ]));
+
+  // —— 子代理 spec(`call_<role>` 工具的来源)——
+  handle('reflect_list_subagent_specs', handler(() => [
+    {
+      role: 'explorer',
+      name: 'Explorer',
+      model: null,
+      systemPrompt: 'You are an explorer subagent.',
+      allowedTools: ['bash', 'read', 'grep'],
+      allowedSkills: [],
+      maxTurns: null,
+      source: 'builtin',
+      path: null,
+    },
+  ]));
+  handle('reflect_get_subagent_spec', handler(() => '---\nname: explorer\nrole: explorer\n---\n'));
+  handle('reflect_save_subagent_spec', handler(() => undefined));
+  handle('reflect_delete_subagent_spec', handler(() => undefined));
+
+  // —— git worktree(隔离工作树 + 滞留改动告警)——
+  handle('reflect_list_worktrees', handler(() => [
+    {
+      path: '/tmp/project',
+      branch: 'main',
+      head: 'abc1234',
+      dirty: false,
+      isolated: false,
+      stranded: false,
+    },
+    {
+      path: '/tmp/project/.reflect/worktrees/reflect-wt-1',
+      branch: 'reflect/wt-1',
+      head: 'def5678',
+      dirty: true,
+      isolated: true,
+      stranded: true,
+    },
+  ]));
+
+  // —— 运行时状态(凭证池 / 已完成子代理调用 / 记忆分段 / 配置位置)——
+  handle('reflect_credential_pool_status', handler(() => [
+    {
+      provider: 'anthropic',
+      total: 3,
+      healthy: 2,
+      healthyLabels: ['default', 'backup'],
+    },
+  ]));
+  handle('reflect_recovery_state', handler(() => [
+    {
+      toolName: 'call_explorer',
+      taskSummary: 'find the auth flow',
+      resultSummary: 'src/auth/session.ts',
+      iteration: 2,
+      createdAt: '2026-10-01T00:00:00Z',
+    },
+  ]));
+  handle('reflect_memory_sections', handler(() => [
+    {
+      scope: 'project',
+      title: 'build-cmd',
+      body: 'always run pnpm build before commit',
+      index: 0,
+      chars: 33,
+    },
+  ]));
+  handle('reflect_config_info', handler(() => ({
+    path: '/tmp/home/.reflect/config.toml',
+    exists: true,
+    analyticsEnabled: false,
+    analyticsStatus: 'analytics: disabled',
+    workspace: '/tmp/project',
+    activeAgent: 'default',
+  })));
+
+  // —— 插件管理(列表 / 启停 / 卸载 / 本地安装)——
+  handle('reflect_list_plugins', handler(() => [
+    {
+      id: 'demo',
+      version: '0.1.0',
+      scope: 'user',
+      installPath: '/tmp/plugins/demo',
+      installedAt: '2026-10-01T00:00:00Z',
+      enabled: true,
+      gitCommitSha: null,
+    },
+  ]));
+  handle('reflect_list_marketplaces', handler(() => [
+    {
+      name: 'local',
+      source: 'directory',
+      installLocation: '/tmp/marketplaces',
+      autoUpdate: false,
+    },
+  ]));
+  handle('reflect_toggle_plugin', handler(() => undefined));
+  handle('reflect_uninstall_plugin', handler(() => undefined));
+  handle('reflect_install_plugin', handler(() => undefined));
+
+  // —— 权限规则(核心三层 store 的生效规则)——
+  handle('reflect_list_permission_rules', handler(() => [
+    {
+      tool: 'Bash',
+      action: 'deny',
+      toolGlob: null,
+      shellPattern: 'rm -rf *',
+      scope: 'config',
+    },
+    {
+      tool: 'Read',
+      action: 'allow',
+      toolGlob: null,
+      shellPattern: null,
+      scope: 'user',
+    },
+  ]));
+  // 审批弹窗的「始终允许这条命令」—— 写进核心的用户级权限文件。
+  handle('reflect_add_permission_rule', handler(() => undefined));
+
+  // —— 会话笔记(agent 写下的持久结论)——
+  handle('reflect_list_session_notes', handler(() => [
+    { text: 'The auth flow lives in src/auth/session.ts', createdAt: '2026-10-01T00:00:00Z' },
+  ]));
+  handle('reflect_list_note_sessions', handler(() => [
+    {
+      sessionId: '11111111-2222-3333-4444-555555555555',
+      count: 1,
+      updatedAt: '2026-10-01T00:00:00Z',
+    },
+  ]));
+
+  // —— 费率卡(核心静态费率表反解)——
+  handle('reflect_model_rate_cards', handler((args) => {
+    const models = (args as { models?: string[] } | undefined)?.models ?? [];
+    return models.map((model) => ({
+      model,
+      priced: model.includes('claude-sonnet-4-latest'),
+      inputPrice: model.includes('claude-sonnet-4-latest') ? 3 : null,
+      outputFactor: model.includes('claude-sonnet-4-latest') ? 5 : null,
+      cacheReadFactor: model.includes('claude-sonnet-4-latest') ? 0.1 : null,
+      cacheWriteFactor: model.includes('claude-sonnet-4-latest') ? 1.25 : null,
+      outputPrice: model.includes('claude-sonnet-4-latest') ? 15 : null,
+      cacheReadPrice: model.includes('claude-sonnet-4-latest') ? 0.3 : null,
+      cacheWritePrice: model.includes('claude-sonnet-4-latest') ? 3.75 : null,
+    }));
+  }));
+
+  // —— OS 沙箱有效状态 ——
+  handle('reflect_sandbox_status', handler(() => ({
+    osLevel: true,
+    status: 'seatbelt',
+    active: true,
+    backend: 'seatbelt',
+    statusLine: 'os-sandbox: seatbelt 已启用;网络:拒绝;敏感读:默认拒绝(凭据/SSH/钥匙串);strict=true',
+    enabled: true,
+    envOverride: null,
+  })));
+
+  // —— span 日志(turn → model → tool 父子链)——
+  handle('reflect_list_span_logs', handler(() => [
+    { day: '2026-10-01', path: '/tmp/traces/log/reflect-2026-10-01.jsonl' },
+  ]));
+  handle('reflect_read_span_log', handler(() => [
+    {
+      spanId: 'span-turn',
+      parentSpanId: null,
+      event: 'turn.started',
+      module: 'reflect_core::submission_loop',
+      level: 'info',
+      status: 'started',
+      turnId: 't1',
+      toolCallId: null,
+      sessionId: '11111111-2222-3333-4444-555555555555',
+      durationMs: null,
+      timestamp: '2026-10-01T00:00:00Z',
+      context: null,
+      depth: 0,
+    },
+    {
+      spanId: 'span-model',
+      parentSpanId: 'span-turn',
+      event: 'model.request.completed',
+      module: 'reflect_core::graph::nodes::model_call',
+      level: 'info',
+      status: 'completed',
+      turnId: 't1',
+      toolCallId: null,
+      sessionId: '11111111-2222-3333-4444-555555555555',
+      durationMs: 1200,
+      timestamp: '2026-10-01T00:00:01Z',
+      context: null,
+      depth: 1,
+    },
+  ]));
+
+  // —— discussion(多 agent 讨论)——
+  handle('reflect_list_discussions', handler(() => [
+    {
+      sessionId: '11111111-2222-3333-4444-555555555555',
+      title: 'demo-session',
+      model: 'test-model',
+      startedAt: '2026-01-01T00:00:00Z',
+      messageCount: 4,
+    },
+  ]));
+  handle('reflect_run_discussion', handler(() => ({
+    discussionId: '99999999-8888-7777-6666-555555555555',
+    participants: ['advocate', 'skeptic'],
+    transcript: '=== Discussion Transcript ===',
+    result: { consensus: false, rounds: 1 },
+    llmBacked: false,
+  })));
+
+  // —— pipeline(DAG 流水线)——
+  handle('reflect_run_team_pipeline', handler(() => ({
+    topic: 'demo',
+    status: 'success',
+    failure_policy: 'abort',
+    nodes: [{ name: 'plan', status: 'Success', outputs: {}, elapsed_ms: 1, started_at_ms: 0 }],
+    total_elapsed_ms: 1,
+  })));
+  handle('reflect_run_pipeline', handler(() => ({
+    topic: 'demo',
+    status: 'success',
+    failure_policy: 'abort',
+    nodes: [{ name: 'plan', status: 'Success', outputs: {}, elapsed_ms: 1, started_at_ms: 0 }],
+    total_elapsed_ms: 1,
+  })));
 
   // —— activity ——
   handle('reflect_list_activity', handler(() => wire(backend.state.activity)));
@@ -1121,11 +1594,15 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_tailscale_daemon_status', handler(() => 'inactive'));
 
   // —— updates / autopilot ——
+  // 形状对齐后端 `UpdateInfo`(camelCase 出线)。
   handle('reflect_check_update', handler(() => ({
-    available: false,
-    current_version: '0.1.0',
-    latest_version: '0.1.0',
-    notes: '',
+    currentVersion: '0.1.0',
+    latestVersion: '0.1.0',
+    updateAvailable: false,
+    releaseUrl: null,
+    releaseNotes: null,
+    probedAt: 0,
+    error: null,
   })));
   handle('reflect_get_autopilot_config', handler(() => ({ enabled: false, max_turns: 10 })));
   handle('reflect_update_autopilot_config', handler((args) => args?.config ?? {}));

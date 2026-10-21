@@ -50,6 +50,7 @@ export const SLASH_COMMANDS: SlashCmd[] = [
   { name: 'review', category: 'system', summaryKey: 'slash.review.desc', hidden: true },
   { name: 'ultrareview', category: 'system', summaryKey: 'slash.ultrareview.desc', hidden: true },
   { name: 'usage', category: 'system', summaryKey: 'slash.usage.desc' },
+  { name: 'prompt', category: 'system', summaryKey: 'slash.prompt.desc' },
   { name: 'copy', category: 'shortcuts', summaryKey: 'slash.copy.desc', hidden: true },
   { name: 'editor', category: 'shortcuts', summaryKey: 'slash.editor.desc', hidden: true },
   { name: 'stats', category: 'system', summaryKey: 'slash.stats.desc', hidden: true },

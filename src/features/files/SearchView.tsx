@@ -20,6 +20,7 @@ import {
   reflect_search_sessions,
   type ReflectFileSearchHit,
   type ReflectSessionSearchHit,
+  type SearchRank,
 } from '@/utils/commands';
 import s from './SearchView.module.css';
 
@@ -30,6 +31,8 @@ export function SearchView() {
   const { t, tp } = useI18n();
   const [tab, setTab] = useState<SearchTab>('sessions');
   const [query, setQuery] = useState('');
+  // 文件 tab 的排序方式:默认子串匹配;BM25 与 agent 自己的 grep 同款。
+  const [rank, setRank] = useState<SearchRank>('substring');
   const [sessionHits, setSessionHits] = useState<ReflectSessionSearchHit[]>([]);
   const [fileHits, setFileHits] = useState<ReflectFileSearchHit[]>([]);
   const [truncated, setTruncated] = useState(false);
@@ -57,7 +60,7 @@ export function SearchView() {
         setSessionHits(res);
         setTruncated(false);
       } else {
-        const res = await reflect_search_files(trimmed, null, 200);
+        const res = await reflect_search_files(trimmed, null, 200, rank);
         if (seq !== seqRef.current) return; // 已过时
         setFileHits(res?.hits ?? []);
         setTruncated(res?.truncated ?? false);
@@ -137,6 +140,23 @@ export function SearchView() {
               className={s.clear}
             >
               <Icon icon={X} size={14} />
+            </button>
+          )}
+          {/* 文件 tab 的排序方式:子串 vs BM25 相关性(与 agent 的 grep 同款)。 */}
+          {tab === 'files' && (
+            <button
+              type="button"
+              className={s.rankToggle}
+              data-active={rank === 'bm25' || undefined}
+              onClick={() => setRank((r) => (r === 'bm25' ? 'substring' : 'bm25'))}
+              title={
+                rank === 'bm25'
+                  ? t('search.rank.bm25Hint')
+                  : t('search.rank.substringHint')
+              }
+              data-testid="search-rank-toggle"
+            >
+              {rank === 'bm25' ? 'BM25' : t('search.rank.substring')}
             </button>
           )}
         </div>
