@@ -31,6 +31,15 @@ pub struct CredentialPoolStatus {
     pub healthy_labels: Vec<String>,
 }
 
+/// provider 段的三选一视图 —— 三个 provider 的配置段形状一致
+/// (隐式 `api_key` + `credentials` 列表),所以按「哪个段存在」来区分。
+type ProviderSection<'a> = (
+    &'a str,
+    Option<&'a reflect_config::AnthropicSection>,
+    Option<&'a reflect_config::OpenAISection>,
+    Option<&'a reflect_config::OllamaSection>,
+);
+
 /// 查询各 provider 的凭证池健康度。
 ///
 /// 「总数 − 健康数」= 处于冷却中的凭证数(核心的 cooldown 集合是私有
@@ -45,12 +54,7 @@ pub async fn reflect_credential_pool_status(
 
     let mut out: Vec<CredentialPoolStatus> = Vec::new();
     // provider 段是 `Option<Section>` —— 未配置时整段为空。
-    let sections: [(
-        &str,
-        Option<&reflect_config::AnthropicSection>,
-        Option<&reflect_config::OpenAISection>,
-        Option<&reflect_config::OllamaSection>,
-    ); 3] = [
+    let sections: [ProviderSection; 3] = [
         ("anthropic", cfg.anthropic.as_ref(), None, None),
         ("openai", None, cfg.openai.as_ref(), None),
         ("ollama", None, None, cfg.ollama.as_ref()),

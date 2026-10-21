@@ -25,8 +25,8 @@ pub mod tray;
 mod workspace_state;
 
 use commands::{
-    reflect_activity_count, reflect_add_memory, reflect_add_permission_rule, reflect_add_schedule,
-    reflect_agent_status, reflect_all_model_usage, reflect_archive_session,
+    ping, reflect_activity_count, reflect_add_memory, reflect_add_permission_rule,
+    reflect_add_schedule, reflect_agent_status, reflect_all_model_usage, reflect_archive_session,
     reflect_ask_user_input_response, reflect_ask_user_question_response, reflect_assign_squad_task,
     reflect_autopilot_history, reflect_bind_session, reflect_cancel_side_channel,
     reflect_check_allowlist, reflect_check_update, reflect_claim_task, reflect_clear_activity,
@@ -79,39 +79,44 @@ use commands::{
     reflect_update_remote_config, reflect_update_schedule, reflect_update_task,
     reflect_upsert_mcp_server, reflect_upsert_team, reflect_validate_pipeline, reflect_write_file,
 };
-use serde::Serialize;
 use state::MinimalAgent;
 use tauri::Manager;
 
-#[derive(Debug, Serialize)]
-struct PingResp {
-    msg: String,
-    version: String,
-}
-
-/// 启动 Tauri 应用:
+/// 应用构建器 —— 生产运行与**能力覆盖层**测试共用同一份命令注册表。
 ///
-/// 1. 注册 `MinimalAgent` (M2.x = 真 `reflect_core::AgentThread` + stub model);
-/// 2. 注册 19 个 reflect command + ping + `reflect_set_dock_badge`;
-/// 3. 注册 `tauri-plugin-global-shortcut` plugin;
-/// 4. 在 setup 中:
-///     - 启动 `forward_agent_events` 把 agent event 推到前端;
-///     - 注册全局快捷键 + 应用菜单 + 托盘图标;
-///     - 启动 `AgentThread` 的 会话事件转发器;
-/// 5. `on_window_event` 拦截 macOS 关闭按钮 → hide (close-to-tray)。
-pub fn run() {
-    tracing_subscriber::fmt::init();
-
-    tauri::Builder::default()
+/// ## 为什么要抽出来
+///
+/// 能力覆盖层(`src-tauri/tests/`)必须在**真实**的 `generate_handler!`
+/// 注册表上驱动真实命令体。如果测试自己维护一份命令清单,两份清单迟早
+/// 分叉 —— 「命令已接线」就成了自说自话。这里把注册表收敛到唯一入口:
+/// 生产 `run()` 与测试夹具都从这里装配,命令面**只增一次**。
+///
+/// ## 底座由调用方给
+///
+/// 本函数只装**命令面 + 托管状态 + 插件 + 窗口事件钩子**;builder 本体
+/// 由调用方提供:
+/// - 生产:`tauri::Builder::<tauri::Wry>::new()`;
+/// - 测试:`tauri::test::mock_builder()` —— 它负责 mock runtime 的
+///   invoke key 与初始化脚本。**invoke key 必须匹配**:`Webview::on_message`
+///   校验 key,不匹配时命令**静默不执行**、调用方一直阻塞,所以测试夹具
+///   必须用 `mock_builder()` 作底座,不能自己 `Builder::new()`。
+///
+/// ## 边界
+///
+/// - 应用菜单(`.menu`)与 `on_menu_event` **不**在共享装配里:菜单走
+///   muda 原生层,只有真实 Wry runtime 才能建;测试夹具用 mock runtime,
+///   不需要应用菜单。`enable_macos_default_menu(false)` 保证 mock 构建
+///   阶段不会隐式创建 NSMenu。
+/// - `setup` 钩子(托盘 / 全局快捷键 / dock 徽标)同样留在 `run()`:这些是
+///   OS 级副作用,只在真实事件循环里跑一次。
+pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
+    builder
         // ====== Plugins ======
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         // ====== 状态 ======
         .manage(MinimalAgent::new_empty())
-        // ====== Menu (在 builder 阶段静态注入) ======
         .enable_macos_default_menu(false)
-        .menu(menu::build_menu)
-        .on_menu_event(menu::handle_menu_event)
         // ====== IPC commands ======
         .invoke_handler(tauri::generate_handler![
             ping,
@@ -154,8 +159,11 @@ pub fn run() {
             reflect_save_config,
             reflect_set_model,
             reflect_query_plan_quota,
-            reflect_list_provider_models, reflect_lsp_set_enabled, reflect_lsp_status,
-            reflect_lsp_warmup, reflect_lsp_diagnostics,
+            reflect_list_provider_models,
+            reflect_lsp_set_enabled,
+            reflect_lsp_status,
+            reflect_lsp_warmup,
+            reflect_lsp_diagnostics,
             reflect_test_provider_chat,
             reflect_list_tools,
             // 各领域 domain 管理(workspace / skills / memory / hooks / git)
@@ -177,7 +185,8 @@ pub fn run() {
             reflect_add_memory,
             reflect_remove_memory,
             reflect_list_hooks,
-            reflect_list_hook_events, reflect_list_hook_events,
+            reflect_list_hook_events,
+            reflect_list_hook_events,
             reflect_toggle_hook,
             reflect_git_status,
             reflect_list_worktrees,
@@ -185,8 +194,8 @@ pub fn run() {
             reflect_git_unstage,
             reflect_git_commit,
             reflect_gh_pr_list,
-    reflect_git_diff,
-    reflect_git_log,
+            reflect_git_diff,
+            reflect_git_log,
             // 终端 shell exec + streaming
             reflect_run_shell,
             reflect_kill_shell,
@@ -337,8 +346,35 @@ pub fn run() {
         .on_window_event(|window, event| {
             menu::handle_close_to_tray(window, event);
         })
+}
+
+/// 启动 Tauri 应用:
+///
+/// 1. 注册 `MinimalAgent` (M2.x = 真 `reflect_core::AgentThread` + stub model);
+/// 2. 注册全部 reflect command + ping + `reflect_set_dock_badge`;
+/// 3. 注册 `tauri-plugin-global-shortcut` plugin;
+/// 4. 在 setup 中:
+///     - 启动 `forward_agent_events` 把 agent event 推到前端;
+///     - 注册全局快捷键 + 应用菜单 + 托盘图标;
+///     - 启动 `AgentThread` 的 会话事件转发器;
+/// 5. `on_window_event` 拦截 macOS 关闭按钮 → hide (close-to-tray)。
+///
+/// 命令面来自 [`configure`] —— 与能力覆盖层测试共用同一份。
+pub fn run() {
+    tracing_subscriber::fmt::init();
+
+    configure(tauri::Builder::<tauri::Wry>::new())
+        // ====== Menu (在 builder 阶段静态注入) ======
+        .menu(menu::build_menu)
+        .on_menu_event(menu::handle_menu_event)
         // ====== Setup ======
-        .setup(|app| {
+        .setup(|app: &mut tauri::App<tauri::Wry>| {
+            // 0. 把应用句柄注入托管状态 —— 命令层做 OS 交互(原生对话框 /
+            //    dock 徽标 / 终端事件推送)时从这里取句柄,命令签名因此不必
+            //    收 `AppHandle`,也就不与 runtime 绑死。
+            app.state::<MinimalAgent>()
+                .set_app_handle(app.handle().clone());
+
             // 1. 系统托盘 (macOS-only,其他平台为 no-op)。Tray 必须在 setup 同步阶段建
             //    (因为 tray 注册在 sync builder context)。
             tray::build_tray(app.handle())?;
@@ -387,11 +423,6 @@ pub fn run() {
         .expect("error while running reflect-desktop");
 }
 
-/// 占位 command:验证 IPC 通路。
-#[tauri::command]
-fn ping() -> PingResp {
-    PingResp {
-        msg: "pong".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-    }
-}
+// `ping` 命令体见 [`commands::health`] —— 单独成模块:`ping` 必须是 `pub`
+// 才能被能力覆盖层测试经**真实** IPC 通路打(命令宏需 `#[macro_export]` 到
+// crate 根;定义在 crate 根会与导出位置冲突)。

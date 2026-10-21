@@ -177,7 +177,7 @@ pub async fn reflect_toggle_plugin(
         return Ok(());
     }
     // 落盘 + 换内存快照。
-    crate::commands::config::persist_config(&agent, cfg.clone()).map_err(CommandError::from)?;
+    crate::commands::config::persist_config(&agent, cfg.clone())?;
     // diff 同步挂/卸(与 provider 热重载的 plugins 分支同语义)。
     let shared = agent.plugin_runtime();
     reflect_plugin::reload_plugins(&shared, &cfg.plugins.enabled_plugins).await;

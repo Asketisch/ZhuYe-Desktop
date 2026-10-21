@@ -19,12 +19,87 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────
+  # 发布门禁:在**构建之前**把全部功能面审一遍。
+  #
+  # 三层(静态审查 / 前端行为 / 真后端能力覆盖)全绿才允许出包;出包之后
+  # 还有一层产物审查(见 build job 里的 "Audit release artifact")。
+  # 详见 tests/README.md 与 tests/COVERAGE.md。
+  # ─────────────────────────────────────────────────────────────────────
+  gate:
+    name: release gate (static + frontend + backend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry + target
+        uses: Swatin/actions/cache@v4
+        with:
+          workspaces: '. -> target'
+
+      # Linux:Tauri 编译期依赖(能力覆盖层要编译整个 src-tauri)。
+      - name: Install Linux system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf \
+            libpipewire-0.3-dev \
+            libasound2-dev \
+            libgbm-dev \
+            libdrm-dev \
+            libegl-dev \
+            libwayland-dev
+
+      - name: Install frontend deps
+        run: pnpm install
+
+      # 门禁入口:退出码 0 = 允许发布。
+      - name: Run release gate
+        run: bash tests/run_all.sh static frontend backend
+
+      # 发布审查报告:门禁**失败时最需要看它** —— 所以 always() 上传,
+      # 失败也能拿到逐用例明细。
+      - name: Upload release review report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-review
+          path: |
+            .test-results/release-review.md
+            .test-results/*.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────
   # 覆盖三个操作系统的单一 matrix job。每个 runner 只产出
   # 自己系统的原生安装包 —— 不做交叉编译（Tauri 无法
   # 可靠支持交叉编译）。
   # ─────────────────────────────────────────────────────────────────────
   build:
     name: build (${{ matrix.os }} / ${{ matrix.bundles }})
+    needs: gate
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -46,6 +121,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 必须递归拉 submodule —— 核心 crate(reflect-protocol / reflect-core
+          # 等)全在 reflect-agent/ 里,缺了就编不过。
+          submodules: recursive
 
       - name: Install Node + pnpm
         uses: pnpm/action-setup@v4
@@ -91,6 +170,15 @@ jobs:
         # Windows runner 在 GHA 中默认没有 bash，但 windows-latest
         # 预装了 Git Bash，是带 `bash` 前缀的 `run:` 步骤的默认 shell。
 
+      # 产物审查:审**刚打出来的**这个包 —— .app 结构 / Info.plist 键与
+      # 版本 / 前端资源已嵌入 / 无开发残留 / 签名。审的是"真要发出去的
+      # 那个文件",不是源码。
+      - name: Audit release artifact
+        shell: bash
+        env:
+          ARTIFACT_REQUIRED: '1'
+        run: bash tests/run_all.sh artifact
+
       - name: Locate artifacts
         id: artifacts
         shell: bash
@@ -132,12 +220,22 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      # 发布审查报告单独取(不混进安装包目录)—— 审查结论要跟二进制
+      # 一起挂在 Release 上,评审者一眼能看到「这批包审过没有、审了什么」。
+      - name: Download release review report
+        uses: actions/download-artifact@v4
+        with:
+          name: release-review
+          path: release-review
+
       - name: List downloaded
-        run: ls -la release-assets/
+        run: ls -la release-assets/ release-review/ 2>/dev/null || true
 
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release-assets/*
+          files: |
+            release-assets/*
+            release-review/release-review.md
           generate_release_notes: true
           fail_on_unmatched_files: true

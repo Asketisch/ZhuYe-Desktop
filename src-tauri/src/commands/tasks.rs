@@ -193,7 +193,7 @@ pub async fn reflect_get_task_output(
     let task = mgr
         .get_task(&list, id, false)
         .await
-        .map_err(|e| crate::commands::error::CommandError::from(e))?;
+        .map_err(crate::commands::error::CommandError::from)?;
     let Some(path) = task.output_path.clone() else {
         return Ok(String::new());
     };
@@ -218,7 +218,7 @@ pub async fn reflect_stop_task(
     let current = mgr
         .get_task(&list, id, false)
         .await
-        .map_err(|e| crate::commands::error::CommandError::from(e))?;
+        .map_err(crate::commands::error::CommandError::from)?;
     if current.status != TaskStatus::InProgress {
         return Err(crate::commands::error::CommandError {
             msg: format!(
@@ -253,7 +253,7 @@ pub async fn reflect_release_task(
     let current = mgr
         .get_task(&list, id, false)
         .await
-        .map_err(|e| crate::commands::error::CommandError::from(e))?;
+        .map_err(crate::commands::error::CommandError::from)?;
     if current.claimed_by.is_none() {
         return Err(crate::commands::error::CommandError {
             msg: format!("task #{id} is not claimed (nothing to release)"),

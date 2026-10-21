@@ -4,6 +4,126 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — 发布门禁:分层严格功能测试脚本(对标 submodule 的严格测试标准)
+
+发布阶段此前**没有**统一的功能审查入口:`pnpm test` 的后端是**模拟**的
+(`tests/helpers/fakeBackend.ts` 实现了全部 IPC 命令),真后端的命令体
+只在零散的单元测试里被碰到。模拟后端的 bug 会把真后端的 bug 遮住 ——
+与 submodule「能力覆盖层不经过任何 SDK」是同一个道理。
+
+本轮按 submodule `reflect-agent/tests/` 的标准建了一套**分层发布门禁**:
+
+- **`tests/run_all.sh`** —— 唯一门禁入口,退出码 0 = 允许发布。四个分层
+  可单跑:`static` / `frontend` / `backend` / `artifact`。逐套件结果落盘
+  `.test-results/`,并汇总成发布审查报告 `.test-results/release-review.md`
+  (含逐用例明细与分层结论)。
+- **`tests/lib.sh`** —— 公共助手:隔离环境(mktemp HOME + 独立 cwd)、
+  便携超时(macOS 无 coreutils `timeout`)、断言助手、用例统计与失败汇总。
+- **L1 静态审查层**(`tests/static/`)—— 源码级**全量**交叉比对(不是抽样):
+  命令面四方一致(后端实现 ↔ `lib.rs` 注册表 ↔ 前端包装)、路由↔视图文件、
+  i18n 命名空间↔barrel、版本号四处一致、CHANGELOG 与能力矩阵新鲜度、
+  仓库卫生、调试残留、硬编码密钥、生产文件大小预算。
+  两项**棘轮**检查(协议文档覆盖率 / 文件大小预算)与
+  `tests/static/baseline.json` 比对 —— 新增违规立即失败,存量逐步偿还。
+- **L2 前端行为层**(`tests/frontend/`)—— `tsc --noEmit` + vitest 全量。
+- **L3 真后端能力覆盖层**(`tests/backend/` + `src-tauri/tests/ipc_*.rs`)——
+  **本轮的关键新增**。用 `tauri::test` 的 mock runtime 建 app,挂上
+  **生产同一份** `generate_handler!` 注册表,以 `InvokeRequest` 注入 JSON
+  负载驱动**真实命令体**。不经前端 `invoke` 包装,不经 `fakeBackend`。
+  四个文件覆盖 60+ 条命令域:核心域 / 工作区域 / 领域管理域 / Agent 生命周期
+  (4 文件 / 91 个测试)。
+  另新增 `src-tauri/tests/ipc_events.rs`(4 个测试)覆盖**事件回传通路** ——
+  这是「UI 点一下 → 命令 → agent → 事件回前端」链路的最后一环,验的是
+  `AGENTS.md` 里写死的三条协议不变量:信封 `{ id, msg }`、`msg.type` 判别子、
+  生命周期事件的 `id == ""`(`EVENT_ID_NONE`)、per-turn 事件与
+  `Submission.id` 的配对、以及**失败也走同一条通道**。这三条破了不会报错,
+  只会让前端静默地不更新 —— 正是最该被门禁盯住的那类。
+  夹具把 `HOME`、`REFLECT_HOME` 与 **cwd** 全部沙箱化到进程专属临时目录 ——
+  不污染开发者的 `~/.reflect`,也不往仓库里写 `.reflect/`。
+  **真后端 185 条 `reflect_*` 命令中,能力覆盖层直接驱动 179 条(96.8%)**;
+  余下 6 条(截屏 / 电脑操控 / 在文件管理器里打开目录 / 启停 tailscale
+  守护进程 / cargo audit)在 `tests/COVERAGE.md` §3 逐条说明排除理由。
+  该覆盖数是**棘轮**项(L1 静态审查盯住)—— 删用例而不改文档会失败。
+- **L4 发布产物审查层**(`tests/artifact/`)—— 审**真要发出去的那个包**:
+  `.app` 结构、`Info.plist` 必备键与版本一致性、前端资源确实嵌进了二进制、
+  bundle 内无 `.DS_Store` / sourcemap / node_modules 残留、macOS 签名成立。
+- **`tests/COVERAGE.md`** —— 发布审查口径:每个能力域由哪层验、后端真伪、
+  以及**显式排除**的命令与逐条理由(原生对话框 / 截屏 / 电脑操控 /
+  启停系统守护进程 / 需真模型的编排 / 依赖外网的 provider 探测 …)。
+  排除必须有理由,不允许「没顾上」。
+
+### 变更 — 后端命令面与 runtime 解耦(为能力覆盖层让路)
+
+- `src-tauri/src/lib.rs` 新增 `configure<R: Runtime>()` —— 把命令注册表
+  (`generate_handler!`)、托管状态、插件、窗口事件钩子收敛到**唯一入口**,
+  生产 `run()` 与能力覆盖层测试**共用同一份注册表**。此前测试若自己维护
+  一份命令清单,两份清单迟早分叉,「命令已接线」就成了自说自话。
+- `src-tauri/src/events.rs` 的 `forward_agent_events` 同样泛型化为
+  `R: Runtime` —— 它只做「读 broadcast → emit 到 app」,没有任何 Wry 专属
+  行为,写死 Wry 就等于把**链路的最后一环**(agent 事件 → 前端
+  `reflect_event` 通道)排除在自动测试之外。
+- 4 条命令不再把 `tauri::AppHandle` 当参数(`reflect_set_dock_badge` /
+  `reflect_run_shell` / `reflect_pick_workspace_folder` / `reflect_pick_file`)。
+  `AppHandle` 等于 `AppHandle<Wry>`,与 runtime 绑死 —— 那几条命令**只能**
+  注册到 Wry builder 上,mock runtime 装不下整张注册表,真命令体也就驱不动。
+  应用句柄改由托管状态持有(`MinimalAgent::set_app_handle` / `app_handle`),
+  生产 setup 注入一次。**线格式不变**(`AppHandle` 本来就不是前端传的参数),
+  无原生 runtime 时这些命令走「无句柄」分支:降级但**不崩**。
+- `ping` 命令体移到 `src-tauri/src/commands/health.rs` —— 单独成模块才能
+  `pub`(命令宏需 `#[macro_export]` 到 crate 根,定义在 crate 根会与导出位置冲突)。
+- `.github/workflows/release.yml`:新增 **gate** job(出包前跑
+  `tests/run_all.sh static frontend backend`),build job 依赖它;并在出包后
+  追加**产物审查**步骤(审刚打出来的包)。顺带修了一个真 bug ——
+  build job 的 checkout **漏了 `submodules: recursive`**,核心 crate 全在
+  `reflect-agent/` 里,缺了就编不过。
+- `.github/workflows/ci.yml`:新增 `static-audit` job —— 每次 push/PR 都跑
+  静态审查层,挡住接线漂移(秒级,不拖慢 CI)。
+
+### 修复 — 能力覆盖层发现的问题
+
+- `tests/helpers/fakeBackend.ts` 的 `reflect_save_allowlist` 用 `entries` 键,
+  而**真后端**用 `prefixes`(前端 `src/utils/commands/allowlist.ts` 用的是
+  `prefixes`,正确)。模拟层与真后端不一致 —— 这正是能力覆盖层存在的意义。
+- **10 处 clippy 拒绝项**(本仓库自有 crate,此前被 `app-core` 的编译失败
+  挡住而未暴露):
+  - `app-core/src/pipeline.rs` —— `let...else` 改写为 `?`;
+  - `src-tauri/src/commands/mcp.rs` ×2 / `plugins.rs` —— 「同类型转换」
+    (`map_err(CommandError::from)` → 直接 `?`);
+  - `src-tauri/src/commands/tasks.rs` ×3 / `state/subagents.rs` —— 冗余闭包
+    (`map(|x| Arc::new(x))` → `map(Arc::new)`);
+  - `src-tauri/src/commands/runtime_status.rs` —— 复杂类型抽成
+    `ProviderSection<'a>` 类型别名;
+  - `src-tauri/src/commands/skills.rs` —— 文档列表项缩进
+    (`clippy::doc_lazy_continuation`)。
+  这些此前会让 `cargo clippy --workspace --all-targets` 失败 —— 也就是
+  仓库自己的 CI clippy job 一直是红的。发布门禁把它显式化了。
+- **测试替身漏了一条命令** —— `tests/helpers/fakeBackend.ts` 没有实现
+  `reflect_set_dock_badge`(前端 `src/utils/notify.ts` 在待办数变化时会
+  调它)。之所以没人发现:契约测试提取后端命令名时只扫 `pub async fn`,
+  **同步命令整个漏掉**(全仓只有 `reflect_set_dock_badge` 一条同步命令)。
+  已补上替身实现,并把提取正则改成 `pub (?:async )?fn`;L1 静态审查新增
+  「测试替身实现了全部已注册命令」一项,让第四方一致性也进发布门禁。
+
+### 修复 — 文档与产物卫生
+
+- `docs/codebase-map.md` / `AGENTS.md` 增补发布门禁入口与分层说明。
+- `tests/README.md` 重写为「发布门禁 + 应用级套件」两部分,给出分层模型、
+  能力覆盖层的实现原理与运行方式。
+- **门禁自身的三个漏洞**:
+  - 套件**一条用例都没产出**时,原来算「通过」—— 套件自己坏了(提前退出 /
+    忘了写用例)门禁也照样放行。现在判为失败。
+  - 整层**跳过**(如本地没构建产物时的产物审查层)原来在报告里显示
+    「✅ 通过」,读报告的人会以为审过了。现在显示「⏭ 跳过」,结论里
+    明写「N 层未真正审过」;跳过**不**阻断本地跑(发布流水线里用
+    `ARTIFACT_REQUIRED=1` 让它硬失败)。
+  - 夹具 `harness()` 返回互斥锁守卫,攥着它再调 `invoke()` 会**死锁**
+    (自己写探针时踩到)。新增 `common::listen()` 助手(内部加锁、调用即释放),
+    并在 `harness()` 文档里写明这个坑。
+- **发布审查报告进入发布流水线** —— `release.yml` 的 gate job 用
+  `if: always()` 上传 `release-review` 报告与逐层日志(**失败时最需要看它**),
+  release job 把它与安装包一起挂到 GitHub Release 上:评审者一眼能看到
+  「这批包审过没有、审了什么」。
+
 ### 新增 — 核心能力覆盖审计:把「harness 基座的能力」真正在 GUI 里用起来、看起来
 
 此前的工作止于**协议对齐**(Op/EventMsg 有对应命令与类型),但基座的

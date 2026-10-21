@@ -140,7 +140,7 @@ pub async fn reflect_upsert_mcp_server(
     let mcp_cfg = reflect_mcp::McpServerConfig::from(shape);
 
     // 落盘(共享 persist_config:写盘 + 换内存快照)。
-    crate::commands::config::persist_config(&agent, cfg).map_err(CommandError::from)?;
+    crate::commands::config::persist_config(&agent, cfg)?;
 
     // 运行时:更新 = 先停旧的再起新的;新增 = 直接起。
     let mgr = agent.inner.mcp_manager.lock().clone();
@@ -172,7 +172,7 @@ pub async fn reflect_delete_mcp_server(
         // 未配置 → 幂等成功(前端不用区分「本来就没有」)。
         return Ok(());
     }
-    crate::commands::config::persist_config(&agent, cfg).map_err(CommandError::from)?;
+    crate::commands::config::persist_config(&agent, cfg)?;
 
     let mgr = agent.inner.mcp_manager.lock().clone();
     if let Some(mgr) = mgr {

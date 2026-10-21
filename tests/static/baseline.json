@@ -1,0 +1,17 @@
+{
+  "protocol-doc-coverage": 0.9189,
+  "file-size-budget": [
+    "app-core/src/activity.rs",
+    "app-core/src/kms.rs",
+    "app-core/src/media.rs",
+    "app-core/src/squad.rs",
+    "app-core/src/traces.rs",
+    "src-tauri/src/commands/sessions.rs",
+    "src-tauri/src/commands/tasks.rs",
+    "src/features/settings/sections/PlansSection.tsx",
+    "src/features/shell/Inspector.tsx",
+    "src/stores/agent/reducer.ts",
+    "src/types/protocol/event.ts"
+  ],
+  "capability-command-coverage": 179
+}

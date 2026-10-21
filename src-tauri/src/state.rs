@@ -62,6 +62,21 @@ impl MinimalAgent {
         install::install_agent_thread(self);
     }
 
+    /// 注入应用句柄(生产 setup 调用一次)。
+    ///
+    /// 命令层需要它做 OS 交互(原生对话框 / dock 徽标 / 终端事件推送),
+    /// 但命令签名不能直接收 `AppHandle` —— 那样命令就与 runtime 绑死,
+    /// 能力覆盖层(mock runtime)驱不动真实命令体。详见
+    /// [`state::agent::MinimalAgentInner::app_handle`]。
+    pub fn set_app_handle(&self, handle: tauri::AppHandle) {
+        *self.inner.app_handle.write() = Some(handle);
+    }
+
+    /// 取应用句柄;`None` = 未注入(mock runtime / 尚未 setup)。
+    pub fn app_handle(&self) -> Option<tauri::AppHandle> {
+        self.inner.app_handle.read().clone()
+    }
+
     /// 提交 Submission → 拿 per-turn `TurnHandle` → spawn 转发到 broadcast。
     pub async fn submit(&self, submission: reflect_protocol::Submission) -> anyhow::Result<()> {
         submit::submit(self, submission).await

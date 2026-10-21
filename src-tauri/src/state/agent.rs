@@ -150,6 +150,21 @@ pub(crate) struct MinimalAgentInner {
     /// 插件挂载串行锁:并发 rebind 的「卸旧→装新→写句柄」在此互斥,
     /// 保证句柄最终属于最后一次 rebind 的线程。
     pub(crate) plugin_mount_lock: Arc<tokio::sync::Mutex<()>>,
+    /// 应用句柄(生产运行时由 setup 注入一次)。
+    ///
+    /// ## 为什么句柄要收进状态,而不是直接当命令参数
+    ///
+    /// 命令签名里写 `tauri::AppHandle` 等于写死 `AppHandle<Wry>` ——
+    /// 那条命令**只能**注册到 Wry builder 上。能力覆盖层
+    /// (`src-tauri/tests/`)用 mock runtime 建 app,一旦注册表里有一条
+    /// Wry 绑定的命令,整张注册表就装不进 mock app,真实命令体也就
+    /// 驱不动了。句柄收进托管状态后,命令签名只依赖 `State`,生产与
+    /// 测试共用**同一份** `generate_handler!` 注册表。
+    ///
+    /// mock runtime 下本字段为 `None` —— 依赖 OS 交互的命令(原生
+    /// 文件选择框 / dock 徽标 / 终端事件推送)在能力覆盖层里走
+    /// 「无句柄」分支,行为降级但**不崩**。
+    pub(crate) app_handle: RwLock<Option<tauri::AppHandle>>,
 }
 
 /// agent 诊断快照 —— 给前端显示状态徽标(ready / 是否有 API key / 模型 / 工作区)。
@@ -224,6 +239,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         mcp_manager: ParkingMutex::new(None),
         plugin_runtime: reflect_plugin::empty_plugin_runtime(),
         plugin_mount_lock: Arc::new(tokio::sync::Mutex::new(())),
+        app_handle: RwLock::new(None),
     }
 }
 

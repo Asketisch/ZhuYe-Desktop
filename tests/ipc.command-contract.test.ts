@@ -35,7 +35,10 @@ beforeEach(() => {
 describe('IPC command contract (exhaustive parity)', () => {
   it('every backend reflect_ command has a frontend wrapper', () => {
     const src = backendSource();
-    const backendNames = [...src.matchAll(/pub async fn (reflect_\w+)/g)].map((m) => m[1]);
+    // 同步 `pub fn` 与异步 `pub async fn` 都是合法后端命令(如
+    // dock::reflect_set_dock_badge 是同步命令)。只扫 `pub async fn` 会让
+    // 同步命令整个漏掉 —— 替身缺 handler 也就没人发现。
+    const backendNames = [...src.matchAll(/pub (?:async )?fn (reflect_\w+)/g)].map((m) => m[1]);
     expect(backendNames.length).toBeGreaterThanOrEqual(100); // 防退化：命令面只增不减
     const frontendNames = Object.keys(commands).filter((k) => k.startsWith('reflect_'));
     const missing = backendNames.filter((n) => !frontendNames.includes(n));
@@ -94,7 +97,10 @@ describe('IPC command contract (exhaustive parity)', () => {
   it('PROTOCOL_BRIDGE documents every command (docs stay current)', () => {
     const doc = readFileSync('docs/PROTOCOL_BRIDGE.md', 'utf8');
     const src = backendSource();
-    const backendNames = [...src.matchAll(/pub async fn (reflect_\w+)/g)].map((m) => m[1]);
+    // 同步 `pub fn` 与异步 `pub async fn` 都是合法后端命令(如
+    // dock::reflect_set_dock_badge 是同步命令)。只扫 `pub async fn` 会让
+    // 同步命令整个漏掉 —— 替身缺 handler 也就没人发现。
+    const backendNames = [...src.matchAll(/pub (?:async )?fn (reflect_\w+)/g)].map((m) => m[1]);
     const undocumented = backendNames.filter((n) => !doc.includes(n));
     // 文档允许少量滞后（agent 生命周期命令在文档中以 Op 变体形式记录），
     // 这里守住 85% 覆盖率下限，防止命令面膨胀后文档彻底失修。
@@ -405,7 +411,10 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
 describe('fakeBackend integrity', () => {
   it('every invoke that the app can make is handled (no [mock] not mocked)', async () => {
     const src = backendSource();
-    const backendNames = [...src.matchAll(/pub async fn (reflect_\w+)/g)].map((m) => m[1]);
+    // 同步 `pub fn` 与异步 `pub async fn` 都是合法后端命令(如
+    // dock::reflect_set_dock_badge 是同步命令)。只扫 `pub async fn` 会让
+    // 同步命令整个漏掉 —— 替身缺 handler 也就没人发现。
+    const backendNames = [...src.matchAll(/pub (?:async )?fn (reflect_\w+)/g)].map((m) => m[1]);
     const libSrc = readFileSync('src-tauri/src/lib.rs', 'utf8');
     const handlerMatch = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]/)![1];
     const registered = backendNames.filter((n) => handlerMatch.includes(n));

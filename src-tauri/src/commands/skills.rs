@@ -5,12 +5,13 @@
 //! 此前桌面端手写了一份扫描 + YAML 解析(扫 `~/.reflect/skills` 与
 //! `cwd/.reflect/skills`),与核心运行时的实际技能集有两处分叉:
 //!
-//! 1. **目录不同**:核心 `m4_bootstrap` 扫的是 `<workspace>/.reflect/skills`
-//!    + `~/.reflect/skills`;桌面端扫的是 `cwd` —— 进程工作目录与 agent
-//!    工作区不是一回事,列表因此可能为空或指向错误的目录。
-//! 2. **漏掉内置技能**:核心在扫描后还会 `merge_bundled`(把 crate 内置的
-//!    15+ 个 skill 合进 catalog),桌面端没有这一步 —— GUI 列出的技能
-//!    少于 agent 实际能激活的。
+//! - **目录不同** —— 核心 `m4_bootstrap` 扫的是
+//!   `<workspace>/.reflect/skills` 加 `~/.reflect/skills`;桌面端扫的是
+//!   `cwd`。进程工作目录与 agent 工作区不是一回事,列表因此可能为空或
+//!   指向错误的目录。
+//! - **漏掉内置技能** —— 核心在扫描后还会 `merge_bundled`(把 crate 内置的
+//!   15+ 个 skill 合进 catalog),桌面端没有这一步。GUI 列出的技能少于
+//!   agent 实际能激活的。
 //!
 //! 现在直接复用核心的 `reflect_skills::{scan_skills_dirs, bundled_skills}`,
 //! 目录与合并语义与运行时逐行一致,GUI 不再可能与 agent 分叉。

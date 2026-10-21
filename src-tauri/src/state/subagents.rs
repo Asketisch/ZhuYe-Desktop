@@ -73,8 +73,7 @@ pub(crate) fn bootstrap_subagents(
 ) -> Arc<SubAgentFactory> {
     // v1.x 功能 1:从 `[subagent_providers]` 段构建独立 child registry,
     // 让 subagent 用独立的 base_url + api_key + model。`None` = 父子共享。
-    let child_registry: Option<SharedModelRegistry> =
-        cfg.to_child_registry().map(|reg| Arc::new(reg));
+    let child_registry: Option<SharedModelRegistry> = cfg.to_child_registry().map(Arc::new);
     // 无 recorder(占位线程)→ NullRecorder:子代理的审计记录丢弃,不影响
     // 其执行。
     let recorder: Arc<dyn reflect_protocol::RolloutRecorder> =

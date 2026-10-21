@@ -534,6 +534,11 @@ export function installFakeBackend(): FakeBackend {
   // —— agent 生命周期 / 对话 ——
   handle('ping', handler(() => ({ msg: 'pong', version: 'test-0.1.0' })));
 
+  // Dock 徽标 —— 同步命令(`pub fn`),前端 `src/utils/notify.ts` 在待办数
+  // 变化时会调。此前替身里**没有**这条:后端命令名提取只扫 `pub async fn`,
+  // 同步命令整个漏掉,契约测试因此没能发现。
+  handle('reflect_set_dock_badge', handler(() => undefined));
+
   handle(
     'reflect_submit',
     handler((args) => {

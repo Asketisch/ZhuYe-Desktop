@@ -26,6 +26,33 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # 静态审查层:命令面四方一致 / 路由↔视图 / 版本四处一致 /
+  # CHANGELOG 与能力矩阵新鲜度 / 仓库卫生 / 调试残留 / 文件大小预算棘轮。
+  # 纯静态分析,秒级 —— 每次 push/PR 都跑,挡住"接线漂移"。
+  # 详见 tests/README.md。
+  static-audit:
+    name: static audit (wiring & repo hygiene)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Run static audit layer
+        run: bash tests/run_all.sh static
+
   frontend:
     name: frontend (typecheck + test)
     runs-on: ubuntu-latest

@@ -165,9 +165,7 @@ pub async fn validate_pipeline_config(
 
     // 真实校验:核心的 `from_toml`(与运行同一条路径)。
     let validation = Pipeline::from_toml(toml_src, |label, runner, params| {
-        let Some(team) = team_index.get(label) else {
-            return None;
-        };
+        let team = team_index.get(label)?;
         reflect_pipeline::nodes::default_runner_for(label, runner, params, |_| Some(team.clone()))
     });
 

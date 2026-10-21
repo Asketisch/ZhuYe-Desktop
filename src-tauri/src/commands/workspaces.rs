@@ -133,8 +133,17 @@ pub async fn reflect_current_workspace(agent: State<'_, MinimalAgent>) -> Comman
 ///
 /// 对话框由插件分发到主线程；这里用 oneshot 把回调折叠回 async 返回值，
 /// 不阻塞 tokio worker。
+///
+/// 应用句柄从托管状态取(而非直接当参数)—— 命令签名不与 runtime 绑死,
+/// 能力覆盖层才能用 mock runtime 驱动真实命令体。句柄缺失时返回错误
+/// (原生对话框在无桌面 runtime 下本就无法弹出)。
 #[tauri::command]
-pub async fn reflect_pick_workspace_folder(app: tauri::AppHandle) -> CommandResult<Option<String>> {
+pub async fn reflect_pick_workspace_folder(
+    agent: State<'_, MinimalAgent>,
+) -> CommandResult<Option<String>> {
+    let app = agent.app_handle().ok_or_else(|| CommandError {
+        msg: "native folder picker unavailable: app handle not installed".into(),
+    })?;
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog().file().pick_folder(move |folder| {
         let picked = folder
@@ -153,9 +162,12 @@ pub async fn reflect_pick_workspace_folder(app: tauri::AppHandle) -> CommandResu
 /// `extensions` 为扩展名白名单（不含点，如 `["toml"]`）；空列表 = 不过滤。
 #[tauri::command]
 pub async fn reflect_pick_file(
-    app: tauri::AppHandle,
+    agent: State<'_, MinimalAgent>,
     extensions: Option<Vec<String>>,
 ) -> CommandResult<Option<String>> {
+    let app = agent.app_handle().ok_or_else(|| CommandError {
+        msg: "native file picker unavailable: app handle not installed".into(),
+    })?;
     let (tx, rx) = tokio::sync::oneshot::channel();
     let mut builder = app.dialog().file();
     if let Some(exts) = extensions.filter(|e| !e.is_empty()) {

@@ -71,6 +71,10 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 - Tauri 命令表：`src-tauri/src/commands/mod.rs` — 薄桶模块，重新导出 `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` 中的命令体和 `error.rs`（定义 `CommandError` / `CommandResult`）
 - Cargo 工作区：`Cargo.toml`（根）+ `src-tauri/Cargo.toml`
 - 子模块核心：`reflect-agent/crates/reflect-*/`（只读镜像，不要直接修改——修改 Reflect-Agent 仓库并升级 submodule）
+- 发布门禁入口：`tests/run_all.sh`（分层）+ `tests/lib.sh`（公共助手）
+- 门禁分层套件：`tests/static/`（静态审查）、`tests/frontend/`（前端行为）、`tests/backend/`（真后端能力覆盖）、`tests/artifact/`（发布产物）
+- 真后端能力覆盖层：`src-tauri/tests/ipc_{core,workspace,domains,agent_ops}.rs` + 共享夹具 `src-tauri/tests/common/mod.rs`
+- 能力 → 套件映射（发布审查口径）：`tests/COVERAGE.md`
 
 更详细的路径映射见 `docs/codebase-map.md`。
 
@@ -138,6 +142,29 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 - 前端行为/状态/hooks/组件：`pnpm test`
 - Rust 后端变更：`cd src-tauri && cargo check`
 - 迭代时使用定向测试，而不是全量测试
+- **发布前**：`bash tests/run_all.sh`（分层发布门禁，见 `tests/README.md`）
+
+## 发布门禁（分层）
+
+`tests/run_all.sh` 是发布阶段的**唯一**功能审查入口。退出码 0 = 允许发布。
+四层各自独立可跑：
+
+| 层 | 命令 | 测什么 | 后端真伪 |
+|---|---|---|---|
+| L1 静态审查 | `bash tests/run_all.sh static` | 命令面四方一致、路由↔视图、版本四处一致、文档新鲜度、仓库卫生、文件大小预算棘轮 | 静态 |
+| L2 前端行为 | `bash tests/run_all.sh frontend` | `tsc --noEmit` + vitest 全量 | **模拟**（`fakeBackend`） |
+| L3 真后端能力覆盖 | `bash tests/run_all.sh backend` | `cargo fmt` / `clippy` / `cargo test`（含能力覆盖层） | **真** |
+| L4 发布产物 | `bash tests/run_all.sh artifact` | `.app` 结构 / Info.plist / 资源已嵌入 / 签名 / 无开发残留 | 真产物 |
+
+- **L2 与 L3 都要有**：L2 的后端是模拟的 —— 模拟后端的 bug 会把真后端的
+  bug 遮住。L3 用 `tauri::test` mock runtime 驱动**生产同一份**
+  `generate_handler!` 注册表（`reflect_desktop_lib::configure`）里的**真实
+  命令体**，不经前端 `invoke` 包装、不经 `fakeBackend`。
+- 能力覆盖层在 `src-tauri/tests/ipc_*.rs`，共享夹具
+  `src-tauri/tests/common/mod.rs`（HOME / REFLECT_HOME / cwd 全部沙箱化）。
+- 覆盖口径（哪个能力域由哪层验、哪些显式排除及理由）见
+  [`tests/COVERAGE.md`](tests/COVERAGE.md)。
+- 报告落在 `.test-results/release-review.md`。
 
 ## 快速运行手册
 
@@ -149,6 +176,7 @@ pnpm tauri dev                # 开发模式（HMR）
 pnpm test                     # vitest
 pnpm typecheck                # tsc --noEmit
 cd src-tauri && cargo check   # Rust 类型检查
+bash tests/run_all.sh         # 发布门禁（静态 + 前端 + 真后端 + 产物）
 ```
 
 发布构建：

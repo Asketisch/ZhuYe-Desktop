@@ -1,12 +1,127 @@
-# tests/ — 应用级测试套件
+# tests/ —— 发布门禁 + 应用级测试套件
 
-本目录是 ReflectDesktop 的应用级（非冒烟）测试套件：通过一个实现**全部 IPC 命令**的
-状态化模拟后端，驱动**真实前端**（React 应用完整挂载、真实 reducer、真实 React Query、
-真实路由）走完完整功能路径，并对线协议（wire shape）、UI 行为与失败韧性做断言。
+本目录有两部分：
 
-当前规模：10 个测试文件 / 168 个测试（另有 `src/` 内 67 个组件/模块测试文件，合计 77 文件 732 测试全绿）。
+1. **发布门禁**（`run_all.sh` + `lib.sh` + `static/` `frontend/` `backend/`
+   `artifact/`）—— 分层的**严格功能测试脚本**，发布阶段用来审查并测试
+   全部功能。
+2. **应用级测试套件**（`*.test.tsx` / `*.test.ts` + `helpers/`）—— 驱动
+   **真实前端**走完完整功能路径的 vitest 用例。
 
-## 运行
+两层合起来才覆盖完整功能面，理由见 §1。
+
+---
+
+## 1. 发布门禁（分层模型）
+
+```bash
+# 全部分层（发布前的标准入口）
+bash tests/run_all.sh
+
+# 单层
+bash tests/run_all.sh static      # L1 静态审查
+bash tests/run_all.sh frontend    # L2 前端行为
+bash tests/run_all.sh backend     # L3 真后端能力覆盖
+bash tests/run_all.sh artifact    # L4 发布产物审查
+```
+
+退出码 **0 = 允许发布**，非 0 = 存在阻断项。报告落在
+`.test-results/release-review.md`（含逐用例明细与分层结论）。
+
+| 层 | 套件 | 测什么 | 后端真伪 |
+|---|---|---|---|
+| L1 | `static/` | 源码与仓库状态：命令面四方一致、路由↔视图、版本四处一致、CHANGELOG / 能力矩阵新鲜度、仓库卫生、调试残留、生产文件大小预算棘轮 | 静态分析 |
+| L2 | `frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量 | **模拟**（`fakeBackend`） |
+| L3 | `backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层） | **真** |
+| L4 | `artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 |
+
+### 为什么 L2 与 L3 都要有
+
+L2 验前端行为与线格式，但它的后端是**模拟**的
+（`helpers/fakeBackend.ts` 实现了全部 IPC 命令）—— **模拟后端的 bug 会把
+真后端的 bug 遮住**。L3 补上这一块：直接驱动真命令体。
+
+> 这与 submodule `reflect-agent/tests/` 的分层同理：能力覆盖层**不经过
+> 任何 SDK**（那里是 Python 打真二进制的原始 wire），因为 SDK 自身的 bug
+> 会把 Rust 的 bug 遮住。这里的「SDK」就是前端那层 `invoke` 包装与
+> `fakeBackend`。
+
+### L3 能力覆盖层怎么做到「真」
+
+`src-tauri/tests/common/mod.rs` 用 `tauri::test::mock_builder()` 建 app，
+再挂上**生产同一份**命令注册表 —— `reflect_desktop_lib::configure()`，
+与 `run()` 共用同一个 `generate_handler!`（见 `src-tauri/src/lib.rs`）——
+然后以 `InvokeRequest` 注入 JSON 负载驱动**真实命令体**。
+
+```rust
+// src-tauri/tests/ipc_core.rs（节选）
+let v = invoke_ok("reflect_list_tools", json!({}));
+assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
+```
+
+- 没有前端 `invoke` 包装；
+- 没有 `fakeBackend`；
+- 没有 SDK 中间层；
+- `HOME` / `REFLECT_HOME` / cwd 全部指向进程专属临时目录 —— 不污染
+  开发者的 `~/.reflect`，也不往仓库里写 `.reflect/`。
+
+能力覆盖层文件：
+
+| 文件 | 覆盖域 |
+|---|---|
+| `src-tauri/tests/ipc_core.rs` | 探针 / agent 状态 / 配置 / 工具 / 技能 / hooks / 记忆 / 笔记 / 白名单 / 权限规则 / 活动日志 / 会话 / 统计 / agent 定义 / autopilot / traces |
+| `src-tauri/tests/ipc_workspace.rs` | 工作区 / 文件树 / 读写 / 搜索 / 终端 / 媒体 / 沙箱 / Git 全流程 / 会话导出 |
+| `src-tauri/tests/ipc_domains.rs` | 任务 / 团队 / squad / 定时任务 / 插件 / 子代理 spec / MCP / LSP / 提示词 / KMS / side-channel / 讨论 / 流水线 |
+| `src-tauri/tests/ipc_agent_ops.rs` | 提交 / 中断 / 压缩 / 回退 / 关闭 / 工具与 Hook 审批 / plan 与 goal 模式 / effort / 权限模式 / 追问 / steer |
+| `src-tauri/tests/ipc_events.rs` | **事件回传通路**：信封形状 / `msg.type` 判别子 / `EVENT_ID_NONE` 生命周期 id / Submission↔Event id 配对 / 失败也走同一通道 |
+
+> **与既有两份集成测试的分工**：`src-tauri/tests/e2e_chat.rs` 与
+> `protocol_bridge_e2e.rs` 早于本轮就已存在 —— 它们**绕过 Tauri IPC**，
+> 直接驱动 `MinimalAgent::submit` 捕获 session broadcast，验的是
+> **AgentThread / 协议桥**这一层。能力覆盖层补上的是**再往上一层的
+> IPC 命令面**（GUI 真正的入口）：命令注册表、参数反序列化、返回体形状、
+> 错误传播。三者叠起来才覆盖从"UI 点一下"到"agent 跑起来"的完整链路。
+
+**覆盖口径**（哪个能力域由哪层验、哪些能力显式排除及理由）见
+[`COVERAGE.md`](COVERAGE.md)。
+
+### 公共设施：`tests/lib.sh`
+
+所有门禁脚本都 source 它，获得：
+
+- 仓库根 / 产物定位（`ROOT` / `DIST_DIR` / `RESULT_DIR`）；
+- 隔离环境（`make_isolated_env` —— mktemp HOME + 独立 cwd）；
+- 便携超时（`run_with_timeout` —— macOS 无 coreutils `timeout`，用后台
+  pid + kill 模拟）；
+- 断言助手（`assert_contains` / `assert_eq` / `assert_json` …）；
+- 用例统计与失败汇总（`tcase` / `tskip` / `tcase_log` / `tfinish`）；
+- 逐套件结果落盘（`$RESULT_DIR/<suite>.status` / `.cases`）——
+  `run_all.sh` 据此拼发布审查报告。
+
+### 棘轮（ratchet）项
+
+某些指标当前存量不达标（历史债），直接当门禁会永久变红。这类检查与
+`tests/static/baseline.json` 比对 —— **新增**违规立即失败，存量逐步偿还：
+
+- `PROTOCOL_BRIDGE.md` 命令覆盖率下限；
+- 生产文件 ≤ 500 行的超限文件清单。
+
+基线重生成：`node tests/static/analyze.mjs --write-baseline`。
+
+---
+
+## 2. 应用级测试套件（vitest）
+
+通过一个实现**全部 IPC 命令**的状态化模拟后端，驱动**真实前端**
+（React 应用完整挂载、真实 reducer、真实 React Query、真实路由）走完完整
+功能路径，并对线协议（wire shape）、UI 行为与失败韧性做断言。
+
+当前规模：`tests/` 下 10 个测试文件 / 168 个测试（另有 `src/` 内 99 个
+组件/模块测试文件）—— 合计 109 文件 / 1078 测试全绿。另有**真后端**能力
+覆盖层 `src-tauri/tests/ipc_*.rs`（5 文件 / 91 个测试，驱动真后端
+179/185 条命令 + 事件回传通路）。
+
+### 运行
 
 ```bash
 # 全量（含 src/ 与 tests/）
@@ -22,26 +137,36 @@ pnpm vitest run tests/chat.full-flow.test.tsx
 Vitest 收集范围已在 `vitest.config.ts` 中扩展为 `src/**` + `tests/**`，
 环境（jsdom、`src/test/setup.tsx` 的 Tauri mock）与 `src/` 测试完全复用。
 
-## 目录结构
+### 目录结构
 
 ```
 tests/
-├── helpers/
-│   ├── fakeBackend.ts   # 全命令模拟后端 + ScriptedAgent 事件编排
-│   └── appHarness.tsx   # 真实应用挂载（renderApp / renderView）
-├── ipc.command-contract.test.ts               # IPC 契约与四方对齐
-├── agent.protocol-events.test.ts              # 协议事件全矩阵
-├── chat.full-flow.test.tsx                    # 聊天端到端主流程
-├── flows.chat-plan-goal-edit.test.tsx         # chat→plan→edit 全链路 + goal 多轮续作
-├── modals.approvals-questions.test.tsx        # 审批/提问/计划模态
-├── sessions.lifecycle.test.tsx                # 会话列表/分桶/重放/切换
-├── composer.slash-history-attachments.test.tsx# 输入框：斜杠命令/历史/附件
-├── settings.config.test.tsx                   # 设置页配置读写
-├── views.route-matrix.test.tsx                # 34 条路由的视图矩阵
-└── errors.resilience.test.tsx                 # 错误与韧性
+├── run_all.sh                              # 发布门禁总入口
+├── lib.sh                                  # 门禁公共助手
+├── COVERAGE.md                             # 能力 → 套件映射（发布审查口径）
+├── static/                                 # L1 静态审查层
+│   ├── run.sh
+│   ├── analyze.mjs                         # 源码级交叉比对（命令面 / 路由 / 命名空间 …）
+│   └── baseline.json                       # 棘轮基线
+├── frontend/run.sh                         # L2 前端行为层
+├── backend/run.sh                          # L3 真后端能力覆盖层
+├── artifact/run.sh                         # L4 发布产物审查层
+├── helpers/                                # ↓ vitest 侧（应用级套件）
+│   ├── fakeBackend.ts                      # 全命令模拟后端 + ScriptedAgent 事件编排
+│   └── appHarness.tsx                      # 真实应用挂载（renderApp / renderView）
+├── ipc.command-contract.test.ts            # IPC 契约与四方对齐
+├── agent.protocol-events.test.ts           # 协议事件全矩阵
+├── chat.full-flow.test.tsx                 # 聊天端到端主流程
+├── flows.chat-plan-goal-edit.test.tsx      # chat→plan→edit 全链路 + goal 多轮续作
+├── modals.approvals-questions.test.tsx     # 审批/提问/计划模态
+├── sessions.lifecycle.test.tsx             # 会话列表/分桶/重放/切换
+├── composer.slash-history-attachments.test.tsx  # 输入框：斜杠命令/历史/附件
+├── settings.config.test.tsx                # 设置页配置读写
+├── views.route-matrix.test.tsx             # 34 条路由的视图矩阵
+└── errors.resilience.test.tsx              # 错误与韧性
 ```
 
-## 事件链路（被测路径 = 生产路径）
+### 事件链路（被测路径 = 生产路径）
 
 ```
 fakeBackend（ScriptedAgent 按脚本 emit 事件）
@@ -56,9 +181,9 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 （textarea + Enter）进入 `useComposerSubmission` → `reflect_submit`，
 由 fakeBackend 捕获 `Submission` 信封并触发脚本化回复。
 
-## 基础设施
+### 基础设施
 
-### `helpers/fakeBackend.ts` — `installFakeBackend()`
+#### `helpers/fakeBackend.ts` — `installFakeBackend()`
 
 - 实现 `src-tauri/src/lib.rs` `generate_handler!` 中注册的**全部** `reflect_*` 命令
   及 `ping`，返回带状态的单例句柄 `FakeBackend`：
@@ -87,7 +212,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
   生命周期：enter 写入目标/校验命令/预算，exit 清空。
 - 会话/时间/任务等 fixture 覆盖全部时间分桶（Now/今天/昨天/本周/更早）与典型字段。
 
-### `helpers/appHarness.tsx`
+#### `helpers/appHarness.tsx`
 
 - `renderApp()` — 挂载**完整应用**（`RouterProvider` + I18nProvider + 每挂载一个全新
   QueryClient + `agentStore.subscribe()`），返回 `{ navigate, pathname }`。
@@ -95,7 +220,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 - `renderView(ui)` — 仅挂载 provider 包裹的片段（如 `<ModalStack/>`）。
 - `resetAppAfterEach()` — `afterEach` 中重置 store 并回到 `/`。
 
-## 覆盖映射
+### 覆盖映射
 
 | 文件 | 测试数 | 覆盖内容 |
 | --- | --- | --- |
@@ -110,7 +235,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 | `views.route-matrix.test.tsx` | 35 | 34 条路由逐一：主内容非空、触发对应领域命令、fixture 文本可见；外加路由树完整性对照 `router.routeTree`。 |
 | `errors.resilience.test.tsx` | 7 | `stream_error` 追加错误项且 turn 仍完成、会话级错误只置 lastError、配额 toast、会话列表失败 + Refresh 恢复、`reflect_submit` 失败 toast、审批 IPC 失败模态仍乐观清除（不卡死 UI）、中断后新 turn。 |
 
-## 断言约定
+### 断言约定
 
 - i18n 默认 locale 为 `en`；按**渲染后的英文文案**断言（如分桶标签 `This Week`/`Older`）。
 - 视图组件使用 CSS Modules，类名会被 mangle —— 一律按 role / 文案 / aria-label 定位，
@@ -121,9 +246,13 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
   store action 并 `.catch()`，避免 unhandled rejection。
 - 折叠项（`Collapsible` 默认收起）内容不在 DOM 中 —— 相关断言走 store 状态。
 
-## 与生产代码的关系
+### 与生产代码的关系
 
 - 不修改任何 `src/` 生产代码来迁就测试；`src/test/setup.tsx` 的 Tauri mock 被
   fakeBackend 完整接管（`resetMockInvoke` 后重新注册）。
 - 线协议以 `docs/PROTOCOL_BRIDGE.md` 为契约，契约测试对文档覆盖率设下限，
   新增后端命令时若文档未更新会失败。
+
+> **已知不一致**：`fakeBackend` 的 `reflect_save_allowlist` 用 `entries` 键，
+> 而真后端用 `prefixes`（前端用的是 `prefixes`，正确）。模拟层与真后端的
+> 偏差由 L3 能力覆盖层兜底 —— 详见 [`COVERAGE.md`](COVERAGE.md) §4。
