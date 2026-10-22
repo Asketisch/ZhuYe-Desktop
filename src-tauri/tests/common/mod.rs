@@ -45,6 +45,7 @@ static ENV_INIT: Once = Once::new();
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 static WORKSPACE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 static STATE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static CONFIG_OVERRIDE: OnceLock<String> = OnceLock::new();
 
 /// 能力覆盖层的共享夹具。
 ///
@@ -68,16 +69,35 @@ fn runtime() -> &'static tokio::runtime::Runtime {
     })
 }
 
+/// 在**首次** [`harness()`] 之前覆盖隔离环境的 `config.toml` 内容。
+///
+/// AgentThread 在安装时(`install_agent_thread`)就从配置构建
+/// ModelRegistry —— provider / api_key / base_url 必须在那一刻就位。
+/// 默认写最小配置(关掉全部内置 hook);需要特定 provider 配置的测试
+/// 二进制(如 `ipc_mock_provider.rs` 的本地 mock LLM 服务)先调本函数再
+/// 触发 `harness()`。首次调用后设置不再生效(OnceLock 语义,静默忽略)。
+pub fn set_config_before_install(toml: &str) {
+    let _ = CONFIG_OVERRIDE.set(toml.to_string());
+}
+
 /// 把 HOME / REFLECT_HOME 指向进程专属临时目录,并把 **cwd** 也挪进去。
 ///
 /// cwd 也要挪:agent 的初始工作区取自 `current_dir()` —— `cargo test` 的
 /// cwd 是包目录(`src-tauri/`),于是 `project` scope 的记忆会写进
 /// **仓库里**(`src-tauri/.reflect/...`)。能力覆盖层绝不能污染工作树,
 /// 所以连 cwd 一起沙箱化。
+///
+/// 基目录可用 env `REFLECT_TEST_HOME` 覆盖(默认 = `/tmp/reflect-desktop-
+/// capability-<pid>`)—— `ipc_restart.rs` 用它在**两个进程**间共享同一份
+/// `~/.reflect`,复刻「退出后重启」的恢复场景。
 fn init_isolated_env() {
     ENV_INIT.call_once(|| {
-        let base =
-            std::env::temp_dir().join(format!("reflect-desktop-capability-{}", std::process::id()));
+        let base = std::env::var_os("REFLECT_TEST_HOME")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::env::temp_dir()
+                    .join(format!("reflect-desktop-capability-{}", std::process::id()))
+            });
         let home = base.join("home");
         let reflect = home.join(".reflect");
         let workspace = base.join("workspace");
@@ -85,11 +105,18 @@ fn init_isolated_env() {
         std::fs::create_dir_all(&workspace).expect("create isolated workspace");
         // 最小配置:关掉全部内置 hook(能力层只验行为语义,不验 hook 计时)。
         // config.toml 必须存在 —— 否则 ConfigWatcher 启动即报错。
-        std::fs::write(
-            reflect.join("config.toml"),
-            "# 能力覆盖层最小配置:关闭全部内置 hook\n[hooks]\nenabled = []\n",
-        )
-        .expect("write isolated config.toml");
+        // 测试二进制可用 [`set_config_before_install`] 在首次 harness() 前
+        // 换成自己的配置(如指向本地 mock LLM 服务)。
+        // **只在文件不存在时写**:共享 HOME 的重启恢复场景
+        // (`ipc_restart.rs`)里,阶段二进程必须看到阶段一留下的配置,
+        // 不能被默认值覆盖。普通二进制基目录是全新的,行为不变。
+        let config_path = reflect.join("config.toml");
+        if !config_path.exists() {
+            let config = CONFIG_OVERRIDE.get().cloned().unwrap_or_else(|| {
+                "# 能力覆盖层最小配置:关闭全部内置 hook\n[hooks]\nenabled = []\n".to_string()
+            });
+            std::fs::write(&config_path, config).expect("write isolated config.toml");
+        }
         // SAFETY: 仅在 Once 保护的初始化阶段调用;此时测试线程尚未开始,
         // 进程内没有并发读写环境变量 / cwd 的其它线程。
         unsafe {

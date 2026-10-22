@@ -75,7 +75,10 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 | `src-tauri/tests/ipc_agent_ops.rs` | 提交 / 中断 / 压缩 / 回退 / 关闭 / 工具与 Hook 审批 / plan 与 goal 模式 / effort / 权限模式 / 追问 / steer |
 | `src-tauri/tests/ipc_events.rs` | **事件回传通路**：信封形状 / `msg.type` 判别子 / `EVENT_ID_NONE` 生命周期 id / Submission↔Event id 配对 / 失败也走同一通道 / 转发器在 `Lagged` 后存活 |
 | `src-tauri/tests/ipc_payload_contract.rs` | **跨运行时线格式契约（真后端侧）**：`tests/contracts/payloads.json` 的 185 条参数样本逐条反序列化（业务错误可、`invalid args` 不可）+ 探测器自检 |
-| `src-tauri/tests/ipc_roundtrip_contract.rs` | **持久化往返契约（真后端侧）**：`tests/contracts/roundtrips.json` 的 22 对「写 → 读」在真后端全部成立 |
+| `src-tauri/tests/ipc_roundtrip_contract.rs` | **持久化往返契约（真后端侧）**：`tests/contracts/roundtrips.json` 的 21 对「写 → 读」在真后端全部成立 |
+| `src-tauri/tests/ipc_mock_provider.rs` | **假模型全链路**：wiremock 假 Anthropic 网关 + 真后端/真 AgentThread —— 纯文本流（delta 累积 / token_count）、bash 工具调用 + 审批门 + tool_result 第二跳、HTTP 500 错误路径、流中 interrupt（含恢复可用性） |
+| `src-tauri/tests/ipc_concurrency.rs` | **并发不变量**：32 线程并行只读、16 并发 submit + 交错 interrupt、8 并发配置写（文件始终合法 TOML，不死锁；丢更新为已知口径不在此断言） |
+| `src-tauri/tests/ipc_restart.rs` | **重启恢复**：子进程两阶段（阶段一写 → 进程退出 → 阶段二以同一 `~/.reflect` 全新 app 读回）—— 配置/记忆/白名单/agent 定义/squad/任务/工作区 |
 
 > **与既有两份集成测试的分工**：`src-tauri/tests/e2e_chat.rs` 与
 > `protocol_bridge_e2e.rs` 早于本轮就已存在 —— 它们**绕过 Tauri IPC**，
@@ -118,10 +121,10 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 （React 应用完整挂载、真实 reducer、真实 React Query、真实路由）走完完整
 功能路径，并对线协议（wire shape）、UI 行为与失败韧性做断言。
 
-当前规模：`tests/` 下 12 个测试文件 / 425 个测试（另有 `src/` 内 99 个
-组件/模块测试文件）—— 合计 111 文件 / 1324 测试全绿。另有**真后端**能力
-覆盖层 `src-tauri/tests/ipc_*.rs`（7 文件 / 96 个测试，驱动真后端
-179/185 条命令 + 事件回传通路 + 跨运行时契约）。
+当前规模：`tests/` 下 12 个测试文件 / 424 个测试（另有 `src/` 内 99 个
+组件/模块测试文件）—— 合计 111 文件 / 1323 测试全绿。另有**真后端**能力
+覆盖层 `src-tauri/tests/ipc_*.rs`（10 文件 / 101 个测试：179/185 条命令 +
+事件回传通路 + 跨运行时契约 + 假模型全链路 + 并发不变量 + 重启恢复）。
 
 ### 运行
 
@@ -158,7 +161,7 @@ tests/
 │   └── appHarness.tsx                      # 真实应用挂载（renderApp / renderView）
 ├── contracts/                              # ↓ 跨运行时线格式契约（L1/L2/L3 三层共享）
 │   ├── payloads.json                       # 185 条命令的参数样本（真后端可反序列化）
-│   └── roundtrips.json                     # 22 对「写 → 读」持久化往返
+│   └── roundtrips.json                     # 21 对「写 → 读」持久化往返
 ├── ipc.command-contract.test.ts            # IPC 契约与四方对齐
 ├── ipc.payload-contract.test.ts            # 线格式契约（fakeBackend 侧）：接受真后端形状的参数样本
 ├── ipc.roundtrip-contract.test.ts          # 往返契约（fakeBackend 侧）：与真后端同表跑「写 → 读」
@@ -242,7 +245,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 | `views.route-matrix.test.tsx` | 35 | 34 条路由逐一：主内容非空、触发对应领域命令、fixture 文本可见；外加路由树完整性对照 `router.routeTree`。 |
 | `errors.resilience.test.tsx` | 7 | `stream_error` 追加错误项且 turn 仍完成、会话级错误只置 lastError、配额 toast、会话列表失败 + Refresh 恢复、`reflect_submit` 失败 toast、审批 IPC 失败模态仍乐观清除（不卡死 UI）、中断后新 turn。 |
 | `ipc.payload-contract.test.ts` | 186 | 跨运行时线格式契约（fakeBackend 侧）：`contracts/payloads.json` 全部 185 条参数样本被 fake handler 接受、调用参数完整回放、样本表 ↔ 注册表双向无差集。与 L3 `ipc_payload_contract.rs` 跑同一份样本 —— 模拟层与真后端的参数形状漂移（历史实例：allowlist `entries` vs `prefixes`）会同时被两端抓住。 |
-| `ipc.roundtrip-contract.test.ts` | 22 | 持久化往返契约（fakeBackend 侧）：`contracts/roundtrips.json` 的 22 对「写 → 读」与真后端（`ipc_roundtrip_contract.rs`）同表执行 —— 无状态桩（写不进 / 读固定值）会立刻露馅。 |
+| `ipc.roundtrip-contract.test.ts` | 21 | 持久化往返契约（fakeBackend 侧）：`contracts/roundtrips.json` 的 21 对「写 → 读」与真后端（`ipc_roundtrip_contract.rs`）同表执行 —— 无状态桩（写不进 / 读固定值）会立刻露馅。 |
 
 ### 断言约定
 

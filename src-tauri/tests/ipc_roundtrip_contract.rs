@@ -9,6 +9,7 @@
 mod common;
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use serde_json::Value;
 
@@ -28,6 +29,11 @@ struct Roundtrip {
     steps: Vec<(String, Value)>,
     load: (String, Value),
     expect: Vec<Expectation>,
+    /// load+expect 失败后的轮询窗口(毫秒;缺省 0 = 不轮询)。
+    /// Op 类命令(`set_effort` / `set_permission_mode` …)经 submission loop
+    /// **异步生效**,紧跟的读命令会与它竞态 —— 真后端侧需要轮询。
+    #[serde(default)]
+    poll_ms: u64,
 }
 
 #[derive(serde::Deserialize)]
@@ -85,6 +91,44 @@ fn prepare_tmp() -> String {
     dir.display().to_string()
 }
 
+/// 对 `result` 逐条评估 `expect`,返回失败描述(空 = 全部成立)。
+fn expectations_hold(rt: &Roundtrip, result: &Value, tmp: &str) -> Vec<String> {
+    let load_cmd = &rt.load.0;
+    let mut failures = Vec::new();
+    for exp in &rt.expect {
+        let got = at(result, exp.path.as_deref());
+        let where_ = match &exp.path {
+            Some(p) => format!("{load_cmd} @ {p}"),
+            None => load_cmd.clone(),
+        };
+        if let Some(want) = &exp.equals {
+            let want = expand_tmp(want, tmp);
+            if got != Some(&want) {
+                failures.push(format!(
+                    "[{}] {where_} 应等于 {want},实际 {}",
+                    rt.name,
+                    got.map(|v| v.to_string())
+                        .unwrap_or_else(|| "<缺失>".into())
+                ));
+            }
+        }
+        if let Some(needle) = &exp.contains {
+            let hay = match got {
+                Some(Value::String(s)) => s.clone(),
+                Some(other) => other.to_string(),
+                None => String::new(),
+            };
+            if !hay.contains(needle.as_str()) {
+                failures.push(format!(
+                    "[{}] {where_} 应包含 {needle:?},实际 {hay}",
+                    rt.name
+                ));
+            }
+        }
+    }
+    failures
+}
+
 #[test]
 fn every_roundtrip_holds_on_the_real_backend() {
     let _ws = common::workspace_lock();
@@ -100,45 +144,28 @@ fn every_roundtrip_holds_on_the_real_backend() {
                 failures.push(format!("[{}] 步骤 {cmd} 失败: {e}", rt.name));
             }
         }
+        // load+expect 整体按 `poll_ms` 轮询(Op 类命令异步生效,紧读会竞态)。
         let (load_cmd, load_args) = &rt.load;
-        let result = match common::invoke(load_cmd, expand_tmp(load_args, &tmp)) {
+        let deadline = std::time::Instant::now() + Duration::from_millis(rt.poll_ms);
+        let load_args = expand_tmp(load_args, &tmp);
+        let result = loop {
+            let result = common::invoke(load_cmd, load_args.clone());
+            let ok = result
+                .as_ref()
+                .is_ok_and(|v| expectations_hold(rt, v, &tmp).is_empty());
+            if ok || std::time::Instant::now() >= deadline {
+                break result;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        };
+        let result = match result {
             Ok(v) => v,
             Err(e) => {
                 failures.push(format!("[{}] 读回 {load_cmd} 失败: {e}", rt.name));
                 continue;
             }
         };
-        for exp in &rt.expect {
-            let got = at(&result, exp.path.as_deref());
-            let where_ = match &exp.path {
-                Some(p) => format!("{load_cmd} @ {p}"),
-                None => load_cmd.clone(),
-            };
-            if let Some(want) = &exp.equals {
-                let want = expand_tmp(want, &tmp);
-                if got != Some(&want) {
-                    failures.push(format!(
-                        "[{}] {where_} 应等于 {want},实际 {}",
-                        rt.name,
-                        got.map(|v| v.to_string())
-                            .unwrap_or_else(|| "<缺失>".into())
-                    ));
-                }
-            }
-            if let Some(needle) = &exp.contains {
-                let hay = match got {
-                    Some(Value::String(s)) => s.clone(),
-                    Some(other) => other.to_string(),
-                    None => String::new(),
-                };
-                if !hay.contains(needle.as_str()) {
-                    failures.push(format!(
-                        "[{}] {where_} 应包含 {needle:?},实际 {hay}",
-                        rt.name
-                    ));
-                }
-            }
-        }
+        failures.extend(expectations_hold(rt, &result, &tmp));
     }
 
     assert!(

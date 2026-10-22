@@ -4,6 +4,49 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — 假模型全链路 / 并发不变量 / 重启恢复:三个零覆盖维度闭合
+
+- **`src-tauri/tests/ipc_mock_provider.rs`** —— 「有模型的完整一轮」首次
+  在自动层确定性跑通:wiremock 在本机起假 Anthropic 网关
+  (`[anthropic].base_url` 指向它,离线),真后端 + 真 AgentThread +
+  真 HTTP/SSE 解析。四个场景顺序执行(共享 AgentThread,interrupt 是
+  全局的):
+  - 纯文本回复:delta 按 submission id 配对累积 + `token_count`
+    (来自 SSE usage)+ `turn_complete`;
+  - bash 工具调用:`prompt` 审批模式下的 `approval_request`(完整参数在
+    `kind.args`)→ `reflect_tool_approval` 放行 → 工具真实执行 → 第二跳
+    请求携带 `tool_result` → 最终回复;断言恰好两次 HTTP 请求、自定义
+    base_url 走 `Authorization: Bearer`(第三方网关兼容分支);
+  - HTTP 500:`error` 事件走同一 `reflect_event` 通道;随后提交仍被受理
+    (循环不卡死;凭证进入冷却是诚实结果);
+  - 流中 interrupt:25s 延迟回复被取消 —— 收尾有两条竞态路径
+    (`error` code=CANCELLED 或 `turn_aborted` user_interrupt),任一即
+    通过;中断后零 delta;随后提交仍被受理。
+  顺带确认并记录核心的既定语义:异常取消(error/cancel)走「静默丢弃
+  分支」,即 **error 之后没有 turn 终态事件**(`submission_loop.rs` 注释
+  明示)—— 前端靠 `stream_error`/`error` 自行收尾,与
+  `errors.resilience` 测试的口径一致。
+  夹具配套:`common::set_config_before_install()`(在 AgentThread 安装前
+  注入自定义 config.toml)。
+- **`src-tauri/tests/ipc_concurrency.rs`** —— 并行 IPC 下的不变量:
+  32 线程混合只读命令全 Ok;16 并发 submit + 交错 interrupt 全受理、
+  事后 agent 仍响应;8 并发 `upsert_mcp_server`(**不持** state_lock)
+  后 config.toml 仍为合法 TOML、不死锁 —— 「并发丢更新」按
+  `tests/COVERAGE.md` §4 已知口径不在断言范围,盯的是写坏文件/卡死。
+- **`src-tauri/tests/ipc_restart.rs`** —— 「退出 → 重启」恢复:子进程
+  重执行两阶段(`current_exe --exact` + `REFLECT_TEST_HOME` 共享同一份
+  `~/.reflect`),阶段一写配置/记忆/白名单/agent 定义/squad/任务/工作区
+  后进程退出,阶段二以全新 app 逐项读回。夹具配套:
+  `REFLECT_TEST_HOME` 覆盖隔离基目录;默认 config.toml 改为**仅在不存在
+  时写入**(不再覆盖阶段一留下的状态)。定时任务不在此列 ——
+  `add_schedule` 当前为内存态(持久化留后续,见 `src-tauri/Cargo.toml`
+  注释),重启后为空是已知口径。
+- **往返契约口径修正**:effort 对移出 `roundtrips.json`(它是
+  AgentConfig 内存态而非持久化状态,启动期 MCP bootstrap 完成时的重配置
+  会复位它,与持久化语义无关);新增 `pollMs` 轮询选项(Op 类命令异步
+  生效,紧读会竞态);config 对固定表尾(save 触发 ConfigWatcher
+  热重载,会重置 agent 内存态)。
+
 ### 新增 — 跨运行时线格式契约:同一份样本,同时喂 fakeBackend 与真后端
 
 参数形状的漂移(历史实例:allowlist 的 `entries` vs `prefixes`)此前只能靠
@@ -20,7 +63,7 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
   `src-tauri/tests/ipc_payload_contract.rs`(真后端逐条反序列化 —— 业务
   错误可接受,`invalid args` 类不行;含探测器自检:历史漂移形状必须被
   识别、业务错误不得误判)。
-- **`tests/contracts/roundtrips.json`** —— 22 对「写 → 读」持久化往返,
+- **`tests/contracts/roundtrips.json`** —— 21 对「写 → 读」持久化往返,
   同一份表双端跑(L2 `ipc.roundtrip-contract.test.ts` / L3
   `ipc_roundtrip_contract.rs`)。参数形状对齐只能保证「收得下」,往返保证
   「存得对」—— 一个返回固定 fixture 的无状态桩会立刻露馅。

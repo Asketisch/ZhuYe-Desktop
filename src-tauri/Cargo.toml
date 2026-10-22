@@ -122,3 +122,6 @@ chrono = { workspace = true }
 # 只在 `cargo test` 时参与特性合并,release 构建不受影响(tauri 的 `test`
 # feature 不进产物)。见 tests/ 下的集成测试与 tests/README.md。
 tauri = { version = "2", features = ["test"] }
+# 本地 mock LLM 服务 —— `tests/ipc_mock_provider.rs` 用它顶替真模型跑通
+# submit → AgentThread → HTTP → SSE 解析 → 事件回传的全链路(离线、确定性)。
+wiremock = { workspace = true }
