@@ -4,6 +4,128 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — 已知缺口全闭合：免 Key 端点可配 / Goal 状态可观测 / 清单回灌 / `os_level` 语义
+
+按 `docs/CAPABILITIES.md` §4 的清单逐条闭合（此前该节剩 4 项，其中 3 项
+需上游变更）。上游改动按 `SUBMODULE.md` 走「改 Reflect-Agent 仓库 → 升级
+submodule」，桌面端**不直接改** submodule。
+
+- **免 Key 端点（免费模型池）此前「引擎能跑、GUI 配不出来」** —— 两个硬门槛：
+  1. 核心 `build_openai_pool` 在「credentials 数组空 **且** api_key 空」时
+     直接**不注册** provider → 顶层形态永远用不了；
+  2. `CredentialConfig.api_key` 是**必填** String，而 GUI 的 plan 编辑器在
+     key 为空时**整行省略** `api_key` → 写出的 TOML 直接反序列化失败
+     （整份配置保存被拒）。
+  上游 `122fc3e0`：`api_key` 改 `#[serde(default)]`；显式配了 `base_url`
+  就注册 provider（空 key → 不发 Authorization 头，与 `OpenAIClient` 同口径）。
+  桌面端：`reflect_list_provider_models` / `reflect_test_provider_chat`
+  接受空 key；plan 编辑器允许留空并标注「免 Key」、列表里显示「免 Key」徽标。
+  连带修掉两个只因「key 为空就不显示」而藏着的问题：顶层免 Key plan 会
+  **整条从列表消失**（用户看不到也删不掉）、免 Key 的 plan 永远不被选作
+  failover 目标。
+- **Goal 模式状态此前不可观测** —— `GoalController` 只公开 `is_active()` /
+  `clear()`，`GoalState`（status / turn_count / tokens_used / 校验历史）
+  **没有公开读取口**；GUI 只能靠前端投影 `goalActive` 猜「是否活跃」，
+  而投影在会话切换 / 后端 rebind 后就会与真实状态脱节。
+  上游 `2dc8ac3e`：`GoalController::snapshot()` + 把 controller 放进
+  **会话级共享槽**（`AgentConfig.goal` 此前是普通字段，会被 clone 进
+  submission loop —— enter/exit 只活在副本里，线程侧永远看不到）。
+  桌面端：新增 `reflect_goal_status` 命令，composer 徽标显示「第 N 轮 ·
+  token · 状态」。
+- **todo 清单「只出不进」** —— `TodoWrite` 把清单写进 `ToolOutput.metadata`
+  （输出通道），GUI 能展示，但**没有任何组件把它回灌进模型上下文** →
+  LLM 写完即忘。上游 `d6213972`：`tool_exec` 把清单渲染成 `- [ ] / - [~] /
+  - [x]` 紧凑文本写进**会话级**槽，`pre_loop` 注入 core prompt 的
+  `## Current Todo List` 段。
+- **`[sandbox].os_level` 语义差** —— 核心 schema 是 `bool` +
+  `#[serde(default)]`，解析后**无法区分**「用户没写」与「用户写了 false」；
+  桌面端此前只能**重新解析原始 TOML** 找 key 是否存在。上游 `1a781b6d`：
+  改 `Option<bool>`（`None` = 未表态走基线，`Some(false)` = 显式关闭）。
+  桌面端随之删掉整段 raw-TOML 绕行方案（`SandboxOsLevelIntent` 枚举 +
+  二次 TOML 解析 + 5 条测试）。
+- **上游文档漂移订正**（`3a1bab4b`）：`reflect-task/src/lib.rs` 称 TodoWrite
+  走 `ToolContext.metadata["todos"]`，实现实际写在 `ToolOutput.metadata`；
+  `todo_write.rs` 称由「`reflect-tui` 的 reducer(Phase 6)」回填
+  `RenderState.todos` —— **submodule 里没有 `reflect-tui` crate，也没有
+  这样的 reducer**。
+- **工具参数「整包形态」丢失（真 bug，L6 实模型演练层抓出）**：provider 投递
+  工具参数有**两种形态** ——
+
+  | 形态 | `ToolUseStart.input_json` | `ToolUseDelta` |
+  |---|---|---|
+  | 分片（Anthropic / OpenAI / Responses） | 空串 | 若干分片 |
+  | **整包（Ollama 原生）** | **完整 JSON** | **没有** |
+
+  核心此前**只累积 `ToolUseDelta`、把 `input_json` 整个忽略** → 整包形态的
+  provider **参数全丢**：模型明明调用了工具，工具却收到 `args = null`，
+  报「invalid arguments: missing 'cmd'」。**看起来像模型能力问题，实则是
+  产品缺陷。** 上游 `b025f4c2`：`ToolUseStart` 用 `input_json` **播种**
+  累积器，并用 `args_from_start` 标记区分两种形态（整包形态下忽略随后的
+  重复 delta —— mock provider 会把同一份 args 再发一遍）。补 1 条集成
+  测试，并核实它在修复前**确实失败**（`left: Null` / `right: "echo hi"`）。
+  修复后 L6 的「工具调用」与「工具审批」两个场景由**跳过**转为**真断言 PASS**。
+- **目标模式开不成时不再静默丢弃** —— `Op::EnterGoalMode` 拿不到 LLM 客户端
+  (没配 provider / api_key 无效)时，此前只是 `warn` + `continue`：命令返回了
+  submission id（调用方**看着像成功**）、GUI 的「目标模式」投影还亮着，而
+  引擎里**根本没有** controller —— 校验永不发生，用户无从得知。
+  上游 `afc16880` 改发一条 `GOAL_NO_CLIENT` 的 error 事件（error 是既有的
+  协议面，**无新 variant**），前端据此提示「目标模式没开成」。
+  桌面端的能力覆盖层补测：**目标模式没开成时状态读口必须返回 null**
+  （不能有「幽灵目标」让徽标显示一个不存在的第 N 轮）。
+- **「中断」会杀掉整个会话（真 bug，L6 实模型演练层抓出）** ——
+  `reflect_interrupt` 此前直接取消 **AgentThread 的会话级 cancel token**。
+  那是 `Op::Shutdown` 的语义：会话令牌是所有回合令牌的**父**，取消它虽然会
+  级联取消在飞回合，但**会话就此报废** —— 之后每一次提交都会被立刻取消
+  （回合令牌是 `cancel.child_token()`，父已取消 → 子一出生就是取消态）。
+  实测：一次中断之后，同一进程里的后续回合**全部立刻死掉**（goal 模式等
+  场景随后全部超时）。
+  现在改走 `Op::Interrupt`：核心按**回合**粒度取消 `active_turns` 表里的
+  回合级令牌，**会话本身不受影响**。能力覆盖层补测：中断后**会话级
+  cancel token 必须仍是未取消状态**。
+- **「agent 正在等审批时按中断」不解除等待（真 bug）** —— 回合会**永远停在
+  审批门上**（既没有 `turn_aborted` 也没有 `turn_complete`）。
+  根因：审批门（`ApprovalGate`）的等待只观察**会话级**取消令牌（调用方
+  `ToolContext.cancel` 传的是它），而 `Op::Interrupt` 取消的是**回合级**
+  令牌 —— 两者不是一回事。
+  上游 `c0377609`：`ApprovalGate` 新增可选的回合级令牌，四处等待
+  （`ask_tool` / `ask_hook` / `ask_question` / `ask_user`）同时观察它；
+  `submission_loop` 构造**每回合**的 gate 时挂上本回合的回合令牌。
+  补 1 条单测：只取消回合令牌 → 等待立即返回，且**会话级**令牌不受影响。
+
+### 新增 — L6 能力域矩阵：15 个场景用真模型跑完其余命令面
+
+`src-tauri/tests/ipc_live_capabilities.rs` —— 在 L6 主回合之外，把**其余
+依赖模型的命令面**用真模型逐个跑一遍：工具调用(bubble 自动批准)/ 工具审批
+(prompt → 批准 → 工具真跑)/ 中断 / 压缩 / 回退 / plan 模式
+(`plan_request` → `plan_ready` → `plan_approved`)/ goal 模式 / 会话标题
+生成 / 任务工具 / 子代理 / 追问 / 讨论(断言 `llmBacked === true`,证明
+走了真模型而非 noop 回落)/ 流水线 / 团队流水线。
+
+纪律：**模型不配合 ≠ 产品缺陷** —— 模型没发起工具调用 / 没提问 / 没进 plan，
+判**跳过**（附理由）而不是失败；这一层测的是**产品对模型输出的处理**，
+不是模型听不听话。上游限流 / 地区门 / 配额耗尽同样判跳过。
+
+**实战结果**（本机 Ollama 0.40.8 + `qwen2.5:7b`，15 个场景）：
+
+| 结果 | 场景 |
+|---|---|
+| ✅ 真断言 PASS | 主回合 · 工具调用 · 工具审批 · **中断** · 压缩 · 回退 · plan 模式 · 会话标题 · **讨论**（`llmBacked=true`）· **流水线**（`status=success`）· **团队流水线**（4 节点全跑） |
+| ⏭ 跳过（模型不配合） | goal 模式 · 任务工具 · 子代理 · 追问 |
+| ❌ 失败 | 无 —— **所有失败要么已修、要么判为环境态 / 模型行为** |
+
+矩阵在开发过程中**抓出了 5 个真 bug**（全部已修）：工具参数整包形态丢失、
+中断杀掉整个会话、审批门不解除等待、目标模式开不成时静默丢弃、
+子代理 spawn 失败不带根因 —— 详见上方各条。
+
+编排三条（讨论 / 流水线 / 团队流水线）此前在匿名免费池上因配额耗尽报
+「no result extractable」—— 换成本地模型后**全部真跑通**，证明那确实是
+配额问题、不是编排缺陷；上游顺带把子代理 spawn 的错误信息补成带根因的
+形态（见上）。
+
+**跑完整矩阵建议用本地模型**：匿名免费池的额度是**全局共享**的，跑满若干
+轮就会 `429 PROMOTION_MODEL_LIMIT_REACHED`；本地模型零成本、无限次、离线
+可重复 —— 详见 [`docs/FREE_MODEL_PRACTICE.md`](FREE_MODEL_PRACTICE.md)。
+
 ### 新增 — L6 实模型演练层：用**免费模型池**跑桌面端的全链路实践测试
 
 - **背景**：`dsh-our-free-model` 提供的免费模型池（Kilo 免费池 / dsh 本地

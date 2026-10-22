@@ -183,6 +183,8 @@ enum Outcome {
     RateLimited(String),
     /// 模型不支持 tools 等「能力不匹配」→ 跳过。
     Unsupported(String),
+    /// 其他环境态(配额耗尽 / 上游空回复)→ 跳过。
+    Skipped(String),
     /// 真的坏了 → 失败。
     Failed(String),
 }
@@ -332,11 +334,25 @@ fn judge(obs: &Observed) -> Outcome {
         problems.push("缺 turn_started".into());
     }
     if obs.content_bytes == 0 {
+        // 零正文有两种截然不同的成因,**必须分开**:
+        // - 零 token:上游根本没产出任何东西(配额耗尽 / 空回复)—— **环境态**;
+        // - 有 token:模型确实答了,但内容在链路上丢了 —— **产品缺陷**。
+        //
+        // 「终态是 success 但一条内容都没有」还可能是上游把错误**放在流里**
+        // 下发(HTTP 200 + `data: {"error":{...}}` 帧)—— provider 解析器
+        // 若不认它就会被整块丢弃,上层收到「成功但零内容」的流,真实错误
+        // 静默丢失。(reflect-llm 已修:见 `providers/openai.rs` 的流内错误
+        // 帧处理 —— 那类情况现在会变成 error 事件,被上面的限流/错误分支
+        // 接住。)
+        if obs.total_tokens == 0 {
+            return Outcome::Skipped(
+                "回合结束但上游零 token 零内容 —— 环境态(配额/空回复),非产品缺陷".into(),
+            );
+        }
         // 「终态是 success 但一条内容都没有」= 上游把错误**放在流里**下发
         // (HTTP 200 + `data: {"error":{...}}` 帧)。这条帧没有 `choices`
         // 也没有 `usage`,provider 解析器若不认它就会被整块丢弃 → 上层
         // 收到「成功但零内容」的流,真实错误静默丢失。
-        // (reflect-llm 已修:见 `providers/openai.rs` 的流内错误帧处理。)
         problems.push(if obs.turn_status.as_deref() == Some("success") {
             "终态是 success 但正文为零 —— 上游疑似在流里下发错误帧 \
              (HTTP 200 + `data: {\"error\":{...}}`),provider 解析器未识别"
@@ -508,6 +524,10 @@ fn live_free_model_practice() {
                 if attempt < retries {
                     std::thread::sleep(Duration::from_secs(retry_delay));
                 }
+            }
+            Outcome::Skipped(reason) => {
+                case("full-chain-protocol-shape", "SKIP", &reason);
+                return;
             }
             Outcome::Unsupported(reason) => {
                 case("full-chain-protocol-shape", "SKIP", &reason);

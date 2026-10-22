@@ -96,6 +96,7 @@ L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不�
 | **真窗口 E2E(冒烟)** | 构建产物起真窗口:壳层挂载、侧栏/导航存在、状态条非空、截图留存 | L5 `e2e/window.smoke.test.ts`(`tauri-driver`,仅 Linux;macOS 无 WKWebView WebDriver,官方口径跳过) | — |
 | **实模型全链路** | 有**真模型**的完整一轮:`reflect_submit` → AgentThread → 真 provider(免费模型池)→ 真 SSE → `reflect_event` 通道。断言:model spec 解析成真实 id(非占位串)、turn 有终态、usage 字段齐全、工具调用成对。**不断言回答文本** | L6 `ipc_live_free_model.rs`(默认 SKIP,`REFLECT_LIVE=1` 开启) | — |
 | **模型发现(清单实时拉取)** | `model = "free"` → 运行时查 provider 清单 → 按免费规则挑一个 → 写进运行时配置;失败**如实上报**(不回落占位串) | L6 `ipc_live_free_model.rs`(随实模型层跑) | — |
+| **实模型能力域矩阵** | 15 个场景覆盖**其余依赖模型的命令面**:工具调用(bubble 自动批准)/ 工具审批(prompt→批准→真跑)/ 中断 / 压缩 / 回退 / plan 模式(plan_request→plan_ready→plan_approved)/ goal 模式 / 会话标题生成 / 任务工具 / 子代理 / 追问 / 讨论(llmBacked=true)/ 流水线 / 团队流水线。**模型不配合判跳过**(非失败) | L6 `ipc_live_capabilities.rs`(默认 SKIP) | — |
 
 **合计**：后端 185 条 `reflect_*` 命令中，能力覆盖层**直接驱动 179 条
 （96.8%）**；余下 6 条在 §3 逐条说明排除理由。
@@ -128,11 +129,11 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 环境下确定性地验 —— 能力覆盖层只跑失败路径，确认错误是结构化的、且
 **不会**误起任何编排。
 
-> **L6 尚未覆盖编排命令**：实模型层目前只跑**主 agent 回合**
-> （`reflect_submit` → 事件流），`reflect_run_pipeline` /
-> `reflect_run_discussion` / `reflect_run_team_pipeline` 仍是「只验失败
-> 路径」。这三条要接进 L6 需要真实的 pipeline / discussion 配置夹具，
-> 属于下一步。
+> **L6 已覆盖编排命令**：`reflect_run_pipeline` /
+> `reflect_run_discussion` / `reflect_run_team_pipeline` 三条在
+> `ipc_live_capabilities.rs` 里都有实模型场景（讨论断言
+> `llmBacked === true` —— 证明真的走了模型而不是 noop 回落；流水线需要
+> 一个**与节点标签同名**的 team，这是上游的硬约束）。
 
 **`reflect_generate_session_title` 的特例**：它**已覆盖**，但只覆盖到前置
 守卫（空会话 → 「session has no user message to summarize」）。真正生成

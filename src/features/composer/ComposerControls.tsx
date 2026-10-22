@@ -27,6 +27,7 @@ import { reflect_list_provider_models, type ProviderModelInfo } from '@/utils/co
 import { reflect_get_effort, reflect_set_effort } from '@/utils/commands/permissions';
 import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
 import { useAgentStore } from '@/stores/agentStore';
+import { reflect_goal_status, type GoalState } from '@/utils/commands/goal';
 import { useI18n } from '@/utils/i18n';
 import s from './ComposerControls.module.css';
 
@@ -51,6 +52,9 @@ export function ComposerControls() {
   const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
   const pushToast = useAgentStore((st) => st.pushToast);
 
+  // 目标模式的**权威**状态(后端读口)。此前只有前端投影 `goalActive`
+  // —— 它在会话切换 / 后端 rebind 后会与真实状态脱节,答不出「跑到第几轮」。
+  const [goalState, setGoalState] = useState<GoalState | null>(null);
   const [plans, setPlans] = useState<PlanEntry[]>([]);
   const [activeProvider, setActiveProvider] = useState('');
   const [activeCredential, setActiveCredential] = useState('');
@@ -62,6 +66,31 @@ export function ComposerControls() {
   const [apiModelsFor, setApiModelsFor] = useState('');
   const [fetchingModels, setFetchingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
+
+  // 目标状态轮询:目标模式开启时定期读后端权威快照(goal 模式按轮自校验,
+  // 状态每轮都会变 —— 轮询是唯一能拿到「第几轮 / 判定 / token」的途径,
+  // 因为协议侧**没有** goal 事件)。
+  useEffect(() => {
+    if (!goalActive) {
+      setGoalState(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const next = await reflect_goal_status();
+        if (!cancelled) setGoalState(next);
+      } catch {
+        // 读口失败不打扰用户 —— 徽标退回到通用文案。
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [goalActive]);
 
   // 配置 + 当前模型快照。`refresh` 在切换成功后再调 —— 配置已被后端
   // 改写(条目 model / active.credential),本地 plans 必须重读。
@@ -272,10 +301,19 @@ export function ComposerControls() {
         {goalActive && (
           <span
             className={s.goalBadge}
-            title={t('composer.goalBadge')}
+            title={
+              goalState
+                ? t('composer.goalBadgeDetail', {
+                    turns: goalState.turn_count,
+                    tokens: goalState.tokens_used,
+                    status: goalState.status,
+                  })
+                : t('composer.goalBadge')
+            }
             data-testid="composer-goal-badge"
           >
             🎯 {t('composer.goalBadgeLabel')}
+            {goalState ? ` · ${goalState.turn_count}` : ''}
           </span>
         )}
         <div className={s.permSwitch} role="radiogroup" aria-label={t('composer.controls.permissionAria')} data-testid="composer-permission-switch">

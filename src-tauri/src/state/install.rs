@@ -279,7 +279,7 @@ mod tests {
         );
 
         // interrupt 幂等:install 后调用不应 panic。
-        agent.interrupt();
+        let _ = agent.interrupt().await;
     }
 
     /// v1.x:install 必须建立 `model_registry`(构造 AgentThread 复用),

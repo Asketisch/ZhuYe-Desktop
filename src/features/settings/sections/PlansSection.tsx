@@ -121,6 +121,19 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
 
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
 
+  /**
+   * 该接入端口是否允许**留空 api_key**（免 Key 端点）。
+   *
+   * OpenAI 兼容端点可以免 Key —— 免费模型池就是这种端点：空 key 时后端
+   * **不发** Authorization 头（与 `reflect-llm` 的 OpenAIClient 同口径）。
+   * Anthropic 协议没有免 Key 形态，仍要求 key。
+   */
+  const keylessAllowed = form.provider === 'openai';
+
+  /** 当前表单是否「填得够用」（keyless 时 api_key 可空）。 */
+  const hasEndpoint = () => form.baseUrl.trim().length > 0;
+  const hasCredentials = () => form.apiKey.trim().length > 0 || keylessAllowed;
+
   const onSavePlan = () => {
     if (!form.label.trim() && !form.topLevel) return;
     const model = form.model.trim();
@@ -202,7 +215,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
 
   /** 从接入端口拉取可用模型列表（需要已填 base_url + api_key）。 */
   const onFetchModels = async () => {
-    if (!form.apiKey.trim() || !form.baseUrl.trim() || fetchingModels) return;
+    if (!hasCredentials() || !hasEndpoint() || fetchingModels) return;
     setFetchingModels(true);
     setModelsError(null);
     try {
@@ -219,7 +232,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
 
   /** 纯 API 连通测试:拉一次模型列表,不消耗 token。 */
   const onTestConnection = async () => {
-    if (!form.apiKey.trim() || !form.baseUrl.trim() || testingConnection) return;
+    if (!hasCredentials() || !hasEndpoint() || testingConnection) return;
     setTestingConnection(true);
     setConnectionOk(null);
     try {
@@ -236,7 +249,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
 
   /** 发送「你好」测试消息(无 system / 无 tools,max_tokens=32)。 */
   const onTestChat = async () => {
-    if (!form.apiKey.trim() || !form.baseUrl.trim() || !form.model.trim() || testingChat) return;
+    if (!hasCredentials() || !hasEndpoint() || !form.model.trim() || testingChat) return;
     setTestingChat(true);
     setChatReply(null);
     setChatError(null);
@@ -331,7 +344,11 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
                 <Badge variant={plan.provider === activeProvider ? 'success' : 'info'}>{plan.provider}</Badge>
               </div>
               <div className={s.planMeta}>
-                <code>{maskKey(plan.apiKey)}</code>
+                {plan.apiKey ? (
+                  <code>{maskKey(plan.apiKey)}</code>
+                ) : (
+                  <Badge variant="neutral">{t('settings.plans.keylessBadge')}</Badge>
+                )}
                 {plan.model && <span>{plan.model}</span>}
                 {plan.model && readContextWindowForModel(rawToml, plan.model) && (
                   <Badge variant="neutral">
@@ -450,6 +467,9 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
           <Button variant="ghost" size="sm" onClick={() => setShowKey((v) => !v)}>
             {showKey ? t('settings.config.hide') : t('settings.config.show')}
           </Button>
+          {keylessAllowed && (
+            <span className={s.fieldHint}>{t('settings.plans.apiKeyKeylessHint')}</span>
+          )}
         </div>
         <div className={s.fieldRow}>
           <label className={s.fieldLabel}>{t('settings.plans.baseUrl')}</label>
@@ -470,7 +490,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
             <Button
               variant="ghost"
               size="sm"
-              disabled={fetchingModels || !form.apiKey.trim() || !form.baseUrl.trim()}
+              disabled={fetchingModels || !hasCredentials() || !hasEndpoint()}
               data-testid="plans-fetch-models"
               title={modelsError ?? t('settings.plans.fetchModels')}
               onClick={() => void onFetchModels()}
@@ -521,7 +541,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
             <Button
               variant="ghost"
               size="sm"
-              disabled={testingConnection || !form.apiKey.trim() || !form.baseUrl.trim()}
+              disabled={testingConnection || !hasCredentials() || !hasEndpoint()}
               data-testid="plans-test-connection"
               title={t('settings.plans.testConnectionHint')}
               onClick={() => void onTestConnection()}
@@ -531,7 +551,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
             <Button
               variant="ghost"
               size="sm"
-              disabled={testingChat || !form.apiKey.trim() || !form.baseUrl.trim() || !form.model.trim()}
+              disabled={testingChat || !hasCredentials() || !hasEndpoint() || !form.model.trim()}
               data-testid="plans-test-chat"
               title={t('settings.plans.testChatHint')}
               onClick={() => void onTestChat()}

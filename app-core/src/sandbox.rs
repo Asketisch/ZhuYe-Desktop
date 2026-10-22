@@ -27,13 +27,12 @@
 //! - **配置未表态 → 基线开启** —— 核心的安全基线是
 //!   `OsSandbox::default()` = `enabled + strict`（模块文档："v1.3 起
 //!   `OsSandbox::default()` 返回 `enabled = true`，以满足『默认要求
-//!   OS sandbox』的严格安全基线"）。核心 schema 的
-//!   `SandboxSection::os_level` 是 `#[derive(Default)]` 的 `bool`
-//!   （缺省 `false`），**没有 `Option<bool>`**，所以「用户没写」与
-//!   「用户写了 false」在解析后不可区分 —— 若照字面执行，全员默认
-//!   关闭 OS 沙箱，比 CLI 的实际行为更不安全。
-//!   → 本模块用**原始 TOML** 判断 key 是否存在（见
-//!   [`SandboxOsLevelIntent`]），把「没表态」归一到基线开启。
+//!   OS sandbox』的严格安全基线"）。若照字面执行「没写 = false」，全员
+//!   默认关闭 OS 沙箱，比 CLI 的实际行为更不安全。
+//!   → 核心 schema 的 `SandboxSection::os_level` 现在就是
+//!   **`Option<bool>`**：`None` = 未表态（走基线），`Some(false)` =
+//!   显式关闭。本模块直接消费它 —— **不再需要重新解析原始 TOML**
+//!   去判断 key 是否存在（那是 schema 还是 `bool` 时的绕行方案）。
 //!
 //! ## 落地
 //!
@@ -50,38 +49,12 @@
 
 use reflect_protocol::SandboxPolicy;
 
-/// 配置里 `[sandbox].os_level` 的**表态**。
+/// 把核心 schema 的 `Option<bool>` 表态归一成**有效**的配置值。
 ///
-/// 核心 schema 用 `bool` + `#[serde(default)]`，解析后无法区分
-/// 「用户没写」与「用户写了 false」。本枚举在**原始 TOML** 层面保留
-/// 这个区分。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SandboxOsLevelIntent {
-    /// 配置里显式写了 `os_level = <bool>` —— 尊重用户的显式表态。
-    Explicit(bool),
-    /// 配置里没有这个 key —— 用户未表态，走核心基线（开启）。
-    Unset,
-}
-
-/// 从原始 TOML 判断 `[sandbox].os_level` 是否被显式写过。
-///
-/// TOML 解析失败 → 按 [`SandboxOsLevelIntent::Unset`] 处理（交由调用方
-/// 走基线），不因为一份坏 TOML 把沙箱关掉。
-pub fn sandbox_intent_from_toml(raw: &str) -> SandboxOsLevelIntent {
-    let Ok(value) = raw.parse::<toml::Value>() else {
-        return SandboxOsLevelIntent::Unset;
-    };
-    let Some(section) = value.get("sandbox") else {
-        return SandboxOsLevelIntent::Unset;
-    };
-    let Some(os_level) = section.get("os_level") else {
-        return SandboxOsLevelIntent::Unset;
-    };
-    match os_level.as_bool() {
-        Some(b) => SandboxOsLevelIntent::Explicit(b),
-        // 类型不对（非 bool）→ 视为未表态，走基线。
-        None => SandboxOsLevelIntent::Unset,
-    }
+/// - `None`（用户未表态）→ `true`（核心基线：默认要求 OS sandbox）;
+/// - `Some(b)`（显式表态）→ 原样。
+pub fn normalize_os_level(cfg_os_level: Option<bool>) -> bool {
+    cfg_os_level.unwrap_or(true)
 }
 
 /// 解析 env 值 `REFLECT_SANDBOX_OS_LEVEL` → 是否启用。
@@ -93,16 +66,6 @@ pub fn parse_env_os_level(raw: &str) -> bool {
         raw.trim().to_ascii_lowercase().as_str(),
         "" | "0" | "false" | "no" | "off"
     )
-}
-
-/// 把配置表态归一成**有效**的配置值（不含 env 覆盖）。
-///
-/// 未表态 → `true`（核心基线：默认要求 OS sandbox）；显式值 → 原样。
-pub fn normalize_os_level(intent: SandboxOsLevelIntent) -> bool {
-    match intent {
-        SandboxOsLevelIntent::Explicit(on) => on,
-        SandboxOsLevelIntent::Unset => true,
-    }
 }
 
 /// 解析**最终生效**的 OS 沙箱开关。
@@ -138,14 +101,7 @@ pub fn sandbox_policy_for(enabled: bool) -> SandboxPolicy {
 /// 覆盖」烤进配置快照。
 pub fn load_config_with_sandbox_baseline() -> reflect_config::ReflectConfig {
     let mut cfg = reflect_config::load_default();
-    let intent = match reflect_config::default_config_path() {
-        Some(path) => match std::fs::read_to_string(&path) {
-            Ok(raw) => sandbox_intent_from_toml(&raw),
-            Err(_) => SandboxOsLevelIntent::Unset,
-        },
-        None => SandboxOsLevelIntent::Unset,
-    };
-    cfg.sandbox.os_level = normalize_os_level(intent);
+    cfg.sandbox.os_level = Some(normalize_os_level(cfg.sandbox.os_level));
     cfg
 }
 
@@ -153,38 +109,16 @@ pub fn load_config_with_sandbox_baseline() -> reflect_config::ReflectConfig {
 mod tests {
     use super::*;
 
+    /// 核心 schema 现在就是 `Option<bool>` —— 「没写」与「写了 false」
+    /// 在**解析后**即可区分,不必再重新解析原始 TOML。
     #[test]
-    fn intent_detects_explicit_value() {
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox]\nos_level = false\n"),
-            SandboxOsLevelIntent::Explicit(false)
-        );
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox]\nos_level = true\n"),
-            SandboxOsLevelIntent::Explicit(true)
-        );
-    }
-
-    #[test]
-    fn intent_is_unset_when_key_absent() {
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox]\nallow_network = true\n"),
-            SandboxOsLevelIntent::Unset
-        );
-        assert_eq!(
-            sandbox_intent_from_toml("[active]\nprovider = \"openai\"\n"),
-            SandboxOsLevelIntent::Unset
-        );
-        assert_eq!(sandbox_intent_from_toml(""), SandboxOsLevelIntent::Unset);
-    }
-
-    #[test]
-    fn intent_is_unset_on_broken_toml() {
-        // 坏 TOML 不应把沙箱关掉 —— 交给基线。
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox\nos_level = false"),
-            SandboxOsLevelIntent::Unset
-        );
+    fn option_distinguishes_unset_from_explicit_false() {
+        // 未表态 → 基线开启。
+        assert!(normalize_os_level(None));
+        // 显式 false → 尊重表态(关)。
+        assert!(!normalize_os_level(Some(false)));
+        // 显式 true → 开。
+        assert!(normalize_os_level(Some(true)));
     }
 
     #[test]
@@ -195,18 +129,6 @@ mod tests {
         for on in ["1", "true", "yes", "on", "anything"] {
             assert!(parse_env_os_level(on), "应解析为开启: {on:?}");
         }
-    }
-
-    #[test]
-    fn unset_intent_follows_core_baseline() {
-        // 未表态 → 基线开启（核心 OsSandbox::default() = enabled + strict）。
-        assert!(normalize_os_level(SandboxOsLevelIntent::Unset));
-    }
-
-    #[test]
-    fn explicit_false_disables() {
-        assert!(!normalize_os_level(SandboxOsLevelIntent::Explicit(false)));
-        assert!(normalize_os_level(SandboxOsLevelIntent::Explicit(true)));
     }
 
     #[test]

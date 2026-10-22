@@ -101,9 +101,13 @@ impl MinimalAgent {
         session::session_tx(self)
     }
 
-    /// 中断当前 turn —— 调用 AgentThread 的 cancel token。
-    pub fn interrupt(&self) {
-        submit::interrupt(self);
+    /// 中断**当前回合** —— 提交 `Op::Interrupt`(回合粒度)。
+    ///
+    /// ⚠️ 不要直接取消 `AgentThread::cancel_token()`:那是**会话级**令牌,
+    /// 取消它等于 `Op::Shutdown` —— 会话就此报废,后续每次提交都被立刻
+    /// 取消。核心的 `Op::Interrupt` 只取消**在飞回合**的令牌。
+    pub async fn interrupt(&self) -> anyhow::Result<String> {
+        submit::interrupt(self).await
     }
 
     /// 返回当前 AgentThread 的 cancel token(`install_agent_thread` 之前为 None)。
@@ -120,6 +124,20 @@ impl MinimalAgent {
     /// 诊断接口:返回当前 model spec (供前端 settings UI 显示)。
     pub fn model_spec(&self) -> String {
         self.inner.model_spec.read().clone()
+    }
+
+    /// 目标模式的**权威状态**快照 —— 跑到第几轮 / LM 判定 / 累计 token /
+    /// 被什么卡住。`None` = 没有活跃目标。
+    ///
+    /// 目标模式**没有协议事件** —— GUI 此前只能靠前端投影(`goalActive`)
+    /// 猜「是否活跃」,投影在会话切换 / 后端 rebind 后就会与真实状态脱节。
+    /// 上游把 `GoalController` 放进会话级共享槽后,这里能读到真值。
+    pub fn goal_snapshot(&self) -> Option<reflect_goal::GoalState> {
+        self.inner
+            .thread
+            .lock()
+            .as_ref()
+            .and_then(|t| t.goal_snapshot())
     }
 
     /// 诊断接口:返回当前 workspace (供前端显示)。优先返回运行时通过

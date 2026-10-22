@@ -122,24 +122,36 @@ async fn real_agent_thread_emits_error_for_stub_model() {
     );
 }
 
+/// 中断**不能**取消会话级 cancel token。
+///
+/// 会话令牌是所有回合令牌的**父** —— 取消它等于 `Op::Shutdown`:在飞回合
+/// 虽然被级联取消,但**会话就此报废**,之后每一次提交都会被立刻取消
+/// (回合令牌是 `cancel.child_token()`,父已取消 → 子一出生就是取消态)。
+///
+/// 实测(L6 实模型演练层):一次中断之后,同一进程里的后续回合**全部立刻
+/// 死掉** —— goal 模式等场景随后全部超时。
+///
+/// 正确语义:中断走 `Op::Interrupt`,核心只取消**在飞回合**的令牌
+/// (`active_turns` 表),会话本身不受影响。
 #[tokio::test]
-async fn interrupt_token_cancels_in_flight_turn() {
+async fn interrupt_does_not_cancel_the_session_token() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
     let _ = agent.subscribe_session();
-    // interrupt 之前:cancel token 尚未取消。
     // 通过 MinimalAgent::cancel_token() 公开 getter 访问(替代私有 inner.thread)。
-    let token_before = agent.cancel_token();
+    let token = agent.cancel_token().expect("thread installed");
     assert!(
-        token_before.as_ref().is_some_and(|t| !t.is_cancelled()),
+        !token.is_cancelled(),
         "cancel token should start uncancelled"
     );
-    agent.interrupt();
-    agent.interrupt(); // idempotent: second call is a no-op
-    let token_after = token_before.expect("thread installed");
+
+    // 幂等:连续两次中断都只是「再投一条 Op::Interrupt」。
+    agent.interrupt().await.expect("interrupt accepted");
+    agent.interrupt().await.expect("interrupt accepted");
+
     assert!(
-        token_after.is_cancelled(),
-        "cancel token must be cancelled after interrupt()"
+        !token.is_cancelled(),
+        "中断不得取消会话级 cancel token —— 否则会话报废(后续提交全被取消)"
     );
 }
 

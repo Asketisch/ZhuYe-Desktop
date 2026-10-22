@@ -83,13 +83,18 @@ export function listPlans(toml: string): PlanEntry[] {
   const out: PlanEntry[] = [];
   for (const provider of PLAN_PROVIDERS) {
     const topLevelKey = readField(toml, provider, 'api_key');
-    if (topLevelKey) {
+    const topLevelUrl = readField(toml, provider, 'base_url');
+    // 顶层条目出现条件:**有 key 或有 base_url**。
+    // 免 Key 端点(免费模型池)的顶层形态是 `api_key = ""` + `base_url = "..."`
+    // —— 只看 api_key 的话这条 plan 会**整条从列表里消失**(用户既看不到
+    // 也删不掉),而它恰恰是运行时真正生效的那条凭证。
+    if (topLevelKey || topLevelUrl) {
       out.push({
         provider,
         topLevel: true,
         label: 'default',
         apiKey: topLevelKey,
-        baseUrl: readField(toml, provider, 'base_url'),
+        baseUrl: topLevelUrl,
         model: readField(toml, provider, 'model'),
         weight: '',
         quota: null,
@@ -100,9 +105,17 @@ export function listPlans(toml: string): PlanEntry[] {
   return out;
 }
 
-/** 供 failover 决策用：该 provider 是否存在可用的 plan（有 api_key）。 */
+/**
+ * 供 failover 决策用：该 provider 是否存在可用的 plan。
+ *
+ * 「可用」= 有 api_key **或** 有 base_url —— 免 Key 端点(免费模型池)两者
+ * 都没有 key,但它带 base_url,依然是可用凭证。此前只看 api_key → 免 Key
+ * 的 plan 永远不被选作 failover 目标。
+ */
 export function providerHasUsablePlan(toml: string, provider: PlanProvider): boolean {
-  return listPlans(toml).some((p) => p.provider === provider && p.apiKey.trim() !== '');
+  return listPlans(toml).some(
+    (p) => p.provider === provider && (p.apiKey.trim() !== '' || p.baseUrl.trim() !== ''),
+  );
 }
 
 /**
@@ -141,7 +154,15 @@ export function upsertPlan(toml: string, plan: PlanEntry): string {
   return `${stripInlineCredentials(toml, plan.provider).replace(/\s*$/, '')}\n\n${block.join('\n')}\n`;
 }
 
-/** 删除 plan。topLevel 条目删除 `[provider].api_key`；数组条目删除整个块。 */
+/**
+ * 删除 plan。topLevel 条目删除 `[provider]` 的**凭据字段**（api_key 与
+ * base_url）；数组条目删除整个块。
+ *
+ * 顶层为什么连 `base_url` 一起删：顶层条目的**身份就是「这个 provider 的
+ * 凭据」= api_key + base_url**。只删 api_key 会留下一个「只有 base_url 的
+ * 免 Key provider」—— 运行时仍会注册它（凭据池里挂着一个空 key 的
+ * client），用户以为删掉了，实际还在打请求。
+ */
 export function removePlan(toml: string, provider: PlanProvider, label: string): string {
   const existing = findCredentialBlock(toml, provider, label);
   if (existing) {
@@ -149,9 +170,11 @@ export function removePlan(toml: string, provider: PlanProvider, label: string):
     lines.splice(existing.start, existing.end - existing.start);
     return lines.join('\n').replace(/\n{3,}/g, '\n\n');
   }
-  // 顶层隐式条目：移除 api_key 即使其失效（base_url/model 是附加配置，保留）。
-  // applyField 的空值路径 = 删除该键（见 schema.setSectionKey）。
-  return applyField(toml, provider, 'api_key', '', 'text');
+  // 顶层隐式条目：移除凭据字段（applyField 的空值路径 = 删除该键，
+  // 见 schema.setSectionKey）。`model` 保留 —— 它只是模型名，不是凭据。
+  let next = applyField(toml, provider, 'api_key', '', 'text');
+  next = applyField(next, provider, 'base_url', '', 'text');
+  return next;
 }
 
 /** 密钥展示遮罩：保留末 4 位。 */

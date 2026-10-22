@@ -12,9 +12,17 @@ export async function reflect_submit(s: ReflectSubmission): Promise<string> {
   return invoke<string>('reflect_submit', { submission: s });
 }
 
-/** 中断当前 agent turn。 */
-export async function reflect_interrupt(): Promise<void> {
-  return invoke<void>('reflect_interrupt');
+/**
+ * 中断当前 agent turn。
+ *
+ * 只中断**在飞回合**,会话本身不受影响 —— 走 `Op::Interrupt`,核心取消
+ * `active_turns` 表里的回合级令牌。会话级 cancel token 属于
+ * `Op::Shutdown` 的语义,中断绝不能碰它(碰了会话就报废了)。
+ *
+ * 返回 submission id。
+ */
+export async function reflect_interrupt(): Promise<string> {
+  return invoke<string>('reflect_interrupt');
 }
 
 /**

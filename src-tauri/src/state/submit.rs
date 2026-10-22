@@ -102,7 +102,10 @@ fn stamp_sandbox_policy(
     agent: &MinimalAgent,
     submission: reflect_protocol::Submission,
 ) -> reflect_protocol::Submission {
-    let cfg_os_level = agent.cfg().read().sandbox.os_level;
+    // `Option<bool>`:agent 的 cfg 在加载时已归一(Some(有效值));这里再兜一层,
+    // 免得「未表态」的 None 被当成 false(把 OS 沙箱静默关掉)。
+    let cfg_os_level =
+        reflect_app_core::sandbox::normalize_os_level(agent.cfg().read().sandbox.os_level);
     let enabled = super::sandbox::effective_os_sandbox_enabled(cfg_os_level);
     stamp_sandbox_policy_with(enabled, submission)
 }
@@ -125,11 +128,20 @@ fn stamp_sandbox_policy_with(
 
 /// 中断当前 turn —— 调用 AgentThread 的 cancel token。
 /// CancellationToken 的 cancel 是幂等的,重复调用安全。
-pub(crate) fn interrupt(agent: &MinimalAgent) {
-    let guard = agent.inner.thread.lock();
-    if let Some(thread) = guard.as_ref() {
-        thread.cancel_token().cancel();
-    }
+/// 中断**当前回合**(不是整个会话)。
+///
+/// ⚠️ 此前直接取消**会话级** cancel token —— 那是 `Op::Shutdown` 的语义:
+/// 会话令牌是所有回合令牌的**父**,取消它会级联取消在飞回合,但**会话
+/// 也就此报废** —— 之后每一次提交都会被立刻取消(回合令牌是
+/// `cancel.child_token()`,父已取消 → 子一出生就是取消态)。
+///
+/// 后果实测(L6 实模型演练层):一次中断之后,同一进程里的后续回合**全部
+/// 立刻死掉**。
+///
+/// 正确做法是提交 `Op::Interrupt` —— 核心按**回合**粒度取消在飞回合的
+/// 令牌(`active_turns` 表),会话本身不受影响。
+pub(crate) async fn interrupt(agent: &MinimalAgent) -> anyhow::Result<String> {
+    submit_op(agent, reflect_protocol::Op::Interrupt { child_id: None }).await
 }
 
 #[cfg(test)]

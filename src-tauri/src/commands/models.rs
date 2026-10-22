@@ -14,6 +14,35 @@ use std::time::Duration;
 use super::model_catalog::{ProviderModelsResult, free_model_rules, parse_models_response};
 use crate::commands::error::{CommandError, CommandResult};
 
+/// 按接入端口施加鉴权头。
+///
+/// **空 `api_key` = 免 Key 端点** → **不发** Authorization 头。
+/// 免 Key 的 OpenAI 兼容端点(免费模型池)对「空 Bearer」宽容、对「非空
+/// 无效 token」严格 —— 少发一个头更稳。与 `reflect-llm` 的 `OpenAIClient`
+/// 同口径(那边也是空 key 不发头)。
+fn apply_auth(
+    req: reqwest::RequestBuilder,
+    endpoint: &str,
+    api_key: &str,
+) -> reqwest::RequestBuilder {
+    let key = api_key.trim();
+    match endpoint {
+        // 智谱等兼容端点同样吃 Bearer。
+        "openai" => {
+            if key.is_empty() {
+                req
+            } else {
+                req.header("Authorization", format!("Bearer {key}"))
+            }
+        }
+        // Anthropic 用 x-api-key + 版本头(协议没有免 Key 形态)。
+        "anthropic" => req
+            .header("x-api-key", key)
+            .header("anthropic-version", "2023-06-01"),
+        _ => req,
+    }
+}
+
 /// 拼接模型列表 URL。base_url 允许带或不带 `/v1`(Anthropic),
 /// 结尾 `/` 一律归一。
 pub(crate) fn build_models_url(base_url: &str, endpoint: &str) -> Result<String, CommandError> {
@@ -44,6 +73,14 @@ pub(crate) fn build_models_url(base_url: &str, endpoint: &str) -> Result<String,
 /// 与 `reflect_query_plan_quota` 同风格:鉴权失败 / HTTP 错误 / 解析失败
 /// 报 `Err` 给前端展示;成功返回模型数组(可能为空)。
 ///
+/// **空 `api_key` = 免 Key 端点**(免费模型池就是这种端点):不发
+/// Authorization 头。此前这里直接报 `api_key is empty` —— 免 Key 的
+/// OpenAI 兼容端点在 GUI 里**连模型清单都拿不到**,而引擎侧的清单发现
+/// (走 provider client)却是支持的 —— 两侧口径不一致,用户被卡在「能跑
+/// 但看不见有哪些模型」。
+///
+/// Anthropic 协议没有免 Key 形态 → 仍要求 key。
+///
 /// 免费判定规则取自**当前生效的** `[model_discovery]` 段(内存快照,热重载
 /// 后即生效)—— 与引擎跑 `model = "free"` 用的是同一套规则。
 #[tauri::command]
@@ -53,9 +90,11 @@ pub async fn reflect_list_provider_models(
     api_key: String,
     endpoint: String,
 ) -> CommandResult<ProviderModelsResult> {
-    if api_key.trim().is_empty() {
+    let key = api_key.trim();
+    if key.is_empty() && endpoint != "openai" {
         return Err(CommandError {
-            msg: "api_key is empty".into(),
+            msg: "api_key is empty — Anthropic 协议需要 key(OpenAI 兼容端点可留空表示免 Key)"
+                .into(),
         });
     }
     let url = build_models_url(&base_url, &endpoint)?;
@@ -68,14 +107,7 @@ pub async fn reflect_list_provider_models(
             msg: format!("http client: {e}"),
         })?;
     let mut req = client.get(&url);
-    req = match endpoint.as_str() {
-        // 智谱等兼容端点同样吃 Bearer;Anthropic 用 x-api-key + 版本头。
-        "openai" => req.header("Authorization", format!("Bearer {api_key}")),
-        "anthropic" => req
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01"),
-        _ => unreachable!("build_models_url validated endpoint"),
-    };
+    req = apply_auth(req, &endpoint, key);
     let resp = req
         .header("Accept", "application/json")
         .send()
@@ -193,6 +225,10 @@ pub(crate) fn parse_chat_test_reply(endpoint: &str, body: &[u8]) -> Result<Strin
 ///
 /// **刻意不带 system 提示词与 tools 定义** —— 避免把庞大系统提示词发给
 /// 厂商造成无效消耗;`max_tokens` 压到 32。只测连通,不用于生产对话。
+///
+/// **空 `api_key` = 免 Key 端点**:不发 Authorization 头(与
+/// `reflect_list_provider_models` 同口径,也与 `reflect-llm` 的 OpenAIClient
+/// 一致)。Anthropic 协议仍要求 key。
 #[tauri::command]
 pub async fn reflect_test_provider_chat(
     base_url: String,
@@ -200,9 +236,11 @@ pub async fn reflect_test_provider_chat(
     endpoint: String,
     model: String,
 ) -> CommandResult<ProviderChatTestResult> {
-    if api_key.trim().is_empty() {
+    let key = api_key.trim();
+    if key.is_empty() && endpoint != "openai" {
         return Err(CommandError {
-            msg: "api_key is empty".into(),
+            msg: "api_key is empty — Anthropic 协议需要 key(OpenAI 兼容端点可留空表示免 Key)"
+                .into(),
         });
     }
     if model.trim().is_empty() {
@@ -219,13 +257,7 @@ pub async fn reflect_test_provider_chat(
             msg: format!("http client: {e}"),
         })?;
     let mut req = client.post(&url).json(&build_chat_test_body(model.trim()));
-    req = match endpoint.as_str() {
-        "openai" => req.header("Authorization", format!("Bearer {api_key}")),
-        "anthropic" => req
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01"),
-        _ => unreachable!("build_chat_test_url validated endpoint"),
-    };
+    req = apply_auth(req, &endpoint, key);
     let resp = req.send().await.map_err(|e| CommandError {
         msg: format!("network error: {e}"),
     })?;
@@ -330,5 +362,68 @@ mod tests {
             serde_json::to_vec(&json!({ "choices": [{ "message": { "content": null } }] }))
                 .unwrap();
         assert_eq!(parse_chat_test_reply("openai", &null_content).unwrap(), "");
+    }
+
+    /// 免 Key 端点 → **不发** Authorization 头。
+    ///
+    /// 免 Key 的 OpenAI 兼容端点(免费模型池)对「空 Bearer」宽容、对
+    /// 「非空无效 token」严格 —— 发了反而可能被拒。此前这条路径直接报
+    /// `api_key is empty`,GUI 连模型清单都拿不到。
+    #[test]
+    fn 免key端点不发authorization头() {
+        let req = apply_auth(
+            reqwest::Client::new().get("https://example.test/v1/models"),
+            "openai",
+            "",
+        )
+        .build()
+        .unwrap();
+        assert!(
+            req.headers().get("authorization").is_none(),
+            "空 key 不应发 Authorization 头"
+        );
+    }
+
+    #[test]
+    fn 有key时发bearer头() {
+        let req = apply_auth(
+            reqwest::Client::new().get("https://example.test/v1/models"),
+            "openai",
+            "sk-test",
+        )
+        .build()
+        .unwrap();
+        assert_eq!(
+            req.headers()
+                .get("authorization")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "Bearer sk-test"
+        );
+    }
+
+    /// Anthropic 协议没有免 Key 形态 —— 仍发 x-api-key + 版本头。
+    #[test]
+    fn anthropic始终发版本头() {
+        let req = apply_auth(
+            reqwest::Client::new().get("https://example.test/v1/models"),
+            "anthropic",
+            "sk-ant",
+        )
+        .build()
+        .unwrap();
+        assert_eq!(
+            req.headers().get("x-api-key").unwrap().to_str().unwrap(),
+            "sk-ant"
+        );
+        assert_eq!(
+            req.headers()
+                .get("anthropic-version")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "2023-06-01"
+        );
     }
 }

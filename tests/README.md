@@ -74,6 +74,33 @@ REFLECT_LIVE=1 bash tests/run_all.sh live    # 真跑
 bash tests/run_all.sh live                    # 默认跳过（不发起任何网络请求）
 ```
 
+L6 由**两个**测试二进制组成：
+
+| 二进制 | 覆盖 |
+|---|---|
+| `src-tauri/tests/ipc_live_free_model.rs` | **主回合**：真模型 → 正文 → token → 终态 |
+| `src-tauri/tests/ipc_live_capabilities.rs` | **能力域矩阵**（15 个场景）：工具调用 / 工具审批 / 中断 / 压缩 / 回退 / plan 模式 / goal 模式 / 会话标题 / 任务工具 / 子代理 / 追问 / 讨论 / 流水线 / 团队流水线 |
+
+能力域矩阵的纪律：**模型不配合 ≠ 产品缺陷** —— 模型没发起工具调用 /
+没提问 / 没进 plan，判**跳过**（附理由）而不是失败；这一层测的是
+**产品对模型输出的处理**，不是模型听不听话。上游限流 / 地区门 / 配额
+耗尽同样判跳过。
+
+**跑完整矩阵建议用本地模型**：匿名免费池（Kilo / dsh）的额度是**全局共享**
+的，跑满若干轮就 `429 PROMOTION_MODEL_LIMIT_REACHED`；本地模型零成本、无限次、
+离线可重复：
+
+```bash
+ollama pull qwen2.5:7b
+REFLECT_LIVE=1 \
+REFLECT_LIVE_PROVIDER=ollama \
+REFLECT_LIVE_BASE_URL=http://127.0.0.1:11434 \
+REFLECT_LIVE_MODELS=qwen2.5:7b \
+bash tests/run_all.sh live
+```
+
+各车道与环境变量见 [`docs/FREE_MODEL_PRACTICE.md`](../docs/FREE_MODEL_PRACTICE.md)。
+
 L3 的后端是真的，但**模型是假的**（wiremock / 本地 mock LLM）。假模型永远
 测不到：真实 HTTP 往返、真实 SSE 帧形状、真实模型的思考过程、真实限流
 （429）、真实截断续作、真实 provider 的工具调用质量。L6 把**免费模型池**

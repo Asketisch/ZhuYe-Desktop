@@ -5,6 +5,7 @@ import {
   readContextWindowForModel,
   setContextWindowForModel,
   pickFailoverProvider,
+  providerHasUsablePlan,
   readActiveProvider,
   removePlan,
   setActiveProvider,
@@ -273,5 +274,66 @@ describe('maskKey', () => {
   it('保留末 4 位', () => {
     expect(maskKey('sk-abcdef1234')).toBe('••••1234');
     expect(maskKey('abc')).toBe('••••');
+  });
+});
+
+describe('免 Key 端点(免费模型池)', () => {
+  const KEYLESS = `
+[active]
+provider = "openai"
+
+[openai]
+api_key = ""
+base_url = "https://api.kilo.ai/api/gateway"
+model = "free"
+
+[[openai.credentials]]
+label = "kilo-free"
+base_url = "https://api.kilo.ai/api/gateway"
+model = "free"
+`;
+
+  it('顶层免 Key 形态(api_key="" + base_url)也出现在 plan 列表里', () => {
+    // 此前只看 api_key 非空 → 这条 plan 整条从列表消失(用户看不到也删不掉),
+    // 而它恰恰是运行时真正生效的那条凭证。
+    const plans = listPlans(KEYLESS);
+    expect(plans.map((p) => `${p.provider}/${p.label}`)).toEqual([
+      'openai/default',
+      'openai/kilo-free',
+    ]);
+    expect(plans[0].apiKey).toBe('');
+    expect(plans[0].baseUrl).toBe('https://api.kilo.ai/api/gateway');
+    expect(plans[1].apiKey).toBe('');
+  });
+
+  it('免 Key 的 plan 仍算「可用」(否则永远不被选作 failover 目标)', () => {
+    expect(providerHasUsablePlan(KEYLESS, 'openai')).toBe(true);
+  });
+
+  it('删除顶层 plan 时连 base_url 一起删(否则留下一个仍会注册的免 Key provider)', () => {
+    const removed = removePlan(KEYLESS, 'openai', 'default');
+    // 只看 `[openai]` 段本身 —— 数组条目(kilo-free)有自己的 base_url,不受影响。
+    const topSection = removed.slice(removed.indexOf('[openai]'), removed.indexOf('[['));
+    expect(topSection).not.toContain('base_url');
+    expect(topSection).not.toContain('api_key');
+    // model 只是模型名,不是凭据 —— 保留。
+    expect(removed).toContain('model = "free"');
+    expect(listPlans(removed).filter((p) => p.topLevel)).toHaveLength(0);
+  });
+
+  it('写入免 Key 的数组条目时不写 api_key 行(缺省 = 空串 = 免 Key)', () => {
+    const toml = upsertPlan(KEYLESS, {
+      provider: 'openai',
+      topLevel: false,
+      label: 'kilo-free-2',
+      apiKey: '',
+      baseUrl: 'https://api.kilo.ai/api/gateway',
+      model: 'free',
+      weight: '',
+      quota: null,
+    });
+    const block = toml.slice(toml.indexOf('[[openai.credentials]]'));
+    expect(block).toContain('label = "kilo-free-2"');
+    expect(block).not.toContain('api_key');
   });
 });

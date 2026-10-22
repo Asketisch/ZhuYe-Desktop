@@ -4625,6 +4625,7 @@ dependencies = [
  "reflect-config",
  "reflect-core",
  "reflect-discussion",
+ "reflect-goal",
  "reflect-hooks",
  "reflect-integration",
  "reflect-llm",

@@ -84,14 +84,15 @@ your country」）。L6 会把它们判为**跳过**而不是失败。
 想要「不被打断、可反复跑」的实践测试，就用本地模型：
 
 ```bash
-ollama pull qwen2.5:7b        # 或任意支持 tools 的模型
+ollama pull qwen2.5:1.5b      # 约 1GB;支持 tools(Qwen2.5 原生工具调用)
+ollama pull qwen2.5:7b        # 更大的版本,工具调用更稳
 ```
 
 ```bash
 REFLECT_LIVE=1 \
 REFLECT_LIVE_PROVIDER=ollama \
 REFLECT_LIVE_BASE_URL=http://127.0.0.1:11434 \
-REFLECT_LIVE_MODELS=qwen2.5:7b \
+REFLECT_LIVE_MODELS=qwen2.5:1.5b \
 bash tests/run_all.sh live
 ```
 
@@ -100,7 +101,12 @@ bash tests/run_all.sh live
 > `model = "free"`**（本地没有「免费」概念，也没有清单端点）—— 直接写
 > 具体的模型名。
 >
-> ⚠️ 本机未装 Ollama，**这一车道未做端到端验证**。
+> **这一车道已端到端验证**（2026-10-23，本机 Ollama 0.40.8 +
+> `qwen2.5:1.5b`）：主回合用例 PASS —— `model spec = ollama/qwen2.5:1.5b`，
+> 正文 6B / token 3885 / 终态 `success`。
+>
+> **它是跑「完整矩阵」的唯一不受配额限制的选项** —— 匿名免费池的额度是
+> 全局共享的，跑满若干轮就会 `429 PROMOTION_MODEL_LIMIT_REACHED`。
 
 ---
 
@@ -197,10 +203,25 @@ AgentThread、同一个事件通道）。
 
 ### 直接跑 Rust 用例
 
+L6 有**两个**测试二进制：
+
 ```bash
 cd src-tauri
+# 主回合:真模型 → 正文 → token → 终态
 REFLECT_LIVE=1 cargo test --test ipc_live_free_model -- --ignored --nocapture
+# 能力域矩阵:15 个场景跑完其余依赖模型的命令面
+REFLECT_LIVE=1 cargo test --test ipc_live_capabilities -- --ignored --nocapture
 ```
+
+**能力域矩阵**覆盖：工具调用(bubble 自动批准)/ 工具审批(prompt → 批准 → 工具真跑)/
+中断 / 压缩 / 回退 / plan 模式(`plan_request` → `plan_ready` →
+`plan_approved`)/ goal 模式 / 会话标题生成 / 任务工具 / 子代理 / 追问 /
+讨论(断言 `llmBacked === true`,证明走了真模型而非 noop 回落)/ 流水线 /
+团队流水线。
+
+**矩阵的纪律**：**模型不配合 ≠ 产品缺陷** —— 模型没发起工具调用 / 没提问 /
+没进 plan，判**跳过**（附理由）而不是失败；上游限流 / 地区门 / 配额耗尽
+同样判跳过。只有「产品该做的没做」才判失败。
 
 默认**不发起任何网络请求**：用例带 `#[ignore]`，运行期还要 `REFLECT_LIVE=1`
 才放行（双保险 —— 手滑 `--ignored` 也不会误打上游）。
@@ -261,7 +282,9 @@ REFLECT_LIVE=1 REFLECT_LIVE_MODELS="cohere/north-mini-code:free" bash tests/run_
 | 限制 | 说明 | 缓解 |
 |---|---|---|
 | **配额是全局的** | 免费池 429 常见（OpenCode 车道按账号计额度） | 用例自带重试；429 判为**跳过**；模型矩阵**串行**跑 |
-| **匿名 Kilo 有整体配额** | 连续跑若干轮后 `429 PROMOTION_MODEL_LIMIT_REACHED` —— **所有**模型 id 都一样，不是单模型限额 | 注册免费账号 / 换出口 IP / 改用本地 Ollama 车道 |
+| **匿名 Kilo 有整体配额** | 连续跑若干轮后 `429 PROMOTION_MODEL_LIMIT_REACHED` —— **所有**模型 id 都一样，不是单模型限额；文案提示「Sign up for free to continue … Takes 2 minutes」 | 注册免费账号 / 换出口 IP / 改用本地 Ollama 车道 |
+| **OpenCode 车道也按账号计** | dsh 网关的 OpenCode tier（`beam-free` / `nemotron-*` / `glm-*` 等）过 v2 指纹门后，命中 `429 Free usage limit reached. Subscribe to OpenCode Go`；另有 `403 This model is not available in your country`（地区门，按出口 IP 判） | 换账号 / 换出口 IP；两者都是**环境态**，L6 判跳过 |
+| **两条车道共用同一配额池** | Kilo 免费池与 OpenCode tier 在 dsh 网关侧最终都落到同一批**匿名免费模型**上 —— 实测两条车道的额度一起被同一个 `PROMOTION_MODEL_LIMIT_REACHED` 挡住 | 要跑**完整**矩阵（15 场景 × 多模型）就得有账号额度或本地模型；否则只能分批、串行地跑 |
 | **凭据冷却是进程内的** | 429 会把凭据打进 60s 冷却，冷却表在进程内 → 同进程重试必然拿到 `ALL_CREDENTIALS_EXHAUSTED(0 tried)` | 默认**不重试**（判跳过）；要重试得 `REFLECT_LIVE_RETRIES>0` **且** `REFLECT_LIVE_RETRY_DELAY ≥ 65` |
 | **地区门 403** | 免费车道按出口 IP 判地区 | 换出口后重跑 |
 | **模型集合随时变** | 上游随时下架某个 id | 清单每次实时拉取 |

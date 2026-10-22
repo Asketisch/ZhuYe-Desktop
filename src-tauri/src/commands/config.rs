@@ -71,13 +71,12 @@ pub async fn reflect_save_config(
 ) -> CommandResult<()> {
     // 1. 校验:能否解析回 ReflectConfig。
     let mut new_cfg = load_from_str(&toml)?;
-    // 1.5 `[sandbox].os_level` 归一:核心 schema 是 `bool` + `#[serde(default)]`,
-    //     解析后无法区分「没写」与「写了 false」。原始 TOML 里没这个 key
-    //     → 走核心基线(默认要求 OS sandbox),不因一次保存把沙箱静默关掉。
-    //     显式写了 → 尊重用户的显式表态。
-    new_cfg.sandbox.os_level = reflect_app_core::sandbox::normalize_os_level(
-        reflect_app_core::sandbox::sandbox_intent_from_toml(&toml),
-    );
+    // 1.5 `[sandbox].os_level` 归一:核心 schema 是 `Option<bool>` ——
+    //     `None` = 用户没表态 → 走核心基线(默认要求 OS sandbox),不因一次
+    //     保存把沙箱静默关掉;`Some(b)` = 显式表态 → 尊重。
+    new_cfg.sandbox.os_level = Some(reflect_app_core::sandbox::normalize_os_level(
+        new_cfg.sandbox.os_level,
+    ));
     // 2. 写盘 + 热更新共享 cfg(保留旧快照供变更检测)。
     let old_cfg = persist_config(&agent, new_cfg.clone())?;
     // 3. provider 栈变化 → 重建 registry/tracker + 重绑当前会话。

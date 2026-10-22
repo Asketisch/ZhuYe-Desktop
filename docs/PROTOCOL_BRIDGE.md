@@ -42,10 +42,17 @@ pub struct Event {
 
 > **Goal 模式(v1.2 P1)**:`enter_goal_mode { goal, verify_command?, token_budget? }` /
 > `exit_goal_mode` 映射到 `reflect_enter_goal_mode` / `reflect_exit_goal_mode`
-> (`commands/agent.rs` / `commands/goal.ts`)。进入目标模式后,core 侧
+> (`commands/goal.rs` / `commands/goal.ts`)。进入目标模式后,core 侧
 > `GoalController` 在每轮 turn 结束自校验(LM judge + 可选校验命令),未完成则
 > steering 自动续作 —— **不需要新的用户提交**;GUI 经常规 turn/流式事件呈现
 > 多轮续作,事件侧无 goal 专属变体。
+>
+> **目标状态读口 `reflect_goal_status`**(`commands/goal.rs`,非 Op 派生):
+> 目标模式**没有协议事件**,所以「跑到第几轮 / LM 判定 / 累计 token」只能
+> **直接读线程侧的权威值** —— 上游 `GoalController::snapshot()`(会话级共享槽
+> 里的 `GoalState`)。应答 `GoalState | null`(`null` = 无活跃目标);
+> 前端 IPC 包装在 `src/utils/commands/goal.ts`。此前 GUI 只能靠前端投影
+> `goalActive` 猜「是否活跃」,投影在会话切换 / 后端 rebind 后会脱节。
 
 ### 2.0 Op 之外的命令（诊断 / 配置 / 域 I/O）
 
