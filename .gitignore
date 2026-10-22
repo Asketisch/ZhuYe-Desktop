@@ -6,6 +6,7 @@
 # Node / Vite / Tauri
 **/node_modules/
 **/dist/
+**/dist-visual/
 **/gen/
 .pnpmfile.cjs.tmp
 

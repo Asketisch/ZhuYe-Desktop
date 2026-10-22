@@ -26,7 +26,7 @@ jobs:
   # 详见 tests/README.md 与 tests/COVERAGE.md。
   # ─────────────────────────────────────────────────────────────────────
   gate:
-    name: release gate (static + frontend + backend)
+    name: release gate (static + frontend + backend + e2e)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (with submodules)
@@ -70,14 +70,23 @@ jobs:
             libgbm-dev \
             libdrm-dev \
             libegl-dev \
-            libwayland-dev
+            libwayland-dev \
+            webkit2gtk-driver \
+            xvfb
 
       - name: Install frontend deps
         run: pnpm install
 
-      # 门禁入口:退出码 0 = 允许发布。
+      # L5 真窗口冒烟要 tauri-driver(Linux 直连 webkit2gtk)。
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      # 门禁入口:退出码 0 = 允许发布。E2E_REQUIRED=1:L5 依赖已装齐,
+      # 视觉回归 + 真窗口冒烟必须真跑,缺失依赖判失败(不允许静默跳过)。
       - name: Run release gate
-        run: bash tests/run_all.sh static frontend backend
+        env:
+          E2E_REQUIRED: '1'
+        run: bash tests/run_all.sh static frontend backend e2e
 
       # 发布审查报告:门禁**失败时最需要看它** —— 所以 always() 上传,
       # 失败也能拿到逐用例明细。

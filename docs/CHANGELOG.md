@@ -4,6 +4,31 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — L5 e2e 层:视觉回归 + 真窗口冒烟
+
+- **发布门禁扩为五层**(`tests/run_all.sh` `ALL_SUITES` 加 `e2e`):
+  `tests/e2e/run.sh` 是 L5 入口,含两条路径 ——
+  - **视觉回归**(`tests/visual/`):`vite.config.visual.ts` 用
+    `resolve.alias` 把 `@tauri-apps/api/{core,event}` 与 `@/test/setup`
+    指到 `tests/visual/shims/` 浏览器替身(复刻 `setup.tsx` 的
+    mockInvoke 注册表语义),`fakeBackend` 在浏览器闭环,真实前端
+    **零改动**跑进无头 Chromium。Playwright(`playwright-core`)对
+    38 条路由 × dark/light 截图,与 `tests/visual/__baselines__/`
+    逐字节比对,布局/主题回归零容忍。确定性:冻结 `Date`
+    (fakeBackend 时间戳相对 `Date.now` 播种,相对时间文案跨跑漂移)、
+    `reducedMotion` + 注入 CSS 关闭动画/过渡/光标、等
+    `document.fonts.ready`。基线目录为空 = 首跑写盘直接通过;
+    `VISUAL_UPDATE=1` 全部重生成(人工审查 diff 后入库)。
+  - **WebDriver 真窗口冒烟**(`tests/e2e/window.smoke.test.ts`):Linux
+    上 `tauri-driver` + `webkit2gtk-driver`(`xvfb-run`)启动调试二进制
+    真窗口,断言壳层挂载(侧栏/导航/main)与状态条非空,截图留存。
+    macOS 无 WKWebView WebDriver(Tauri 官方口径),mac/Windows 上
+    跳过 —— UI 面由视觉回归覆盖。
+  - 依赖缺失(`tauri-driver` / playwright / 基线工具链)默认 `tskip`;
+    `E2E_REQUIRED=1` 时判失败(release 门禁用);`E2E_SKIP_WINDOW=1`
+    强制跳过窗口冒烟。
+- 首跑 74 张基线入库;连跑 3 次零漂移确认确定性。
+
 ### 新增 — GUI 质量维度:a11y 审计 / 性能预算 / 错误边界 / 配置兼容 / 产物深度
 
 - **axe 可访问性审计**(`tests/a11y.route-matrix.test.tsx`,与路由矩阵共享

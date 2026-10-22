@@ -16,6 +16,7 @@
 | L2 | `tests/frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量（`src/` 99 个文件 + `tests/` 10 个文件） | **模拟**（`fakeBackend`） | 0 = 通过 |
 | L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`） | **真** | 0 = 通过 |
 | L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 | 0 = 通过 |
+| L5 | `tests/e2e/` | 视觉回归（全路由 × dark/light 截图基线，真实前端 + fakeBackend 浏览器态构建）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）；依赖缺失时默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
 
 **为什么 L2 与 L3 都要有**：L2 验前端行为与线格式（后端是模拟的），
 L3 验真后端命令体的行为。模拟后端的 bug 会把真后端的 bug 遮住 ——
@@ -85,6 +86,8 @@ L3 验真后端命令体的行为。模拟后端的 bug 会把真后端的 bug �
 | **宿主壳层(菜单)** | 自定义菜单 id ↔ 常量表 ↔ 事件分支对齐;每个发事件的 id 逐个驱动,恰好发出对应 `menu-*` 事件 | `menu.rs` 内嵌单测(mock runtime) | — |
 | **视图渲染错误边界** | 视图 render 抛错 → 回退 + 壳层存活 / Retry 恢复 / 切路由复位(此前整树白屏) | — | `errors.boundary` |
 | **产物深度(Linux/Windows)** | .deb 解包(usr/bin 可执行 + .desktop(Exec) + 图标 + control 版本) / .AppImage(AppRun + .desktop) / .msi 管理映像(exe + ProductVersion) / 启动冒烟(CI 门控) | L4 `artifact/run.sh` | — |
+| **视觉回归** | 38 条路由 × dark/light 截图与基线逐字节比对(布局/主题回归零容忍);真实前端 + `fakeBackend` 经 alias shim 进浏览器态构建;时钟冻结 + 动画禁用保证确定性 | L5 `e2e/visual.spec.ts` | — |
+| **真窗口 E2E(冒烟)** | 构建产物起真窗口:壳层挂载、侧栏/导航存在、状态条非空、截图留存 | L5 `e2e/window.smoke.test.ts`(`tauri-driver`,仅 Linux;macOS 无 WKWebView WebDriver,官方口径跳过) | — |
 
 **合计**：后端 185 条 `reflect_*` 命令中，能力覆盖层**直接驱动 179 条
 （96.8%）**；余下 6 条在 §3 逐条说明排除理由。

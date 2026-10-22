@@ -3,7 +3,7 @@
 本目录有两部分：
 
 1. **发布门禁**（`run_all.sh` + `lib.sh` + `static/` `frontend/` `backend/`
-   `artifact/`）—— 分层的**严格功能测试脚本**，发布阶段用来审查并测试
+   `artifact/` `e2e/`）—— 分层的**严格功能测试脚本**，发布阶段用来审查并测试
    全部功能。
 2. **应用级测试套件**（`*.test.tsx` / `*.test.ts` + `helpers/`）—— 驱动
    **真实前端**走完完整功能路径的 vitest 用例。
@@ -23,6 +23,7 @@ bash tests/run_all.sh static      # L1 静态审查
 bash tests/run_all.sh frontend    # L2 前端行为
 bash tests/run_all.sh backend     # L3 真后端能力覆盖
 bash tests/run_all.sh artifact    # L4 发布产物审查
+bash tests/run_all.sh e2e         # L5 视觉回归 + 真窗口冒烟（依赖缺失时跳过）
 ```
 
 退出码 **0 = 允许发布**，非 0 = 存在阻断项。报告落在
@@ -34,6 +35,35 @@ bash tests/run_all.sh artifact    # L4 发布产物审查
 | L2 | `frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量 | **模拟**（`fakeBackend`） |
 | L3 | `backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层） | **真** |
 | L4 | `artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 |
+| L5 | `e2e/` | 视觉回归（全路由 × dark/light 截图基线）+ WebDriver 真窗口冒烟（仅 Linux）。依赖缺失时默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
+
+### L5 视觉回归与真窗口冒烟
+
+```bash
+bash tests/run_all.sh e2e
+E2E_REQUIRED=1 bash tests/run_all.sh e2e     # 依赖缺失判失败（CI release 用）
+VISUAL_UPDATE=1 bash tests/run_all.sh e2e    # 视觉基线全部重生成（人工审查 diff 后入库）
+E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
+```
+
+- **视觉回归**（`visual/`）：`vite build --config vite.config.visual.ts`
+  构建浏览器态前端 —— `vite.config.visual.ts` 用 `resolve.alias` 把
+  `@tauri-apps/api/{core,event}` 与 `@/test/setup` 指到 `tests/visual/shims/`
+  （复刻 `setup.tsx` 的 mockInvoke 注册表语义，fakeBackend 在浏览器闭环，
+  生产代码零改动）。Playwright 对 38 条路由 × dark/light 截图，与
+  `tests/visual/__baselines__/` 逐字节比对。确定性由三件套保证：
+  `addInitScript` 冻结 `Date`（fakeBackend 时间戳相对 `Date.now` 播种）、
+  `reducedMotion: 'reduce'` + 注入 CSS 关闭动画/过渡/光标、
+  `document.fonts.ready` 等待字体。基线目录为空 = 首跑写盘直接通过。
+- **WebDriver 冒烟**（`window.smoke.test.ts`）：Linux 上 `tauri-driver` +
+  `webkit2gtk-driver`（`xvfb-run` 下）启动调试二进制真窗口，断言壳层挂载
+  （侧栏/导航/main）与状态条非空，截图留存
+  `.test-results/e2e-window.png`。macOS 无 WKWebView WebDriver、Windows
+  需 MSDP——按 Tauri 官方口径平台门控，mac/Win 上 tskip（UI 面由视觉
+  回归覆盖）。
+- 本地首跑需 `pnpm install`（playwright-core）+ 系统内已有 Playwright
+  chromium（`pnpm exec playwright-core install chromium-headless-shell`
+  或已装 chromium）。
 
 ### 为什么 L2 与 L3 都要有
 
@@ -159,6 +189,14 @@ tests/
 ├── frontend/run.sh                         # L2 前端行为层
 ├── backend/run.sh                          # L3 真后端能力覆盖层
 ├── artifact/run.sh                         # L4 发布产物审查层
+├── e2e/                                    # L5 视觉回归 + 真窗口冒烟
+│   ├── run.sh
+│   └── window.smoke.test.ts                # tauri-driver 真窗口冒烟（仅 Linux）
+├── visual/                                 # 视觉回归（L5 的视觉半边）
+│   ├── run.sh 所用的 spec：visual.spec.ts / vitest.config.ts
+│   ├── main.tsx / index.html               # 浏览器态入口（生产 main.tsx + visual globals）
+│   ├── shims/                              # alias shim：@tauri-apps/api + @/test/setup 浏览器替身
+│   └── __baselines__/                      # 截图基线（38 路由 × dark/light，人工审查入库）
 ├── helpers/                                # ↓ vitest 侧（应用级套件）
 │   ├── fakeBackend.ts                      # 全命令模拟后端 + ScriptedAgent 事件编排
 │   ├── appHarness.tsx                      # 真实应用挂载（renderApp / renderView）
