@@ -13,15 +13,16 @@
  */
 import { invoke } from '../bridge';
 
-// ── 类型(对应 `state::RemoteConfig` / `state::RemoteStatus` / app-core tailscale) ──
+// ── 类型(对应 `commands/remote.rs::RemoteConfigSnapshot` / `state::RemoteStatus` / app-core tailscale) ──
+// 后端三个快照结构都标了 `#[serde(rename_all = "camelCase")]`,线上字段是 camelCase。
 
 export interface ReflectRemoteConfigSnapshot {
   host: string;
   port: number;
-  auth_token: string | null;
-  auto_connect: boolean;
+  authToken: string | null;
+  autoConnect: boolean;
   endpoint: string;
-  is_ready: boolean;
+  isReady: boolean;
 }
 
 export interface ReflectRemoteStatus {
@@ -36,34 +37,34 @@ export interface ReflectTailscaleStatus {
   installed: boolean;
   running: boolean;
   version: string | null;
-  dns_name: string | null;
-  host_name: string | null;
-  tailnet_name: string | null;
+  dnsName: string | null;
+  hostName: string | null;
+  tailnetName: string | null;
   ipv4: string[];
   ipv6: string[];
-  suggested_remote_host: string | null;
+  suggestedRemoteHost: string | null;
   message: string | null;
 }
 
 // ── Commands ───────────────────────────────────────────────────────────
 
-/** 读取当前 remote 配置(host / port / auth_token / auto_connect)。 */
+/** 读取当前 remote 配置(host / port / authToken / autoConnect)。 */
 export async function reflect_get_remote_config(): Promise<ReflectRemoteConfigSnapshot> {
   return invoke<ReflectRemoteConfigSnapshot>('reflect_get_remote_config');
 }
 
-/** 覆盖 remote 配置并返回更新后的快照。 */
+/** 覆盖 remote 配置并返回更新后的快照。Tauri 按 camelCase 取 Rust 参数 `auth_token` / `auto_connect`。 */
 export async function reflect_update_remote_config(args: {
   host: string;
   port?: number;
-  auth_token?: string | null;
-  auto_connect?: boolean;
+  authToken?: string | null;
+  autoConnect?: boolean;
 }): Promise<ReflectRemoteConfigSnapshot> {
   return invoke<ReflectRemoteConfigSnapshot>('reflect_update_remote_config', {
     host: args.host,
     port: args.port ?? null,
-    auth_token: args.auth_token ?? null,
-    auto_connect: args.auto_connect ?? null,
+    authToken: args.authToken ?? null,
+    autoConnect: args.autoConnect ?? null,
   });
 }
 

@@ -132,6 +132,33 @@ if (!handlerMatch) {
   } else {
     fail('registry-size-floor', `注册表仅 ${registered.size} 个命令,低于下限 105`);
   }
+
+  // 1f. 线格式契约样本完整:每条已注册命令在 tests/contracts/payloads.json
+  // 里都有一份样本,且样本表里没有已删除命令的残留。样本被 L2(fakeBackend
+  // 必须接受)与 L3(真后端必须反序列化)同时消费 —— 缺样本的命令等于没被
+  // 跨运行时契约盯住。
+  const payloadsPath = 'tests/contracts/payloads.json';
+  if (!existsSync(join(ROOT, payloadsPath))) {
+    fail('payload-sample-complete', `${payloadsPath} 不存在`);
+  } else {
+    let sampled = new Set();
+    try {
+      sampled = new Set(Object.keys(JSON.parse(read(payloadsPath)).commands ?? {}));
+    } catch (e) {
+      fail('payload-sample-complete', `${payloadsPath} 解析失败:${e.message}`);
+    }
+    const reflectRegistered = [...registered].filter((c) => c.startsWith('reflect_'));
+    const noSample = reflectRegistered.filter((c) => !sampled.has(c)).sort();
+    const stale = [...sampled].filter((c) => !registered.has(c)).sort();
+    if (sampled.size > 0 && noSample.length === 0 && stale.length === 0) {
+      pass('payload-sample-complete', `${sampled.size} 条命令全部有线格式契约样本`);
+    } else if (sampled.size > 0) {
+      const parts = [];
+      if (noSample.length) parts.push(`缺样本:${noSample.join(', ')}`);
+      if (stale.length) parts.push(`样本指向已删除命令:${stale.join(', ')}`);
+      fail('payload-sample-complete', parts.join(';'));
+    }
+  }
 }
 
 // ── 2. 协议文档覆盖率(棘轮)────────────────────────────────────────────────

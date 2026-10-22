@@ -224,7 +224,28 @@ export interface FakeBackend {
     pickedFile: string | null;
     activity: Array<Record<string, unknown>>;
     agentDefs: Array<Record<string, unknown>>;
-    allowlist: { entries: string[] };
+    allowlist: { prefixes: string[] };
+    /** 当前活跃 agent 名（`reflect_set_active_agent` / `reflect_get_active_agent`）。 */
+    activeAgent: string;
+    /** 推理强度（`reflect_set_effort` / `reflect_get_effort`）。 */
+    effort: string;
+    /** MCP 服务器条目（`reflect_upsert_mcp_server` / `reflect_list_mcp_servers` / `reflect_delete_mcp_server`）。 */
+    mcpServers: Array<Record<string, unknown>>;
+    /** 权限规则（`reflect_add_permission_rule` / `reflect_list_permission_rules`）。 */
+    permissionRules: Array<Record<string, unknown>>;
+    /** 子代理 spec（role → markdown）。 */
+    subagentSpecs: Record<string, string>;
+    /** 流水线配置（`reflect_save_pipeline_config` / `reflect_list_pipeline_configs`）。 */
+    pipelineConfigs: Array<{ name: string; path: string; toml: string }>;
+    /** KMS wiki 列表与页面（key = `${wiki}/${page}`）。 */
+    wikis: Array<{ name: string; description: string }>;
+    wikiPages: Record<string, { title: string; content: string; tags: string[] }>;
+    /** Autopilot 配置 —— 线格式与 `app-core::autopilot::AutopilotConfig` 一致（camelCase）。 */
+    autopilotConfig: Record<string, unknown>;
+    /** 远程配置 —— 线格式与 `src-tauri/src/commands/remote.rs::RemoteConfigSnapshot` 一致（camelCase）。 */
+    remoteConfig: { host: string; port: number; authToken: string | null; autoConnect: boolean; endpoint: string; isReady: boolean };
+    /** `reflect_write_file` 写入的文件内容（path → content），供 `reflect_read_file` 读回。 */
+    files: Record<string, string>;
     dirListing: Record<string, unknown>;
     gitStatus: Record<string, unknown>;
     gitDiff: string;
@@ -381,7 +402,32 @@ export function installFakeBackend(): FakeBackend {
       agentDefs: [
         { name: 'reviewer', description: 'Code reviewer', model: 'claude-sonnet-4', tools: [] },
       ],
-      allowlist: { entries: ['read_file', 'ls'] },
+      allowlist: { prefixes: ['ls', 'read_file'] },
+      activeAgent: 'default',
+      effort: 'low',
+      mcpServers: [
+        {
+          name: 'filesystem',
+          transport: 'stdio',
+          command: 'npx',
+          args: ['-y', '@modelcontextprotocol/server-filesystem'],
+          url: null,
+          running: true,
+        },
+      ],
+      permissionRules: [
+        { tool: 'Bash', action: 'deny', toolGlob: null, shellPattern: 'rm -rf *', scope: 'config' },
+        { tool: 'Read', action: 'allow', toolGlob: null, shellPattern: null, scope: 'user' },
+      ],
+      subagentSpecs: { explorer: '---\nname: explorer\nrole: explorer\n---\n' },
+      pipelineConfigs: [
+        { name: 'my-pipeline', path: '/tmp/home/.reflect/pipelines/my-pipeline.toml', toml: 'name = "my-pipeline"\n' },
+      ],
+      wikis: [{ name: 'engineering', description: 'Eng wiki' }],
+      wikiPages: { 'engineering/auth': { title: 'Auth', content: '# Auth\nJWT flow', tags: [] } },
+      autopilotConfig: { enabled: false, schedule: '0 9 * * *', taskTemplate: '', agent: null, maxConcurrent: 1 },
+      remoteConfig: { host: '', port: 4732, authToken: null, autoConnect: false, endpoint: '', isReady: false },
+      files: {},
       dirListing: {
         path: '/Users/dev/project',
         entries: [
@@ -620,7 +666,13 @@ export function installFakeBackend(): FakeBackend {
     backend.state.goal = { active: false, goal: null, verifyCommand: null, tokenBudget: null };
     return 'goal-exited';
   }));
-  handle('reflect_set_effort', handler(() => 'high'));
+  handle(
+    'reflect_set_effort',
+    handler((args) => {
+      backend.state.effort = String(args?.level ?? backend.state.effort);
+      return backend.state.effort;
+    }),
+  );
   handle(
     'reflect_set_permission_mode',
     handler((args) => {
@@ -757,7 +809,7 @@ export function installFakeBackend(): FakeBackend {
       return spec;
     }),
   );
-  handle('reflect_get_effort', handler(() => 'low'));
+  handle('reflect_get_effort', handler(() => backend.state.effort));
   // plan 余量查询：默认返回一个成功快照（真实厂商 HTTP 查询在后端）。
   handle(
     'reflect_query_plan_quota',
@@ -831,12 +883,16 @@ export function installFakeBackend(): FakeBackend {
     }),
   );
   handle('reflect_gh_pr_list', handler(() => backend.state.pullRequests));
-  // 写回文件：记录最后写入，供编辑器 Reject 恢复链路测试。
+  // 写回文件：记录最后写入（供编辑器 Reject 恢复链路测试），并存入 files
+  // 让 `reflect_read_file` 能按路径读回 —— 与真后端的写→读语义一致。
   handle(
     'reflect_write_file',
     handler((args) => {
-      backend.state.lastWriteFile = { path: String(args?.path ?? ''), content: String(args?.content ?? '') };
-      return backend.state.lastWriteFile.path;
+      const path = String(args?.path ?? '');
+      const content = String(args?.content ?? '');
+      backend.state.lastWriteFile = { path, content };
+      backend.state.files[path] = content;
+      return path;
     }),
   );
   handle(
@@ -854,7 +910,16 @@ export function installFakeBackend(): FakeBackend {
 
   // —— 文件 / 搜索 ——
   handle('reflect_list_dir', handler(() => wire(backend.state.dirListing)));
-  handle('reflect_read_file', handler(() => ({ path: 'x', content: 'fn main() {}', truncated: false })));
+  // 线格式与真后端 `reflect_read_file` 一致：{ path, content, size, binary, truncated }。
+  // 由 `reflect_write_file` 写过的路径按内容读回；其它路径返回固定 fixture。
+  handle(
+    'reflect_read_file',
+    handler((args) => {
+      const path = String(args?.path ?? 'x');
+      const content = backend.state.files[path] ?? 'fn main() {}';
+      return { path, content, size: content.length, binary: false, truncated: false };
+    }),
+  );
   handle('reflect_read_image_base64', handler(() => ({ path: 'x', mime_type: 'image/png', base64: 'AAAA', size: 3 })));
   handle('reflect_fork_session', handler(() => 'f0f0f0f0-0000-4000-8000-000000000001'));
   handle('reflect_search_files', handler(() => wire(backend.state.searchResult)));
@@ -960,7 +1025,10 @@ export function installFakeBackend(): FakeBackend {
       return squad;
     }),
   );
-  handle('reflect_get_squad', handler(() => backend.state.squads[0] ?? null));
+  handle(
+    'reflect_get_squad',
+    handler((args) => backend.state.squads.find((s) => s.name === args?.name) ?? null),
+  );
   handle(
     'reflect_delete_squad',
     handler((args) => {
@@ -975,7 +1043,10 @@ export function installFakeBackend(): FakeBackend {
     const team = args?.team as Record<string, unknown> | undefined;
     if (team) backend.state.teams.push(team);
   }));
-  handle('reflect_get_team', handler(() => backend.state.teams[0] ?? null));
+  handle(
+    'reflect_get_team',
+    handler((args) => backend.state.teams.find((t) => t.name === args?.name) ?? null),
+  );
   handle(
     'reflect_delete_team',
     handler((args) => {
@@ -1155,53 +1226,32 @@ export function installFakeBackend(): FakeBackend {
   })));
 
   // —— 活跃 agent(运行时实际加载的那条定义)——
-  handle('reflect_get_active_agent', handler(() => ({
-    name: 'default',
-    defFound: false,
-    memoryScopes: [],
-    injectBudgetChars: 8000,
-    memoryPaths: [
-      {
-        scope: 'project',
-        path: '/tmp/project/.reflect/agent-memory/default/MEMORY.md',
-      },
-      {
-        scope: 'user',
-        path: '/tmp/home/.reflect/agent-memory/default/MEMORY.md',
-      },
-    ],
-  })));
-  handle('reflect_set_active_agent', handler((args) => {
-    const name = (args as { name?: string })?.name ?? 'default';
+  // 活跃 agent 快照：名称来自状态，defFound 取决于 agentDefs 里是否真有该定义。
+  const activeAgentSnapshot = () => {
+    const name = backend.state.activeAgent;
+    const defFound = backend.state.agentDefs.some((d) => d.name === name);
     return {
       name,
-      defFound: true,
-      memoryScopes: ['project'],
+      defFound,
+      memoryScopes: defFound ? ['project'] : [],
       injectBudgetChars: 8000,
       memoryPaths: [
-        {
-          scope: 'project',
-          path: `/tmp/project/.reflect/agent-memory/${name}/MEMORY.md`,
-        },
-        {
-          scope: 'user',
-          path: `/tmp/home/.reflect/agent-memory/${name}/MEMORY.md`,
-        },
+        { scope: 'project', path: `/tmp/project/.reflect/agent-memory/${name}/MEMORY.md` },
+        { scope: 'user', path: `/tmp/home/.reflect/agent-memory/${name}/MEMORY.md` },
       ],
     };
-  }));
+  };
+  handle('reflect_get_active_agent', handler(() => activeAgentSnapshot()));
+  handle(
+    'reflect_set_active_agent',
+    handler((args) => {
+      backend.state.activeAgent = (args as { name?: string })?.name ?? 'default';
+      return activeAgentSnapshot();
+    }),
+  );
 
   // —— MCP 服务管理(增删 + 精选 catalog)——
-  handle('reflect_list_mcp_servers', handler(() => [
-    {
-      name: 'filesystem',
-      transport: 'stdio',
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-filesystem'],
-      url: null,
-      running: true,
-    },
-  ]));
+  handle('reflect_list_mcp_servers', handler(() => wire(backend.state.mcpServers)));
   handle('reflect_mcp_catalog', handler(() => [
     {
       id: 'filesystem',
@@ -1213,8 +1263,31 @@ export function installFakeBackend(): FakeBackend {
       installHint: 'npx -y @modelcontextprotocol/server-filesystem',
     },
   ]));
-  handle('reflect_upsert_mcp_server', handler(() => undefined));
-  handle('reflect_delete_mcp_server', handler(() => undefined));
+  // upsert 按 name 覆盖；entry 形状对齐真后端 McpServerEntry（{type, command, args} / {type, url}），
+  // 列表项补上前端消费的 transport / running 字段。
+  handle(
+    'reflect_upsert_mcp_server',
+    handler((args) => {
+      const name = String(args?.name ?? '');
+      const entry = (args?.entry ?? {}) as Record<string, unknown>;
+      const item = {
+        name,
+        transport: entry.type ?? 'stdio',
+        command: entry.command ?? null,
+        args: entry.args ?? [],
+        url: entry.url ?? null,
+        running: false,
+      };
+      backend.state.mcpServers = backend.state.mcpServers.filter((s) => s.name !== name);
+      backend.state.mcpServers.push(item);
+    }),
+  );
+  handle(
+    'reflect_delete_mcp_server',
+    handler((args) => {
+      backend.state.mcpServers = backend.state.mcpServers.filter((s) => s.name !== args?.name);
+    }),
+  );
   handle('reflect_list_mcp_resources', handler(() => [
     {
       server: 'filesystem',
@@ -1251,21 +1324,18 @@ export function installFakeBackend(): FakeBackend {
     valid: true,
     error: null,
   })));
-  handle('reflect_list_pipeline_configs', handler(() => [
-    {
-      name: 'my-pipeline',
-      path: '/tmp/home/.reflect/pipelines/my-pipeline.toml',
-      toml: 'name = "my-pipeline"\n',
-    },
-  ]));
-  handle('reflect_save_pipeline_config', handler((args) => {
-    const a = args as { name?: string; tomlSrc?: string };
-    return {
-      name: a?.name ?? 'my-pipeline',
-      path: `/tmp/home/.reflect/pipelines/${a?.name ?? 'my-pipeline'}.toml`,
-      toml: a?.tomlSrc ?? '',
-    };
-  }));
+  handle('reflect_list_pipeline_configs', handler(() => wire(backend.state.pipelineConfigs)));
+  handle(
+    'reflect_save_pipeline_config',
+    handler((args) => {
+      const a = args as { name?: string; tomlSrc?: string };
+      const name = a?.name ?? 'my-pipeline';
+      const saved = { name, path: `/tmp/home/.reflect/pipelines/${name}.toml`, toml: a?.tomlSrc ?? '' };
+      backend.state.pipelineConfigs = backend.state.pipelineConfigs.filter((p) => p.name !== name);
+      backend.state.pipelineConfigs.push(saved);
+      return saved;
+    }),
+  );
 
   // —— hook 事件类型(可挂载时机 + 可用决策)——
   handle('reflect_list_hook_events', handler(() => [
@@ -1294,10 +1364,37 @@ export function installFakeBackend(): FakeBackend {
       source: 'builtin',
       path: null,
     },
+    ...Object.keys(backend.state.subagentSpecs)
+      .filter((role) => role !== 'explorer')
+      .map((role) => ({
+        role,
+        name: role,
+        model: null,
+        systemPrompt: '',
+        allowedTools: [],
+        allowedSkills: [],
+        maxTurns: null,
+        source: 'user',
+        path: `/tmp/home/.reflect/agents/${role}.md`,
+      })),
   ]));
-  handle('reflect_get_subagent_spec', handler(() => '---\nname: explorer\nrole: explorer\n---\n'));
-  handle('reflect_save_subagent_spec', handler(() => undefined));
-  handle('reflect_delete_subagent_spec', handler(() => undefined));
+  // 与真后端一致：get 返回 markdown 原文，未知 role 为 null；save 落 role → markdown；delete 后读为 null。
+  handle(
+    'reflect_get_subagent_spec',
+    handler((args) => backend.state.subagentSpecs[String(args?.role ?? '')] ?? null),
+  );
+  handle(
+    'reflect_save_subagent_spec',
+    handler((args) => {
+      backend.state.subagentSpecs[String(args?.role ?? '')] = String(args?.markdown ?? '');
+    }),
+  );
+  handle(
+    'reflect_delete_subagent_spec',
+    handler((args) => {
+      delete backend.state.subagentSpecs[String(args?.role ?? '')];
+    }),
+  );
 
   // —— git worktree(隔离工作树 + 滞留改动告警)——
   handle('reflect_list_worktrees', handler(() => [
@@ -1380,24 +1477,22 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_install_plugin', handler(() => undefined));
 
   // —— 权限规则(核心三层 store 的生效规则)——
-  handle('reflect_list_permission_rules', handler(() => [
-    {
-      tool: 'Bash',
-      action: 'deny',
-      toolGlob: null,
-      shellPattern: 'rm -rf *',
-      scope: 'config',
-    },
-    {
-      tool: 'Read',
-      action: 'allow',
-      toolGlob: null,
-      shellPattern: null,
-      scope: 'user',
-    },
-  ]));
-  // 审批弹窗的「始终允许这条命令」—— 写进核心的用户级权限文件。
-  handle('reflect_add_permission_rule', handler(() => undefined));
+  handle('reflect_list_permission_rules', handler(() => wire(backend.state.permissionRules)));
+  // 审批弹窗的「始终允许这条命令」—— 写进核心的用户级权限文件；
+  // 列表项形状对齐真后端（tool / action / toolGlob / shellPattern / scope）。
+  handle(
+    'reflect_add_permission_rule',
+    handler((args) => {
+      const rule = (args?.rule ?? {}) as Record<string, unknown>;
+      backend.state.permissionRules.push({
+        tool: rule.tool ?? '',
+        action: rule.action ?? 'allow',
+        toolGlob: rule.toolGlob ?? null,
+        shellPattern: rule.shellPattern ?? null,
+        scope: 'user',
+      });
+    }),
+  );
 
   // —— 会话笔记(agent 写下的持久结论)——
   handle('reflect_list_session_notes', handler(() => [
@@ -1519,12 +1614,18 @@ export function installFakeBackend(): FakeBackend {
 
   // —— agent defs ——
   handle('reflect_list_agent_defs', handler(() => wire(backend.state.agentDefs)));
-  handle('reflect_get_agent_def', handler(() => backend.state.agentDefs[0] ?? null));
+  handle(
+    'reflect_get_agent_def',
+    handler((args) => backend.state.agentDefs.find((d) => d.name === args?.name) ?? null),
+  );
   handle(
     'reflect_save_agent_def',
     handler((args) => {
       const def = args?.def as Record<string, unknown> | undefined;
-      if (def) backend.state.agentDefs.push(def);
+      if (def) {
+        backend.state.agentDefs = backend.state.agentDefs.filter((d) => d.name !== def.name);
+        backend.state.agentDefs.push(def);
+      }
       return def;
     }),
   );
@@ -1538,22 +1639,82 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_parse_agent_md', handler(() => backend.state.agentDefs[0] ?? null));
 
   // —— allowlist ——
+  // 线格式与 `src-tauri/src/commands/allowlist.rs` 对齐：键是 `prefixes`；
+  // save 时修剪空白 / 丢弃空项 / 去重 / 按字典序排序 / 截断 1024 条；
+  // check 是「目标以任一 prefix 开头」的前缀匹配，空目标恒为 false。
   handle('reflect_load_allowlist', handler(() => wire(backend.state.allowlist)));
   handle(
     'reflect_save_allowlist',
     handler((args) => {
-      backend.state.allowlist = { entries: ((args?.list as { entries?: string[] })?.entries ?? []) };
+      const raw = (args?.list as { prefixes?: string[] } | undefined)?.prefixes ?? [];
+      const cleaned = Array.from(new Set(raw.map((p) => p.trim()).filter((p) => p.length > 0)));
+      cleaned.sort();
+      backend.state.allowlist = { prefixes: cleaned.slice(0, 1024) };
     }),
   );
-  handle('reflect_check_allowlist', handler(() => true));
+  handle(
+    'reflect_check_allowlist',
+    handler((args) => {
+      const target = String(args?.prefix ?? '').trim();
+      if (!target) return false;
+      return backend.state.allowlist.prefixes.some((p) => target.startsWith(p));
+    }),
+  );
 
   // —— kms / 知识库 ——
-  handle('reflect_kms_list', handler(() => [{ name: 'engineering', description: 'Eng wiki' }]));
-  handle('reflect_kms_create', handler(() => ({ name: 'engineering', description: '' })));
-  handle('reflect_kms_delete', handler(() => undefined));
-  handle('reflect_kms_list_pages', handler(() => ['auth.md', 'release.md']));
-  handle('reflect_kms_get_page', handler(() => ({ title: 'Auth', content: '# Auth\nJWT flow', tags: [] })));
-  handle('reflect_kms_save_page', handler(() => undefined));
+  // 与真后端一致：create 落列表（重名覆盖）、save_page 按 `${wiki}/${page 去扩展名}` 落页、
+  // get_page 读回正文、delete 连页一起删。未知页返回 null（真后端对不存在的页报错）。
+  const pageKey = (wiki: unknown, page: unknown) =>
+    `${String(wiki ?? '')}/${String(page ?? '').replace(/\.md$/, '')}`;
+  handle('reflect_kms_list', handler(() => wire(backend.state.wikis)));
+  handle(
+    'reflect_kms_create',
+    handler((args) => {
+      const name = String(args?.name ?? '');
+      const description = String(args?.description ?? '');
+      // 与真后端一致:重名报错,不静默覆盖。
+      if (backend.state.wikis.some((w) => w.name === name)) {
+        throw new Error(`Wiki already exists: ${name}`);
+      }
+      const wiki = { name, description };
+      backend.state.wikis.push(wiki);
+      return wiki;
+    }),
+  );
+  handle(
+    'reflect_kms_delete',
+    handler((args) => {
+      const name = String(args?.name ?? '');
+      backend.state.wikis = backend.state.wikis.filter((w) => w.name !== name);
+      for (const key of Object.keys(backend.state.wikiPages)) {
+        if (key.startsWith(`${name}/`)) delete backend.state.wikiPages[key];
+      }
+    }),
+  );
+  handle(
+    'reflect_kms_list_pages',
+    handler((args) => {
+      const prefix = `${String(args?.wiki ?? '')}/`;
+      const pages = Object.keys(backend.state.wikiPages)
+        .filter((k) => k.startsWith(prefix))
+        .map((k) => `${k.slice(prefix.length)}.md`);
+      return pages.length ? pages : ['auth.md', 'release.md'];
+    }),
+  );
+  handle(
+    'reflect_kms_get_page',
+    handler((args) => backend.state.wikiPages[pageKey(args?.wiki, args?.page)] ?? null),
+  );
+  handle(
+    'reflect_kms_save_page',
+    handler((args) => {
+      backend.state.wikiPages[pageKey(args?.wiki, args?.page)] = {
+        title: String(args?.title ?? ''),
+        content: String(args?.content ?? ''),
+        tags: Array.isArray(args?.tags) ? (args?.tags as string[]) : [],
+      };
+    }),
+  );
   handle('reflect_kms_search', handler(() => [{ wiki: 'engineering', page: 'auth.md', snippet: 'JWT flow' }]));
   handle('reflect_dream', handler(() => undefined));
 
@@ -1567,8 +1728,24 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_computer_use', handler(() => undefined));
 
   // —— remote / tailscale ——
-  handle('reflect_get_remote_config', handler(() => ({ enabled: false, tailnet: '', hostname: '' })));
-  handle('reflect_update_remote_config', handler(() => ({ enabled: false, tailnet: '', hostname: '' })));
+  // 线格式与真后端 `RemoteConfigSnapshot` 一致（camelCase：authToken / autoConnect / isReady）；
+  // update 的入参同样是 camelCase（Tauri 按 camelCase 取 Rust 参数），与 `src/utils/commands/remote.ts` 对齐。
+  const remoteSnapshot = () => {
+    const c = backend.state.remoteConfig;
+    return wire({ ...c, endpoint: c.host ? `${c.host}:${c.port}` : '', isReady: Boolean(c.host) });
+  };
+  handle('reflect_get_remote_config', handler(() => remoteSnapshot()));
+  handle(
+    'reflect_update_remote_config',
+    handler((args) => {
+      const c = backend.state.remoteConfig;
+      c.host = String(args?.host ?? c.host);
+      if (args?.port !== undefined && args?.port !== null) c.port = Number(args.port);
+      if (args?.authToken !== undefined) c.authToken = (args.authToken as string | null) ?? null;
+      if (args?.autoConnect !== undefined && args?.autoConnect !== null) c.autoConnect = Boolean(args.autoConnect);
+      return remoteSnapshot();
+    }),
+  );
   handle('reflect_get_remote_status', handler(() => ({
     state: 'disconnected',
     message: null,
@@ -1580,16 +1757,17 @@ export function installFakeBackend(): FakeBackend {
   // 断言到达时读 `undefined.length` 崩溃,表现为重负载下的偶发失败）。
   handle(
     'reflect_tailscale_status',
+    // 线格式与 `app_core::tailscale::TailscaleStatus` 一致（camelCase）。
     handler(() => ({
       installed: false,
       running: false,
       version: null,
-      dns_name: null,
-      host_name: null,
-      tailnet_name: null,
+      dnsName: null,
+      hostName: null,
+      tailnetName: null,
       ipv4: [],
       ipv6: [],
-      suggested_remote_host: null,
+      suggestedRemoteHost: null,
       message: null,
     })),
   );
@@ -1609,8 +1787,15 @@ export function installFakeBackend(): FakeBackend {
     probedAt: 0,
     error: null,
   })));
-  handle('reflect_get_autopilot_config', handler(() => ({ enabled: false, max_turns: 10 })));
-  handle('reflect_update_autopilot_config', handler((args) => args?.config ?? {}));
+  // 线格式与 `app-core::autopilot::AutopilotConfig` 一致（camelCase）；update 落状态后读回。
+  handle('reflect_get_autopilot_config', handler(() => wire(backend.state.autopilotConfig)));
+  handle(
+    'reflect_update_autopilot_config',
+    handler((args) => {
+      backend.state.autopilotConfig = { ...backend.state.autopilotConfig, ...((args?.config ?? {}) as Record<string, unknown>) };
+      return wire(backend.state.autopilotConfig);
+    }),
+  );
   handle('reflect_autopilot_history', handler(() => []));
 
   return backend;

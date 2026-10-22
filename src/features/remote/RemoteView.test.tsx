@@ -3,7 +3,7 @@
  *
  * 基于模拟 IPC 的冒烟 + 行为测试：
  *   - 页面标题 + 4 张卡片渲染
- *   - iOS 设置卡片：config.is_ready 时显示就绪徽标，点击打开表单
+ *   - iOS 设置卡片：config.isReady 时显示就绪徽标，点击打开表单
  *   - 表单 Save 转发到 reflect_update_remote_config
  *   - Tailscale 卡片渲染检测到的状态字段
  *   - 守护进程提示卡片渲染预览文本
@@ -25,10 +25,10 @@ vi.mock('@/utils/commands', async () => {
       return {
         host: 'node.tail.net',
         port: 4732,
-        auth_token: 'topsecret',
-        auto_connect: false,
+        authToken: 'topsecret',
+        autoConnect: false,
         endpoint: 'node.tail.net:4732',
-        is_ready: true,
+        isReady: true,
       };
     }),
     reflect_update_remote_config: vi.fn(async (args: Record<string, unknown>) => {
@@ -36,28 +36,28 @@ vi.mock('@/utils/commands', async () => {
       return {
         host: (args.host as string) ?? '',
         port: (args.port as number) ?? 4732,
-        auth_token: (args.auth_token as string | null) ?? null,
-        auto_connect: (args.auto_connect as boolean) ?? false,
+        authToken: (args.authToken as string | null) ?? null,
+        autoConnect: (args.autoConnect as boolean) ?? false,
         endpoint: `${(args.host as string) ?? ''}:${(args.port as number) ?? 4732}`,
-        is_ready: true,
+        isReady: true,
       };
     }),
     reflect_get_remote_status: vi.fn(async () => ({
       state: 'disconnected',
       message: 'remote transport driver not yet implemented (Phase 2 follow-up)',
       endpoint: null,
-      since_ms: 100,
+      sinceMs: 100,
     })),
     reflect_tailscale_status: vi.fn(async () => ({
       installed: true,
       running: true,
       version: '1.78.0',
-      dns_name: 'node.tail.net',
-      host_name: 'node',
-      tailnet_name: 'tail.net',
+      dnsName: 'node.tail.net',
+      hostName: 'node',
+      tailnetName: 'tail.net',
       ipv4: ['100.64.0.1'],
       ipv6: [],
-      suggested_remote_host: 'node.tail.net:4732',
+      suggestedRemoteHost: 'node.tail.net:4732',
       message: null,
     })),
     reflect_tailscale_daemon_command_preview: vi.fn(async () =>
@@ -91,7 +91,7 @@ describe('RemoteView', () => {
     });
   });
 
-  it('shows the ready badge + endpoint when config is_ready', async () => {
+  it('shows the ready badge + endpoint when config isReady', async () => {
     render(wrap(<RemoteView />));
     await waitFor(() => {
       expect(screen.getByText('ready')).toBeDefined();

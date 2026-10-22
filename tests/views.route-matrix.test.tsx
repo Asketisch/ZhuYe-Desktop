@@ -7,11 +7,18 @@
  *   3. 数据可见（fakeBackend fixture 的关键字段渲染进 DOM）。
  *
  * 新增路由但未接线（命令没调、数据没渲染）会在此处立刻暴露。
+ *
+ * 另有一遍 **zh-CN 渲染检查**：`src/utils/i18n.test.ts` 只保证目录层面
+ * 每个 key 都有两种语言的翻译；这里补的是渲染层面 —— 切到 zh-CN 后每条
+ * 路由的 DOM 里不能出现任何裸 key（`t()` 对缺失 key 的回退就是返回 key
+ * 本身，目录测试测不到「组件传了个不存在的 key」），且页面确实出现了中文
+ * （组件若漏在 `I18nProvider` 之外会静默回退到英文）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { renderApp, resetAppAfterEach } from './helpers/appHarness';
 import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
+import { ALL_KEYS, STORAGE_KEY } from '@/utils/i18n';
 
 let backend: FakeBackend;
 
@@ -22,6 +29,11 @@ beforeEach(() => {
 afterEach(async () => {
   await resetAppAfterEach();
 });
+
+/** 渲染文本里出现的裸 i18n key（应为空）。 */
+function leakedKeys(text: string): string[] {
+  return ALL_KEYS.filter((key) => text.includes(key));
+}
 
 interface RouteSpec {
   route: string;
@@ -196,6 +208,33 @@ describe.each(ROUTES)('route $route', ({ route, commands, shows }) => {
         { timeout: 8000 },
       );
     }
+
+    // 4. 英文渲染也不能漏裸 key。
+    expect(leakedKeys(document.body.textContent ?? '')).toEqual([]);
+  }, 40_000);
+});
+
+describe.each(ROUTES)('route $route (zh-CN)', ({ route }) => {
+  it('renders in Chinese without leaking raw i18n keys', async () => {
+    // I18nProvider 在挂载时读 localStorage 决定初始 locale。
+    window.localStorage.setItem(STORAGE_KEY, 'zh-CN');
+    const app = renderApp();
+    await app.navigate(route);
+
+    await waitFor(
+      () => {
+        const main = document.querySelector('main');
+        expect(main).not.toBeNull();
+        expect((main?.textContent ?? '').length).toBeGreaterThan(0);
+      },
+      { timeout: 8000 },
+    );
+
+    expect(document.documentElement.getAttribute('lang')).toBe('zh-CN');
+    const body = document.body.textContent ?? '';
+    // 壳层（活动栏 / 侧栏）的文案一定会出现中文；一个字都没有说明 locale 没生效。
+    expect(body, `route ${route} 在 zh-CN 下没有渲染出任何中文`).toMatch(/[\u4e00-\u9fff]/);
+    expect(leakedKeys(body), `route ${route} 在 zh-CN 下泄漏了裸 i18n key`).toEqual([]);
   }, 40_000);
 });
 

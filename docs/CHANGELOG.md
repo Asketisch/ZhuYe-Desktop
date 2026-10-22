@@ -4,6 +4,56 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — 跨运行时线格式契约:同一份样本,同时喂 fakeBackend 与真后端
+
+参数形状的漂移(历史实例:allowlist 的 `entries` vs `prefixes`)此前只能靠
+人眼发现 —— L2 全部前端测试跑在 fakeBackend 上,模拟层走样时测试照常全绿。
+
+- **`tests/contracts/payloads.json`** —— 185 条注册命令逐条一份**真后端可
+  反序列化**的参数样本(顶层键 camelCase,嵌套结构按各自 serde 规则;
+  `${TMP}` 占位符由运行方替换)。副作用命令(截屏 / 电脑操控 / …,与
+  COVERAGE §3 同源)样本同样存在,但 L3 不投喂真后端 —— 跳过清单放在
+  契约文件里,避免字面量混进 `.rs` 被 L1 的覆盖棘轮误计。
+- **三层消费同一份样本**:L1 新增 `payload-sample-complete`(注册表 ↔
+  样本表双向无差集);L2 `tests/ipc.payload-contract.test.ts`(fakeBackend
+  必须接受真后端形状、调用参数完整回放);L3
+  `src-tauri/tests/ipc_payload_contract.rs`(真后端逐条反序列化 —— 业务
+  错误可接受,`invalid args` 类不行;含探测器自检:历史漂移形状必须被
+  识别、业务错误不得误判)。
+- **`tests/contracts/roundtrips.json`** —— 22 对「写 → 读」持久化往返,
+  同一份表双端跑(L2 `ipc.roundtrip-contract.test.ts` / L3
+  `ipc_roundtrip_contract.rs`)。参数形状对齐只能保证「收得下」,往返保证
+  「存得对」—— 一个返回固定 fixture 的无状态桩会立刻露馅。
+- **fakeBackend 从无状态桩升级为有状态(14 处)**:MCP 服务器 / 权限规则 /
+  子代理 spec / 流水线配置 / KMS wiki 与页面 / autopilot / 远程配置 /
+  effort / 活跃 agent / 文件写读 / 按名读取(agent def / squad / team),
+  以及 allowlist 完整语义(trim / 去重 / 字典序 / 前缀匹配)。
+- **韧性不变量**:`ipc_events.rs` 新增「转发器在 `RecvError::Lagged` 之后
+  必须存活」—— 容量 4 的 broadcast 通道 + 单线程 runtime 确定性触发
+  `AGENTS.md` 明文的这条宿主不变量(慢订阅者撑爆通道后,转发器只记日志
+  不退出;破了前端会静默永久收不到事件)。
+- **i18n 渲染级检查**:路由矩阵 34 条路由在 zh-CN 下再挂载一遍,断言页面
+  出现中文且**无裸 i18n key** —— 目录奇偶校验测不到「组件传了不存在的
+  key」(`t()` 对缺失 key 的回退就是返回 key 本身)。
+
+### 修复 — 往返契约发现的线格式生产 bug(remote / autopilot camelCase)
+
+- 后端 `RemoteConfigSnapshot` / `TailscaleStatus` 都是
+  `#[serde(rename_all = "camelCase")]`,线上字段是 `authToken` /
+  `autoConnect` / `isReady` / `dnsName` / `tailnetName` / `suggestedRemoteHost`;
+  而前端接口与 `RemoteView` 读的是 snake_case —— 生产环境这些字段**永远是
+  undefined**(就绪徽标永不亮、autoConnect 恒显示「否」),且
+  `reflect_update_remote_config` 发出的 snake_case 键被 Tauri 当缺参
+  **静默丢弃**。`RemoteView.test.tsx` 自己的 mock 用了同样的错误形状,
+  所以一直是绿的。前端(`src/utils/commands/remote.ts` /
+  `useRemoteController.ts` / `RemoteView.tsx` 及其测试)与 fakeBackend
+  全部对齐 camelCase;`docs/PROTOCOL_BRIDGE.md` remote 行同步修正。
+- fakeBackend 的 `reflect_get_autopilot_config` 返回 `{enabled, max_turns}`,
+  而真后端(与前端 `autopilot.ts` 声明)是 camelCase 的
+  `{enabled, schedule, taskTemplate, agent, maxConcurrent}` —— 同批修正。
+- `reflect_kms_create` 对重名 wiki:fake 静默覆盖、真后端报错 —— fake
+  对齐为报错。`reflect_read_file` 的 fake 补齐 `size` / `binary` 字段。
+
 ### 新增 — 发布门禁:分层严格功能测试脚本(对标 submodule 的严格测试标准)
 
 发布阶段此前**没有**统一的功能审查入口:`pnpm test` 的后端是**模拟**的

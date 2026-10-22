@@ -66,8 +66,8 @@ export function RemoteView() {
             </div>
           </div>
           <div className={s.sectionActions}>
-            <Badge variant={ctrl.config?.is_ready ? 'success' : 'neutral'}>
-              {ctrl.config?.is_ready ? t('remote.ready') : t('remote.notConfigured')}
+            <Badge variant={ctrl.config?.isReady ? 'success' : 'neutral'}>
+              {ctrl.config?.isReady ? t('remote.ready') : t('remote.notConfigured')}
             </Badge>
             <button
               type="button"
@@ -77,7 +77,7 @@ export function RemoteView() {
             >
               {ctrl.showForm ? <Icon icon={X} size={12} /> : <Save size={12} />}
               {' '}
-              {ctrl.showForm ? t('common.cancel') : ctrl.config?.is_ready ? t('remote.edit') : t('remote.configure')}
+              {ctrl.showForm ? t('common.cancel') : ctrl.config?.isReady ? t('remote.edit') : t('remote.configure')}
             </button>
           </div>
         </header>
@@ -98,11 +98,11 @@ export function RemoteView() {
             </div>
             <div className={s.configRow}>
               <dt>{t('remote.authToken')}</dt>
-              <dd>{ctrl.config.auth_token ? `${ctrl.config.auth_token.slice(0, 4)}…` : t('remote.notSet')}</dd>
+              <dd>{ctrl.config.authToken ? `${ctrl.config.authToken.slice(0, 4)}…` : t('remote.notSet')}</dd>
             </div>
             <div className={s.configRow}>
               <dt>{t('remote.autoConnect')}</dt>
-              <dd>{ctrl.config.auto_connect ? t('remote.yes') : t('remote.no')}</dd>
+              <dd>{ctrl.config.autoConnect ? t('remote.yes') : t('remote.no')}</dd>
             </div>
           </dl>
         )}
@@ -199,18 +199,18 @@ export function RemoteView() {
           <dl className={s.configList}>
             <div className={s.configRow}>
               <dt>{t('remote.suggestedHost')}</dt>
-              <dd>{ctrl.tailscale.suggested_remote_host || t('remote.noDnsOrIp')}</dd>
+              <dd>{ctrl.tailscale.suggestedRemoteHost || t('remote.noDnsOrIp')}</dd>
             </div>
-            {ctrl.tailscale.dns_name && (
+            {ctrl.tailscale.dnsName && (
               <div className={s.configRow}>
                 <dt>{t('remote.dns')}</dt>
-                <dd>{ctrl.tailscale.dns_name}</dd>
+                <dd>{ctrl.tailscale.dnsName}</dd>
               </div>
             )}
-            {ctrl.tailscale.tailnet_name && (
+            {ctrl.tailscale.tailnetName && (
               <div className={s.configRow}>
                 <dt>{t('remote.tailnet')}</dt>
-                <dd>{ctrl.tailscale.tailnet_name}</dd>
+                <dd>{ctrl.tailscale.tailnetName}</dd>
               </div>
             )}
             {ctrl.tailscale.ipv4.length > 0 && (

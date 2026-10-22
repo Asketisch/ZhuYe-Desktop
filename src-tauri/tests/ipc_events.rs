@@ -199,3 +199,100 @@ fn turn_failure_is_reported_on_the_same_channel() {
         "error 事件缺少 code/message: {err}"
     );
 }
+
+/// `AGENTS.md` 的宿主不变量:慢订阅者触发 `RecvError::Lagged(n)` 时
+/// 转发器**只记日志、不退出**。破了这条,前端会在一次事件洪峰之后
+/// 永久收不到任何事件 —— 且不报错。
+///
+/// 生产转发器的接收端跟不跟得上无法从外部确定性地制造,所以这里用一条
+/// 容量只有 4 的通道单独驱动一个 `forward_agent_events`,并用
+/// **单线程** runtime 保证它在 64 条突发**之后**才第一次被调度:它的第一个
+/// `recv()` 必然拿到 `Lagged`。之后再发一条探针 —— 探针能到达
+/// `reflect_event`,就证明转发器没死。
+#[test]
+fn forwarder_survives_a_lagged_receiver() {
+    use reflect_protocol::{Event, EventMsg};
+    use tokio::sync::broadcast;
+
+    let rx_events = collect_events();
+    let app_handle = {
+        let h = common::harness();
+        h.app.handle().clone()
+    };
+
+    let (tx, rx) = broadcast::channel::<Event>(4);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build single-thread runtime");
+    let forwarder = rt.spawn(reflect_desktop_lib::events::forward_agent_events(
+        app_handle, rx,
+    ));
+
+    // 突发 64 条 —— 远超容量 4。转发器此刻还没跑过一次。
+    for i in 0..64 {
+        tx.send(Event::new(
+            format!("lag-burst-{i}"),
+            EventMsg::SubmissionClosed,
+        ))
+        .expect("broadcast send");
+    }
+    rt.block_on(async {
+        for _ in 0..16 {
+            tokio::task::yield_now().await;
+        }
+    });
+
+    // lag 之后再发探针。
+    tx.send(Event::new("lag-probe", EventMsg::SubmissionClosed))
+        .expect("broadcast send probe");
+    rt.block_on(async {
+        for _ in 0..16 {
+            tokio::task::yield_now().await;
+        }
+    });
+
+    // 其它用例的真实 agent 事件也会进这条队列 —— 只认 `lag-` 前缀的。
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let mut burst_received = 0usize;
+    let mut probe: Option<Value> = None;
+    while probe.is_none() {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match rx_events.recv_timeout(remaining.min(Duration::from_millis(200))) {
+            Ok(v) => {
+                let id = event_id(&v);
+                if id.starts_with("lag-burst-") {
+                    burst_received += 1;
+                } else if id == "lag-probe" {
+                    probe = Some(v);
+                }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+
+    let probe = probe.expect("转发器在 Lagged 之后死了 —— 探针事件没有到达 reflect_event");
+    assert_eq!(msg_type(&probe), Some("submission_closed"));
+    assert!(
+        burst_received <= 4,
+        "突发 64 条却收到 {burst_received} 条 —— 通道没有发生 lag,本用例没有覆盖到 Lagged 分支"
+    );
+    assert!(
+        burst_received >= 1,
+        "lag 之后缓冲区里残留的事件也应被继续转发,实际一条都没到"
+    );
+    assert!(!forwarder.is_finished(), "转发器任务在 Lagged 之后退出了");
+
+    // 通道关闭(`Closed`)才是转发器唯一合法的退出路径。
+    drop(tx);
+    rt.block_on(async {
+        tokio::time::timeout(Duration::from_secs(2), forwarder)
+            .await
+            .expect("转发器在通道关闭后 2s 内没有退出")
+            .expect("转发器任务 panic");
+    });
+}

@@ -62,8 +62,8 @@ export function emptyRemoteDraft(c?: ReflectRemoteConfigSnapshot | null): Remote
   return {
     host: c?.host ?? '',
     port: c?.port ?? 4732,
-    authToken: c?.auth_token ?? '',
-    autoConnect: c?.auto_connect ?? false,
+    authToken: c?.authToken ?? '',
+    autoConnect: c?.autoConnect ?? false,
   };
 }
 
@@ -104,8 +104,8 @@ export function useRemoteController(): RemoteController {
       reflect_update_remote_config({
         host: d.host,
         port: d.port,
-        auth_token: d.authToken || null,
-        auto_connect: d.autoConnect,
+        authToken: d.authToken || null,
+        autoConnect: d.autoConnect,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: [...REMOTE_QUERY_KEY] }),
   });

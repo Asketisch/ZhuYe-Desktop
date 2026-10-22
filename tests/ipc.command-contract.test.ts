@@ -353,12 +353,16 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
     expect(backend.lastArgsOf('reflect_delete_team')).toEqual({ name: 'core' });
   });
 
-  it('allowlist: save carries full list', async () => {
-    await commands.reflect_save_allowlist({ entries: ['read_file', 'ls', 'grep'] });
+  it('allowlist: save carries full list under `prefixes` and normalizes like the real backend', async () => {
+    await commands.reflect_save_allowlist({ prefixes: ['read_file', ' ls ', 'grep', 'ls', ''] });
     expect(backend.lastArgsOf('reflect_save_allowlist')).toEqual({
-      list: { entries: ['read_file', 'ls', 'grep'] },
+      list: { prefixes: ['read_file', ' ls ', 'grep', 'ls', ''] },
     });
-    expect(await commands.reflect_load_allowlist()).toEqual({ entries: ['read_file', 'ls', 'grep'] });
+    // 真后端 `allowlist.rs`:trim / 丢空 / BTreeSet 去重 + 字典序。
+    expect(await commands.reflect_load_allowlist()).toEqual({ prefixes: ['grep', 'ls', 'read_file'] });
+    expect(await commands.reflect_check_allowlist('ls -la')).toBe(true);
+    expect(await commands.reflect_check_allowlist('rm -rf /')).toBe(false);
+    expect(await commands.reflect_check_allowlist('   ')).toBe(false);
   });
 
   it('agent defs: save/delete by name', async () => {

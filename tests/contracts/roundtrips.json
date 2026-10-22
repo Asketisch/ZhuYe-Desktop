@@ -1,0 +1,143 @@
+{
+  "_about": "持久化往返契约:每条 `steps` 依次执行后,`load` 的结果必须满足 `expect`。同一份表同时跑在 fakeBackend(tests/ipc.roundtrip-contract.test.ts)与真后端(src-tauri/tests/ipc_roundtrip_contract.rs)上 —— 任何一边不满足都意味着模拟层与真后端的**语义**(不只是参数形状)走样了。`expect` 项:`path` 为点路径(可省略=整个结果);`equals` 深比较;`contains` 对字符串做子串匹配、对非字符串先 JSON 序列化再匹配。`${TMP}` 由运行方替换为本次运行的临时目录(真后端侧会真的创建它)。",
+  "roundtrips": [
+    {
+      "name": "allowlist: save → load 归一化(trim/去重/字典序)",
+      "steps": [["reflect_save_allowlist", { "list": { "prefixes": ["ls -la", " git status ", "ls -la"] } }]],
+      "load": ["reflect_load_allowlist", {}],
+      "expect": [{ "path": "prefixes", "equals": ["git status", "ls -la"] }]
+    },
+    {
+      "name": "allowlist: check 是前缀匹配",
+      "steps": [["reflect_save_allowlist", { "list": { "prefixes": ["git status"] } }]],
+      "load": ["reflect_check_allowlist", { "prefix": "git status --short" }],
+      "expect": [{ "equals": true }]
+    },
+    {
+      "name": "config: save_config → get_config(真后端重新序列化,只有值能读回,注释不能)",
+      "steps": [["reflect_save_config", { "toml": "[hooks]\nenabled = []\n\n[sandbox]\nallow_network = false\nwritable_dirs = [\"/tmp/contract-roundtrip-marker\"]\n" }]],
+      "load": ["reflect_get_config", {}],
+      "expect": [{ "contains": "contract-roundtrip-marker" }]
+    },
+    {
+      "name": "memory: add_memory → list_memory 含 key 与 value",
+      "steps": [["reflect_add_memory", { "scope": "user", "key": "contract-roundtrip-key", "value": "contract roundtrip memory value" }]],
+      "load": ["reflect_list_memory", {}],
+      "expect": [{ "contains": "contract-roundtrip-key" }, { "contains": "contract roundtrip memory value" }]
+    },
+    {
+      "name": "schedule: add_schedule → list_schedules 含 prompt",
+      "steps": [["reflect_add_schedule", { "schedule": "0 9 * * *", "prompt": "contract roundtrip standup", "name": "contract-roundtrip-cron" }]],
+      "load": ["reflect_list_schedules", {}],
+      "expect": [{ "contains": "contract roundtrip standup" }]
+    },
+    {
+      "name": "mcp: upsert_mcp_server → list_mcp_servers 含 name",
+      "steps": [["reflect_upsert_mcp_server", { "name": "contract-roundtrip-mcp", "entry": { "type": "stdio", "command": "echo", "args": ["probe"] } }]],
+      "load": ["reflect_list_mcp_servers", {}],
+      "expect": [{ "contains": "contract-roundtrip-mcp" }]
+    },
+    {
+      "name": "permissions: add_permission_rule → list_permission_rules 含 tool",
+      "steps": [["reflect_add_permission_rule", { "rule": { "tool": "ContractRoundtrip", "action": "allow" } }]],
+      "load": ["reflect_list_permission_rules", {}],
+      "expect": [{ "contains": "ContractRoundtrip" }]
+    },
+    {
+      "name": "agent def: save_agent_def → get_agent_def 按名读回",
+      "steps": [["reflect_save_agent_def", { "def": { "name": "contract-roundtrip-agent", "description": "契约往返", "prompt": "你是探针。" } }]],
+      "load": ["reflect_get_agent_def", { "name": "contract-roundtrip-agent" }],
+      "expect": [{ "path": "name", "equals": "contract-roundtrip-agent" }]
+    },
+    {
+      "name": "active agent: set_active_agent → get_active_agent 名称一致",
+      "steps": [
+        ["reflect_save_agent_def", { "def": { "name": "contract-roundtrip-active", "description": "契约往返", "prompt": "你是探针。" } }],
+        ["reflect_set_active_agent", { "name": "contract-roundtrip-active" }]
+      ],
+      "load": ["reflect_get_active_agent", {}],
+      "expect": [{ "path": "name", "equals": "contract-roundtrip-active" }]
+    },
+    {
+      "name": "subagent: save_subagent_spec → get_subagent_spec 正文读回",
+      "steps": [["reflect_save_subagent_spec", { "role": "contract-roundtrip-role", "markdown": "---\nrole: contract-roundtrip-role\nname: contract-roundtrip-role\ndescription: 契约往返子代理\n---\n\ncontract roundtrip subagent body\n" }]],
+      "load": ["reflect_get_subagent_spec", { "role": "contract-roundtrip-role" }],
+      "expect": [{ "contains": "contract roundtrip subagent body" }]
+    },
+    {
+      "name": "squad: create_squad → get_squad 按名读回",
+      "steps": [["reflect_create_squad", { "spec": { "name": "contract-roundtrip-squad", "description": "契约往返 squad", "leaderActor": { "actorType": "agent", "actorId": "team-lead@contract-roundtrip-squad", "kind": "lead" }, "members": [], "createdAtMs": 1700000000 } }]],
+      "load": ["reflect_get_squad", { "name": "contract-roundtrip-squad" }],
+      "expect": [{ "path": "name", "equals": "contract-roundtrip-squad" }]
+    },
+    {
+      "name": "team: upsert_team → get_team 按名读回",
+      "steps": [["reflect_upsert_team", { "team": { "name": "contract-roundtrip-team", "description": "契约往返团队", "lead_agent_id": "team-lead@contract-roundtrip-team", "members": [{ "agent_id": "builder@contract-roundtrip-team", "name": "builder", "role": "builder", "system_prompt": "你负责实现。", "allowed_tools": [], "joined_at": { "secs_since_epoch": 1700000000, "nanos_since_epoch": 0 } }], "created_at": { "secs_since_epoch": 1700000000, "nanos_since_epoch": 0 } } }]],
+      "load": ["reflect_get_team", { "name": "contract-roundtrip-team" }],
+      "expect": [{ "path": "name", "equals": "contract-roundtrip-team" }]
+    },
+    {
+      "name": "pipeline: save_pipeline_config → list_pipeline_configs 含 name",
+      "steps": [["reflect_save_pipeline_config", { "name": "contract-roundtrip-pipeline", "tomlSrc": "name = \"contract-roundtrip-pipeline\"\n" }]],
+      "load": ["reflect_list_pipeline_configs", {}],
+      "expect": [{ "contains": "contract-roundtrip-pipeline" }]
+    },
+    {
+      "name": "kms: kms_create → kms_list 含 name",
+      "steps": [["reflect_kms_create", { "name": "contract-roundtrip-wiki", "description": "契约往返 wiki" }]],
+      "load": ["reflect_kms_list", {}],
+      "expect": [{ "contains": "contract-roundtrip-wiki" }]
+    },
+    {
+      "name": "kms: kms_save_page → kms_get_page 正文读回",
+      "steps": [
+        ["reflect_kms_create", { "name": "contract-roundtrip-pages", "description": "契约往返 wiki(页面)" }],
+        ["reflect_kms_save_page", { "wiki": "contract-roundtrip-pages", "page": "index.md", "content": "# 标题\n\ncontract roundtrip page body\n", "title": "标题", "tags": ["probe"] }]
+      ],
+      "load": ["reflect_kms_get_page", { "wiki": "contract-roundtrip-pages", "page": "index.md" }],
+      "expect": [{ "path": "content", "contains": "contract roundtrip page body" }]
+    },
+    {
+      "name": "tasks: create_task → list_tasks 含 subject",
+      "steps": [["reflect_create_task", { "list": "contract-roundtrip-list", "subject": "contract roundtrip task subject", "description": "由契约往返创建" }]],
+      "load": ["reflect_list_tasks", { "list": "contract-roundtrip-list" }],
+      "expect": [{ "contains": "contract roundtrip task subject" }]
+    },
+    {
+      "name": "workspace: set_workspace → current_workspace",
+      "steps": [["reflect_set_workspace", { "path": "${TMP}" }]],
+      "load": ["reflect_current_workspace", {}],
+      "expect": [{ "equals": "${TMP}" }]
+    },
+    {
+      "name": "autopilot: update_autopilot_config → get_autopilot_config(camelCase)",
+      "steps": [["reflect_update_autopilot_config", { "config": { "enabled": false, "schedule": "0 9 * * *", "taskTemplate": "contract roundtrip template", "agent": null, "maxConcurrent": 2 } }]],
+      "load": ["reflect_get_autopilot_config", {}],
+      "expect": [{ "path": "taskTemplate", "equals": "contract roundtrip template" }, { "path": "maxConcurrent", "equals": 2 }]
+    },
+    {
+      "name": "remote: update_remote_config → get_remote_config(camelCase:host / port / autoConnect / isReady)",
+      "steps": [["reflect_update_remote_config", { "host": "10.0.0.7", "port": 4733, "authToken": "contract-token", "autoConnect": true }]],
+      "load": ["reflect_get_remote_config", {}],
+      "expect": [{ "path": "host", "equals": "10.0.0.7" }, { "path": "port", "equals": 4733 }, { "path": "authToken", "equals": "contract-token" }, { "path": "autoConnect", "equals": true }, { "path": "isReady", "equals": true }]
+    },
+    {
+      "name": "files: write_file → read_file 内容与元数据",
+      "steps": [["reflect_write_file", { "path": "${TMP}/contract-roundtrip.txt", "content": "contract roundtrip file body\n" }]],
+      "load": ["reflect_read_file", { "path": "${TMP}/contract-roundtrip.txt" }],
+      "expect": [{ "path": "content", "equals": "contract roundtrip file body\n" }, { "path": "binary", "equals": false }, { "path": "truncated", "equals": false }]
+    },
+    {
+      "name": "lsp: lsp_set_enabled → lsp_status.enabled",
+      "steps": [["reflect_lsp_set_enabled", { "enabled": true }], ["reflect_lsp_set_enabled", { "enabled": false }]],
+      "load": ["reflect_lsp_status", {}],
+      "expect": [{ "path": "enabled", "equals": false }]
+    },
+    {
+      "name": "effort: set_effort → get_effort",
+      "steps": [["reflect_set_effort", { "level": "high" }]],
+      "load": ["reflect_get_effort", {}],
+      "expect": [{ "equals": "high" }]
+    }
+  ]
+}

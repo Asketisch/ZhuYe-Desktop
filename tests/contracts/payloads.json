@@ -1,0 +1,598 @@
+{
+  "_about": "跨运行时线格式契约样本。每条注册命令一份**真后端可反序列化**的参数样本(顶层键 camelCase,嵌套结构按各自 serde 规则)。消费方:L1 tests/static/analyze.mjs(每条注册命令必须有样本)、L2 tests/ipc.payload-contract.test.ts(fakeBackend 必须接受)、L3 src-tauri/tests/ipc_payload_contract.rs(真后端必须反序列化成功——结构化业务错误可以,`invalid args` 不行)。`${TMP}` 由运行方替换为本次运行的临时目录。",
+  "_skipOnRealBackend": "有副作用、不该在自动层执行的命令 —— 与 tests/COVERAGE.md §3 的显式排除项一致。它们的样本仍然存在(L1 完整性 + L2 fakeBackend 都要),只是 L3 不投喂真后端。",
+  "skipOnRealBackend": [
+    "reflect_screenshot",
+    "reflect_computer_use",
+    "reflect_reveal_path",
+    "reflect_tailscale_daemon_start",
+    "reflect_tailscale_daemon_stop",
+    "reflect_run_security_scan"
+  ],
+  "commands": {
+    "reflect_activity_count": {},
+    "reflect_add_memory": {
+      "scope": "user",
+      "key": "contract-probe",
+      "value": "pnpm test"
+    },
+    "reflect_add_permission_rule": {
+      "rule": {
+        "tool": "CapabilityProbe",
+        "action": "allow"
+      }
+    },
+    "reflect_add_schedule": {
+      "schedule": "0 9 * * *",
+      "prompt": "契约探针 standup",
+      "name": "contract-probe-cron"
+    },
+    "reflect_agent_status": {},
+    "reflect_all_model_usage": {},
+    "reflect_archive_session": {
+      "id": "00000000-0000-4000-8000-000000000001"
+    },
+    "reflect_ask_user_input_response": {
+      "id": "q-probe-2",
+      "text": "探针回答"
+    },
+    "reflect_ask_user_question_response": {
+      "id": "q-probe",
+      "answers": {
+        "answers": [
+          {
+            "indices": [
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "reflect_assign_squad_task": {
+      "name": "contract-probe-squad",
+      "taskId": 1,
+      "assignee": "builder@x"
+    },
+    "reflect_autopilot_history": {},
+    "reflect_bind_session": {
+      "id": "00000000-0000-0000-0000-000000000001"
+    },
+    "reflect_cancel_side_channel": {
+      "id": "contract-probe-side-channel"
+    },
+    "reflect_check_allowlist": {
+      "prefix": "capability-layer-probe"
+    },
+    "reflect_check_update": {},
+    "reflect_claim_task": {
+      "list": "contract-probe-list",
+      "claimer": "probe@team"
+    },
+    "reflect_clear_activity": {},
+    "reflect_compact": {},
+    "reflect_computer_use": {
+      "action": {
+        "kind": "screenshot"
+      }
+    },
+    "reflect_config_info": {},
+    "reflect_create_session": {},
+    "reflect_create_squad": {
+      "spec": {
+        "name": "contract-probe-squad",
+        "description": "契约探针 squad",
+        "leaderActor": {
+          "actorType": "agent",
+          "actorId": "team-lead@contract-probe-squad",
+          "kind": "lead"
+        },
+        "members": [],
+        "createdAtMs": 1700000000
+      }
+    },
+    "reflect_create_task": {
+      "list": "contract-probe-list",
+      "subject": "契约探针任务",
+      "description": "由契约样本创建"
+    },
+    "reflect_credential_pool_status": {},
+    "reflect_current_workspace": {},
+    "reflect_cycle_permission_mode": {},
+    "reflect_delegate_next": {
+      "name": "contract-probe-squad",
+      "leaderActorId": "team-lead@contract-probe-squad"
+    },
+    "reflect_delete_agent_def": {
+      "name": "capability-probe"
+    },
+    "reflect_delete_mcp_server": {
+      "name": "contract-probe-mcp"
+    },
+    "reflect_delete_session": {
+      "id": "00000000-0000-4000-8000-000000000001"
+    },
+    "reflect_delete_squad": {
+      "name": "contract-probe-squad"
+    },
+    "reflect_delete_subagent_spec": {
+      "role": "contract-probe-role"
+    },
+    "reflect_delete_task": {
+      "list": "contract-probe-list",
+      "id": 1
+    },
+    "reflect_delete_team": {
+      "name": "contract-probe-team"
+    },
+    "reflect_dream": {
+      "insights": [
+        "能力覆盖层洞察一",
+        "洞察二"
+      ],
+      "sessionsAnalyzed": 2
+    },
+    "reflect_enter_goal_mode": {
+      "goal": "让能力覆盖层全绿"
+    },
+    "reflect_enter_plan_mode": {
+      "task": "能力覆盖层 plan 探针"
+    },
+    "reflect_exit_goal_mode": {},
+    "reflect_exit_plan_mode": {},
+    "reflect_export_session": {
+      "id": "00000000-0000-4000-8000-000000000001"
+    },
+    "reflect_export_session_markdown": {
+      "id": "00000000-0000-0000-0000-000000000000"
+    },
+    "reflect_fork_session": {
+      "id": "00000000-0000-0000-0000-000000000002"
+    },
+    "reflect_generate_session_title": {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "force": true
+    },
+    "reflect_get_active_agent": {},
+    "reflect_get_agent_def": {
+      "name": "capability-probe"
+    },
+    "reflect_get_autopilot_config": {},
+    "reflect_get_config": {},
+    "reflect_get_effective_prompt": {},
+    "reflect_get_effort": {},
+    "reflect_get_remote_config": {},
+    "reflect_get_remote_status": {},
+    "reflect_get_schedule_status": {},
+    "reflect_get_side_channel": {
+      "id": "contract-probe-side-channel"
+    },
+    "reflect_get_squad": {
+      "name": "contract-probe-squad"
+    },
+    "reflect_get_subagent_spec": {
+      "role": "contract-probe-role"
+    },
+    "reflect_get_task": {
+      "list": "contract-probe-list",
+      "id": 1
+    },
+    "reflect_get_task_output": {
+      "list": "contract-probe-list",
+      "id": 1
+    },
+    "reflect_get_team": {
+      "name": "contract-probe-team"
+    },
+    "reflect_get_trace": {
+      "id": "capability-probe"
+    },
+    "reflect_gh_pr_list": {
+      "limit": 5
+    },
+    "reflect_git_commit": {
+      "message": "capability probe"
+    },
+    "reflect_git_diff": {
+      "staged": true
+    },
+    "reflect_git_log": {
+      "limit": 5
+    },
+    "reflect_git_stage": {
+      "paths": [
+        "probe.txt"
+      ]
+    },
+    "reflect_git_status": {},
+    "reflect_git_unstage": {
+      "paths": [
+        "probe.txt"
+      ]
+    },
+    "reflect_hook_approval": {
+      "id": "hk-probe",
+      "decision": "approve"
+    },
+    "reflect_image_process": {
+      "spec": {
+        "inputPath": "${TMP}/contract-probe.png",
+        "outputPath": "${TMP}/contract-probe.jpg",
+        "format": "jpeg"
+      }
+    },
+    "reflect_install_plugin": {
+      "path": "/nonexistent/plugin",
+      "marketplace": "BAD NAME",
+      "scope": "user"
+    },
+    "reflect_interrupt": {},
+    "reflect_kill_shell": {
+      "sessionId": "contract-probe-shell"
+    },
+    "reflect_kms_create": {
+      "name": "contract-probe-wiki",
+      "description": "契约探针 wiki"
+    },
+    "reflect_kms_delete": {
+      "name": "contract-probe-wiki"
+    },
+    "reflect_kms_get_page": {
+      "wiki": "contract-probe-wiki",
+      "page": "index.md"
+    },
+    "reflect_kms_list": {},
+    "reflect_kms_list_pages": {
+      "wiki": "contract-probe-wiki"
+    },
+    "reflect_kms_save_page": {
+      "wiki": "contract-probe-wiki",
+      "page": "index.md",
+      "content": "# 标题\n\ncontract probe body\n",
+      "title": "标题",
+      "tags": [
+        "probe"
+      ]
+    },
+    "reflect_kms_search": {
+      "query": "capability"
+    },
+    "reflect_list_activity": {},
+    "reflect_list_agent_defs": {},
+    "reflect_list_archived_sessions": {},
+    "reflect_list_dir": {
+      "path": "${TMP}",
+      "maxDepth": 2
+    },
+    "reflect_list_discussions": {},
+    "reflect_list_hook_events": {},
+    "reflect_list_hooks": {},
+    "reflect_list_marketplaces": {},
+    "reflect_list_mcp_prompts": {},
+    "reflect_list_mcp_resources": {},
+    "reflect_list_mcp_servers": {},
+    "reflect_list_media": {
+      "dir": "${TMP}"
+    },
+    "reflect_list_memory": {},
+    "reflect_list_note_sessions": {},
+    "reflect_list_permission_rules": {},
+    "reflect_list_pipeline_configs": {},
+    "reflect_list_plugin_commands": {},
+    "reflect_list_plugins": {},
+    "reflect_list_provider_models": {
+      "baseUrl": "http://127.0.0.1:9",
+      "apiKey": "test",
+      "endpoint": "/v1/models"
+    },
+    "reflect_list_schedules": {},
+    "reflect_list_session_notes": {
+      "id": "00000000-0000-0000-0000-000000000000"
+    },
+    "reflect_list_sessions": {},
+    "reflect_list_shell_sessions": {},
+    "reflect_list_side_channels": {},
+    "reflect_list_skills": {},
+    "reflect_list_span_logs": {
+      "days": 1
+    },
+    "reflect_list_squads": {},
+    "reflect_list_subagent_specs": {},
+    "reflect_list_tasks": {
+      "list": "contract-probe-list"
+    },
+    "reflect_list_teams": {},
+    "reflect_list_tools": {},
+    "reflect_list_traces": {
+      "limit": 5
+    },
+    "reflect_list_workspaces": {},
+    "reflect_list_worktrees": {},
+    "reflect_load_allowlist": {},
+    "reflect_lsp_diagnostics": {
+      "path": "main.rs"
+    },
+    "reflect_lsp_set_enabled": {
+      "enabled": false
+    },
+    "reflect_lsp_status": {},
+    "reflect_lsp_warmup": {
+      "path": "main.rs"
+    },
+    "reflect_mcp_catalog": {},
+    "reflect_media_capabilities": {},
+    "reflect_memory_sections": {},
+    "reflect_model_rate_cards": {
+      "models": [
+        "gpt-4o"
+      ]
+    },
+    "reflect_parse_agent_md": {
+      "text": "---\nname: contract-probe\ndescription: 契约探针\n---\n你是探针。\n"
+    },
+    "reflect_pick_file": {
+      "extensions": [
+        "toml"
+      ]
+    },
+    "reflect_pick_workspace_folder": {},
+    "reflect_plan_approval": {
+      "id": "plan-probe",
+      "choice": "manual_approve"
+    },
+    "reflect_prompt_command": {
+      "action": {
+        "type": "list"
+      }
+    },
+    "reflect_query_plan_quota": {
+      "baseUrl": "http://127.0.0.1:9",
+      "apiKey": "test",
+      "checkVia": "zhipu"
+    },
+    "reflect_query_subagents": {},
+    "reflect_read_file": {
+      "path": "${TMP}/contract-probe.txt"
+    },
+    "reflect_read_image_base64": {
+      "path": "${TMP}/contract-probe.png"
+    },
+    "reflect_read_span_log": {
+      "day": "1970-01-01"
+    },
+    "reflect_recovery_state": {},
+    "reflect_release_task": {
+      "list": "contract-probe-list",
+      "id": 1
+    },
+    "reflect_remove_memory": {
+      "scope": "user",
+      "key": "contract-probe"
+    },
+    "reflect_remove_schedule": {
+      "id": "contract-probe-cron-id"
+    },
+    "reflect_rename_session": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "newName": "契约探针改名"
+    },
+    "reflect_replay_session": {
+      "id": "00000000-0000-4000-8000-000000000001"
+    },
+    "reflect_reveal_path": {
+      "path": "${TMP}"
+    },
+    "reflect_rewind": {
+      "toTurnId": null
+    },
+    "reflect_run_discussion": {
+      "configPath": "/nonexistent/discussion.toml"
+    },
+    "reflect_run_pipeline": {
+      "configPath": "/nonexistent/pipeline.toml",
+      "topic": "探针"
+    },
+    "reflect_run_security_scan": {},
+    "reflect_run_shell": {
+      "cmd": "echo capability-probe"
+    },
+    "reflect_run_team_pipeline": {
+      "teamName": "no-such-team-xyz",
+      "topic": "探针"
+    },
+    "reflect_sandbox_status": {},
+    "reflect_save_agent_def": {
+      "def": {
+        "name": "contract-probe-agent",
+        "description": "契约探针",
+        "prompt": "你是探针。"
+      }
+    },
+    "reflect_save_allowlist": {
+      "list": {
+        "prefixes": [
+          "git status",
+          "ls -la"
+        ]
+      }
+    },
+    "reflect_save_config": {
+      "toml": "# contract-probe-marker\n[hooks]\nenabled = []\n"
+    },
+    "reflect_save_pipeline_config": {
+      "name": "contract-probe-pipeline",
+      "tomlSrc": "name = \"contract-probe\"\n"
+    },
+    "reflect_save_subagent_spec": {
+      "role": "contract-probe-role",
+      "markdown": "---\nrole: contract-probe-role\nname: contract-probe-role\ndescription: 契约探针子代理\n---\n\n你是探针。\n"
+    },
+    "reflect_screenshot": {},
+    "reflect_search_activity": {
+      "query": "probe"
+    },
+    "reflect_search_files": {
+      "query": "contract",
+      "path": "${TMP}",
+      "maxResults": 10,
+      "rank": "bm25"
+    },
+    "reflect_search_sessions": {
+      "query": "probe",
+      "limit": 5
+    },
+    "reflect_session_stats": {
+      "id": "00000000-0000-0000-0000-000000000000"
+    },
+    "reflect_set_active_agent": {
+      "name": "contract-probe-agent"
+    },
+    "reflect_set_dock_badge": {
+      "label": "3"
+    },
+    "reflect_set_effort": {
+      "level": "high"
+    },
+    "reflect_set_model": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5"
+    },
+    "reflect_set_permission_mode": {
+      "mode": "prompt"
+    },
+    "reflect_set_workspace": {
+      "path": "${TMP}"
+    },
+    "reflect_shutdown": {},
+    "reflect_start_side_channel": {
+      "agentName": "probe-helper",
+      "prompt": "探针提示"
+    },
+    "reflect_steer": {
+      "items": [
+        {
+          "type": "text",
+          "text": "补充说明"
+        }
+      ]
+    },
+    "reflect_stop_task": {
+      "list": "contract-probe-list",
+      "id": 1
+    },
+    "reflect_submit": {
+      "submission": {
+        "id": "contract-probe-sub",
+        "op": {
+          "type": "user_input",
+          "items": [
+            {
+              "type": "text",
+              "text": "契约探针"
+            }
+          ]
+        }
+      }
+    },
+    "reflect_tailscale_daemon_command_preview": {},
+    "reflect_tailscale_daemon_start": {},
+    "reflect_tailscale_daemon_status": {},
+    "reflect_tailscale_daemon_stop": {},
+    "reflect_tailscale_status": {},
+    "reflect_test_provider_chat": {
+      "baseUrl": "http://127.0.0.1:9",
+      "apiKey": "test",
+      "endpoint": "/v1/chat/completions",
+      "model": "probe"
+    },
+    "reflect_toggle_hook": {
+      "name": "contract-probe-hook",
+      "enabled": false
+    },
+    "reflect_toggle_plugin": {
+      "id": "no-such-plugin-xyz",
+      "enabled": true
+    },
+    "reflect_tool_approval": {
+      "id": "apr-probe",
+      "decision": {
+        "deny": {
+          "reason": "契约探针拒绝"
+        }
+      }
+    },
+    "reflect_unarchive_session": {
+      "id": "00000000-0000-4000-8000-000000000001"
+    },
+    "reflect_uninstall_plugin": {
+      "id": "not a valid plugin id",
+      "scope": "user"
+    },
+    "reflect_update_autopilot_config": {
+      "config": {
+        "enabled": false,
+        "schedule": "0 9 * * *",
+        "taskTemplate": "契约探针模板",
+        "agent": null,
+        "maxConcurrent": 1
+      }
+    },
+    "reflect_update_remote_config": {
+      "host": "127.0.0.1",
+      "port": 8787,
+      "autoConnect": false
+    },
+    "reflect_update_schedule": {
+      "id": "contract-probe-cron-id",
+      "schedule": "30 8 * * *",
+      "enabled": false
+    },
+    "reflect_update_task": {
+      "list": "contract-probe-list",
+      "id": 1,
+      "patch": {
+        "status": "in_progress"
+      }
+    },
+    "reflect_upsert_mcp_server": {
+      "name": "contract-probe-mcp",
+      "entry": {
+        "type": "stdio",
+        "command": "echo",
+        "args": [
+          "probe"
+        ]
+      }
+    },
+    "reflect_upsert_team": {
+      "team": {
+        "name": "contract-probe-team",
+        "description": "契约探针团队",
+        "lead_agent_id": "team-lead@contract-probe-team",
+        "members": [
+          {
+            "agent_id": "builder@contract-probe-team",
+            "name": "builder",
+            "role": "builder",
+            "system_prompt": "你负责实现。",
+            "allowed_tools": [],
+            "joined_at": {
+              "secs_since_epoch": 1700000000,
+              "nanos_since_epoch": 0
+            }
+          }
+        ],
+        "created_at": {
+          "secs_since_epoch": 1700000000,
+          "nanos_since_epoch": 0
+        }
+      }
+    },
+    "reflect_validate_pipeline": {
+      "tomlSrc": "name = \"contract-probe\"\n"
+    },
+    "reflect_write_file": {
+      "path": "${TMP}/contract-probe.txt",
+      "content": "hello contract\n"
+    }
+  }
+}

@@ -71,6 +71,10 @@ L3 验真后端命令体的行为。模拟后端的 bug 会把真后端的 bug �
 | 远程 / tailscale | `get/update_remote_config` `get_remote_status` `tailscale_status` `tailscale_daemon_command_preview` `tailscale_daemon_status` | L3 `ipc_domains.rs` | `RemoteView` |
 | 探针 | `ping` | L3 `ipc_core.rs` | `app.smoke` |
 | **事件回传通路** | `reflect_event` 通道(非命令):信封 `{ id, msg }`、`msg.type` 判别子、`EVENT_ID_NONE` 生命周期 id、Submission↔Event id 配对 | L3 `ipc_events.rs` | `agent.protocol-events` |
+| **事件转发器韧性** | 转发器在 `RecvError::Lagged` 之后必须存活(慢订阅者不杀死转发器) | L3 `ipc_events.rs` | — |
+| **线格式契约(参数形状)** | 全部 185 条命令的参数样本:fakeBackend 收得下 + 真后端反序列化 | L2 `ipc.payload-contract` + L3 `ipc_payload_contract.rs` + L1 `payload-sample-complete` | 同左(fakeBackend 侧) |
+| **持久化往返契约(语义)** | 22 对「写 → 读」(allowlist / config / memory / schedule / mcp / 权限规则 / agent def / 活跃 agent / 子代理 / squad / team / pipeline / KMS / 任务 / 工作区 / autopilot / remote / 文件 / LSP / effort) | L2 `ipc.roundtrip-contract` + L3 `ipc_roundtrip_contract.rs` 双端同表 | 同左(fakeBackend 侧) |
+| **i18n 渲染级** | 34 条路由 zh-CN 挂载:页面出现中文、无裸 i18n key | — | `views.route-matrix`(zh-CN 遍) |
 
 **合计**：后端 185 条 `reflect_*` 命令中，能力覆盖层**直接驱动 179 条
 （96.8%）**；余下 6 条在 §3 逐条说明排除理由。
@@ -119,15 +123,6 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 | 生产文件 ≤ 500 行 | `src-tauri/src/commands/sessions.rs` 等 11 个文件超限 | 新增超限文件 → L1 失败 |
 | `PROTOCOL_BRIDGE.md` 命令覆盖率 | 91.9% | 覆盖率跌破基线 → L1 失败 |
 | 真后端命令覆盖 | 能力覆盖层驱动 **179/185** 条（96.8%） | 覆盖数跌破基线 → L1 失败 |
-
-另有**已知的实现层不一致**（由能力覆盖层发现，非门禁失败项）：
-
-- `tests/helpers/fakeBackend.ts` 的 `reflect_save_allowlist` 用
-  `entries` 键，而**真后端**用的是 `prefixes`（见
-  `src-tauri/src/commands/allowlist.rs`）。前端的
-  `src/utils/commands/allowlist.ts` 用的是 `prefixes`（正确）——
-  也就是说**测试替身**与真后端不一致。这正是能力覆盖层存在的意义：
-  模拟层的偏差不会流到线上，但也不该被当成「已覆盖」。
 
 另有**已知的真后端行为特征**（能力覆盖层照实记录，不算缺陷）：
 

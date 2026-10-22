@@ -732,30 +732,32 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(ts, undefined);
   });
 
-  it('reflect_update_remote_config forwards { host, port, auth_token, auto_connect } with null defaults', async () => {
+  it('reflect_update_remote_config forwards { host, port, authToken, autoConnect } with null defaults', async () => {
+    // 线上键是 camelCase:Tauri 按 camelCase 取 Rust 参数 `auth_token` / `auto_connect`,
+    // 发 snake_case 会被当成缺省(静默丢弃)。
     const minimal = await captureCmd('reflect_update_remote_config', () =>
       reflect_update_remote_config({ host: 'node.tail.net' }),
     );
     expectArgs(minimal, {
       host: 'node.tail.net',
       port: null,
-      auth_token: null,
-      auto_connect: null,
+      authToken: null,
+      autoConnect: null,
     });
 
     const full = await captureCmd('reflect_update_remote_config', () =>
       reflect_update_remote_config({
         host: 'h',
         port: 5555,
-        auth_token: 'secret',
-        auto_connect: true,
+        authToken: 'secret',
+        autoConnect: true,
       }),
     );
     expectArgs(full, {
       host: 'h',
       port: 5555,
-      auth_token: 'secret',
-      auto_connect: true,
+      authToken: 'secret',
+      autoConnect: true,
     });
   });
 
