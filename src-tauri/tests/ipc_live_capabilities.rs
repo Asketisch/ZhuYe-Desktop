@@ -318,13 +318,21 @@ fn scenario_agent_loop() -> Verdict {
         .and_then(|t| t["msg"]["total_tokens"].as_u64())
         .unwrap_or(0);
     if content == 0 {
-        // 零正文有两种截然不同的成因,**必须分开**:
+        // 零正文有三种截然不同的成因,**必须分开**:
         // - 零 token:上游根本没产出任何东西(配额耗尽 / 空回复)—— **环境态**;
-        // - 有 token:模型确实答了,但内容在链路上丢了 —— **产品缺陷**。
+        // - 有 token **且有工具调用**:模型这一轮只发了工具调用、没有文本 ——
+        //   **正常**(工具调用消耗 output token,但不产生文本增量);
+        // - 有 token 且无工具调用:模型确实答了,内容在链路上丢了 —— **产品缺陷**。
         if total == 0 {
             return Verdict::Skipped(
                 "回合结束但上游零 token 零内容 —— 环境态(配额/空回复),非产品缺陷".into(),
             );
+        }
+        if count(&evs, "tool_call_begin") > 0 {
+            return Verdict::Skipped(format!(
+                "本轮只发了工具调用({} 次)没有文本 —— 模型行为,非产品缺陷",
+                count(&evs, "tool_call_begin")
+            ));
         }
         return Verdict::Failed(format!(
             "回合消耗了 {total} token 却没有任何正文 —— 内容在链路上丢了"

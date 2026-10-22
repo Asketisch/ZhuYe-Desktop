@@ -56,11 +56,17 @@ fi
 LOG="$RESULT_DIR/live-test.log"
 RAW="$RESULT_DIR/live-cases.raw"
 
+# 两个测试二进制都要跑:
+# - `ipc_live_free_model`  —— 主回合(真模型 → 正文 → token → 终态);
+# - `ipc_live_capabilities` —— 能力域矩阵(15 个场景,其余依赖模型的命令面)。
+#
 # `--ignored` 只跑标记了 `#[ignore]` 的实模型用例;
 # `--nocapture` 让 `LIVE_CASE` 行直接落到 stdout(否则被测试框架吞掉)。
 (
     cd "$ROOT/src-tauri" &&
-    REFLECT_LIVE=1 cargo test --test ipc_live_free_model -- --ignored --nocapture
+    REFLECT_LIVE=1 cargo test \
+        --test ipc_live_free_model --test ipc_live_capabilities \
+        -- --ignored --nocapture
 ) > "$LOG" 2>&1
 CARGO_STATUS=$?
 
