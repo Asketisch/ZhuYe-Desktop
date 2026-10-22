@@ -172,10 +172,11 @@ submodule」，桌面端**不直接改** submodule。
   GUI 配法、已知限制与排障。**含一个关键坑**：免 Key 端点必须用
   `[[openai.credentials]]` **数组形态** —— 顶层单值 `api_key = ""` 会让
   `build_openai_pool` 直接不注册该 provider（数组空 + key 空 → `None`）。
-- **已知缺口（未修）**：设置页的「获取模型列表」走
-  `reflect_list_provider_models`，该命令对空 `api_key` 直接报
-  `api_key is empty` —— **免 Key 的免费池在 GUI 里拿不到模型清单**
-  （引擎侧的清单发现不受影响，它走 provider client 而非该命令）。
+- **设置页的「获取模型列表 / 测试连接 / 发送测试消息」也支持免 Key**：
+  `reflect_list_provider_models` / `reflect_test_provider_chat` 此前对空
+  `api_key` 直接报 `api_key is empty` —— 免 Key 的免费池在 GUI 里连清单
+  都拿不到。现在空 key 不再报错、不发 Authorization 头（与
+  `reflect-llm` 的 `OpenAIClient` 同口径）；Anthropic 协议仍要求 key。
 - **门禁入口**：`tests/run_all.sh` 增加 `live` 套件（五层 → 六层），
   `REFLECT_LIVE=1 bash tests/run_all.sh live` 真跑，否则整层 SKIP。
 - **`tests/lib.sh`**：`suite_absorb` 现在把 PASS/FAIL 的**原因**也落进
