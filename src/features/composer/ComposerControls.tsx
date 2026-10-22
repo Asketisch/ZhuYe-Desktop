@@ -192,6 +192,13 @@ export function ComposerControls() {
   const visionSuffix = (v: boolean | null) =>
     v === true ? ` · ${t('common.visionTag')}` : v === false ? ` · ${t('common.noVisionTag')}` : '';
 
+  /**
+   * 免费标记后缀 —— 只在**已判定为免费**时标注。
+   *
+   * `null`(厂商没表态 + 规则没命中)不加标记:那是「未知」,不是「免费」。
+   */
+  const freeSuffix = (v: boolean | null) => (v === true ? ` · ${t('common.freeTag')}` : '');
+
   return (
     <div className={s.controlsBar}>
       <div className={s.left}>
@@ -226,6 +233,7 @@ export function ComposerControls() {
                     <option key={m.id} value={`model:${m.id}`}>
                       {m.id}
                       {visionSuffix(m.supports_vision)}
+                      {freeSuffix(m.is_free)}
                     </option>
                   ))}
                 </optgroup>

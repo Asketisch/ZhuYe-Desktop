@@ -9,7 +9,7 @@ use std::sync::Arc;
 use parking_lot::{Mutex as ParkingMutex, RwLock};
 use reflect_config::ReflectConfig;
 use reflect_core::AgentThread;
-use reflect_llm::SharedModelRegistry;
+use reflect_llm::{ModelRegistry, SharedModelRegistry};
 use reflect_protocol::{Event, ThreadId};
 use reflect_tools::ToolRegistry;
 use serde::Serialize;
@@ -66,6 +66,35 @@ pub(crate) fn resolve_model_spec_with_fallback(cfg: &ReflectConfig) -> Option<St
         .and_then(|c| c.model.as_deref())
         .map(str::trim)?;
     Some(format!("{provider}/{model}"))
+}
+
+/// 解析 model spec —— **支持运行时才知道的动态值**(`model = "free"`)。
+///
+/// 上游 `reflect_config::resolve_model_spec` 是统一入口:静态 model 走同步
+/// 解析,动态值走 provider 模型清单发现(需要网络 → 必须 async)。桌面端
+/// 此前只用同步的 `resolved_model_spec()`,遇到 `model = "free"` 拿到的是
+/// **占位串** `"provider/free"` —— 它会被 routing 的 main slot 当成真模型
+/// 发给 provider(表现为「模型不存在」),状态栏也显示一个不存在的模型。
+///
+/// 返回 `(spec, error)`:
+/// - `(Some(spec), None)` —— 解析成功,`spec` 是完整的 `"provider/model"`;
+/// - `(None, Some(reason))` —— 动态解析失败(清单端点不可达 / 没有免费
+///   模型 / `[model_discovery] enabled = false`)。**如实上报**:
+///   调用方负责保留旧 model(热重载)或标记降级(安装),不静默回落到占位串;
+/// - `(None, None)` —— 配置里确实没有 model(与同步路径同口径)。
+///
+/// 静态路径的兜底(悬空 credential 钉住 → 第一个带 model 的凭证条目)
+/// 仍由 [`resolve_model_spec_with_fallback`] 承担。
+pub(crate) async fn resolve_model_spec_with_discovery(
+    cfg: &ReflectConfig,
+    registry: &ModelRegistry,
+) -> (Option<String>, Option<String>) {
+    match reflect_config::resolve_model_spec(cfg, registry).await {
+        Ok(Some(spec)) => (Some(spec), None),
+        // 静态路径解析不出来 → 交给同步兜底(悬空钉住场景)。
+        Ok(None) => (resolve_model_spec_with_fallback(cfg), None),
+        Err(e) => (None, Some(format!("{e:#}"))),
+    }
 }
 
 /// Agent 共享 inner:由 `Arc<MinimalAgentInner>` 包装,所有 `MinimalAgent`
@@ -245,8 +274,74 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_degraded_reason, resolve_model_spec_with_fallback};
+    use super::{
+        compute_degraded_reason, resolve_model_spec_with_discovery,
+        resolve_model_spec_with_fallback,
+    };
     use crate::state::MinimalAgent;
+    use reflect_llm::ModelRegistry;
+
+    /// 静态 model:走同步解析路径,不触发清单发现(不打网络)。
+    #[tokio::test]
+    async fn discovery_resolution_keeps_static_path() {
+        let cfg = reflect_config::load_from_str(
+            "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"gpt-4o\"\n",
+        )
+        .unwrap();
+        let registry = ModelRegistry::new();
+        let (spec, err) = resolve_model_spec_with_discovery(&cfg, &registry).await;
+        assert_eq!(spec.as_deref(), Some("openai/gpt-4o"));
+        assert!(err.is_none(), "静态路径不该报错");
+    }
+
+    /// `model = "free"` + 发现开关关闭 → **如实报错**,绝不返回占位串。
+    ///
+    /// 这条用例锁住本函数存在的理由:同步的 `resolved_model_spec()` 对
+    /// `model = "free"` 返回的是占位串 `"openai/free"` —— 它会被当成真
+    /// 模型发给 provider(表现为「模型不存在」)。
+    #[tokio::test]
+    async fn discovery_resolution_reports_error_instead_of_placeholder() {
+        let cfg = reflect_config::load_from_str(
+            "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"free\"\n\n\
+             [model_discovery]\nenabled = false\n",
+        )
+        .unwrap();
+        // 旧(同步)行为:占位串 —— 正是要绕开的东西。
+        assert_eq!(cfg.resolved_model_spec().as_deref(), Some("openai/free"));
+
+        let registry = ModelRegistry::new();
+        let (spec, err) = resolve_model_spec_with_discovery(&cfg, &registry).await;
+        assert!(spec.is_none(), "解析失败不得返回占位串");
+        let err = err.expect("解析失败必须如实上报");
+        assert!(
+            err.contains("model_discovery") || err.contains("free"),
+            "错误原因应指向发现开关 / free 值,实际: {err}"
+        );
+    }
+
+    /// `model = "free"` + 发现开着但 provider 没有注册凭据 → 报错
+    /// (清单拿不到),同样不返回占位串。
+    #[tokio::test]
+    async fn discovery_resolution_errors_without_registered_credentials() {
+        let cfg = reflect_config::load_from_str(
+            "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"free\"\n",
+        )
+        .unwrap();
+        let registry = ModelRegistry::new();
+        let (spec, err) = resolve_model_spec_with_discovery(&cfg, &registry).await;
+        assert!(spec.is_none());
+        assert!(err.is_some(), "无凭据 → 清单拉不到 → 如实报错");
+    }
+
+    /// 没配 model 时:既没有 spec 也没有错误(与同步路径同口径)。
+    #[tokio::test]
+    async fn discovery_resolution_without_model_is_silent() {
+        let cfg = reflect_config::load_from_str("[active]\nprovider = \"openai\"\n").unwrap();
+        let registry = ModelRegistry::new();
+        let (spec, err) = resolve_model_spec_with_discovery(&cfg, &registry).await;
+        assert!(spec.is_none());
+        assert!(err.is_none(), "没配 model 不是错误,是缺省");
+    }
 
     #[test]
     fn new_empty_has_no_thread() {

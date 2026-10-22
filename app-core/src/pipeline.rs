@@ -63,13 +63,17 @@ pub fn build_task_manager() -> Result<Arc<TaskManager>, PipelineRunError> {
 /// 构造 SubAgentFactory —— 镜像 CLI `build_factory`:registry 从配置
 /// 引导(含 `REFLECT_MODEL=mock` 离线注册),默认 model 用 resolved spec,
 /// 无 recorder(GUI 侧 spawn 的子 agent 各自走自己的 session)。
-pub fn build_subagent_factory() -> Result<Arc<SubAgentFactory>, PipelineRunError> {
+///
+/// `async`:`model = "free"`(运行时从 provider 清单里挑免费模型)在此
+/// 解析成具体 id —— 子 agent 拿到的必须是真实模型名(与上游 CLI 同口径)。
+pub async fn build_subagent_factory() -> Result<Arc<SubAgentFactory>, PipelineRunError> {
     let cfg = reflect_config::load_default();
     let registry = Arc::new(reflect_llm::ModelRegistry::new());
     cfg.apply_to_registry(&registry)
         .map_err(|e| PipelineRunError::Factory(format!("build provider from config: {e}")))?;
-    let model = cfg
-        .resolved_model_spec()
+    let model = reflect_config::resolve_model_spec(&cfg, &registry)
+        .await
+        .map_err(|e| PipelineRunError::Factory(format!("resolve model: {e}")))?
         .unwrap_or_else(|| "openai/gpt-4o".to_string());
     Ok(Arc::new(SubAgentFactory::new(
         ThreadId::new(),
@@ -91,7 +95,7 @@ pub async fn run_team_pipeline(
     if topic.trim().is_empty() {
         return Err(PipelineRunError::Config("topic must be non-empty".into()));
     }
-    let factory = build_subagent_factory()?;
+    let factory = build_subagent_factory().await?;
     reflect_pipeline::run_team_pipeline(
         manager,
         team_name,
@@ -208,7 +212,7 @@ pub async fn run_pipeline_config(
     let toml_src = std::fs::read_to_string(config_path)
         .map_err(|e| PipelineRunError::Config(format!("read {}: {e}", config_path.display())))?;
 
-    let factory = build_subagent_factory()?;
+    let factory = build_subagent_factory().await?;
 
     // 预加载全部 team 到本地 HashMap(from_toml 的 runner_for 闭包是
     // 同步签名,无法直接 await manager.get_team —— 与 CLI 相同取舍)。

@@ -76,7 +76,7 @@ async fn e2e_user_input_drives_agent_thread() {
     }
 
     let agent = MinimalAgent::new_empty();
-    agent.install_agent_thread();
+    agent.install_agent_thread().await;
     assert!(agent.agent_status().ready, "install must succeed");
     eprintln!("model_spec = {}", agent.model_spec());
 
@@ -307,7 +307,7 @@ async fn e2e_anthropic_client_streams_real_llm() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn e2e_shutdown_op_propagates() {
     let agent = MinimalAgent::new_empty();
-    agent.install_agent_thread();
+    agent.install_agent_thread().await;
     assert!(agent.agent_status().ready);
 
     let mut rx = agent.subscribe_session();
@@ -361,7 +361,7 @@ async fn e2e_degraded_mode_emits_known_event() {
     }
 
     let agent = MinimalAgent::new_empty();
-    agent.install_agent_thread();
+    agent.install_agent_thread().await;
     let mut rx = agent.subscribe_session();
 
     let submission = Submission::with_id(

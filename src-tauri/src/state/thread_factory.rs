@@ -70,8 +70,14 @@ pub(crate) fn construct_thread(
     initial_mode: Option<PermissionMode>,
 ) -> anyhow::Result<Arc<AgentThread>> {
     let cfg_snapshot = agent.inner.cfg.read().clone();
-    let model_spec = super::agent::resolve_model_spec_with_fallback(&cfg_snapshot)
-        .unwrap_or_else(|| "stub/test".to_string());
+    // model spec 用 **已解析** 的值(安装 / 热重载时写入 `inner.model_spec`)。
+    //
+    // 此前这里重新跑同步的 `resolve_model_spec_with_fallback` —— 对
+    // `model = "free"` 这类动态值只会拿到**占位串** `"provider/free"`,
+    // 它会被 routing 的 main slot 当成真模型发给 provider(表现为「模型
+    // 不存在」)。动态值的解析在安装 / 热重载阶段完成(要打 provider 的
+    // 模型清单端点),这里只消费结果。
+    let model_spec = agent.inner.model_spec.read().clone();
     let registry = agent
         .inner
         .model_registry

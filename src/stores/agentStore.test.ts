@@ -585,6 +585,28 @@ describe('reduceEvent — config / routing', () => {
     );
     expect(patch.lastRouting).toMatchObject({ kind: 'switched', from: 'work', to: 'personal' });
   });
+
+  // v1.7 R3:跨模型降级 —— from/to 装的是 `"provider/model"` 形式的 spec
+  // (不是凭据 label)。此前联合类型只有 4 个变体,wire 上第 5 个会被类型
+  // 系统判为不可能。
+  it('routing stores spec_fallback snapshot', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'routing',
+        kind: 'spec_fallback',
+        role: 'main',
+        from_credential: 'openai/gpt-4o',
+        to_credential: 'anthropic/claude-sonnet-5-5',
+        reason: 'all credentials exhausted',
+      }),
+    );
+    expect(patch.lastRouting).toMatchObject({
+      kind: 'spec_fallback',
+      from: 'openai/gpt-4o',
+      to: 'anthropic/claude-sonnet-5-5',
+    });
+  });
 });
 
 // ====== Prompt layers (v1.6.1) ======

@@ -146,8 +146,13 @@ pub fn harness() -> MutexGuard<'static, Harness> {
         // 的上下文里调用,否则 loop 会随用例结束而消失。
         {
             let rt = runtime();
-            let _guard = rt.enter();
-            app.state::<MinimalAgent>().install_agent_thread();
+            // install 内部 `tokio::spawn(submission loop)` —— 必须挂在**进程级**
+            // runtime 上(否则用例一结束 loop 就没了)。`block_on` 让异步
+            // install 在同一个 runtime 上跑完;spawn 出去的任务随 runtime
+            // 活到进程退出(与原先 `enter()` 的语义一致)。
+            rt.block_on(async {
+                app.state::<MinimalAgent>().install_agent_thread().await;
+            });
         }
 
         // 与生产 setup 对齐的第二件事:起**事件转发器** —— agent 的

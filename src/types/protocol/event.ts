@@ -294,7 +294,20 @@ export interface ConfigReloadedPayload {
 }
 
 export interface RoutingPayload {
-  kind: 'switched' | 'failed_over' | 'cooldown_started' | 'cooldown_cleared';
+  /**
+   * 路由事件种类 —— 镜像 Rust `RoutingEventKind`(snake_case wire)。
+   *
+   * `spec_fallback`(v1.7 R3)= **换模型 spec**:当前 spec 的 credential 池
+   * 全部不可用,降级到 fallback spec。与 `switched` 的区别:后者是同池内
+   * 换 credential(`from_credential` / `to_credential` 都是凭据 label),
+   * 前者装的是 `"provider/model"` 形式的 spec。
+   */
+  kind:
+    | 'switched'
+    | 'failed_over'
+    | 'cooldown_started'
+    | 'cooldown_cleared'
+    | 'spec_fallback';
   role: string;
   from_credential?: string;
   to_credential?: string;

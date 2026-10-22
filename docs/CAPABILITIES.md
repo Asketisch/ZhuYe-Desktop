@@ -8,7 +8,7 @@
 > 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `e4bc182`（v1.6.1）。
+> 最近审计：submodule `8d65825`（v1.7 R3 —— 模型清单发现 / 跨模型降级链）。
 
 ## 阅读约定
 
@@ -25,12 +25,13 @@
 
 | 能力族 | 核心 crate | 关键 API | GUI 状态 |
 |---|---|---|---|
-| 协议 Op / EventMsg | `reflect-protocol` | `Op`(24 变体) / `EventMsg`(**45** 变体) | ✅ 22/24 Op 有命令；**45/45** EventMsg 有 TS 类型 + reducer（逐条核对，2026-10-21） |
+| 协议 Op / EventMsg | `reflect-protocol` | `Op`(**22** 变体) / `EventMsg`(**45** 变体) | ✅ **20/22** Op 有命令（另 2 个是 SDK 专用：`RegisterTools` / `ToolExecutionResponse`，见 §2）；**45/45** EventMsg 有 TS 类型 + reducer（逐条核对，2026-10-21） |
 | 线程运行时 | `reflect-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 `AgentConfig` 缺权限解析器（已修，见 §3.1） |
 | LLM / Provider | `reflect-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` | 🟡 有 plans / quota + **凭证池健康度**（§3.15，冷却原因在核心内不公开） |
 | 计价 | `reflect-llm::providers` | `price` / `is_priced` / `ModelPricing` | ✅ 费率卡由核心费率表**反解**（`app-core/src/pricing.rs`） |
 | 权限 | `reflect-permissions` | `FilePermissionStore` / `StorePermissionResolver` | ✅ 三层 store 已挂载（CLI 同构）+ Settings 可见生效规则 |
 | 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；`mcp_servers` / `lsp_servers` / `permissions` 仅 raw TOML |
+| 模型清单发现 | `reflect-config::discovery` / `reflect-llm::model_catalog` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24） |
 | MCP | `reflect-mcp` | `McpConnectionManager` / registry | ✅ 观测 + **增删 + 精选 catalog + 资源/prompt 浏览**（§3.12 / §3.16） |
 | LSP | `reflect-lsp` | `LspConnectionManager` / `DiagnosticRegistry` | ✅ 启停 + 预热 + **诊断可见**（§3.10） |
 | 工具注册表 | `reflect-tools` | `ToolRegistry` / `Sanitizer` / `WorktreeCoordinator` | ✅ 工具列表 + **worktree 状态可见**（§3.16） |
@@ -574,6 +575,64 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
   写失败**如实展示错误**而不是静默吞掉。
 - reducer 的 `PendingApproval` 增 `args`（原始工具参数）—— 推导规则
   需要原值,`argsSummary` 是截断过的展示串。
+
+### 3.24 模型清单发现（`model = "free"` 跨模型降级链接线）
+
+上游 v1.7 R3 引入**运行时才知道的模型 id**：`model = "free"` 不是字面量
+模型名，而是「运行时去 provider 的模型清单里挑一个免费模型」的指针。
+配套新增：
+
+- `reflect-config`：`[model_discovery]` 段（`enabled` / `timeout_secs` /
+  `prefer` / `always_free` / `free_id_patterns`）+ `resolve_model_spec()`
+  统一解析入口 + 进程内清单缓存（TTL 300s）；
+- `reflect-llm`：`model_catalog` 模块（`ModelInfo` / `FreeModelRules`）+
+  provider 侧 `list_models` 能力；
+- `reflect-protocol`：`RoutingEventKind::SpecFallback`（跨模型降级事件）；
+- `reflect-core`：`SpecSlot.fallbacks` 降级链。
+
+**桌面端此前完全没接**——三处断点：
+
+1. **model spec 解析走同步路径**。桌面端全部用
+   `ReflectConfig::resolved_model_spec()`（同步），`model = "free"` 拿到的是
+   **占位串** `"provider/free"`：它会被 routing 的 main slot 当成真模型
+   发给 provider（表现为「模型不存在」），状态栏也显示一个不存在的模型。
+   上游已把统一入口换成 `reflect_config::resolve_model_spec(cfg, registry)`
+   （async，动态值走清单发现），桌面端没跟上。
+2. **`app-core` 的两处上游镜像函数与上游脱节**。`app-core/src/discussion.rs`
+   与 `app-core/src/pipeline.rs` 各自镜像了一份上游 CLI 的
+   `try_build_llm_orchestrator` / `build_factory`；上游已把两者改成
+   async + `resolve_model_spec`，桌面端的副本还是同步的旧版。
+3. **协议缺 `spec_fallback`**。`RoutingPayload.kind` /
+   `RoutingSnapshot.kind` 的联合类型只有 4 个变体，wire 上却可能送来
+   第 5 个。
+
+**实现**：
+
+- 后端新增 `state/agent.rs::resolve_model_spec_with_discovery(cfg, registry)`
+  —— 统一入口的薄封装，返回 `(spec, error)`；静态值走同步解析，动态值
+  走清单发现，**失败如实上报**（绝不回落到占位串）。
+- `install_agent_thread` 改为 `async`：registry 建好后解析 spec，写入
+  `inner.model_spec` 再构造线程。**registry 延迟到解析完成才发布** ——
+  解析期间（可能 20s）`model_registry_ready()` 保持 false，避免前端
+  发来的 bind 命令用「还没解析的」spec 造线程。
+- `hot_reload_provider_stack` 改为返回解析错误：`[model_discovery]` 段
+  变更也进入重载触发条件（它决定挑哪个免费模型）；解析失败**保留旧
+  model**（与上游 `handle_reload` 同语义），原因进 `degraded_reason`。
+- `construct_thread` 不再自行解析 model spec —— 只消费
+  `inner.model_spec`（安装 / 热重载阶段已解析好的值）。
+- `reflect_set_model` 返回**已解析**的 spec（`free` → 真实 id），解析
+  失败报 `Err`；`reflect_save_config` 不把解析失败报成保存失败（配置
+  已写盘，失败原因进 `degraded_reason`）。
+- `app-core` 两处镜像函数改成 async + `resolve_model_spec`，与上游同口径。
+- 前端：`RoutingPayload.kind` / `RoutingSnapshot.kind` 增 `spec_fallback`。
+- 前端：`[model_discovery]` 五个字段进结构化配置表单（新增 i18n 键）。
+- 前端：`reflect_list_provider_models` 返回值增 `is_free` / `context_window`
+  —— 免费判定规则取自**当前生效**的 `[model_discovery]` 段（与引擎
+  `model = "free"` 同一套规则），Composer 模型选项追加「免费」标记。
+- 前端：`config/schema.ts` 的数组型字段改为按字段登记（`LIST_FIELDS`）
+  并**直接写数组字面量** —— 此前 `plugins.enabled_plugins` 会被
+  `encodeScalar` 二次编码成**字符串**，落到 TOML 上与后端
+  `Vec<String>` 不匹配（保存配置报校验错误）；顺手修掉。
 
 ---
 

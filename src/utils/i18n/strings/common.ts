@@ -11,6 +11,7 @@ const common: Record<string, StringEntry> = {
   'common.cancel':    { en: 'Cancel',             'zh-CN': '取消' },
   'common.visionTag': { en: 'vision',         'zh-CN': '支持视觉' },
   'common.noVisionTag': { en: 'no vision',     'zh-CN': '不支持视觉' },
+  'common.freeTag': { en: 'free',           'zh-CN': '免费' },
   'common.confirm':   { en: 'Confirm',            'zh-CN': '确认' },
   'common.save':      { en: 'Save',               'zh-CN': '保存' },
   'common.show':      { en: 'Show',               'zh-CN': '显示' },

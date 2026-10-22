@@ -828,8 +828,20 @@ export function installFakeBackend(): FakeBackend {
     handler(() => ({
       endpoint: String('openai'),
       models: [
-        { id: 'gpt-4o', display_name: 'gpt-4o', supports_vision: true },
-        { id: 'gpt-4o-mini', display_name: 'gpt-4o-mini', supports_vision: null },
+        {
+          id: 'gpt-4o',
+          display_name: 'gpt-4o',
+          supports_vision: true,
+          is_free: false,
+          context_window: 128000,
+        },
+        {
+          id: 'gpt-4o-mini',
+          display_name: 'gpt-4o-mini',
+          supports_vision: null,
+          is_free: null,
+          context_window: null,
+        },
       ],
     })),
   );

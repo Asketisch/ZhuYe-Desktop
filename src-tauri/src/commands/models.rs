@@ -4,33 +4,15 @@
 //! - `openai`   → `GET {base_url}/models`,`Authorization: Bearer <key>`
 //! - `anthropic`→ `GET {base_url}/v1/models`,`x-api-key` + `anthropic-version`
 //!
-//! 部分兼容网关(OpenRouter 风格)会在模型对象里带
-//! `architecture.input_modalities` / `input_modalities`,据此给出视觉能力
-//! 标记;官方 API 不返回该信息时为 `None`,由用户自行判断。
+//! 条目解析与**免费判定**在 `super::model_catalog`(纯逻辑,可单测);
+//! 本模块只负责命令层:拼 URL / 发请求 / 组装响应。
 
 use serde::Serialize;
 use serde_json::Value;
 use std::time::Duration;
 
+use super::model_catalog::{ProviderModelsResult, free_model_rules, parse_models_response};
 use crate::commands::error::{CommandError, CommandResult};
-
-/// 单个模型条目。
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct ProviderModelInfo {
-    /// 模型 id(调用方直接作为 model spec 使用)。
-    pub id: String,
-    /// 展示名(厂商未返回时与 id 相同)。
-    pub display_name: String,
-    /// 厂商声明的视觉输入能力。`None` = 接口未返回,由用户自行判断。
-    pub supports_vision: Option<bool>,
-}
-
-/// 模型列表 + 查询端口。
-#[derive(Debug, Clone, Serialize)]
-pub struct ProviderModelsResult {
-    pub endpoint: String,
-    pub models: Vec<ProviderModelInfo>,
-}
 
 /// 拼接模型列表 URL。base_url 允许带或不带 `/v1`(Anthropic),
 /// 结尾 `/` 一律归一。
@@ -57,69 +39,16 @@ pub(crate) fn build_models_url(base_url: &str, endpoint: &str) -> Result<String,
     }
 }
 
-/// 从模型对象提取视觉能力。识别 OpenRouter 风格
-/// `architecture.input_modalities` 与顶层 `input_modalities`(字符串数组,
-/// 含 "image" 即具备视觉输入);字段缺失 → `None`。
-fn detect_vision(item: &Value) -> Option<bool> {
-    let modalities = item
-        .get("architecture")
-        .and_then(|a| a.get("input_modalities"))
-        .or_else(|| item.get("input_modalities"))?
-        .as_array()?;
-    Some(
-        modalities
-            .iter()
-            .filter_map(|v| v.as_str())
-            .any(|s| s.eq_ignore_ascii_case("image")),
-    )
-}
-
-/// 解析 /models 响应体。两种端口同为 `{ data: [...] }` 外层;
-/// 条目字段按端口取 id / display_name。
-pub(crate) fn parse_models_response(
-    endpoint: &str,
-    body: &[u8],
-) -> Result<Vec<ProviderModelInfo>, CommandError> {
-    let v: Value = serde_json::from_slice(body).map_err(|e| CommandError {
-        msg: format!("failed to parse models response: {e}"),
-    })?;
-    let data = v
-        .get("data")
-        .and_then(|d| d.as_array())
-        .ok_or_else(|| CommandError {
-            msg: "models response missing 'data' array".into(),
-        })?;
-    let mut out = Vec::with_capacity(data.len());
-    for item in data {
-        let Some(id) = item.get("id").and_then(|i| i.as_str()) else {
-            continue;
-        };
-        let display_name = item
-            .get("display_name")
-            .and_then(|d| d.as_str())
-            .unwrap_or(id);
-        out.push(ProviderModelInfo {
-            id: id.to_string(),
-            display_name: display_name.to_string(),
-            supports_vision: if endpoint == "openai" {
-                detect_vision(item)
-            } else {
-                None
-            },
-        });
-    }
-    // id 去重(部分网关同一 id 返回多条)并保持返回顺序。
-    let mut seen = std::collections::HashSet::new();
-    out.retain(|m| seen.insert(m.id.clone()));
-    Ok(out)
-}
-
 /// 拉取指定 base_url + api_key 下的可用模型列表。
 ///
 /// 与 `reflect_query_plan_quota` 同风格:鉴权失败 / HTTP 错误 / 解析失败
 /// 报 `Err` 给前端展示;成功返回模型数组(可能为空)。
+///
+/// 免费判定规则取自**当前生效的** `[model_discovery]` 段(内存快照,热重载
+/// 后即生效)—— 与引擎跑 `model = "free"` 用的是同一套规则。
 #[tauri::command]
 pub async fn reflect_list_provider_models(
+    agent: tauri::State<'_, crate::state::MinimalAgent>,
     base_url: String,
     api_key: String,
     endpoint: String,
@@ -130,6 +59,7 @@ pub async fn reflect_list_provider_models(
         });
     }
     let url = build_models_url(&base_url, &endpoint)?;
+    let rules = free_model_rules(&agent);
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
@@ -171,7 +101,7 @@ pub async fn reflect_list_provider_models(
     let body = resp.bytes().await.map_err(|e| CommandError {
         msg: format!("failed to read response: {e}"),
     })?;
-    let models = parse_models_response(&endpoint, &body)?;
+    let models = parse_models_response(&endpoint, &body, &rules)?;
     tracing::info!(endpoint = %endpoint, count = models.len(), "provider models listed");
     Ok(ProviderModelsResult { endpoint, models })
 }
@@ -343,48 +273,6 @@ mod tests {
         );
         assert!(build_models_url("", "openai").is_err());
         assert!(build_models_url("https://x", "ollama").is_err());
-    }
-
-    #[test]
-    fn parse_openai_models_with_vision_hint() {
-        let body = serde_json::to_vec(&json!({
-            "data": [
-                { "id": "gpt-4o", "object": "model",
-                  "architecture": { "input_modalities": ["text", "image"] } },
-                { "id": "o1", "object": "model",
-                  "architecture": { "input_modalities": ["text"] } },
-                { "id": "gpt-3.5-turbo", "object": "model" },
-                { "id": "gpt-4o", "object": "model" }
-            ]
-        }))
-        .unwrap();
-        let models = parse_models_response("openai", &body).unwrap();
-        assert_eq!(models.len(), 3, "重复 id 去重");
-        assert_eq!(models[0].supports_vision, Some(true));
-        assert_eq!(models[1].supports_vision, Some(false));
-        assert_eq!(models[2].supports_vision, None, "无字段 → 用户自行判断");
-        assert_eq!(models[0].display_name, "gpt-4o");
-    }
-
-    #[test]
-    fn parse_anthropic_models_with_display_name() {
-        let body = serde_json::to_vec(&json!({
-            "data": [
-                { "type": "model", "id": "claude-sonnet-4-5", "display_name": "Claude Sonnet 4.5" }
-            ]
-        }))
-        .unwrap();
-        let models = parse_models_response("anthropic", &body).unwrap();
-        assert_eq!(models.len(), 1);
-        assert_eq!(models[0].display_name, "Claude Sonnet 4.5");
-        // 官方 /v1/models 不返回能力信息。
-        assert_eq!(models[0].supports_vision, None);
-    }
-
-    #[test]
-    fn parse_rejects_missing_data() {
-        let body = serde_json::to_vec(&json!({ "error": { "message": "nope" } })).unwrap();
-        assert!(parse_models_response("openai", &body).is_err());
     }
 
     #[test]

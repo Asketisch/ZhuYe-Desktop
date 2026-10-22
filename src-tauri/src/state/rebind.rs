@@ -143,7 +143,7 @@ mod tests {
     #[tokio::test]
     async fn rebind_updates_bound_id_and_ready() {
         let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread();
+        agent.install_agent_thread().await;
         assert!(agent.bound_session_id().is_none(), "install 不绑定 id");
         let sid = reflect_protocol::ThreadId::new();
         rebind_session(&agent, sid, vec![], None).expect("rebind 不应失败");
@@ -155,7 +155,7 @@ mod tests {
     #[tokio::test]
     async fn rebind_same_id_is_noop() {
         let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread();
+        agent.install_agent_thread().await;
         let sid = reflect_protocol::ThreadId::new();
         rebind_session(&agent, sid, vec![], None).unwrap();
         let thread1 = agent.inner.thread.lock().clone();
@@ -180,7 +180,7 @@ mod tests {
     #[tokio::test]
     async fn rebind_preserves_cron_job_ids() {
         let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread();
+        agent.install_agent_thread().await;
         // 创建一条 cron 任务。
         let job = agent
             .cron_scheduler()
@@ -210,7 +210,7 @@ mod tests {
     #[tokio::test]
     async fn rebind_restores_initial_permission_mode() {
         let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread();
+        agent.install_agent_thread().await;
         let sid = reflect_protocol::ThreadId::new();
         rebind_session(&agent, sid, vec![], Some(PermissionMode::Plan)).unwrap();
         let thread = agent.inner.thread.lock().clone().unwrap();

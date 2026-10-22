@@ -58,8 +58,11 @@ impl MinimalAgent {
     }
 
     /// 第二阶段:在 Tauri setup 闭包内调用,真构造 AgentThread + 启动 forwarder。
-    pub fn install_agent_thread(&self) {
-        install::install_agent_thread(self);
+    ///
+    /// `async`:model spec 的解析可能要打 provider 的模型清单端点
+    /// (`model = "free"` 这类动态值),那是网络 I/O。
+    pub async fn install_agent_thread(&self) {
+        install::install_agent_thread(self).await;
     }
 
     /// 注入应用句柄(生产 setup 调用一次)。

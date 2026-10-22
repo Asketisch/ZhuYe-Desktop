@@ -398,7 +398,7 @@ pub fn run() {
             //    submission_loop) 并启动 session forwarder。
             let agent_for_install: MinimalAgent = (*app.state::<MinimalAgent>()).clone();
             tauri::async_runtime::spawn(async move {
-                agent_for_install.install_agent_thread();
+                agent_for_install.install_agent_thread().await;
             });
 
             // 5. 启动 broadcast → Tauri event 转发 (独立于 install,可在 sync setup

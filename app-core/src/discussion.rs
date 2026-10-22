@@ -108,7 +108,7 @@ pub async fn run_discussion(
     );
     let participants: Vec<String> = config.participants.iter().map(|p| p.0.clone()).collect();
 
-    let (result, llm_backed) = match try_build_llm_orchestrator(&config, &bus, event_sink) {
+    let (result, llm_backed) = match try_build_llm_orchestrator(&config, &bus, event_sink).await {
         Some((orch, factory, toolset_usage)) => {
             let ctx = build_context(
                 factory.clone(),
@@ -192,16 +192,23 @@ type LlmAssembly = (
 /// LLM 编排组装 —— 镜像 `reflect_discussion::cli::try_build_llm_orchestrator`,
 /// 唯一差异:event_sink 由调用方注入(CLI 是 stdout drainer,GUI 是
 /// MinimalAgent session broadcast)。任一步失败返回 `None` 降级 noop。
-fn try_build_llm_orchestrator(
+///
+/// `async`:model spec 的解析可能要打 provider 的模型清单端点
+/// (`model = "free"` 这类动态值),那是网络 I/O —— 与上游 CLI 同口径。
+async fn try_build_llm_orchestrator(
     config: &reflect_discussion::models::DiscussionConfig,
     bus: &MessageBus,
     event_sink: Option<DiscussionEventSink>,
 ) -> Option<LlmAssembly> {
     // 1. provider + model spec(全走 ReflectConfig,与 exec / GUI 线程一致)。
+    //    registry 先建 —— `model = "free"` 的解析要用它当清单来源。
     let reflect_cfg = reflect_config::load_default();
-    let resolved = reflect_cfg.resolved_model_spec()?;
     let registry: SharedModelRegistry = Arc::new(ModelRegistry::new());
     reflect_cfg.apply_to_registry(&registry).ok()?;
+    let resolved = reflect_config::resolve_model_spec(&reflect_cfg, &registry)
+        .await
+        .ok()
+        .flatten()?;
 
     // 2. 每 participant 一个 DiscussionToolSet(SendMessageTool 携 self_id,
     //    不能共享实例),共享 round_counter + per-agent usage 槽。

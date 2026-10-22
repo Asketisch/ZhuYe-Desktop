@@ -27,13 +27,13 @@ use super::MinimalAgent;
 /// `AgentThread::new` 内部立即 `tokio::spawn(submission_loop(...))`,
 /// 必须跑在 tokio runtime 上下文。Tauri `setup` 闭包运行时 Tauri 已经
 /// 初始化了它的 async_runtime,这一步安全。
-pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
-    // 1. 读 cfg 快照 + 解析 model spec。
+///
+/// 本函数是 `async` 的 —— model spec 的解析可能要打 provider 的模型清单
+/// 端点(`model = "free"` 这类动态值),那是网络 I/O。
+pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
+    // 1. 读 cfg 快照。
     let cfg_snapshot = agent.inner.cfg.read().clone();
     let workspace = agent.inner.workspace.clone();
-    let model_spec = super::agent::resolve_model_spec_with_fallback(&cfg_snapshot)
-        .unwrap_or_else(|| "stub/test".to_string());
-    *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(&cfg_snapshot);
 
     // 2. 注册内置工具到共享 registry(MCP/LSP 后续也注册进来)。
     let tools = agent.inner.tools.clone();
@@ -43,8 +43,11 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     super::subagents::register_task_tools(&tools, agent.task_manager());
 
     // 3. 构造 ModelRegistry(provider / degraded 两分支)。
+    //    注意:registry **先不发布**到 inner —— 步骤 3c 的 model spec 解析
+    //    可能要打 provider 的模型清单端点(最长 ~20s)。这段窗口里
+    //    `model_registry_ready()` 必须保持 false,否则前端发来的 bind 命令
+    //    会用「还没解析的」model spec 构造线程(动态值场景 = 占位串)。
     let registry = super::thread_factory::build_registry(&cfg_snapshot, Arc::clone(&tools));
-    *agent.inner.model_registry.lock() = Some(registry.clone());
 
     // 3a. coding plan 配额追踪器:config 声明了 quota 的 credential 才会
     //     构建(Some);全无声明 → None(与 headless 行为对齐)。
@@ -55,14 +58,27 @@ pub(crate) fn install_agent_thread(agent: &MinimalAgent) {
     //     agent 读不到」。失败只记日志,不阻断启动。
     crate::memory_store::migrate_legacy_memory_dir(&workspace);
 
+    // 3c. 解析 model spec —— **必须**在 registry 建好之后:`model = "free"`
+    //     这类动态值要从 provider 的模型清单里挑(清单来源就是 registry),
+    //     解析要打网络。解析失败 → 降级原因如实上报,model 落 `stub/test`
+    //     —— 绝不落占位串 `"provider/free"`:那是发给 provider 的假模型名,
+    //     表现为难诊断的「模型不存在」。
+    let (resolved_spec, discovery_error) =
+        super::agent::resolve_model_spec_with_discovery(&cfg_snapshot, &registry).await;
+    let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());
+    *agent.inner.model_spec.write() = model_spec.clone();
+    *agent.inner.degraded_reason.lock() =
+        super::agent::compute_degraded_reason(&cfg_snapshot).or(discovery_error);
+    // 3d. 解析完成后再发布 registry —— bind 命令在这之前一律拒绝。
+    *agent.inner.model_registry.lock() = Some(registry);
+
     // 4. 构造占位 AgentThread(sid = None,不挂 recorder / 不固定 id)。
     //    占位 thread 给首条消息前的 health-check / 状态命令兜底;
     //    `reflect_bind_session` 会触发 rebind 把它换成带 recorder 的真 thread。
     let thread = super::thread_factory::construct_thread(agent, None, vec![], None)
         .expect("install: construct_thread(占位) 不应失败");
-    // 5. 写回 inner + 把共享 registry 记入 inner(rebind 复用)。
+    // 5. 写回 inner(共享 registry 已在步骤 3d 记入 inner,rebind 复用)。
     *agent.inner.thread.lock() = Some(thread.clone());
-    *agent.inner.model_spec.write() = model_spec.clone();
 
     // 6. 启动会话事件转发器。
     super::session::start_forwarder(agent);
@@ -242,7 +258,7 @@ mod tests {
         // 但 tauri::async_runtime::spawn 在 tokio::test runtime 里会复用当前
         // runtime(若 tauri 未单独 init),这里仅验证同步可见状态。
         // 若 MCP bootstrap 网络失败,不影响 install 返回(已被 spawn 隔离)。
-        agent.install_agent_thread();
+        agent.install_agent_thread().await;
 
         // ready 翻转为 true。
         let status = agent.agent_status();
@@ -272,7 +288,7 @@ mod tests {
     async fn install_populates_registry_and_cron_handle() {
         let agent = MinimalAgent::new_empty();
         assert!(!agent.model_registry_ready(), "registry 预置 None");
-        agent.install_agent_thread();
+        agent.install_agent_thread().await;
         assert!(agent.model_registry_ready(), "registry 已建");
 
         // cron_driver 句柄已存(不是 None),否则 cron 任务被立即 abort。

@@ -16,6 +16,16 @@ export interface ProviderModelInfo {
   display_name: string;
   /** 厂商声明的视觉输入能力；null = 接口未返回。 */
   supports_vision: boolean | null;
+  /**
+   * 是否免费：`true` / `false` = 已判定；`null` = **未知**
+   * （厂商没表态，判定规则也没命中 —— 此时不能断言免费）。
+   *
+   * 判定规则来自配置里的 `[model_discovery]` 段（`always_free` /
+   * `free_id_patterns`），与引擎跑 `model = "free"` 时用的是同一套规则。
+   */
+  is_free: boolean | null;
+  /** 上下文窗口（厂商未披露时为 null）。 */
+  context_window: number | null;
 }
 
 /** 模型列表 + 查询端口。 */

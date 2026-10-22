@@ -47,7 +47,7 @@ async fn collect_events(
 #[tokio::test]
 async fn real_agent_thread_emits_session_configured() {
     let agent = MinimalAgent::new_empty();
-    agent.install_agent_thread();
+    agent.install_agent_thread().await;
     let mut rx = agent.subscribe_session();
 
     let sub = Submission::user_input("hello");
@@ -84,7 +84,7 @@ async fn real_agent_thread_emits_error_for_stub_model() {
 
     // 没注册 model client → 提交 UserInput 后应 emit Error event（不应 panic）。
     let agent = MinimalAgent::new_empty();
-    agent.install_agent_thread();
+    agent.install_agent_thread().await;
     let mut rx = agent.subscribe_session();
 
     let sub = Submission::with_id(
@@ -125,7 +125,7 @@ async fn real_agent_thread_emits_error_for_stub_model() {
 #[tokio::test]
 async fn interrupt_token_cancels_in_flight_turn() {
     let agent = MinimalAgent::new_empty();
-    agent.install_agent_thread();
+    agent.install_agent_thread().await;
     let _ = agent.subscribe_session();
     // interrupt 之前:cancel token 尚未取消。
     // 通过 MinimalAgent::cancel_token() 公开 getter 访问(替代私有 inner.thread)。
@@ -146,7 +146,7 @@ async fn interrupt_token_cancels_in_flight_turn() {
 #[tokio::test]
 async fn broadcast_supports_multiple_subscribers() {
     let agent = MinimalAgent::new_empty();
-    agent.install_agent_thread();
+    agent.install_agent_thread().await;
     let mut rx1 = agent.subscribe_session();
     let mut rx2 = agent.subscribe_session();
 

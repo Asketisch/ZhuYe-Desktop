@@ -81,7 +81,14 @@ pub async fn reflect_save_config(
     // 2. 写盘 + 热更新共享 cfg(保留旧快照供变更检测)。
     let old_cfg = persist_config(&agent, new_cfg.clone())?;
     // 3. provider 栈变化 → 重建 registry/tracker + 重绑当前会话。
-    crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await;
+    //    模型解析失败(`model = "free"` 这类动态值挑不到模型)时,配置**已
+    //    写盘**(保存本身成功),失败原因进 `agent_status.degraded_reason`
+    //    —— 状态栏黄点可见。这里不把保存报成失败(那会误导用户重试)。
+    if let Some(err) =
+        crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await
+    {
+        tracing::warn!("[reflect-gui] model spec resolution failed after save: {err}");
+    }
     Ok(())
 }
 
@@ -118,8 +125,22 @@ pub async fn reflect_set_model(
     let mut new_cfg = agent.cfg().read().clone();
     apply_model_switch(&mut new_cfg, &provider, &model, label.as_deref())?;
     let old_cfg = persist_config(&agent, new_cfg.clone())?;
-    crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await;
-    let spec = new_cfg.resolved_model_spec().unwrap_or_default();
+    // 模型解析失败(`model = "free"` 这类动态值挑不到模型)→ 如实报错给
+    // 前端(配置已写盘,但请求会用不了这个模型)。
+    if let Some(err) =
+        crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await
+    {
+        return Err(CommandError {
+            msg: format!("model spec resolution failed: {err}"),
+        });
+    }
+    // 返回**已解析**的 spec —— `model = "free"` 这类动态值在热重载阶段已
+    // 解析成真实 id(不是占位串 `"provider/free"`)。没配 model 时返回空串
+    // (诚实缺失,由 UI 显示"未配置模型")。
+    let spec = match agent.model_spec().as_str() {
+        "stub/test" => String::new(),
+        s => s.to_string(),
+    };
     tracing::info!("[reflect-gui] model switched to '{spec}' (hot-reloaded)");
     Ok(spec)
 }

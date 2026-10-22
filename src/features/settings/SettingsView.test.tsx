@@ -269,4 +269,30 @@ describe('configSchema helpers', () => {
     const sandboxOn = applyField(SAMPLE_TOML, 'sandbox', 'os_level', 'true', 'boolean');
     expect(sandboxOn).toContain('os_level = true');
   });
+
+  // 数组型字段(`Vec<String>`)必须写成 TOML **数组字面量**。
+  // 此前经 `encodeScalar` 二次编码成字符串(enabled_plugins = "\"a\", \"b\"")，
+  // 与后端 `Vec<String>` 不匹配 → 保存配置报校验错误。
+  it('applyField writes list fields as TOML arrays (not strings)', () => {
+    const next = applyField(SAMPLE_TOML, 'model_discovery', 'always_free', 'union-alpha\nbig-pickle', 'textarea');
+    expect(next).toContain('always_free = ["union-alpha", "big-pickle"]');
+    expect(next).not.toContain('always_free = "\\"');
+
+    const plugins = applyField(SAMPLE_TOML, 'plugins', 'enabled_plugins', 'code-formatter@sample-tools', 'textarea');
+    expect(plugins).toContain('enabled_plugins = ["code-formatter@sample-tools"]');
+  });
+
+  it('applyField removes a list field when every item is cleared', () => {
+    const next = applyField(SAMPLE_TOML, 'model_discovery', 'always_free', '  \n ', 'textarea');
+    expect(next).not.toContain('always_free');
+  });
+
+  it('readField returns list fields as newline-joined items', () => {
+    const toml = `[model_discovery]
+always_free = ["union-alpha", "big-pickle"]
+free_id_patterns = ["-free", ":free"]
+`;
+    expect(readField(toml, 'model_discovery', 'always_free')).toBe('union-alpha\nbig-pickle');
+    expect(readField(toml, 'model_discovery', 'free_id_patterns')).toBe('-free\n:free');
+  });
 });

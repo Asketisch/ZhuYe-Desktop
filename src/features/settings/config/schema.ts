@@ -75,6 +75,14 @@ const SIMPLE_FIELDS: FieldSpec[] = [
 
   { section: 'model', key: 'context_window', labelKey: 'settings.config.field.model.context_window', kind: 'integer' },
 
+  // v1.x 模型清单发现(`[model_discovery]`)—— `model = "free"` 的规则。
+  // enabled 关掉后 `model = "free"` 直接报错(明确失败优于模糊兜底)。
+  { section: 'model_discovery', key: 'enabled', labelKey: 'settings.config.field.model_discovery.enabled', kind: 'boolean' },
+  { section: 'model_discovery', key: 'timeout_secs', labelKey: 'settings.config.field.model_discovery.timeout_secs', kind: 'integer' },
+  { section: 'model_discovery', key: 'prefer', labelKey: 'settings.config.field.model_discovery.prefer', kind: 'text', placeholderKey: 'settings.config.placeholder.model_discovery.prefer' },
+  { section: 'model_discovery', key: 'always_free', labelKey: 'settings.config.field.model_discovery.always_free', kind: 'textarea' },
+  { section: 'model_discovery', key: 'free_id_patterns', labelKey: 'settings.config.field.model_discovery.free_id_patterns', kind: 'textarea' },
+
   { section: 'analytics', key: 'enabled', labelKey: 'settings.config.field.analytics.enabled', kind: 'boolean' },
   { section: 'analytics', key: 'endpoint', labelKey: 'settings.config.field.analytics.endpoint', kind: 'text' },
   { section: 'analytics', key: 'service_name', labelKey: 'settings.config.field.analytics.service_name', kind: 'text' },
@@ -129,6 +137,28 @@ export const STRUCTURED_SECTIONS: readonly string[] = Array.from(
   new Set([...COMPLEX_SECTIONS, ...Object.keys(SIMPLE_FIELDS_BY_SECTION)]),
 );
 
+/**
+ * 数组型字段(`Vec<String>`)—— 值在 UI 里按行编辑,写回 TOML 时是数组
+ * 字面量而不是字符串。
+ *
+ * 键名格式 `section.key`。
+ *
+ * 此前只有 `plugins.enabled_plugins` 走数组路径,且写回时被 `encodeScalar`
+ * 当成普通字符串二次编码(`"a", "b"` → `"\"a\", \"b\""`)—— 落到 TOML 上
+ * 是**字符串**而非数组,后端 `Vec<String>` 反序列化直接失败(保存配置报
+ * 校验错误)。这里改成按字段登记 + 直接写数组字面量,一并修掉那个坑。
+ */
+const LIST_FIELDS = new Set([
+  'plugins.enabled_plugins',
+  'model_discovery.always_free',
+  'model_discovery.free_id_patterns',
+]);
+
+/** 该字段是否是数组型(按行编辑 → TOML 数组字面量)。 */
+function isListField(section: string, key: string): boolean {
+  return LIST_FIELDS.has(`${section}.${key}`);
+}
+
 /** 从 TOML 字符串读取标量 / 数组字段。 */
 export function readField(toml: string, section: string, key: string): string {
   const lines = toml.split('\n');
@@ -144,7 +174,7 @@ export function readField(toml: string, section: string, key: string): string {
     const m = new RegExp(`^${escapeRegExp(key)}\\s*=\\s*(.+)$`).exec(line);
     if (!m) continue;
     const value = m[1].trim();
-    if (section === 'plugins' && key === 'enabled_plugins' && value.startsWith('[') && value.endsWith(']')) {
+    if (isListField(section, key) && value.startsWith('[') && value.endsWith(']')) {
       return value
         .slice(1, -1)
         .split(',')
@@ -184,14 +214,15 @@ export function applyField(toml: string, section: string, key: string, value: st
     }
     return setSectionKey(toml, section, key, value);
   }
-  if (section === 'plugins' && key === 'enabled_plugins') {
+  if (isListField(section, key)) {
     const items = value
       .split('\n')
       .map((v) => v.trim())
       .filter(Boolean);
-    if (items.length === 0) return removeSectionKey(toml, 'plugins', 'enabled_plugins');
-    const list = items.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(', ');
-    return setSectionKey(toml, 'plugins', 'enabled_plugins', list);
+    if (items.length === 0) return removeSectionKey(toml, section, key);
+    const list = `[${items.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(', ')}]`;
+    // 数组字面量**不能**再过 `encodeScalar`(那会把它变成字符串)。
+    return setSectionKeyEncoded(toml, section, key, list);
   }
   if (kind === 'textarea') {
     if (!value.trim()) return removeSectionKey(toml, section, key);
@@ -201,6 +232,17 @@ export function applyField(toml: string, section: string, key: string, value: st
 }
 
 function setSectionKey(toml: string, section: string, key: string, encoded: string): string {
+  // 空值 = 清除该键。**必须在编码前判断** —— `encodeScalar('')` 得到
+  // `'""'`,编码后再判断会把「清除」变成「写入一个空字符串」。
+  if (!section.includes('.') && !encoded) return removeSectionKey(toml, section, key);
+  return setSectionKeyEncoded(toml, section, key, encodeScalar(encoded));
+}
+
+/**
+ * 写回**已编码**的 TOML 值 —— 数组字面量(`["a", "b"]`)等不能再过一次
+ * `encodeScalar`,否则会被 JSON 编码成字符串。
+ */
+function setSectionKeyEncoded(toml: string, section: string, key: string, encoded: string): string {
   if (!section.includes('.') && !encoded) return removeSectionKey(toml, section, key);
   const lines = toml.split('\n');
   let sectionStart = -1;
@@ -214,7 +256,7 @@ function setSectionKey(toml: string, section: string, key: string, encoded: stri
   }
   if (sectionStart === -1) {
     if (!encoded) return toml;
-    return `${toml.replace(/\s*$/, '')}\n\n[${section}]\n${key} = ${encodeScalar(encoded)}\n`;
+    return `${toml.replace(/\s*$/, '')}\n\n[${section}]\n${key} = ${encoded}\n`;
   }
   for (let i = sectionStart + 1; i < sectionEnd; i++) {
     if (new RegExp(`^${escapeRegExp(key)}\\s*=`).test(lines[i].trim())) {
@@ -222,12 +264,12 @@ function setSectionKey(toml: string, section: string, key: string, encoded: stri
         lines.splice(i, 1);
         return lines.join('\n');
       }
-      lines[i] = `${key} = ${encodeScalar(encoded)}`;
+      lines[i] = `${key} = ${encoded}`;
       return lines.join('\n');
     }
   }
   if (!encoded) return lines.join('\n');
-  lines.splice(sectionEnd, 0, `${key} = ${encodeScalar(encoded)}`);
+  lines.splice(sectionEnd, 0, `${key} = ${encoded}`);
   return lines.join('\n');
 }
 

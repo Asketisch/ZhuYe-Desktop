@@ -4,6 +4,67 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 修复 — submodule 升级接线:模型清单发现(`model = "free"`)+ `spec_fallback` + `[model_discovery]`
+
+- **背景**：submodule 升级到 `8d65825`（`e4bc182` → `8d65825`，12 个
+  提交；最后一个是 `reflect-py` 的 pyo3 升级，纯 CI / Python SDK，GUI
+  无消费面）。上游新增「运行时才知道的模型 id」`model = "free"`（运行时去
+  provider 清单里挑免费模型）、`[model_discovery]` 配置段、
+  `RoutingEventKind::SpecFallback`（跨模型降级）、`reflect-llm` 的
+  `model_catalog`（免费判定规则）。桌面端此前**一处没接**。
+- **断点一 —— model spec 解析走同步路径（功能破损）**：桌面端全部用
+  `ReflectConfig::resolved_model_spec()`（同步），`model = "free"` 拿到
+  的是**占位串** `"provider/free"` —— 会被 routing 的 main slot 当成真
+  模型发给 provider（表现为「模型不存在」），状态栏也显示一个不存在的
+  模型。上游已把统一入口换成 `reflect_config::resolve_model_spec()`
+  （async，动态值走清单发现）。
+  - 新增 `state/agent.rs::resolve_model_spec_with_discovery(cfg, registry)`
+    —— 返回 `(spec, error)`；静态值走同步解析，动态值走清单发现，失败
+    **如实上报**（绝不回落到占位串）。
+  - `install_agent_thread` 改 `async`：registry 建好后解析 spec 再构造
+    线程；registry **延迟到解析完成才发布**（解析期间可能 20s，期间
+    `model_registry_ready()` 保持 false，避免 bind 命令用未解析的 spec
+    造线程）。
+  - `hot_reload_provider_stack` 返回解析错误；`[model_discovery]` 段变更
+    也进入重载触发条件；解析失败**保留旧 model**（与上游
+    `handle_reload` 同语义），原因进 `degraded_reason`。
+  - `construct_thread` 不再自行解析 spec，只消费 `inner.model_spec`。
+  - `reflect_set_model` 返回**已解析**的 spec（`free` → 真实 id），
+    解析失败报 `Err`；`reflect_save_config` 不把解析失败报成保存失败。
+- **断点二 —— `app-core` 两处上游镜像函数脱节**：`app-core/src/discussion.rs`
+  与 `app-core/src/pipeline.rs` 各自镜像了一份上游 CLI 的
+  `try_build_llm_orchestrator` / `build_factory`；上游已把两者改成
+  async + `resolve_model_spec`，桌面端副本还是同步旧版 → 同步改为
+  async + 统一解析入口。
+- **断点三 —— 协议缺 `spec_fallback`**：`RoutingPayload.kind` /
+  `RoutingSnapshot.kind` 的联合类型只有 4 个变体，wire 上可能送来第 5 个
+  → 两个联合类型补 `spec_fallback`。
+- **断点四 —— `[model_discovery]` 无 UI 消费面**：五个字段
+  （`enabled` / `timeout_secs` / `prefer` / `always_free` /
+  `free_id_patterns`）进结构化配置表单（新增 i18n 键）。
+- **断点五 —— 模型列表不标免费**：`reflect_list_provider_models` 返回值
+  增 `is_free` / `context_window` —— 免费判定规则取自**当前生效**的
+  `[model_discovery]` 段（与引擎跑 `model = "free"` 同一套规则），
+  Composer 模型选项追加「免费」标记；`null` = 未知，不标。
+- **顺带修 —— 数组型配置字段写回是字符串**：`config/schema.ts` 的数组
+  字段此前被 `encodeScalar` 二次编码（`"a", "b"` → `"\"a\", \"b\""`），
+  落到 TOML 上与后端 `Vec<String>` 不匹配（保存配置报校验错误）。改为按
+  字段登记（`LIST_FIELDS`）+ 直接写数组字面量，`plugins.enabled_plugins`
+  一并修好。
+- **结构拆分（守 500 行预算）**：本轮改动把两个生产文件推过了预算线
+  （静态审查的 `file-size-budget` 棘轮会拦），按 `AGENTS.md`
+  「大文件例外说明」拆成子模块，而不是登记进基线：
+  - `src-tauri/src/commands/models.rs` → 拆出
+    `commands/model_catalog.rs`（条目解析 + 免费判定，纯逻辑、可单测）；
+    `models.rs` 只留命令层（拼 URL / 发请求 / 连通性测试）。
+  - `src/stores/agent/types.ts` → 拆出 `stores/agent/tokenTypes.ts`
+    （`TokenSnapshot` / `LiveModelUsage`）；`types.ts` 重新导出，
+    既有导入路径（`@/stores/agent/types`）全部保持有效，调用方零改动。
+- 文档：`docs/PROTOCOL_BRIDGE.md`（§2.0 三条命令 + §3.6 routing kinds）、
+  `docs/CAPABILITIES.md`（§3.24 + 总览表新增「模型清单发现」行 + 审计
+  基线更新到 submodule `8d65825`；顺带订正 Op 变体数：实为 **22**
+  （此前写 24），其中 20 个有命令，另 2 个是 SDK 专用（§2 ⛔））。
+
 ### 新增 — L5 e2e 层:视觉回归 + 真窗口冒烟
 
 - **发布门禁扩为五层**(`tests/run_all.sh` `ALL_SUITES` 加 `e2e`):

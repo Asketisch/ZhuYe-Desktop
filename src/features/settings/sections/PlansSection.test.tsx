@@ -169,8 +169,8 @@ describe('PlansSection', () => {
     vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
       endpoint: 'anthropic',
       models: [
-        { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null },
-        { id: 'claude-haiku-4', display_name: 'Claude Haiku 4', supports_vision: true },
+        { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: 200000 },
+        { id: 'claude-haiku-4', display_name: 'Claude Haiku 4', supports_vision: true, is_free: false, context_window: null },
       ],
     });
     renderSection(SAMPLE_TOML);
@@ -202,7 +202,7 @@ describe('PlansSection', () => {
   it('测试连接：调模型列表接口（零 token），成功显示 ✓', async () => {
     vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
       endpoint: 'anthropic',
-      models: [{ id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null }],
+      models: [{ id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: null }],
     });
     renderSection(SAMPLE_TOML);
     // 表单默认为空(按钮禁用),先填 base_url + api_key。
