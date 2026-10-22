@@ -24,6 +24,7 @@ bash tests/run_all.sh frontend    # L2 前端行为
 bash tests/run_all.sh backend     # L3 真后端能力覆盖
 bash tests/run_all.sh artifact    # L4 发布产物审查
 bash tests/run_all.sh e2e         # L5 视觉回归 + 真窗口冒烟（依赖缺失时跳过）
+REFLECT_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认跳过）
 ```
 
 退出码 **0 = 允许发布**，非 0 = 存在阻断项。报告落在
@@ -33,9 +34,10 @@ bash tests/run_all.sh e2e         # L5 视觉回归 + 真窗口冒烟（依赖�
 |---|---|---|---|
 | L1 | `static/` | 源码与仓库状态：命令面四方一致、路由↔视图、版本四处一致、CHANGELOG / 能力矩阵新鲜度、仓库卫生、调试残留、生产文件大小预算棘轮 | 静态分析 |
 | L2 | `frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量 | **模拟**（`fakeBackend`） |
-| L3 | `backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层） | **真** |
+| L3 | `backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层） | **真**（模型是假的） |
 | L4 | `artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 |
 | L5 | `e2e/` | 视觉回归（全路由 × dark/light 截图基线）+ WebDriver 真窗口冒烟（仅 Linux）。依赖缺失时默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
+| L6 | `live/` | **真免费模型**演练：真实 provider + 真实 SSE + 真实限流。默认跳过，`REFLECT_LIVE=1` 开启 | **真**（模型也是真的） |
 
 ### L5 视觉回归与真窗口冒烟
 
@@ -65,16 +67,52 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
   chromium（`pnpm exec playwright-core install chromium-headless-shell`
   或已装 chromium）。
 
-### 为什么 L2 与 L3 都要有
+### L6 实模型演练层（真免费模型）
+
+```bash
+REFLECT_LIVE=1 bash tests/run_all.sh live    # 真跑
+bash tests/run_all.sh live                    # 默认跳过（不发起任何网络请求）
+```
+
+L3 的后端是真的，但**模型是假的**（wiremock / 本地 mock LLM）。假模型永远
+测不到：真实 HTTP 往返、真实 SSE 帧形状、真实模型的思考过程、真实限流
+（429）、真实截断续作、真实 provider 的工具调用质量。L6 把**免费模型池**
+接进同一条真链路：
+
+```
+reflect_submit → AgentThread → HTTP → SSE 解析 → reflect_event 通道
+```
+
+与 GUI 点一次「发送」是**同一条链**（同一个 `generate_handler!` 注册表、
+同一个 AgentThread、同一个事件通道）。实现见
+`src-tauri/tests/ipc_live_free_model.rs`。
+
+- **模型不写死**：配置写 `model = "free"`，运行时从 provider 清单**实时
+  发现**（免费集合由上游决定，写死必然腐烂）。
+- **只断言协议形状**：model spec 解析成真实 id、turn 有终态、usage 字段
+  齐全、工具调用成对。**不断言回答文本** —— 真实模型输出不确定，逐字
+  断言只会制造假失败。
+- **429 判为跳过**而非失败 —— 测的是代码，不是配额。
+- **只用合成 prompt**，不喂真实仓库内容 / 凭据（免费池的模型卡明示
+  prompt 可能被上游记录）。
+- 默认**不发任何网络请求**：测试带 `#[ignore]`，运行期还要 `REFLECT_LIVE=1`
+  才放行（双保险）。
+
+可用车道见 [`docs/FREE_MODEL_PRACTICE.md`](../docs/FREE_MODEL_PRACTICE.md)
+（Kilo 免费池免 Key 直连 / dsh 本地网关转 OpenCode 车道）。
+
+### 为什么 L2、L3 与 L6 都要有
 
 L2 验前端行为与线格式，但它的后端是**模拟**的
 （`helpers/fakeBackend.ts` 实现了全部 IPC 命令）—— **模拟后端的 bug 会把
-真后端的 bug 遮住**。L3 补上这一块：直接驱动真命令体。
+真后端的 bug 遮住**。L3 补上这一块：直接驱动真命令体。L6 再补一格：
+真命令体 + **真模型**。
 
 > 这与 submodule `reflect-agent/tests/` 的分层同理：能力覆盖层**不经过
 > 任何 SDK**（那里是 Python 打真二进制的原始 wire），因为 SDK 自身的 bug
 > 会把 Rust 的 bug 遮住。这里的「SDK」就是前端那层 `invoke` 包装与
-> `fakeBackend`。
+> `fakeBackend`。submodule 侧另有 `tests/live/`（实模型层），桌面端的
+> L6 与它同口径。
 
 ### L3 能力覆盖层怎么做到「真」
 
@@ -192,6 +230,8 @@ tests/
 ├── e2e/                                    # L5 视觉回归 + 真窗口冒烟
 │   ├── run.sh
 │   └── window.smoke.test.ts                # tauri-driver 真窗口冒烟（仅 Linux）
+├── live/                                   # L6 实模型演练层（真免费模型）
+│   └── run.sh                              # REFLECT_LIVE=1 才真跑（默认跳过）
 ├── visual/                                 # 视觉回归（L5 的视觉半边）
 │   ├── run.sh 所用的 spec：visual.spec.ts / vitest.config.ts
 │   ├── main.tsx / index.html               # 浏览器态入口（生产 main.tsx + visual globals）

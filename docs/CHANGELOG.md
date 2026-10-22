@@ -4,6 +4,62 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — L6 实模型演练层：用**免费模型池**跑桌面端的全链路实践测试
+
+- **背景**：`dsh-our-free-model` 提供的免费模型池（Kilo 免费池 / dsh 本地
+  网关转 OpenCode 车道）此前只在 submodule 侧有 `tests/live/` 一层，桌面端
+  的发布门禁只到「真后端 + 假模型」—— 真实 SSE 帧形状、真实模型的思考
+  过程、真实限流（429）、真实截断续作这一格始终是空的。
+- **新增 L6 层**（`tests/live/run.sh` + `src-tauri/tests/ipc_live_free_model.rs`）：
+  走**生产同一条链** —— `reflect_submit` → AgentThread → 真 provider →
+  真 SSE → `reflect_event` 通道（同一个 `generate_handler!` 注册表、同一个
+  AgentThread、同一个事件通道，与 GUI 点一次「发送」同形）。
+  - **模型不写死**：配置写 `model = "free"`，运行时从 provider 清单**实时
+    发现**（免费集合由上游决定，写死必然腐烂）；断言解析出的是**真实
+    model id**而非占位串。
+  - **只断言协议形状**：turn 有终态、usage 四字段齐全且 `total_tokens > 0`、
+    工具调用成对。**不断言回答文本** —— 真实模型输出不确定，逐字断言只会
+    制造假失败。
+  - **环境态判为跳过而非失败**：上游限流（`RATE_LIMITED` /
+    `ALL_CREDENTIALS_EXHAUSTED`）、地区门（`REGION_BLOCKED`）、模型不支持
+    tools —— 都是环境/配额状态，测的是配额不是代码。
+  - **只用合成 prompt**，不喂真实仓库内容 / 凭据（免费池的模型卡明示
+    prompt 可能被上游记录）。
+  - **默认不发任何网络请求**：用例带 `#[ignore]`，运行期还要 `REFLECT_LIVE=1`
+    才放行（双保险）；门禁层默认 SKIP，不进 CI。
+- **实测结论**（本机，Kilo 免费池免 Key）：模型清单 401 条里 **18 条
+  `isFree: true`**（17 条支持 tools）；`model = "free"` 实时发现到
+  `cohere/north-mini-code:free`，全链路一轮通过（正文 207~483B、
+  token ≈3.5k、终态 `success`）；`minimax/minimax-m3.1-flash:free` /
+  `nvidia/nemotron-3.5-lightning:free` / `poolside/laguna-s-2.1:free`
+  同样通过。
+- **L6 顺带抓出并修掉一个真 bug（上游 `reflect-llm`）**：
+  `dsh-our-free-model` 网关在地区门 / 配额用尽时，不是用非 2xx 状态码
+  报错，而是在 **HTTP 200 的流里**下发一帧 `data: {"error":{...}}`。
+  该帧既无 `choices` 也无 `usage`，`parse_chunk` 此前**整块丢弃** →
+  上层拿到一条「成功但零内容」的流，turn 以 `success` + **0 token** 收场，
+  **真实错误被静默吞掉** —— 用户只看到「助手没说话」，没有任何错误提示。
+  上游提交 `ead8fb2d` 修掉：流内错误帧显式产出 Error 事件（自报限流 →
+  `RateLimited`，其余 → `Provider{status: 200}`，语义对齐 HTTP 429 与
+  4xx 快速失败），补 3 条单测 + 1 条 wiremock 集成测试。
+  修复前后对照（同一 dsh 网关、同一模型）：
+  - 修复前：`FAIL 没有任何正文/思考增量 / total_tokens = 0`
+  - 修复后：`SKIP PROVIDER_ERROR: provider error: 200 server_error:
+    This model is not available in your country`
+- **新增文档** `docs/FREE_MODEL_PRACTICE.md`：两条车道、配置模板、
+  GUI 配法、已知限制与排障。**含一个关键坑**：免 Key 端点必须用
+  `[[openai.credentials]]` **数组形态** —— 顶层单值 `api_key = ""` 会让
+  `build_openai_pool` 直接不注册该 provider（数组空 + key 空 → `None`）。
+- **已知缺口（未修）**：设置页的「获取模型列表」走
+  `reflect_list_provider_models`，该命令对空 `api_key` 直接报
+  `api_key is empty` —— **免 Key 的免费池在 GUI 里拿不到模型清单**
+  （引擎侧的清单发现不受影响，它走 provider client 而非该命令）。
+- **门禁入口**：`tests/run_all.sh` 增加 `live` 套件（五层 → 六层），
+  `REFLECT_LIVE=1 bash tests/run_all.sh live` 真跑，否则整层 SKIP。
+- **`tests/lib.sh`**：`suite_absorb` 现在把 PASS/FAIL 的**原因**也落进
+  `.cases`（发布审查报告里能直接看到「这轮跑的是哪个模型 / 多少
+  token」），此前只落 SKIP 的原因。
+
 ### 修复 — submodule 升级接线:模型清单发现(`model = "free"`)+ `spec_fallback` + `[model_discovery]`
 
 - **背景**：submodule 升级到 `8d65825`（`e4bc182` → `8d65825`，12 个

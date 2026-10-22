@@ -8,6 +8,7 @@
 #   ./tests/run_all.sh backend         # 只跑真后端能力覆盖层
 #   ./tests/run_all.sh artifact        # 只跑发布产物审查层
 #   ./tests/run_all.sh e2e             # 只跑真窗口 E2E + 视觉回归层
+#   REFLECT_LIVE=1 ./tests/run_all.sh live   # 只跑实模型演练层(真免费模型)
 #
 # ## 分层模型
 #
@@ -16,9 +17,12 @@
 #   L3 backend        **真实后端**能力覆盖层(mock runtime 驱动真实命令体)
 #   L4 artifact       发布产物审查(.app / .dmg / .deb / .msi 结构与内容)
 #   L5 e2e            真窗口冒烟(tauri-driver)+ 视觉回归(路由 × 主题截图);依赖缺失时整层可跳过
+#   L6 live           **真免费模型**演练层(真实 provider + 真实 SSE);默认跳过,需 REFLECT_LIVE=1
 #
 # L2 的后端是模拟的(fakeBackend),L3 的后端是真的。两者合起来才覆盖
 # 完整功能面 —— 与 submodule「能力覆盖层 + SDK 绑定层」的分层同理。
+#
+# L6 补的是 L3 补不了的那一环:真实模型 / 真实网络 / 真实限流。
 #
 # 退出码 0 = 全部通过(可发布);非 0 = 存在阻断项(禁止发布)。
 # 报告落在 `$RESULT_DIR/release-review.md`(默认 `.test-results/`)。
@@ -30,15 +34,15 @@ source "$HERE/lib.sh"
 
 cd "$ROOT"
 
-ALL_SUITES=(static frontend backend artifact e2e)
+ALL_SUITES=(static frontend backend artifact e2e live)
 SUITES=("${ALL_SUITES[@]}")
 if [ $# -gt 0 ]; then
     SUITES=()
     for arg in "$@"; do
         case "$arg" in
-            static|frontend|backend|artifact|e2e) SUITES+=("$arg") ;;
+            static|frontend|backend|artifact|e2e|live) SUITES+=("$arg") ;;
             *)
-                echo "未知套件:$arg(可选:static / frontend / backend / artifact / e2e)" >&2
+                echo "未知套件:$arg(可选:static / frontend / backend / artifact / e2e / live)" >&2
                 exit 2
                 ;;
         esac

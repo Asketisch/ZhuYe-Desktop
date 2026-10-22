@@ -8,7 +8,16 @@
 > 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `8d65825`（v1.7 R3 —— 模型清单发现 / 跨模型降级链）。
+> 最近审计：submodule `9c878e38`（v1.7 R4 —— 流内错误帧不再被静默吞掉 /
+> SDK 发布流水线）。上一版 `8d65825`（v1.7 R3 —— 模型清单发现 / 跨模型降级链）。
+>
+> `8d65825 → 9c878e38` 的上游变更对 GUI 的影响面：
+> - `reflect-llm` 的 OpenAI provider 新增**流内错误帧**处理（`data:
+>   {"error":{...}}` → `ChatEvent::Error`）。**无新 `Op` / `EventMsg` 变体**，
+>   无新 crate 公开 API —— 协议不变量不受影响；GUI 无需新增消费面。
+> - 其余为上游侧发布流水线 / SDK 打包 / 文档（`scripts/release_sdk.sh`、
+>   `docs/release.md`、`.github/workflows/release-sdks.yml`、SDK 版本对齐
+>   `0.1.0`）—— 与桌面端无关。
 
 ## 阅读约定
 

@@ -56,7 +56,7 @@ ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 | 新增核心 crate 引用 | 根 `Cargo.toml` `[workspace.dependencies]`（path 指向 submodule）|
 | 添加新测试夹具 | `src/test/setup.ts`、`vitest.config.ts` |
 | **给真后端命令加能力覆盖用例** | `src-tauri/tests/ipc_<domain>.rs`（新增文件）+ `src-tauri/tests/common/mod.rs`（共享夹具）。命令注册表在 `src-tauri/src/lib.rs::configure` —— **不要**另建一份命令清单 |
-| **改发布门禁** | `tests/run_all.sh`（总入口）+ `tests/lib.sh`（公共助手）+ `tests/{static,frontend,backend,artifact}/run.sh`（分层）+ `tests/static/analyze.mjs`（源码级交叉比对）+ `tests/static/baseline.json`（棘轮基线）|
+| **改发布门禁** | `tests/run_all.sh`（总入口）+ `tests/lib.sh`（公共助手）+ `tests/{static,frontend,backend,artifact,e2e,live}/run.sh`（分层）+ `tests/static/analyze.mjs`（源码级交叉比对）+ `tests/static/baseline.json`（棘轮基线）|
 | **改覆盖口径** | `tests/COVERAGE.md`（能力 → 套件映射 + 显式排除项与理由）|
 | 更改协议类型 | `reflect-agent/crates/protocol/reflect-protocol/src/*.rs`（改 Reflect-Agent 仓库后升级 submodule）|
 | 更改 agent store reducer / 动作 | `src/stores/agent/reducer.ts`（规范）。`src/stores/agentStore.ts` 是兼容 re-export —— 不要在那里添加新代码。 |
@@ -219,10 +219,15 @@ bash tests/run_all.sh static      # 静态审查：命令面一致 / 文档新�
 bash tests/run_all.sh frontend    # 前端行为：typecheck + vitest 全量
 bash tests/run_all.sh backend     # 真后端能力覆盖：fmt + clippy + cargo test
 bash tests/run_all.sh artifact    # 发布产物审查：.app 结构 / Info.plist / 签名
+bash tests/run_all.sh e2e         # 视觉回归 + 真窗口冒烟（依赖缺失时跳过）
+REFLECT_LIVE=1 bash tests/run_all.sh live   # 实模型演练（真免费模型，默认跳过）
 ```
 
 覆盖口径（哪个能力域由哪层验、哪些显式排除及理由）见
 [`tests/COVERAGE.md`](../tests/COVERAGE.md)。
+
+实模型演练层（真免费模型）的接法见
+[`docs/FREE_MODEL_PRACTICE.md`](FREE_MODEL_PRACTICE.md)。
 
 子模块升级：
 

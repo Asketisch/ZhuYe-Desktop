@@ -17,11 +17,17 @@
 | L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`） | **真** | 0 = 通过 |
 | L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 | 0 = 通过 |
 | L5 | `tests/e2e/` | 视觉回归（全路由 × dark/light 截图基线，真实前端 + fakeBackend 浏览器态构建）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）；依赖缺失时默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
+| L6 | `tests/live/` | **实模型演练**：`reflect_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `reflect_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`REFLECT_LIVE=1` 开启 | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
 
-**为什么 L2 与 L3 都要有**：L2 验前端行为与线格式（后端是模拟的），
-L3 验真后端命令体的行为。模拟后端的 bug 会把真后端的 bug 遮住 ——
-与 submodule「能力覆盖层不经过任何 SDK」的道理同源。两层合起来才是完整
-功能面。
+**为什么 L2、L3 与 L6 都要有**：L2 验前端行为与线格式（后端是模拟的），
+L3 验真后端命令体的行为（但模型是假的）。模拟后端的 bug 会把真后端的 bug
+遮住 —— 与 submodule「能力覆盖层不经过任何 SDK」的道理同源。L6 再补一格：
+真命令体 + **真模型** + 真网络（真实 SSE 帧、真实思考过程、真实 429、真实
+截断续作）。三层合起来才是完整功能面。
+
+L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不进 CI
+门禁）、断言只到**协议形状**（不断言回答文本）、上游限流/地区门判为**跳过**
+而不是失败。
 
 **L3 能力覆盖层怎么做到「真」**：`src-tauri/tests/common/mod.rs` 用
 `tauri::test::mock_builder()` 建 app，再挂上**生产同一份**命令注册表
@@ -88,6 +94,8 @@ L3 验真后端命令体的行为。模拟后端的 bug 会把真后端的 bug �
 | **产物深度(Linux/Windows)** | .deb 解包(usr/bin 可执行 + .desktop(Exec) + 图标 + control 版本) / .AppImage(AppRun + .desktop) / .msi 管理映像(exe + ProductVersion) / 启动冒烟(CI 门控) | L4 `artifact/run.sh` | — |
 | **视觉回归** | 38 条路由 × dark/light 截图与基线逐字节比对(布局/主题回归零容忍);真实前端 + `fakeBackend` 经 alias shim 进浏览器态构建;时钟冻结 + 动画禁用保证确定性 | L5 `e2e/visual.spec.ts` | — |
 | **真窗口 E2E(冒烟)** | 构建产物起真窗口:壳层挂载、侧栏/导航存在、状态条非空、截图留存 | L5 `e2e/window.smoke.test.ts`(`tauri-driver`,仅 Linux;macOS 无 WKWebView WebDriver,官方口径跳过) | — |
+| **实模型全链路** | 有**真模型**的完整一轮:`reflect_submit` → AgentThread → 真 provider(免费模型池)→ 真 SSE → `reflect_event` 通道。断言:model spec 解析成真实 id(非占位串)、turn 有终态、usage 字段齐全、工具调用成对。**不断言回答文本** | L6 `ipc_live_free_model.rs`(默认 SKIP,`REFLECT_LIVE=1` 开启) | — |
+| **模型发现(清单实时拉取)** | `model = "free"` → 运行时查 provider 清单 → 按免费规则挑一个 → 写进运行时配置;失败**如实上报**(不回落占位串) | L6 `ipc_live_free_model.rs`(随实模型层跑) | — |
 
 **合计**：后端 185 条 `reflect_*` 命令中，能力覆盖层**直接驱动 179 条
 （96.8%）**；余下 6 条在 §3 逐条说明排除理由。
@@ -119,6 +127,12 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 跑起来，但它们的**输入校验**（配置文件不存在 / 团队不存在）可以在无模型
 环境下确定性地验 —— 能力覆盖层只跑失败路径，确认错误是结构化的、且
 **不会**误起任何编排。
+
+> **L6 尚未覆盖编排命令**：实模型层目前只跑**主 agent 回合**
+> （`reflect_submit` → 事件流），`reflect_run_pipeline` /
+> `reflect_run_discussion` / `reflect_run_team_pipeline` 仍是「只验失败
+> 路径」。这三条要接进 L6 需要真实的 pipeline / discussion 配置夹具，
+> 属于下一步。
 
 **`reflect_generate_session_title` 的特例**：它**已覆盖**，但只覆盖到前置
 守卫（空会话 → 「session has no user message to summarize」）。真正生成

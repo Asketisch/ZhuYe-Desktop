@@ -113,13 +113,15 @@ suite_absorb() {
             PASS)
                 PASS_COUNT+=1
                 echo "  [ok]   $name${reason:+ —— $reason}"
-                printf 'PASS\t%s\n' "$name" >> "$RESULT_DIR/$SUITE_NAME.cases"
+                # 原因也落盘 —— 发布审查报告里能直接看到「这轮跑的是哪个
+                # 模型 / 多少 token」,不必回翻日志。
+                printf 'PASS\t%s%s\n' "$name" "${reason:+	$reason}" >> "$RESULT_DIR/$SUITE_NAME.cases"
                 ;;
             FAIL)
                 FAIL_COUNT+=1
                 FAIL_NAMES+=("$name")
                 echo "  [FAIL] $name${reason:+ —— $reason}"
-                printf 'FAIL\t%s\n' "$name" >> "$RESULT_DIR/$SUITE_NAME.cases"
+                printf 'FAIL\t%s%s\n' "$name" "${reason:+	$reason}" >> "$RESULT_DIR/$SUITE_NAME.cases"
                 ;;
             SKIP)
                 SKIP_COUNT+=1
