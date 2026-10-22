@@ -35,16 +35,17 @@ import { TeamEditor } from './TeamEditor';
 import type { ReflectTaskStatus } from '@/utils/commands';
 import s from './TasksBoardView.module.css';
 
-const VIEW_OPTIONS: SegmentedOption<BoardView>[] = [
-  { value: 'list', label: <Icon icon={ListIcon} size={12} /> },
-  { value: 'board', label: <Icon icon={KanbanSquare} size={12} /> },
-];
-
 const BOARD_COLUMNS: ReflectTaskStatus[] = ['pending', 'in_progress', 'completed'];
 
 export function TasksBoardView() {
   const ctrl = useTasksBoardController();
   const { t } = useI18n();
+  // 视图切换选项是纯图标 —— 必须带 ariaLabel,否则屏幕阅读器读到
+  // 「未标记按钮」(axe button-name 违规)。
+  const viewOptions: SegmentedOption<BoardView>[] = [
+    { value: 'list', label: <Icon icon={ListIcon} size={12} />, ariaLabel: t('tasks.viewList') },
+    { value: 'board', label: <Icon icon={KanbanSquare} size={12} />, ariaLabel: t('tasks.viewBoard') },
+  ];
   // 自定义列表 ID 输入框可见性（允许用户输入不关联任何 team 的任意列表 ID）。
   const [showListPicker, setShowListPicker] = useState(false);
   // 团队管理面板可见性。
@@ -60,7 +61,7 @@ export function TasksBoardView() {
         <>
           <SegmentedControl
             size="sm"
-            options={VIEW_OPTIONS}
+            options={viewOptions}
             value={ctrl.view}
             onChange={ctrl.setView}
           />

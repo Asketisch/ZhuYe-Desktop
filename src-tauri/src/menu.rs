@@ -33,8 +33,26 @@ pub const MENU_TOGGLE_SIDEBAR: &str = "menu_toggle_sidebar";
 pub const MENU_TOGGLE_TERMINAL: &str = "menu_toggle_terminal";
 
 // ====== Window 菜单 ======
-pub const MENU_MINIMIZE: &str = "menu_minimize";
 pub const MENU_ZOOM: &str = "menu_zoom";
+// 注:Window 菜单的 Minimize 走 PredefinedMenuItem(系统内建行为,
+// 无自定义 id / 事件分支),故没有 MENU_MINIMIZE 常量。
+
+/// 全部**自定义**菜单项 id(与 `build_*` 里的 `MenuItemBuilder::with_id`
+/// 一一对应;PredefinedMenuItem 不算)。`handle_menu_event` 必须对其中
+/// 每一项都有分支 —— 单测据此做两侧互校(见本文件 `mod tests`)。
+pub const CUSTOM_MENU_IDS: &[&str] = &[
+    MENU_ABOUT,
+    MENU_CHECK_UPDATES,
+    MENU_SETTINGS,
+    MENU_QUIT,
+    MENU_CYCLE_MODEL,
+    MENU_CYCLE_REASONING,
+    MENU_NEW_AGENT,
+    MENU_INTERRUPT,
+    MENU_TOGGLE_SIDEBAR,
+    MENU_TOGGLE_TERMINAL,
+    MENU_ZOOM,
+];
 
 /// 构建完整应用菜单。
 pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
@@ -207,5 +225,92 @@ pub fn handle_close_to_tray<R: Runtime>(window: &tauri::Window<R>, event: &Windo
     {
         let _ = window; // silence unused
         let _ = event;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+
+    use tauri::Listener;
+    use tauri::menu::MenuId;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+
+    /// 不发前端事件、而走窗口/应用动作的 id(有 match 分支,但无 emit)。
+    const NON_EMITTING_IDS: &[&str] = &[MENU_QUIT, MENU_ZOOM];
+
+    /// 自定义 id → 期望发出的前端事件名(menu.rs 的接线约定:
+    /// 菜单点击 → `app.emit("menu-<kebab>")` → 前端 reducer)。
+    fn expected_event(id: &str) -> Option<&'static str> {
+        Some(match id {
+            MENU_ABOUT => "menu-about",
+            MENU_CHECK_UPDATES => "menu-check-updates",
+            MENU_SETTINGS => "menu-settings",
+            MENU_CYCLE_MODEL => "menu-cycle-model",
+            MENU_CYCLE_REASONING => "menu-cycle-reasoning",
+            MENU_NEW_AGENT => "menu-new-agent",
+            MENU_INTERRUPT => "menu-interrupt",
+            MENU_TOGGLE_SIDEBAR => "menu-toggle-sidebar",
+            MENU_TOGGLE_TERMINAL => "menu-toggle-terminal",
+            _ => return None,
+        })
+    }
+
+    #[test]
+    fn every_custom_menu_id_is_either_emitting_or_a_registered_action() {
+        // muda 的菜单构建绑定主线程(lib 测试线程建不了菜单,macOS 实测
+        // `MenuChild can only be created on the main thread`),所以「构建出的
+        // 菜单 ↔ 常量表」的互校走不了运行时;退而锁死等价不变量:
+        // CUSTOM_MENU_IDS 里的每个 id 要么有事件映射(expected_event),
+        // 要么显式登记为窗口动作 —— 新增菜单项忘了接分支(只进常量表)
+        // 会在此立刻暴露,而不是运行期落进 `_ => debug!` 的静默兜底。
+        let mut unaccounted = Vec::new();
+        for id in CUSTOM_MENU_IDS {
+            if expected_event(id).is_none() && !NON_EMITTING_IDS.contains(id) {
+                unaccounted.push(*id);
+            }
+        }
+        assert!(
+            unaccounted.is_empty(),
+            "以下菜单常量既没有事件分支也没有登记为窗口动作(死常量或漏接线): {unaccounted:?}"
+        );
+    }
+
+    #[test]
+    fn every_emitting_menu_id_fires_its_frontend_event() {
+        let app = mock_builder()
+            .build(mock_context(noop_assets()))
+            .expect("mock app");
+
+        let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        for id in CUSTOM_MENU_IDS {
+            if let Some(event_name) = expected_event(id) {
+                let sink = seen.clone();
+                let name = event_name.to_string();
+                app.listen(event_name, move |_event| {
+                    sink.lock().unwrap().push(name.clone());
+                });
+            }
+        }
+
+        for id in CUSTOM_MENU_IDS {
+            let Some(want) = expected_event(id) else {
+                continue;
+            };
+            seen.lock().unwrap().clear();
+            handle_menu_event(
+                app.handle(),
+                tauri::menu::MenuEvent {
+                    id: MenuId::new(*id),
+                },
+            );
+            let got = seen.lock().unwrap().clone();
+            assert_eq!(
+                got,
+                vec![want.to_string()],
+                "菜单项 {id} 的点击应恰好发出一个 {want} 事件"
+            );
+        }
     }
 }

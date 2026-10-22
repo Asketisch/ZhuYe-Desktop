@@ -1694,11 +1694,19 @@ export function installFakeBackend(): FakeBackend {
   handle(
     'reflect_kms_list_pages',
     handler((args) => {
-      const prefix = `${String(args?.wiki ?? '')}/`;
-      const pages = Object.keys(backend.state.wikiPages)
+      // 线格式对齐真后端 Vec<Page>:对象数组(name 不含 .md),不是文件名字符串。
+      const wiki = String(args?.wiki ?? '');
+      const prefix = `${wiki}/`;
+      const saved = Object.keys(backend.state.wikiPages)
         .filter((k) => k.startsWith(prefix))
-        .map((k) => `${k.slice(prefix.length)}.md`);
-      return pages.length ? pages : ['auth.md', 'release.md'];
+        .map((k) => {
+          const page = backend.state.wikiPages[k];
+          return { name: `${k.slice(prefix.length)}.md`, wiki, content: page.content, title: page.title, tags: page.tags, modified_at_ms: 0 };
+        });
+      return wire(saved.length ? saved : [
+        { name: 'auth.md', wiki, content: '# Auth\nJWT flow', title: 'Auth', tags: ['auth'], modified_at_ms: 0 },
+        { name: 'release.md', wiki, content: '# Release\nv0.1', title: null, tags: [], modified_at_ms: 0 },
+      ]);
     }),
   );
   handle(

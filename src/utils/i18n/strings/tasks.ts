@@ -34,6 +34,8 @@ const tasks: Record<string, StringEntry> = {
   'tasks.description':             { en: 'Description (optional)', 'zh-CN': '描述 (选填)' },
   'tasks.owner':                   { en: 'Owner / claimer (optional)', 'zh-CN': '负责人 / 认领人 (选填)' },
   'tasks.switchList':              { en: 'Switch list / team', 'zh-CN': '切换列表 / 团队' },
+  'tasks.viewList':                { en: 'List view',          'zh-CN': '列表视图' },
+  'tasks.viewBoard':               { en: 'Board view',         'zh-CN': '看板视图' },
   'tasks.activeList':              { en: 'Active list',        'zh-CN': '当前列表' },
   'tasks.listPlaceholder':         { en: 'list id (e.g. default, or a team name)', 'zh-CN': '列表 ID (如 default 或团队名)' },
   'tasks.teams':                   { en: 'Teams',              'zh-CN': '团队' },

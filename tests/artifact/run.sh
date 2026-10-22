@@ -6,7 +6,12 @@
 #   - macOS .app 的 Info.plist 键是否齐、版本是否与 package.json 一致;
 #   - 前端资源是否真的嵌进了二进制(而不是只躺在 dist/ 里);
 #   - bundle 里有没有开发残留(.DS_Store / sourcemap / node_modules);
-#   - macOS 签名是否成立。
+#   - macOS 签名是否成立;
+#   - Linux .deb 深度解包(usr/bin 可执行 / .desktop(Exec) / 图标 /
+#     control 版本)与 .AppImage 解包(AppRun / .desktop);
+#   - Windows .msi 管理映像解包(exe 存在 + ProductVersion);
+#   - 启动冒烟(二进制真的能起来,8-10s 内不崩)—— 默认关,
+#     CI 或 ARTIFACT_LAUNCH_SMOKE=1 时启用(本机跑会弹真窗口)。
 #
 # 产物缺失时整层 SKIP(不算失败)—— 本地跑门禁常常还没构建。
 # 要强制要求产物存在:ARTIFACT_REQUIRED=1 ./tests/run_all.sh artifact
@@ -196,41 +201,164 @@ if [ -n "$DEB_FILE" ]; then
             echo "本机无 dpkg-deb —— 跳过 .deb 内容检查"
             return 0
         fi
-        local listing
-        listing=$(dpkg-deb -c "$DEB_FILE" 2>/dev/null)
-        if ! echo "$listing" | grep -q 'reflect-desktop'; then
-            echo ".deb 内未找到 reflect-desktop 可执行文件"
+        local pkg_version
+        pkg_version=$(node -p "require('./package.json').version" 2>/dev/null) || {
+            echo "读不到 package.json 版本"; return 1
+        }
+        # control 元数据:版本必须与 package.json 一致。
+        local deb_version
+        deb_version=$(dpkg-deb -f "$DEB_FILE" Version 2>/dev/null)
+        if [ "$deb_version" != "$pkg_version" ]; then
+            echo ".deb control Version=$deb_version ≠ package.json=$pkg_version"
             return 1
         fi
-        echo ".deb 内容正确(含 reflect-desktop 可执行文件)"
+        # 解包验真实布局:可执行文件 / .desktop / 图标。
+        local root
+        root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-deb-audit.XXXXXX")
+        dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null || { echo "dpkg-deb -x 解包失败"; return 1; }
+        local exe="$root/usr/bin/reflect-desktop"
+        if [ ! -x "$exe" ]; then
+            echo ".deb 缺少可执行文件 usr/bin/reflect-desktop(实际:$(ls "$root/usr/bin" 2>/dev/null))"
+            return 1
+        fi
+        local desktop
+        desktop=$(find "$root/usr/share/applications" -name '*.desktop' 2>/dev/null | head -1)
+        if [ -z "$desktop" ]; then
+            echo ".deb 缺少 .desktop 文件"
+            return 1
+        fi
+        grep -q '^Exec=' "$desktop" || { echo ".desktop 缺 Exec 键"; return 1; }
+        if ! find "$root/usr/share/icons" -type f 2>/dev/null | grep -q .; then
+            echo ".deb 缺少图标(/usr/share/icons)"
+            return 1
+        fi
+        rm -rf "$root"
+        echo ".deb 深度校验通过(可执行 + .desktop(Exec) + 图标 + control 版本 $pkg_version)"
         return 0
     }
-    tcase ".deb 内含 reflect-desktop 可执行文件" check_deb_contents
+    tcase ".deb 深度校验(可执行 / .desktop / 图标 / control 版本)" check_deb_contents
 fi
 
 if [ -n "$APPIMAGE_FILE" ]; then
     check_appimage() {
-        if [ ! -s "$APPIMAGE_FILE" ]; then
-            echo ".AppImage 为空文件"
+        if ! require_cmd file; then
+            echo "本机无 file —— 跳过 .AppImage 解包检查"; return 0
+        fi
+        local root
+        root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-appimage-audit.XXXXXX")
+        cp "$APPIMAGE_FILE" "$root/app.AppImage"
+        if ! (cd "$root" && chmod +x app.AppImage && ./app.AppImage --appimage-extract >/dev/null 2>&1); then
+            echo "--appimage-extract 解包失败"
+            rm -rf "$root"
             return 1
         fi
-        echo ".AppImage 就位($(wc -c < "$APPIMAGE_FILE" | tr -d ' ') 字节)"
+        [ -e "$root/squashfs-root/AppRun" ] || { echo "AppImage 缺 AppRun"; rm -rf "$root"; return 1; }
+        local desktop
+        desktop=$(find "$root/squashfs-root" -maxdepth 1 -name '*.desktop' | head -1)
+        [ -n "$desktop" ] || { echo "AppImage 缺 .desktop"; rm -rf "$root"; return 1; }
+        grep -q '^Exec=' "$desktop" || { echo "AppImage .desktop 缺 Exec 键"; rm -rf "$root"; return 1; }
+        rm -rf "$root"
+        echo ".AppImage 解包校验通过(AppRun + .desktop(Exec))"
         return 0
     }
-    tcase ".AppImage 非空" check_appimage
+    tcase ".AppImage 深度校验(AppRun / .desktop)" check_appimage
 fi
 
-# ── 4. Windows:.msi ──────────────────────────────────────────────────────
+# ── 4. Windows:.msi ───────────────────────────────────────────────────────
 if [ -n "$MSI_FILE" ]; then
     check_msi() {
-        if [ ! -s "$MSI_FILE" ]; then
-            echo ".msi 为空文件"
+        if ! require_cmd msiexec; then
+            echo "本机无 msiexec —— 仅验非空"
+            [ -s "$MSI_FILE" ] || { echo ".msi 为空文件"; return 1; }
+            echo ".msi 就位($(wc -c < "$MSI_FILE" | tr -d ' ') 字节)"
+            return 0
+        fi
+        local pkg_version
+        pkg_version=$(node -p "require('./package.json').version" 2>/dev/null) || {
+            echo "读不到 package.json 版本"; return 1
+        }
+        # 管理映像解包(不安装):验 exe 存在 + ProductVersion 与 package.json 一致。
+        local dir
+        dir=$(mktemp -d "${TMPDIR:-/tmp}/reflect-msi-audit.XXXXXX")
+        # cygpath:git-bash 的 mktemp 路径要转成 Windows 路径给 msiexec。
+        local windir="$dir"
+        command -v cygpath >/dev/null 2>&1 && windir=$(cygpath -w "$dir")
+        if ! msiexec /a "$(cygpath -w "$MSI_FILE" 2>/dev/null || echo "$MSI_FILE")" /qn TARGETDIR="$windir"; then
+            echo "msiexec 管理映像解包失败"
+            rm -rf "$dir"
             return 1
         fi
-        echo ".msi 就位($(wc -c < "$MSI_FILE" | tr -d ' ') 字节)"
+        local exe
+        exe=$(find "$dir" -name 'reflect-desktop*.exe' -o -name 'ReflectDesktop*.exe' 2>/dev/null | head -1)
+        [ -n "$exe" ] || { echo ".msi 解包后未找到主 exe"; rm -rf "$dir"; return 1; }
+        local ver
+        ver=$(powershell -NoProfile -Command "(Get-Item '$(cygpath -w "$exe" 2>/dev/null || echo "$exe")').VersionInfo.ProductVersion" 2>/dev/null | tr -d '\r')
+        if [ -n "$ver" ] && [ "$ver" != "$pkg_version" ]; then
+            echo "exe ProductVersion=$ver ≠ package.json=$pkg_version"
+            rm -rf "$dir"
+            return 1
+        fi
+        rm -rf "$dir"
+        echo ".msi 深度校验通过(exe 存在,版本 $pkg_version)"
         return 0
     }
-    tcase ".msi 非空" check_msi
+    tcase ".msi 深度校验(管理映像解包 + exe 版本)" check_msi
+fi
+
+# ── 5. 启动冒烟:二进制真的能起来(退出码 124 = 被超时杀 = 正常运行) ──────
+# 默认关:本机跑门禁会弹真窗口抢焦点。CI(CI=1)或显式
+# ARTIFACT_LAUNCH_SMOKE=1 时启用;Linux 需 xvfb-run(无则该条跳过)。
+launch_smoke_enabled() {
+    [ "${ARTIFACT_LAUNCH_SMOKE:-0}" = "1" ] || [ "${CI:-0}" = "true" ] || [ "${CI:-0}" = "1" ]
+}
+
+if launch_smoke_enabled; then
+    if [ -n "$APP_BUNDLE" ]; then
+        check_launch_smoke_macos() {
+            local exe
+            exe=$(app_executable "$APP_BUNDLE" || true)
+            [ -n "$exe" ] && [ -x "$exe" ] || { echo "读不到可执行文件"; return 1; }
+            run_with_timeout 8 "$exe"
+            local rc=$?
+            # 124 = 超时杀掉(= 一直活着);0 = 自行退出也算起动成功。
+            if [ "$rc" -eq 124 ] || [ "$rc" -eq 0 ]; then
+                echo "macOS 二进制启动冒烟通过(退出码 $rc)"
+                return 0
+            fi
+            echo "macOS 二进制启动即崩(退出码 $rc)"
+            return 1
+        }
+        tcase "macOS 启动冒烟(二进制 8s 内不崩)" check_launch_smoke_macos
+    fi
+
+    if [ -n "$DEB_FILE" ] || [ -n "$APPIMAGE_FILE" ]; then
+        check_launch_smoke_linux() {
+            if ! require_cmd xvfb-run; then
+                echo "本机无 xvfb-run —— 跳过启动冒烟(仅 CI ubuntu 可跑)"
+                return 0
+            fi
+            local target=""
+            if [ -n "$DEB_FILE" ]; then
+                local root
+                root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-launch-deb.XXXXXX")
+                dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null
+                target="$root/usr/bin/reflect-desktop"
+            elif [ -n "$APPIMAGE_FILE" ]; then
+                target="$APPIMAGE_FILE"
+                chmod +x "$target" 2>/dev/null
+            fi
+            [ -n "$target" ] && [ -e "$target" ] || { echo "找不到可启动的二进制"; return 1; }
+            run_with_timeout 10 xvfb-run -a "$target"
+            local rc=$?
+            if [ "$rc" -eq 124 ] || [ "$rc" -eq 0 ]; then
+                echo "Linux 二进制启动冒烟通过(退出码 $rc)"
+                return 0
+            fi
+            echo "Linux 二进制启动即崩(退出码 $rc)"
+            return 1
+        }
+        tcase "Linux 启动冒烟(xvfb 下 10s 内不崩)" check_launch_smoke_linux
+    fi
 fi
 
 tfinish

@@ -1,0 +1,27 @@
+# 当前全量形态:全部已知段落一次配齐。
+[active]
+provider = "anthropic"
+
+[anthropic]
+api_key = "sk-ant-full"
+base_url = "https://api.anthropic.com"
+model = "claude-sonnet-4-5"
+
+[openai]
+api_key = "sk-openai-full"
+
+[compact]
+trigger_tokens = 8000
+
+[hooks]
+enabled = []
+
+[sandbox]
+os_level = true
+writable_dirs = ["/tmp"]
+allow_network = false
+
+[mcp_servers.filesystem]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem"]

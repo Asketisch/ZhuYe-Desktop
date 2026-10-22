@@ -421,6 +421,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
           <label className={s.fieldLabel}>{t('settings.plans.provider')}</label>
           <Select
             value={form.provider}
+            aria-label={t('settings.plans.provider')}
             onChange={(e) => patch({ provider: e.target.value as PlanProvider, topLevel: false })}
           >
             {PLAN_PROVIDERS.map((p) => (
@@ -569,6 +570,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
           <label className={s.fieldLabel}>{t('settings.plans.quotaVia')}</label>
           <Select
             value={form.quota.checkVia}
+            aria-label={t('settings.plans.quotaVia')}
             onChange={(e) => patch({ quota: { ...form.quota, checkVia: e.target.value } })}
           >
             {QUOTA_SOURCES.map((src) => (

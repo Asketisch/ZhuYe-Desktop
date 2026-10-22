@@ -1,0 +1,17 @@
+# 旧版本形态:早期版本的完整配置(provider 直配 / 旧 compact 阈值 /
+# 已更名的键)。升级后这类文件应继续可用 —— 未知/废弃键不致命。
+[active]
+provider = "anthropic"
+
+[anthropic]
+api_key = "sk-ant-legacy"
+model = "claude-3-5-sonnet-latest"
+
+[compact]
+trigger_tokens = 10000
+
+[hooks]
+enabled = ["search_budget"]
+
+[sandbox]
+os_level = true

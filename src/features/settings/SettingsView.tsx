@@ -176,7 +176,11 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
 
             <div className={s.fieldRow}>
               <label className={s.fieldLabel}>{t('settings.language')}</label>
-              <Select value={locale} onChange={(e) => setLocale(e.target.value as 'en' | 'zh-CN')}>
+              <Select
+                value={locale}
+                aria-label={t('settings.language')}
+                onChange={(e) => setLocale(e.target.value as 'en' | 'zh-CN')}
+              >
                 <option value="en">{t('settings.english')}</option>
                 <option value="zh-CN">{t('settings.chinese')}</option>
               </Select>

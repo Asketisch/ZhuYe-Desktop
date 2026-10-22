@@ -392,6 +392,45 @@
       ]
     },
     {
+      "name": "kms: kms_create + save_page → kms_list_pages(线格式 Vec<Page> 对象,name 含 .md —— 真后端实际行为)",
+      "steps": [
+        [
+          "reflect_kms_create",
+          {
+            "name": "contract-roundtrip-pages2",
+            "description": "契约往返 wiki(列表)"
+          }
+        ],
+        [
+          "reflect_kms_save_page",
+          {
+            "wiki": "contract-roundtrip-pages2",
+            "page": "index.md",
+            "content": "# 标题\n\ncontract roundtrip page body\n",
+            "title": "标题",
+            "tags": [
+              "probe"
+            ]
+          }
+        ]
+      ],
+      "load": [
+        "reflect_kms_list_pages",
+        {
+          "wiki": "contract-roundtrip-pages2"
+        }
+      ],
+      "expect": [
+        {
+          "path": "0.name",
+          "equals": "index.md"
+        },
+        {
+          "contains": "contract roundtrip page body"
+        }
+      ]
+    },
+    {
       "name": "tasks: create_task → list_tasks 含 subject",
       "steps": [
         [

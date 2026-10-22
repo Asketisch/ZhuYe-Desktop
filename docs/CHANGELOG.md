@@ -4,6 +4,64 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — GUI 质量维度:a11y 审计 / 性能预算 / 错误边界 / 配置兼容 / 产物深度
+
+- **axe 可访问性审计**(`tests/a11y.route-matrix.test.tsx`,与路由矩阵共享
+  `helpers/routeMatrix.ts`):34 条路由逐挂 axe-core,serious/critical 违规
+  为零(jsdom 无布局,`color-contrast` 留给视觉回归层)。审计直接抓出并
+  修复 **7 处产品 a11y 缺陷**:
+  - 无可访问名称的 `<select>` ×5 —— 设置页语言下拉、plans 的 provider /
+    quotaVia、collaboration 的流水线团队、design-system 演示下拉
+    (补 `aria-label`);
+  - 任务视图的视图切换 SegmentedControl 选项为纯图标(lucide SVG 无名)
+    —— 原语新增 `ariaLabel` 选项,调用点补齐(新增 i18n 键
+    `tasks.viewList` / `tasks.viewBoard`);
+  - autopilot 的最大并发数字输入无 label(补 `aria-label`)。
+- **模态键盘可达性**(`tests/a11y.keyboard.test.tsx`):Tab 焦点陷阱
+  (连按不逃出 dialog)、Escape 的**线上回执**(审批弹窗必须回发
+  `deny{reason:"dismissed"}`、plan 弹窗必须回发 `revise` —— 关闭不是
+  单纯 UI 消失,agent 在等回执)、堆叠模态只有栈顶响应。
+- **性能预算(冒烟级)**:前端 `perf.budgets.test.tsx`(reduceEvent 1 万
+  delta / bucketSessions 5k 会话 / 2k 记录会话水合渲染)+ 后端
+  `ipc_perf_budgets.rs`(500 条 rollout 的索引 / 5k 行记录回放)。
+  阈值宽(防数量级回归),`PERF_STRICT=1` 收紧供性能迭代用。
+- **视图渲染错误边界(产品改动)**:此前 `src/` 没有任何 ErrorBoundary,
+  任一视图 render 抛错 = 整树白屏只能重启。新增
+  `ViewErrorBoundary`(类组件 + `resetKey` 路由切换复位 + Retry)包住
+  `<Outlet />` —— 崩溃被限制在主内容区,侧栏/状态栏存活;
+  `errors.boundary.test.tsx` 用真实视图崩溃路径(KMS `tags:null`)锁定。
+- **配置向前兼容**(`ipc_config_compat.rs` + `tests/fixtures/config/`
+  四份夹具):最小 / 旧版本全量 / 未知键 / 当前全量,各自以独立子进程
+  全新启动(= 升级后旧配置文件)—— 已知键生效、未知键不致命、agent
+  存活。实测确认:进程内直接写配置文件**不会**热重载(`get_config` 读
+  内存快照),故必须走子进程路径。
+- **宿主壳层单测**(`menu.rs` 内嵌):自定义菜单 id ↔ 常量表 ↔ 事件分支
+  对齐自检(新增菜单项忘了接分支立即暴露,而不是落进 `_ => debug!`
+  静默兜底);mock runtime 上逐 id 驱动 `handle_menu_event`,恰好发出
+  对应 `menu-*` 事件。顺带移除死常量 `MENU_MINIMIZE`。dock / 全局快捷键
+  为平台运行时绑定(AppKit 主线程 / 插件),无纯逻辑可单测,降级语义由
+  既有 ipc 用例覆盖(见 COVERAGE §4 备案)。
+- **产物审查深度扩展**(`tests/artifact/run.sh`):.deb 从「含可执行文件」
+  升级为解包校验(usr/bin 可执行 + `.desktop` 含 Exec + 图标 + control
+  Version == package.json);.AppImage 解包验 AppRun + .desktop;.msi 从
+  「非空」升级为管理映像解包(exe 存在 + ProductVersion);新增启动冒烟
+  (二进制 8-10s 内不崩,退出码 124=被超时杀=正常)—— 本机默认关
+  (会弹真窗口),`CI=1` 或 `ARTIFACT_LAUNCH_SMOKE=1` 启用。
+- **CI**:clippy 矩阵加入 `windows-latest`(Windows 编译面)。Rust test
+  矩阵**有意**不加 Windows —— 夹具靠 HOME 隔离,Windows 的
+  `dirs::home_dir()` 走 USERPROFILE,跑测试会污染真实用户目录
+  (COVERAGE §4 备案)。
+
+### 修复 — 配置兼容审计发现的线格式漂移(第 4 处)
+
+- `reflect_kms_list_pages`:真后端返回 `Vec<Page>` **对象数组**,前端按
+  `ReflectPage[]` 消费,而 fakeBackend 一直返回**文件名字符串** —— 即
+  L2 从来没有任何测试在 /kms 点开过 wiki(一点开 `page.tags.map` 就崩,
+  这次恰好成为错误边界测试的真实崩溃路径)。fake 对齐为对象数组,往返
+  契约补 `kms_list_pages` 对(22 对);按实际行为对齐 `name` 带 `.md`
+  后缀(app-core `Page.name` 的文档注释写「不含 .md」,与行为相悖,
+  待上游修正)。
+
 ### 新增 — 假模型全链路 / 并发不变量 / 重启恢复:三个零覆盖维度闭合
 
 - **`src-tauri/tests/ipc_mock_provider.rs`** —— 「有模型的完整一轮」首次

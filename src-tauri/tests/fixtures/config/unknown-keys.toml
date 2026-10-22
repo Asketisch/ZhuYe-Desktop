@@ -1,0 +1,13 @@
+# 前向兼容:未来版本/手工编辑引入的未知表与未知键。
+# serde 默认忽略未知字段 —— 加载不得报错,已知段照常生效。
+[experimental]
+future_flag = true
+nested_deep = "whatever"
+
+[hooks]
+enabled = []
+unknown_hook_option = 42
+
+[anthropic]
+api_key = "sk-ant-future"
+some_future_key = "value"

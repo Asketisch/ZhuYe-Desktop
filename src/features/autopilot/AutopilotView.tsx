@@ -126,6 +126,7 @@ export function AutopilotView() {
               <label className={s.fieldLabel}>{t('autopilot.maxConcurrent')}</label>
               <Input
                 type="number"
+                aria-label={t('autopilot.maxConcurrent')}
                 value={config.maxConcurrent}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('maxConcurrent', parseInt(e.target.value) || 1)}
                 disabled={!isEditing}

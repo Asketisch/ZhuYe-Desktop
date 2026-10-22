@@ -78,6 +78,13 @@ L3 验真后端命令体的行为。模拟后端的 bug 会把真后端的 bug �
 | **并发不变量** | 并行只读 / submit 风暴 + 交错 interrupt / 并发配置写(文件始终合法 TOML、不死锁) | L3 `ipc_concurrency.rs` | — |
 | **重启恢复** | 进程退出后以同一 `~/.reflect` 重启:配置 / 记忆 / 白名单 / agent 定义 / squad / 任务 / 工作区读回 | L3 `ipc_restart.rs`(子进程两阶段) | `sessions.lifecycle`(切换水合,单进程内) |
 | **i18n 渲染级** | 34 条路由 zh-CN 挂载:页面出现中文、无裸 i18n key | — | `views.route-matrix`(zh-CN 遍) |
+| **可访问性(audit)** | 34 条路由 axe-core 审计:serious/critical 违规为零(jsdom 无布局,color-contrast 留给视觉层) | — | `a11y.route-matrix`(与路由矩阵共享同一份表) |
+| **可访问性(键盘)** | 模态 Tab 焦点陷阱;Escape 线上回执(审批 deny / plan revise);堆叠模态仅栈顶响应 | — | `a11y.keyboard` |
+| **性能预算** | reduceEvent 1 万 delta / 5k 会话分桶 / 2k 记录会话水合渲染 / 500 rollout 索引 / 5k 行回放(PERF_STRICT=1 收紧) | L3 `ipc_perf_budgets.rs` | `perf.budgets` |
+| **配置向前兼容** | 旧版本/未知键配置在新进程启动:已知键生效、未知键不致命、agent 存活(fixtures: 最小/旧版/未知键/全量) | L3 `ipc_config_compat.rs`(每夹具独立子进程) | — |
+| **宿主壳层(菜单)** | 自定义菜单 id ↔ 常量表 ↔ 事件分支对齐;每个发事件的 id 逐个驱动,恰好发出对应 `menu-*` 事件 | `menu.rs` 内嵌单测(mock runtime) | — |
+| **视图渲染错误边界** | 视图 render 抛错 → 回退 + 壳层存活 / Retry 恢复 / 切路由复位(此前整树白屏) | — | `errors.boundary` |
+| **产物深度(Linux/Windows)** | .deb 解包(usr/bin 可执行 + .desktop(Exec) + 图标 + control 版本) / .AppImage(AppRun + .desktop) / .msi 管理映像(exe + ProductVersion) / 启动冒烟(CI 门控) | L4 `artifact/run.sh` | — |
 
 **合计**：后端 185 条 `reflect_*` 命令中，能力覆盖层**直接驱动 179 条
 （96.8%）**；余下 6 条在 §3 逐条说明排除理由。
@@ -145,6 +152,20 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 - **`reflect_toggle_plugin` 对不存在的插件幂等返回 `Ok(null)`**，不报错。
 - **`reflect_release_task` 对未认领的任务报错**（`not claimed (nothing
   to release)`）；`reflect_claim_task` 在无待认领任务时返回 `null`。
+- **Windows 不进 Rust test 矩阵**:能力覆盖夹具靠 `HOME` 隔离,而
+  Windows 的 `dirs::home_dir()` 走 `USERPROFILE` —— 跑测试会污染真实
+  用户目录。Windows 由 clippy 矩阵(编译级)与 release 产物构建覆盖。
+- **菜单构建不能在测试线程跑**:muda 绑定主线程(macOS 实测
+  `MenuChild can only be created on the main thread`),「构建出的菜单 ↔
+  常量表」互校因此退化为静态对齐自检 + 行为派发测试(`menu.rs` 单测)。
+- **dock / 全局快捷键为平台运行时绑定**(AppKit 主线程 / global-shortcut
+  插件),无纯逻辑可单测;dock 的降级语义由 `ipc_workspace.rs` 的
+  「mock runtime 下静默 no-op」覆盖,快捷键由人工验收。
+- **启动冒烟默认关**:本机跑门禁会弹真窗口抢焦点;`CI=1` 或
+  `ARTIFACT_LAUNCH_SMOKE=1` 时启用,Linux 需 xvfb-run。
+- **`kms_list_pages` 的 `Page.name` 实际带 `.md` 后缀**(与 app-core
+  结构体文档注释「不含 .md」相悖) —— 契约按**实际行为**对齐(fake 与
+  roundtrips 均为带后缀形态),上游文档注释待修正。
 
 ---
 

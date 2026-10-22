@@ -129,13 +129,13 @@ export function DesignSystemView() {
       <section className={s.section} data-section="forms">
         <h2 className={s.sectionTitle}>Form controls</h2>
         <div className={s.forms}>
-          <Input placeholder="Plain input" />
-          <Input leading={<Icon icon={Search} size={14} />} placeholder="Search input" />
-          <Select defaultValue="a">
+          <Input placeholder="Plain input" aria-label="Plain input" />
+          <Input leading={<Icon icon={Search} size={14} />} placeholder="Search input" aria-label="Search input" />
+          <Select defaultValue="a" aria-label="Demo select">
             <option value="a">Option A</option>
             <option value="b">Option B</option>
           </Select>
-          <Textarea placeholder="Textarea" rows={3} />
+          <Textarea placeholder="Textarea" rows={3} aria-label="Textarea" />
         </div>
       </section>
 

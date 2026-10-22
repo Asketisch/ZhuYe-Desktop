@@ -163,6 +163,7 @@ export function CollaborationView() {
             <Select
               size="sm"
               className={s.orchTopic}
+              aria-label={t('collaboration.pipelineSelectTeam')}
               value={orch.pipelineTeam}
               onChange={(e) => orch.setPipelineTeam(e.target.value)}
               data-testid="pipeline-team"

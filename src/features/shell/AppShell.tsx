@@ -55,6 +55,7 @@ import { useThemeCycle } from './hooks/useThemeCycle';
 import { useCommandPaletteShortcut } from './hooks/useCommandPaletteShortcut';
 import { usePaletteActions } from './hooks/usePaletteActions';
 import { useCurrentWorkspace, CURRENT_WORKSPACE_QUERY_KEY } from './hooks/useCurrentWorkspace';
+import { ViewErrorBoundary } from './ErrorBoundary';
 import s from './AppShell.module.css';
 
 /**
@@ -283,8 +284,12 @@ export function AppShell() {
         )}
         <main className={s.main}>
           <div className={s.content}>
-            {/* TanStack Router v1：渲染匹配到的子路由。 */}
-            <Outlet />
+            {/* TanStack Router v1：渲染匹配到的子路由。
+                ErrorBoundary 把视图级渲染错误限制在主内容区 ——
+                侧栏/状态栏保持可用,不再整树白屏。 */}
+            <ViewErrorBoundary>
+              <Outlet />
+            </ViewErrorBoundary>
           </div>
         </main>
         {inspectorOpen && (

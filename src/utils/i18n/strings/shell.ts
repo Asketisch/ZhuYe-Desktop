@@ -9,6 +9,8 @@ import type { StringEntry } from '../types';
 const shell: Record<string, StringEntry> = {
   'shell.activityBar':            { en: 'Main navigation',                                        'zh-CN': '主导航' },
   'shell.inspector':              { en: 'Inspector',                                              'zh-CN': '检查器' },
+  'shell.errorBoundary.title':      { en: 'This view crashed',            'zh-CN': '此视图崩溃了' },
+  'shell.errorBoundary.retry':      { en: 'Retry',                         'zh-CN': '重试' },
   'shell.toggleSidebar':          { en: 'Toggle sidebar',                                         'zh-CN': '切换侧栏' },
   'shell.toggleInspector':        { en: 'Toggle inspector',                                       'zh-CN': '切换检查器' },
   'shell.hideSidebar':            { en: 'Hide sidebar',                                           'zh-CN': '隐藏侧栏' },

@@ -79,6 +79,8 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 | `src-tauri/tests/ipc_mock_provider.rs` | **假模型全链路**：wiremock 假 Anthropic 网关 + 真后端/真 AgentThread —— 纯文本流（delta 累积 / token_count）、bash 工具调用 + 审批门 + tool_result 第二跳、HTTP 500 错误路径、流中 interrupt（含恢复可用性） |
 | `src-tauri/tests/ipc_concurrency.rs` | **并发不变量**：32 线程并行只读、16 并发 submit + 交错 interrupt、8 并发配置写（文件始终合法 TOML，不死锁；丢更新为已知口径不在此断言） |
 | `src-tauri/tests/ipc_restart.rs` | **重启恢复**：子进程两阶段（阶段一写 → 进程退出 → 阶段二以同一 `~/.reflect` 全新 app 读回）—— 配置/记忆/白名单/agent 定义/squad/任务/工作区 |
+| `src-tauri/tests/ipc_perf_budgets.rs` | **性能预算（后端侧）**：500 条 rollout 的会话索引 / 5k 行记录回放水合的墙钟上限（`PERF_STRICT=1` 收紧） |
+| `src-tauri/tests/ipc_config_compat.rs` | **配置兼容**：4 份夹具（最小/旧版全量/未知键/当前全量）分别以独立子进程全新启动 —— 已知键生效、未知键不致命、agent 存活（`tests/fixtures/config/`） |
 
 > **与既有两份集成测试的分工**：`src-tauri/tests/e2e_chat.rs` 与
 > `protocol_bridge_e2e.rs` 早于本轮就已存在 —— 它们**绕过 Tauri IPC**，
@@ -121,10 +123,11 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 （React 应用完整挂载、真实 reducer、真实 React Query、真实路由）走完完整
 功能路径，并对线协议（wire shape）、UI 行为与失败韧性做断言。
 
-当前规模：`tests/` 下 12 个测试文件 / 424 个测试（另有 `src/` 内 99 个
-组件/模块测试文件）—— 合计 111 文件 / 1323 测试全绿。另有**真后端**能力
-覆盖层 `src-tauri/tests/ipc_*.rs`（10 文件 / 101 个测试：179/185 条命令 +
-事件回传通路 + 跨运行时契约 + 假模型全链路 + 并发不变量 + 重启恢复）。
+当前规模：`tests/` 下 16 个测试文件 / 1371 个测试（另有 `src/` 内 99 个
+组件/模块测试文件）—— 合计 115 文件全绿。另有**真后端**能力覆盖层
+`src-tauri/tests/ipc_*.rs`（12 文件 / 104 个测试：179/185 条命令 + 事件
+回传通路 + 跨运行时契约 + 假模型全链路 + 并发不变量 + 重启恢复 + 性能
+预算 + 配置兼容）与 `menu.rs` 内嵌单测（菜单 id ↔ 分支对齐 + 事件派发）。
 
 ### 运行
 
@@ -158,10 +161,15 @@ tests/
 ├── artifact/run.sh                         # L4 发布产物审查层
 ├── helpers/                                # ↓ vitest 侧（应用级套件）
 │   ├── fakeBackend.ts                      # 全命令模拟后端 + ScriptedAgent 事件编排
-│   └── appHarness.tsx                      # 真实应用挂载（renderApp / renderView）
+│   ├── appHarness.tsx                      # 真实应用挂载（renderApp / renderView）
+│   └── routeMatrix.ts                      # 路由矩阵共享表（行为/zh-CN/axe 三处同源）
 ├── contracts/                              # ↓ 跨运行时线格式契约（L1/L2/L3 三层共享）
 │   ├── payloads.json                       # 185 条命令的参数样本（真后端可反序列化）
 │   └── roundtrips.json                     # 21 对「写 → 读」持久化往返
+├── a11y.route-matrix.test.tsx             # 34 路由 axe 审计（serious/critical = 0）
+├── a11y.keyboard.test.tsx                 # 模态 Tab 焦点陷阱 + Escape 线上回执
+├── perf.budgets.test.tsx                  # 性能预算：reducer/分桶/长会话水合
+├── errors.boundary.test.tsx               # 视图渲染错误边界（真实视图崩溃路径）
 ├── ipc.command-contract.test.ts            # IPC 契约与四方对齐
 ├── ipc.payload-contract.test.ts            # 线格式契约（fakeBackend 侧）：接受真后端形状的参数样本
 ├── ipc.roundtrip-contract.test.ts          # 往返契约（fakeBackend 侧）：与真后端同表跑「写 → 读」
@@ -243,6 +251,10 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 | `composer.slash-history-attachments.test.tsx` | 14 | `/compact` `/plan` `/effort` `/mode` `/interrupt` 全命令、未知命令与无效值拒绝、`/model` 引导 toast、斜杠弹层（listbox + Escape）、↑/↓ 历史召回与编辑重置、文本+图片合并信封、Shift+Enter 换行、空输入不提交、提交后清空。 |
 | `settings.config.test.tsx` | 8 | ready/degraded 状态徽标、配置加载失败时壳层保持可用、权限快捷按钮（4 常用 + 7 模式全量）、raw TOML 编辑保存（精确 `{toml}` 参数 + Saved 反馈）、保存失败无反馈、语言切换（`document.documentElement.lang`）。 |
 | `views.route-matrix.test.tsx` | 35 | 34 条路由逐一：主内容非空、触发对应领域命令、fixture 文本可见；外加路由树完整性对照 `router.routeTree`。 |
+| `errors.boundary.test.tsx` | 3 | 视图渲染错误边界：真实视图崩溃路径（KMS `tags:null`）→ 回退 + 壳层存活 / Retry 恢复 / 切路由复位（`ViewErrorBoundary` 包 `<Outlet />`，此前任一视图 render 抛错 = 整树白屏）。 |
+| `a11y.route-matrix.test.tsx` | 38 | 34 条路由逐挂 axe-core：serious/critical 违规为零（jsdom 无布局，`color-contrast` 关闭留给视觉层）。与路由矩阵共享 `helpers/routeMatrix.ts`。 |
+| `a11y.keyboard.test.tsx` | 3 | 模态键盘可达性：Tab 焦点陷阱（连按不逃出 dialog）；Escape 的**线上回执**（审批 → `deny{dismissed}`、plan → `revise`）；堆叠模态只有栈顶响应。 |
+| `perf.budgets.test.tsx` | 3 | 性能预算（冒烟级，`PERF_STRICT=1` 收紧）：reduceEvent 1 万 delta / bucketSessions 5k 会话 / 2k 记录会话水合渲染。 |
 | `errors.resilience.test.tsx` | 7 | `stream_error` 追加错误项且 turn 仍完成、会话级错误只置 lastError、配额 toast、会话列表失败 + Refresh 恢复、`reflect_submit` 失败 toast、审批 IPC 失败模态仍乐观清除（不卡死 UI）、中断后新 turn。 |
 | `ipc.payload-contract.test.ts` | 186 | 跨运行时线格式契约（fakeBackend 侧）：`contracts/payloads.json` 全部 185 条参数样本被 fake handler 接受、调用参数完整回放、样本表 ↔ 注册表双向无差集。与 L3 `ipc_payload_contract.rs` 跑同一份样本 —— 模拟层与真后端的参数形状漂移（历史实例：allowlist `entries` vs `prefixes`）会同时被两端抓住。 |
 | `ipc.roundtrip-contract.test.ts` | 21 | 持久化往返契约（fakeBackend 侧）：`contracts/roundtrips.json` 的 21 对「写 → 读」与真后端（`ipc_roundtrip_contract.rs`）同表执行 —— 无状态桩（写不进 / 读固定值）会立刻露馅。 |

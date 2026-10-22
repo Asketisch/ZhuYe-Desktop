@@ -11,6 +11,12 @@ export interface SegmentedOption<T extends string> {
   label: ReactNode;
   /** 可选描述（tooltip / 副标题）。 */
   hint?: string;
+  /**
+   * 选项的无障碍名称。label 为纯图标时**必填** —— 图标没有可计算的
+   * accessible name,屏幕阅读器只会读到「未标记按钮」(axe 的
+   * button-name 违规)。
+   */
+  ariaLabel?: string;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -48,6 +54,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={active}
+            aria-label={opt.ariaLabel}
             title={opt.hint}
             disabled={disabled}
             data-active={active || undefined}

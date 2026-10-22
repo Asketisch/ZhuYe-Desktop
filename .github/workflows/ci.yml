@@ -115,6 +115,12 @@ jobs:
             runner: ubuntu-latest
           - os: macos
             runner: macos-latest
+          # Windows 只进 clippy(编译级)矩阵,不进 test:
+          # 能力覆盖夹具靠 HOME 隔离,而 Windows 的 dirs::home_dir() 走
+          # USERPROFILE,跑测试会污染真实用户目录 —— 见 tests/COVERAGE.md。
+          # 发布产物(release.yml)本就在 windows-latest 构建成功,编译面有保证。
+          - os: windows
+            runner: windows-latest
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
