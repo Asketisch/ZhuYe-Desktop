@@ -38,6 +38,7 @@ const composer: Record<string, StringEntry> = {
   'composer.goalStarted':                    { en: 'Goal mode started: {goal}',                     'zh-CN': '目标模式已启动：{goal}' },
   'composer.goalBadgeLabel':                 { en: 'goal',                                          'zh-CN': 'goal' },
   'composer.goalBadge':                      { en: 'Goal mode active — the agent keeps working toward the goal until verification passes. Clears on /goal clear or session switch.',  'zh-CN': '目标模式进行中 —— agent 会持续朝目标工作，直到校验通过。/goal clear 或切换会话后失效。' },
+  'composer.goalBadgeDetail':                { en: 'Goal mode active — turn {turns}, {tokens} tokens used (status: {status}). The agent keeps working until verification passes.',  'zh-CN': '目标模式进行中 —— 第 {turns} 轮，已用 {tokens} token（状态：{status}）。校验通过前 agent 会持续推进。' },
   'composer.commandRejected':                { en: 'Command rejected.',                             'zh-CN': '命令被拒绝。' },
   'composer.commandHandled':                 { en: 'Command handled.',                              'zh-CN': '命令已处理。' },
   'composer.attachmentBar.remove':           { en: 'Remove attachment',                             'zh-CN': '移除附件' },

@@ -199,6 +199,9 @@ fn map_event(event: &Event) -> Option<ActivityEvent> {
         | EventMsg::PlanDraftUpdated(_)
         // ToolCallOutputDelta:工具输出流式增量(高频 delta,与 AgentMessageDelta 同性质)忽略。
         | EventMsg::ToolCallOutputDelta(_)
+        // ToolCallArgsDelta:v1.5 流式工具参数增量(高频 delta,同上)忽略;
+        // 前端 reducer 侧累积渲染,不进活动日志。
+        | EventMsg::ToolCallArgsDelta(_)
         // SubagentProgress:子代理逐条进度推送(Message/ToolBegin/ToolEnd,高频)忽略。
         | EventMsg::SubagentProgress(_)
         // SubagentStatus:`Op::QuerySubagents` 的拉取式应答快照(前端 store 消费,

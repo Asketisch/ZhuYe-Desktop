@@ -593,6 +593,7 @@
     "reflect_write_file": {
       "path": "${TMP}/contract-probe.txt",
       "content": "hello contract\n"
-    }
+    },
+    "reflect_goal_snapshot": {}
   }
 }

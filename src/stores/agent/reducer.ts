@@ -120,6 +120,32 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         }),
       };
 
+    case 'tool_call_args_delta': {
+      // v1.5:流式工具参数增量 —— 按 call_id 累积到对应 tool_call 条目,
+      // 模型生成参数期间渐进渲染(begin 先建条目且 args 为 null,这是
+      // 生成期间唯一的输入可见来源)。整包形态的 provider 不发本事件。
+      // 找不到条目(乱序/回放)时保持原 turns,与未知事件同等宽容。
+      const hasCall = state.turns.some(
+        (turn) =>
+          turn.id === turnId &&
+          turn.items.some((i) => i.kind === 'tool_call' && i.callId === msg.call_id),
+      );
+      if (!hasCall) return {};
+      return {
+        turns: state.turns.map((turn) => {
+          if (turn.id !== turnId) return turn;
+          return {
+            ...turn,
+            items: turn.items.map((item) =>
+              item.kind === 'tool_call' && item.callId === msg.call_id
+                ? { ...item, argsStream: (item.argsStream ?? '') + msg.delta }
+                : item,
+            ),
+          };
+        }),
+      };
+    }
+
     case 'tool_call_end': {
       const summary = summarizeToolOutput(msg.output);
       const withOutput = appendItem(state.turns, turnId, {

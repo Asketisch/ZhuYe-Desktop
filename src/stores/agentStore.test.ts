@@ -35,6 +35,7 @@ const emptyState = (): AgentState => ({
   configReloadedAt: null,
   toasts: [],
   goalActive: false,
+  goalSnapshot: null,
   todos: [],
   planSteps: [],
   loadedPlugins: [],
@@ -43,6 +44,7 @@ const emptyState = (): AgentState => ({
   openPromptPanel: () => {},
   closePromptPanel: () => {},
   setGoalActive: () => {},
+  syncGoalSnapshot: async () => {},
   // Actions（reducer 测试中未使用；严格的 AgentState 类型要求它们存在）。
   subscribe: () => () => {},
   submit: async () => {},
@@ -353,6 +355,21 @@ describe('reduceEvent — tool', () => {
     });
   });
 
+  it('tool_call_args_delta 累积到对应 tool_call 条目(v1.5 流式参数)', () => {
+    let s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'tool_call_begin', call_id: 'c1', tool_name: 'write_file', args: null })) };
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'tool_call_args_delta', call_id: 'c1', delta: '{"path":"a' })) };
+    const patch = reduceEvent(s, ev('t1', { type: 'tool_call_args_delta', call_id: 'c1', delta: '.ts"}' }));
+    const item = patch.turns![0].items.find((i) => i.kind === 'tool_call');
+    expect(item && item.kind === 'tool_call' && item.argsStream).toBe('{"path":"a.ts"}');
+  });
+
+  it('tool_call_args_delta 找不到配对条目时保持原状(乱序/回放宽容)', () => {
+    const s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
+    const patch = reduceEvent(s, ev('t1', { type: 'tool_call_args_delta', call_id: 'ghost', delta: '{}' }));
+    expect(patch.turns).toBeUndefined();
+  });
+
   it('tool_call_end marks tool as done and appends output', () => {
     let s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
     s = { ...s, ...reduceEvent(s, ev('t1', { type: 'tool_call_begin', call_id: 'c1', tool_name: 'Bash', args: {} })) };
@@ -584,6 +601,21 @@ describe('reduceEvent — config / routing', () => {
       }),
     );
     expect(patch.lastRouting).toMatchObject({ kind: 'switched', from: 'work', to: 'personal' });
+  });
+
+  it('routing v1.7 spec_fallback(跨模型降级)同样入快照', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'routing',
+        kind: 'spec_fallback',
+        role: 'main',
+        from_credential: 'a/one',
+        to_credential: 'b/two',
+        reason: 'credential pool exhausted',
+      }),
+    );
+    expect(patch.lastRouting).toMatchObject({ kind: 'spec_fallback', from: 'a/one', to: 'b/two' });
   });
 });
 

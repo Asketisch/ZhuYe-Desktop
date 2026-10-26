@@ -97,4 +97,39 @@ describe('ToolCell', () => {
     );
     expect(container.querySelector('[data-tool="my_custom_tool"]')).toBeDefined();
   });
+
+  it('v1.5 流式参数:生成中展示 argsStream 片段,完成后可解析则切结构化摘要', () => {
+    // 生成中:JSON 尚未完整 —— 头部直接展示已收到的片段。
+    render(<ToolCell toolName="write_file" argsSummary="" argsStream='{"path":"src/a' status="running" />);
+    const running = screen.getByTestId('tool-cell-write_file');
+    expect(running.querySelector('[class*="summary"]')?.textContent).toBe('{"path":"src/a');
+    fireEvent.click(running.querySelector('button')!);
+    expect(screen.getByTestId('tool-args-write_file').textContent).toBe('{"path":"src/a');
+  });
+
+  it('v1.5 流式参数:argsStream 拼完整后按结构化摘要展示', () => {
+    render(
+      <ToolCell
+        toolName="write_file"
+        argsSummary=""
+        argsStream='{"path":"src/a.ts","content":"hi"}'
+        status="done"
+      />,
+    );
+    const cell = screen.getByTestId('tool-cell-write_file');
+    expect(cell.querySelector('[class*="summary"]')?.textContent).toBe('src/a.ts (2 chars)');
+  });
+
+  it('回放路径 argsSummary 优先于 argsStream', () => {
+    render(
+      <ToolCell
+        toolName="shell"
+        argsSummary='{"command":"ls"}'
+        argsStream='{"command":"l'
+        status="done"
+      />,
+    );
+    const cell = screen.getByTestId('tool-cell-shell');
+    expect(cell.querySelector('[class*="summary"]')?.textContent).toBe('$ ls');
+  });
 });

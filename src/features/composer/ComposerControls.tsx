@@ -48,6 +48,9 @@ export function ComposerControls() {
   const { t } = useI18n();
   const permissionMode = useAgentStore((st) => st.permissionMode);
   const goalActive = useAgentStore((st) => st.goalActive);
+  // v1.7 后端快照:徽标 tooltip 从「只有固定文案」升级为实际进度
+  // (轮次 / token / 状态),数据来自 reflect_goal_snapshot 读口。
+  const goalSnapshot = useAgentStore((st) => st.goalSnapshot);
   const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
   const pushToast = useAgentStore((st) => st.pushToast);
 
@@ -264,7 +267,15 @@ export function ComposerControls() {
         {goalActive && (
           <span
             className={s.goalBadge}
-            title={t('composer.goalBadge')}
+            title={
+              goalSnapshot
+                ? t('composer.goalBadgeDetail', {
+                    turns: goalSnapshot.turn_count,
+                    tokens: goalSnapshot.tokens_used,
+                    status: goalSnapshot.status,
+                  })
+                : t('composer.goalBadge')
+            }
             data-testid="composer-goal-badge"
           >
             🎯 {t('composer.goalBadgeLabel')}

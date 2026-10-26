@@ -309,6 +309,20 @@ pub async fn reflect_exit_goal_mode(agent: State<'_, MinimalAgent>) -> CommandRe
     Ok(agent.submit_op(Op::ExitGoalMode).await?)
 }
 
+/// 目标模式状态快照(只读):直读 `AgentThread::goal_snapshot()`(上游
+/// v1.7 读口)。目标模式没有协议事件,这是「是否活跃 / 第几轮 / LM 判定 /
+/// 累计 token」的唯一权威来源;前端投影在会话切换 / rebind 后以此校准。
+///
+/// 前端 invoke 形态:`invoke<GoalSnapshotPayload | null>('reflect_goal_snapshot')`。
+/// 未进入目标模式(或后端 rebind 丢控制器)返回 `null`。
+#[tauri::command]
+pub async fn reflect_goal_snapshot(
+    agent: State<'_, MinimalAgent>,
+) -> CommandResult<Option<reflect_goal::GoalState>> {
+    let thread = agent.inner.thread.lock().clone();
+    Ok(thread.as_ref().and_then(|t| t.goal_snapshot()))
+}
+
 // ====== 辅助:字符串 → 强类型 ======
 
 /// `"low"|"medium"|"high"` → `ReasoningEffortMirror`。

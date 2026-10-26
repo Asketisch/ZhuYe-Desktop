@@ -37,6 +37,7 @@ L3 验真后端命令体的行为。模拟后端的 bug 会把真后端的 bug �
 | Agent 生命周期 | `submit` `interrupt` `compact` `rewind` `shutdown` | L3 `ipc_agent_ops.rs` | `chat.full-flow` |
 | 审批 | `tool_approval` `hook_approval` `plan_approval` | L3 `ipc_agent_ops.rs` | `modals.approvals-questions` |
 | Plan / Goal 模式 | `enter/exit_plan_mode` `enter/exit_goal_mode` | L3 `ipc_agent_ops.rs` | `flows.chat-plan-goal-edit` |
+| Goal 状态快照 | `goal_snapshot` | L3 `ipc_goal.rs`（挂载 / 覆盖 / 退出全周期轮询断言） | store `syncGoalSnapshot` + Composer goal 徽标 tooltip |
 | 权限 / 强度 / steer | `set/cycle_permission_mode` `set/get_effort` `steer` | L3 `ipc_agent_ops.rs` | `composer.slash-history-attachments` |
 | 追问 | `ask_user_question_response` `ask_user_input_response` | L3 `ipc_agent_ops.rs` | `modals.approvals-questions` |
 | 会话生命周期 | `create` `bind` `list` `rename` `fork` `delete` `archive` `unarchive` `list_archived` `replay` `export` `search_sessions` | L3 `ipc_core.rs` | `sessions.lifecycle` |

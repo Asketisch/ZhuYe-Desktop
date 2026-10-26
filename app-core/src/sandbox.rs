@@ -1,20 +1,5 @@
 //! OS 沙箱策略解析 —— 把「配置里的旋钮」翻译成「每轮真正生效的策略」。
 //!
-//! ## 为什么需要
-//!
-//! 核心的 OS 沙箱有**三条**来源，桌面端此前一条都没接上：
-//!
-//! | 来源 | 语义 | 桌面端此前 |
-//! |---|---|---|
-//! | 配置 `[sandbox].os_level` | 用户意图（bool） | ✗ 只写盘，不生效 |
-//! | 协议 `ThreadSettingsOverrides.sandbox_policy` | 每轮覆盖 → `ToolContext.os_sandbox` | ✗ 从不设置 |
-//! | env `REFLECT_SANDBOX_OS_LEVEL` | 进程级开关 | ✗ 从不读 |
-//!
-//! 结果是 GUI 的开关是**死旋钮**：Settings 里写 `os_level = false`，
-//! bash 仍跑在 Seatbelt 里（核心 `OsSandbox::from_env()` 在 env 未设置时
-//! **默认开启**），而状态栏显示的又是 env 推导出来的状态 —— 两边说的
-//! 不是一回事。
-//!
 //! ## 口径（本模块是唯一事实源）
 //!
 //! ```text
@@ -28,12 +13,11 @@
 //!   `OsSandbox::default()` = `enabled + strict`（模块文档："v1.3 起
 //!   `OsSandbox::default()` 返回 `enabled = true`，以满足『默认要求
 //!   OS sandbox』的严格安全基线"）。核心 schema 的
-//!   `SandboxSection::os_level` 是 `#[derive(Default)]` 的 `bool`
-//!   （缺省 `false`），**没有 `Option<bool>`**，所以「用户没写」与
-//!   「用户写了 false」在解析后不可区分 —— 若照字面执行，全员默认
-//!   关闭 OS 沙箱，比 CLI 的实际行为更不安全。
-//!   → 本模块用**原始 TOML** 判断 key 是否存在（见
-//!   [`SandboxOsLevelIntent`]），把「没表态」归一到基线开启。
+//!   `SandboxSection::os_level` 是 `Option<bool>`（v1.7 起），`None` =
+//!   用户没写 → 归一到基线开启；`Some(b)` = 显式表态 → 原样。
+//!   [`load_config_with_sandbox_baseline`] / `reflect_save_config` 都把
+//!   归一结果写回 cfg（恒为 `Some(有效值)`），Settings 的开关、状态栏
+//!   徽标、每轮策略三者因此一致。
 //!
 //! ## 落地
 //!
@@ -50,40 +34,6 @@
 
 use reflect_protocol::SandboxPolicy;
 
-/// 配置里 `[sandbox].os_level` 的**表态**。
-///
-/// 核心 schema 用 `bool` + `#[serde(default)]`，解析后无法区分
-/// 「用户没写」与「用户写了 false」。本枚举在**原始 TOML** 层面保留
-/// 这个区分。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SandboxOsLevelIntent {
-    /// 配置里显式写了 `os_level = <bool>` —— 尊重用户的显式表态。
-    Explicit(bool),
-    /// 配置里没有这个 key —— 用户未表态，走核心基线（开启）。
-    Unset,
-}
-
-/// 从原始 TOML 判断 `[sandbox].os_level` 是否被显式写过。
-///
-/// TOML 解析失败 → 按 [`SandboxOsLevelIntent::Unset`] 处理（交由调用方
-/// 走基线），不因为一份坏 TOML 把沙箱关掉。
-pub fn sandbox_intent_from_toml(raw: &str) -> SandboxOsLevelIntent {
-    let Ok(value) = raw.parse::<toml::Value>() else {
-        return SandboxOsLevelIntent::Unset;
-    };
-    let Some(section) = value.get("sandbox") else {
-        return SandboxOsLevelIntent::Unset;
-    };
-    let Some(os_level) = section.get("os_level") else {
-        return SandboxOsLevelIntent::Unset;
-    };
-    match os_level.as_bool() {
-        Some(b) => SandboxOsLevelIntent::Explicit(b),
-        // 类型不对（非 bool）→ 视为未表态，走基线。
-        None => SandboxOsLevelIntent::Unset,
-    }
-}
-
 /// 解析 env 值 `REFLECT_SANDBOX_OS_LEVEL` → 是否启用。
 ///
 /// 与核心 `OsSandbox::from_env()` 的解析**逐条对齐**（含空串算关闭）：
@@ -97,12 +47,10 @@ pub fn parse_env_os_level(raw: &str) -> bool {
 
 /// 把配置表态归一成**有效**的配置值（不含 env 覆盖）。
 ///
-/// 未表态 → `true`（核心基线：默认要求 OS sandbox）；显式值 → 原样。
-pub fn normalize_os_level(intent: SandboxOsLevelIntent) -> bool {
-    match intent {
-        SandboxOsLevelIntent::Explicit(on) => on,
-        SandboxOsLevelIntent::Unset => true,
-    }
+/// `None`（未表态）→ `true`（核心基线：默认要求 OS sandbox）；
+/// `Some(b)`（显式表态）→ 原样。
+pub fn normalize_os_level(os_level: Option<bool>) -> bool {
+    os_level.unwrap_or(true)
 }
 
 /// 解析**最终生效**的 OS 沙箱开关。
@@ -130,62 +78,23 @@ pub fn sandbox_policy_for(enabled: bool) -> SandboxPolicy {
 
 /// 读取 `~/.reflect/config.toml` 并把 `[sandbox].os_level` 归一成有效值。
 ///
-/// 归一后，内存里的 `cfg.sandbox.os_level` 就是**用户意图**（未表态 =
-/// 基线开启），Settings 的开关与状态栏显示的策略因此一致。
+/// 核心 schema 是 `Option<bool>`，解析后即可区分「没写」（`None`）与
+/// 「写了 false」—— 不再需要嗅探原始 TOML。归一后，内存里的
+/// `cfg.sandbox.os_level` 恒为 `Some(有效值)`（未表态 = 基线开启），
+/// Settings 的开关与状态栏显示的策略因此一致。
 ///
 /// 注：env 覆盖**不在这里**生效 —— env 是进程级逃生口，在真正决定
 /// 每轮策略时（[`resolve_os_sandbox_enabled`]）才叠加，避免把「临时
 /// 覆盖」烤进配置快照。
 pub fn load_config_with_sandbox_baseline() -> reflect_config::ReflectConfig {
     let mut cfg = reflect_config::load_default();
-    let intent = match reflect_config::default_config_path() {
-        Some(path) => match std::fs::read_to_string(&path) {
-            Ok(raw) => sandbox_intent_from_toml(&raw),
-            Err(_) => SandboxOsLevelIntent::Unset,
-        },
-        None => SandboxOsLevelIntent::Unset,
-    };
-    cfg.sandbox.os_level = normalize_os_level(intent);
+    cfg.sandbox.os_level = Some(normalize_os_level(cfg.sandbox.os_level));
     cfg
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn intent_detects_explicit_value() {
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox]\nos_level = false\n"),
-            SandboxOsLevelIntent::Explicit(false)
-        );
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox]\nos_level = true\n"),
-            SandboxOsLevelIntent::Explicit(true)
-        );
-    }
-
-    #[test]
-    fn intent_is_unset_when_key_absent() {
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox]\nallow_network = true\n"),
-            SandboxOsLevelIntent::Unset
-        );
-        assert_eq!(
-            sandbox_intent_from_toml("[active]\nprovider = \"openai\"\n"),
-            SandboxOsLevelIntent::Unset
-        );
-        assert_eq!(sandbox_intent_from_toml(""), SandboxOsLevelIntent::Unset);
-    }
-
-    #[test]
-    fn intent_is_unset_on_broken_toml() {
-        // 坏 TOML 不应把沙箱关掉 —— 交给基线。
-        assert_eq!(
-            sandbox_intent_from_toml("[sandbox\nos_level = false"),
-            SandboxOsLevelIntent::Unset
-        );
-    }
 
     #[test]
     fn env_parse_matches_core_semantics() {
@@ -198,15 +107,15 @@ mod tests {
     }
 
     #[test]
-    fn unset_intent_follows_core_baseline() {
-        // 未表态 → 基线开启（核心 OsSandbox::default() = enabled + strict）。
-        assert!(normalize_os_level(SandboxOsLevelIntent::Unset));
+    fn unset_os_level_follows_core_baseline() {
+        // 未表态（None）→ 基线开启（核心 OsSandbox::default() = enabled + strict）。
+        assert!(normalize_os_level(None));
     }
 
     #[test]
-    fn explicit_false_disables() {
-        assert!(!normalize_os_level(SandboxOsLevelIntent::Explicit(false)));
-        assert!(normalize_os_level(SandboxOsLevelIntent::Explicit(true)));
+    fn explicit_os_level_is_respected() {
+        assert!(!normalize_os_level(Some(false)));
+        assert!(normalize_os_level(Some(true)));
     }
 
     #[test]

@@ -182,6 +182,7 @@ function ItemView({ node, turnStatus }: { node: RenderNode; turnStatus: Turn['st
       <ToolCell
         toolName={node.call.toolName}
         argsSummary={node.call.argsSummary}
+        argsStream={node.call.argsStream}
         status={node.call.status}
         output={
           node.output

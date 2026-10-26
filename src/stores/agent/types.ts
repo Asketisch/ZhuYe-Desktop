@@ -1,5 +1,6 @@
 import type { SubagentStatusSnapshot, UserInputItem } from '@/types/protocol';
 import type { RiskLevel } from '@/types/protocol/enums';
+import type { GoalSnapshotPayload } from '@/utils/commands/goal';
 import type { PlanApprovalChoice, ReflectRolloutRecord, ReviewDecision } from '@/utils/types';
 
 export type TurnItem =
@@ -12,6 +13,8 @@ export type TurnItem =
       argsSummary: string;
       callId: string;
       status: 'running' | 'done' | 'error';
+      /** v1.5 `tool_call_args_delta` 累积的原始参数(流式 provider 生成期间唯一可展示的参数文本)。 */
+      argsStream?: string;
     }
   | {
       kind: 'tool_output';
@@ -264,7 +267,7 @@ export interface CollabMessage {
 }
 
 export interface RoutingSnapshot {
-  kind: 'switched' | 'failed_over' | 'cooldown_started' | 'cooldown_cleared';
+  kind: 'switched' | 'failed_over' | 'cooldown_started' | 'cooldown_cleared' | 'spec_fallback';
   role: string;
   from?: string;
   to?: string;
@@ -380,12 +383,9 @@ export interface AgentState {
   /** 上下文压缩聚合统计（context_compacted 事件 + 回放 compaction record）。 */
   compactions: CompactionStats;
   toasts: Toast[];
-  /**
-   * 目标模式前端投影（非后端权威状态）—— `/goal` 启动成功置 true,
-   * `/goal clear` 与会话切换（hydrate/clear）置 false。协议无 goal 事件,
-   * 切会话后端 rebind 也会丢 goal,所以按会话作用域处理。
-   */
   goalActive: boolean;
+  /** v1.7 后端快照(`reflect_goal_snapshot`):goalActive 投影的校准源,未挂载为 null。 */
+  goalSnapshot: GoalSnapshotPayload | null;
   /** 子代理可观测(v1.4 C1)—— 会话作用域,见 SubagentsState。 */
   subagents: SubagentsState;
   /**
@@ -425,6 +425,7 @@ export interface AgentState {
   /** 收起提示词层面板。 */
   closePromptPanel: () => void;
   setGoalActive: (active: boolean) => void;
+  syncGoalSnapshot: () => Promise<void>;
 
   subscribe: () => () => void;
   /**

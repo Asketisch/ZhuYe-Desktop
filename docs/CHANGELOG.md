@@ -4,6 +4,48 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 
 ## 未发布
 
+### 新增 — submodule v1.7 接线:目标模式快照读口 / 流式工具参数 / 跨模型降级
+
+reflect-agent submodule `e4bc182 → e4560bc`(60 提交,含上游 7 周归并)。
+桌面端对**新增可观测面**完成接线:
+
+- **目标模式状态快照**(上游 v1.7 补 `GoalController::snapshot()` /
+  `AgentThread::goal_snapshot()` 读口,闭合 CAPABILITIES §4.1(1)):
+  - 新命令 `reflect_goal_snapshot`(`commands/agent.rs` + `lib.rs` 注册):
+    直读线程快照,未进入目标模式返回 `null`。
+  - IPC 包装 `reflect_goal_snapshot()`(`src/utils/commands/goal.ts`,
+    `GoalSnapshotPayload` 镜像 `GoalState`,snake_case)。
+  - store 新增 `goalSnapshot` + `syncGoalSnapshot`:会话 hydrate 后与
+    goal turn 收尾(`turn_complete`)拉取,**校准 `goalActive` 投影** ——
+    此前投影在会话切换 / 后端 rebind 后与真实状态脱节,现在以快照为准;
+    `setGoalActive(false)` 一并清快照,两者同真同假。
+  - Composer 的 goal 徽标 tooltip 升级:展示轮次 / token / 状态
+    (`composer.goalBadgeDetail`)。
+  - L3 能力覆盖 `src-tauri/tests/ipc_goal.rs`(stub provider 配置,
+    挂载 / 覆盖 / 退出全周期轮询断言);fakeBackend 补同形模拟。
+- **流式工具参数事件**(`tool_call_args_delta`,v1.5 additive 变体):
+  模型生成 tool_use 参数期间逐段转发(整包形态 provider 不发)。
+  reducer 按 `call_id` 累积到 tool row 的 `argsStream`;ToolCell 在
+  生成期间于头部直接展示已收到的片段(截断 80 字符),JSON 拼完整后
+  切回结构化摘要 —— 此前 `tool_call_begin` 携带 `args: null`,用户在
+  生成期间面对黑盒等待。
+- **路由事件 `spec_fallback` 变体**(v1.7 R3,跨模型降级):
+  `RoutingPayload.kind` / `RoutingSnapshot.kind` 补枚举值
+  (同池换凭据 = `switched`;换 spec 时 `from/to` 装的是 `"provider/model"`)。
+
+### 变更 — sandbox `os_level` 随上游 schema 简化
+
+- 上游 `SandboxSection::os_level` 改为 `Option<bool>`(v1.7 `1a781b6`,
+  正是 CAPABILITIES §3.19 建议的 schema),解析后即可区分「没写」与
+  「写了 false」:桌面端的原始 TOML 嗅探 workaround
+  (`sandbox_intent_from_toml` / `SandboxOsLevelIntent`)移除,
+  `normalize_os_level(Option<bool>)` 直接归一(`None` → 基线开启),
+  `load_config_with_sandbox_baseline` / `reflect_save_config` 归一后
+  恒写 `Some(有效值)`。env 优先级与每轮协议盖章行为不变,
+  `SandboxStatus.os_level` 线上仍为 bool(前端契约不变)。
+- 新增 Rust 侧 `EventMsg::ToolCallArgsDelta` 分支(`state/activity.rs`
+  活动日志忽略,与其它高频 delta 同性质)。
+
 ### 新增 — GUI 质量维度:a11y 审计 / 性能预算 / 错误边界 / 配置兼容 / 产物深度
 
 - **axe 可访问性审计**(`tests/a11y.route-matrix.test.tsx`,与路由矩阵共享
