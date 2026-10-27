@@ -230,19 +230,19 @@ fn goal_mode_enter_and_exit() {
     assert_submission_id(&invoke_ok("reflect_exit_goal_mode", json!({})));
 }
 
-/// 目标模式的**权威状态**读口。
+/// 目标模式的**权威状态**读口(v1.7:`reflect_goal_snapshot`,直读
+/// `AgentThread::goal_snapshot()`)。
 ///
 /// 目标模式没有协议事件 —— 「跑到第几轮 / LM 判定 / 累计 token」只能
-/// 直接读线程侧的 `GoalState`(上游 `GoalController::snapshot()`)。
-///
-/// 无活跃目标时返回 `null`(不是空对象)—— 前端据此判定「目标模式未开」。
+/// 读快照。无活跃目标时返回 `null`(不是空对象)—— 前端据此判定
+/// 「目标模式未开」。
 #[test]
-fn goal_status_is_readable() {
+fn goal_snapshot_is_readable() {
     // 无活跃目标 → null。
-    let v = invoke_ok("reflect_goal_status", json!({}));
+    let v = invoke_ok("reflect_goal_snapshot", json!({}));
     assert!(
         v.is_null(),
-        "没有活跃目标时 reflect_goal_status 应返回 null,实际:{v}"
+        "没有活跃目标时 reflect_goal_snapshot 应返回 null,实际:{v}"
     );
 
     // 进入目标模式 → 命令层正常受理。
@@ -254,18 +254,24 @@ fn goal_status_is_readable() {
     // 能力覆盖层**没有配置 provider** → 引擎侧拿不到 LLM 客户端 →
     // 目标模式**开不起来**(引擎会发 `GOAL_NO_CLIENT` 错误事件)。
     //
-    // 此时状态读口必须**如实返回 null** —— 不能返回一个「看起来有目标」
+    // 此时快照读口必须**如实返回 null** —— 不能返回一个「看起来有目标」
     // 的幽灵状态(前端徽标会据此显示「第 N 轮」,而引擎里根本没有
-    // controller)。**「有 provider」的那条路径由 L6 实模型演练层覆盖。**
+    // controller)。**「有 provider」的完整生命周期由 ipc_goal.rs 覆盖。**
     //
     // `reflect_enter_goal_mode` 是异步 Op:controller 要等 submission loop
-    // 处理到那条 Op 才构造 → 留出窗口期再断言。
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    let v = invoke_ok("reflect_goal_status", json!({}));
-    assert!(
-        v.is_null(),
-        "目标模式没开成时状态读口必须返回 null(不能有幽灵目标),实际:{v}"
-    );
+    // 处理到那条 Op 才构造 → 轮询留足窗口,断言全程保持 null。
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let v = invoke_ok("reflect_goal_snapshot", json!({}));
+        assert!(
+            v.is_null(),
+            "目标模式没开成时快照必须返回 null(不能有幽灵目标),实际:{v}"
+        );
+        if std::time::Instant::now() > deadline {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
 }
 
 // ============================================================================

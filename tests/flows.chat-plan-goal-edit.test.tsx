@@ -302,6 +302,9 @@ describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
       goal: 'make all tests pass',
       verifyCommand: null,
       tokenBudget: null,
+      // v1.7 快照口径新增字段(reflect_goal_snapshot 消费)。
+      turnCount: 0,
+      tokensUsed: 0,
     });
 
     // 2. 首条消息 = 目标文本,作为普通 user_input 提交(启动循环的一轮)。
@@ -397,6 +400,8 @@ describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
       goal: null,
       verifyCommand: null,
       tokenBudget: null,
+      turnCount: 0,
+      tokensUsed: 0,
     });
     await waitFor(() => expect(useAgentStore.getState().goalActive).toBe(false));
   }, 20_000);

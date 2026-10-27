@@ -1,20 +1,5 @@
 //! OS 沙箱策略解析 —— 把「配置里的旋钮」翻译成「每轮真正生效的策略」。
 //!
-//! ## 为什么需要
-//!
-//! 核心的 OS 沙箱有**三条**来源，桌面端此前一条都没接上：
-//!
-//! | 来源 | 语义 | 桌面端此前 |
-//! |---|---|---|
-//! | 配置 `[sandbox].os_level` | 用户意图（bool） | ✗ 只写盘，不生效 |
-//! | 协议 `ThreadSettingsOverrides.sandbox_policy` | 每轮覆盖 → `ToolContext.os_sandbox` | ✗ 从不设置 |
-//! | env `REFLECT_SANDBOX_OS_LEVEL` | 进程级开关 | ✗ 从不读 |
-//!
-//! 结果是 GUI 的开关是**死旋钮**：Settings 里写 `os_level = false`，
-//! bash 仍跑在 Seatbelt 里（核心 `OsSandbox::from_env()` 在 env 未设置时
-//! **默认开启**），而状态栏显示的又是 env 推导出来的状态 —— 两边说的
-//! 不是一回事。
-//!
 //! ## 口径（本模块是唯一事实源）
 //!
 //! ```text
@@ -27,12 +12,12 @@
 //! - **配置未表态 → 基线开启** —— 核心的安全基线是
 //!   `OsSandbox::default()` = `enabled + strict`（模块文档："v1.3 起
 //!   `OsSandbox::default()` 返回 `enabled = true`，以满足『默认要求
-//!   OS sandbox』的严格安全基线"）。若照字面执行「没写 = false」，全员
-//!   默认关闭 OS 沙箱，比 CLI 的实际行为更不安全。
-//!   → 核心 schema 的 `SandboxSection::os_level` 现在就是
-//!   **`Option<bool>`**：`None` = 未表态（走基线），`Some(false)` =
-//!   显式关闭。本模块直接消费它 —— **不再需要重新解析原始 TOML**
-//!   去判断 key 是否存在（那是 schema 还是 `bool` 时的绕行方案）。
+//!   OS sandbox』的严格安全基线"）。核心 schema 的
+//!   `SandboxSection::os_level` 是 `Option<bool>`（v1.7 起），`None` =
+//!   用户没写 → 归一到基线开启；`Some(b)` = 显式表态 → 原样。
+//!   [`load_config_with_sandbox_baseline`] / `reflect_save_config` 都把
+//!   归一结果写回 cfg（恒为 `Some(有效值)`），Settings 的开关、状态栏
+//!   徽标、每轮策略三者因此一致。
 //!
 //! ## 落地
 //!
@@ -49,14 +34,6 @@
 
 use reflect_protocol::SandboxPolicy;
 
-/// 把核心 schema 的 `Option<bool>` 表态归一成**有效**的配置值。
-///
-/// - `None`（用户未表态）→ `true`（核心基线：默认要求 OS sandbox）;
-/// - `Some(b)`（显式表态）→ 原样。
-pub fn normalize_os_level(cfg_os_level: Option<bool>) -> bool {
-    cfg_os_level.unwrap_or(true)
-}
-
 /// 解析 env 值 `REFLECT_SANDBOX_OS_LEVEL` → 是否启用。
 ///
 /// 与核心 `OsSandbox::from_env()` 的解析**逐条对齐**（含空串算关闭）：
@@ -66,6 +43,14 @@ pub fn parse_env_os_level(raw: &str) -> bool {
         raw.trim().to_ascii_lowercase().as_str(),
         "" | "0" | "false" | "no" | "off"
     )
+}
+
+/// 把配置表态归一成**有效**的配置值（不含 env 覆盖）。
+///
+/// `None`（未表态）→ `true`（核心基线：默认要求 OS sandbox）；
+/// `Some(b)`（显式表态）→ 原样。
+pub fn normalize_os_level(os_level: Option<bool>) -> bool {
+    os_level.unwrap_or(true)
 }
 
 /// 解析**最终生效**的 OS 沙箱开关。
@@ -93,8 +78,10 @@ pub fn sandbox_policy_for(enabled: bool) -> SandboxPolicy {
 
 /// 读取 `~/.reflect/config.toml` 并把 `[sandbox].os_level` 归一成有效值。
 ///
-/// 归一后，内存里的 `cfg.sandbox.os_level` 就是**用户意图**（未表态 =
-/// 基线开启），Settings 的开关与状态栏显示的策略因此一致。
+/// 核心 schema 是 `Option<bool>`，解析后即可区分「没写」（`None`）与
+/// 「写了 false」—— 不再需要嗅探原始 TOML。归一后，内存里的
+/// `cfg.sandbox.os_level` 恒为 `Some(有效值)`（未表态 = 基线开启），
+/// Settings 的开关与状态栏显示的策略因此一致。
 ///
 /// 注：env 覆盖**不在这里**生效 —— env 是进程级逃生口，在真正决定
 /// 每轮策略时（[`resolve_os_sandbox_enabled`]）才叠加，避免把「临时
@@ -112,16 +99,6 @@ mod tests {
     /// 核心 schema 现在就是 `Option<bool>` —— 「没写」与「写了 false」
     /// 在**解析后**即可区分,不必再重新解析原始 TOML。
     #[test]
-    fn option_distinguishes_unset_from_explicit_false() {
-        // 未表态 → 基线开启。
-        assert!(normalize_os_level(None));
-        // 显式 false → 尊重表态(关)。
-        assert!(!normalize_os_level(Some(false)));
-        // 显式 true → 开。
-        assert!(normalize_os_level(Some(true)));
-    }
-
-    #[test]
     fn env_parse_matches_core_semantics() {
         for off in ["0", "false", "FALSE", "no", "off", " off ", ""] {
             assert!(!parse_env_os_level(off), "应解析为关闭: {off:?}");
@@ -129,6 +106,18 @@ mod tests {
         for on in ["1", "true", "yes", "on", "anything"] {
             assert!(parse_env_os_level(on), "应解析为开启: {on:?}");
         }
+    }
+
+    #[test]
+    fn unset_os_level_follows_core_baseline() {
+        // 未表态（None）→ 基线开启（核心 OsSandbox::default() = enabled + strict）。
+        assert!(normalize_os_level(None));
+    }
+
+    #[test]
+    fn explicit_os_level_is_respected() {
+        assert!(!normalize_os_level(Some(false)));
+        assert!(normalize_os_level(Some(true)));
     }
 
     #[test]

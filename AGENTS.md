@@ -73,7 +73,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 - 子模块核心：`reflect-agent/crates/reflect-*/`（只读镜像，不要直接修改——修改 Reflect-Agent 仓库并升级 submodule）
 - 发布门禁入口：`tests/run_all.sh`（分层）+ `tests/lib.sh`（公共助手）
 - 发布门禁分层套件：`tests/static/`（静态审查）、`tests/frontend/`（前端行为）、`tests/backend/`（真后端能力覆盖）、`tests/artifact/`（发布产物）、`tests/e2e/` + `tests/visual/`（视觉回归 + 真窗口冒烟，默认可跳过）、`tests/live/`（实模型演练，真免费模型，默认跳过）
-- 真后端能力覆盖层：`src-tauri/tests/ipc_{core,workspace,domains,agent_ops}.rs` + 共享夹具 `src-tauri/tests/common/mod.rs`
+- 真后端能力覆盖层：`src-tauri/tests/ipc_{core,workspace,domains,agent_ops,goal}.rs` + 共享夹具 `src-tauri/tests/common/mod.rs`
 - 能力 → 套件映射（发布审查口径）：`tests/COVERAGE.md`
 
 更详细的路径映射见 `docs/codebase-map.md`。

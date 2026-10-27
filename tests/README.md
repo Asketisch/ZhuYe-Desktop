@@ -176,6 +176,7 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 | `src-tauri/tests/ipc_restart.rs` | **重启恢复**：子进程两阶段（阶段一写 → 进程退出 → 阶段二以同一 `~/.reflect` 全新 app 读回）—— 配置/记忆/白名单/agent 定义/squad/任务/工作区 |
 | `src-tauri/tests/ipc_perf_budgets.rs` | **性能预算（后端侧）**：500 条 rollout 的会话索引 / 5k 行记录回放水合的墙钟上限（`PERF_STRICT=1` 收紧） |
 | `src-tauri/tests/ipc_config_compat.rs` | **配置兼容**：4 份夹具（最小/旧版全量/未知键/当前全量）分别以独立子进程全新启动 —— 已知键生效、未知键不致命、agent 存活（`tests/fixtures/config/`） |
+| `src-tauri/tests/ipc_goal.rs` | **目标模式状态快照（v1.7）**：stub provider 配置下断言 `reflect_goal_snapshot` 全周期 —— 未进入返回 null / 挂载后暴露 GoalState（goal 文本 / status / turn_count）/ 重进覆盖 verify_command 与 token_budget / 退出后回 null |
 
 > **与既有两份集成测试的分工**：`src-tauri/tests/e2e_chat.rs` 与
 > `protocol_bridge_e2e.rs` 早于本轮就已存在 —— 它们**绕过 Tauri IPC**，

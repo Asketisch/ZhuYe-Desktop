@@ -45,14 +45,11 @@ pub struct Event {
 > (`commands/goal.rs` / `commands/goal.ts`)。进入目标模式后,core 侧
 > `GoalController` 在每轮 turn 结束自校验(LM judge + 可选校验命令),未完成则
 > steering 自动续作 —— **不需要新的用户提交**;GUI 经常规 turn/流式事件呈现
-> 多轮续作,事件侧无 goal 专属变体。
->
-> **目标状态读口 `reflect_goal_status`**(`commands/goal.rs`,非 Op 派生):
-> 目标模式**没有协议事件**,所以「跑到第几轮 / LM 判定 / 累计 token」只能
-> **直接读线程侧的权威值** —— 上游 `GoalController::snapshot()`(会话级共享槽
-> 里的 `GoalState`)。应答 `GoalState | null`(`null` = 无活跃目标);
-> 前端 IPC 包装在 `src/utils/commands/goal.ts`。此前 GUI 只能靠前端投影
-> `goalActive` 猜「是否活跃」,投影在会话切换 / 后端 rebind 后会脱节。
+> 多轮续作,事件侧无 goal 专属变体。状态可观测走**读口**而非事件:
+> `reflect_goal_snapshot`(v1.7)直读 `AgentThread::goal_snapshot()`
+> (上游 `GoalController::snapshot()`),返回 `GoalState | null`(snake_case
+> 出线)—— Composer 的 goal 徽标 tooltip 与 `goalActive` 投影校准消费;
+> 触发点:会话 hydrate 后、goal turn 收尾(`turn_complete` 且 goalActive)。
 
 ### 2.0 Op 之外的命令（诊断 / 配置 / 域 I/O）
 
@@ -68,6 +65,7 @@ pub struct Event {
 | `reflect_set_model` | `{ provider, model, label? }` | `string`（**已解析**的完整 spec；无任何显式 model 时空串） | `commands/config.rs` / `commands/config.ts`。运行中切换模型 / 钉住 coding plan（协议 `Op` 无 SetModel）：写 `[active].provider` + `[active].credential`（`label` 非空时钉住该凭证条目）→ 复用 `reflect_save_config` 同款写盘 + `hot_reload_provider_stack`（重建 registry + 强制重绑），下一个 turn 生效。`provider` 仅接受 `anthropic \| openai \| ollama`；`label` 命中 `[[<provider>.credentials]]` 条目时 model 写入条目自身（条目 model 优先于段级）；`label` 缺省 / `'default'`（无数组条目）走段级 `[<provider>].model`；显式 `label` 找不到条目报错。上游 `resolve_model` 诚实解析（env > 钉住条目 model > 段级），未显式配置**不编造内置默认** → 返回空串，UI 显示「未配置模型」。**动态值**：model 写成 `"free"`（运行时从 provider 清单里挑免费模型）时，返回值是**解析后的真实 id**（如 `openai/union-alpha`），不是占位串 `openai/free`；解析失败（清单不可达 / 没有免费模型 / `[model_discovery] enabled = false`）→ 命令报 `Err`，原因如实回传。Composer 内联模型选择器与 Models 页 plan 卡片消费 |
 | `reflect_query_plan_quota` | `{ baseUrl, apiKey, checkVia }` | `PlanQuotaSnapshot`（`{ success, error, utilization, remaining_tokens, max_tokens, resets_at }`） | `commands/config.rs` / `commands/config.ts`。手动查询 coding plan 用量（Settings → Coding Plans 的「查询用量」按钮，仅对配置了 `quota.check_via` 的 coding plan / token plan 开放）：`checkVia`（`kimi \| zhipu \| minimax \| zenmux`）经 `state/quota.rs::make_provider` 同一份映射实例化 `reflect_llm::QuotaProvider`，对着厂商用量 API 查询（端点与 cc-switch 一致），与运行时 failover 判定共用实现。传显式 `baseUrl`/`apiKey`（非 provider+label），编辑中未保存的表单也能试查。`volcengine` / `anthropic_usage` / `open_a_i_usage` 暂未实现 → 命令报错；网络瞬时失败折叠为 `success=false`（与确定性失败同形，UI 处理一致） |
 | `reflect_get_effort` | `null` | `string`（`low \| medium \| high`） | `commands/agent.rs` / `commands/permissions.ts`。直读线程内 `AgentConfig::current_effort()`（协议无 effort 回读事件）；线程未安装时回落 `low`。Composer 内联思考深度与 Models 页分段控件初始化用 |
+| `reflect_goal_snapshot` | `null` | `GoalSnapshotPayload \| null`（snake_case,镜像 Rust `reflect_goal::GoalState`） | `commands/agent.rs` / `commands/goal.ts`。**目标模式状态快照**(v1.7):直读 `AgentThread::goal_snapshot()`;目标模式无协议事件,本读口是「是否活跃 / 第几轮 / LM 判定 / 累计 token」的唯一权威来源。未进入目标模式(rebind 丢控制器同)返回 `null`。前端 store 的 `syncGoalSnapshot` 在会话 hydrate 后与 goal turn 收尾拉取,校准 `goalActive` 投影并供 Composer goal 徽标 tooltip 展示轮次 / token / 状态 |
 | `reflect_list_tools` | `null` | `Vec<{ name, description }>` | `commands/agent.rs` / `commands/agent.ts` |
 | `reflect_list_plugin_commands` | `null` | `Vec<PluginCommandInfo>`（`{ name, description? }`） | `commands/plugins.rs` / `commands/plugins.ts`。已挂载插件的 slash 命令只读快照（composer 弹层候选数据源）：取插件运行时的 `CommandRegistry.list()`；未挂载（占位线程 / 无 enabled 插件 / HOME 缺失）返回空列表。`name` 为命令全名（`plugin:ns:name` 形式），前端以 `/name args` 提交，展开仍由后端 submit 边界 `expand_submission` 统一做 —— 此命令无文件 IO |
 | `reflect_credential_pool_status` / `reflect_recovery_state` / `reflect_memory_sections` / `reflect_config_info` | `null` | `CredentialPoolStatus[]` / `SubagentCallRecord[]` / `MemorySectionInfo[]` / `ConfigInfo`（均 camelCase） | `commands/runtime_status.rs` / `commands/runtimeStatus.ts`。**运行时状态只读面**：① 凭证池健康度（`total` / `healthy` / `healthyLabels`；核心 cooldown 集合私有 → 用 `healthy_clients()` 的健康集合反推冷却数，冷却**原因**核心内不公开故不编造）；② 已完成的子代理调用（core `SubagentRegistry::snapshot()`：工具名 / 任务摘要 / 结果摘要 / 迭代 / 时间）；③ 记忆分段（core `split_sections` 按 `## ` 切分 + 字符数，与 8000 字注入预算对照）；④ 配置位置与分析健康度（配置路径 / 是否存在 / 分析开关与状态 / 工作区 / 活跃 agent）。落点：Inspector（①②）、Memory 视图（③）、Settings 侧栏（④） |
@@ -234,11 +232,12 @@ pub struct Submission {
 | `thinking_delta` | `delta: String` | Reasoning block (collapsible) |
 | `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential/model). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?`、`model?`（v1.x 模型级统计:本轮实际命中的模型 spec 如 `"openai/gpt-4o"`；旧引擎不上报 → 缺省） |
 
-### 3.3 Tools (4)
+### 3.3 Tools (5)
 
 | 变体 | 字段 | UI |
 |---|---|---|
 | `tool_call_begin` | `ToolCallBeginEvent` | Tool row running indicator |
+| `tool_call_args_delta` | `ToolCallArgsDeltaEvent` (v1.5 additive) | 按 `call_id` 累积到对应 tool row 的 `argsStream`：模型仍在生成参数期间，ToolCell 头部直接展示已收到的片段（截断 80 字符），展开可见完整累积 JSON；JSON 拼完整后切回结构化摘要。整包形态的 provider（Ollama 原生格式）不发本事件 |
 | `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled；`tool_name == "TodoWrite"` 时另取 `output.metadata.todos` → Inspector「Todo 清单」面板（`{ content, status, activeForm }`，`activeForm` 为 camelCase） |
 | `tool_call_output_delta` | `ToolCallOutputDeltaEvent` (v1.4 A3) | none —— 长工具执行期间逐段 stdout/stderr 增量预览（完整输出仍以 `tool_call_end` 为准）；reducer no-op 保穷尽，避免高频重渲染 |
 | `tool_execution_request` | `ToolExecutionRequestEvent` (v1.3 SDK) | none —— serve 模式下 core 请求客户端本地执行其经 `Op::RegisterTools` 注册的远程工具（回执 `Op::ToolExecutionResponse`，`call_id` 配对）。Desktop 内嵌 AgentThread 不注册远程工具，reducer no-op 保穷尽 |
@@ -265,7 +264,7 @@ pub struct Submission {
 | Variant | UI |
 |---|---|
 | `config_reloaded` | Toast "Config reloaded" |
-| `routing` | Status bar provider switch indicator |
+| `routing` | Status bar provider switch indicator。`kind` 枚举：`switched`（同池换 credential）/ `failed_over` / `cooldown_started` / `cooldown_cleared` / `spec_fallback`（v1.7 R3,跨模型降级 —— 当前 spec 的 credential 池全部不可用,切到 fallback spec;`from_credential` / `to_credential` 此时装的是 `"provider/model"` 形式的 spec） |
 | `collab_started` / `collab_message` / `collab_finished` | Collab sidebar / timeline |
 
 **`routing.kind` 取值**（镜像 Rust `RoutingEventKind`，snake_case）：

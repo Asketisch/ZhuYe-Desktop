@@ -40,6 +40,12 @@ export interface ToolCellOutput {
 export interface ToolCellProps {
   toolName: string;
   argsSummary: string;
+  /**
+   * v1.5 `tool_call_args_delta` 累积的原始参数片段 —— 流式 provider 的
+   * begin 事件 args 为 null,生成期间(乃至 end 后)argsSummary 恒为空,
+   * 本字段是唯一可展示的参数文本;回放路径两者都有,以 argsSummary 优先。
+   */
+  argsStream?: string;
   status: 'running' | 'done' | 'error';
   /** 配对的工具输出 —— 有则渲染进同一框内（args 下方）。 */
   output?: ToolCellOutput;
@@ -113,11 +119,22 @@ export function ToolOutputBody({ text, diff, isError }: ToolCellOutput) {
   return <pre className={`${s.output} ${isError ? s.outputError : ''}`}>{text}</pre>;
 }
 
-export function ToolCell({ toolName, argsSummary, status, output, defaultOpen = false }: ToolCellProps) {
+export function ToolCell({ toolName, argsSummary, argsStream, status, output, defaultOpen = false }: ToolCellProps) {
   const { t } = useI18n();
   const Icon2 = pickIcon(toolName);
-  const args = parseArgs(argsSummary);
+  // 流式 provider 的 begin 携带 args:null —— 参数文本只能来自累积的
+  // argsStream;回放路径 argsSummary 有完整 JSON,优先。
+  const rawArgs = argsSummary || argsStream || '';
+  const args = parseArgs(rawArgs);
   const summary = summarize(toolName, args);
+  // 生成期间 JSON 尚未拼完整,解析不出来 —— 直接展示已收到的片段(截断),
+  // 让用户看到参数正在生成;解析成功后切回结构化摘要。
+  const streamingSummary =
+    status === 'running' && !args && argsStream
+      ? argsStream.length > 80
+        ? `${argsStream.slice(0, 80)}…`
+        : argsStream
+      : summary;
   const [open, setOpen] = useState(defaultOpen);
   const accent = status === 'error' ? 'danger' : status === 'done' ? 'success' : 'warning';
 
@@ -137,13 +154,13 @@ export function ToolCell({ toolName, argsSummary, status, output, defaultOpen = 
         <Icon icon={open ? ChevronDown : ChevronRight} size={12} className={s.caret} />
         <Icon icon={Icon2} size={13} className={s[`accent_${accent}`]} />
         <span className={s.name}>{toolName}</span>
-        <span className={s.summary}>{summary}</span>
+        <span className={s.summary}>{streamingSummary}</span>
         <StatusIcon status={status} />
       </button>
       {open && (
         <>
           <pre className={s.args} data-testid={`tool-args-${toolName}`}>
-            {argsSummary || t('chat.tool.emptyArgs')}
+            {rawArgs || t('chat.tool.emptyArgs')}
           </pre>
           {output && (
             <div className={s.outputSection} data-testid="tool-cell-output">

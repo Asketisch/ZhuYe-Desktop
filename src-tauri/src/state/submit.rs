@@ -102,10 +102,9 @@ fn stamp_sandbox_policy(
     agent: &MinimalAgent,
     submission: reflect_protocol::Submission,
 ) -> reflect_protocol::Submission {
-    // `Option<bool>`:agent 的 cfg 在加载时已归一(Some(有效值));这里再兜一层,
-    // 免得「未表态」的 None 被当成 false(把 OS 沙箱静默关掉)。
-    let cfg_os_level =
-        reflect_app_core::sandbox::normalize_os_level(agent.cfg().read().sandbox.os_level);
+    // load/save 两条路径都已把 os_level 归一成 Some(有效值);
+    // unwrap_or(true) 兜底 = 核心基线(默认要求 OS sandbox)。
+    let cfg_os_level = agent.cfg().read().sandbox.os_level.unwrap_or(true);
     let enabled = super::sandbox::effective_os_sandbox_enabled(cfg_os_level);
     stamp_sandbox_policy_with(enabled, submission)
 }

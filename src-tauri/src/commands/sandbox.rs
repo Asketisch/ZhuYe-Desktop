@@ -56,10 +56,8 @@ pub struct SandboxStatus {
 pub async fn reflect_sandbox_status(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<SandboxStatus> {
-    // `Option<bool>`:agent 的 cfg 在加载时已归一(Some(有效值));这里再兜一层,
-    // 免得「未表态」的 None 被当成 false(状态栏会把沙箱报成关闭)。
-    let os_level =
-        reflect_app_core::sandbox::normalize_os_level(agent.inner.cfg.read().sandbox.os_level);
+    // load/save 两条路径都已归一成 Some(有效值);unwrap_or(true) 兜底 = 基线。
+    let os_level = agent.inner.cfg.read().sandbox.os_level.unwrap_or(true);
     let env_override = crate::state::sandbox::env_override();
     let enabled = crate::state::sandbox::effective_os_sandbox_enabled(os_level);
     // 与 BashTool 同一构造器:ctx.os_sandbox = Some(enabled) 时走的就是它。

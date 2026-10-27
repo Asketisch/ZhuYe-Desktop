@@ -71,9 +71,10 @@ pub async fn reflect_save_config(
 ) -> CommandResult<()> {
     // 1. 校验:能否解析回 ReflectConfig。
     let mut new_cfg = load_from_str(&toml)?;
-    // 1.5 `[sandbox].os_level` 归一:核心 schema 是 `Option<bool>` ——
-    //     `None` = 用户没表态 → 走核心基线(默认要求 OS sandbox),不因一次
-    //     保存把沙箱静默关掉;`Some(b)` = 显式表态 → 尊重。
+    // 1.5 `[sandbox].os_level` 归一:核心 schema 是 `Option<bool>`,解析后
+    //     即可区分「没写」(None)与「写了 false」(Some(false))。没写
+    //     → 走核心基线(默认要求 OS sandbox),不因一次保存把沙箱静默关掉;
+    //     显式写了 → 尊重用户的显式表态。归一后恒为 Some(有效值)。
     new_cfg.sandbox.os_level = Some(reflect_app_core::sandbox::normalize_os_level(
         new_cfg.sandbox.os_level,
     ));

@@ -41,8 +41,9 @@ export type EventMsgType =
   | 'agent_message_delta'
   | 'thinking_delta'
   | 'token_count'
-  // 工具 (4)
+  // 工具 (5)
   | 'tool_call_begin'
+  | 'tool_call_args_delta'
   | 'tool_call_end'
   | 'tool_call_output_delta'
   | 'tool_execution_request'
@@ -203,6 +204,21 @@ export interface ToolCallOutputDeltaPayload {
 }
 
 /**
+ * `tool_call_args_delta` —— v1.5 additive 变体:流式工具参数增量。模型
+ * 生成 tool_use 参数期间逐段转发 LLM 层的 `ToolUseDelta`(整包形态的
+ * provider 不发——参数已随 `tool_call_begin` 前的 ToolUseStart 带全)。
+ * 事件顺序:`tool_call_begin`(args 为 null) → 本事件 × N → `tool_call_end`;
+ * 消费方按 `call_id` 累积,可在模型仍在生成时渐进渲染长参数工具
+ * (write / edit 等)的输入。payload 镜像 Rust `ToolCallArgsDeltaEvent`。
+ */
+export interface ToolCallArgsDeltaPayload {
+  /** 与 `tool_call_begin.call_id` 配对的调用标识。 */
+  call_id: string;
+  /** 本次增量追加的原始 JSON 参数片段(未解析,由消费方累积)。 */
+  delta: string;
+}
+
+/**
  * `tool_execution_request` —— v1.3 SDK:core 请求客户端本地执行其经
  * `Op::RegisterTools` 注册的远程自定义工具,客户端以
  * `Op::ToolExecutionResponse { call_id, output }` 回执(同 call_id 配对)。
@@ -294,19 +310,14 @@ export interface ConfigReloadedPayload {
 }
 
 export interface RoutingPayload {
-  /**
-   * 路由事件种类 —— 镜像 Rust `RoutingEventKind`(snake_case wire)。
-   *
-   * `spec_fallback`(v1.7 R3)= **换模型 spec**:当前 spec 的 credential 池
-   * 全部不可用,降级到 fallback spec。与 `switched` 的区别:后者是同池内
-   * 换 credential(`from_credential` / `to_credential` 都是凭据 label),
-   * 前者装的是 `"provider/model"` 形式的 spec。
-   */
   kind:
     | 'switched'
     | 'failed_over'
     | 'cooldown_started'
     | 'cooldown_cleared'
+    // v1.7 R3:当前 spec 的 credential 池全部不可用,切到 fallback spec
+    // (跨模型降级)。`from_credential` / `to_credential` 装的是
+    // `"provider/model"` 形式的 spec,不再是凭据 label。
     | 'spec_fallback';
   role: string;
   from_credential?: string;
@@ -525,6 +536,7 @@ export interface EventMsgByType {
   token_count: TokenCountPayload;
   // 工具
   tool_call_begin: ToolCallBeginPayload;
+  tool_call_args_delta: ToolCallArgsDeltaPayload;
   tool_call_end: ToolCallEndPayload;
   tool_call_output_delta: ToolCallOutputDeltaPayload;
   tool_execution_request: ToolExecutionRequestPayload;

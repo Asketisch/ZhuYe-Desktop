@@ -138,7 +138,6 @@
       "task": "能力覆盖层 plan 探针"
     },
     "reflect_exit_goal_mode": {},
-    "reflect_goal_status": {},
     "reflect_exit_plan_mode": {},
     "reflect_export_session": {
       "id": "00000000-0000-4000-8000-000000000001"
@@ -594,6 +593,7 @@
     "reflect_write_file": {
       "path": "${TMP}/contract-probe.txt",
       "content": "hello contract\n"
-    }
+    },
+    "reflect_goal_snapshot": {}
   }
 }

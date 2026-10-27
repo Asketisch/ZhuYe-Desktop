@@ -192,6 +192,9 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
       goal: 'ship v2',
       verifyCommand: 'cargo test',
       tokenBudget: 100_000,
+      // v1.7 快照口径新增字段(reflect_goal_snapshot 消费)。
+      turnCount: 0,
+      tokensUsed: 0,
     });
 
     await commands.reflect_exit_goal_mode();

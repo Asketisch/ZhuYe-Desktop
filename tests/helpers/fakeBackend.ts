@@ -205,6 +205,9 @@ export interface FakeBackend {
       goal: string | null;
       verifyCommand: string | null;
       tokenBudget: number | null;
+      /** v1.7 快照口径:模拟的 goal turn 计数(reflect_goal_snapshot 返回)。 */
+      turnCount: number;
+      tokensUsed: number;
     };
     agentStatus: Record<string, unknown>;
     memory: Array<Record<string, unknown>>;
@@ -317,7 +320,7 @@ export function installFakeBackend(): FakeBackend {
       configToml: '[active]\nprovider = "anthropic"\nmodel = "claude-sonnet-4"\n',
       lastWriteFile: null,
       permissionMode: 'prompt',
-      goal: { active: false, goal: null, verifyCommand: null, tokenBudget: null },
+      goal: { active: false, goal: null, verifyCommand: null, tokenBudget: null, turnCount: 0, tokensUsed: 0 },
       agentStatus: {
         ready: true,
         has_model: true,
@@ -659,35 +662,33 @@ export function installFakeBackend(): FakeBackend {
         goal: String(args?.goal ?? ''),
         verifyCommand: args?.verifyCommand == null ? null : String(args.verifyCommand),
         tokenBudget: args?.tokenBudget == null ? null : Number(args.tokenBudget),
+        turnCount: 0,
+        tokensUsed: 0,
       };
       return 'goal-mode';
     }),
   );
   handle('reflect_exit_goal_mode', handler(() => {
-    backend.state.goal = { active: false, goal: null, verifyCommand: null, tokenBudget: null };
+    backend.state.goal = { active: false, goal: null, verifyCommand: null, tokenBudget: null, turnCount: 0, tokensUsed: 0 };
     return 'goal-exited';
   }));
-  // 目标模式的**权威**状态快照(镜像上游 `reflect_goal::GoalState` 的线格式)。
-  // 此前 GUI 只能靠前端投影猜「是否活跃」—— 后端补了这个读口后,前端
-  // 改成读真值;fakeBackend 必须同步提供,否则契约测试会报「未 mock」。
-  handle(
-    'reflect_goal_status',
-    handler(() => {
-      const g = backend.state.goal;
-      if (!g.active) return null;
-      return {
-        goal: g.goal ?? '',
-        verify_command: g.verifyCommand,
-        token_budget: g.tokenBudget,
-        status: 'active',
-        tokens_used: 0,
-        turn_count: 0,
-        consecutive_blocked_turns: 0,
-        started_at: new Date().toISOString(),
-        turns: [],
-      };
-    }),
-  );
+  // v1.7:目标模式状态快照 —— 活跃时回 GoalSnapshotPayload 形态(镜像
+  // Rust GoalState,snake_case),未活跃返回 null,与真后端语义一致。
+  handle('reflect_goal_snapshot', handler(() => {
+    const g = backend.state.goal;
+    if (!g.active || g.goal == null) return null;
+    return {
+      goal: g.goal,
+      verify_command: g.verifyCommand,
+      token_budget: g.tokenBudget,
+      status: 'active',
+      tokens_used: g.tokensUsed,
+      turn_count: g.turnCount,
+      consecutive_blocked_turns: 0,
+      started_at: new Date().toISOString(),
+      turns: [],
+    };
+  }));
   handle(
     'reflect_set_effort',
     handler((args) => {

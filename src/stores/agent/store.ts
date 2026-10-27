@@ -20,6 +20,7 @@ import {
   reflect_set_permission_mode,
   reflect_shutdown,
   reflect_steer,
+  reflect_goal_snapshot,
   reflect_submit,
   reflect_tool_approval,
 } from '@/utils/commands';
@@ -75,8 +76,10 @@ export const useAgentStore = create<AgentState>((set, get) => {
   loadedSessionId: null,
   hydrateSession: (id, records) => {
     const { turns, compactions } = turnsFromRollout(records);
-    // goalActive 一并复位:goal 挂在后端线程上,rebind 造新线程即丢,
-    // 换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
+    // goalActive/goalSnapshot 一并复位:goal 挂在后端线程上,rebind 造新
+    // 线程即丢,换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
+    // 复位后立即向后端快照校准（reflect_goal_snapshot,v1.7 读口）——
+    // 线程确实还挂着 goal 时投影会被拉回 true,不再靠猜。
     // subagents 同为会话作用域投影,replay 的历史不含子代理实时流。
     // token 投影同理:live 的按模型累计(per-model)属于**上一个**会话,
     // 换会话后必须清空 —— 否则 Inspector 的「按模型」会挂着旧会话的行。
@@ -88,12 +91,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
       lastError: null,
       queuedMessages: [],
       goalActive: false,
+      goalSnapshot: null,
       subagents: EMPTY_SUBAGENTS,
       todos: [],
       planSteps: [],
       tokens: null,
       contextWindowSize: null,
     });
+    void get().syncGoalSnapshot();
   },
   clearSession: () =>
     set({
@@ -127,6 +132,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
   toasts: [],
   goalActive: false,
+  goalSnapshot: null,
   subagents: EMPTY_SUBAGENTS,
   todos: [],
   planSteps: [],
@@ -136,7 +142,19 @@ export const useAgentStore = create<AgentState>((set, get) => {
   promptPanelOpen: false,
   openPromptPanel: () => set({ promptPanelOpen: true }),
   closePromptPanel: () => set({ promptPanelOpen: false }),
-  setGoalActive: (active) => set({ goalActive: active }),
+  // goalActive 落 false 的所有路径(手动退出/会话清理)一并清快照 ——
+  // 两者必须同真同假,徽标 tooltip 不会挂着旧目标的进度。
+  setGoalActive: (active) =>
+    set(active ? { goalActive: true } : { goalActive: false, goalSnapshot: null }),
+  syncGoalSnapshot: async () => {
+    try {
+      const snapshot = await reflect_goal_snapshot();
+      // 快照是权威:有 = 活跃(拉回 true),无 = 未挂载/rebind 丢失(落 false)。
+      set({ goalSnapshot: snapshot, goalActive: snapshot !== null });
+    } catch {
+      // 读失败(线程未就绪等)不动现有投影,避免把乐观状态闪掉。
+    }
+  },
 
   subscribe: () => {
     if (get().subscribed) return () => {};
@@ -152,6 +170,11 @@ export const useAgentStore = create<AgentState>((set, get) => {
         // failed/cancelled),无需手动刷新。
         if (get().subagents.feed.length > 0) {
           void get().querySubagents().catch(() => {});
+        }
+        // v1.7:目标模式的 goal turn 收尾会推进快照(turn_count/status,
+        // 完成时控制器被 clear)—— 拉一次快照校准 goalActive/徽标。
+        if (get().goalActive) {
+          void get().syncGoalSnapshot();
         }
       }
       // coding plan 额度耗尽 → 自动切换默认供应商（内部有开关 + 防抖）。
@@ -449,6 +472,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
       toasts: [],
       goalActive: false,
+      goalSnapshot: null,
       subagents: EMPTY_SUBAGENTS,
       todos: [],
       planSteps: [],

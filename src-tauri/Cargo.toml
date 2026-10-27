@@ -73,9 +73,6 @@ reflect                     = { workspace = true }
 # 多 agent 协调:Task/Team/Coordinator(reflect-agent/crates/orchestration/reflect-task 已实现 TaskManager 全套 API)。
 # Phase 1 暴露命令面;UI 与 hook/event_sink 注入留后续阶段。
 reflect-task                = { workspace = true }
-# 目标模式状态快照(reflect-agent/crates/orchestration/reflect-goal 的 GoalState)。
-# 目标模式**没有协议事件**,GUI 此前只能靠前端投影猜「是否活跃」—— 补上权威读口。
-reflect-goal                = { workspace = true }
 # Schedule(cron):reflect-agent/crates/integrations/reflect-stream 的 CronScheduler(create/update/delete/tick)。
 # Phase 1 第 2 项暴露命令面;后台 driver 与持久化留后续。
 reflect-stream              = { workspace = true }
@@ -93,6 +90,9 @@ reflect-subagent            = { workspace = true }
 reflect-discussion          = { workspace = true }
 # DAG 流水线(CLI `reflect pipeline` 的 GUI 对应;命令签名直传 PipelineReport)。
 reflect-pipeline            = { workspace = true }
+# 目标模式状态快照(reflect_goal_snapshot 直传 GoalState;v1.7 上游补了
+# GoalController::snapshot() 读口,GUI 不再靠前端投影猜目标模式状态)。
+reflect-goal                = { workspace = true }
 # 阶段 1:真实 agent 集成所需 — sanitizer / 工具输出脱敏(默认 10 pattern)。
 # Sanitizer::with_defaults() 直接可用,无需 reflect-config 的 SanitizeSection 转换。
 uuid                        = { workspace = true }

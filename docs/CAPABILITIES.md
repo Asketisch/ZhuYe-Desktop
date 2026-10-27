@@ -8,28 +8,14 @@
 > 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `c0377609`（v1.8 —— 清单回灌 / Goal 状态读口 /
-> 免 Key 端点可配置 / `os_level` 语义 / 工具参数整包形态 / 中断粒度 /
-> 审批门解中断）。
+> 最近审计：submodule `e4560bc`（v1.7 —— 含上游 7 周归并；本轮闭合
+> §4.1 Goal 快照读口与 §3.18 todo 回灌，§3.19 os_level schema 对齐，
+> 新增 `tool_call_args_delta` / `spec_fallback` 事件接线）。
 >
-> 本轮上游共 8 个提交：`122fc3e0`（免 Key 端点）/ `2dc8ac3e`（Goal 状态
-> 读口）/ `3a1bab4b`（文档漂移订正）/ `1a781b6d`（`os_level` 语义）/
-> `d6213972`（清单回灌）/ `b025f4c2`（工具参数整包形态）/ `618bbddf`（子代理
-> spawn 带根因）/ `afc16880`（目标模式如实上报）/ `c0377609`（审批门观察
-> 回合级取消令牌）。
->
-> 本轮上游变更对 GUI 的影响面：
-> - `reflect-llm` 的 OpenAI provider 新增**流内错误帧**处理（`data:
->   {"error":{...}}` → `ChatEvent::Error`）。**无新 `Op` / `EventMsg` 变体**
->   —— 协议不变量不受影响。
-> - `reflect-core` 新增 `reflect_goal_status` 的数据来源（`GoalState`
->   快照）+ 清单回灌的 prompt 段（`## Current Todo List`）—— 两者都是
->   **既有协议面**上的增强，无新事件类型。
-> - `reflect-config` 的两处 schema 变更（`CredentialConfig.api_key` 可
->   省略、`sandbox.os_level` 改 `Option<bool>`）—— 只影响配置解析，
->   线格式不变。
->
-> 上一版 `8d65825`（v1.7 R3 —— 模型清单发现 / 跨模型降级链）。
+> `e4560bc` 同时包含此前审计的 `c0377609` 批次：免 Key 端点可配置
+> （`122fc3e0`）/ Goal 状态读口前身（`2dc8ac3e`）/ `os_level` 语义
+> （`1a781b6d`）/ 清单回灌（`d6213972`）/ 工具参数整包形态（`b025f4c2`）/
+> 审批门观察回合级取消令牌（`c0377609`）。
 
 ## 阅读约定
 
@@ -67,8 +53,8 @@
 | Telemetry | `reflect-telemetry` | model-io + **span 日志** | ✅ 两面都已接线（§3.4） |
 | 子代理 | `reflect-subagent` | `SubAgentSpec` / `SubAgentFactory` | ✅ 运行态可见 + **agent 侧 `call_*` 已注册**（§3.14）+ **spec 可编辑**（§3.16） |
 | Agent 定义 | `reflect-agent-def` | `AgentDefinition` / `source` | ✅ 含 v1.6 `source` 字段语义 + **活跃 agent 可切换**（§3.9） |
-| 目标模式 | `reflect-goal` | `GoalController` / `GoalState` | ✅ enter/exit + **权威状态读口**（`reflect_goal_status`：跑到第几轮 / LM 判定 / 累计 token）|
-| 任务 / 团队 | `reflect-task` | `TaskManager` / `TodoWriteTool` | ✅ CRUD + claim + **产出 / 停止 / 释放**（§3.11）+ **agent 侧任务工具**（§3.14）；**todo 清单既已展示、也已回灌进模型上下文**（§3.18） |
+| 目标模式 | `reflect-goal` | `GoalController` / `GoalState` | ✅ enter/exit + **状态快照读口**（v1.7 上游 `GoalController::snapshot()`，`reflect_goal_snapshot` 命令 + 徽标 tooltip + 投影校准，§4.1） |
+| 任务 / 团队 | `reflect-task` | `TaskManager` / `TodoWriteTool` | ✅ CRUD + claim + **产出 / 停止 / 释放**（§3.11）+ **agent 侧任务工具**（§3.14）；**todo 清单已展示**（§3.18），清单回灌已由上游闭合（§3.18） |
 | 讨论 | `reflect-discussion` | `DiscussionOrchestrator` | ✅ |
 | 流水线 | `reflect-pipeline` | `Pipeline::from_toml` / `PipelineReport` | ✅ |
 | 插件 | `reflect-plugin` | `PluginManager` / `PluginManifest` | ✅ 列表 / 启停 / 卸载 / 本地安装 + marketplace（§3.13） |
@@ -402,21 +388,18 @@ CLI 三族都注册（`reflect-exec` 的 `bootstrap_m5` + `headless.rs`）。
 - `src/features/shell/TodoPanel.tsx` —— Inspector「概览」分区渲染清单
   （完成数 / 总数徽标 + 每项状态徽标 + 已完成项删除线）。
 
-**仍然存在的上游缺口**（GUI 侧不可闭合）：
+**上游侧的回灌已闭合**（v1.7 `d621397`）：
 
-清单**只出不进** —— 核心全仓 `grep -rn "todos"` 只命中 `reflect-task` 自身，
-**没有任何消费方**：
-
-1. **LLM 看不到自己的清单** —— 清单没进 system prompt / 下一轮上下文，
-   模型写完即忘。
-2. **核心注释指向的 reducer 不存在** —— `todo_write.rs` 的模块注释称
-   「由 `reflect-tui` 的 reducer(Phase 6)在 `EventMsg::ToolCallEnd` 时回填
-   到 `RenderState.todos` 渲染」，但 submodule 里**既没有 TUI 的
-   `RenderState.todos`，也没有 `reflect-tui` 侧的 reducer 实现**
-   （`grep -rln RenderState` 只命中 `reflect-plugin` 与 `reflect-task`）。
+1. ~~LLM 看不到自己的清单~~ —— core 新增 `AgentConfig.todos_slot`
+   会话级共享槽：`tool_exec` 在 `TodoWrite` 产出 `metadata.todos` 时渲染成
+   `- [ ] / - [~] / - [x]` 三态清单写进槽，`pre_loop` 把槽内容注入
+   core prompt 的 `## Current Todo List` 段 —— agent 每轮都能看到
+   自己刚写的清单。
+2. ~~核心注释指向的 reducer 不存在~~ —— 回灌改在 core 侧（pre_loop 注入）
+   完成，不再依赖不存在的 TUI reducer。
 
 GUI 如实展示「agent 写了什么」，让用户能核对 agent 自以为的进度；
-「agent 真正按清单执行」需要上游补 reducer（把清单回灌进模型上下文）。
+「agent 真正按清单执行」由上游 pre_loop 注入闭环。
 
 ---
 
@@ -438,14 +421,14 @@ GUI 如实展示「agent 写了什么」，让用户能核对 agent 自以为的
 （`headless.rs:103`），`false` 分支直接落空 —— 该配置项在**两个前端**
 都是死旋钮。
 
-**修复**（桌面端闭环，零 submodule 改动）：
+**修复**（桌面端闭环；上游 schema v1.7 起改为 `Option<bool>`）：
 
 - **`app-core/src/sandbox.rs`**（纯函数，可测）—— 唯一事实源：
-  - `sandbox_intent_from_toml(raw)`：从**原始 TOML** 判断
-    `[sandbox].os_level` 是否被显式写过。核心 schema 是
-    `bool` + `#[serde(default)]`，解析后无法区分「没写」与「写了 false」。
-  - `normalize_os_level(intent)`：**没表态 → `true`**（核心基线
-    「默认要求 OS sandbox」），显式值 → 原样。
+  - `normalize_os_level(os_level: Option<bool>)`：**没写（`None`）→
+    `true`**（核心基线「默认要求 OS sandbox」），显式值 → 原样。
+    （核心 schema v1.7 前是 `bool` + `#[serde(default)]`，解析后无法
+    区分「没写」与「写了 false」，当时桌面端用「嗅探原始 TOML」的
+    workaround 补齐；上游改 `Option<bool>` 后 workaround 已移除。）
   - `resolve_os_sandbox_enabled(cfg, env_raw)`：**env 优先于配置**
     （与核心 CLI 桥接注释一致：`REFLECT_SANDBOX_OS_LEVEL=0` 可临时
     覆盖配置）。
@@ -475,12 +458,14 @@ GUI 如实展示「agent 写了什么」，让用户能核对 agent 自以为的
 **进程级**的，改了会同时影响后台任务与其它工具，而协议通道是
 **按轮**精确控制的。
 
-**仍然存在的上游缺口**：核心的 `SandboxSection::os_level` 是
-`bool` + `#[serde(default)]`（缺省 `false`），**没有 `Option<bool>`**，
-所以「用户没写」与「用户写了 false」在核心侧永远不可区分 —— 上游若要
-自己实现同样的语义，需要把字段改成 `Option<bool>`（或把默认值改成
-`true`）。本仓库用「原始 TOML 是否含该 key」在桌面端侧补齐了这一点，
-但**上游 schema 仍建议改**。
+**上游 schema 已对齐**（v1.7 `1a781b6`）：核心的 `SandboxSection::os_level`
+改为 `Option<bool>`，解析后即可区分「没写」（`None`）与「写了 false」
+（`Some(false)`）。桌面端不再需要嗅探原始 TOML —— `app-core/src/sandbox.rs`
+的 `sandbox_intent_from_toml` / `SandboxOsLevelIntent` 已移除，
+`normalize_os_level(Option<bool>)` 直接从解析后的 cfg 归一
+（`None` → 基线开启），`load_config_with_sandbox_baseline` 与
+`reflect_save_config` 归一后恒写 `Some(有效值)`。三条来源（配置 / 协议
+每轮覆盖 / env 覆盖）的优先级与行为不变。
 
 ---
 
@@ -659,25 +644,43 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 
 ## 4. 剩余缺口与后续
 
-**当前无遗留缺口**（§4 的清单已全部闭合）。
+**当前没有待接线缺口。** 此前列表中的各项已分别闭合：
 
-| # | 缺口 | 闭合方式 | 上游提交 |
-|---|---|---|---|
-| 1 | **todo 清单只出不进** —— 核心 `TodoWriteTool` 已实装（清单在 `ToolOutput.metadata.todos`），GUI 侧 §3.18 已展示；但**基座无消费方**：清单没回灌模型上下文，LLM 写完即忘 | 上游补「清单回灌」：`tool_exec` 把 `metadata.todos` 渲染成 `- [ ] / - [~] / - [x]` 紧凑清单写进**会话级**槽，`pre_loop` 注入 core prompt 的 `## Current Todo List` 段 | `d6213972` |
-| 2 | **Goal 状态不可观测** —— `GoalController` 只公开 `is_active()` / `clear()`，`GoalState`（status / turn_count / tokens_used / 校验历史）**没有公开读取口**；GUI 只能靠前端投影猜「是否活跃」，投影在会话切换 / 后端 rebind 后会脱节 | 上游加 `GoalController::snapshot()` + 把 controller 放进**会话级共享槽**（`AgentConfig.goal` 此前是普通字段，会被 clone 进 submission loop，改动回不到线程侧）；桌面端加 `reflect_goal_status` 命令，GUI 徽标显示「第 N 轮 / token / 状态」 | `2dc8ac3e` |
-| 3 | **`[sandbox].os_level` 语义差** —— 核心 schema 是 `bool` + `#[serde(default)]`，解析后**无法区分**「用户没写」与「用户写了 false」；桌面端此前只能**重新解析原始 TOML** 找 key 是否存在 | 上游改 `Option<bool>`：`None` = 未表态（走基线），`Some(false)` = 显式关闭。桌面端随之删掉整段 raw-TOML 绕行方案（`SandboxOsLevelIntent` 枚举 + 二次 TOML 解析） | `1a781b6d` |
-| 4 | **免 Key 端点（免费模型池）配不出来** —— 核心 `build_openai_pool` 在「credentials 数组空 **且** api_key 空」时直接不注册 provider；`CredentialConfig.api_key` 又是**必填**（GUI 省略该行 → 整份 TOML 反序列化失败）。结果：引擎能跑、GUI 配不出来 | 上游：`CredentialConfig.api_key` 改 `#[serde(default)]`；显式配了 `base_url` 就注册 provider（空 key → 不发 Authorization 头）。桌面端：`reflect_list_provider_models` / `reflect_test_provider_chat` 接受空 key，plan 编辑器允许留空并标注「免 Key」 | `122fc3e0` |
+- 「todo 清单只出不进」→ **上游已闭合**（reflect-agent v1.7 `d621397`：
+  `AgentConfig.todos_slot` 共享槽 + `tool_exec` 渲染清单 + `pre_loop`
+  注入 `## Current Todo List` 段 —— agent 每轮都能看到自己刚写的清单）。
+- 「Goal 状态可观测」→ **上游已闭合 + 桌面端已接线**（见 §4.1）。
+- 「`[sandbox].os_level` 语义差」→ §3.19 桌面端闭环；上游 schema 亦已改为
+  `Option<bool>`（v1.7），桌面端的原始 TOML 嗅探 workaround 已随之移除。
+- 「免 Key 端点（免费模型池）配不出来」→ **上游 + 桌面端均已闭合**
+  （上游 `122fc3e0`：`CredentialConfig.api_key` 改 `#[serde(default)]`，
+  显式配了 `base_url` 就注册 provider；桌面端 `reflect_list_provider_models` /
+  `reflect_test_provider_chat` 接受空 key，plan 编辑器允许留空并标注
+  「免 Key」）。
+- 「团队只能看不能改」→ §3.22；「allowlist 三命令无消费方」→ §3.23 改写
+  （不再接桌面端私有机制，而是把「始终允许」写进核心权限层）；
+  「shell 会话列表」→ §2 归为**有意不接线**（桌面端本地诊断命令，
+  界面用自己的会话状态更准）。
 
-此前并列的其余几项早已分别闭合：「团队只能看不能改」→ §3.22；
-「allowlist 三命令无消费方」→ §3.23 改写（不再接桌面端私有机制，而是把
-「始终允许」写进核心权限层）；「shell 会话列表」→ §2 归为**有意不接线**
-（桌面端本地诊断命令，界面用自己的会话状态更准）。
+### 4.1 Goal 状态可观测（上游已闭合,桌面端已接线）
 
-> 上游文档漂移也一并订正（`3a1bab4b`）：`reflect-task/src/lib.rs` 称
-> TodoWrite 走 `ToolContext.metadata["todos"]`，实现实际写在
-> `ToolOutput.metadata`；`todo_write.rs` 模块注释称由「`reflect-tui` 的
-> reducer(Phase 6)」回填 `RenderState.todos` —— **submodule 里没有
-> `reflect-tui` crate，也没有这样的 reducer**，那是上游早期的设计稿。
+上游 v1.7 补了 `GoalController::snapshot() -> Option<GoalState>` 与
+`AgentThread::goal_snapshot()` 读口。桌面端接线：
+
+- **命令**：`reflect_goal_snapshot`（`commands/agent.rs`）—— 直读线程
+  快照，未进入目标模式（或 rebind 丢控制器）返回 `null`。
+- **IPC**：`src/utils/commands/goal.ts` 的 `reflect_goal_snapshot()`，
+  `GoalSnapshotPayload` 镜像 `GoalState`（snake_case 出线）。
+- **消费**：store 的 `syncGoalSnapshot`（会话 hydrate 后与 goal turn
+  收尾拉取）校准 `goalActive` 投影 —— 此前投影在会话切换 / rebind 后
+  与真实状态脱节，现在以快照为准；Composer goal 徽标 tooltip 展示
+  轮次 / token / 状态（`composer.goalBadgeDetail`）。
+- **覆盖**：L3 `src-tauri/tests/ipc_goal.rs`（stub provider 配置下断言
+  挂载 / 覆盖 / 退出全周期的快照形态）+ `ipc_agent_ops.rs`
+  （无 provider 时不产生幽灵目标的快照断言）。
+
+> 上游文档漂移已订正（`3a1bab4b`，含于 `e4560bc`）：`reflect-task/src/lib.rs`
+> 的 TodoWrite 清单通道描述与 `todo_write.rs` 模块注释均已与实现对齐。
 
 ---
 
