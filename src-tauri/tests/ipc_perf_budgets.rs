@@ -21,10 +21,10 @@ fn strict() -> bool {
     std::env::var("PERF_STRICT").as_deref() == Ok("1")
 }
 
-/// rollout 根目录(`<HOME>/.reflect/sessions`),夹具初始化后可用。
+/// rollout 根目录(`<HOME>/.zhuye/sessions`),夹具初始化后可用。
 fn sessions_root() -> std::path::PathBuf {
     let home = std::env::var("HOME").expect("HOME 未隔离");
-    std::path::Path::new(&home).join(".reflect/sessions")
+    std::path::Path::new(&home).join(".zhuye/sessions")
 }
 
 /// 造一条真会话记录:首行 session_meta(索引靠它建条目),后跟 `lines` 条

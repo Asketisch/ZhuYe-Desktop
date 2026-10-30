@@ -127,6 +127,7 @@ fn hook_toggle_round_trips() {
 
 #[test]
 fn memory_add_list_remove_round_trip() {
+    let _guard = common::state_lock();
     let scope = "project";
     let key = "capability-layer-probe";
     invoke_ok(
@@ -134,17 +135,31 @@ fn memory_add_list_remove_round_trip() {
         json!({ "scope": scope, "key": key, "value": "pnpm test" }),
     );
 
-    // 真后端的语义:**每个 scope 一条**记录,key 固定为 "(all)",
-    // value 是该 scope 的 MEMORY.md 全文(不是逐 key 展开)。
     let list = invoke_ok("reflect_list_memory", json!({}));
     let entries = list.as_array().expect("记忆列表应为数组");
     let hit = entries
         .iter()
-        .find(|e| e["scope"] == scope)
-        .expect("新增的记忆 scope 未出现在列表里");
+        .find(|e| e["scope"] == scope && e["key"] == key)
+        .expect("新增的记忆条目未出现在列表里");
     let value = hit["value"].as_str().expect("记忆 value 应为字符串");
-    assert!(value.contains(key), "记忆正文缺少 key: {value}");
     assert!(value.contains("pnpm test"), "记忆正文缺少 value: {value}");
+
+    invoke_ok(
+        "reflect_add_memory",
+        json!({ "scope": scope, "key": key, "value": "updated" }),
+    );
+    invoke_err(
+        "reflect_add_memory",
+        json!({ "scope": scope, "key": key, "value": "replacement", "createOnly": true }),
+    );
+    let updated = invoke_ok("reflect_list_memory", json!({}));
+    let hit = updated
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["scope"] == scope && e["key"] == key)
+        .unwrap();
+    assert_eq!(hit["value"], "updated");
 
     // 删除是**删块**:整段 `## <key>` 被摘掉。
     invoke_ok(
@@ -156,10 +171,58 @@ fn memory_add_list_remove_round_trip() {
         .as_array()
         .expect("记忆列表应为数组")
         .iter()
-        .find(|e| e["scope"] == scope)
+        .find(|e| e["scope"] == scope && e["key"] == key)
         .map(|e| e["value"].as_str().unwrap_or_default().to_string())
         .unwrap_or_default();
     assert!(!still.contains(key), "删除后正文仍含 key: {still}");
+}
+
+#[test]
+fn memory_edit_and_delete_reject_stale_entry_values() {
+    let _guard = common::state_lock();
+    let key = "stale-memory-probe";
+    invoke_ok(
+        "reflect_add_memory",
+        json!({ "scope": "project", "key": key, "value": "initial" }),
+    );
+    let list = invoke_ok("reflect_list_memory", json!({}));
+    let old = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["scope"] == "project" && entry["key"] == key)
+        .unwrap()["value"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    invoke_ok(
+        "reflect_add_memory",
+        json!({ "scope": "project", "key": key, "value": "newer" }),
+    );
+    invoke_err(
+        "reflect_add_memory",
+        json!({ "scope": "project", "key": key, "value": "stale edit", "expectedValue": old }),
+    );
+    invoke_err(
+        "reflect_remove_memory",
+        json!({ "scope": "project", "key": key, "expectedValue": old }),
+    );
+    let current = invoke_ok("reflect_list_memory", json!({}));
+    assert!(
+        current
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["key"] == key && entry["value"] == "newer")
+    );
+    invoke_ok(
+        "reflect_remove_memory",
+        json!({ "scope": "project", "key": key, "expectedValue": "newer" }),
+    );
+    invoke_err(
+        "reflect_add_memory",
+        json!({ "scope": "project", "key": key, "value": "resurrected", "expectedValue": "newer" }),
+    );
 }
 
 #[test]
@@ -170,6 +233,150 @@ fn unknown_memory_scope_is_rejected() {
         json!({ "scope": "no-such-scope", "key": "k", "value": "v" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
+}
+
+#[test]
+fn memory_rejects_stale_workspace_or_agent_context() {
+    let _guard = common::state_lock();
+    let workspace = common::agent().workspace().display().to_string();
+    let name = invoke_ok("reflect_get_active_agent", json!({}))["name"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let valid = json!({ "workspace": workspace, "agent": name });
+    let key = "context-validation-probe";
+    invoke_ok(
+        "reflect_add_memory",
+        json!({ "scope": "project", "key": key, "value": "original", "expectedContext": valid }),
+    );
+    let wrong_workspace = json!({ "workspace": "/does-not-match-workspace", "agent": name });
+    let wrong_agent = json!({ "workspace": workspace, "agent": "does-not-match-agent" });
+    for context in [wrong_workspace, wrong_agent] {
+        invoke_err("reflect_list_memory", json!({ "expectedContext": context }));
+        invoke_err(
+            "reflect_memory_sections",
+            json!({ "expectedContext": context }),
+        );
+        invoke_err(
+            "reflect_add_memory",
+            json!({ "scope": "project", "key": key, "value": "wrong", "expectedContext": context }),
+        );
+        invoke_err(
+            "reflect_remove_memory",
+            json!({ "scope": "project", "key": key, "expectedContext": context }),
+        );
+    }
+    let list = invoke_ok("reflect_list_memory", json!({ "expectedContext": valid }));
+    assert!(
+        list.as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["key"] == key
+                && entry["value"].as_str().unwrap().trim_end() == "original")
+    );
+    invoke_ok(
+        "reflect_remove_memory",
+        json!({ "scope": "project", "key": key, "expectedContext": valid }),
+    );
+}
+
+#[test]
+fn memory_sections_preserve_core_titles_indices_and_bodies() {
+    let _guard = common::state_lock();
+    let agent = common::agent();
+    let name = invoke_ok("reflect_get_active_agent", json!({}))["name"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let workspace = agent.workspace();
+    let path = reflect_memory::resolve_path(
+        reflect_memory::MemoryScope::Project,
+        &workspace,
+        &dirs::home_dir().unwrap(),
+        &name,
+    )
+    .unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let previous = std::fs::read(&path).ok();
+    let content = "preamble\n## first\n正文  \n## second\nsecond body\n";
+    std::fs::write(&path, content).unwrap();
+    let expected = reflect_memory::split_sections(reflect_memory::MemoryScope::Project, content);
+    let list = invoke_ok(
+        "reflect_memory_sections",
+        json!({ "expectedContext": { "workspace": workspace, "agent": name } }),
+    );
+    let project: Vec<_> = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| s["scope"] == "project")
+        .collect();
+    assert_eq!(project.len(), expected.len());
+    for (actual, section) in project.iter().zip(expected) {
+        assert_eq!(actual["title"], section.title);
+        assert_eq!(actual["body"], section.body);
+        assert_eq!(actual["index"], section.index);
+        assert_eq!(actual["chars"], section.body.chars().count());
+    }
+    if let Some(bytes) = previous {
+        std::fs::write(path, bytes).unwrap();
+    } else {
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
+fn legacy_memory_document_can_be_edited_and_removed_over_ipc() {
+    let _guard = common::state_lock();
+    let agent = common::agent();
+    let name = invoke_ok("reflect_get_active_agent", json!({}))["name"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let path = reflect_memory::resolve_path(
+        reflect_memory::MemoryScope::Project,
+        &agent.workspace(),
+        &dirs::home_dir().unwrap(),
+        &name,
+    )
+    .unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let previous = std::fs::read(&path).ok();
+    std::fs::write(&path, "legacy document").unwrap();
+    let list = invoke_ok("reflect_list_memory", json!({}));
+    let entry = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["scope"] == "project" && e["wholeDocument"] == true)
+        .unwrap();
+    assert_eq!(entry["value"], "legacy document");
+    std::fs::write(&path, "changed externally").unwrap();
+    invoke_err(
+        "reflect_add_memory",
+        json!({ "scope": "project", "key": "(all)", "value": "stale document", "replaceDocument": true, "expectedValue": "legacy document" }),
+    );
+    invoke_err(
+        "reflect_remove_memory",
+        json!({ "scope": "project", "key": "(all)", "replaceDocument": true, "expectedValue": "legacy document" }),
+    );
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "changed externally"
+    );
+    invoke_ok(
+        "reflect_add_memory",
+        json!({ "scope": "project", "key": "(all)", "value": "updated document", "replaceDocument": true, "expectedValue": "changed externally" }),
+    );
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "updated document");
+    invoke_ok(
+        "reflect_remove_memory",
+        json!({ "scope": "project", "key": "(all)", "replaceDocument": true, "expectedValue": "updated document" }),
+    );
+    assert!(!path.exists());
+    if let Some(bytes) = previous {
+        std::fs::write(path, bytes).unwrap();
+    }
 }
 
 // ============================================================================
@@ -267,6 +474,30 @@ fn session_create_list_rename_delete() {
     invoke_ok("reflect_delete_session", json!({ "id": id }));
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
+#[test]
+fn session_rename_rejects_a_symlink_to_an_external_file() {
+    let id = invoke_ok("reflect_create_session", json!({}));
+    let directory = reflect_rollout::path::default_base().join("_names");
+    std::fs::create_dir_all(&directory).unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let target = outside.path().join("protected");
+    std::fs::write(&target, "original").unwrap();
+    let link = directory.join(format!("{}.name", id.as_str().unwrap()));
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    invoke_err(
+        "reflect_rename_session",
+        json!({"id": id, "newName": "replacement"}),
+    );
+    assert_eq!(std::fs::read_to_string(target).unwrap(), "original");
+    assert!(
+        std::fs::symlink_metadata(link)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+}
+
 #[test]
 fn session_archive_and_unarchive_round_trip() {
     let id = invoke_ok("reflect_create_session", json!({}));
@@ -309,7 +540,7 @@ fn seed_rollout(id: &str) {
     let home = std::env::var("HOME").expect("HOME 未隔离");
     let now = chrono::Utc::now();
     let dir = std::path::Path::new(&home)
-        .join(".reflect/sessions")
+        .join(".zhuye/sessions")
         .join(now.format("%Y").to_string())
         .join(now.format("%m").to_string())
         .join(now.format("%d").to_string());
@@ -359,12 +590,72 @@ fn invalid_session_id_is_rejected_not_panicked() {
 
 #[test]
 fn session_notes_readable() {
+    let _guard = common::state_lock();
     let v = invoke_ok(
         "reflect_list_session_notes",
         json!({ "id": "00000000-0000-0000-0000-000000000000" }),
     );
     assert!(v.is_array(), "会话笔记应为数组: {v}");
     assert!(invoke_ok("reflect_list_note_sessions", json!({})).is_array());
+}
+
+#[test]
+fn session_notes_preserve_timestamps_and_match_session_counts() {
+    let _guard = common::state_lock();
+    let _ = common::agent();
+    let id = "88888888-8888-4888-8888-888888888888";
+    let dir = reflect_notes::resolve_notes_home()
+        .unwrap()
+        .join("session-notes");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(format!("{id}.jsonl"));
+    let mut lines = Vec::new();
+    for i in 0..35 {
+        lines.push(
+            json!({ "text": format!("note {i}"), "created_at": "2020-01-02T03:04:05Z" })
+                .to_string(),
+        );
+    }
+    lines.push("{broken".to_string());
+    lines.push(json!({ "text": "  ", "created_at": "2021-01-01T00:00:00Z" }).to_string());
+    std::fs::write(&path, lines.join("\n")).unwrap();
+    let notes = invoke_ok("reflect_list_session_notes", json!({ "id": id }));
+    let notes = notes.as_array().unwrap();
+    let core = reflect_notes::FileBackedNoteStore::open_or_create_default(&path).unwrap();
+    let core_notes = reflect_notes::NoteStore::list(&core);
+    assert_eq!(notes.len(), core_notes.len());
+    for (actual, core_note) in notes.iter().zip(core_notes) {
+        assert_eq!(actual["text"], core_note.text);
+    }
+    assert_eq!(notes.len(), 30);
+    assert_eq!(notes[0]["text"], "note 5");
+    assert_eq!(notes.last().unwrap()["text"], "note 34");
+    assert_eq!(notes[0]["createdAt"], "2020-01-02T03:04:05+00:00");
+    let sessions = invoke_ok("reflect_list_note_sessions", json!({}));
+    let session = sessions
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["sessionId"] == id)
+        .unwrap();
+    assert_eq!(session["count"], 30);
+    assert_eq!(session["updatedAt"], notes.last().unwrap()["createdAt"]);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn session_note_read_errors_are_reported() {
+    let _guard = common::state_lock();
+    let _ = common::agent();
+    let id = "99999999-9999-4999-8999-999999999999";
+    let dir = reflect_notes::resolve_notes_home()
+        .unwrap()
+        .join("session-notes");
+    let path = dir.join(format!("{id}.jsonl"));
+    std::fs::create_dir_all(&path).unwrap();
+    invoke_err("reflect_list_session_notes", json!({ "id": id }));
+    invoke_err("reflect_list_note_sessions", json!({}));
+    std::fs::remove_dir(path).unwrap();
 }
 
 // ============================================================================
@@ -395,6 +686,31 @@ fn agent_definitions_crud() {
         json!({ "name": "capability-probe" }),
     );
     assert_eq!(deleted, true, "删除未返回 true");
+}
+
+#[test]
+fn agent_create_only_does_not_overwrite_existing_definition() {
+    let original = json!({ "name": "create-only-probe", "description": "original" });
+    let replacement = json!({ "name": "create-only-probe", "description": "replacement" });
+    invoke_ok(
+        "reflect_save_agent_def",
+        json!({ "def": original, "createOnly": true }),
+    );
+    invoke_err(
+        "reflect_save_agent_def",
+        json!({ "def": replacement, "createOnly": true }),
+    );
+    let retained = invoke_ok(
+        "reflect_get_agent_def",
+        json!({ "name": "create-only-probe" }),
+    );
+    assert_eq!(retained["description"], "original");
+    invoke_ok("reflect_save_agent_def", json!({ "def": replacement }));
+    let updated = invoke_ok(
+        "reflect_get_agent_def",
+        json!({ "name": "create-only-probe" }),
+    );
+    assert_eq!(updated["description"], "replacement");
 }
 
 #[test]

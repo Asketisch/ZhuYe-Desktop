@@ -4,7 +4,7 @@
  * B3-03: ThreadsView 注入 rename / delete / export / archive handlers
  *        到 ThreadBucketGroup。所有 mutation 通过 useSessions → invalidate
  *        → 自动重刷。
- * 归档区：列出已归档会话（`~/.reflect/sessions-archive`），支持恢复 /
+ * 归档区：列出已归档会话（`~/.zhuye/sessions-archive`），支持恢复 /
  *        彻底删除。
  */
 import { useCallback, useState } from 'react';

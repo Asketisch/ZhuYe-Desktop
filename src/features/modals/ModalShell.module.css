@@ -111,3 +111,7 @@
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
+
+.error {
+  color: var(--danger);
+}

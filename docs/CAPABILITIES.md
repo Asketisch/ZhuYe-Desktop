@@ -8,9 +8,17 @@
 > 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `e4560bc`（v1.7 —— 含上游 7 周归并；本轮闭合
-> §4.1 Goal 快照读口与 §3.18 todo 回灌，§3.19 os_level schema 对齐，
-> 新增 `tool_call_args_delta` / `spec_fallback` 事件接线）。
+> 当前子模块切到上游 main（`ff2c51e`，workspace 版本 0.1.7）。本轮只复核了三件事：
+> 协议信封 / `Op` / `EventMsg` 与上次审计一致；数据目录与环境变量改按上游口径
+> （`$ZHUYE_HOME` > `$HOME/.zhuye`，`ZHUYE_SANDBOX_OS_LEVEL`，见 `app-core/src/paths.rs`）；
+> 上游删掉的 API（`IncompletePermissionResolver`、`ToolRegistry::{register_if_absent_owned,
+> unregister_if_same}`、`zhuye-paths`/`reflect-compat`）在桌面侧的替代实现已接线。
+> **其余能力域沿用上轮结论，尚待逐项复审；在复审完成前本矩阵不能作为当前版本的发布覆盖结论。**
+>
+> 最近审计：submodule `ff2c51e`（0.1.7）。上一轮针对 `e4560bc`（含上游 7 周归并；
+> 闭合 §4.1 Goal 快照读口与 §3.18 todo 回灌，§3.19 os_level schema 对齐，
+> 新增 `tool_call_args_delta` / `spec_fallback` 事件接线）的结论仍然适用，
+> 除本节列出的命名与 API 变化。
 >
 > `e4560bc` 同时包含此前审计的 `c0377609` 批次：免 Key 端点可配置
 > （`122fc3e0`）/ Goal 状态读口前身（`2dc8ac3e`）/ `os_level` 语义
@@ -36,13 +44,15 @@
 | 线程运行时 | `reflect-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 `AgentConfig` 缺权限解析器（已修，见 §3.1） |
 | LLM / Provider | `reflect-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` | 🟡 有 plans / quota + **凭证池健康度**（§3.15，冷却原因在核心内不公开） |
 | 计价 | `reflect-llm::providers` | `price` / `is_priced` / `ModelPricing` | ✅ 费率卡由核心费率表**反解**（`app-core/src/pricing.rs`） |
+| Autopilot | `app-core::autopilot` | 配置和历史持久化 | 🟡 仅配置和历史读写；自动调度、任务执行、并发限制与历史写入尚未接入，页面已说明 |
+| 侧通道 | `app-core::side_channel` | 注册表 / 取消 / 状态快照 | 🟡 仅注册和快照查询；实际 agent 执行与事件转发尚未接入 |
 | 权限 | `reflect-permissions` | `FilePermissionStore` / `StorePermissionResolver` | ✅ 三层 store 已挂载（CLI 同构）+ Settings 可见生效规则 |
 | 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；`mcp_servers` / `lsp_servers` / `permissions` 仅 raw TOML |
 | 模型清单发现 | `reflect-config::discovery` / `reflect-llm::model_catalog` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24） |
 | MCP | `reflect-mcp` | `McpConnectionManager` / registry | ✅ 观测 + **增删 + 精选 catalog + 资源/prompt 浏览**（§3.12 / §3.16） |
 | LSP | `reflect-lsp` | `LspConnectionManager` / `DiagnosticRegistry` | ✅ 启停 + 预热 + **诊断可见**（§3.10） |
 | 工具注册表 | `reflect-tools` | `ToolRegistry` / `Sanitizer` / `WorktreeCoordinator` | ✅ 工具列表 + **worktree 状态可见**（§3.16） |
-| Hooks | `reflect-hooks` | `HookEngine` / `HookEventKind`(12) | ✅ 列表 + **事件类型与可用决策**（§3.16） |
+| Hooks | `reflect-hooks` | `HookEngine` / `HookEventKind`(12) | ✅ 当前引擎注册表与启停 + **事件类型与可用决策**（§3.16）；未注册的内置项需先在配置中启用 |
 | Skills | `reflect-skills` | `SkillsCatalog` / `scan_skills_dirs` / `merge_bundled` | ✅ 已改为与运行时同源（消除列表分叉，见 §3.2） |
 | 记忆 | `reflect-memory` | `MemoryStore` / `retrieve_relevant` | 🟡 CRUD + 路径对齐（§3.9）+ **分段视图 + 注入预算**（§3.15）；相关性排序仍不可见 |
 | 会话笔记 | `reflect-notes` | `NoteStore` / `FileBackedNoteStore` | ✅ 只读面已补（Memory 视图 §3.3） |
@@ -86,7 +96,7 @@
 ### 3.1 权限层接线（安全行为分叉修复）
 
 **问题**：CLI 装了三层权限 store（`config.toml [permissions]` >
-`<workspace>/.reflect/permissions.toml` > `~/.reflect/permissions.toml`），
+`<workspace>/.zhuye/permissions.toml` > `~/.zhuye/permissions.toml`），
 桌面端**根本没挂** `AgentConfig::with_permission_resolver` ——
 `reflect-permissions` 在 `src-tauri/Cargo.toml` 里声明却从未使用。
 结果：同一份配置在 CLI 里生效的 `deny` 规则，在桌面端被**静默忽略**。
@@ -104,8 +114,8 @@
 
 ### 3.2 Skills 列表与运行时对齐
 
-**问题**：桌面端手写了一份 skills 扫描（扫 `cwd/.reflect/skills`），
-与运行时（扫 `<workspace>/.reflect/skills` + `~/.reflect/skills`，
+**问题**：桌面端手写了一份 skills 扫描（扫 `cwd/.zhuye/skills`），
+与运行时（扫 `<workspace>/.zhuye/skills` + `~/.zhuye/skills`，
 再 `merge_bundled` 合入内置技能）有**两处分叉**：目录不同 + 漏掉内置
 技能。GUI 列出的技能少于 agent 实际能激活的。
 
@@ -180,15 +190,15 @@ section 正文，PromptLayersModal 里按需展开。
 `"desktop"`**。后果两个：
 
 1. **GUI 的 Agents 视图是死胡同** —— 用户能创建/编辑
-   `~/.reflect/agents/*.md`，但运行时永远找不到它们。
+   `~/.zhuye/agents/*.md`，但运行时永远找不到它们。
 2. **记忆路径对不上** —— 记忆文件路径由 agent 名派生
-   （`.reflect/agent-memory/<agent>/MEMORY.md`），GUI 写
+   （`.zhuye/agent-memory/<agent>/MEMORY.md`），GUI 写
    `agent-memory/reflect/`、运行时读 `agent-memory/<agent>/` →
    **GUI 里编辑的记忆，agent 根本读不到**。
 
 **修复**：
 - 新增 `src-tauri/src/agent_state.rs`：活跃 agent 名由桌面端偏好文件
-  （`~/.reflect/desktop.json`）决定，缺省 `"default"`（与 CLI 一致 ——
+  （`~/.zhuye/desktop.json`）决定，缺省 `"default"`（与 CLI 一致 ——
   两个前端共用同一 agent 定义与记忆目录）。放在桌面端自己的偏好文件而
   不是核心 config，因为核心 `ReflectConfig` 没有 `[active].agent` 字段
   （CLI 用命令行旗标），且桌面端的 config 读写会把解析后的结构重新
@@ -200,8 +210,8 @@ section 正文，PromptLayersModal 里按需展开。
 - 新增 `reflect_get_active_agent` / `reflect_set_active_agent`：切换后
   replay 当前会话历史并强制重绑（新定义立刻生效），与 provider 热重载
   同款语义。Agents 视图新增「当前活跃」卡片 + 逐条「设为活跃」按钮。
-- Memory 视图新增提示：agent 未声明 `memory` 作用域时，写入的内容
-  **不会**被注入 system prompt（核心是「记忆按 agent 显式启用」）。
+- Memory 视图提示活跃 agent 未启用的持久记忆作用域；这些作用域的内容
+  不会注入 system prompt（核心按 agent 显式启用记忆作用域）。
 - 另加不变量测试：GUI 记忆路径 == 核心 `reflect_memory::resolve_path` 结果。
 
 ### 3.10 LSP 诊断（Problems）
@@ -264,7 +274,7 @@ Settings → Advanced」。
 
 **问题**：GUI 此前只能看到插件带来的 **slash 命令** —— 装了什么、哪个加载
 失败、启用哪些、marketplace 有哪些，**全部不可见**；启停只能手改
-`~/.reflect/config.toml` 的 `[plugins] enabled_plugins`，卸载只能手改
+`~/.zhuye/config.toml` 的 `[plugins] enabled_plugins`，卸载只能手改
 `installed_plugins.json`。
 
 **修复**（`commands/plugins.rs`）：
@@ -302,8 +312,8 @@ CLI 三族都注册（`reflect-exec` 的 `bootstrap_m5` + `headless.rs`）。
 - `register_note_tool`：**每会话**注册（笔记 store 路径含 thread id），
   rebind 时同名覆盖。
 - `bootstrap_subagents`：按 CLI 口径合并 spec
-  （TOML `[[subagents]]` > workspace `.reflect/subagents/*.md` >
-  home `~/.reflect/subagents/*.md` > 硬编码 explorer），注册
+  （TOML `[[subagents]]` > workspace `.zhuye/subagents/*.md` >
+  home `~/.zhuye/subagents/*.md` > 硬编码 explorer），注册
   `call_<role>` 工具，并把 `call_<role>` 补进 `m4.skills` 的 always-on
   可见集 —— 否则模型请求里没有子代理工具的 schema，LLM 永远无法委派。
 
@@ -318,7 +328,7 @@ CLI 三族都注册（`reflect-exec` 的 `bootstrap_m5` + `headless.rs`）。
 |---|---|---|
 | 凭证池健康度 | `reflect_credential_pool_status` | Inspector「凭证池」分区（总数 / 健康数 / 冷却中）。核心的 cooldown 集合是私有字段 → 用 `healthy_clients()` 的健康集合反推「总数 − 健康数 = 冷却中」（冷却**原因**在核心内不公开，不编造） |
 | 已完成的子代理调用 | `reflect_recovery_state` | Inspector 分区 —— 读 core 的 `SubagentRegistry::snapshot()`（任务摘要 / 结果摘要 / 迭代序号 / 时间）。回答「agent 刚才派了哪些子代理、结论是什么」 |
-| 记忆分段 | `reflect_memory_sections` | Memory 视图「记忆分段」区块 —— 用 core 的 `split_sections` 按 `## ` 切分 + 注入预算占用。GUI 此前显示整份原文，而 agent 实际吃的是切分 + 筛选后的条目 |
+| 记忆分段 | `reflect_memory_sections` | Memory 视图展示 core 的 `split_sections` 候选项和注入预算；实际注入取决于作用域和查询。记忆 CRUD 按标题操作，无法无歧义拆分的旧文件保留整份文档编辑，并校验工作区及活跃代理。 |
 | 配置位置与分析健康度 | `reflect_config_info` | Settings 侧栏顶部 —— 配置文件路径 / 是否存在 / 分析上报开关 + 状态 / 工作区 / 活跃 agent。手改 `config.toml` 的用户终于知道应用读的是哪个文件 |
 
 > **AST 语言网格**这一项**有意不接**：核心的 `LanguageGrid` 的 grammar
@@ -332,9 +342,9 @@ CLI 三族都注册（`reflect-exec` 的 `bootstrap_m5` + `headless.rs`）。
 |---|---|---|---|
 | **worktree 状态** | `reflect_list_worktrees` | Git 视图「Worktrees」面板 | 核心的 worktree 状态在 `ToolContext` 里（进程内）读不到，但 worktree **文件系统可见** —— `git worktree list --porcelain` + 核心的 `worktree_dirty` 判脏。标出 `isolated`（隔离工作树）与 `stranded`（隔离 + 有未提交改动 → **改动还没落回主分支**，丢工风险） |
 | **MCP 资源 / prompt** | `reflect_list_mcp_resources` / `reflect_list_mcp_prompts` | McpManager 的「资源与 Prompt」折叠区 | MCP 三大原语里此前只有 tools 对用户可达。直接问 rmcp peer（`list_all_resources()` / `list_all_prompts()`），与核心 `ListMcp*Tool` 同源 |
-| **子代理 spec** | `reflect_list_subagent_specs` / `reflect_get_subagent_spec` / `reflect_save_subagent_spec` / `reflect_delete_subagent_spec` | Agents 视图新增「子代理 spec」页签 | 与 **agent 定义**（`~/.reflect/agents/*.md`）是两套东西 —— 后者是主 agent 的 prompt / 工具白名单，前者是 `call_<role>` 工具的来源，此前**无任何编辑面**。合并口径与运行时同款（TOML > workspace md > home md > 硬编码 explorer）。编辑器直接改**原始 md**（frontmatter + body），写前由后端 `parse_subagent_str` 校验，非法不落盘 |
+| **子代理 spec** | `reflect_list_subagent_specs` / `reflect_get_subagent_spec` / `reflect_save_subagent_spec` / `reflect_delete_subagent_spec` | Agents 视图新增「子代理 spec」页签 | 与 **agent 定义**（`~/.zhuye/agents/*.md`）是两套东西 —— 后者是主 agent 的 prompt / 工具白名单，前者是 `call_<role>` 工具的来源，此前**无任何编辑面**。合并口径与运行时同款（TOML > workspace md > home md > 硬编码 explorer）。编辑器直接改**原始 md**（frontmatter + body），写前由后端 `parse_subagent_str` 校验，非法不落盘 |
 | **BM25 搜索** | `reflect_search_files` 增 `rank` 参数 | Search 视图文件页的排序切换 | GUI 搜索此前是纯子串匹配，弱于 agent 自己的 grep。`bm25` 模式复用核心 `reflect_tools::bm25::{tokenize, rank_lines}`（`k1=1.2` / `b=0.75`，与核心 grep 工具**逐字一致**） |
-| **Hook 事件类型** | `reflect_list_hook_events` | Hooks 视图「可挂载的事件」折叠区 | 此前只列 hook 的 name / kind / enabled —— 用户不知道**能在哪些时机**挂 hook、每个时机能做什么决策。现列出 12 个 `HookEventKind` + 每个事件可用的 `HookDecision` |
+| **Hook 事件类型** | `reflect_list_hook_events` | Hooks 视图「可挂载的事件」折叠区 | 列出 12 个事件及运行时会处理的决策；任务、工具后置和会话生命周期等事件只作通知。任务事件转发到当前线程的 HookEngine。 |
 
 ### 3.17 Pipeline 配置编辑 + 安全扫描
 
@@ -345,7 +355,7 @@ CLI 三族都注册（`reflect-exec` 的 `bootstrap_m5` + `headless.rs`）。
   （与**实际运行同一条校验路径**），返回结构摘要（节点 / 缺 team / 错误）。
   摘要只读顶层 `nodes` 表，节点内部字段交给核心判 —— 不在桌面端复刻核心 schema。
 - `reflect_list_pipeline_configs` / `reflect_save_pipeline_config` ——
-  落盘 `~/.reflect/pipelines/<name>.toml`，**写前先校验，非法不落盘**。
+  落盘 `~/.zhuye/pipelines/<name>.toml`，**写前先校验，非法不落盘**。
 - Collaboration 视图新增 Pipeline 编辑器（TOML 文本框 + 防抖实时校验 +
   节点徽标 + 缺 team 提示 + 保存）。
 
@@ -413,7 +423,7 @@ GUI 如实展示「agent 写了什么」，让用户能核对 agent 自以为的
 |---|---|---|
 | 配置 `[sandbox].os_level` | 用户意图（bool） | ✗ 只写盘，不生效 |
 | 协议 `ThreadSettingsOverrides.sandbox_policy` | 每轮覆盖 → `ToolContext.os_sandbox` | ✗ 从不设置 |
-| env `REFLECT_SANDBOX_OS_LEVEL` | 进程级开关 | ✗ 从不读 |
+| env `ZHUYE_SANDBOX_OS_LEVEL` | 进程级开关 | ✗ 从不读 |
 
 于是 `ctx.os_sandbox` 恒为 `None` → BashTool 走 `OsSandbox::from_env()`
 → **env 未设置时默认开启**（核心安全基线）→ 配置写 `false` 也没用，
@@ -430,7 +440,7 @@ GUI 如实展示「agent 写了什么」，让用户能核对 agent 自以为的
     区分「没写」与「写了 false」，当时桌面端用「嗅探原始 TOML」的
     workaround 补齐；上游改 `Option<bool>` 后 workaround 已移除。）
   - `resolve_os_sandbox_enabled(cfg, env_raw)`：**env 优先于配置**
-    （与核心 CLI 桥接注释一致：`REFLECT_SANDBOX_OS_LEVEL=0` 可临时
+    （与核心 CLI 桥接注释一致：`ZHUYE_SANDBOX_OS_LEVEL=0` 可临时
     覆盖配置）。
   - `sandbox_policy_for(enabled)` → 协议策略。
 - **每轮下发协议策略**（`state/submit.rs::stamp_sandbox_policy`）——
@@ -488,7 +498,7 @@ GUI 如实展示「agent 写了什么」，让用户能核对 agent 自以为的
 | `reflect_{upsert,get,delete}_team` | 团队只能看不能改（任务板只读）—— 核心的多 agent 协调单元 | 仍为 🟡，见 §4 |
 | `reflect_get_task` | 任务详情抽屉用 `reflect_get_task_output` 即可覆盖 | 无需处置 |
 | `reflect_list_shell_sessions` | 终端会话列表（恢复旧 shell） | 仍为 🟡，低价值 |
-| `reflect_{load,save,check}_allowlist` | 桌面端**本地**机制（`~/.reflect/approval_allowlist.json`），与核心 `reflect-permissions` 的 allow 规则**功能重复**；后端文档描述的「审批弹窗勾选 Always allow」流程在 GUI 里从未存在 | 仍为 🟡，低价值（核心权限面已在 §3.1 覆盖） |
+| `reflect_{load,save,check}_allowlist` | 桌面端**本地**机制（`~/.zhuye/approval_allowlist.json`），与核心 `reflect-permissions` 的 allow 规则**功能重复**；后端文档描述的「审批弹窗勾选 Always allow」流程在 GUI 里从未存在 | 仍为 🟡，低价值（核心权限面已在 §3.1 覆盖） |
 
 **本轮闭合的两处**：
 
@@ -525,7 +535,7 @@ plugins panel;目前仅补全类型」。**事件在流里，界面上什么都�
 §3.20 的反向审计里，「团队只能看不能改」是**唯一一个还属于基座能力**
 的缺口（另外两项 shell 会话列表、allowlist 都是桌面端本地机制）。
 核心的 `reflect-task` 早就实现了 `TaskManager::upsert_team` /
-`delete_team` / `get_team`，存储在 `~/.reflect/teams/<name>.json`
+`delete_team` / `get_team`，存储在 `~/.zhuye/teams/<name>.json`
 （与 CLI / TUI 共享），但 GUI 只有任务板列表选择器里「点一下切到某个
 team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 
@@ -549,7 +559,7 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 ### 3.23 「始终允许这条命令」写进核心权限层（消灭桌面端私有的第二套真值）
 
 §3.20 扫出的 allowlist 三命令（`reflect_load/save/check_allowlist`）是
-**桌面端本地**机制（`~/.reflect/approval_allowlist.json`，前缀匹配），
+**桌面端本地**机制（`~/.zhuye/approval_allowlist.json`，前缀匹配），
 后端注释描述的「审批弹窗勾选 Always allow」流程**从未在 GUI 存在**。
 
 **为什么不把它接起来，而是改写它**：核心的 `reflect-permissions` 已经
@@ -557,7 +567,7 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 
 | | 桌面端 allowlist | 核心权限层 |
 |---|---|---|
-| 真值 | 桌面端私有文件，与 CLI 互不可见 | `~/.reflect/permissions.toml`，**CLI 与 GUI 共用** |
+| 真值 | 桌面端私有文件，与 CLI 互不可见 | `~/.zhuye/permissions.toml`，**CLI 与 GUI 共用** |
 | 生效 | 只能由前端在弹窗前自查后转发批准 | 核心 `StorePermissionResolver` **每次评估都重读文件** → 写完即生效，无需重启 |
 | 可见 | 无界面 | Settings → Permissions「生效的权限规则」列表实时显示 |
 
@@ -567,7 +577,7 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 **实现**：
 
 - 后端 `reflect_add_permission_rule`（`commands/permissions.rs`）——
-  往 `~/.reflect/permissions.toml` 追加一条 allow 规则
+  往 `~/.zhuye/permissions.toml` 追加一条 allow 规则
   （`FilePermissionStore::add` 落盘；同名规则由核心自动去重）。
 - 前端 `src/features/modals/allowRule.ts`（纯函数）—— 从一次待审批的
   工具调用推导规则，**授权范围刻意保守**：
@@ -644,7 +654,8 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 
 ## 4. 剩余缺口与后续
 
-**当前没有待接线缺口。** 此前列表中的各项已分别闭合：
+**GUI 接线面当前没有待接缺口。** 此前列表中的各项已分别闭合。
+唯一遗留的是 §4.2 —— 它不在 GUI 侧，而在核心文件工具里。
 
 - 「todo 清单只出不进」→ **上游已闭合**（reflect-agent v1.7 `d621397`：
   `AgentConfig.todos_slot` 共享槽 + `tool_exec` 渲染清单 + `pre_loop`
@@ -661,6 +672,22 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
   （不再接桌面端私有机制，而是把「始终允许」写进核心权限层）；
   「shell 会话列表」→ §2 归为**有意不接线**（桌面端本地诊断命令，
   界面用自己的会话状态更准）。
+
+### 4.2 核心文件工具的路径竞态防护（上游缺失，桌面端已按现状记录）
+
+`ff2c51e` 起的上游实现里，工具侧路径仍是「先 canonicalize 检查、再按路径读写」两步：
+
+| 位置 | 现状 | 后果 |
+|---|---|---|
+| `zhuye-tools/src/sandbox.rs::resolve_sandbox_path` | canonicalize + `starts_with` | 检查之后替换目录项或符号链接，可把读写导向工作区外 |
+| `builtins/read.rs` | `fs::metadata` 查大小后 `fs::read_to_string` | 文件在两步之间增长时无上限；句柄不固定 |
+| `builtins/write.rs` | 固定临时名 `<target>.zhuye-tmp` + `fs::write` + `rename` | 预置同名符号链接可覆盖外部文件；原子替换丢弃原文件 mode / owner / ACL / xattr |
+| `zhuye-lsp/src/{tool.rs,document.rs}` | 同上检查 + `fs::read_to_string` | 文档同步把外部文件内容发给 server 的路径仍在 |
+
+桌面端自己的读写面（`src-tauri/src/commands/files.rs::resolve_under_workspace` +
+逐组件固定父目录）已按更严的口径实现并有 L3 用例覆盖，但**agent 侧工具走的是核心实现**，
+所以这条缺口真实存在于发布产物里。修它要在 Reflect-Agent 仓库改，再升 submodule
+（见 `SUBMODULE.md`）；桌面端不打算在适配层复刻一份文件工具来绕过。
 
 ### 4.1 Goal 状态可观测（上游已闭合,桌面端已接线）
 

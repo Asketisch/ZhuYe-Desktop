@@ -27,6 +27,7 @@ interface UseComposerSubmissionOptions {
   attachments: UseAttachmentsResult;
   history: PromptHistoryApi;
   setText: (text: string) => void;
+  clearSubmittedDraft: (text: string, session: string | null) => void;
   setBusy: (busy: boolean) => void;
   setSlashVisible: (visible: boolean) => void;
   focus: () => void;
@@ -54,6 +55,7 @@ export function useComposerSubmission({
   attachments,
   history,
   setText,
+  clearSubmittedDraft,
   setBusy,
   setSlashVisible,
   focus,
@@ -98,7 +100,6 @@ export function useComposerSubmission({
       : sendMode;
 
     setBusy(true);
-    setText('');
     setSlashVisible(false);
     history.resetNavigation();
     try {
@@ -109,6 +110,7 @@ export function useComposerSubmission({
         if (command) {
           history.commit(value);
           await onBangCommand(command);
+          clearSubmittedDraft(text, activeId);
         } else {
           setText('!');
         }
@@ -122,6 +124,7 @@ export function useComposerSubmission({
           await runSubmission(parsed.submission, args);
         } else if (parsed.kind === 'reject') {
           pushToast({ kind: 'error', message: parsed.message ?? t('composer.commandRejected') });
+          return;
         } else if (parsed.kind === 'no-op') {
           pushToast({ kind: 'info', message: parsed.message ?? t('composer.commandHandled') });
         }
@@ -130,6 +133,9 @@ export function useComposerSubmission({
           ...(value ? [{ type: 'text' as const, text: value }] : []),
           ...attachments.toUserInputItems(),
         ];
+        // 首页尚未绑定会话：先创建并等待 ChatView 完成绑定，避免把首条
+        // 消息投递到上一个会话的线程或未持久化的占位线程。
+        if (!activeId) await ensureSessionReady(null);
         const running = selectIsTurnRunning(useAgentStore.getState());
         if (running && mode === 'steer') {
           // v1.4 A2 真·转向:不打断当前 run,下一个安全点注入;已完成
@@ -152,7 +158,8 @@ export function useComposerSubmission({
           void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
         }
       }
-      attachments.clear();
+      clearSubmittedDraft(text, activeId);
+      attachments.clearSent(attachments.attachments);
     } catch (error) {
       console.error(error);
       pushToast({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
@@ -164,6 +171,8 @@ export function useComposerSubmission({
     activeId,
     attachments,
     currentWorkspace,
+    clearSubmittedDraft,
+    ensureSessionReady,
     focus,
     history,
     onBangCommand,

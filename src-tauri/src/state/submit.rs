@@ -9,6 +9,52 @@
 //! 生命周期事件 fan-out。
 
 use super::MinimalAgent;
+use std::path::Path;
+use std::sync::Arc;
+
+fn current_thread(agent: &MinimalAgent) -> anyhow::Result<Arc<reflect_core::AgentThread>> {
+    agent
+        .inner
+        .thread
+        .lock()
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("agent thread not installed yet; setup not complete"))
+}
+
+fn ensure_current_thread(
+    agent: &MinimalAgent,
+    thread: &Arc<reflect_core::AgentThread>,
+) -> anyhow::Result<()> {
+    if !agent
+        .inner
+        .thread
+        .lock()
+        .as_ref()
+        .is_some_and(|current| Arc::ptr_eq(current, thread))
+    {
+        anyhow::bail!("session changed before submission; retry in the current session");
+    }
+    if thread.cancel_token().is_cancelled() || thread.submission_sender().is_closed() {
+        anyhow::bail!("session thread is closed; rebind the session before submitting");
+    }
+    Ok(())
+}
+
+fn ensure_workspace_matches(
+    thread_workspace: &Path,
+    current_workspace: &Path,
+    submitted_workspace: Option<&str>,
+) -> anyhow::Result<()> {
+    use crate::workspace_state::same_path;
+    if !same_path(thread_workspace, current_workspace)
+        || submitted_workspace.is_some_and(|path| !same_path(thread_workspace, Path::new(path)))
+    {
+        anyhow::bail!(
+            "workspace changed since this session was bound; reopen the session or start a new chat"
+        );
+    }
+    Ok(())
+}
 
 /// 提交 Submission → 拿 per-turn `TurnHandle` → spawn 转发到 broadcast。
 ///
@@ -22,14 +68,22 @@ pub(crate) async fn submit(
     submission: reflect_protocol::Submission,
 ) -> anyhow::Result<()> {
     // 0. 必须先 install_agent_thread。
-    let thread = {
-        let guard = agent.inner.thread.lock();
-        guard
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("agent thread not installed yet; setup not complete"))?
-    };
+    let thread = current_thread(agent)?;
+    // 插件挂载可能耗时；等待时不占用会话切换锁，切换或关闭可取消等待。
+    if matches!(submission.op, reflect_protocol::Op::UserInput { .. }) {
+        agent.wait_for_plugins(&thread).await?;
+    }
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    ensure_current_thread(agent, &thread)?;
+    if matches!(submission.op, reflect_protocol::Op::UserInput { .. }) {
+        ensure_workspace_matches(
+            &thread.config().current_workspace(),
+            &agent.workspace(),
+            submission.workspace.as_deref(),
+        )?;
+    }
 
-    // 0.5 插件命令展开:挂载完成前直通,不阻塞提交。
+    // 0.5 插件命令在当前线程挂载完成后展开。
     let submission = super::plugins::expand_submission(&agent.plugin_runtime(), submission).await?;
 
     // 0.6 OS 沙箱策略:按**后端**配置快照盖到本轮的 thread_settings。
@@ -37,15 +91,17 @@ pub(crate) async fn submit(
 
     // 1. 拿 per-turn handle。
     let mut handle: reflect_core::TurnHandle = thread.submit(submission.clone()).await;
+    if matches!(submission.op, reflect_protocol::Op::Shutdown) {
+        // 在释放切换锁前标记关闭，阻止 Shutdown 排队后的提交被静默丢弃。
+        thread.cancel_token().cancel();
+    }
 
     // 2. spawn 转发:这个 turn 的所有 event 进 broadcast。
-    let session_tx = agent.inner.session_tx.clone();
+    let inner = agent.inner.clone();
     let sub_id = submission.id.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = handle.next().await {
-            if session_tx.send(event).is_err() {
-                tracing::debug!("[reflect-gui] no subscribers for turn {}", sub_id);
-            }
+            super::session::publish_if_current(&inner, &thread, event);
         }
         tracing::debug!("[reflect-gui] turn {} forwarder closed", sub_id);
     });
@@ -62,23 +118,31 @@ pub(crate) async fn submit_op(
     agent: &MinimalAgent,
     op: reflect_protocol::Op,
 ) -> anyhow::Result<String> {
-    let thread = {
-        let guard = agent.inner.thread.lock();
-        guard
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("agent thread not installed yet; setup not complete"))?
-    };
+    let thread = current_thread(agent)?;
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    ensure_current_thread(agent, &thread)?;
+    if matches!(op, reflect_protocol::Op::Steer { .. }) {
+        ensure_workspace_matches(
+            &thread.config().current_workspace(),
+            &agent.workspace(),
+            None,
+        )?;
+    }
+    let shutdown = matches!(op, reflect_protocol::Op::Shutdown);
     let submission = reflect_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
     let id = submission.id.clone();
     // 这类 op 通常无 per-turn 流式输出(审批/effort/permission 立即生效),
     // 但仍走 submit 以保持生命周期事件(SessionConfigured / PermissionModeChanged 等)
     // 的 fan-out 一致性。
     let mut handle = thread.submit(submission).await;
-    let session_tx = agent.inner.session_tx.clone();
+    if shutdown {
+        thread.cancel_token().cancel();
+    }
+    let inner = agent.inner.clone();
     let sub_id = id.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = handle.next().await {
-            let _ = session_tx.send(event);
+            super::session::publish_if_current(&inner, &thread, event);
         }
         tracing::debug!("[reflect-gui] op turn {} forwarder closed", sub_id);
     });
@@ -157,6 +221,114 @@ mod tests {
                 thread_settings: ThreadSettingsOverrides::default(),
             },
         )
+    }
+
+    #[test]
+    fn workspace_mismatch_rejects_stale_or_inconsistent_submissions() {
+        use std::path::Path;
+        let original = Path::new("/project/one");
+        let other = Path::new("/project/two");
+        assert!(super::ensure_workspace_matches(original, original, Some("/project/one")).is_ok());
+        assert!(super::ensure_workspace_matches(original, other, None).is_err());
+        assert!(super::ensure_workspace_matches(original, original, Some("/project/two")).is_err());
+    }
+
+    #[tokio::test]
+    async fn queued_submissions_reject_a_replaced_thread() {
+        let agent = MinimalAgent::new_empty();
+        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        agent.install_agent_thread().await;
+        let transition = agent.inner.session_transition_lock.lock().await;
+
+        let user = super::submit(&agent, user_input_submission());
+        let op = super::submit_op(&agent, Op::Compact);
+        tokio::pin!(user, op);
+        assert!(futures::poll!(&mut user).is_pending());
+        assert!(futures::poll!(&mut op).is_pending());
+
+        super::super::rebind::rebind_session(
+            &agent,
+            reflect_protocol::ThreadId::new(),
+            vec![],
+            None,
+        )
+        .unwrap();
+        drop(transition);
+        assert!(
+            user.await
+                .unwrap_err()
+                .to_string()
+                .contains("session changed")
+        );
+        assert!(
+            op.await
+                .unwrap_err()
+                .to_string()
+                .contains("session changed")
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_plugin_mount_does_not_block_session_switch() {
+        let agent = MinimalAgent::new_empty();
+        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        agent.install_agent_thread().await;
+        let mount = agent.inner.plugin_mount_lock.lock().await;
+        super::super::rebind::rebind_session(
+            &agent,
+            reflect_protocol::ThreadId::new(),
+            vec![],
+            None,
+        )
+        .unwrap();
+        let pending = super::submit(&agent, user_input_submission());
+        tokio::pin!(pending);
+        assert!(futures::poll!(&mut pending).is_pending());
+        let transition = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            agent.inner.session_transition_lock.lock(),
+        )
+        .await
+        .expect("plugin wait must not hold the transition lock");
+        super::super::rebind::rebind_session(
+            &agent,
+            reflect_protocol::ThreadId::new(),
+            vec![],
+            None,
+        )
+        .unwrap();
+        drop(transition);
+        let error = tokio::time::timeout(std::time::Duration::from_secs(2), pending)
+            .await
+            .unwrap()
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("session closed")
+                || error.to_string().contains("plugin mount ended")
+        );
+        drop(mount);
+    }
+
+    #[tokio::test]
+    async fn closed_thread_rejects_submissions_and_can_be_rebound() {
+        let agent = MinimalAgent::new_empty();
+        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        agent.install_agent_thread().await;
+        let sid = reflect_protocol::ThreadId::new();
+        super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
+        let old = super::current_thread(&agent).unwrap();
+        super::submit_op(&agent, Op::Shutdown).await.unwrap();
+        assert!(old.cancel_token().is_cancelled());
+        assert!(
+            super::submit(&agent, user_input_submission())
+                .await
+                .is_err()
+        );
+        assert!(super::submit_op(&agent, Op::Compact).await.is_err());
+        super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
+        let current = super::current_thread(&agent).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&old, &current));
+        assert!(!current.cancel_token().is_cancelled());
     }
 
     /// 取 submission 上的 sandbox_policy。

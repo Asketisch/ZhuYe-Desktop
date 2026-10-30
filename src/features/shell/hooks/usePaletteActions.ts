@@ -31,8 +31,14 @@ import {
   reflect_export_session_markdown,
   reflect_save_config,
   reflect_list_sessions,
-  reflect_delete_session,
 } from '@/utils/commands';
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg;
+  return String(error);
+}
 
 export interface PaletteToasts {
   /** "新会话已启动。" */
@@ -45,6 +51,8 @@ export interface PaletteToasts {
   clearAllConfirm: (count: number) => string;
   /** "删除失败：{msg}" */
   deleteFailed: (msg: string) => string;
+  /** "读取会话失败：{msg}" */
+  listSessionsFailed: (msg: string) => string;
   /** "已清除 N 个会话。"（支持复数） */
   clearedSessions: (count: number) => string;
   /** "没有可导出的活动会话。" */
@@ -68,6 +76,7 @@ export interface PaletteToasts {
 export interface UsePaletteActionsOptions {
   activeId: string | null | undefined;
   onNewChat: () => void;
+  onDeleteSession: (id: string) => Promise<void>;
   toasts: PaletteToasts;
 }
 
@@ -88,7 +97,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
   const { rename } = useSessions();
   const ensureSessionReady = useEnsureSession();
   const { t } = useI18n();
-  const { activeId, onNewChat, toasts } = opts;
+  const { activeId, onNewChat, onDeleteSession, toasts } = opts;
 
   const newSession = useCallback(() => {
     onNewChat();
@@ -96,11 +105,19 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
   }, [onNewChat, pushToast, toasts.newSession]);
 
   const clearAllSessions = useCallback(async () => {
-    const list = await qc.fetchQuery({
-      queryKey: ['sessions'],
-      queryFn: () => reflect_list_sessions(),
-    });
-    if (!Array.isArray(list) || list.length === 0) {
+    let list;
+    try {
+      list = await qc.fetchQuery({
+        queryKey: ['sessions'],
+        queryFn: () => reflect_list_sessions(),
+        staleTime: 0,
+      });
+      if (!Array.isArray(list)) throw new Error('Invalid session list');
+    } catch (error) {
+      pushToast({ kind: 'error', message: toasts.listSessionsFailed(errorMessage(error)) });
+      return;
+    }
+    if (list.length === 0) {
       pushToast({ kind: 'info', message: toasts.noSessionsToClear });
       return;
     }
@@ -110,16 +127,18 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
       message: toasts.clearAllConfirm(list.length),
     });
     if (!ok) return;
+    let deleted = 0;
     for (const s of list) {
       try {
-        await reflect_delete_session(s.session_id);
+        await onDeleteSession(s.session_id);
+        deleted += 1;
       } catch (e) {
-        pushToast({ kind: 'error', message: toasts.deleteFailed((e as Error).message) });
+        pushToast({ kind: 'error', message: toasts.deleteFailed(`${s.session_id}: ${errorMessage(e)}`) });
       }
     }
     await qc.invalidateQueries({ queryKey: ['sessions'] });
-    pushToast({ kind: 'success', message: toasts.clearedSessions(list.length) });
-  }, [qc, pushToast, toasts]);
+    if (deleted > 0) pushToast({ kind: 'success', message: toasts.clearedSessions(deleted) });
+  }, [qc, pushToast, toasts, onDeleteSession]);
 
   const exportActive = useCallback(async () => {
     if (!activeId) {
@@ -133,7 +152,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
         message: path ? toasts.exported(path) : toasts.exportedNoPath,
       });
     } catch (e) {
-      pushToast({ kind: 'error', message: toasts.exportFailed((e as Error).message) });
+      pushToast({ kind: 'error', message: toasts.exportFailed(errorMessage(e)) });
     }
   }, [activeId, pushToast, toasts]);
 
@@ -157,7 +176,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
         message: path ? toasts.exportedMarkdown(path) : toasts.exportedMarkdownNoPath,
       });
     } catch (e) {
-      pushToast({ kind: 'error', message: toasts.exportFailed((e as Error).message) });
+      pushToast({ kind: 'error', message: toasts.exportFailed(errorMessage(e)) });
     }
   }, [activeId, pushToast, toasts]);
 
@@ -166,7 +185,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
       await reflect_save_config('');
       pushToast({ kind: 'success', message: toasts.configReloaded });
     } catch (e) {
-      pushToast({ kind: 'error', message: toasts.saveFailed((e as Error).message) });
+      pushToast({ kind: 'error', message: toasts.saveFailed(errorMessage(e)) });
     }
   }, [pushToast, toasts]);
 

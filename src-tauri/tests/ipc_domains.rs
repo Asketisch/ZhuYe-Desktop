@@ -3,7 +3,7 @@
 //! 覆盖:任务 / 团队 / squad / 定时任务 / 插件 / 子代理 spec / MCP /
 //! LSP / 提示词层 / KMS 知识库 / side-channel / 讨论 / 流水线。
 //!
-//! 这些域都写 `~/.reflect/**` —— 夹具已把 HOME / REFLECT_HOME 指向临时
+//! 这些域都写 `~/.zhuye/**` —— 夹具已把 HOME 指向临时
 //! 目录,不会污染真实数据。用例用**唯一名字**,避免互相撞名。
 
 mod common;
@@ -168,6 +168,12 @@ fn schedule_crud_round_trip() {
         json!({ "schedule": "0 9 * * *", "prompt": "standup", "name": name }),
     );
     let id = created["id"].as_str().expect("定时任务缺少 id").to_string();
+
+    let invalid = invoke_err(
+        "reflect_update_schedule",
+        json!({ "id": id, "schedule": "invalid" }),
+    );
+    assert!(invalid.to_string().contains("cron expression"), "{invalid}");
 
     let list = invoke_ok("reflect_list_schedules", json!({}));
     assert!(
@@ -340,7 +346,20 @@ fn prompt_layers_are_readable() {
 
 #[test]
 fn kms_wiki_page_lifecycle() {
+    // 用例中途会让进程级 `reflect_kms_search` 全局报错(broken.md 毒化),
+    // 必须持锁,避免与同二进制的 dream 用例交叉。
+    let _guard = common::state_lock();
     let wiki = format!("probe-wiki-{}", tag());
+    let rejected = invoke_err(
+        "reflect_kms_create",
+        json!({ "name": "../outside", "description": null }),
+    );
+    assert!(
+        rejected
+            .to_string()
+            .to_ascii_lowercase()
+            .contains("invalid kms")
+    );
     let created = invoke_ok(
         "reflect_kms_create",
         json!({ "name": wiki, "description": "能力覆盖层 wiki" }),
@@ -365,9 +384,54 @@ fn kms_wiki_page_lifecycle() {
         page.to_string().contains("capability layer probe body"),
         "页面正文读回不符: {page}"
     );
+    let saved_again = invoke_ok(
+        "reflect_kms_save_page",
+        json!({"wiki": wiki, "page": "index.md", "content": page["content"], "title": null, "tags": null}),
+    );
+    assert_eq!(saved_again["content"], page["content"]);
+    assert_eq!(saved_again["title"], "标题");
+    assert_eq!(saved_again["tags"], json!(["probe"]));
+
+    invoke_ok(
+        "reflect_kms_save_page",
+        json!({"wiki": wiki, "page": "index.md", "content": "external edit", "title": null, "tags": null}),
+    );
+    invoke_err(
+        "reflect_kms_save_page",
+        json!({"wiki": wiki, "page": "index.md", "content": "stale draft", "title": null, "tags": null, "expectedContent": page["content"]}),
+    );
+    let edited = invoke_ok(
+        "reflect_kms_get_page",
+        json!({"wiki": wiki, "page": "index.md"}),
+    );
+    assert_eq!(edited["content"], "external edit");
+
+    invoke_err(
+        "reflect_kms_save_page",
+        json!({"wiki": wiki, "page": "index.md", "content": "must not overwrite", "title": null, "tags": null, "createOnly": true}),
+    );
+    let unchanged = invoke_ok(
+        "reflect_kms_get_page",
+        json!({"wiki": wiki, "page": "index.md"}),
+    );
+    assert_eq!(unchanged["content"], "external edit");
+    invoke_ok(
+        "reflect_kms_save_page",
+        json!({"wiki": wiki, "page": "new-page", "content": "created", "title": null, "tags": null, "createOnly": true}),
+    );
 
     let pages = invoke_ok("reflect_kms_list_pages", json!({ "wiki": wiki }));
     assert!(pages.is_array(), "页面列表应为数组: {pages}");
+
+    let broken = dirs::home_dir()
+        .unwrap()
+        .join(".zhuye/kms")
+        .join(&wiki)
+        .join("pages/broken.md");
+    std::fs::write(&broken, [0xff]).unwrap();
+    invoke_err("reflect_kms_list_pages", json!({"wiki": wiki}));
+    invoke_err("reflect_kms_search", json!({"query": "capability"}));
+    std::fs::remove_file(broken).unwrap();
 
     let hits = invoke_ok("reflect_kms_search", json!({ "query": "capability" }));
     assert!(hits.is_array(), "知识库搜索应为数组: {hits}");
@@ -387,6 +451,31 @@ fn dream_writes_insights_to_a_wiki() {
         json!({ "insights": ["能力覆盖层洞察一", "洞察二"], "sessionsAnalyzed": 2 }),
     );
     assert!(v.is_object(), "dream 结果应为对象: {v}");
+    let second = invoke_ok(
+        "reflect_dream",
+        json!({ "insights": ["第二次洞察"], "sessionsAnalyzed": 1 }),
+    );
+    assert_ne!(v["page"], second["page"]);
+    let first_page = invoke_ok(
+        "reflect_kms_get_page",
+        json!({"wiki": v["wiki"], "page": v["page"]}),
+    );
+    let second_page = invoke_ok(
+        "reflect_kms_get_page",
+        json!({"wiki": second["wiki"], "page": second["page"]}),
+    );
+    assert!(
+        first_page["content"]
+            .as_str()
+            .unwrap()
+            .contains("能力覆盖层洞察一")
+    );
+    assert!(
+        second_page["content"]
+            .as_str()
+            .unwrap()
+            .contains("第二次洞察")
+    );
 
     // 落地了:生成的 wiki 能在列表里看到。
     let wikis = invoke_ok("reflect_kms_list", json!({}));
@@ -426,9 +515,15 @@ fn side_channel_start_list_cancel() {
 
     let got = invoke_ok("reflect_get_side_channel", json!({ "id": id.clone() }));
     assert_eq!(got["id"], id, "side-channel 读回 id 不符: {got}");
+    assert_eq!(got["agentName"], "probe-helper");
+    assert_eq!(got["startedAtMs"], started["startedAtMs"]);
+    assert!(got["durationMs"].is_null());
 
     let cancelled = invoke_ok("reflect_cancel_side_channel", json!({ "id": id }));
-    assert!(cancelled.is_boolean(), "取消结果应为布尔: {cancelled}");
+    assert_eq!(cancelled, true);
+    let finished = invoke_ok("reflect_get_side_channel", json!({ "id": id }));
+    assert_eq!(finished["status"], "cancelled");
+    assert!(finished["durationMs"].is_number());
 }
 
 #[test]

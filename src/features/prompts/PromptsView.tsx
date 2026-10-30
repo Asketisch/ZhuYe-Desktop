@@ -77,7 +77,7 @@ export function PromptsView() {
     <PageShell
       icon={BookOpen}
       title="Prompts"
-      subtitle="Send a template to the current chat. Custom prompts from ~/.reflect/prompts/ coming later."
+      subtitle="Send a template to the current chat. Custom prompts from ~/.zhuye/prompts/ coming later."
       width="md"
     >
       <div className={s.list}>

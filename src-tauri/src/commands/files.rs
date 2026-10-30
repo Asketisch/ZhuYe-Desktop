@@ -1,7 +1,10 @@
-//! 文件树 (`reflect_list_dir`) + 文本读 (`reflect_read_file`)。
+//! 文件树 (`reflect_list_dir`) + 文本读 (`reflect_read_file`) + 写回
+//! (`reflect_write_file`)。
 //!
-//! 共享的过滤 / 排序辅助函数给 `search.rs` 复用。
+//! 共享的过滤 / 排序辅助函数给 `search.rs` 复用；图片附件读取在
+//! [`image`] 子模块 —— 不走工作区沙盒的独立域。
 
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -36,26 +39,17 @@ pub struct DirListing {
 
 /// 列出目录内容。跳过隐藏文件 / 常见重型目录(`node_modules`、`.git`、`target` 等)。
 /// `max_depth` 默认 4,返回条目上限 2_000,避免 payload 过大。
+///
+/// 路径与 `reflect_read_file` / `reflect_write_file` 同一条沙盒规则:解析后必须
+/// 落在工作区内,否则拒绝 —— 目录列表本身就是文件内容枚举面,不能比读取更宽。
 #[tauri::command]
 pub async fn reflect_list_dir(
     agent: State<'_, MinimalAgent>,
     path: Option<String>,
     max_depth: Option<usize>,
 ) -> CommandResult<DirListing> {
-    let requested = match path.as_deref() {
-        Some("") | None => agent.workspace().to_path_buf(),
-        Some(p) => PathBuf::from(p),
-    };
-    let root = if requested.is_absolute() {
-        requested
-    } else {
-        agent.workspace().join(&requested)
-    };
-    if !root.exists() {
-        return Err(CommandError {
-            msg: format!("path does not exist: {}", root.display()),
-        });
-    }
+    let requested = path.as_deref().unwrap_or("");
+    let root = resolve_under_workspace(&agent.workspace(), requested)?;
     if !root.is_dir() {
         return Err(CommandError {
             msg: format!("not a directory: {}", root.display()),
@@ -81,8 +75,7 @@ fn walk_dir(
     truncated: &mut bool,
     cap: usize,
 ) {
-    if out.len() >= cap {
-        *truncated = true;
+    if *truncated {
         return;
     }
     let read = match std::fs::read_dir(dir) {
@@ -92,8 +85,7 @@ fn walk_dir(
     let mut sorted: Vec<_> = read.filter_map(|e| e.ok()).collect();
     sorted.sort_by_key(|e| std::cmp::Reverse(depth_first_sort_key(e)));
     for entry in sorted {
-        if out.len() >= cap {
-            *truncated = true;
+        if *truncated {
             return;
         }
         let name = entry.file_name().to_string_lossy().to_string();
@@ -104,6 +96,10 @@ fn walk_dir(
             Ok(m) => m,
             Err(_) => continue,
         };
+        if out.len() >= cap {
+            *truncated = true;
+            return;
+        }
         let path = entry.path();
         let kind = if meta.is_dir() {
             "dir"
@@ -162,42 +158,62 @@ pub struct FileReadResult {
 
 const FILE_READ_MAX: u64 = 1_048_576; // 1 MiB
 
-/// 读取文本文件。超过 `FILE_READ_MAX` 的文件会被拒绝,通过前 8 KiB 内是否
-/// 含 NUL 字节判断是否为二进制。
+/// 读取文本文件。超过 `FILE_READ_MAX` 时返回截断预览；含 NUL 或非 UTF-8
+/// 数据视为二进制，避免有损解码后将替换字符写回原文件。
 #[tauri::command]
 pub async fn reflect_read_file(
     agent: State<'_, MinimalAgent>,
     path: String,
 ) -> CommandResult<FileReadResult> {
     let resolved = resolve_under_workspace(&agent.workspace(), &path)?;
-    let meta = std::fs::metadata(&resolved).map_err(CommandError::from)?;
+    let mut f = std::fs::File::open(&resolved).map_err(CommandError::from)?;
+    let meta = f.metadata().map_err(CommandError::from)?;
     if !meta.is_file() {
         return Err(CommandError {
             msg: format!("not a file: {}", resolved.display()),
         });
     }
-    let truncated = meta.len() > FILE_READ_MAX;
-    let read_n = if truncated { FILE_READ_MAX } else { meta.len() } as usize;
+    let (bytes, mut truncated, mut size) = read_file_preview(&mut f, meta.len())?;
+    let final_size = f.metadata()?.len();
+    // 文件读完后又增长时，当前缓冲区依然不完整，必须保持只读。
+    truncated |= final_size > bytes.len() as u64;
+    size = size.max(final_size);
 
-    let mut bytes = vec![0u8; read_n];
-    use std::io::Read;
-    let mut f = std::fs::File::open(&resolved).map_err(CommandError::from)?;
-    f.read_exact(&mut bytes).map_err(CommandError::from)?;
-
-    let probe_n = bytes.len().min(8192);
-    let binary = bytes[..probe_n].contains(&0);
-    let content = if binary {
-        String::new()
-    } else {
-        String::from_utf8_lossy(&bytes).to_string()
-    };
+    let (content, binary) = decode_file_content(&bytes, truncated);
     Ok(FileReadResult {
         path: resolved.display().to_string(),
         content,
-        size: meta.len(),
+        size,
         binary,
         truncated,
     })
+}
+
+fn read_file_preview(
+    reader: &mut impl Read,
+    initial_size: u64,
+) -> std::io::Result<(Vec<u8>, bool, u64)> {
+    let mut bytes = Vec::new();
+    reader.take(FILE_READ_MAX + 1).read_to_end(&mut bytes)?;
+    let observed_size = bytes.len() as u64;
+    let truncated = initial_size > FILE_READ_MAX || observed_size > FILE_READ_MAX;
+    bytes.truncate(FILE_READ_MAX as usize);
+    Ok((bytes, truncated, initial_size.max(observed_size)))
+}
+
+fn decode_file_content(bytes: &[u8], truncated: bool) -> (String, bool) {
+    if bytes.contains(&0) {
+        return (String::new(), true);
+    }
+    match std::str::from_utf8(bytes) {
+        Ok(text) => (text.to_owned(), false),
+        // 截断预览可能恰好在多字节字符中间结束；保留完整字符的前缀。
+        Err(error) if truncated && error.error_len().is_none() => (
+            String::from_utf8_lossy(&bytes[..error.valid_up_to()]).into_owned(),
+            false,
+        ),
+        Err(_) => (String::new(), true),
+    }
 }
 
 /// 写回文本文件(编辑器 Reject 恢复原文 / 手动保存)。工作区沙盒内。
@@ -214,9 +230,59 @@ pub async fn reflect_write_file(
     if let Some(parent) = resolved.parent() {
         std::fs::create_dir_all(parent).map_err(CommandError::from)?;
     }
-    std::fs::write(&resolved, content.as_bytes()).map_err(CommandError::from)?;
+    atomic_write(&resolved, content.as_bytes()).map_err(CommandError::from)?;
     tracing::info!(path = %resolved.display(), bytes = content.len(), "file written");
     Ok(resolved.display().to_string())
+}
+
+/// 同目录临时文件 + rename 的原子写。
+///
+/// `std::fs::write` 先截断目标再写：进程在写入中途被杀 / 崩溃，用户文件就只剩
+/// 半截内容。rename 让旧文件在新内容完整落盘前一直可见；失败时清掉临时文件，
+/// 成功后复制旧文件的权限位（否则覆盖一个 `0755` 脚本会把可执行位丢掉）。
+///
+/// 与 `crate::persistence::write_atomic` 的区别：那个给桌面自有状态文件用，
+/// 新文件固定 0600；工作区里的新文件必须跟随 umask（与 `fs::write` 一致），
+/// 否则编辑器新建的文件对其他用户不可读。
+fn atomic_write(path: &Path, content: &[u8]) -> std::io::Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let stem = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "file".to_string());
+    let temp = parent.join(format!(".{stem}.{}.tmp", uuid::Uuid::new_v4()));
+    let existing = std::fs::metadata(path).ok();
+    if let Some(meta) = &existing {
+        if meta.permissions().readonly() {
+            // rename 只看目录权限；只读目标必须像 `fs::write` 一样报错，
+            // 不能被静默解锁覆盖。
+            let _ = std::fs::remove_file(&temp);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!("file is read-only: {}", path.display()),
+            ));
+        }
+    }
+    let preserve = existing.map(|m| m.permissions());
+    let write = (|| -> std::io::Result<()> {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        file.write_all(content)?;
+        file.flush()?;
+        file.sync_all()?;
+        drop(file);
+        if let Some(permissions) = preserve {
+            std::fs::set_permissions(&temp, permissions)?;
+        }
+        std::fs::rename(&temp, path)?;
+        Ok(())
+    })();
+    if write.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    write
 }
 
 /// 确保 `path` 解析后位于已配置的工作区之下,
@@ -236,20 +302,32 @@ pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandRe
     } else {
         workspace.join(p)
     };
-    let canon_workspace =
-        std::fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
-    // 目标可能尚不存在(新建文件):此时 canonicalize 最深的已存在祖先目录
-    // 再拼回剩余组件,防止父级符号链接把真实路径指到工作区外。
-    let canon_joined = std::fs::canonicalize(&joined).unwrap_or_else(|_| {
-        for ancestor in joined.ancestors().skip(1) {
-            if let Ok(canon) = std::fs::canonicalize(ancestor) {
-                if let Ok(suffix) = joined.strip_prefix(ancestor) {
-                    return canon.join(suffix);
-                }
+    let canon_workspace = std::fs::canonicalize(workspace).map_err(CommandError::from)?;
+    // 从目标向上寻找存在的祖先。悬空符号链接本身也算存在，必须拒绝
+    // 无法解析的链接，不能退回词法路径后让写入操作跟随它。
+    let mut canon_joined = None;
+    for ancestor in joined.ancestors() {
+        match std::fs::symlink_metadata(ancestor) {
+            Ok(_) => {
+                let canon = std::fs::canonicalize(ancestor).map_err(CommandError::from)?;
+                let suffix = joined.strip_prefix(ancestor).map_err(|e| CommandError {
+                    msg: format!("invalid path: {e}"),
+                })?;
+                // 给普通文件追加空路径会产生末尾分隔符，随后读取会报 ENOTDIR。
+                canon_joined = Some(if suffix.as_os_str().is_empty() {
+                    canon
+                } else {
+                    canon.join(suffix)
+                });
+                break;
             }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(CommandError::from(e)),
         }
-        joined.clone()
-    });
+    }
+    let canon_joined = canon_joined.ok_or_else(|| CommandError {
+        msg: format!("cannot resolve path: {}", joined.display()),
+    })?;
     if !canon_joined.starts_with(&canon_workspace) {
         return Err(CommandError {
             msg: format!(
@@ -262,122 +340,133 @@ pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandRe
     Ok(canon_joined)
 }
 
-/// `reflect_read_image_base64` 的返回:图片字节(base64)+ MIME。
-#[derive(Debug, Serialize)]
-pub struct ImageBase64Result {
-    /// 文件绝对路径。
-    pub path: String,
-    /// 按扩展名推断的 MIME(`image/png` 等)。
-    pub mime_type: String,
-    /// 文件字节的 base64 编码(不带 data-URL 前缀)。
-    pub base64: String,
-    /// 原始字节数。
-    pub size: u64,
-}
+/// 图片附件读取是独立的域(不走工作区沙盒),见 [`image`] 子模块。
+mod image;
 
-/// 20 MiB:provider vision 接口的实际上限远小于此;再大的文件几乎必然
-/// 是用户拖错东西,直接拒绝而不是让 IPC payload 失控。
-const IMAGE_READ_MAX: u64 = 20 * 1_048_576;
-
-/// 按扩展名推断图片 MIME;非白名单扩展返回 `None`。
-fn image_mime_by_extension(path: &Path) -> Option<&'static str> {
-    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
-    Some(match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "bmp" => "image/bmp",
-        _ => return None,
-    })
-}
-
-/// 读取图片文件并返回 base64 —— Composer 拖拽/选择器附件管线用。
-///
-/// 与 `reflect_read_file` 的两个刻意差异:
-/// - **不做工作区沙盒**:拖拽来源可以是 Desktop / Downloads 等任意位置,
-///   沙盒会让主用例(拖张截图进来)直接失败;
-/// - **扩展名白名单 + 20 MiB 上限**:core 侧 `UserInputItem::LocalImage`
-///   尚未接通(submission_loop 静默跳过),前端必须拿到字节以 inline
-///   `Image` item 提交 —— 这里挡住非图片与大文件,防 IPC payload 失控。
-#[tauri::command]
-pub async fn reflect_read_image_base64(path: String) -> CommandResult<ImageBase64Result> {
-    let p = PathBuf::from(&path);
-    let Some(mime) = image_mime_by_extension(&p) else {
-        return Err(CommandError {
-            msg: format!("not a supported image file: {path} (expected png/jpg/jpeg/gif/webp/bmp)"),
-        });
-    };
-    let meta = std::fs::metadata(&p).map_err(CommandError::from)?;
-    if !meta.is_file() {
-        return Err(CommandError {
-            msg: format!("not a file: {}", p.display()),
-        });
-    }
-    if meta.len() > IMAGE_READ_MAX {
-        return Err(CommandError {
-            msg: format!(
-                "image too large: {} bytes (max {IMAGE_READ_MAX})",
-                meta.len()
-            ),
-        });
-    }
-    let bytes = std::fs::read(&p).map_err(CommandError::from)?;
-    Ok(ImageBase64Result {
-        path: p.display().to_string(),
-        mime_type: mime.to_string(),
-        base64: crate::commands::media::base64_encode(&bytes),
-        size: meta.len(),
-    })
-}
+pub use image::{ImageBase64Result, reflect_read_image_base64};
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn image_mime_by_extension_maps_whitelist() {
-        assert_eq!(
-            image_mime_by_extension(Path::new("/tmp/a.PNG")),
-            Some("image/png")
-        );
-        assert_eq!(
-            image_mime_by_extension(Path::new("/tmp/b.jpeg")),
-            Some("image/jpeg")
-        );
-        assert_eq!(
-            image_mime_by_extension(Path::new("/tmp/c.webp")),
-            Some("image/webp")
-        );
-        assert_eq!(image_mime_by_extension(Path::new("/tmp/d.txt")), None);
-        assert_eq!(image_mime_by_extension(Path::new("/tmp/noext")), None);
+    fn resolving_existing_file_preserves_readable_path() {
+        let workspace = tempfile::tempdir().unwrap();
+        std::fs::write(workspace.path().join("note.txt"), "hello").unwrap();
+        let path = resolve_under_workspace(workspace.path(), "note.txt").unwrap();
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "hello");
     }
 
     #[test]
-    fn read_image_base64_round_trip() {
-        let dir = std::env::temp_dir().join("reflect-files-test");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("reflect_read_image_base64.png");
-        std::fs::write(&path, [0x89u8, b'P', b'N', b'G']).unwrap();
-        let res = tokio::runtime::Runtime::new()
+    fn atomic_write_replaces_content_and_leaves_no_temp_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("note.txt");
+        atomic_write(&target, b"first").unwrap();
+        atomic_write(&target, b"second").unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"second");
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path())
             .unwrap()
-            .block_on(reflect_read_image_base64(path.display().to_string()))
-            .unwrap();
-        assert_eq!(res.mime_type, "image/png");
-        assert_eq!(res.size, 4);
-        // 4 字节 → base64 为 8 字符(无 padding,ceil(4/3)*4)。
-        assert_eq!(res.base64.len(), 8);
-        std::fs::remove_file(&path).ok();
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().starts_with('.'))
+            .collect();
+        assert!(
+            leftovers.is_empty(),
+            "temp files left behind: {leftovers:?}"
+        );
     }
 
     #[test]
-    fn read_image_base64_rejects_non_image() {
-        let err = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(reflect_read_image_base64(
-                "/tmp/reflect-not-an-image.txt".into(),
-            ))
-            .unwrap_err();
-        assert!(err.msg.contains("not a supported image file"));
+    fn atomic_write_refuses_a_read_only_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("locked.txt");
+        std::fs::write(&target, "original").unwrap();
+        let mut permissions = std::fs::metadata(&target).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&target, permissions).unwrap();
+        let error = atomic_write(&target, b"override").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "original");
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            1,
+            "read-only refusal must not leave a temp file"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn atomic_write_keeps_the_existing_file_mode() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("run.sh");
+        std::fs::write(&target, b"#!/bin/sh\n").unwrap();
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).unwrap();
+        atomic_write(&target, b"#!/bin/sh\necho hi\n").unwrap();
+        assert_eq!(
+            std::fs::metadata(&target).unwrap().permissions().mode() & 0o777,
+            0o755,
+            "rename-based write must not drop the executable bit"
+        );
+    }
+
+    #[test]
+    fn preview_detects_growth_after_the_initial_size_check() {
+        let mut small = std::io::Cursor::new(b"expanded".to_vec());
+        let (bytes, truncated, size) = read_file_preview(&mut small, 1).unwrap();
+        assert_eq!(bytes, b"expanded");
+        assert!(!truncated);
+        assert_eq!(size, 8);
+
+        let mut large = std::io::Cursor::new(vec![b'x'; FILE_READ_MAX as usize + 1]);
+        let (bytes, truncated, size) = read_file_preview(&mut large, 1).unwrap();
+        assert_eq!(bytes.len(), FILE_READ_MAX as usize);
+        assert!(truncated);
+        assert_eq!(size, FILE_READ_MAX + 1);
+    }
+
+    #[test]
+    fn directory_truncation_requires_an_extra_visible_entry() {
+        let workspace = tempfile::tempdir().unwrap();
+        std::fs::create_dir(workspace.path().join("empty")).unwrap();
+        std::fs::write(workspace.path().join(".hidden"), "ignored").unwrap();
+        let mut entries = Vec::new();
+        let mut truncated = false;
+        walk_dir(workspace.path(), 0, 4, &mut entries, &mut truncated, 1);
+        assert_eq!(entries.len(), 1);
+        assert!(!truncated);
+
+        std::fs::write(workspace.path().join("empty").join("visible"), "x").unwrap();
+        let mut entries = Vec::new();
+        let mut truncated = false;
+        walk_dir(workspace.path(), 0, 4, &mut entries, &mut truncated, 1);
+        assert_eq!(entries.len(), 1);
+        assert!(truncated);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_resolution_rejects_dangling_symlink() {
+        use std::os::unix::fs::symlink;
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = dir.path().join("workspace");
+        std::fs::create_dir(&workspace).unwrap();
+        symlink(dir.path().join("outside"), workspace.join("link")).unwrap();
+        assert!(resolve_under_workspace(&workspace, "link").is_err());
+        assert!(resolve_under_workspace(&workspace, "link/child").is_err());
+        assert!(resolve_under_workspace(&workspace, "new/child").is_ok());
+    }
+
+    #[test]
+    fn decoding_rejects_lossy_content_and_preserves_truncated_utf8_prefix() {
+        assert_eq!(decode_file_content(b"a\xffb", false), (String::new(), true));
+        let mut with_nul = vec![b'a'; 9000];
+        with_nul.push(0);
+        assert!(decode_file_content(&with_nul, false).1);
+        assert_eq!(
+            decode_file_content(b"hello\xe4\xb8", true),
+            ("hello".into(), false)
+        );
+        assert!(decode_file_content(b"hello\xe4\xb8", false).1);
+        assert!(decode_file_content(b"hello\xff", true).1);
     }
 }

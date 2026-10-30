@@ -95,7 +95,7 @@ const shell: Record<string, StringEntry> = {
   'shell.nav.traces':             { en: 'Traces',                                                'zh-CN': '调用记录' },
   'shell.nav.usage':              { en: 'Usage',                                                 'zh-CN': '用量' },
   'shell.sandbox':                { en: 'OS sandbox',                                          'zh-CN': 'OS 沙箱' },
-  'shell.sandboxEnvOverride':     { en: 'env override: REFLECT_SANDBOX_OS_LEVEL={value} (config ignored)', 'zh-CN': 'env 覆盖生效: REFLECT_SANDBOX_OS_LEVEL={value}(配置被忽略)' },
+  'shell.sandboxEnvOverride':     { en: 'env override: ZHUYE_SANDBOX_OS_LEVEL={value} (config ignored)', 'zh-CN': 'env 覆盖生效: ZHUYE_SANDBOX_OS_LEVEL={value}(配置被忽略)' },
   'shell.nav.search':             { en: 'Search',                                                'zh-CN': '搜索' },
   'shell.nav.more':               { en: 'More',                                                  'zh-CN': '更多' },
   'shell.more.title':             { en: 'All features',                                          'zh-CN': '全部功能' },

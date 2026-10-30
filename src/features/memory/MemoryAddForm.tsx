@@ -17,6 +17,7 @@ export interface MemoryAddFormProps {
   setNewKey: (v: string) => void;
   setNewValue: (v: string) => void;
   onSubmit: () => void;
+  isMutating: boolean;
 }
 
 export function MemoryAddForm({
@@ -27,6 +28,7 @@ export function MemoryAddForm({
   setNewKey,
   setNewValue,
   onSubmit,
+  isMutating,
 }: MemoryAddFormProps) {
   const { t } = useI18n();
 
@@ -59,7 +61,7 @@ export function MemoryAddForm({
           placeholder={t('memory.value')}
           data-testid="memory-new-value"
         />
-        <button type="button" className={s.saveBtn} onClick={onSubmit} data-testid="memory-add-confirm">
+        <button type="button" className={s.saveBtn} onClick={onSubmit} disabled={isMutating} data-testid="memory-add-confirm">
           <Icon icon={Save} size={12} /> {t('memory.save')}
         </button>
       </div>

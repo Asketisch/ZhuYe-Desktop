@@ -56,6 +56,7 @@ import {
   reflect_list_memory,
   reflect_add_memory,
   reflect_remove_memory,
+  reflect_memory_sections,
   // hooks
   reflect_list_hooks,
   reflect_toggle_hook,
@@ -399,11 +400,27 @@ describe('commands forwarding (mapping)', () => {
       reflect_add_memory('user', 'name', 'Alice'),
     );
     expectArgs(add, { scope: 'user', key: 'name', value: 'Alice' });
+    const create = await captureCmd('reflect_add_memory', () =>
+      reflect_add_memory('user', 'name', 'Alice', { createOnly: true }),
+    );
+    expectArgs(create, { scope: 'user', key: 'name', value: 'Alice', createOnly: true });
+    const replace = await captureCmd('reflect_add_memory', () =>
+      reflect_add_memory('user', '(all)', 'document', { replaceDocument: true }),
+    );
+    expectArgs(replace, { scope: 'user', key: '(all)', value: 'document', replaceDocument: true });
 
     const rm = await captureCmd('reflect_remove_memory', () =>
       reflect_remove_memory('user', 'name'),
     );
     expectArgs(rm, { scope: 'user', key: 'name' });
+    const rmDoc = await captureCmd('reflect_remove_memory', () => reflect_remove_memory('user', '(all)', true));
+    expectArgs(rmDoc, { scope: 'user', key: '(all)', replaceDocument: true });
+
+    const context = { workspace: '/workspace', agent: 'default' };
+    const sections = await captureCmd('reflect_memory_sections', () => reflect_memory_sections(context));
+    expectArgs(sections, { expectedContext: context });
+    const oldSections = await captureCmd('reflect_memory_sections', () => reflect_memory_sections());
+    expectArgs(oldSections, undefined);
   });
 
   // ----- 钩子 -----
@@ -680,6 +697,8 @@ describe('commands forwarding (mapping)', () => {
     };
     const args = await captureCmd('reflect_save_agent_def', () => reflect_save_agent_def(def));
     expectArgs(args, { def });
+    const create = await captureCmd('reflect_save_agent_def', () => reflect_save_agent_def(def, true));
+    expectArgs(create, { def, createOnly: true });
   });
 
   it('reflect_parse_agent_md forwards { text }', async () => {

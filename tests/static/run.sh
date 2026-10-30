@@ -34,7 +34,12 @@ fi
 # "分析器没发现问题",门禁就成了摆设。
 ANALYZE_OUT="$RESULT_DIR/static-audit.analyze"
 ANALYZE_LOG="$RESULT_DIR/static-audit-analyze.log"
-if node "$HERE/analyze.mjs" "$ANALYZE_OUT" > "$ANALYZE_LOG" 2>&1 && [ -s "$ANALYZE_OUT" ]; then
+rm -f "$ANALYZE_OUT"
+analyze_status=0
+node "$HERE/analyze.mjs" "$ANALYZE_OUT" > "$ANALYZE_LOG" 2>&1 || analyze_status=$?
+# 分析器用 1 表示检查失败；它仍应输出逐项结果。其它退出码或
+# 状态与结果不一致表示分析器异常，不能读取上次残留的报告。
+if [ -s "$ANALYZE_OUT" ] && { { [ "$analyze_status" -eq 0 ] && ! grep -q $'^FAIL\t' "$ANALYZE_OUT"; } || { [ "$analyze_status" -eq 1 ] && grep -q $'^FAIL\t' "$ANALYZE_OUT"; }; }; then
     suite_absorb "$ANALYZE_OUT"
 else
     tcase "静态分析器运行" false
@@ -79,10 +84,24 @@ tcase "CHANGELOG 覆盖当前版本" check_changelog
 
 # ── 4. 能力矩阵新鲜度(审计到的 submodule commit 与实际一致)──────────────
 check_capabilities_fresh() {
-    local sha
-    sha=$(git -C "$ROOT" submodule status reflect-agent 2>/dev/null | awk '{print $1}' | cut -c1-7)
-    [ -n "$sha" ] || { echo "读不到 reflect-agent submodule 状态"; return 1; }
-    if grep -q "$sha" docs/CAPABILITIES.md; then
+    local status marker full_sha sha
+    status=$(git -C "$ROOT" submodule status reflect-agent 2>/dev/null) || { echo "读不到 reflect-agent submodule 状态"; return 1; }
+    marker=${status:0:1}
+    full_sha=${status:1:40}
+    if [ "$marker" = '-' ] || [ "$marker" = 'U' ]; then
+        echo "reflect-agent submodule 未初始化或存在冲突"
+        return 1
+    fi
+    if [ "$marker" != ' ' ] && [ "$marker" != '+' ]; then
+        echo "reflect-agent submodule 状态标记无效"
+        return 1
+    fi
+    if [[ ! "$full_sha" =~ ^[[:xdigit:]]{40}$ ]]; then
+        echo "reflect-agent submodule 状态格式无效"
+        return 1
+    fi
+    sha=${full_sha:0:7}
+    if grep -Fq "$sha" docs/CAPABILITIES.md; then
         echo "docs/CAPABILITIES.md 已覆盖 submodule $sha"
         return 0
     fi
@@ -93,7 +112,7 @@ tcase "能力矩阵与 submodule 版本一致" check_capabilities_fresh
 
 # ── 5. 子模块指针已提交(未提交 = 发布产物不可复现)───────────────────────
 check_submodule_committed() {
-    if git -C "$ROOT" diff --quiet --submodule=short -- reflect-agent 2>/dev/null; then
+    if git -C "$ROOT" diff --quiet --ignore-submodules=none --submodule=short HEAD -- reflect-agent 2>/dev/null; then
         echo "reflect-agent submodule 指针已提交"
         return 0
     fi

@@ -61,8 +61,10 @@ export function reflect_kms_save_page(
   content: string,
   title: string | null,
   tags: string[] | null,
+  createOnly = false,
+  expectedContent?: string,
 ): Promise<ReflectPage> {
-  return invoke('reflect_kms_save_page', { wiki, page, content, title, tags });
+  return invoke('reflect_kms_save_page', { wiki, page, content, title, tags, ...(createOnly ? { createOnly } : {}), ...(expectedContent !== undefined ? { expectedContent } : {}) });
 }
 
 export function reflect_kms_get_page(wiki: string, page: string): Promise<ReflectPage> {

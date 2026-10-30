@@ -79,12 +79,11 @@ export function StatusBar() {
   const sessionModel =
     session && isUsableModelSpec(session.model) ? `${session.model} @ ${session.provider}` : null;
   const modelLabel = sessionModel ?? (status && status.has_model ? status.model : null);
-  const modelKind: 'ok' | 'warn' | 'error' =
-    sessionModel != null || (status && status.has_model)
+  const modelKind: 'ok' | 'warn' | 'error' = status?.degraded_reason
+    ? 'warn'
+    : sessionModel != null || (status && status.has_model)
       ? 'ok'
-      : status && status.degraded_reason
-        ? 'warn'
-        : 'error';
+      : 'error';
   const modelTooltip = status?.degraded_reason ?? undefined;
 
   return (

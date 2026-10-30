@@ -7,13 +7,13 @@
 //!
 //! 本模块在保存配置后:
 //! 1. 检测 provider 相关段(`active` / `anthropic` / `openai` / `ollama` /
-//!    `routing`)是否变化;无关段(显示、MCP、hooks…)变更不打扰运行中的
+//!    `routing`)或 hooks 是否变化;无关段(显示、MCP…)变更不打扰运行中的
 //!    会话。例外:`[plugins]` 段变更走轻量 diff 同步(挂/卸插件,不动线程,
 //!    见 `hot_reload_provider_stack` 步骤 0)。
-//! 2. 变化时重建 ModelRegistry + QuotaTracker 并热替换 inner。
-//! 3. 若当前有绑定会话,replay 其历史后 `rebind_session_forced` ——
+//! 2. provider 变化时重建 ModelRegistry + QuotaTracker 并热替换 inner。
+//! 3. provider 或 hooks 变化且当前有绑定会话时,replay 历史后 `rebind_session_forced` ——
 //!    运行中的线程换到新 registry 上,对话上下文经 preload 保留。
-//!    (replay 失败时仅重建空 preload 的线程,不阻塞保存。)
+//!    回放失败时保留旧线程，避免丢失活跃上下文。
 
 use tracing::{info, warn};
 
@@ -41,65 +41,95 @@ fn provider_stack_changed(
 /// `AgentThread::new` 会 `tokio::spawn`)。失败只记日志、不回滚配置 ——
 /// 配置本身已合法写盘,下次 rebind/install 自然生效。
 ///
-/// 返回**模型解析失败的原因**(`model = "free"` 这类动态值解析不了时):
-/// `None` = 解析成功(或配置里本来就没有 model)。调用方据此决定要不要
-/// 把错误回传给前端 —— 配置已写盘,错误同时进 `agent_status` 的
-/// `degraded_reason`,状态栏可见。
+/// 返回模型解析、会话回放或重绑失败的原因；配置已写盘，错误同步到
+/// `agent_status.degraded_reason`，调用方可据此提示用户。
 pub(crate) async fn hot_reload_provider_stack(
     agent: &MinimalAgent,
     old: &reflect_config::ReflectConfig,
     new: &reflect_config::ReflectConfig,
 ) -> Option<String> {
+    // 调用方持有配置写锁；会话切换也遵循配置锁 → 会话锁的顺序。
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    let mut reload_errors = Vec::new();
     // 0. 插件段变更:不打断会话,直接 diff 同步挂/卸(exec handle_reload
     //    的 plugins 分支同语义)。provider 栈变更触发的 rebind 会走
     //    spawn_mount 全量重挂,不依赖这里;此分支覆盖「只改了 [plugins]」
     //    的场景。无绑定会话时挂载目标线程尚未重建,下次 rebind 自然生效。
-    if old.plugins.enabled_plugins != new.plugins.enabled_plugins {
+    if old.plugins.enabled_plugins != new.plugins.enabled_plugins
+        || agent.inner.pending_plugin_reload_error.lock().is_some()
+    {
         info!(
             "[reflect-gui] plugins section changed; diff-syncing enabled plugins: {:?}",
             new.plugins.enabled_plugins
         );
-        let shared = agent.plugin_runtime();
-        reflect_plugin::reload_plugins(&shared, &new.plugins.enabled_plugins).await;
+        let _mount = agent.inner.plugin_mount_lock.lock().await;
+        match super::plugins::reload_enabled_plugins(agent, &new.plugins.enabled_plugins).await {
+            Ok(()) => clear_pending_plugin_reload(agent),
+            Err(error) => {
+                let message = format!("plugin runtime reload failed: {error:#}");
+                warn!("[reflect-gui] {message}; continuing other configuration updates");
+                *agent.inner.pending_plugin_reload_error.lock() = Some(message.clone());
+                reload_errors.push(message);
+            }
+        }
     }
-    if !provider_stack_changed(old, new) {
-        return None;
+    let provider_changed = provider_stack_changed(old, new)
+        || agent.inner.pending_model_discovery_error.lock().is_some();
+    if !provider_changed
+        && old.hooks == new.hooks
+        && agent.inner.pending_rebind_error.lock().is_none()
+    {
+        return finish_reload(agent, reload_errors);
     }
-    info!("[reflect-gui] provider stack changed; rebuilding registry + quota tracker");
+    if provider_changed {
+        info!("[reflect-gui] provider stack changed; rebuilding registry + quota tracker");
 
-    // 1. 重建 registry(无 provider 时降级分支会注册 EchoTool,语义同 install)。
-    let registry = super::thread_factory::build_registry(new, agent.tools());
-    *agent.inner.model_registry.lock() = Some(registry.clone());
+        // 1. 重建 registry(无 provider 时降级分支会注册 EchoTool,语义同 install)。
+        reflect_config::discovery::clear_catalog_cache();
+        let registry = super::thread_factory::build_registry(new, agent.tools());
 
-    // 2. 重建 quota tracker(coding plan 配额声明可能增删)。
-    super::quota::install_quota_tracker(agent, new);
+        // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
+        //    model 解析诚实化后,provider 在但无显式 model 也是降级态
+        //    (状态栏黄点 + tooltip 指引),不再编造默认模型名。
+        //
+        //    `model = "free"` 这类**运行时才知道**的值在这里重新解析 ——
+        //    改的可能是 `[model_discovery]` 规则,或 provider 换了(清单跟着变)。
+        //    解析失败 → **保留旧 model**(与上游 `handle_reload` 同语义),失败
+        //    原因如实写进降级原因。绝不把占位串 `"provider/free"` 当成真模型 ——
+        //    它会被发给 provider,表现为难诊断的「模型不存在」。
+        let (resolved_spec, resolve_error) =
+            super::agent::resolve_model_spec_with_discovery(new, &registry).await;
+        if let Some(ref err) = resolve_error {
+            warn!(
+                "[reflect-gui] model spec resolution failed ({err}); keeping previous model spec"
+            );
+            *agent.inner.degraded_reason.lock() = Some(err.clone());
+            *agent.inner.pending_model_discovery_error.lock() = Some(err.clone());
+            // 解析失败 → 不动 model spec(保留旧 model),但**不**把占位串当模型。
+        } else {
+            // 模型与 registry 必须一起生效；失败时切换会话仍使用旧栈。
+            *agent.inner.model_registry.lock() = Some(registry);
+            super::quota::install_quota_tracker(agent, new);
+            agent.inner.pending_model_discovery_error.lock().take();
+            let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());
+            *agent.inner.model_spec.write() = model_spec;
+            *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(new);
+        }
+        if let Some(error) = resolve_error {
+            reload_errors.push(error);
+        }
+    }
 
-    // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
-    //    model 解析诚实化后,provider 在但无显式 model 也是降级态
-    //    (状态栏黄点 + tooltip 指引),不再编造默认模型名。
-    //
-    //    `model = "free"` 这类**运行时才知道**的值在这里重新解析 ——
-    //    改的可能是 `[model_discovery]` 规则,或 provider 换了(清单跟着变)。
-    //    解析失败 → **保留旧 model**(与上游 `handle_reload` 同语义),失败
-    //    原因如实写进降级原因。绝不把占位串 `"provider/free"` 当成真模型 ——
-    //    它会被发给 provider,表现为难诊断的「模型不存在」。
-    let (resolved_spec, discovery_error) =
-        super::agent::resolve_model_spec_with_discovery(new, &registry).await;
-    if let Some(ref err) = discovery_error {
-        warn!("[reflect-gui] model spec resolution failed ({err}); keeping previous model spec");
-        *agent.inner.degraded_reason.lock() = Some(err.clone());
-        // 解析失败 → 不动 model spec(保留旧 model),但**不**把占位串当模型。
-    } else {
-        let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());
-        *agent.inner.model_spec.write() = model_spec;
-        *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(new);
+    // 动态模型尚未解析时保留现有线程；后续同一配置可重试发现。
+    if agent.inner.pending_model_discovery_error.lock().is_some() {
+        return finish_reload(agent, reload_errors);
     }
 
     // 4. 当前有绑定会话 → replay 历史 → 强制重绑(跳过同 id 短路)。
     //    旧线程的会话级 PermissionMode 原样带过去,热重载不重置权限模式。
     let Some(sid) = agent.bound_session_id() else {
-        info!("[reflect-gui] no bound session; registry swap takes effect on next bind");
-        return discovery_error;
+        info!("[reflect-gui] no bound session; updated configuration takes effect on next bind");
+        return finish_reload(agent, reload_errors);
     };
     let current_mode = agent
         .inner
@@ -110,163 +140,82 @@ pub(crate) async fn hot_reload_provider_stack(
     let preload = match crate::commands::sessions::replay_for_preload(&sid).await {
         Ok(p) => p,
         Err(e) => {
-            warn!("[reflect-gui] replay for hot rebind failed ({e:#}); rebinding without history");
-            Vec::new()
+            let message = format!("session replay failed during configuration reload: {e:#}");
+            warn!("[reflect-gui] {message}; keeping current thread");
+            *agent.inner.pending_rebind_error.lock() = Some(message.clone());
+            reload_errors.push(message);
+            return finish_reload(agent, reload_errors);
         }
     };
     match super::rebind::rebind_session_forced(agent, sid, preload, current_mode) {
-        Ok(()) => info!("[reflect-gui] hot rebind session {sid} onto new provider stack"),
-        Err(e) => warn!("[reflect-gui] hot rebind failed ({e:#}); new stack applies on next bind"),
+        Ok(()) => info!("[reflect-gui] hot rebind for session {sid} completed or became stale"),
+        Err(e) => {
+            let message = format!("session rebind failed during configuration reload: {e:#}");
+            warn!("[reflect-gui] {message}; new stack applies on next bind");
+            *agent.inner.pending_rebind_error.lock() = Some(message.clone());
+            reload_errors.push(message);
+        }
     }
-    discovery_error
+    finish_reload(agent, reload_errors)
+}
+
+/// 新线程成功绑定后仅移除对应的失败诊断，保留其他未解决的问题。
+pub(crate) fn clear_pending_rebind(agent: &MinimalAgent) {
+    let Some(previous) = agent.inner.pending_rebind_error.lock().take() else {
+        return;
+    };
+    clear_diagnostic(agent, &previous);
+}
+
+fn clear_pending_plugin_reload(agent: &MinimalAgent) {
+    let Some(previous) = agent.inner.pending_plugin_reload_error.lock().take() else {
+        return;
+    };
+    clear_diagnostic(agent, &previous);
+}
+
+fn clear_diagnostic(agent: &MinimalAgent, previous: &str) {
+    let base_reason = super::agent::compute_degraded_reason(&agent.inner.cfg.read());
+    let mut degraded = agent.inner.degraded_reason.lock();
+    if let Some(message) = degraded.as_deref() {
+        let remaining = if message == previous {
+            Some(String::new())
+        } else {
+            message
+                .strip_prefix(&format!("{previous}; "))
+                .or_else(|| message.strip_suffix(&format!("; {previous}")))
+                .map(str::to_owned)
+                .or_else(|| {
+                    let (before, after) = message.split_once(&format!("; {previous}; "))?;
+                    Some(format!("{before}; {after}"))
+                })
+        };
+        if let Some(remaining) = remaining {
+            *degraded = if remaining.is_empty() {
+                base_reason
+            } else {
+                Some(remaining)
+            };
+        }
+    }
+}
+
+fn finish_reload(agent: &MinimalAgent, errors: Vec<String>) -> Option<String> {
+    let pending: Vec<String> = [
+        &agent.inner.pending_plugin_reload_error,
+        &agent.inner.pending_model_discovery_error,
+        &agent.inner.pending_rebind_error,
+    ]
+    .into_iter()
+    .filter_map(|error| error.lock().clone())
+    .collect();
+    if !pending.is_empty() {
+        *agent.inner.degraded_reason.lock() = Some(pending.join("; "));
+    } else if !errors.is_empty() {
+        *agent.inner.degraded_reason.lock() = Some(errors.join("; "));
+    }
+    (!errors.is_empty()).then(|| errors.join("; "))
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::state::MinimalAgent;
-
-    fn cfg_with_provider(provider: &str) -> reflect_config::ReflectConfig {
-        reflect_config::load_from_str(&format!(
-            "[active]\nprovider = \"{provider}\"\n\n[{provider}]\nmodel = \"test-model\"\n"
-        ))
-        .expect("config parses")
-    }
-
-    /// 无 model 配置的 provider 快照(诚实化:spec 为 stub,降级原因给出指引)。
-    fn cfg_with_provider_no_model(provider: &str) -> reflect_config::ReflectConfig {
-        reflect_config::load_from_str(&format!("[active]\nprovider = \"{provider}\"\n"))
-            .expect("config parses")
-    }
-
-    /// 无关段变化不触发重载;provider 段变化触发(rebind 已绑定会话)。
-    #[tokio::test]
-    async fn hot_reload_rebuilds_registry_and_rebinds() {
-        let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread().await;
-        let sid = reflect_protocol::ThreadId::new();
-        super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
-        let thread_before = agent.inner.thread.lock().clone().unwrap();
-        let registry_before = agent.inner.model_registry.lock().clone().unwrap();
-
-        // provider 未变 → 不重建。
-        let unchanged = cfg_with_provider("anthropic");
-        let _ = hot_reload_provider_stack(&agent, &unchanged, &unchanged).await;
-        let registry_after_same = agent.inner.model_registry.lock().clone().unwrap();
-        assert!(
-            std::sync::Arc::ptr_eq(&registry_before, &registry_after_same),
-            "provider 段未变时不得重建 registry"
-        );
-
-        // anthropic → openai → registry 重建 + 会话强制重绑(thread Arc 换新)。
-        let changed = cfg_with_provider("openai");
-        let _ = hot_reload_provider_stack(&agent, &unchanged, &changed).await;
-        let registry_after = agent.inner.model_registry.lock().clone().unwrap();
-        let thread_after = agent.inner.thread.lock().clone().unwrap();
-        assert!(
-            !std::sync::Arc::ptr_eq(&registry_before, &registry_after),
-            "provider 段变化必须重建 registry"
-        );
-        assert!(
-            !std::sync::Arc::ptr_eq(&thread_before, &thread_after),
-            "已绑定会话必须强制重绑到新 registry"
-        );
-        assert_eq!(agent.bound_session_id(), Some(sid), "会话 id 保持不变");
-        assert_eq!(
-            agent.model_spec(),
-            "openai/test-model",
-            "model spec 随 provider 更新"
-        );
-    }
-
-    /// 诚实化回归:provider 段变化但无任何显式 model → spec 保持 stub,
-    /// 降级原因给出「有 provider 但没 model」的可行动指引(而非编造
-    /// `openai/gpt-4o` 之类的默认模型名)。
-    #[tokio::test]
-    async fn hot_reload_without_model_reports_degraded_reason() {
-        let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread().await;
-        let old = cfg_with_provider("anthropic");
-        let new = cfg_with_provider_no_model("openai");
-        let _ = hot_reload_provider_stack(&agent, &old, &new).await;
-        assert_eq!(agent.model_spec(), "stub/test");
-        let reason = agent.inner.degraded_reason.lock().clone();
-        assert!(
-            reason.as_deref().is_some_and(|r| r.contains("no model")),
-            "降级原因应指向缺 model,实际: {reason:?}"
-        );
-    }
-
-    /// provider 与 model 都齐全 → 降级原因清空。
-    #[tokio::test]
-    async fn hot_reload_with_model_clears_degraded_reason() {
-        let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread().await;
-        let old = cfg_with_provider_no_model("anthropic");
-        let new = cfg_with_provider("openai");
-        let _ = hot_reload_provider_stack(&agent, &old, &new).await;
-        assert_eq!(agent.model_spec(), "openai/test-model");
-        assert!(agent.inner.degraded_reason.lock().is_none());
-    }
-
-    /// v1.5:仅 `[active].credential` 变化(同 provider 下切 coding plan)
-    /// 也必须触发热重载 —— 否则 GUI 的 plan 切换对运行中会话不生效。
-    #[tokio::test]
-    async fn hot_reload_detects_credential_pin_change() {
-        let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread().await;
-        let old = reflect_config::load_from_str(
-            "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n",
-        )
-        .unwrap();
-        let new = reflect_config::load_from_str(
-            "[active]\nprovider = \"anthropic\"\ncredential = \"MiniMax\"\n\n[anthropic]\nmodel = \"m\"\n",
-        )
-        .unwrap();
-        let registry_before = agent.inner.model_registry.lock().clone().unwrap();
-        let _ = hot_reload_provider_stack(&agent, &old, &new).await;
-        let registry_after = agent.inner.model_registry.lock().clone().unwrap();
-        assert!(
-            !std::sync::Arc::ptr_eq(&registry_before, &registry_after),
-            "钉住变化必须重建 registry(apply_to_registry 重设 preferred)"
-        );
-    }
-
-    /// 未绑定会话时只换 registry,不建新线程。
-    #[tokio::test]
-    async fn hot_reload_without_bound_session_only_swaps_registry() {
-        let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread().await;
-        assert!(agent.bound_session_id().is_none());
-        let old = cfg_with_provider("anthropic");
-        let new = cfg_with_provider("openai");
-        let _ = hot_reload_provider_stack(&agent, &old, &new).await;
-        assert_eq!(agent.model_spec(), "openai/test-model");
-    }
-
-    /// `[model_discovery]` 段变更也必须触发重载 —— 它决定 `model = "free"`
-    /// 从清单里挑哪个模型(开关 / 偏好 / 免费判定规则)。漏掉这一条,
-    /// 用户改了发现规则却要等下次切 provider 才生效。
-    #[tokio::test]
-    async fn hot_reload_detects_model_discovery_change() {
-        let agent = MinimalAgent::new_empty();
-        agent.install_agent_thread().await;
-        let base = "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"gpt-4o\"\n";
-        let old = reflect_config::load_from_str(base).unwrap();
-        let new = reflect_config::load_from_str(&format!(
-            "{base}\n[model_discovery]\nprefer = \"code\"\n"
-        ))
-        .unwrap();
-        assert_ne!(
-            old.model_discovery, new.model_discovery,
-            "测试前提:两边的发现段确实不同"
-        );
-        let registry_before = agent.inner.model_registry.lock().clone().unwrap();
-        let _ = hot_reload_provider_stack(&agent, &old, &new).await;
-        let registry_after = agent.inner.model_registry.lock().clone().unwrap();
-        assert!(
-            !std::sync::Arc::ptr_eq(&registry_before, &registry_after),
-            "发现规则变更必须重建 registry(顺带重新解析 model)"
-        );
-    }
-}
+mod tests;

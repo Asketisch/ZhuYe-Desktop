@@ -47,7 +47,7 @@ pub(crate) fn build_registry(
     } else {
         warn!(
             "[reflect-gui] no provider configured (set OPENAI_API_KEY / ANTHROPIC_API_KEY \
-             or edit ~/.reflect/config.toml); running in degraded mode"
+             or edit ~/.zhuye/config.toml); running in degraded mode"
         );
         tools.register(Arc::new(EchoTool));
         Arc::new(ModelRegistry::new())
@@ -98,9 +98,10 @@ pub(crate) fn construct_thread(
         hooks_cfg.enabled = Some(Vec::new());
     }
     let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(hooks_cfg.build_engine());
+    agent.inner.hook_store.apply_disabled(&hook_engine)?;
 
     // 持久化:仅在 sid = Some 时挂 recorder + 固定 id。bind 命令前不挂,
-    // 避免随机 id 产生空文件污染 `~/.reflect/sessions/`。
+    // 避免随机 id 产生空文件污染 `~/.zhuye/sessions/`。
     let mut cfg = AgentConfig::new(model_spec, agent.workspace())
         .with_approvals(true)
         // coding plan 配额追踪:config 声明了 `[[<provider>.credentials]].quota`
@@ -113,7 +114,7 @@ pub(crate) fn construct_thread(
     let mut mounted_m4: Option<(ThreadId, reflect_core::config::M4Deps)> = None;
     if let Some(sid) = sid {
         // 活跃 agent 名:桌面端偏好(缺省 "default",与 CLI 一致)——
-        // 决定加载哪条 agent 定义,以及记忆目录(`.reflect/agent-memory/<agent>/`)，
+        // 决定加载哪条 agent 定义,以及记忆目录(`.zhuye/agent-memory/<agent>/`)，
         // 与 GUI 的 Agents 视图 / Memory 视图同源。
         let active_agent = crate::agent_state::AgentState::active_agent();
         let m4 = match reflect::m4_bootstrap::build_default_m4(
@@ -124,9 +125,12 @@ pub(crate) fn construct_thread(
             sid,
         ) {
             Ok(mut m4) => {
-                m4.recorder = Some(Arc::new(reflect_rollout::JsonlRolloutWriter::new(
-                    reflect_rollout::path::default_base(),
-                    sid,
+                m4.recorder = Some(Arc::new(super::recorder_guard::GuardedRecorder::new(
+                    reflect_rollout::JsonlRolloutWriter::new(
+                        reflect_rollout::path::default_base(),
+                        sid,
+                    ),
+                    super::recorder_guard::gate_for(agent, sid),
                 )));
                 m4
             }
@@ -160,10 +164,14 @@ pub(crate) fn construct_thread(
         cfg = cfg.with_initial_permission_mode(mode);
     }
 
-    // 插件挂载材料快照:model spec 与 enabled 列表都来自本次构造用的
-    // cfg 快照,与线程配置一致。thread 构造后一并交给 spawn_mount。
+    // 插件挂载材料快照:model spec 与线程配置一致；启用列表在异步
+    // 挂载时读取最新配置，避免排队期间的设置变更被旧快照覆盖。
     let model_for_plugins = cfg.current_model().to_string();
-    let hook_engine_for_mount = Arc::clone(&hook_engine);
+    let plugin_bridge = mounted_m4.as_ref().map(|(sid, _)| {
+        let (bridge, ready) = super::plugin_hooks::PluginHookBridge::new(*sid, cfg.cancel.clone());
+        hook_engine.register(super::plugin_hooks::PluginHookForwarder(bridge.clone()));
+        (bridge, ready)
+    });
     let registry_for_mount = Arc::clone(&registry);
 
     let thread = Arc::new(AgentThread::new(
@@ -174,20 +182,31 @@ pub(crate) fn construct_thread(
         Some(hook_engine),
     ));
 
-    let plugin_mount = mounted_m4.map(|(sid, m4)| super::plugins::PluginMount {
-        sid,
-        thread: thread.clone(),
-        hook_engine: hook_engine_for_mount,
-        m4,
-        model: model_for_plugins,
-        registry: registry_for_mount,
-        child_registry: cfg_snapshot.to_child_registry().map(Arc::new),
-        enabled: cfg_snapshot.plugins.enabled_plugins.clone(),
-    });
+    let plugin_mount = mounted_m4
+        .zip(plugin_bridge)
+        .map(|((sid, m4), (bridge, ready))| {
+            let (activate, activation) = tokio::sync::watch::channel(false);
+            *agent.inner.plugin_hook_slot.lock() = Some(super::plugin_hooks::PluginHookSlot {
+                thread: Arc::downgrade(&thread),
+                bridge: bridge.clone(),
+                activate,
+            });
+            super::plugins::PluginMount {
+                sid,
+                thread: thread.clone(),
+                hook_engine: bridge.engine.clone(),
+                bridge,
+                ready,
+                activation,
+                m4,
+                model: model_for_plugins,
+                registry: registry_for_mount,
+                child_registry: cfg_snapshot.to_child_registry().map(Arc::new),
+            }
+        });
 
-    // 插件运行时:仅在真实会话挂载(占位线程无 M4 依赖)。挂载异步执行
-    // (卸旧 runtime → bootstrap),不阻塞 rebind 返回;挂载完成前 submit
-    // 展开对 `/plugin:*` 直通,详见 state/plugins.rs。
+    // 插件运行时仅在真实会话挂载。重绑完成后异步启动挂载；线程的
+    // SessionStart 和用户输入等待挂载，避免首条事件遗漏插件能力。
     if let Some(mount) = plugin_mount {
         super::plugins::spawn_mount(agent, mount);
     }

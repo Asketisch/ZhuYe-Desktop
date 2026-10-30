@@ -3,15 +3,14 @@
  *
  * 纯函数 —— 从一次待审批的工具调用推导出「要写进核心权限层的 allow
  * 规则」。写进的是**核心的用户级权限文件**
- * (`~/.reflect/permissions.toml`,CLI 与 GUI 共用),落盘后立即生效
+ * (`~/.zhuye/permissions.toml`,CLI 与 GUI 共用),落盘后立即生效
  * (核心的 `StorePermissionResolver` 每次评估都重读文件),并在
  * Settings → Permissions 的「生效的权限规则」里可见 —— 真值唯一。
  *
  * ## 授权范围刻意保守
  *
- * - **Bash** → 规则是**整条命令**(`shell_pattern = "<完整命令>"`),
- *   不是「命令首词 + 通配」。`git *` 这类前缀会把 `rm`/`curl|sh` 之类
- *   一起放行,风险太大;整条命令是精确匹配,范围最小。
+ * - **Bash** → 转义 glob 元字符后保存单段命令。核心按命令段匹配，
+ *   因此无法安全表达的复合命令不提供此入口。
  * - **只读工具**(read / grep / glob)→ 整个工具放行(无副作用)。
  * - **写类工具**(write / edit / delete / notebook / web_fetch)→ **不给**
  *   「始终允许」按钮:核心的规则模型没有路径维度,放行整个写工具等于
@@ -47,12 +46,14 @@ export function deriveAllowRule(
   if (lower === 'bash') {
     const cmd = extractCommand(args);
     if (!cmd) return null;
+    // 核心按这些分隔符拆段；反斜杠的 glob 含义又随平台而异。
+    if (/[|;&\n\\]/.test(cmd)) return null;
     return {
       tool: 'Bash',
       action: 'allow',
       toolGlob: null,
-      // 整条命令精确匹配(core 的 shell_pattern 是 glob,无通配符 = 精确)。
-      shellPattern: cmd,
+      // 与 globset::escape 的字符类转义一致，避免命令内容成为通配模式。
+      shellPattern: cmd.replace(/[?*\[\]{}]/g, (char) => `[${char}]`),
     };
   }
 

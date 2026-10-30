@@ -11,7 +11,7 @@ import {
 
 const DIFF = `--- a/calc.py
 +++ b/calc.py
-@@ -1,4 +1,5 @@
+@@ -1,4 +1,6 @@
  def find_multiple(n: int, k: int) -> int:
 -    if n % k == 0:
 -        return n
@@ -84,14 +84,14 @@ describe('applyInverseHunk / applyInverseAll', () => {
     expect(applyInverseHunk(ambiguous, hunk)).toBeNull();
   });
 
-  it('纯删除 hunk 按行号插回被删行', () => {
+  it('纯删除 hunk 没有上下文时拒绝猜测插入位置', () => {
     const diff = `@@ -2,2 +1,0 @@
 -    b
 -    c
 `;
     const hunk = parseUnifiedDiff(diff)[0];
     const content = 'a\n    d\n';
-    expect(applyInverseHunk(content, hunk)).toBe('a\n    b\n    c\n    d\n');
+    expect(applyInverseHunk(content, hunk)).toBeNull();
   });
 
   it('纯删除 hunk 优先内容锚定(更早 hunk 已拒绝、行号漂移时不错位)', () => {
@@ -124,6 +124,31 @@ describe('applyInverseHunk / applyInverseAll', () => {
     expect(hunks[0].removed).toEqual(['a']);
     expect(hunks[1].added).toEqual(['CC']);
     expect(hunks[1].removed).toEqual(['c']);
+  });
+
+  it('保持同一 hunk 中多个修改之间的上下文顺序', () => {
+    const diff = `@@ -1,5 +1,5 @@
+ a
+-b
++B
+ c
+-d
++D
+ e
+`;
+    const hunk = parseUnifiedDiff(diff)[0];
+    expect(applyInverseHunk('a\nB\nc\nD\ne\n', hunk)).toBe('a\nb\nc\nd\ne\n');
+  });
+
+  it('恢复原文件的末尾换行状态', () => {
+    const missingOld = '@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n';
+    const missingNew = '@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file\n';
+    expect(applyInverseHunk('new\n', parseUnifiedDiff(missingOld)[0])).toBe('old');
+    expect(applyInverseHunk('new', parseUnifiedDiff(missingNew)[0])).toBe('old\n');
+  });
+
+  it('拒绝不完整的 hunk', () => {
+    expect(parseUnifiedDiff('@@ -1,2 +1,2 @@\n-a\n+b\n')).toEqual([]);
   });
 
   it('applyInverseAll:多 hunk 全部还原', () => {

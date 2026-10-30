@@ -1,6 +1,6 @@
 //! Session 导出为 Markdown (`reflect_export_session_markdown`)。
 //!
-//! 把 session replay flatten 成 markdown transcript,写到 `~/.reflect/exports/<id>.md`。
+//! 把 session replay flatten 成 markdown transcript,写到 `~/.zhuye/exports/<id>.md`。
 //!
 //! 渲染拆成两个纯函数(便于单测,渲染逻辑无 IO):
 //! - [`render_transcript`] —— 逐条 rollout 记录的转写稿;
@@ -95,7 +95,7 @@ fn render_transcript(id: &ThreadId, records: &[reflect_protocol::RolloutRecord])
             }
             RolloutRecord::Checkpoint { sha, label, .. } => {
                 let tag = label.clone().unwrap_or_else(|| "checkpoint".to_string());
-                out.push_str(&format!("\n*checkpoint `{tag}` @ {sha}`*\n\n"));
+                out.push_str(&format!("\n*checkpoint `{tag}` @ `{sha}`*\n\n"));
             }
             RolloutRecord::Rewind {
                 target_sha,
@@ -220,12 +220,9 @@ fn render_usage_section(stats: Option<&reflect_app_core::stats::SessionStats>) -
 }
 
 /// 回放 session,flatten 成 Markdown 转写稿,写入
-/// `~/.reflect/exports/<id>.md`,返回绝对路径。
+/// `~/.zhuye/exports/<id>.md`,返回绝对路径。
 #[tauri::command]
 pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<MarkdownExportResult> {
-    let home = dirs::home_dir().ok_or_else(|| CommandError {
-        msg: "no HOME dir".into(),
-    })?;
     // 与 bind/replay/JSON 导出同源的回放入口(全树按时间序)。
     // 此前只走三日快路径,旧会话导出为不报错的空稿。
     let records = replay_for_export(&id).await.map_err(CommandError::from)?;
@@ -236,14 +233,33 @@ pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<Mark
         reflect_app_core::stats::session_stats(&id).as_ref(),
     ));
 
-    let export_dir = home.join(".reflect/exports");
-    std::fs::create_dir_all(&export_dir).map_err(CommandError::from)?;
+    let export_dir = crate::commands::sessions::exports_dir()?;
     let dest = export_dir.join(format!("{id}.md"));
-    std::fs::write(&dest, &out).map_err(CommandError::from)?;
+    write_export(&dest, |file| {
+        std::io::Write::write_all(file, out.as_bytes())
+    })
+    .map_err(CommandError::from)?;
     Ok(MarkdownExportResult {
         path: dest.to_string_lossy().into_owned(),
         bytes: out.len() as u64,
     })
+}
+
+pub(super) fn write_export(
+    path: &std::path::Path,
+    write: impl FnOnce(&mut std::fs::File) -> std::io::Result<()>,
+) -> std::io::Result<()> {
+    let parent = path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "export path has no parent",
+        )
+    })?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    write(temporary.as_file_mut())?;
+    temporary.as_file().sync_all()?;
+    temporary.persist(path).map_err(|error| error.error)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -253,8 +269,55 @@ mod tests {
     use super::*;
     use reflect_protocol::{MemoryOp, RolloutRecord, TurnId};
 
+    #[test]
+    fn failed_export_preserves_existing_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("session.md");
+        std::fs::write(&path, "original").unwrap();
+        assert!(
+            write_export(&path, |file| {
+                std::io::Write::write_all(file, b"partial")?;
+                Err(std::io::Error::other("simulated write failure"))
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "original");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn export_replaces_a_symlink_without_modifying_its_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("original");
+        let path = dir.path().join("session.md");
+        std::fs::write(&original, "keep me").unwrap();
+        std::os::unix::fs::symlink(&original, &path).unwrap();
+        write_export(&path, |file| std::io::Write::write_all(file, b"export")).unwrap();
+        assert_eq!(std::fs::read_to_string(&original).unwrap(), "keep me");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "export");
+        assert!(
+            !std::fs::symlink_metadata(path)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+
     fn turn_id() -> TurnId {
         TurnId::parse_str("33333333-4444-5555-6666-777777777777").unwrap()
+    }
+
+    #[test]
+    fn checkpoint_sha_is_rendered_as_balanced_inline_code() {
+        let record = RolloutRecord::Checkpoint {
+            turn_id: turn_id(),
+            sha: "abc123".into(),
+            label: Some("before".into()),
+            created_at: chrono::Utc::now(),
+        };
+        let markdown = render_transcript(&ThreadId::new(), &[record]);
+        assert!(markdown.contains("*checkpoint `before` @ `abc123`*"));
     }
 
     fn message(role: reflect_protocol::MessageRole, text: &str) -> RolloutRecord {

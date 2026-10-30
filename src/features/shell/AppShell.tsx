@@ -89,11 +89,15 @@ export function AppShell() {
   const sessions = useSessions();
   const pins = useSessionPins();
   const { activeId, setActiveId } = useActiveSession();
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
   const router = useRouter();
   const qc = useQueryClient();
   const { t, tp } = useI18n();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  // 异步导航完成时只允许最后一次用户操作改变当前会话。
+  const selectSeqRef = useRef(0);
 
   // 调色板所需的主题状态
   const { resolved, cycleTheme, setThemeMode } = useThemeCycle();
@@ -115,6 +119,7 @@ export function AppShell() {
 
   /** 侧边栏「打开项目…」：系统目录选择器 → 切换工作区（复用 WorkspacesView 语义）。 */
   const handleOpenProject = async () => {
+    const mySeq = ++selectSeqRef.current;
     let picked: string | null;
     try {
       picked = await reflect_pick_workspace_folder();
@@ -122,7 +127,7 @@ export function AppShell() {
       toastError(t('workspaces.pickFailed', { msg: e instanceof Error ? e.message : String(e) }));
       return;
     }
-    if (!picked) return;
+    if (!picked || mySeq !== selectSeqRef.current) return;
     try {
       await switchWorkspace(picked);
       useAgentStore.getState().pushToast({
@@ -146,21 +151,21 @@ export function AppShell() {
     turnFinishedBody: t('notify.turnFinished'),
   });
 
-  // 选择令牌:快速连点两个会话时,先点的跨项目 switchWorkspace 完成后
-  // 不得覆盖后一次点击的 activeId。
-  const selectSeqRef = useRef(0);
-
   const handleSelect = async (id: string) => {
     const mySeq = ++selectSeqRef.current;
     // 工作区跟随会话:rebind 重建线程时烧入 override 工作区,
     // 跨项目点选先切到会话归属项目,保证续写/新消息用正确 cwd。
     const target = sessions.all.find((s) => s.session_id === id)?.workspace;
-    if (target && target !== currentWorkspace) {
+    // 即使缓存显示目标已激活，也要排在先前的切换之后，避免旧请求随后改掉目录。
+    if (target) {
       try {
         await switchWorkspace(target);
       } catch (e: unknown) {
-        // 目录可能已被删除/移走;会话仍打开,仅提示切换失败。
-        toastError(t('toast.workspaceSwitchFailed', { msg: e instanceof Error ? e.message : String(e) }));
+        // 原目录不可用时不能把该会话绑定到其他项目。
+        if (mySeq === selectSeqRef.current) {
+          toastError(t('toast.workspaceSwitchFailed', { msg: e instanceof Error ? e.message : String(e) }));
+        }
+        return;
       }
     }
     if (mySeq !== selectSeqRef.current) return;
@@ -171,10 +176,11 @@ export function AppShell() {
   // workspace 归属不在这里落盘,由首条 submission 携带 `workspace`
   // 触发后端写 `SessionMeta`(见 PROTOCOL_BRIDGE §2)。
   const handleNewChat = () => {
+    const mySeq = ++selectSeqRef.current;
     const pushToast = useAgentStore.getState().pushToast;
     void reflect_create_session()
       .then((id) => {
-        setActiveId(id);
+        if (mySeq === selectSeqRef.current) setActiveId(id);
       })
       .catch((e: unknown) => {
         pushToast({
@@ -187,17 +193,19 @@ export function AppShell() {
   // fork 历史会话:复制 JSONL 生成子会话 → 直接切换过去(ChatView 挂载
   // 时 bind + replay 即得完整历史,可从 fork 点继续对话)。
   const handleForkSession = async (id: string, branch: string) => {
+    const mySeq = ++selectSeqRef.current;
     const childId = await sessions.fork(id, branch);
-    setActiveId(childId);
+    if (mySeq === selectSeqRef.current) setActiveId(childId);
     return childId;
   };
 
   // 在指定项目下新建会话:先切工作区(组头「+」入口),再预分配 id 并导航。
   const handleNewChatIn = (path: string) => {
+    const mySeq = ++selectSeqRef.current;
     void switchWorkspace(path)
-      .then(() => reflect_create_session())
+      .then(() => mySeq === selectSeqRef.current ? reflect_create_session() : null)
       .then((id) => {
-        setActiveId(id);
+        if (id && mySeq === selectSeqRef.current) setActiveId(id);
       })
       .catch((e: unknown) => {
         toastError(t('toast.newSessionFailed', { msg: e instanceof Error ? e.message : String(e) }));
@@ -207,14 +215,16 @@ export function AppShell() {
   // 删除 / 归档当前打开的会话后回到新对话视图，避免停留在已不存在的 session。
   // 删除/归档同时摘除置顶，避免置顶区悬挂引用。
   const handleDeleteSession = async (id: string) => {
+    const mySeq = selectSeqRef.current;
     await sessions.remove(id);
     unpin(id);
-    if (id === activeId) setActiveId(null);
+    if (id === activeIdRef.current && mySeq === selectSeqRef.current) setActiveId(null);
   };
   const handleArchiveSession = async (id: string) => {
+    const mySeq = selectSeqRef.current;
     await sessions.archive(id);
     unpin(id);
-    if (id === activeId) setActiveId(null);
+    if (id === activeIdRef.current && mySeq === selectSeqRef.current) setActiveId(null);
   };
   const handleUnarchiveSession = async (id: string) => {
     await sessions.unarchive(id);
@@ -224,12 +234,14 @@ export function AppShell() {
   const { newSession, clearAllSessions, exportActive, exportActiveMarkdown, saveConfig, runSlash } = usePaletteActions({
     activeId,
     onNewChat: handleNewChat,
+    onDeleteSession: handleDeleteSession,
     toasts: {
       newSession: t('toast.newSession'),
       noSessionsToClear: t('toast.noSessionsToClear'),
       clearedSessionsLabel: t('toast.clearAllTitle'),
       clearAllConfirm: (count: number) => t('toast.clearAllConfirm', { count }),
       deleteFailed: (msg) => t('toast.deleteFailed', { msg }),
+      listSessionsFailed: (msg) => t('toast.listSessionsFailed', { msg }),
       clearedSessions: (count) => tp('toast.clearedSessions', count, { count }),
       noActiveToExport: t('toast.noActiveToExport'),
       exported: (path) => t('composer.exported', { path }),

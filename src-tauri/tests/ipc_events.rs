@@ -95,6 +95,7 @@ fn event_id(e: &Value) -> &str {
 
 #[test]
 fn events_arrive_with_the_reflect_event_envelope() {
+    let _guard = common::state_lock();
     let rx = collect_events();
     let submission_id = "capability-event-sub-1";
     submit(submission_id, "事件信封探针");
@@ -124,6 +125,10 @@ fn events_arrive_with_the_reflect_event_envelope() {
 
 #[test]
 fn lifecycle_event_uses_the_none_id() {
+    let _guard = common::state_lock();
+    // SessionConfigured 每个线程只发一次，必须使用全新的绑定会话。
+    let id = invoke_ok("reflect_create_session", serde_json::json!({}));
+    invoke_ok("reflect_bind_session", serde_json::json!({ "id": id }));
     let rx = collect_events();
     submit("capability-event-sub-2", "生命周期探针");
 
@@ -162,6 +167,7 @@ fn lifecycle_event_uses_the_none_id() {
 
 #[test]
 fn per_turn_events_pair_with_the_submission_id() {
+    let _guard = common::state_lock();
     let rx = collect_events();
     let submission_id = "capability-event-sub-3";
     submit(submission_id, "配对探针");
@@ -182,6 +188,7 @@ fn per_turn_events_pair_with_the_submission_id() {
 
 #[test]
 fn turn_failure_is_reported_on_the_same_channel() {
+    let _guard = common::state_lock();
     let rx = collect_events();
     let submission_id = "capability-event-sub-4";
     submit(submission_id, "失败路径探针");

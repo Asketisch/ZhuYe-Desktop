@@ -10,10 +10,7 @@
 //! - bind 期间 Composer 不渲染(loading gate),消除 bind 前发送竞态。
 //! - 同 id 二次 bind 短路(后端幂等),允许"已水合也要先 bind"的 FE 序列。
 //!
-//! 旧线程排空:`rebind_session` 调 `old.cancel_token().cancel()`,有界
-//! 排空在途旧 turn;其事件仍走共享 session_tx 广播(衰减期内可能到达
-//! 新会话视图,reducer 行为同现有"`appendItem` 创建未知 id turn" —
-//! 表现为新会话视图里的瞬态气泡,见风险表)。
+//! 旧线程排空:`rebind_session` 取消旧 turn；转发器在换绑后丢弃旧线程事件。
 
 use reflect_llm::ChatMessage;
 use reflect_protocol::{PermissionMode, ThreadId};
@@ -66,14 +63,46 @@ fn rebind_session_inner(
     initial_mode: Option<PermissionMode>,
     force: bool,
 ) -> anyhow::Result<()> {
+    rebind_session_with(agent, sid, preload, initial_mode, force, construct_thread)
+}
+
+fn rebind_session_with(
+    agent: &MinimalAgent,
+    sid: ThreadId,
+    preload: Vec<ChatMessage>,
+    initial_mode: Option<PermissionMode>,
+    force: bool,
+    build: impl FnOnce(
+        &MinimalAgent,
+        Option<ThreadId>,
+        Vec<ChatMessage>,
+        Option<PermissionMode>,
+    ) -> anyhow::Result<std::sync::Arc<reflect_core::AgentThread>>,
+) -> anyhow::Result<()> {
+    let _rebind = agent.inner.rebind_lock.lock();
     if !agent.model_registry_ready() {
         anyhow::bail!("agent 未安装或 registry 未就绪");
     }
+    // 热重载可能在异步回放期间遇到用户切换会话，不可切回旧会话。
+    if force && agent.bound_session_id() != Some(sid) {
+        debug!("rebind_session: stale forced rebind for {sid}, skipped");
+        return Ok(());
+    }
     // 同 id 短路(允许 ChatView 在已水合时仍调 bind);forced 变体跳过。
-    if !force && agent.bound_session_id() == Some(sid) {
+    let current_usable = agent.inner.thread.lock().as_ref().is_some_and(|thread| {
+        !thread.cancel_token().is_cancelled() && !thread.submission_sender().is_closed()
+    });
+    if !force
+        && agent.bound_session_id() == Some(sid)
+        && current_usable
+        && agent.inner.pending_rebind_error.lock().is_none()
+    {
         debug!("rebind_session: {sid} 已是当前绑定,短路");
         return Ok(());
     }
+
+    // 先完成可能失败的构造；失败时旧线程和 cron 必须继续工作。
+    let thread = build(agent, Some(sid), preload, initial_mode)?;
 
     // 1. 取消旧 turn(有界排空)。读出旧 Arc,取消其 token,然后**立即
     //    释放 thread-slot 锁**再调 `start_forwarder`(ParkingMutex 非重入)。
@@ -85,31 +114,26 @@ fn rebind_session_inner(
 
     // 1.5 尽早停旧 cron driver:`CronScheduler::start` 把旧 `sub_tx` **按值捕获**
     //     进 driver 任务,`rebind_sender` 只改 scheduler 字段、对运行中的旧
-    //     driver 无效(上游 cron.rs 文档明示须 stop + restart)。若旧 driver
-    //     活到 step 2(`construct_thread` 含磁盘 I/O)才停,窗口内到期 job
-    //     经旧 sender 投进已 cancel 的旧线程 → 该次触发静默丢失
-    //     (`next_fire` 已推进,不会补触发)。停止后到期 job 由新 driver 的
+    //     driver 无效(上游 cron.rs 文档明示须 stop + restart)。停止后
+    //     到期 job 由新 driver 的
     //     首个 tick 补发(`tokio::time::interval` 首次 tick 立即完成,
     //     `tick` 扫描所有 `next_fire <= now` 的 job),不丢触发。
-    //     代价:若 step 2 construct 失败,cron 处于暂停态(旧线程已 cancel,
-    //     向其投递本就无意义);下一次成功的 rebind 会重启 driver。
     if let Some(mut old_driver) = agent.inner.cron_driver.lock().take() {
         old_driver.stop();
     }
 
-    // 2. 构造新 thread(recorder 绑定新 sid,preload 注入历史,
-    //    initial_mode 恢复会话级权限模式)。
-    let thread = construct_thread(agent, Some(sid), preload, initial_mode)?;
-
-    // 3. 单次赋值换槽 — `agent_status().ready` 不闪断(None 中间态不外露)。
+    // 2. 单次赋值换槽 — `agent_status().ready` 不闪断(None 中间态不外露)。
     *agent.inner.thread.lock() = Some(thread.clone());
+    *agent.inner.task_hook_target.write() = Some(thread.hook_engine());
     *agent.inner.bound_session_id.lock() = Some(sid);
+    super::reload::clear_pending_rebind(agent);
+    agent.activate_plugin_mount(&thread);
 
-    // 4. 为新 thread 起独立 forwarder(共享 session_tx;旧的随旧 thread
+    // 3. 为新 thread 起独立 forwarder(共享 session_tx;旧的随旧 thread
     //    排空结束自动退出)。
     super::session::start_forwarder(agent);
 
-    // 5. Cron 换向:旧 driver 已在 step 1.5 停止,这里写新 sender 并起
+    // 4. Cron 换向:旧 driver 已在 step 1.5 停止,这里写新 sender 并起
     //    新 driver(首个 tick 立即扫描,补发窗口内到期的 job),保留 job id。
     //
     // 锁序注意:先**读锁 clone + 释放 guard**,再取写锁写回 ——
@@ -167,6 +191,46 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn same_session_rebind_retries_pending_configuration() {
+        let agent = MinimalAgent::new_empty();
+        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        agent.install_agent_thread().await;
+        let sid = ThreadId::new();
+        rebind_session(&agent, sid, vec![], None).unwrap();
+        let old = agent.inner.thread.lock().clone().unwrap();
+        *agent.inner.pending_rebind_error.lock() = Some("rebind probe".into());
+        *agent.inner.degraded_reason.lock() = Some("other issue; rebind probe".into());
+        rebind_session(&agent, sid, vec![], None).unwrap();
+        assert!(!Arc::ptr_eq(
+            &old,
+            agent.inner.thread.lock().as_ref().unwrap()
+        ));
+        assert!(agent.inner.pending_rebind_error.lock().is_none());
+        assert_eq!(
+            agent.inner.degraded_reason.lock().as_deref(),
+            Some("other issue")
+        );
+    }
+
+    #[tokio::test]
+    async fn stale_forced_rebind_does_not_restore_previous_session() {
+        let agent = MinimalAgent::new_empty();
+        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        agent.install_agent_thread().await;
+        let previous = reflect_protocol::ThreadId::new();
+        let current = reflect_protocol::ThreadId::new();
+        rebind_session(&agent, previous, vec![], None).unwrap();
+        rebind_session(&agent, current, vec![], None).unwrap();
+        let thread = agent.inner.thread.lock().clone().unwrap();
+        rebind_session_forced(&agent, previous, vec![], None).unwrap();
+        assert_eq!(agent.bound_session_id(), Some(current));
+        assert!(Arc::ptr_eq(
+            &thread,
+            agent.inner.thread.lock().as_ref().unwrap()
+        ));
+    }
+
     /// install 未完成时 rebind 必须失败,且不污染 state。
     #[tokio::test]
     async fn rebind_before_install_fails() {
@@ -174,6 +238,30 @@ mod tests {
         let sid = reflect_protocol::ThreadId::new();
         assert!(rebind_session(&agent, sid, vec![], None).is_err());
         assert!(agent.bound_session_id().is_none());
+    }
+
+    #[tokio::test]
+    async fn failed_thread_construction_keeps_current_thread_running() {
+        let agent = MinimalAgent::new_empty();
+        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        agent.install_agent_thread().await;
+        let old = agent.inner.thread.lock().clone().unwrap();
+        assert!(agent.inner.cron_driver.lock().is_some());
+        let result = rebind_session_with(
+            &agent,
+            ThreadId::new(),
+            vec![],
+            None,
+            false,
+            |_, _, _, _| anyhow::bail!("construction failed"),
+        );
+        assert!(result.is_err());
+        assert!(!old.cancel_token().is_cancelled());
+        assert!(Arc::ptr_eq(
+            &old,
+            agent.inner.thread.lock().as_ref().unwrap()
+        ));
+        assert!(agent.inner.cron_driver.lock().is_some());
     }
 
     /// rebind 后 cron job 跨重启 id 保留(避免换绑导致 job 重新分配)。

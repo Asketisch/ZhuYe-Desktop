@@ -2,7 +2,7 @@
  * 会话统计 IPC 包装。
  *
  * 薄包装 `reflect_session_stats` / `reflect_all_model_usage`,只读扫描
- * rollout JSONL(`~/.reflect/sessions/`)聚合出 token 用量、模型级拆分、
+ * rollout JSONL(`~/.zhuye/sessions/`)聚合出 token 用量、模型级拆分、
  * 压缩节省与记忆访问次数 —— GUI 对应 CLI `reflect session stats`。
  *
  * 类型与后端 `reflect_app_core::stats` 的 camelCase 出线对齐。

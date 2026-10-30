@@ -1,7 +1,7 @@
 //! Traces(LLM 调用记录)命令面。
 //!
 //! 薄包装 `reflect_app_core::traces`,GUI 对应 CLI `reflect traces ls / show`:
-//! 只读查询 `~/.reflect/traces/model-io/` 的脱敏 JSONL。
+//! 只读查询 `~/.zhuye/traces/model-io/` 的脱敏 JSONL。
 
 use reflect_app_core::traces::{SpanLogFile, TraceError, TraceSessionSummary};
 use tauri::State;
@@ -39,7 +39,7 @@ pub async fn reflect_get_trace(
 ///
 /// span 日志是 model-io 的**姊妹**产物:记录 turn → model → tool 的
 /// 父子 span 链(含耗时、状态、goal 校验事件),按天组织在
-/// `~/.reflect/traces/log/reflect-YYYY-MM-DD.jsonl`。
+/// `~/.zhuye/traces/log/reflect-YYYY-MM-DD.jsonl`。
 #[tauri::command]
 pub async fn reflect_list_span_logs(
     _agent: State<'_, MinimalAgent>,

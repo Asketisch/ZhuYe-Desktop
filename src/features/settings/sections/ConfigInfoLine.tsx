@@ -2,7 +2,7 @@
  * ConfigInfoLine —— 配置文件位置 / 分析健康度 / 活跃 agent。
  *
  * 手改 `config.toml` 的用户需要知道「应用读的是哪个文件」—— 此前这个
- * 信息在 GUI 里完全没有出口（只能自己回忆 `~/.reflect/config.toml`）。
+ * 信息在 GUI 里完全没有出口（只能自己回忆 `~/.zhuye/config.toml`）。
  * 顺带展示当前活跃 agent 与分析上报状态。
  */
 import { useQuery } from '@tanstack/react-query';

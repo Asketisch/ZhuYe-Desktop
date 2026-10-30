@@ -6,10 +6,9 @@
  * run，`exit` / `error` 块收尾。结果只在 Composer 上方的面板本地呈现
  * （不写入会话 JSONL —— 这是用户自查环境，不是给模型的上下文）。
  *
- * 共享订阅：模块级一次性 `onTerminalOutput`，`Map<session_id, handler>`
- * 分发 —— 多个 Composer 实例（理论上单实例）与终端视图互不干扰。
+ * 共享订阅按挂载引用计数管理，按 session_id 分发给对应 run。
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   onTerminalOutput,
   reflect_kill_shell,
@@ -25,25 +24,67 @@ export interface BangRun {
   status: 'running' | 'done' | 'error';
 }
 
-let sharedListenerStarted = false;
+let sharedListener: Promise<void> | null = null;
+let sharedUnlisten: (() => void) | null = null;
+let listenerUsers = 0;
 const outputTargets = new Map<string, (chunk: ReflectShellOutputChunk) => void>();
+const earlyOutput = new Map<string, ReflectShellOutputChunk[]>();
+let starting = 0;
 
-async function ensureSharedListener(): Promise<void> {
-  if (sharedListenerStarted) return;
-  try {
-    await onTerminalOutput((chunk) => {
-      outputTargets.get(chunk.session_id)?.(chunk);
+function ensureSharedListener(): Promise<void> {
+  if (!sharedListener) {
+    sharedListener = onTerminalOutput((chunk) => {
+      const target = outputTargets.get(chunk.session_id);
+      if (target) target(chunk);
+      else if (starting > 0) {
+        if (!earlyOutput.has(chunk.session_id) && earlyOutput.size >= 64) return;
+        const events = earlyOutput.get(chunk.session_id) ?? [];
+        events.push(chunk);
+        if (events.length > 1000) events.shift();
+        earlyOutput.set(chunk.session_id, events);
+      }
+    }).then((unlisten) => {
+      if (listenerUsers === 0) {
+        unlisten();
+        sharedListener = null;
+      } else {
+        sharedUnlisten = unlisten;
+      }
+    }).catch((error) => {
+      sharedListener = null;
+      throw error;
     });
-    sharedListenerStarted = true;
-  } catch {
-    // 注册失败保持 false:下一次 run 重试,而不是此后所有 run 永久收不到输出。
   }
+  return sharedListener;
 }
 
 const MAX_KEEP = 5;
 
 export function useBangShell() {
   const [runs, setRuns] = useState<BangRun[]>([]);
+  const owned = useRef(new Set<string>());
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    listenerUsers += 1;
+    return () => {
+      mounted.current = false;
+      listenerUsers -= 1;
+      if (listenerUsers === 0 && sharedUnlisten) {
+        sharedUnlisten();
+        sharedUnlisten = null;
+        sharedListener = null;
+      }
+      for (const id of owned.current) outputTargets.delete(id);
+      owned.current.clear();
+    };
+  }, []);
+  useEffect(() => {
+    const visible = new Set(runs.map((item) => item.id));
+    for (const id of owned.current) {
+      if (!visible.has(id)) { outputTargets.delete(id); owned.current.delete(id); }
+    }
+  }, [runs]);
 
   const patch = useCallback((id: string, fn: (run: BangRun) => BangRun) => {
     setRuns((prev) => prev.map((run) => (run.id === id ? fn(run) : run)));
@@ -53,31 +94,39 @@ export function useBangShell() {
     async (command: string) => {
       const trimmed = command.trim();
       if (!trimmed) return;
-      await ensureSharedListener();
       try {
-        const session = await reflect_run_shell(trimmed);
-        outputTargets.set(session.id, (chunk) => {
-          if (chunk.stream === 'exit' || chunk.stream === 'error') {
-            outputTargets.delete(session.id);
-            // 后端约定:`exit` 流的 data 是退出码字符串(`"0"`/`"1"`/空),
-            // 非零退出码视为 error;`error` 流(spawn/wait 失败)直接标记 error。
-            const trimmed = chunk.data.trim();
-            const isError =
-              chunk.stream === 'error' ||
-              (chunk.stream === 'exit' && trimmed !== '' && trimmed !== '0');
-            patch(session.id, (r) => ({
-              ...r,
-              output: chunk.data ? `${r.output}${chunk.data}` : r.output,
-              status: isError ? 'error' : 'done',
-            }));
-            return;
-          }
-          patch(session.id, (r) => ({ ...r, output: `${r.output}${chunk.data}` }));
-        });
-        setRuns((prev) => [
-          { id: session.id, command: trimmed, output: '', status: 'running' as const },
-          ...prev.slice(0, MAX_KEEP - 1),
-        ]);
+        await ensureSharedListener();
+        starting += 1;
+        try {
+          const session = await reflect_run_shell(trimmed);
+          if (!mounted.current) return;
+          owned.current.add(session.id);
+          const target = (chunk: ReflectShellOutputChunk) => {
+            if (chunk.stream === 'exit' || chunk.stream === 'error') {
+              // stderr 可能在 exit 之后到达；保留路由直到面板关闭或卸载。
+              const code = chunk.data.trim();
+              const isError = chunk.stream === 'error' || (code !== '' && code !== '0');
+              patch(session.id, (r) => ({
+                ...r,
+                output: chunk.stream === 'error' ? `${r.output}${chunk.data}\n` : r.output,
+                status: isError ? 'error' : 'done',
+              }));
+            } else {
+              patch(session.id, (r) => ({ ...r, output: `${r.output}${chunk.data}\n` }));
+            }
+          };
+          outputTargets.set(session.id, target);
+          setRuns((prev) => [
+            { id: session.id, command: trimmed, output: '', status: 'running' as const },
+            ...prev.slice(0, MAX_KEEP - 1),
+          ]);
+          const pending = earlyOutput.get(session.id) ?? [];
+          earlyOutput.delete(session.id);
+          for (const chunk of pending) target(chunk);
+        } finally {
+          starting -= 1;
+          if (starting === 0) earlyOutput.clear();
+        }
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         setRuns((prev) => [
@@ -91,6 +140,7 @@ export function useBangShell() {
 
   const dismiss = useCallback((id: string) => {
     outputTargets.delete(id);
+    owned.current.delete(id);
     setRuns((prev) => prev.filter((r) => r.id !== id));
   }, []);
 

@@ -8,7 +8,7 @@
  *
  * 参考 `useMemoryController` / `useTasksBoardController` 的模式。
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   reflect_delete_agent_def,
@@ -57,6 +57,7 @@ export interface AgentsController {
   // 编辑器状态
   draft: ReflectAgentDef | null;
   isEditing: boolean;
+  isCreating: boolean;
   beginCreate: () => void;
   beginEdit: (def: ReflectAgentDef) => void;
   cancelEdit: () => void;
@@ -81,6 +82,9 @@ export function useAgentsController(): AgentsController {
   const pushToast = useAgentStore((st) => st.pushToast);
 
   const [draft, setDraft] = useState<ReflectAgentDef | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const editorGeneration = useRef(0);
+  const saving = useRef(false);
 
   const defsQ = useQuery({
     queryKey: [...AGENTS_QUERY_KEY],
@@ -102,7 +106,7 @@ export function useAgentsController(): AgentsController {
   );
 
   const saveMut = useMutation({
-    mutationFn: (def: ReflectAgentDef) => reflect_save_agent_def(def),
+    mutationFn: ({ def, createOnly }: { def: ReflectAgentDef; createOnly: boolean }) => reflect_save_agent_def(def, createOnly),
     onSuccess: () => void invalidate(),
   });
 
@@ -111,16 +115,28 @@ export function useAgentsController(): AgentsController {
     onSuccess: () => void invalidate(),
   });
 
-  const beginCreate = useCallback(() => setDraft(emptyAgentDraft()), []);
-  const beginEdit = useCallback((def: ReflectAgentDef) => setDraft({ ...def }), []);
-  const cancelEdit = useCallback(() => setDraft(null), []);
+  const beginCreate = useCallback(() => {
+    editorGeneration.current += 1;
+    setIsCreating(true);
+    setDraft(emptyAgentDraft());
+  }, []);
+  const beginEdit = useCallback((def: ReflectAgentDef) => {
+    editorGeneration.current += 1;
+    setIsCreating(false);
+    setDraft({ ...def });
+  }, []);
+  const cancelEdit = useCallback(() => {
+    editorGeneration.current += 1;
+    setIsCreating(false);
+    setDraft(null);
+  }, []);
 
   const patchDraft = useCallback((patch: Partial<ReflectAgentDef>) => {
-    setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+    setDraft((prev) => (prev ? { ...prev, ...patch, ...(saving.current ? { name: prev.name } : {}) } : prev));
   }, []);
 
   const save = useCallback(async () => {
-    if (!draft) return;
+    if (!draft || saving.current) return;
     const name = draft.name.trim();
     const description = draft.description.trim();
     if (!name) {
@@ -131,17 +147,24 @@ export function useAgentsController(): AgentsController {
       pushToast({ kind: 'warn', message: 'Description is required.' });
       return;
     }
+    const generation = editorGeneration.current;
+    saving.current = true;
     try {
-      await saveMut.mutateAsync({ ...draft, name, description });
+      await saveMut.mutateAsync({ def: { ...draft, name, description }, createOnly: isCreating });
       pushToast({ kind: 'success', message: `Saved agent “${name}”` });
-      setDraft(null);
+      if (editorGeneration.current === generation) {
+        setIsCreating(false);
+        setDraft((current) => current === draft ? null : current);
+      }
     } catch (e) {
       pushToast({
         kind: 'error',
         message: `Save failed: ${(e as Error).message}`,
       });
+    } finally {
+      saving.current = false;
     }
-  }, [draft, pushToast, saveMut]);
+  }, [draft, isCreating, pushToast, saveMut]);
 
   const remove = useCallback(
     async (def: ReflectAgentDef) => {
@@ -193,6 +216,7 @@ export function useAgentsController(): AgentsController {
 
     draft,
     isEditing: draft !== null,
+    isCreating,
     beginCreate,
     beginEdit,
     cancelEdit,

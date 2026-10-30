@@ -1,6 +1,6 @@
 //! 提示词层(per-model prompt library)命令面。
 //!
-//! v1.6.1:提示词按模型自动匹配外置到 `.reflect/prompts/*.md`,引擎侧
+//! v1.6.1:提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`,引擎侧
 //! 经 `Op::PromptCommand` 暴露查询与重扫。桌面端只负责把 Op 递进引擎,
 //! 应答事件(`PromptList` / `PromptSwitched`)经单一 `reflect_event`
 //! 通道回流给前端 reducer。

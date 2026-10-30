@@ -5,7 +5,7 @@ import type { StringEntry } from '../types';
 
 const agents: Record<string, StringEntry> = {
   'agents.title':                  { en: 'Agents',                                       'zh-CN': '智能体' },
-  'agents.subtitle':              { en: 'Agent profiles — model, system prompt, tools. Stored at ~/.reflect/agents/*.md.', 'zh-CN': '智能体配置文件 — 模型、系统提示、工具。存储于 ~/.reflect/agents/*.md。' },
+  'agents.subtitle':              { en: 'Agent profiles — model, system prompt, tools. Stored at ~/.zhuye/agents/*.md.', 'zh-CN': '智能体配置文件 — 模型、系统提示、工具。存储于 ~/.zhuye/agents/*.md。' },
   'agents.new':                    { en: 'New',                                          'zh-CN': '新建' },
   'agents.failed':                 { en: 'Failed to load agents',                        'zh-CN': '加载智能体失败' },
   'agents.failedDesc':            { en: 'Check the agent backend and try again.',        'zh-CN': '检查后端并重试。' },
@@ -31,7 +31,7 @@ const agents: Record<string, StringEntry> = {
   'agents.tab.defs':               { en: 'Agent definitions',                            'zh-CN': 'Agent 定义' },
   'agents.tab.subagents':          { en: 'Subagent specs',                              'zh-CN': '子代理 spec' },
   'agents.subagents.empty':        { en: 'No subagent specs',                            'zh-CN': '未配置子代理 spec' },
-  'agents.subagents.emptyHint':    { en: 'Subagent specs define the call_<role> tools. Put them in <workspace>/.reflect/subagents/<role>.md or ~/.reflect/subagents/.', 'zh-CN': '子代理 spec 决定 call_<role> 工具。放在 <workspace>/.reflect/subagents/<role>.md 或 ~/.reflect/subagents/。' },
+  'agents.subagents.emptyHint':    { en: 'Subagent specs define the call_<role> tools. Put them in <workspace>/.zhuye/subagents/<role>.md or ~/.zhuye/subagents/.', 'zh-CN': '子代理 spec 决定 call_<role> 工具。放在 <workspace>/.zhuye/subagents/<role>.md 或 ~/.zhuye/subagents/。' },
   'agents.subagents.edit':         { en: 'Edit spec',                                    'zh-CN': '编辑 spec' },
   'agents.subagents.delete':       { en: 'Delete spec',                                  'zh-CN': '删除 spec' },
   'agents.subagents.save':         { en: 'Save',                                         'zh-CN': '保存' },

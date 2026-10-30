@@ -11,7 +11,7 @@
 //! 本命令报的是**有效状态** —— 用与工具**完全相同**的构造器
 //! (`OsSandbox::with_enabled(enabled)`)算,而不是另起一套推导:
 //!
-//! - `enabled` = 生效开关,来自「env `REFLECT_SANDBOX_OS_LEVEL` 优先,
+//! - `enabled` = 生效开关,来自「env `ZHUYE_SANDBOX_OS_LEVEL` 优先,
 //!   否则取配置 `[sandbox].os_level`(未表态 = 核心基线开启)」,
 //!   见 `reflect_app_core::sandbox`;
 //! - `OsSandbox::with_enabled(enabled)` 正是 BashTool 在
@@ -47,7 +47,7 @@ pub struct SandboxStatus {
     pub status_line: String,
     /// 生效开关(env 优先;未设置 env 时 = `os_level`)。
     pub enabled: bool,
-    /// 进程 env `REFLECT_SANDBOX_OS_LEVEL` 的原始值(若用户显式设过)。
+    /// 进程 env `ZHUYE_SANDBOX_OS_LEVEL` 的原始值(若用户显式设过)。
     pub env_override: Option<String>,
 }
 

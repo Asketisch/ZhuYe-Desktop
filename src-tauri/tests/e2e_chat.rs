@@ -18,7 +18,7 @@
 //!
 //! ## 跳过策略
 //!
-//! CI / 无 API key:测试 return(不 fail)。本机若有 ~/.reflect/config.toml:必须
+//! CI / 无 API key:测试 return(不 fail)。本机若有 ~/.zhuye/config.toml:必须
 //! 命中真实链路。这正是「构建完的 app 端到端验证」的实际证据。
 
 #![cfg(test)]
@@ -42,7 +42,7 @@ fn cfg_has_provider() -> bool {
     cfg_guard.active_provider().is_some()
 }
 
-/// 从 ~/.reflect/config.toml 抽 anthropic section(给 client 直调测试用)。
+/// 从 ~/.zhuye/config.toml 抽 anthropic section(给 client 直调测试用)。
 fn anthropic_section() -> Option<(String, Option<String>, String)> {
     let agent = MinimalAgent::new_empty();
     let cfg = agent.cfg();
@@ -205,6 +205,9 @@ async fn e2e_anthropic_client_streams_real_llm() {
         api_key: key,
         base_url,
         timeout: Duration::from_secs(60),
+        // 采样参数留给 provider 默认：本用例只验协议形状。
+        temperature: None,
+        max_tokens: None,
     };
     let client = match AnthropicClient::new(client_cfg) {
         Ok(c) => c,

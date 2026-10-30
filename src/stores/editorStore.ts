@@ -32,6 +32,14 @@ export interface PendingEdit {
 }
 
 export interface EditorState {
+  /** 未保存的缓冲及其读取时的磁盘内容，跨视图保留。 */
+  drafts: Record<string, { text: string; base: string }>;
+  setDraft: (path: string, text: string, base: string, keepClean?: boolean) => void;
+  markSaved: (path: string, content: string) => void;
+  clearDraft: (path: string) => void;
+  saving: Record<string, boolean>;
+  beginSave: (path: string) => boolean;
+  endSave: (path: string) => void;
   /** path → pending 变更。 */
   pending: Record<string, PendingEdit>;
   /** 最近被 agent 编辑的文件(FilesView 自动聚焦用)。 */
@@ -64,6 +72,38 @@ export interface EditorState {
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
+  drafts: {},
+  setDraft: (path, text, base, keepClean = false) => {
+    const drafts = { ...get().drafts };
+    const previous = drafts[path];
+    const original = previous?.base ?? base;
+    if (text === original && !keepClean) delete drafts[path];
+    else drafts[path] = { text, base: original };
+    set({ drafts });
+  },
+  markSaved: (path, content) => {
+    const drafts = { ...get().drafts };
+    const current = drafts[path];
+    if (current?.text === content) delete drafts[path];
+    else if (current) drafts[path] = { ...current, base: content };
+    set({ drafts });
+  },
+  clearDraft: (path) => {
+    const drafts = { ...get().drafts };
+    delete drafts[path];
+    set({ drafts });
+  },
+  saving: {},
+  beginSave: (path) => {
+    if (get().saving[path]) return false;
+    set({ saving: { ...get().saving, [path]: true } });
+    return true;
+  },
+  endSave: (path) => {
+    const saving = { ...get().saving };
+    delete saving[path];
+    set({ saving });
+  },
   pending: {},
   lastEditedPath: null,
   contentVersion: {},
@@ -129,8 +169,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } catch {
       return null; // 写盘失败 → 不清标记,保留 pending 供重试
     }
-    const hunks = (get().pending[path]?.hunks ?? []).filter((_, i) => i !== index);
-    setPending(set, get(), path, hunks);
+    const hunks = (get().pending[path]?.hunks ?? []).filter((item) => item !== hunk);
+    setPending(set, get(), path, hunks, true);
     return restored;
   },
 
@@ -144,7 +184,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } catch {
       return null;
     }
-    setPending(set, get(), path, []);
+    const restoredHunks = new Set(entry.hunks);
+    const hunks = (get().pending[path]?.hunks ?? []).filter((item) => !restoredHunks.has(item));
+    setPending(set, get(), path, hunks, true);
     return restored;
   },
 
@@ -158,6 +200,7 @@ function setPending(
   get: EditorState,
   path: string,
   hunks: DiffHunk[],
+  contentChanged = false,
 ): void {
   const pending = { ...get.pending };
   const version = { ...get.contentVersion };
@@ -166,7 +209,7 @@ function setPending(
   } else {
     pending[path] = { hunks, updatedAt: Date.now() };
   }
-  version[path] = (version[path] ?? 0) + 1;
+  if (contentChanged) version[path] = (version[path] ?? 0) + 1;
   set({ pending, contentVersion: version });
 }
 

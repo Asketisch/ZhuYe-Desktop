@@ -18,6 +18,7 @@ const workspaces: Record<string, StringEntry> = {
   'workspaces.note':          { en: 'Switching workspaces here sets the active path for new sessions. Sessions already in flight remain on their original path.',  'zh-CN': '切换工作区会为新会话设置当前路径。已在运行中的会话保留其原路径。' },
   'workspaces.emptyDesc':     { en: 'Start a chat to record your first workspace.',                                                                                'zh-CN': '开启对话来记录你的第一个工作区。' },
   'workspaces.setTo':         { en: 'Workspace set to {name}',                                                                                                     'zh-CN': '工作区已切换到 {name}' },
+  'workspaces.loadFailed':    { en: 'Failed to load recent workspaces',                                                                                             'zh-CN': '无法读取最近工作区' },
   'workspaces.switchFailed':  { en: 'Failed to switch workspace: {msg}',                                                                                           'zh-CN': '切换工作区失败: {msg}' },
   'workspaces.use':           { en: 'Use',                                                                                                                         'zh-CN': '使用' },
   'workspaces.sessionCount':  { en: '{count} session{plural}',                                                                                                     'zh-CN': '{count} 个会话' },

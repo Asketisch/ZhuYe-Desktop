@@ -7,7 +7,7 @@
  * (expand_submission)。
  *
  * 管理部分:装了什么 / 启用哪些 / marketplace 有哪些 —— 此前 GUI 完全
- * 缺失,只能手改 `~/.reflect/config.toml` 的 `[plugins] enabled_plugins`
+ * 缺失,只能手改 `~/.zhuye/config.toml` 的 `[plugins] enabled_plugins`
  * 与 `installed_plugins.json`。
  */
 import { invoke } from '../bridge';
@@ -43,6 +43,14 @@ export interface ReflectPluginInfo {
   installedAt: string;
   /** 是否已启用(在 `[plugins] enabled_plugins` 里)。 */
   enabled: boolean;
+  /** 当前会话加载成功的运行时状态，未加载时为 null。 */
+  runtime?: {
+    plugin: string;
+    scope: string;
+    version: string;
+    skill_count: number;
+    command_count: number;
+  } | null;
   /** git 安装的 commit sha(本地目录安装时为 null)。 */
   gitCommitSha?: string | null;
 }

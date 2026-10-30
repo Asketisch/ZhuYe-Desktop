@@ -1,12 +1,13 @@
 //! Workspace 命令。
 //!
-//! - 列表持久化在 `~/.reflect/workspaces.json`（`[WorkspaceInfo]` 数组）；
+//! - 列表持久化在 `~/.zhuye/workspaces.json`（`[WorkspaceInfo]` 数组）；
 //!   `reflect_set_workspace` 每次切换 upsert 该文件，作为「最近项目」历史。
 //! - `reflect_pick_workspace_folder` 走 `tauri-plugin-dialog` 的 Rust 侧
 //!   API 弹原生目录选择框 —— 不经 JS IPC，无需 dialog capability。
 //! - `reflect_reveal_path` 在系统文件管理器中定位路径（macOS Finder /
 //!   Windows 资源管理器 / Linux xdg-open）。
 
+use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -28,22 +29,25 @@ pub struct WorkspaceInfo {
 }
 
 fn workspaces_file() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".reflect/workspaces.json"))
+    reflect_app_core::paths::user_data_path(&["workspaces.json"])
 }
 
-/// 读 `~/.reflect/workspaces.json`；不存在或损坏 → 空表（损坏时保留
-/// 原文件不动，由下一次 set 的写入覆盖修复）。
-fn read_history(path: &Path) -> Vec<WorkspaceInfo> {
-    let Ok(raw) = std::fs::read_to_string(path) else {
-        return Vec::new();
+/// 不存在时返回空表；读取或解析失败时保留原文件并报告错误。
+fn read_history(path: &Path) -> CommandResult<Vec<WorkspaceInfo>> {
+    let raw = match std::fs::read_to_string(path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
     };
-    serde_json::from_str(&raw).unwrap_or_default()
+    serde_json::from_str(&raw).map_err(|error| CommandError {
+        msg: format!("read {}: {error}", path.display()),
+    })
 }
 
 /// upsert 一条 workspace 记录（同 path 去重、last_used 刷新、按最近使用
 /// 倒序、截断到 [`WORKSPACE_HISTORY_CAP`]）并写回。
 fn upsert_history(path: &Path, entry: WorkspaceInfo) -> CommandResult<()> {
-    let mut list = read_history(path);
+    let mut list = read_history(path)?;
     let prev_count = list
         .iter()
         .find(|w| w.path == entry.path)
@@ -61,17 +65,17 @@ fn upsert_history(path: &Path, entry: WorkspaceInfo) -> CommandResult<()> {
     let json = serde_json::to_string_pretty(&list).map_err(|e| CommandError {
         msg: format!("serialize workspaces.json: {e}"),
     })?;
-    std::fs::write(path, json)?;
+    crate::persistence::write_atomic(path, json.as_bytes())?;
     Ok(())
 }
 
-/// 列出已知 workspace（从 `~/.reflect/workspaces.json` 读取）。
+/// 列出已知 workspace（从 `~/.zhuye/workspaces.json` 读取）。
 #[tauri::command]
 pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
     let path = workspaces_file().ok_or_else(|| CommandError {
         msg: "no HOME dir".into(),
     })?;
-    let list = read_history(&path);
+    let list = read_history(&path)?;
     if list.is_empty() {
         // 无历史时仅返回当前 workspace，保证视图有可切换的落点。
         let cur = dirs::home_dir()
@@ -92,6 +96,7 @@ pub async fn reflect_set_workspace(
     agent: State<'_, MinimalAgent>,
     path: String,
 ) -> CommandResult<()> {
+    let _transition = agent.inner.session_transition_lock.lock().await;
     let p = PathBuf::from(&path);
     if !p.exists() {
         return Err(CommandError {
@@ -273,7 +278,7 @@ mod tests {
         // 再次切换 a：去重 + last_used 提到最大。
         upsert_history(&file, entry("/tmp/a", 30)).unwrap();
 
-        let list = read_history(&file);
+        let list = read_history(&file).unwrap();
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].path, "/tmp/a");
         assert_eq!(list[0].last_used, 30);
@@ -285,12 +290,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("workspaces.json");
         upsert_history(&file, entry("/tmp/a", 10)).unwrap();
-        let mut list = read_history(&file);
+        let mut list = read_history(&file).unwrap();
         list[0].session_count = 7;
         std::fs::write(&file, serde_json::to_string(&list).unwrap()).unwrap();
 
         upsert_history(&file, entry("/tmp/a", 20)).unwrap();
-        let list = read_history(&file);
+        let list = read_history(&file).unwrap();
         assert_eq!(list[0].session_count, 7, "known path keeps its count");
     }
 
@@ -301,15 +306,44 @@ mod tests {
         for i in 0..(WORKSPACE_HISTORY_CAP + 5) {
             upsert_history(&file, entry(&format!("/tmp/w{i}"), i as u64)).unwrap();
         }
-        assert_eq!(read_history(&file).len(), WORKSPACE_HISTORY_CAP);
+        assert_eq!(read_history(&file).unwrap().len(), WORKSPACE_HISTORY_CAP);
     }
 
     #[test]
-    fn read_history_tolerates_missing_and_corrupt_file() {
+    fn corrupt_history_is_reported_and_not_overwritten() {
         let dir = tempfile::tempdir().unwrap();
-        assert!(read_history(&dir.path().join("none.json")).is_empty());
+        assert!(
+            read_history(&dir.path().join("none.json"))
+                .unwrap()
+                .is_empty()
+        );
         let file = dir.path().join("workspaces.json");
         std::fs::write(&file, "not json").unwrap();
-        assert!(read_history(&file).is_empty());
+        assert!(read_history(&file).is_err());
+        assert!(upsert_history(&file, entry("/tmp/a", 10)).is_err());
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "not json");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn history_update_preserves_symlink_and_respects_read_only_file() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("history.json");
+        let link = dir.path().join("workspaces.json");
+        std::fs::write(&target, "[]").unwrap();
+        symlink(&target, &link).unwrap();
+        upsert_history(&link, entry("/tmp/a", 10)).unwrap();
+        assert!(
+            std::fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(read_history(&target).unwrap()[0].path, "/tmp/a");
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o444)).unwrap();
+        assert!(upsert_history(&link, entry("/tmp/b", 20)).is_err());
+        assert_eq!(read_history(&target).unwrap().len(), 1);
     }
 }

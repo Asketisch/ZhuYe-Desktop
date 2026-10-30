@@ -42,6 +42,7 @@ import type { AgentState, SubagentsState, TurnItem } from './types';
 export const useAgentStore = create<AgentState>((set, get) => {
   // 会话作用域的子代理可观测投影的空态(复用引用,避免每处字面量)。
   const EMPTY_SUBAGENTS: SubagentsState = { feed: [], lastStatus: null };
+  let goalSnapshotGeneration = 0;
   // 按 plan 最大上下文自动压缩控制器(内部有开关/节流/触发闩)。
   const autoCompact = createAutoCompactController({
     getConfig: () => reflect_get_config(),
@@ -75,7 +76,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
   subscribed: false,
   loadedSessionId: null,
   hydrateSession: (id, records) => {
+    goalSnapshotGeneration += 1;
     const { turns, compactions } = turnsFromRollout(records);
+    const changedSession = get().loadedSessionId !== id;
     // goalActive/goalSnapshot 一并复位:goal 挂在后端线程上,rebind 造新
     // 线程即丢,换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
     // 复位后立即向后端快照校准（reflect_goal_snapshot,v1.7 读口）——
@@ -88,6 +91,10 @@ export const useAgentStore = create<AgentState>((set, get) => {
       turns,
       compactions,
       loadedSessionId: id,
+      ...(changedSession ? {
+        pendingApprovals: [], pendingQuestions: [], pendingAskUser: [], pendingPlan: null,
+        lastRouting: null,
+      } : {}),
       lastError: null,
       queuedMessages: [],
       goalActive: false,
@@ -100,7 +107,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
     });
     void get().syncGoalSnapshot();
   },
-  clearSession: () =>
+  clearSession: () => {
+    goalSnapshotGeneration += 1;
     set({
       turns: [],
       loadedSessionId: null,
@@ -120,7 +128,10 @@ export const useAgentStore = create<AgentState>((set, get) => {
       subagents: EMPTY_SUBAGENTS,
       todos: [],
       planSteps: [],
-    }),
+      goalActive: false,
+      goalSnapshot: null,
+    });
+  },
   tokens: null,
   contextWindowSize: null,
   queuedMessages: [],
@@ -144,11 +155,15 @@ export const useAgentStore = create<AgentState>((set, get) => {
   closePromptPanel: () => set({ promptPanelOpen: false }),
   // goalActive 落 false 的所有路径(手动退出/会话清理)一并清快照 ——
   // 两者必须同真同假,徽标 tooltip 不会挂着旧目标的进度。
-  setGoalActive: (active) =>
-    set(active ? { goalActive: true } : { goalActive: false, goalSnapshot: null }),
+  setGoalActive: (active) => {
+    goalSnapshotGeneration += 1;
+    set(active ? { goalActive: true } : { goalActive: false, goalSnapshot: null });
+  },
   syncGoalSnapshot: async () => {
+    const generation = ++goalSnapshotGeneration;
     try {
       const snapshot = await reflect_goal_snapshot();
+      if (generation !== goalSnapshotGeneration) return;
       // 快照是权威:有 = 活跃(拉回 true),无 = 未挂载/rebind 丢失(落 false)。
       set({ goalSnapshot: snapshot, goalActive: snapshot !== null });
     } catch {
@@ -310,7 +325,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   },
 
   /**
-   * v1.6.1:重扫提示词库 —— 用户改了 `.reflect/prompts/*.md` 后让改动
+   * v1.6.1:重扫提示词库 —— 用户改了 `.zhuye/prompts/*.md` 后让改动
    * 即时生效。应答经 `prompt_switched` 事件异步到达,reducer 写入
    * `prompt` 并弹 toast。
    */
@@ -395,19 +410,16 @@ export const useAgentStore = create<AgentState>((set, get) => {
   },
 
   approve: async (kind, id, decision) => {
+    if (kind === 'tool') await reflect_tool_approval(id, decision);
+    else await reflect_hook_approval(id, decision);
     set((state) => ({
       pendingApprovals: state.pendingApprovals.filter((approval) => approval.id !== id),
     }));
-    if (kind === 'tool') await reflect_tool_approval(id, decision);
-    else await reflect_hook_approval(id, decision);
   },
 
   // plan 审批走独立的 approvePlan —— PlanApprovalChoice 三选一,语义与
   // tool/hook 的 ReviewDecision 不同,故单独方法。
   approvePlan: async (id, choice) => {
-    set((state) => ({
-      pendingApprovals: state.pendingApprovals.filter((approval) => approval.id !== id),
-    }));
     await reflect_plan_approval(id, choice);
   },
 
@@ -431,23 +443,24 @@ export const useAgentStore = create<AgentState>((set, get) => {
   },
 
   answerQuestion: async (id, answers) => {
+    await reflect_ask_user_question_response(id, answers);
     set((state) => ({
       pendingQuestions: state.pendingQuestions.filter((question) => question.id !== id),
     }));
-    await reflect_ask_user_question_response(id, answers);
   },
 
   answerInput: async (id, text) => {
+    await reflect_ask_user_input_response(id, text);
     set((state) => ({
       pendingAskUser: state.pendingAskUser.filter((question) => question.id !== id),
     }));
-    await reflect_ask_user_input_response(id, text);
   },
 
   clearError: () => set({ lastError: null }),
   ...createToastActions(set),
 
   reset: () => {
+    goalSnapshotGeneration += 1;
     planFailover.reset();
     set({
       turns: [],

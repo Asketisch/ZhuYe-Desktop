@@ -4,7 +4,7 @@
  * 此前 GUI 只能**列出**团队（任务板的列表选择器里点一下切到某个 team
  * 的任务列表），核心的 `TaskManager::upsert_team` / `delete_team` 只经
  * 后端命令暴露、**没有任何界面入口** —— 用户想加一个团队只能手写
- * `~/.reflect/teams/<name>.json`。
+ * `~/.zhuye/teams/<name>.json`。
  *
  * 团队是任务系统的协调单元（成员 = agent_id / role / system_prompt），
  * 与 CLI / TUI 共享同一份存储。

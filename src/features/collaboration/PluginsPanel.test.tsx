@@ -83,4 +83,48 @@ describe('PluginsPanel', () => {
       expect(screen.getByTestId('plugin-list')).toBeDefined();
     });
   });
+
+  it('shows an uninstall error and refreshes state after a partial failure', async () => {
+    let installed = true;
+    mockInvoke('reflect_list_plugins', async () => installed ? PLUGINS : []);
+    mockInvoke('reflect_uninstall_plugin', async () => {
+      installed = false;
+      throw { msg: 'runtime refresh failed after uninstall' };
+    });
+    render(wrap(<PluginsPanel />));
+    await screen.findByTestId('plugin-list');
+    fireEvent.click(screen.getByTestId('plugin-uninstall-demo'));
+    expect((await screen.findByTestId('plugin-action-error')).textContent)
+      .toContain('runtime refresh failed after uninstall');
+    await waitFor(() => expect(screen.queryByTestId('plugin-list')).toBeNull());
+  });
+
+  it('shows string errors when plugin installation fails', async () => {
+    mockInvoke('reflect_install_plugin', async () => { throw 'invalid plugin'; });
+    render(wrap(<PluginsPanel />));
+    fireEvent.click(screen.getByTestId('plugin-install-toggle'));
+    fireEvent.change(screen.getByTestId('plugin-path-input'), { target: { value: '/tmp/plugin' } });
+    fireEvent.click(screen.getByTestId('plugin-install-submit'));
+    expect((await screen.findByTestId('plugin-install-error')).textContent).toContain('invalid plugin');
+  });
+
+  it('shows plugin list failures instead of an empty list', async () => {
+    mockInvoke('reflect_list_plugins', async () => { throw { msg: 'cannot read plugins' }; });
+    render(wrap(<PluginsPanel />));
+    expect((await screen.findByRole('alert')).textContent).toContain('cannot read plugins');
+    expect(screen.queryByTestId('plugin-list')).toBeNull();
+  });
+
+  it('shows only plugins currently loaded and removes them after disabling', async () => {
+    let enabled = true;
+    mockInvoke('reflect_list_plugins', async () => [{
+      ...PLUGINS[0], enabled,
+      runtime: enabled ? { plugin: 'demo', scope: 'user', version: '0.1.0', skill_count: 1, command_count: 2 } : null,
+    }]);
+    mockInvoke('reflect_toggle_plugin', async () => { enabled = false; });
+    render(wrap(<PluginsPanel />));
+    expect((await screen.findByTestId('plugin-loaded-list')).textContent).toContain('2 cmds');
+    fireEvent.click(screen.getByTestId('plugin-toggle-demo'));
+    await waitFor(() => expect(screen.queryByTestId('plugin-loaded-list')).toBeNull());
+  });
 });

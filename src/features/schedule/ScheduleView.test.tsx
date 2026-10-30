@@ -14,6 +14,8 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ScheduleView } from './ScheduleView';
 import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
+import { reflect_add_schedule, reflect_remove_schedule } from '@/utils/commands';
+import { useAgentStore } from '@/stores/agentStore';
 
 const calls: Array<{ cmd: string; args: unknown }> = [];
 
@@ -64,11 +66,13 @@ describe('ScheduleView', () => {
     cleanup();
     calls.length = 0;
     resetMockInvoke();
+    useAgentStore.getState().reset();
   });
 
   it('renders the page title and seeded job', async () => {
     render(wrap(<ScheduleView />));
     expect(screen.getByText('Schedule')).toBeDefined();
+    expect(screen.getByText('Cron expressions use UTC. Jobs are kept in memory and are lost when the app exits.')).toBeDefined();
     await waitFor(() => {
       expect(screen.getByText('standup')).toBeDefined();
     });
@@ -135,5 +139,34 @@ describe('ScheduleView', () => {
         ),
       ).toBe(true);
     });
+  });
+
+  it('retains the draft and displays serialized creation errors', async () => {
+    vi.mocked(reflect_add_schedule).mockRejectedValueOnce({ msg: 'invalid cron' });
+    render(wrap(<ScheduleView />));
+    fireEvent.click(screen.getByTestId('schedule-add-btn'));
+    fireEvent.change(screen.getByTestId('schedule-create-prompt'), { target: { value: 'keep draft' } });
+    fireEvent.submit(screen.getByTestId('schedule-create-form'));
+    await waitFor(() => expect(useAgentStore.getState().toasts.some((toast) => toast.message.includes('invalid cron'))).toBe(true));
+    expect((screen.getByTestId('schedule-create-prompt') as HTMLInputElement).value).toBe('keep draft');
+  });
+
+  it('reports a missing job instead of claiming it was removed', async () => {
+    vi.mocked(reflect_remove_schedule).mockResolvedValueOnce(false);
+    render(wrap(<ScheduleView />));
+    fireEvent.click(await screen.findByTestId('schedule-remove-job-1'));
+    await waitFor(() => expect(useAgentStore.getState().toasts.some((toast) => toast.kind === 'warn' && toast.message.includes('already removed'))).toBe(true));
+  });
+
+  it('disables create while its request is pending', async () => {
+    let resolve!: (value: Awaited<ReturnType<typeof reflect_add_schedule>>) => void;
+    vi.mocked(reflect_add_schedule).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    render(wrap(<ScheduleView />));
+    fireEvent.click(screen.getByTestId('schedule-add-btn'));
+    fireEvent.change(screen.getByTestId('schedule-create-prompt'), { target: { value: 'once' } });
+    fireEvent.submit(screen.getByTestId('schedule-create-form'));
+    await waitFor(() => expect((screen.getByTestId('schedule-create-submit') as HTMLButtonElement).disabled).toBe(true));
+    resolve({ id: 'created', schedule: '0 * * * *', prompt: 'once', enabled: true, created_at: '2026-07-28T00:00:00Z' });
+    await waitFor(() => expect(screen.queryByTestId('schedule-create-form')).toBeNull());
   });
 });

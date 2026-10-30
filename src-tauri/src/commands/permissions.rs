@@ -1,13 +1,13 @@
 //! 权限规则查询与追加 —— 让核心的权限层在 GUI 里**可见**、并能被**就地追加**。
 //!
 //! 桌面端与 CLI 共用同一套三层 store,规则按作用域分列,匹配时先匹配到的
-//! 胜出(first-match-wins):
+//! 依序读取；匹配的 deny 优先于其他规则:
 //!
 //! | 作用域 | 来源 | 可写 |
 //! |---|---|---|
 //! | `config` | `config.toml` 的 `[permissions]` 段 | 否(配置内联) |
-//! | `project` | `<workspace>/.reflect/permissions.toml` | 否(随工作区签入) |
-//! | `user` | `~/.reflect/permissions.toml` | 是(`/permissions allow` 落盘处) |
+//! | `project` | `<workspace>/.zhuye/permissions.toml` | 否(随工作区签入) |
+//! | `user` | `~/.zhuye/permissions.toml` | 是(`/permissions allow` 落盘处) |
 //!
 //! `reflect_list_permission_rules` 只读:它回答「当前这个会话到底受哪些
 //! 规则约束」。`reflect_add_permission_rule` 往**用户级**文件追加一条
@@ -15,7 +15,7 @@
 //!
 //! ## 为什么写进核心的权限文件,而不是桌面端自己的 allowlist
 //!
-//! 桌面端曾有一套本地 `~/.reflect/approval_allowlist.json`(前缀匹配),
+//! 桌面端曾有一套本地 `~/.zhuye/approval_allowlist.json`(前缀匹配),
 //! 但它**从没有界面消费**,且与核心的权限层功能重复 —— 两套真值会让
 //! 用户「到底哪条生效」无从判断。核心的权限层有三个优势:
 //!
@@ -27,8 +27,6 @@
 //!
 //! 装配见 `state/permissions.rs` —— 与 CLI `reflect-exec` 的
 //! `apply_permission_layers` 同构。
-
-use std::path::PathBuf;
 
 use reflect_permissions::{
     FilePermissionStore, InMemoryPermissionStore, PermissionAction, PermissionRule, PermissionStore,
@@ -45,9 +43,9 @@ use crate::state::MinimalAgent;
 pub enum RuleScope {
     /// `config.toml` 的 `[permissions]` 段(会话级,优先级最高)。
     Config,
-    /// `<workspace>/.reflect/permissions.toml`(项目级)。
+    /// `<workspace>/.zhuye/permissions.toml`(项目级)。
     Project,
-    /// `~/.reflect/permissions.toml`(用户级,可写)。
+    /// `~/.zhuye/permissions.toml`(用户级,可写)。
     User,
 }
 
@@ -67,25 +65,19 @@ pub struct PermissionRuleInfo {
     pub scope: RuleScope,
 }
 
-/// 用户级权限文件路径(`~/.reflect/permissions.toml`)。
-fn user_rules_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".reflect/permissions.toml"))
-}
-
-/// 读取一个 store 的规则;读失败(文件不存在 / TOML 损坏)→ 空列表。
-async fn list_rules(store: &dyn PermissionStore) -> Vec<reflect_permissions::PermissionRule> {
-    match store.list().await {
-        Ok(rules) => rules,
-        Err(e) => {
-            tracing::warn!(error = %e, "读取权限规则失败,按空列表处理");
-            Vec::new()
-        }
-    }
+/// 缺失文件由核心视为空规则；解析或读取失败必须向界面报告。
+async fn list_rules(
+    store: &dyn PermissionStore,
+    scope: &str,
+) -> CommandResult<Vec<PermissionRule>> {
+    store.list().await.map_err(|error| CommandError {
+        msg: format!("read {scope} permission rules: {error}"),
+    })
 }
 
 /// 列出当前生效的权限规则(按作用域优先级排列)。
 ///
-/// 规则顺序即匹配顺序 —— GUI 直接按数组顺序展示,用户能看出「哪条先生效」。
+/// GUI 按规则顺序展示；任何匹配的 deny 均优先于 allow / ask。
 #[tauri::command]
 pub async fn reflect_list_permission_rules(
     agent: State<'_, MinimalAgent>,
@@ -97,12 +89,11 @@ pub async fn reflect_list_permission_rules(
     if let Some(sec) = &cfg_snapshot.permissions {
         let cfg_store = InMemoryPermissionStore::new();
         for rule in sec.expanded_rules() {
-            if let Err(e) = cfg_store.add(rule).await {
-                tracing::warn!(error = %e, "config 权限规则落库失败,跳过该条");
-                continue;
-            }
+            cfg_store.add(rule).await.map_err(|error| CommandError {
+                msg: format!("load config permission rules: {error}"),
+            })?;
         }
-        for r in list_rules(&cfg_store).await {
+        for r in list_rules(&cfg_store, "config").await? {
             out.push(PermissionRuleInfo {
                 tool: r.tool,
                 action: action_str(r.action),
@@ -113,10 +104,11 @@ pub async fn reflect_list_permission_rules(
         }
     }
 
-    // 2. 项目级 `<workspace>/.reflect/permissions.toml`。
-    let project_path = agent.workspace().join(".reflect").join("permissions.toml");
+    // 2. 项目级 `<workspace>/.zhuye/permissions.toml`。
+    let project_path =
+        reflect_app_core::paths::project_data_path(&agent.workspace(), &["permissions.toml"]);
     let project_store = FilePermissionStore::with_path(project_path);
-    for r in list_rules(&project_store).await {
+    for r in list_rules(&project_store, "project").await? {
         out.push(PermissionRuleInfo {
             tool: r.tool,
             action: action_str(r.action),
@@ -126,10 +118,13 @@ pub async fn reflect_list_permission_rules(
         });
     }
 
-    // 3. 用户级 `~/.reflect/permissions.toml`。
-    if let Some(path) = user_rules_path() {
-        let user_store = FilePermissionStore::with_path(path);
-        for r in list_rules(&user_store).await {
+    // 3. 用户级 `~/.zhuye/permissions.toml`。
+    {
+        let user_store =
+            FilePermissionStore::with_default_home().map_err(|error| CommandError {
+                msg: format!("locate user permission store: {error}"),
+            })?;
+        for r in list_rules(&user_store, "user").await? {
             out.push(PermissionRuleInfo {
                 tool: r.tool,
                 action: action_str(r.action),
@@ -172,23 +167,49 @@ pub struct PermissionRuleInput {
     pub shell_pattern: Option<String>,
 }
 
-/// 追加一条**用户级**权限规则(`~/.reflect/permissions.toml`)。
+/// 只读的用户级权限文件必须报权限错误,不能被临时文件替换静默覆盖。
+///
+/// 核心的 `FilePermissionStore::add` 走「同目录临时文件 + 原子替换」,
+/// rename 只查目录权限 —— 已有文件的只读位拦不住它。这里在落盘前显式
+/// 确认目标本身可写,与桌面状态文件的 `persistence::write_atomic`
+/// 同一口径;文件不存在时不拦截,交给 store 自己创建。
+fn guard_readonly_target(path: &std::path::Path) -> CommandResult<()> {
+    let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(CommandError {
+                msg: format!("stat user permission file: {error}"),
+            });
+        }
+    };
+    if metadata.permissions().readonly() {
+        return Err(CommandError {
+            msg: "user permission file is read-only".into(),
+        });
+    }
+    Ok(())
+}
+
+/// 追加一条**用户级**权限规则(`~/.zhuye/permissions.toml`)。
 ///
 /// 落盘 + **立即生效**:核心的 `StorePermissionResolver` 每次评估都重新
 /// `list()`(重读文件),新规则对下一次工具调用即刻生效,无需重启会话。
 ///
 /// 同名规则(`tool` + `action` + pattern 全同)由核心的
-/// `FilePermissionStore::add` 自动去重。
+/// `FilePermissionStore::add` 自动去重。只读的目标文件报权限错误,
+/// 原样保留。
 #[tauri::command]
 pub async fn reflect_add_permission_rule(rule: PermissionRuleInput) -> CommandResult<()> {
     let rule = build_permission_rule(rule)?;
     // 用核心自己的 `with_default_home()` 解析路径 —— 与 `state/permissions.rs`
     // 装配 resolver 链时用的是**同一个** store 构造器,杜绝「写的文件和
     // 读的文件不是同一个」的路径分叉(核心的权限文件固定在
-    // `$HOME/.reflect/permissions.toml`,不支持 `$REFLECT_HOME`)。
+    // `$HOME/.zhuye/permissions.toml`,`ZHUYE_HOME` 由 store 自己解析)。
     let store = FilePermissionStore::with_default_home().map_err(|e| CommandError {
         msg: format!("locate user permission store: {e}"),
     })?;
+    guard_readonly_target(store.path())?;
     store.add(rule).await.map_err(|e| CommandError {
         msg: format!("add permission rule: {e}"),
     })
@@ -256,5 +277,36 @@ mod tests {
     fn rejects_empty_tool() {
         let err = build_permission_rule(input("   ", "allow")).expect_err("empty tool");
         assert!(err.msg.contains("non-empty tool"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn guard_rejects_read_only_file_but_passes_absent_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("permissions.toml");
+        std::fs::write(&path, "[[rule]]\ntool = \"x\"\naction = \"deny\"\n").unwrap();
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&path, permissions).unwrap();
+        let err = guard_readonly_target(&path).expect_err("read-only target");
+        assert!(err.msg.contains("read-only"));
+        // 不存在的文件不拦截 —— 交给 store 自己创建。
+        assert!(guard_readonly_target(&dir.path().join("absent.toml")).is_ok());
+    }
+
+    #[test]
+    fn escaped_literal_shell_pattern_matches_only_the_original_command() {
+        use reflect_permissions::{RuleMatch, evaluate_with_context};
+        let mut request = input("Bash", "allow");
+        request.shell_pattern = Some("echo [*] [?] [[]x[]] [{]a,b[}]".into());
+        let rules = [build_permission_rule(request).unwrap()];
+        assert_eq!(
+            evaluate_with_context(&rules, "Bash", Some("echo * ? [x] {a,b}")),
+            RuleMatch::Allow
+        );
+        assert_eq!(
+            evaluate_with_context(&rules, "Bash", Some("echo anything x [x] {a,b}")),
+            RuleMatch::NoMatch
+        );
     }
 }

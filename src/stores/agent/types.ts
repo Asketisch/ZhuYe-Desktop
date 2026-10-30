@@ -173,11 +173,7 @@ export interface PlanStepState {
 }
 
 /**
- * 本次运行已挂载的插件。
- *
- * 来源:核心 `EventMsg::PluginLoaded`(`plugin_loaded` 事件)—— 插件
- * 运行时挂载完成时上报,含它贡献的 skill / 命令数量。此前 GUI 只能从
- * 配置文件反推「装了什么」,看不到**运行时实际挂载了什么**。
+ * 观察到的插件加载事件，包含加载时贡献的 skill / 命令数量。
  */
 export interface PluginLoadedInfo {
   /** 插件 id。 */
@@ -350,11 +346,8 @@ export interface AgentState {
    */
   planSteps: PlanStepState[];
   /**
-   * 本次运行已挂载的插件(来自 `plugin_loaded` 事件)—— **进程级**。
-   *
-   * 与「配置里装了哪些」是**两件事**:这里记的是运行时真正挂载成功的。
-   * 插件在 AgentThread 装配 / 配置重载时挂载,与会话无关,故不随会话
-   * 切换重置(与 `prompt` 同级)。
+   * 本进程观察到的插件加载事件；这不是当前运行时快照。
+   * 插件面板通过插件列表命令查询当前加载状态。
    */
   loadedPlugins: PluginLoadedInfo[];
   /**
@@ -401,7 +394,7 @@ export interface AgentState {
    */
   promptList: () => Promise<void>;
   /**
-   * v1.6.1:重扫提示词库(`.reflect/prompts/*.md` 改动即时生效)。
+   * v1.6.1:重扫提示词库(`.zhuye/prompts/*.md` 改动即时生效)。
    * 应答 `prompt_switched` 事件异步到达,reducer 写入 `prompt` 并弹 toast。
    */
   promptRescan: (layer?: string | null) => Promise<void>;

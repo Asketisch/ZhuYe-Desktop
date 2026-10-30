@@ -14,7 +14,8 @@
     "reflect_add_memory": {
       "scope": "user",
       "key": "contract-probe",
-      "value": "pnpm test"
+      "value": "pnpm test",
+      "createOnly": true
     },
     "reflect_add_permission_rule": {
       "rule": {
@@ -401,6 +402,7 @@
     },
     "reflect_sandbox_status": {},
     "reflect_save_agent_def": {
+      "createOnly": true,
       "def": {
         "name": "contract-probe-agent",
         "description": "契约探针",
@@ -505,7 +507,7 @@
       "model": "probe"
     },
     "reflect_toggle_hook": {
-      "name": "contract-probe-hook",
+      "name": "audit-deps",
       "enabled": false
     },
     "reflect_toggle_plugin": {

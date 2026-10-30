@@ -2,7 +2,7 @@
  * SpansPanel —— span 日志视图(turn → model → tool 父子链)。
  *
  * span 日志是 model-io 的**姊妹**产物:按天写在
- * `~/.reflect/traces/log/reflect-YYYY-MM-DD.jsonl`,记录 turn / model /
+ * `~/.zhuye/traces/log/reflect-YYYY-MM-DD.jsonl`,记录 turn / model /
  * tool 的父子 span(含耗时、状态),以及 `reflect_goal` 模块发出的目标
  * 校验事件(`goal.turn.verified` 等)。
  *

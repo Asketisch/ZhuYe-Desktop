@@ -33,8 +33,8 @@ export async function reflect_cycle_permission_mode(): Promise<string> {
  * 规则来源作用域。
  *
  * - `config`  : `config.toml` 的 `[permissions]` 段(会话级,优先级最高)
- * - `project` : `<workspace>/.reflect/permissions.toml`(项目级)
- * - `user`    : `~/.reflect/permissions.toml`(用户级,可写)
+ * - `project` : `<workspace>/.zhuye/permissions.toml`(项目级)
+ * - `user`    : `~/.zhuye/permissions.toml`(用户级,可写)
  */
 export type PermissionRuleScope = 'config' | 'project' | 'user';
 
@@ -77,7 +77,7 @@ export interface PermissionRuleInput {
 }
 
 /**
- * 往**用户级**权限文件(`~/.reflect/permissions.toml`)追加一条规则。
+ * 往**用户级**权限文件(`~/.zhuye/permissions.toml`)追加一条规则。
  *
  * 落盘 + 立即生效 —— 核心的 `StorePermissionResolver` 每次评估都重读
  * 文件,新规则对下一次工具调用即刻生效,无需重启会话。

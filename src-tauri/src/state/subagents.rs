@@ -17,8 +17,8 @@
 //!
 //! ## 子代理 spec 的合并口径(与 CLI 同款)
 //!
-//! 优先级 **TOML `[[subagents]]` > workspace `.reflect/subagents/*.md`
-//! > home `~/.reflect/subagents/*.md` > 硬编码 explorer**(仅当全空时)。
+//! 优先级 **TOML `[[subagents]]` > workspace `.zhuye/subagents/*.md`
+//! > home `~/.zhuye/subagents/*.md` > 硬编码 explorer**(仅当全空时)。
 //!
 //! `call_<role>` 是运行时动态注册的工具,不在静态 `ALWAYS_ON_TOOLS` 里;
 //! 必须显式补进 `m4.skills` 的 always-on 可见集 —— 否则模型请求里没有
@@ -94,12 +94,15 @@ pub(crate) fn bootstrap_subagents(
     factory.set_parent_skills(m4.skills.clone());
 
     // 合并 spec(TOML > workspace md > home md)。
-    let home = std::env::var("HOME").unwrap_or_default();
-    let home_path = Path::new(&home);
-    let home_md = reflect_subagent::load_subagents_dir(&home_path.join(".reflect/subagents"))
-        .unwrap_or_default();
-    let ws_md = reflect_subagent::load_subagents_dir(&workspace.join(".reflect/subagents"))
-        .unwrap_or_default();
+    let home_md = reflect_subagent::load_subagents_dir(
+        &reflect_app_core::paths::user_data_path_or_relative(&["subagents"]),
+    )
+    .unwrap_or_default();
+    let ws_md = reflect_subagent::load_subagents_dir(&reflect_app_core::paths::project_data_path(
+        workspace,
+        &["subagents"],
+    ))
+    .unwrap_or_default();
     let toml_specs = cfg.subagents.clone();
     let mut configs = reflect_subagent::merge_by_priority(vec![home_md, ws_md, toml_specs]);
 

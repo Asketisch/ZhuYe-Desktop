@@ -2,12 +2,14 @@
 //!
 //! agent 运行时经 `AddSessionNoteTool`(`reflect-notes`)把结论写进
 //! `<notes_home>/session-notes/<thread_id>.jsonl`,`notes_home` 的解析顺序
-//! 是 `$REFLECT_HOME` > `$HOME/.reflect`(与核心 `resolve_notes_home()` 一致)。
+//! 是 `$ZHUYE_HOME` > `$HOME/.zhuye`(与核心 `resolve_notes_home()` 一致)。
 //!
 //! 此前这条链路**只有写、没有读** —— agent 记了什么、跨重启还在不在,
 //! 用户完全看不到。本模块补上读取侧(只读,不提供写入口:写入仍由 agent
 //! 经工具发起,GUI 不代劳)。
 
+use std::collections::VecDeque;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use reflect_notes::NoteStore;
@@ -61,27 +63,7 @@ pub async fn reflect_list_session_notes(
     let Some(path) = note_path(&id) else {
         return Ok(Vec::new());
     };
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    // 复用核心的 store 做 rehydrate —— 坏行跳过、空文本/超长跳过等
-    // 容错语义与运行时一致,不在命令层另写一份解析。
-    let store = match reflect_notes::FileBackedNoteStore::open_or_create_default(&path) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!(error = %e, path = %path.display(), "打开会话笔记失败");
-            return Ok(Vec::new());
-        }
-    };
-    let out = store
-        .list()
-        .into_iter()
-        .map(|n| SessionNoteInfo {
-            text: n.text,
-            created_at: n.created_at.to_rfc3339(),
-        })
-        .collect();
-    Ok(out)
+    read_notes(&path)
 }
 
 /// 列出所有有笔记的会话(按最后写入时间降序)。
@@ -92,11 +74,14 @@ pub async fn reflect_list_note_sessions(
     let Some(dir) = notes_dir() else {
         return Ok(Vec::new());
     };
-    let Ok(entries) = std::fs::read_dir(&dir) else {
-        return Ok(Vec::new());
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
     };
     let mut out: Vec<NoteSessionInfo> = Vec::new();
-    for entry in entries.flatten() {
+    for entry in entries {
+        let entry = entry?;
         let path = entry.path();
         if path.extension().and_then(|s| s.to_str()) != Some("jsonl") {
             continue;
@@ -108,37 +93,56 @@ pub async fn reflect_list_note_sessions(
         if ThreadId::parse_str(stem).is_err() {
             continue;
         }
-        let (count, updated_at) = count_notes(&path);
+        let notes = read_notes(&path)?;
+        if notes.is_empty() {
+            continue;
+        }
         out.push(NoteSessionInfo {
             session_id: stem.to_string(),
-            count,
-            updated_at,
+            count: notes.len(),
+            updated_at: notes.last().map(|note| note.created_at.clone()),
         });
     }
     out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then(b.count.cmp(&a.count)));
     Ok(out)
 }
 
-/// 统计某笔记文件的条数与最后写入时间。
-fn count_notes(path: &Path) -> (usize, Option<String>) {
-    let Ok(body) = std::fs::read_to_string(path) else {
-        return (0, None);
+/// 与核心重建窗口及内容校验一致，同时保留文件中的原始时间。
+fn read_notes(path: &Path) -> CommandResult<Vec<SessionNoteInfo>> {
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
     };
-    let mut count = 0usize;
-    let mut last: Option<String> = None;
-    for line in body.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        // 每行是一个 `{"text": ..., "created_at": ...}` JSON 记录。
-        let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) else {
+    let cap = reflect_notes::SESSION_NOTE_CAP;
+    let mut candidates = VecDeque::with_capacity(cap * 2);
+    for line in BufReader::new(file).lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(error) if error.kind() == std::io::ErrorKind::InvalidData => continue,
+            Err(error) => return Err(error.into()),
+        };
+        let Ok(note) = serde_json::from_str::<reflect_notes::SessionNote>(&line) else {
             continue;
         };
-        count += 1;
-        if let Some(ts) = v.get("created_at").and_then(|t| t.as_str()) {
-            last = Some(ts.to_string());
+        if candidates.len() == cap * 2 {
+            candidates.pop_front();
         }
+        candidates.push_back(note);
     }
-    (count, last)
+    let validator = reflect_notes::InMemoryNoteStore::new();
+    let mut notes = VecDeque::with_capacity(cap);
+    for note in candidates {
+        let Ok(validated) = validator.add(note.text) else {
+            continue;
+        };
+        if notes.len() == cap {
+            notes.pop_front();
+        }
+        notes.push_back(SessionNoteInfo {
+            text: validated.text,
+            created_at: note.created_at.to_rfc3339(),
+        });
+    }
+    Ok(notes.into())
 }

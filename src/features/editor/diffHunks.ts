@@ -21,63 +21,81 @@ export interface DiffHunk {
   /** hunk 头部的上下文行(取自新文件,用于显示与锚定)。 */
   contextBefore: string[];
   contextAfter: string[];
+  /** 按 diff 原始顺序排列的旧、新文件行。 */
+  oldSequence: string[];
+  newSequence: string[];
+  /** 新文件序列中新增行的偏移，用于定位显示。 */
+  addedOffsets: number[];
+  oldNoNewline: boolean;
+  newNoNewline: boolean;
 }
 
-/**
- * 解析 unified diff 文本。只取行级 hunk;`No newline` 标记、文件头
- * (---/+++)与无法识别的行忽略。没有任何 hunk 时返回空数组。
- */
+/** 解析完整的 unified diff hunk，保留行顺序和文件末尾换行标记。 */
 export function parseUnifiedDiff(diff: string): DiffHunk[] {
   const hunks: DiffHunk[] = [];
-  const lines = diff.split('\n');
   let current: DiffHunk | null = null;
+  let oldCount = 0;
+  let newCount = 0;
+  let lastKind = '';
+  let changed = false;
+  let complete = false;
 
-  for (const line of lines) {
-    const header = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+  const finish = () => {
+    if (current && complete && changed) hunks.push(current);
+    current = null;
+  };
+  for (const line of diff.split('\n')) {
+    const header = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
     if (header) {
+      finish();
+      oldCount = Number(header[2] ?? 1);
+      newCount = Number(header[4] ?? 1);
       current = {
-        oldStart: Number(header[1]),
-        newStart: Number(header[2]),
-        removed: [],
-        added: [],
-        contextBefore: [],
-        contextAfter: [],
+        oldStart: Number(header[1]), newStart: Number(header[3]),
+        removed: [], added: [], contextBefore: [], contextAfter: [],
+        oldSequence: [], newSequence: [], addedOffsets: [],
+        oldNoNewline: false, newNoNewline: false,
       };
-      hunks.push(current);
+      changed = false;
+      complete = oldCount === 0 && newCount === 0;
+      lastKind = '';
       continue;
     }
     if (!current) continue;
-    // 多文件 diff 的文件头(`--- a/x` / `+++ b/x`)以 -/+ 开头,若不显式
-    // 跳过会被吞进当前 hunk 污染锚定(单文件 ContentBlock::Diff 不触发,
-    // 防御粘接/拼接产生的多段 diff)。
-    if (line.startsWith('--- ') || line.startsWith('+++ ')) continue;
-    if (line.startsWith('+')) {
-      current.added.push(line.slice(1));
-    } else if (line.startsWith('-')) {
-      current.removed.push(line.slice(1));
-    } else if (line.startsWith('\\')) {
-      // "\ No newline at end of file" — 忽略。
-    } else if (line.startsWith(' ') || line === '') {
-      // 上下文行(diff 末尾的空行归入上下文;分隔空行会因不在任何 hunk 而跳过)。
-      if (current.added.length > 0 || current.removed.length > 0) {
-        current.contextAfter.push(line.startsWith(' ') ? line.slice(1) : '');
-      } else {
-        current.contextBefore.push(line.startsWith(' ') ? line.slice(1) : '');
-      }
+    if (line.startsWith('\\ No newline at end of file')) {
+      if (lastKind === '-' || lastKind === ' ') current.oldNoNewline = true;
+      if (lastKind === '+' || lastKind === ' ') current.newNoNewline = true;
+      continue;
     }
-  }
-  // 尾部空上下文行多半是 diff 字符串结尾的换行产物,裁掉。
-  for (const h of hunks) {
-    while (h.contextAfter.length > 0 && h.contextAfter[h.contextAfter.length - 1] === '') {
-      h.contextAfter.pop();
+    if (complete) continue;
+    const kind = line[0];
+    if (kind !== ' ' && kind !== '+' && kind !== '-') {
+      current = null;
+      continue;
     }
+    const value = line.slice(1);
+    if (kind !== '+') current.oldSequence.push(value);
+    if (kind !== '-') current.newSequence.push(value);
+    if (kind === '-') { current.removed.push(value); changed = true; }
+    else if (kind === '+') {
+      current.addedOffsets.push(current.newSequence.length - 1);
+      current.added.push(value);
+      changed = true;
+    } else if (changed) current.contextAfter.push(value);
+    else current.contextBefore.push(value);
+    lastKind = kind;
+    if (current.oldSequence.length > oldCount || current.newSequence.length > newCount) {
+      current = null;
+      continue;
+    }
+    complete = current.oldSequence.length === oldCount && current.newSequence.length === newCount;
   }
+  finish();
   return hunks;
 }
 
 /**
- * 在 `content` 中锚定并反转单个 hunk:定位「contextBefore + added +
- * contextAfter」序列,替换为「contextBefore + removed + contextAfter」。
+ * 在 `content` 中唯一锚定新文件行序列并替换为旧文件行序列。
  *
  * 用内容锚定而非行号——agent 连续多次编辑同一文件时,前序 hunk 的拒绝
  * 会使行号漂移;行首空白完全一致的锚点也可能歧义,故只要求序列唯一。
@@ -86,43 +104,18 @@ export function parseUnifiedDiff(diff: string): DiffHunk[] {
 export function applyInverseHunk(content: string, hunk: DiffHunk): string | null {
   const contentLines = splitKeepTrailing(content);
 
-  // 纯删除 hunk:新内容里没有 added 锚点。优先用 hunk 的上下文行做内容
-  // 锚定——oldStart 是「该次编辑前」的行号,若用户先拒绝了更早的 hunk
-  // (行号整体漂移),按行号插回会把删除行放错位置;上下文行仍在当前内容
-  // 中时,锚定与 added hunk 一样可靠。
-  if (hunk.added.length === 0) {
-    if (hunk.removed.length === 0) return null;
-    if (hunk.contextAfter.length > 0) {
-      const positions = findAll(contentLines, hunk.contextAfter);
-      if (positions.length === 1) {
-        const at = positions[0];
-        const next = [...contentLines.slice(0, at), ...hunk.removed, ...contentLines.slice(at)];
-        return joinTrimmingTrailing(next, content);
-      }
-    }
-    if (hunk.contextBefore.length > 0) {
-      const positions = findAll(contentLines, hunk.contextBefore);
-      if (positions.length === 1) {
-        const at = positions[0] + hunk.contextBefore.length;
-        const next = [...contentLines.slice(0, at), ...hunk.removed, ...contentLines.slice(at)];
-        return joinTrimmingTrailing(next, content);
-      }
-    }
-    // 锚定失败退化为行号(旧行为);唯一性已不可证,尽量插回。
-    const insertAt = Math.min(Math.max(hunk.oldStart - 1, 0), contentLines.length);
-    const next = [...contentLines.slice(0, insertAt), ...hunk.removed, ...contentLines.slice(insertAt)];
-    return joinTrimmingTrailing(next, content);
-  }
-
-  const target = [...hunk.contextBefore, ...hunk.added, ...hunk.contextAfter];
-  const replacement = [...hunk.contextBefore, ...hunk.removed, ...hunk.contextAfter];
-
+  const target = hunk.newSequence;
   const positions = findAll(contentLines, target);
   if (positions.length !== 1) return null;
-
   const start = positions[0];
-  const next = [...contentLines.slice(0, start), ...replacement, ...contentLines.slice(start + target.length)];
-  return joinTrimmingTrailing(next, content);
+  const end = start + target.length;
+  const atEof = end === contentLines.length || (end === contentLines.length - 1 && contentLines[end] === '');
+  if ((hunk.oldNoNewline || hunk.newNoNewline) && !atEof) return null;
+  if (hunk.newNoNewline && content.endsWith('\n')) return null;
+  const next = [...contentLines.slice(0, start), ...hunk.oldSequence, ...contentLines.slice(end)];
+  if (hunk.oldNoNewline && next[next.length - 1] === '') next.pop();
+  else if (hunk.newNoNewline && !hunk.oldNoNewline) next.push('');
+  return next.join('\n');
 }
 
 /**
@@ -144,16 +137,6 @@ function splitKeepTrailing(content: string): string[] {
   if (content === '') return [''];
   const lines = content.split('\n');
   return lines;
-}
-
-/** 与 splitKeepTrailing 配对:原内容不带尾换行时,去掉拆分引入的尾空元素。 */
-function joinTrimmingTrailing(lines: string[], original: string): string {
-  if (original !== '' && !original.endsWith('\n') && lines.length > 0 && lines[lines.length - 1] === '') {
-    const copy = [...lines];
-    while (copy.length > 0 && copy[copy.length - 1] === '') copy.pop();
-    return copy.join('\n');
-  }
-  return lines.join('\n');
 }
 
 /** 在行数组中查找 target 序列的所有起始下标。 */
@@ -187,14 +170,15 @@ export function locateHunk(
   content: string,
   hunk: DiffHunk,
 ): { addedStart: number; addedEnd: number } | null {
-  const lines = content.split('\n');
-  if (hunk.added.length === 0) {
-    const at = Math.min(Math.max(hunk.newStart - 1, 0), lines.length);
+  const positions = findAll(content.split('\n'), hunk.newSequence);
+  if (positions.length !== 1) return null;
+  const start = positions[0];
+  if (hunk.addedOffsets.length === 0) {
+    const at = start + hunk.contextBefore.length;
     return { addedStart: at, addedEnd: at };
   }
-  const target = [...hunk.contextBefore, ...hunk.added];
-  const positions = findAll(lines, target);
-  if (positions.length !== 1) return null;
-  const addedStart = positions[0] + hunk.contextBefore.length;
-  return { addedStart, addedEnd: addedStart + hunk.added.length };
+  return {
+    addedStart: start + hunk.addedOffsets[0],
+    addedEnd: start + hunk.addedOffsets[hunk.addedOffsets.length - 1] + 1,
+  };
 }

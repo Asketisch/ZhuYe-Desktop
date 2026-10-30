@@ -110,6 +110,26 @@ describe('StatusBar — token indicator', () => {
   });
 });
 
+describe('StatusBar — 模型降级状态', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    useAgentStore.getState().reset();
+  });
+  afterEach(() => cleanup());
+
+  it('有可用模型但重载失败时显示警告', async () => {
+    mockInvoke('reflect_agent_status', async () => ({
+      ready: true, has_model: true, model: 'openai/old-model',
+      workspace: '/tmp', degraded_reason: 'session rebind failed',
+    }));
+    useAgentStore.setState({ session: { model: 'old-model', provider: 'openai' } });
+    render(wrap(<StatusBar />));
+    const model = await screen.findByText('old-model @ openai');
+    await waitFor(() => expect(model.getAttribute('title')).toBe('session rebind failed'));
+    expect(model.querySelector('[data-kind="warn"]')).not.toBeNull();
+  });
+});
+
 // ===========================================================================
 // OS 沙箱徽标 —— 报的是「真正生效」的状态
 // ===========================================================================
@@ -170,6 +190,6 @@ describe('StatusBar — OS 沙箱徽标', () => {
     });
     const sandbox = screen.getByTestId('statusbar-sandbox');
     // tooltip 是该徽标的兄弟节点(Tooltip 纯 CSS,label 常驻 DOM)。
-    expect(sandbox.parentElement?.textContent).toContain('REFLECT_SANDBOX_OS_LEVEL=0');
+    expect(sandbox.parentElement?.textContent).toContain('ZHUYE_SANDBOX_OS_LEVEL=0');
   });
 });

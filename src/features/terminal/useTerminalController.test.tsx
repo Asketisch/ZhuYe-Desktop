@@ -130,7 +130,7 @@ describe('useTerminalController — exit/error transitions', () => {
     expect(sess?.exitCode).toBe(0);
   });
 
-  it('treats unparseable exit payloads as 0', async () => {
+  it('leaves the exit code unknown for invalid payloads', async () => {
     resetSubscribeMock();
     const run = makeRun([{ id: 's-0', command: 'true', cwd: '/tmp' }]);
     const { result } = renderHook(() =>
@@ -151,7 +151,7 @@ describe('useTerminalController — exit/error transitions', () => {
 
     const sess = result.current.state.sessions.find((s) => s.id === 's-0');
     expect(sess?.status).toBe('exited');
-    expect(sess?.exitCode).toBe(0);
+    expect(sess?.exitCode).toBeUndefined();
   });
 
   it('marks the session errored when an error chunk arrives', async () => {
@@ -254,6 +254,36 @@ describe('useTerminalController — kill', () => {
     });
 
     expect(kill).not.toHaveBeenCalled();
+  });
+});
+
+describe('terminal listener readiness and event ownership', () => {
+  it('waits for the listener, buffers early events, and drops unrelated sessions', async () => {
+    let handler!: ChunkHandler;
+    let finishListen!: (unlisten: () => void) => void;
+    let finishRun!: (session: ReflectShellSession) => void;
+    const subscribe = (h: ChunkHandler) => {
+      handler = h;
+      return new Promise<() => void>((resolve) => { finishListen = resolve; });
+    };
+    const runShell = vi.fn(() => new Promise<ReflectShellSession>((resolve) => { finishRun = resolve; }));
+    const { result } = renderHook(() => useTerminalController({ subscribe, runShell }));
+    let running!: Promise<void>;
+    act(() => { running = result.current.run('cmd'); });
+    expect(runShell).not.toHaveBeenCalled();
+    await act(async () => { finishListen(() => {}); await Promise.resolve(); });
+    expect(runShell).toHaveBeenCalledOnce();
+    act(() => {
+      handler(makeChunk('other', 'stdout', 'unrelated', 1));
+      handler(makeChunk('own', 'stdout', 'hello', 1));
+      handler(makeChunk('own', 'exit', '0', 2));
+    });
+    await act(async () => { finishRun({ id: 'own', command: 'cmd', cwd: '/tmp' }); await running; });
+    expect(result.current.state.lines.other).toBeUndefined();
+    expect(result.current.state.lines.own.map((line) => line.text)).toEqual(['$ cmd', 'cwd: /tmp', 'hello', '0']);
+    expect(result.current.state.sessions[0]).toMatchObject({ status: 'exited', exitCode: 0 });
+    act(() => handler(makeChunk('another', 'stdout', 'ignored', 1)));
+    expect(result.current.state.lines.another).toBeUndefined();
   });
 });
 

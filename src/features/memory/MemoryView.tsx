@@ -2,7 +2,7 @@
  * Memory —— 持久记忆管理面板 (B11-01).
  *
  * 通过 `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory`
- * 与后端同步。支持 scope (global / project / session) 过滤,
+ * 与后端同步。支持 user / project 作用域过滤,
  * 内联编辑 + 删除 + 新增表单。
  *
  * 重构于 2026-07-25：查询/变更编排位于 `useMemoryController`；
@@ -18,6 +18,7 @@ import { reflect_get_active_agent } from '@/utils/commands/agents';
 import { reflect_memory_sections } from '@/utils/commands/runtimeStatus';
 import {
   FILTERS,
+  MEMORY_SECTIONS_QUERY_KEY,
   SCOPE_KEYS,
   entryKey,
   useMemoryController,
@@ -40,16 +41,16 @@ export function MemoryView() {
     staleTime: 30_000,
   });
   const scopes = activeQ.data?.memoryScopes ?? [];
-  const memoryEnabled = scopes.length > 0;
+  const missingScopes = (['project', 'user'] as const).filter((scope) => !scopes.includes(scope));
 
-  // 记忆分段 —— agent 实际注入的是「按 `## ` 切分 + 相关性筛选后」的条目,
-  // 不是整份 MEMORY.md 原文。这里给出分段视图,让用户看到 agent 记住了哪几条。
+  // 保存的候选分段；实际注入还取决于启用的作用域及查询。
   const sectionsQ = useQuery({
-    queryKey: ['memory-sections'],
-    queryFn: () => reflect_memory_sections(),
+    queryKey: [...MEMORY_SECTIONS_QUERY_KEY, ctrl.context],
+    queryFn: () => reflect_memory_sections(ctrl.context!),
+    enabled: ctrl.context !== null,
     staleTime: 10_000,
   });
-  const sections = sectionsQ.data ?? [];
+  const sections = sectionsQ.isError ? [] : sectionsQ.data ?? [];
   const injectBudget = activeQ.data?.injectBudgetChars ?? 0;
   const usedChars = sections.reduce((sum, x) => sum + x.chars, 0);
 
@@ -60,12 +61,13 @@ export function MemoryView() {
       subtitle={t('memory.subtitle')}
       width="lg"
     >
-      {activeQ.data && !memoryEnabled && (
+      {activeQ.data && missingScopes.length > 0 && (
         <Card level="flat" padding="sm" className={s.scopeWarning} data-testid="memory-scope-warning">
           <Icon icon={ShieldAlert} size={12} />
           <span>
             {t('memory.scopeNotDeclared', {
               agent: activeQ.data.name,
+              missing: missingScopes.map((scope) => t(SCOPE_KEYS[scope])).join(', '),
               scopes: activeQ.data.memoryScopes.join(', ') || '—',
             })}
           </span>
@@ -89,6 +91,7 @@ export function MemoryView() {
           type="button"
           className={s.addBtn}
           onClick={ctrl.toggleShowForm}
+          disabled={!ctrl.context}
           data-testid="memory-add-btn"
         >
           {ctrl.showForm ? <Icon icon={X} size={12} /> : <Icon icon={Plus} size={12} />}{' '}
@@ -105,6 +108,7 @@ export function MemoryView() {
           setNewKey={ctrl.setNewKey}
           setNewValue={ctrl.setNewValue}
           onSubmit={() => void ctrl.addNew()}
+          isMutating={ctrl.isMutating}
         />
       )}
 
@@ -137,7 +141,9 @@ export function MemoryView() {
                 key={key}
                 entry={entry}
                 isEditing={ctrl.editingKey === key}
+                hasDraft={ctrl.savedDrafts.some((draft) => entryKey(draft.entry) === key)}
                 editValue={ctrl.editValue}
+                isMutating={ctrl.isMutating}
                 onEdit={() => ctrl.beginEdit(entry)}
                 onChangeEdit={ctrl.setEditValue}
                 onSave={() => void ctrl.saveEdit(entry)}
@@ -149,10 +155,38 @@ export function MemoryView() {
         </div>
       )}
 
+      {!ctrl.loading && !ctrl.error && ctrl.savedDrafts.some((draft) => !ctrl.entries.some((entry) => entryKey(entry) === entryKey(draft.entry))) && (
+        <div data-testid="memory-orphan-draft">
+          <p className={s.empty}>{t('memory.editMissing')}</p>
+          {ctrl.savedDrafts.filter((draft) => !ctrl.entries.some((entry) => entryKey(entry) === entryKey(draft.entry))).map((draft) => (
+            <MemoryRow
+              key={entryKey(draft.entry)}
+              entry={{ ...draft.entry, value: draft.value }}
+              isEditing={ctrl.editingKey === entryKey(draft.entry)}
+              hasDraft
+              removeTitle={t('memory.discardDraft')}
+              editValue={ctrl.editValue}
+              isMutating={ctrl.isMutating}
+              onEdit={() => ctrl.beginEdit(draft.entry)}
+              onChangeEdit={ctrl.setEditValue}
+              onSave={() => void ctrl.saveEdit(draft.entry)}
+              onCancel={ctrl.cancelEdit}
+              onRemove={() => ctrl.discardEdit(draft.entry)}
+            />
+          ))}
+        </div>
+      )}
+
       {/* 会话笔记 —— agent 写下的持久结论(与 memory 的长期记忆互补)。 */}
       <SessionNotes />
 
-      {/* 记忆分段 —— agent 实际注入的条目 + 注入预算占用。 */}
+      {sectionsQ.isError && (
+        <Card level="flat" padding="sm" className={s.notesSection}>
+          <p className={s.empty}>{t('memory.sections.failed')}</p>
+        </Card>
+      )}
+
+      {/* 已保存的记忆分段与注入预算。 */}
       {sections.length > 0 && (
         <section className={s.notesSection} data-testid="memory-sections">
           <h3 className={s.notesTitle}>

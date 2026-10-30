@@ -79,7 +79,7 @@ export function useSessions(
     queryFn: () => reflect_list_archived_sessions(),
     staleTime: SESSIONS_STALE_MS,
   });
-  // 已知项目注册表（~/.reflect/workspaces.json）：空项目组也进侧边栏。
+  // 已知项目注册表（~/.zhuye/workspaces.json）：空项目组也进侧边栏。
   const { data: knownWorkspaces = [] } = useQuery({
     queryKey: WORKSPACES_QUERY_KEY,
     queryFn: () => reflect_list_workspaces(),

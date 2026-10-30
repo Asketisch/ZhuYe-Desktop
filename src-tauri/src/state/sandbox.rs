@@ -7,7 +7,7 @@
 //! - 配置 `[sandbox].os_level` —— 只写盘，不生效（死旋钮）；
 //! - 协议 `ThreadSettingsOverrides.sandbox_policy` —— 从不设置，
 //!   于是 `ToolContext.os_sandbox` 恒为 `None`；
-//! - env `REFLECT_SANDBOX_OS_LEVEL` —— 从不读。
+//! - env `ZHUYE_SANDBOX_OS_LEVEL` —— 从不读。
 //!
 //! 结果是 `ToolContext.os_sandbox = None` → BashTool 走
 //! `OsSandbox::from_env()` → env 未设置时**默认开启**，于是
@@ -26,17 +26,17 @@
 
 use reflect_app_core::sandbox;
 
-/// 进程 env `REFLECT_SANDBOX_OS_LEVEL` 的原始值（若用户显式设过）。
+/// 进程 env `ZHUYE_SANDBOX_OS_LEVEL` 的原始值（若用户显式设过）。
 ///
 /// 存在即表示**用户用 env 覆盖了配置** —— 状态面板要如实标注，
 /// 否则用户在 Settings 里拨了开关却看不到变化，会以为设置失效。
 pub(crate) fn env_override() -> Option<String> {
-    std::env::var("REFLECT_SANDBOX_OS_LEVEL").ok()
+    std::env::var("ZHUYE_SANDBOX_OS_LEVEL").ok()
 }
 
 /// 当前进程**生效**的 OS 沙箱开关。
 ///
-/// env 优先于配置（与核心 CLI 桥接注释一致：`REFLECT_SANDBOX_OS_LEVEL=0`
+/// env 优先于配置（与核心 CLI 桥接注释一致：`ZHUYE_SANDBOX_OS_LEVEL=0`
 /// 可临时覆盖配置）；env 未设置时用配置值（已由
 /// `load_config_with_sandbox_baseline` 归一：未表态 = 基线开启）。
 pub(crate) fn effective_os_sandbox_enabled(cfg_os_level: bool) -> bool {

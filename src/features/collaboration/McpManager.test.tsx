@@ -9,6 +9,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { QueryClientProvider } from '@tanstack/react-query';
 import { McpManager } from './McpManager';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup';
+import { useAgentStore } from '@/stores/agentStore';
 
 function wrap(node: React.ReactNode) {
   return <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>;
@@ -48,6 +49,7 @@ describe('McpManager', () => {
 
   afterEach(() => {
     cleanup();
+    useAgentStore.setState({ mcpServers: [] });
     vi.restoreAllMocks();
   });
 
@@ -57,6 +59,14 @@ describe('McpManager', () => {
     expect(list.textContent).toContain('filesystem');
     expect(list.textContent).toContain('stdio');
     expect(list.textContent).toContain('started');
+  });
+
+  it('prefers the current running state over an older failure event', async () => {
+    useAgentStore.setState({ mcpServers: [{ name: 'filesystem', status: 'failed', detail: 'old failure' }] });
+    render(wrap(<McpManager />));
+    const list = await screen.findByTestId('mcp-server-list');
+    expect(list.textContent).toContain('started');
+    expect(list.textContent).not.toContain('old failure');
   });
 
   it('adds a stdio server through the form', async () => {
@@ -93,5 +103,46 @@ describe('McpManager', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mcp-server-list')).toBeDefined();
     });
+  });
+
+  it('preserves quoted arguments and Windows paths as separate argv values', async () => {
+    const invoke = vi.fn(async (_cmd: string, _value: { entry: { args: string[] } }) => undefined);
+    mockInvoke('reflect_upsert_mcp_server', invoke);
+    render(wrap(<McpManager />));
+    fireEvent.click(screen.getByTestId('mcp-add-toggle'));
+    fireEvent.change(screen.getByTestId('mcp-name-input'), { target: { value: 'example' } });
+    fireEvent.change(screen.getByTestId('mcp-command-input'), { target: { value: 'node' } });
+    fireEvent.change(screen.getByTestId('mcp-args-input'), {
+      target: { value: `"path with spaces" '' C:\\Users\\name "\\\\server\\share"` },
+    });
+    fireEvent.click(screen.getByTestId('mcp-add-submit'));
+    await waitFor(() => expect(invoke).toHaveBeenCalled());
+    expect(invoke.mock.calls[0][1].entry.args).toEqual(['path with spaces', '', 'C:\\Users\\name', '\\\\server\\share']);
+  });
+
+  it('rejects unclosed quotes without sending a request', async () => {
+    const invoke = vi.fn(async () => undefined);
+    mockInvoke('reflect_upsert_mcp_server', invoke);
+    render(wrap(<McpManager />));
+    fireEvent.click(screen.getByTestId('mcp-add-toggle'));
+    fireEvent.change(screen.getByTestId('mcp-name-input'), { target: { value: 'example' } });
+    fireEvent.change(screen.getByTestId('mcp-args-input'), { target: { value: '"missing end' } });
+    fireEvent.click(screen.getByTestId('mcp-add-submit'));
+    expect(screen.getByRole('alert').textContent).toContain('quotation');
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('displays delete failures and refreshes the list after a partial failure', async () => {
+    let present = true;
+    mockInvoke('reflect_list_mcp_servers', async () => present ? SERVERS : []);
+    mockInvoke('reflect_delete_mcp_server', async () => {
+      present = false;
+      throw { msg: 'stop failed after configuration changed' };
+    });
+    render(wrap(<McpManager />));
+    await screen.findByTestId('mcp-server-list');
+    fireEvent.click(screen.getByTestId('mcp-delete-filesystem'));
+    expect((await screen.findByRole('alert')).textContent).toContain('stop failed after configuration changed');
+    await waitFor(() => expect(screen.queryByTestId('mcp-server-list')).toBeNull());
   });
 });

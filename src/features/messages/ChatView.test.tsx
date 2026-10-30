@@ -12,9 +12,11 @@ import { mockInvoke, resetMockInvoke, createTestQueryClient } from '@/test/setup
 import { useAgentStore } from '@/stores/agentStore';
 import { I18nProvider, saveLocale } from '@/utils/i18n';
 
+const { navigateSpy } = vi.hoisted(() => ({ navigateSpy: vi.fn() }));
+
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ sessionId: window.__chatTestSessionId }),
-  useNavigate: () => () => {},
+  useNavigate: () => navigateSpy,
   useLocation: () => ({ pathname: window.__chatTestPath ?? '/chat' }),
 }));
 
@@ -26,6 +28,7 @@ declare global {
 }
 
 import { ChatView } from './ChatView';
+import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
 
 // 真实 rollout 线格式:reflect_protocol::RolloutRecord tagged union。
 const T1 = '075f8a83-d84b-4f9d-93eb-9c428881bb43';
@@ -52,6 +55,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('ChatView', () => {
   beforeEach(() => {
     resetMockInvoke();
+    navigateSpy.mockClear();
     // v1.x:ChatView 加载序列第一步是 bind;默认 mock 为 no-op
     // (resetMockInvoke 会清掉 setup 里的默认 mock,需在本文件重注册)。
     mockInvoke('reflect_bind_session', async () => 'auto');
@@ -103,6 +107,20 @@ describe('ChatView', () => {
     expect(screen.queryByText(/^Loading session…$/)).toBeNull();
   });
 
+  it('clears old interactions before the new backend bind finishes', async () => {
+    let finish!: (mode: string) => void;
+    mockInvoke('reflect_bind_session', () => new Promise<string>((resolve) => { finish = resolve; }));
+    useAgentStore.setState({ loadedSessionId: 'old', pendingApprovals: [
+      { id: 'approval', kind: 'tool', turnId: 'turn' },
+    ] });
+    window.__chatTestSessionId = 'new';
+    window.__chatTestPath = '/chat/new';
+    renderWithProviders(<ChatView />);
+    await waitFor(() => expect(finish).toBeDefined());
+    expect(useAgentStore.getState().pendingApprovals).toEqual([]);
+    await act(async () => { finish('auto'); });
+  });
+
   it('shows empty session state when replay returns no records', async () => {
     mockInvoke('reflect_replay_session', async () => []);
     window.__chatTestSessionId = 'sess-empty';
@@ -148,6 +166,22 @@ describe('ChatView', () => {
     });
   });
 
+  it('does not navigate away when an old session fork completes', async () => {
+    let finish!: (id: string) => void;
+    mockInvoke('reflect_fork_session', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    window.__chatTestSessionId = 'sess-42';
+    window.__chatTestPath = '/chat/sess-42';
+    const view = renderWithProviders(<ChatView />);
+    fireEvent.click(await screen.findByTestId('chat-fork'));
+    await waitFor(() => expect(finish).toBeDefined());
+    window.__chatTestSessionId = 'other';
+    window.__chatTestPath = '/chat/other';
+    view.rerender(<I18nProvider><QueryClientProvider client={createTestQueryClient()}><ChatView /></QueryClientProvider></I18nProvider>);
+    await act(async () => { finish('child'); });
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
   it('forks up to a specific turn from the per-turn fork button', async () => {
     mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
     const forkCalls: Array<{ id?: string; branch?: string; upToTurnId?: string }> = [];
@@ -180,6 +214,22 @@ describe('ChatView', () => {
       expect(toasts.length).toBe(1);
       expect(toasts[0].message).toContain('child-2');
     });
+  });
+
+  it('does not rewind a different session after a delayed confirmation', async () => {
+    const rewind = vi.fn(async () => 'ok');
+    mockInvoke('reflect_rewind', rewind);
+    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    window.__chatTestSessionId = 'sess-42';
+    window.__chatTestPath = '/chat/sess-42';
+    const view = renderWithProviders(<><ChatView /><ConfirmDialogHost /></>);
+    fireEvent.click(await screen.findByTestId(`turn-rewind-${T1}`));
+    const confirm = await screen.findByTestId('confirm-dialog-confirm');
+    window.__chatTestSessionId = 'other';
+    window.__chatTestPath = '/chat/other';
+    view.rerender(<I18nProvider><QueryClientProvider client={createTestQueryClient()}><ChatView /><ConfirmDialogHost /></QueryClientProvider></I18nProvider>);
+    await act(async () => { fireEvent.click(confirm); });
+    expect(rewind).not.toHaveBeenCalled();
   });
 
   it('shows localized error and recovers via Retry button', async () => {

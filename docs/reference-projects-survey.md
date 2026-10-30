@@ -767,7 +767,7 @@ reflect_search_files / set_dock_badge
 | 持久记忆分类 | ✅ reflect-memory | thClaws | `crates/core/src/memory.rs` | user/feedback/project/reference |
 | AGENTS.md 注入 | ✅ | thClaws / 所有 | `crates/core/src/instructions.rs` | 从 cwd 向上走 |
 | Hierarchical memory(全局/项目/本地) | ⚠️ | Reasonix | REASONIX.md 体系 | global/project/local + `@path` 导入 |
-| KMS(grep-based wiki) | ✅ Phase 3 第 12 项已落地 | thClaws | `app-core/src/kms.rs` + `commands/kms.rs` + `features/kms/` | `~/.reflect/kms/<name>/pages/*.md` + 搜索 + /dream |
+| KMS(grep-based wiki) | ✅ Phase 3 第 12 项已落地 | thClaws | `app-core/src/kms.rs` + `commands/kms.rs` + `features/kms/` | `~/.zhuye/kms/<name>/pages/*.md` + 搜索 + /dream |
 | /dream(会话挖掘) | ✅ Phase 3 第 12 项已落地 | thClaws | `app-core/src/kms.rs::dream()` + `commands/kms.rs::reflect_dream` | 后台挖近期会话写 audit-trail |
 | Skill(SKILL.md frontmatter) | ✅ | thClaws / goose | `vendor/reflect-skills/` + goose `skills/` | 文件夹 + YAML |
 | Plugin(打包 skill+cmd+agent+mcp) | ❌ | thClaws | `crates/core/src/plugins.rs` | 单 manifest |
@@ -871,7 +871,7 @@ reflect_search_files / set_dock_badge
    - **未实现**(留给后续):agent 与人同构的评论/订阅 channel(vendor reflect-task 的 `subscriptions` 字段已留位)。
 
 9. **Inbox + Activity timeline + @mention 触发**(参考 multica `packages/core/{inbox,github}/`) — ✅ **Phase 3 第 9 项已落地**
-   - ✅ `app-core/src/activity.rs`:`ActivityLogger` ring buffer (cap 500) + JSONL 1MB rotate 到 `~/.reflect/activity/`。
+   - ✅ `app-core/src/activity.rs`:`ActivityLogger` ring buffer (cap 500) + JSONL 1MB rotate 到 `~/.zhuye/activity/`。
    - ✅ `src-tauri/src/state/activity.rs`:独立 broadcast subscriber 把每个 `Event` 映射成 `ActivityEvent`(filter 掉高频 delta/routing,只留有信息量的事件)。
    - ✅ `src-tauri/src/commands/activity.rs`:4 个命令(`reflect_list_activity` / `reflect_search_activity` / `reflect_clear_activity` / `reflect_activity_count`)。
    - ✅ `src/features/notifications/NotificationsView.tsx`:三 tab —— **Inbox**(现有 store 派生 pending) / **Activity**(level 过滤 + clear buffer) / **Mentions**(`@<query>` 输入 + 搜索)。

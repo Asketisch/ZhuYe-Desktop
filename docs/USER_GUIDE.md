@@ -81,7 +81,7 @@ git submodule update --remote reflect-agent
 ## 6. 从 ReflectAgent 的 TUI 切换
 
 `reflect tui`（在 `Reflect-Agent` 仓库中）和 `reflect-desktop`（本仓库）
-共享相同的 `~/.reflect/sessions/` JSONL 存储、相同的模型
+共享相同的 `~/.zhuye/sessions/` JSONL 存储、相同的模型
 注册表和相同的 MCP 服务器。你可以来回切换
 而不丢失状态。
 
@@ -99,7 +99,7 @@ git submodule update --remote reflect-agent
 - **`binary not found: .../target/release/reflect-desktop`** —— 先运行
   `pnpm tauri build --bundles app`。
 
-- **`Permission denied for ~/.reflect/sessions/`** —— `chmod 700 ~/.reflect`。
+- **`Permission denied for ~/.zhuye/sessions/`** —— `chmod 700 ~/.zhuye`。
 
 - **Linux 上应用图标缺失** —— 安装 `libgtk-3-dev` + `libwebkit2gtk-4.1-dev`
   或遵循 Tauri 的 Linux 前置条件。

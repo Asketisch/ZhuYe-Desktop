@@ -6,12 +6,11 @@
  * | 作用域 | 来源 | 优先级 |
  * |---|---|---|
  * | `config` | `config.toml` 的 `[permissions]` 段 | 最高 |
- * | `project` | `<workspace>/.reflect/permissions.toml` | 中 |
- * | `user` | `~/.reflect/permissions.toml` | 最低 |
+ * | `project` | `<workspace>/.zhuye/permissions.toml` | 中 |
+ * | `user` | `~/.zhuye/permissions.toml` | 最低 |
  *
- * 匹配语义是 **first-match-wins**:数组里靠前的规则先生效,deny 优先于
- * allow。因此这里按后端返回的顺序原样渲染,不做重排 —— 重排会误导用户
- * 判断「哪条先命中」。
+ * 匹配的 deny 优先于 allow / ask；其余匹配结果按数组顺序决定。
+ * 这里按后端返回的顺序原样渲染，避免误导用户判断规则。
  *
  * 本区块**只读**:改写规则仍走 config.toml / permissions.toml 手改
  * (与 CLI 一致,避免 GUI 写出的文件与手改格式漂移)。

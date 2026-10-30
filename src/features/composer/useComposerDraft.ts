@@ -2,8 +2,7 @@
  * useComposerDraft —— 按会话持久化 Composer 草稿（F）。
  *
  * key = `reflect.draft.<sessionId>`（新对话页用 `__new__`）。输入即写
- * localStorage；切换会话自动载入对应草稿，发送后由调用方 setText('')
- * / clearDraft 清除。此前草稿是组件内 useState，切会话/刷新即丢。
+ * localStorage；切换会话自动载入对应草稿，发送成功后清除对应草稿。此前草稿是组件内 useState，切会话/刷新即丢。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -98,5 +97,14 @@ export function useComposerDraft(sessionId: string | null | undefined, options?:
     setTextState('');
   }, []);
 
-  return { text, setText, clearDraft };
+  /** 仅清除仍与本次提交一致的草稿；跨路由卸载后也清理原会话的持久化值。 */
+  const clearSubmittedDraft = useCallback((expected: string, session: string | null) => {
+    const key = draftKeyFor(session);
+    try {
+      if (window.localStorage.getItem(key) === expected) window.localStorage.removeItem(key);
+    } catch { /* 存储不可用时仍清理内存状态 */ }
+    if (keyRef.current === key) setTextState((current) => current === expected ? '' : current);
+  }, []);
+
+  return { text, setText, clearDraft, clearSubmittedDraft };
 }

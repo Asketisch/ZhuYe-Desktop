@@ -388,7 +388,7 @@ crates/reflect-gui/src/
     "fs": {
       "scope": [
         "$APPDATA/reflect/**",
-        "$HOME/.reflect/**",
+        "$HOME/.zhuye/**",
         "$WORKSPACE/**"
       ]
     },
@@ -532,7 +532,7 @@ pub async fn reflect_list_sessions(
     state: State<'_, AppState>,
 ) -> Result<Vec<SessionInfo>, String> {
     let home = dirs::home_dir().ok_or("no home")?;
-    let base = home.join(".reflect/sessions");
+    let base = home.join(".zhuye/sessions");
     Ok(reflect_rollout::index::list_sessions(&base))
 }
 
@@ -543,7 +543,7 @@ pub async fn reflect_rename_session(
     new_name: String,
 ) -> Result<(), String> {
     let home = dirs::home_dir().ok_or("no home")?;
-    let base = home.join(".reflect/sessions");
+    let base = home.join(".zhuye/sessions");
     reflect_rollout::index::rename_session(&base, &id, &new_name)
         .map_err(|e| e.to_string())
 }

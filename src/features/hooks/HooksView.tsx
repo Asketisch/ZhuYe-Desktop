@@ -1,12 +1,9 @@
 /**
  * HooksView —— Hook 管理（P3：命令早已有，此前无任何 UI 消费）。
  *
- * 列出后端 HookRegistry 的全部 hook（内置 read_before_edit /
- * plan_mode_gate / 用户自定义），支持逐条启用/禁用（`reflect_toggle_hook`，
- * 后端即时生效）与刷新。新增/编辑自定义 hook 仍走 Settings → Provider 的
- * ConfigForm（`[hooks]` TOML 段）—— 这里只做运行时启停面板。
+ * 列出运行中引擎已注册的 hook，支持启用、禁用和刷新。
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Webhook, RefreshCw } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, Spinner, EmptyState, Button } from '@/features/design-system';
@@ -24,14 +21,17 @@ export function HooksView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingName, setPendingName] = useState<string | null>(null);
+  const pending = useRef(false);
+  const refreshRevision = useRef(0);
 
   const refresh = useCallback(() => {
+    const revision = ++refreshRevision.current;
     setLoading(true);
     setError(null);
     reflect_list_hooks()
-      .then((list) => setHooks(list))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false));
+      .then((list) => { if (refreshRevision.current === revision) setHooks(list); })
+      .catch((e: unknown) => { if (refreshRevision.current === revision) setError(errorMessage(e)); })
+      .finally(() => { if (refreshRevision.current === revision) setLoading(false); });
   }, []);
 
   useEffect(() => {
@@ -39,15 +39,17 @@ export function HooksView() {
   }, [refresh]);
 
   const toggle = async (hook: ReflectHookInfo) => {
-    if (pendingName) return;
+    if (pending.current) return;
+    pending.current = true;
     setPendingName(hook.name);
     try {
       await reflect_toggle_hook(hook.name, !hook.enabled);
-      setHooks((prev) => prev.map((h) => (h.name === hook.name ? { ...h, enabled: !h.enabled } : h)));
+      refresh();
     } catch (e) {
-      pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+      pushToast({ kind: 'error', message: errorMessage(e) });
     } finally {
       setPendingName(null);
+      pending.current = false;
     }
   };
 
@@ -57,7 +59,7 @@ export function HooksView() {
         <span className={s.summary}>
           {t('hooks.enabledCount', { enabled: hooks.filter((h) => h.enabled).length, total: hooks.length })}
         </span>
-        <Button size="sm" variant="secondary" onClick={refresh} disabled={loading} leftIcon={<Icon icon={RefreshCw} size={13} />} data-testid="hooks-refresh">
+        <Button size="sm" variant="secondary" onClick={refresh} disabled={loading || pendingName !== null} leftIcon={<Icon icon={RefreshCw} size={13} />} data-testid="hooks-refresh">
           {t('git.refresh')}
         </Button>
       </div>
@@ -97,7 +99,7 @@ export function HooksView() {
                   <input
                     type="checkbox"
                     checked={hook.enabled}
-                    disabled={pendingName === hook.name}
+                    disabled={pendingName !== null}
                     onChange={() => void toggle(hook)}
                     aria-label={`${hook.enabled ? t('hooks.disable') : t('hooks.enable')}: ${hook.name}`}
                     data-testid={`hook-toggle-${hook.name}`}
@@ -113,4 +115,11 @@ export function HooksView() {
       <HookEventsPanel />
     </PageShell>
   );
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg;
+  return String(error);
 }

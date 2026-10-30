@@ -3,7 +3,7 @@
 #
 # 所有 tests/ 下的脚本 source 本文件,获得:
 #   - 仓库根 / 产物定位(TESTS_DIR / ROOT / DIST_DIR);
-#   - 隔离环境:mktemp HOME + 独立 cwd,不污染真实 ~/.reflect;
+#   - 隔离环境:mktemp HOME + 独立 cwd,不污染真实 ~/.zhuye;
 #   - 断言助手(assert_* / tcase / tfinish);
 #   - 便携超时(macOS 无 timeout/gtimeout,用后台 pid + kill 模拟);
 #   - 用例统计与失败汇总,以及供发布审查报告消费的逐套件结果落盘。
@@ -324,13 +324,13 @@ run_with_timeout() {
 # ── 隔离环境 ────────────────────────────────────────────────────────────────
 # make_isolated_env:创建并进入隔离环境,设置:
 #   ISO_HOME / ISO_CWD(导出 HOME、cd 进去)
-#   预写 ~/.reflect/config.toml —— 空配置,关掉全部内置 hook。
-#   真实后端命令读写 `~/.reflect/*`;不隔离就会污染开发者真实会话与记忆。
+#   预写 ~/.zhuye/config.toml —— 空配置,关掉全部内置 hook。
+#   真实后端命令读写 `~/.zhuye/*`;不隔离就会污染开发者真实会话与记忆。
 make_isolated_env() {
     ISO_HOME="$(mktemp -d "${TMPDIR:-/tmp}/reflect-desktop-test-home.XXXXXX")"
     ISO_CWD="$(mktemp -d "${TMPDIR:-/tmp}/reflect-desktop-test-cwd.XXXXXX")"
-    mkdir -p "$ISO_HOME/.reflect"
-    cat > "$ISO_HOME/.reflect/config.toml" <<'EOF'
+    mkdir -p "$ISO_HOME/.zhuye"
+    cat > "$ISO_HOME/.zhuye/config.toml" <<'EOF'
 # 测试用最小配置:关闭全部内置 hook(能力覆盖层只验行为语义,不验 hook 计时)
 [hooks]
 enabled = []

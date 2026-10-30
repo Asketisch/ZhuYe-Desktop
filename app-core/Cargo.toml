@@ -45,3 +45,7 @@ anyhow      = { workspace = true }
 # pipeline TOML 校验(结构摘要:只读顶层 `nodes` 表,字段语义交核心校验)
 toml        = { workspace = true }
 tempfile    = "3"
+uuid        = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1.1", features = ["fs"] }

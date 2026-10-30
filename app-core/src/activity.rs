@@ -13,7 +13,7 @@
 //! ## 存储
 //!
 //! - 内存：`VecDeque` 环形缓冲，cap = [`CAP_INMEMORY`]，LRU 驱逐最旧。
-//! - 磁盘：`~/.reflect/activity/activity.jsonl` 追加写入；单文件超过
+//! - 磁盘：`~/.zhuye/activity/activity.jsonl` 追加写入；单文件超过
 //!   [`ROTATE_BYTES`] 时 rotate 为 `activity.<ts>.jsonl` 并开启新文件。
 //!
 //! ## 线程安全
@@ -291,11 +291,9 @@ impl ActivityLogger {
         }
     }
 
-    /// 默认 home:`~/.reflect/activity/`。
+    /// 默认 home:`~/.zhuye/activity/`。
     pub fn with_default_home() -> Self {
-        let root = dirs::home_dir()
-            .map(|h| h.join(".reflect").join("activity"))
-            .unwrap_or_else(|| PathBuf::from(".reflect/activity"));
+        let root = crate::paths::user_data_path_or_relative(&["activity"]);
         Self::new(root)
     }
 
@@ -402,15 +400,13 @@ impl ActivityLogger {
     fn persist_locked(&self, inner: &mut Inner, event: &ActivityEvent) -> ActivityResult<()> {
         // 轮转判定（先于 open，确保新事件进新文件）。
         if inner.file.is_some() && inner.written_bytes >= ROTATE_BYTES {
-            // flush 并 drop 旧 writer，然后 rename。
+            // drop 旧 writer（内部会尝试 flush），然后 rename。
             if let Some(mut w) = inner.file.take() {
-                let _ = w.flush();
+                w.flush().map_err(ActivityError::io)?;
             }
             let cur = self.root.join("activity.jsonl");
-            let backup = self
-                .root
-                .join(format!("activity.{}.jsonl", now_ms() / 1000));
-            let _ = std::fs::rename(&cur, &backup);
+            // 备份名必须未被占用：同一秒内二次轮转若直接 rename 会静默覆盖旧备份。
+            std::fs::rename(&cur, self.backup_path(now_ms())).map_err(ActivityError::io)?;
             inner.written_bytes = 0;
         }
         // 延迟打开。
@@ -427,12 +423,36 @@ impl ActivityLogger {
         // 写一行 JSON。
         let line = serde_json::to_string(event).map_err(ActivityError::ser)?;
         let writer = inner.file.as_mut().expect("file just opened");
-        writer
+        let wrote = writer
             .write_all(line.as_bytes())
-            .map_err(ActivityError::io)?;
-        writer.write_all(b"\n").map_err(ActivityError::io)?;
+            .and_then(|()| writer.write_all(b"\n"))
+            // 审计日志逐条落盘：BufWriter 只在缓冲区满或 drop 时 flush，
+            // 进程被杀就会丢掉最近若干条记录。
+            .and_then(|()| writer.flush());
+        if let Err(e) = wrote {
+            // 丢弃可能含半行的缓冲，下一条重新 open（append 模式不会截断）。
+            inner.file = None;
+            return Err(ActivityError::io(e));
+        }
         inner.written_bytes += line.len() as u64 + 1;
         Ok(())
+    }
+
+    /// `activity.<ms>.jsonl`；若已存在则追加 `-<n>` 直到未被占用。
+    fn backup_path(&self, stamp: u64) -> PathBuf {
+        let mut suffix = 0_u32;
+        loop {
+            let name = if suffix == 0 {
+                format!("activity.{stamp}.jsonl")
+            } else {
+                format!("activity.{stamp}-{suffix}.jsonl")
+            };
+            let candidate = self.root.join(name);
+            if !candidate.exists() {
+                return candidate;
+            }
+            suffix += 1;
+        }
     }
 }
 
@@ -650,5 +670,32 @@ mod tests {
         assert!(v["tsMs"].is_number());
         assert_eq!(v["kind"], "task_created");
         assert_eq!(v["level"], "info");
+    }
+
+    /// 磁盘路径必须有测试覆盖：`record` 之后从新句柄读文件，
+    /// 能证明行已落盘（而不是留在 BufWriter 缓冲里）。
+    #[test]
+    fn record_persists_line_to_disk_immediately() {
+        let dir = tempfile::tempdir().unwrap();
+        let l = ActivityLogger::new(dir.path().to_path_buf());
+        l.record(ev(ActivityKind::TurnStarted, "hi", Actor::user()))
+            .unwrap();
+        let raw = std::fs::read_to_string(dir.path().join("activity.jsonl")).unwrap();
+        let line = raw.trim_end();
+        let v: serde_json::Value = serde_json::from_str(line).unwrap();
+        assert_eq!(v["summary"], "hi");
+        assert_eq!(v["kind"], "turn_started");
+    }
+
+    /// 轮转备份名不得复用：同毫秒内二次轮转若覆盖旧备份即静默丢审计。
+    #[test]
+    fn backup_path_never_reuses_an_existing_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let l = ActivityLogger::new(dir.path().to_path_buf());
+        let first = l.backup_path(1_700_000_000_000);
+        std::fs::write(&first, b"x").unwrap();
+        let second = l.backup_path(1_700_000_000_000);
+        assert_ne!(first, second);
+        assert!(!second.exists());
     }
 }

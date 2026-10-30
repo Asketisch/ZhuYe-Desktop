@@ -52,3 +52,46 @@ describe('store.submit — Submission.workspace 线格式', () => {
     expect(sent[1]).not.toHaveProperty('workspace');
   });
 });
+
+describe('goal snapshot session lifecycle', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    useAgentStore.getState().reset();
+  });
+
+  it('ignores a snapshot that returns after the session is cleared', async () => {
+    let resolveSnapshot!: (value: unknown) => void;
+    mockInvoke('reflect_goal_snapshot', () => new Promise((resolve) => {
+      resolveSnapshot = resolve;
+    }));
+    useAgentStore.getState().setGoalActive(true);
+    const pending = useAgentStore.getState().syncGoalSnapshot();
+    useAgentStore.getState().clearSession!();
+    resolveSnapshot({ objective: 'old session' });
+    await pending;
+    expect(useAgentStore.getState().goalActive).toBe(false);
+    expect(useAgentStore.getState().goalSnapshot).toBeNull();
+  });
+});
+
+
+describe('session-scoped interactions', () => {
+  beforeEach(() => { resetMockInvoke(); useAgentStore.getState().reset(); });
+
+  it('clears old interactions on session change but preserves them on same-session replay', () => {
+    useAgentStore.setState({
+      loadedSessionId: 'old',
+      pendingApprovals: [{ id: 'a', kind: 'tool', turnId: 't' }],
+      pendingQuestions: [{ id: 'q', payload: {}, turnId: 't' }],
+      pendingAskUser: [{ id: 'i', payload: {}, turnId: 't' }],
+      pendingPlan: { id: 'p', payload: {}, turnId: 't' },
+    });
+    useAgentStore.getState().hydrateSession!('old', []);
+    expect(useAgentStore.getState().pendingApprovals).toHaveLength(1);
+    useAgentStore.getState().hydrateSession!('new', []);
+    expect(useAgentStore.getState().pendingApprovals).toEqual([]);
+    expect(useAgentStore.getState().pendingQuestions).toEqual([]);
+    expect(useAgentStore.getState().pendingAskUser).toEqual([]);
+    expect(useAgentStore.getState().pendingPlan).toBeNull();
+  });
+});

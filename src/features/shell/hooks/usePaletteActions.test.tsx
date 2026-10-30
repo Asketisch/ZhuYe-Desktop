@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 import { usePaletteActions, type PaletteToasts } from './usePaletteActions';
 import { useAgentStore } from '@/stores/agentStore';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
+import { reflect_delete_session } from '@/utils/commands';
 
 // clearAllSessions 有二次确认(ConfirmDialog);测试中自动确认。
 vi.mock('@/features/modals/ConfirmDialog', () => ({
@@ -34,6 +35,7 @@ const TOASTS: PaletteToasts = {
   clearedSessionsLabel: 'Clear all sessions',
   clearAllConfirm: (count) => `Delete ${count} sessions?`,
   deleteFailed: (msg) => `Delete failed: ${msg}`,
+  listSessionsFailed: (msg) => `Unable to load sessions: ${msg}`,
   clearedSessions: (count) => `Cleared ${count} session(s).`,
   noActiveToExport: 'No active session to export.',
   exported: (path) => `Exported → ${path}`,
@@ -54,6 +56,7 @@ function wrapper(qc: QueryClient) {
 describe('usePaletteActions', () => {
   let qc: QueryClient;
   let onNewChat: () => void;
+  let onDeleteSession: (id: string) => Promise<void>;
 
   beforeEach(() => {
     resetMockInvoke();
@@ -62,6 +65,7 @@ describe('usePaletteActions', () => {
       defaultOptions: { queries: { retry: false } },
     });
     onNewChat = vi.fn();
+    onDeleteSession = vi.fn((id: string) => reflect_delete_session(id));
   });
   afterEach(() => {
     resetMockInvoke();
@@ -72,7 +76,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -91,7 +95,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -112,7 +116,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: 'sess-1',
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -139,7 +143,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: 'sess-1',
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -161,7 +165,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: 'sess-1',
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -184,7 +188,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -205,7 +209,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: 'sess-1',
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -222,7 +226,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -242,7 +246,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -261,7 +265,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -290,6 +294,7 @@ describe('usePaletteActions', () => {
         usePaletteActions({
           activeId: null,
           onNewChat: localNewChat,
+          onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -312,7 +317,7 @@ describe('usePaletteActions', () => {
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -321,6 +326,8 @@ describe('usePaletteActions', () => {
       await result.current.clearAllSessions();
     });
     expect(delSpy).toHaveBeenCalledTimes(3);
+    expect(onDeleteSession).toHaveBeenCalledTimes(3);
+    expect(onDeleteSession).toHaveBeenCalledWith('sess-1');
     expect(delSpy).toHaveBeenCalledWith(
       'reflect_delete_session',
       expect.objectContaining({ id: 'sess-1' }),
@@ -340,13 +347,25 @@ describe('usePaletteActions', () => {
     });
   });
 
+  it('clearAllSessions fetches a fresh list even when the cache is still fresh', async () => {
+    qc.setQueryDefaults(['sessions'], { staleTime: 60_000 });
+    qc.setQueryData(['sessions'], [{ session_id: 'old' }]);
+    mockInvoke('reflect_list_sessions', async () => [{ session_id: 'current' }]);
+    const remove = vi.fn(async () => undefined);
+    mockInvoke('reflect_delete_session', remove);
+    const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
+    await act(async () => { await result.current.clearAllSessions(); });
+    expect(remove).toHaveBeenCalledWith('reflect_delete_session', { id: 'current' });
+    expect(remove).not.toHaveBeenCalledWith('reflect_delete_session', { id: 'old' });
+  });
+
   it('clearAllSessions: empty list → info toast', async () => {
     mockInvoke('reflect_list_sessions', async () => []);
     const { result } = renderHook(
       () =>
         usePaletteActions({
           activeId: null,
-          onNewChat,
+          onNewChat, onDeleteSession,
           toasts: TOASTS,
         }),
       { wrapper: wrapper(qc) },
@@ -356,5 +375,42 @@ describe('usePaletteActions', () => {
     });
     const toasts = useAgentStore.getState().toasts;
     expect(toasts[toasts.length - 1].message).toBe('No sessions to clear.');
+  });
+
+  it('clearAllSessions reports the actual number deleted and structured errors', async () => {
+    mockInvoke('reflect_list_sessions', async () => [{ session_id: 'one' }, { session_id: 'two' }]);
+    mockInvoke('reflect_delete_session', async (_cmd, args) => {
+      if (args?.id === 'two') throw { msg: 'permission denied' };
+    });
+    const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
+    await act(async () => { await result.current.clearAllSessions(); });
+    const toasts = useAgentStore.getState().toasts;
+    expect(toasts.some((toast) => toast.kind === 'error' && toast.message.includes('permission denied'))).toBe(true);
+    expect(toasts.some((toast) => toast.message === 'Cleared 1 session(s).')).toBe(true);
+    expect(toasts.some((toast) => toast.message === 'Cleared 2 session(s).')).toBe(false);
+  });
+
+  it('clearAllSessions reports a list failure instead of rejecting silently', async () => {
+    mockInvoke('reflect_list_sessions', async () => { throw { msg: 'disk unavailable' }; });
+    const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
+    await act(async () => { await result.current.clearAllSessions(); });
+    expect(useAgentStore.getState().toasts.some((toast) => toast.kind === 'error' && toast.message.includes('disk unavailable'))).toBe(true);
+  });
+
+  it('clearAllSessions does not announce success when every deletion fails', async () => {
+    mockInvoke('reflect_list_sessions', async () => [{ session_id: 'one' }]);
+    mockInvoke('reflect_delete_session', async () => { throw { msg: 'read-only' }; });
+    const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
+    await act(async () => { await result.current.clearAllSessions(); });
+    const toasts = useAgentStore.getState().toasts;
+    expect(toasts.some((toast) => toast.kind === 'error' && toast.message.includes('read-only'))).toBe(true);
+    expect(toasts.some((toast) => toast.kind === 'success')).toBe(false);
+  });
+
+  it('exportActive displays structured backend errors', async () => {
+    mockInvoke('reflect_export_session', async () => { throw { msg: 'disk full' }; });
+    const { result } = renderHook(() => usePaletteActions({ activeId: 'one', onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
+    await act(async () => { await result.current.exportActive(); });
+    expect(useAgentStore.getState().toasts.at(-1)?.message).toBe('Export failed: disk full');
   });
 });

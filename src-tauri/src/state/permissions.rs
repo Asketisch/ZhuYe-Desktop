@@ -3,11 +3,11 @@
 //! ## 为什么桌面端必须装
 //!
 //! 核心的权限规则(`reflect-permissions`)决定工具调用是否被拒。CLI 装了
-//! 三层链式 store,**更具体的作用域在前**(first-match-wins):
+//! 三层链式 store,更具体的作用域在前；匹配的 deny 优先于其他规则:
 //!
 //! 1. `config.toml` 的 `[permissions]` 段(会话级,只读)
-//! 2. `<workspace>/.reflect/permissions.toml`(项目级,随工作区签入)
-//! 3. `~/.reflect/permissions.toml`(用户级,可写 —— `/permissions allow` 落盘处)
+//! 2. `<workspace>/.zhuye/permissions.toml`(项目级,随工作区签入)
+//! 3. `~/.zhuye/permissions.toml`(用户级,可写 —— `/permissions allow` 落盘处)
 //!
 //! 桌面端此前**没有**挂解析器(`AgentConfig::with_permission_resolver` 未调用,
 //! `yolo_classifier` 也为 None):同一份配置在 CLI 里生效的 `deny` 规则,到了
@@ -32,32 +32,71 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use reflect_core::AgentConfig;
 use reflect_permissions::{
     ChainedPermissionStore, FilePermissionStore, HeuristicYoloClassifier, InMemoryPermissionStore,
-    PermissionResolver, PermissionStore, StorePermissionResolver,
+    PermissionResolver, PermissionStore, RuleMatch, evaluate_with_context,
 };
 use tracing::warn;
+
+/// 桌面端权限兜底：读取失败或规则集不完整时一律要求人工确认。
+///
+/// 上游 `StorePermissionResolver` 把「store 读取失败」降级成 `NoMatch`
+/// （坏 toml 不该让所有工具调用失败），但 `Auto` / `Bypass` 模式会把 `NoMatch`
+/// 直接放行；用户级规则文件不可用时，未知位置的 deny 规则就这样被绕过。
+/// 桌面端在自己的装配层补齐这条语义，不改上游。
+struct FailsafePermissionResolver {
+    store: Arc<dyn PermissionStore>,
+    /// `false` = 用户级规则位置不可用，当前看到的规则集不完整。
+    complete: bool,
+}
+
+#[async_trait]
+impl PermissionResolver for FailsafePermissionResolver {
+    async fn resolve_with_context(&self, tool_name: &str, bash_command: Option<&str>) -> RuleMatch {
+        let known = match self.store.list().await {
+            Ok(rules) => evaluate_with_context(&rules, tool_name, bash_command),
+            Err(error) => {
+                warn!(%error, tool = tool_name, "权限规则读取失败，要求人工确认");
+                return RuleMatch::Ask;
+            }
+        };
+        if self.complete {
+            return known;
+        }
+        match known {
+            RuleMatch::Deny => RuleMatch::Deny,
+            _ => RuleMatch::Ask,
+        }
+    }
+}
 
 /// 装配权限层 + YOLO 分类器,返回挂载好的 `AgentConfig`。
 ///
 /// - `initial_cfg`:线程构造时的 config 快照(`[permissions]` 段来源)。
 /// - `workspace`:项目级权限文件所在的工作区根目录。
 pub(crate) fn apply_permission_layers(
-    mut cfg: AgentConfig,
+    cfg: AgentConfig,
     initial_cfg: &reflect_config::ReflectConfig,
     workspace: &Path,
 ) -> AgentConfig {
-    let Ok(user_store) = FilePermissionStore::with_default_home() else {
-        // 用户级 store 不可用(无 HOME / 权限异常)→ 仍装 YOLO 分类器
-        // (「全放行」建议能力可用),规则层留空 = 走 PermissionMode 默认
-        // 行为,而不是把用户的工具全部拒掉。
-        warn!("[reflect-gui] 用户级权限文件不可用,仅启用 YOLO 分类器");
-        cfg.yolo_classifier = Some(Arc::new(HeuristicYoloClassifier));
-        return cfg;
+    let user_store = match FilePermissionStore::with_default_home() {
+        Ok(store) => Some(Arc::new(store) as Arc<dyn PermissionStore>),
+        Err(error) => {
+            warn!(%error, "[reflect-gui] 用户级权限文件不可用，保留配置与项目规则");
+            None
+        }
     };
-    let user_store: Arc<dyn PermissionStore> = Arc::new(user_store);
+    apply_permission_layers_with_user(cfg, initial_cfg, workspace, user_store)
+}
 
+fn apply_permission_layers_with_user(
+    mut cfg: AgentConfig,
+    initial_cfg: &reflect_config::ReflectConfig,
+    workspace: &Path,
+    user_store: Option<Arc<dyn PermissionStore>>,
+) -> AgentConfig {
     // config.toml `[permissions]` → 内存 store(只读层,排在最前 = 优先匹配)。
     let cfg_store: Arc<dyn PermissionStore> = Arc::new(InMemoryPermissionStore::new());
     if let Some(sec) = &initial_cfg.permissions {
@@ -75,18 +114,21 @@ pub(crate) fn apply_permission_layers(
         );
     }
 
-    // 项目级权限 —— `<workspace>/.reflect/permissions.toml`。
-    let project_path = workspace.join(".reflect").join("permissions.toml");
+    // 项目级权限 —— `<workspace>/.zhuye/permissions.toml`(与 CLI 同一路径)。
+    let project_path = reflect_app_core::paths::project_data_path(workspace, &["permissions.toml"]);
     let project_store: Arc<dyn PermissionStore> =
         Arc::new(FilePermissionStore::with_path(project_path));
 
-    let chained: Arc<dyn PermissionStore> = Arc::new(ChainedPermissionStore::new(vec![
-        cfg_store,
-        project_store,
-        user_store,
-    ]));
-    let resolver: Arc<dyn PermissionResolver> = Arc::new(StorePermissionResolver::new(chained));
-    cfg = cfg.with_permission_resolver(resolver);
+    let mut stores = vec![cfg_store, project_store];
+    let incomplete = user_store.is_none();
+    if let Some(user_store) = user_store {
+        stores.push(user_store);
+    }
+    let chained: Arc<dyn PermissionStore> = Arc::new(ChainedPermissionStore::new(stores));
+    cfg = cfg.with_permission_resolver(Arc::new(FailsafePermissionResolver {
+        store: chained,
+        complete: !incomplete,
+    }));
     cfg.yolo_classifier = Some(Arc::new(HeuristicYoloClassifier));
     cfg
 }
@@ -114,5 +156,34 @@ mod tests {
         let missing = Path::new("/nonexistent/workspace/xyz");
         let out = apply_permission_layers(cfg, &initial, missing);
         assert!(out.permission_resolver.is_some());
+    }
+
+    #[test]
+    fn missing_user_store_keeps_config_and_project_denies() {
+        let dir = tempfile::tempdir().unwrap();
+        // 路径取自同一个助手，避免测试与实现的目录名各说各话。
+        let permissions_dir = reflect_app_core::paths::project_data_dir(dir.path());
+        std::fs::create_dir_all(&permissions_dir).unwrap();
+        std::fs::write(
+            permissions_dir.join("permissions.toml"),
+            "[[rule]]\ntool = \"Write\"\naction = \"deny\"\n",
+        )
+        .unwrap();
+        let initial = reflect_config::load_from_str("[[permissions.rule]]\ntool = \"Bash\"\naction = \"deny\"\n\n[[permissions.rule]]\ntool = \"Read\"\naction = \"allow\"\n").unwrap();
+        let cfg = AgentConfig::new("stub/test", dir.path());
+        let out = apply_permission_layers_with_user(cfg, &initial, dir.path(), None);
+        let resolver = out.permission_resolver.expect("缺少用户目录时仍须挂载规则");
+        for tool in ["Bash", "Write"] {
+            assert_eq!(
+                futures::executor::block_on(resolver.resolve(tool)),
+                reflect_permissions::RuleMatch::Deny,
+                "{tool} 的拒绝规则不能被跳过"
+            );
+        }
+        assert_eq!(
+            futures::executor::block_on(resolver.resolve("Read")),
+            reflect_permissions::RuleMatch::Ask,
+            "未知用户规则时不能静默放行"
+        );
     }
 }

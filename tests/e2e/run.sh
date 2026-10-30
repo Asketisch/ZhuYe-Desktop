@@ -113,7 +113,7 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
         if [ ! -x "$APP_BIN" ]; then
             tcase "调试二进制存在" false
         else
-            # 2) 隔离环境(不碰开发者的 ~/.reflect)。
+            # 2) 隔离环境(不碰开发者的 ~/.zhuye)。
             make_isolated_env
             # 3) 起 tauri-driver(默认端口 4444)。
             tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &

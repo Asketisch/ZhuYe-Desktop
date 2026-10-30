@@ -24,6 +24,7 @@ export interface UseAttachmentsResult {
   addFileMention: (path: string, range?: FileRange) => void;
   remove: (idx: number) => void;
   clear: () => void;
+  clearSent: (sent: PendingAttachment[]) => void;
   toUserInputItems: () => UserInputItem[];
 }
 
@@ -51,6 +52,10 @@ export function useAttachments(): UseAttachmentsResult {
   }, []);
 
   const clear = useCallback(() => setAttachments([]), []);
+  const clearSent = useCallback((sent: PendingAttachment[]) => {
+    const sentSet = new Set(sent);
+    setAttachments((current) => current.filter((item) => !sentSet.has(item)));
+  }, []);
 
   const toUserInputItems = useCallback((): UserInputItem[] => {
     return attachments.map((a): UserInputItem => {
@@ -77,6 +82,7 @@ export function useAttachments(): UseAttachmentsResult {
     addFileMention,
     remove,
     clear,
+    clearSent,
     toUserInputItems,
   };
 }

@@ -14,13 +14,13 @@
 //!
 //! ## 存储路径
 //!
-//! 复用 核心 crate 默认 home(`~/.reflect`),与 TUI/CLI 共享:
-//! - Task: `~/.reflect/tasks/<list>/<id>.json`
-//! - Team: `~/.reflect/teams/<name>.json`
+//! 复用 核心 crate 默认 home(`~/.zhuye`),与 TUI/CLI 共享:
+//! - Task: `~/.zhuye/tasks/<list>/<id>.json`
+//! - Team: `~/.zhuye/teams/<name>.json`
 //!
 //! ## 未做(后续阶段)
 //!
-//! - hook_engine / event_sink 注入(Phase 0 形态;Task 生命周期事件推前端留待 UI 阶段)
+//! - event_sink 注入（Task 生命周期事件推前端留待后续阶段）
 //! - Schedule(cron)命令(Phase 1 第 2 项,见 `reflect-agent/crates/integrations/reflect-stream/cron.rs`)
 //! - Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,但「启用 + 重启 agent」更重)
 

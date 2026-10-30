@@ -1,6 +1,6 @@
 //! Autopilot 命令。
 //!
-//! 自动任务调度。
+//! Autopilot 配置和历史存储；尚未接入自动调度。
 //! `reflect_app_core::autopilot::AutopilotManager` 的薄包装,
 //! 把配置和运行历史暴露给前端。
 //!
@@ -21,7 +21,10 @@ use crate::state::MinimalAgent;
 pub async fn reflect_get_autopilot_config(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<AutopilotConfig> {
-    Ok(agent.autopilot_manager().load_config())
+    agent
+        .autopilot_manager()
+        .load_config()
+        .map_err(CommandError::from)
 }
 
 /// 更新 autopilot 配置。
@@ -41,5 +44,8 @@ pub async fn reflect_update_autopilot_config(
 pub async fn reflect_autopilot_history(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<AutopilotRun>> {
-    Ok(agent.autopilot_manager().load_history())
+    agent
+        .autopilot_manager()
+        .load_history()
+        .map_err(CommandError::from)
 }

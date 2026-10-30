@@ -4,10 +4,7 @@
  * 对应 `src-tauri/src/commands/side_channel.rs`(其内部封装
  * `reflect-app-core::side_channel::SideChannelRegistry`)。注册表为每条
  * side-channel 持有独立的 `CancelToken`;主 agent 的 `Cmd+C` 不会取消
- * side-channel。每条 side-channel 的状态迁移(`Started` / `Done` /
- * `Cancelled` / `Error`)通过现有的 `reflect_event` 通道(事件以
- * `kind: "side_channel_*"` 标记)推送到前端;本封装文件暴露面向页面刷新
- * 与 slash 命令的临时 CRUD 接口。
+ * side-channel。前端通过查询快照获得状态，注册表事件尚未转发。
  *
  * 暂不在范围内(后续轮次):真正执行 side-channel 的 driver 任务
  * (把其 prompt 作为 `Submission::user_input` 接入 agent 循环,并在完成时
@@ -46,8 +43,7 @@ export interface ReflectStartSideChannelResult {
 
 /**
  * 启动一条新的 side-channel。返回分配的 id 及快照字段。
- * 同时在注册表的 broadcast 通道上发出 `kind: "side_channel_started"` 事件
- * (由安装阶段的事件转发器并入现有的 Tauri `reflect_event` 流)。
+ * 注册表在内部广播启动事件；桌面端当前通过列表查询刷新快照。
  */
 export async function reflect_start_side_channel(args: {
   agent_name: string;
@@ -68,8 +64,7 @@ export async function reflect_cancel_side_channel(id: string): Promise<boolean> 
   return invoke<boolean>('reflect_cancel_side_channel', { id });
 }
 
-/** 列出当前所有 side-channel(快照)。前端依赖事件流做实时更新,
- * 此处用于临时读取(例如页面刷新)。 */
+/** 列出当前所有 side-channel 快照。 */
 export async function reflect_list_side_channels(): Promise<ReflectSideChannelInfo[]> {
   return invoke<ReflectSideChannelInfo[]>('reflect_list_side_channels');
 }

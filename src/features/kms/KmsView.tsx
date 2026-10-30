@@ -24,6 +24,13 @@ import {
 } from '@/utils/commands';
 import s from './KmsView.module.css';
 
+function errorMessage(error: unknown): string | null {
+  if (error instanceof Error) return error.message || null;
+  if (typeof error === 'string') return error || null;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg || null;
+  return null;
+}
+
 export function KmsView() {
   const queryClient = useQueryClient();
   const { t } = useI18n();
@@ -72,17 +79,21 @@ export function KmsView() {
 
   const deleteWiki = useMutation({
     mutationFn: (name: string) => reflect_kms_delete(name),
-    onSuccess: () => {
+    onSuccess: (_result, name) => {
       queryClient.invalidateQueries({ queryKey: ['kms', 'wikis'] });
-      if (selectedWiki) setSelectedWiki(null);
+      queryClient.invalidateQueries({ queryKey: ['kms', 'pages', name] });
+      queryClient.invalidateQueries({ queryKey: ['kms', 'search'] });
+      if (selectedWiki === name) setSelectedWiki(null);
     },
   });
 
   const savePage = useMutation({
-    mutationFn: () =>
-      reflect_kms_save_page(selectedWiki!, pageName, pageContent, null, null),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['kms', 'pages', selectedWiki] });
+    mutationFn: ({ wiki, name, content, createOnly, expectedContent }: { wiki: string; name: string; content: string; createOnly: boolean; expectedContent?: string }) =>
+      reflect_kms_save_page(wiki, name, content, null, null, createOnly, expectedContent),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['kms', 'pages', variables.wiki] });
+      queryClient.invalidateQueries({ queryKey: ['kms', 'wikis'] });
+      queryClient.invalidateQueries({ queryKey: ['kms', 'search'] });
       setEditingPage(null);
       setPageContent('');
       setPageName('');
@@ -117,6 +128,7 @@ export function KmsView() {
             ))}
           </div>
         )}
+        {searchResults.isError && <p role="alert">{t('kms.searchFailed')} {errorMessage(searchResults.error)}</p>}
       </Card>
 
       {/* Wiki selector */}
@@ -127,13 +139,14 @@ export function KmsView() {
             type="button"
             className={s.wikiTab}
             data-active={selectedWiki === wiki.name || undefined}
+            disabled={deleteWiki.isPending || (editingPage !== null && selectedWiki !== wiki.name)}
             onClick={() => setSelectedWiki(wiki.name)}
           >
             {wiki.name}
             <Badge variant="neutral">{wiki.pageCount}</Badge>
           </button>
         ))}
-        <Button variant="ghost" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
+        <Button variant="ghost" size="sm" disabled={createWiki.isPending} onClick={() => { createWiki.reset(); setShowCreateForm(!showCreateForm); }}>
           <Icon icon={Plus} size={14} /> {t('kms.new')}
         </Button>
       </div>
@@ -144,11 +157,13 @@ export function KmsView() {
           <Input
             placeholder={t('kms.wikiNamePlaceholder')}
             value={newWikiName}
+            disabled={createWiki.isPending}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewWikiName(e.target.value)}
           />
           <Input
             placeholder={t('kms.descriptionPlaceholder')}
             value={newWikiDesc}
+            disabled={createWiki.isPending}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewWikiDesc(e.target.value)}
           />
           <Button
@@ -159,8 +174,11 @@ export function KmsView() {
           >
             {t('kms.create')}
           </Button>
+          {createWiki.isError && <p role="alert">{t('kms.createFailed')} {errorMessage(createWiki.error)}</p>}
         </Card>
       )}
+
+      {wikisQuery.isError && <p role="alert">{t('kms.listFailed')} {errorMessage(wikisQuery.error)}</p>}
 
       {/* Selected wiki content */}
       {selectedWiki ? (
@@ -171,9 +189,9 @@ export function KmsView() {
               <Button
                 variant="ghost"
                 size="sm"
+                disabled={editingPage !== null || deleteWiki.isPending}
                 onClick={() => {
-                  // 打开空白编辑器（此前只会 setEditingPage(null)，编辑器
-                  // 永远打不开，页面无法创建/编辑）。
+                  savePage.reset();
                   setEditingPage({
                     name: '',
                     content: '',
@@ -191,6 +209,7 @@ export function KmsView() {
               <Button
                 variant="ghost"
                 size="sm"
+                disabled={editingPage !== null || deleteWiki.isPending}
                 onClick={async () => {
                   // remove_dir_all 级别的破坏性操作，必须二次确认。
                   const ok = await confirmDialog({
@@ -205,17 +224,21 @@ export function KmsView() {
             </div>
           </div>
 
+          {deleteWiki.isError && deleteWiki.variables === selectedWiki && <p role="alert">{t('kms.deleteFailed')} {errorMessage(deleteWiki.error)}</p>}
+
           {editingPage !== null && (
             <Card level="outlined" padding="md" className={s.editorCard}>
               <Input
                 placeholder={t('kms.pageNamePlaceholder')}
                 value={pageName}
+                disabled={savePage.isPending}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPageName(e.target.value)}
               />
               <textarea
                 className={s.editor}
                 placeholder={t('kms.pageContentPlaceholder')}
                 value={pageContent}
+                disabled={savePage.isPending}
                 onChange={(e) => setPageContent(e.target.value)}
                 rows={10}
               />
@@ -223,18 +246,20 @@ export function KmsView() {
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => savePage.mutate()}
+                  onClick={() => savePage.mutate({ wiki: editingPage.wiki, name: pageName, content: pageContent, createOnly: pageName !== editingPage.name, expectedContent: pageName === editingPage.name ? editingPage.content : undefined })}
                   disabled={!pageName || savePage.isPending}
                 >
                   {t('common.save')}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setEditingPage(null)}>
+                <Button variant="ghost" size="sm" disabled={savePage.isPending} onClick={() => { savePage.reset(); setEditingPage(null); }}>
                   {t('common.cancel')}
                 </Button>
               </div>
+              {savePage.isError && <p role="alert"><span>{t('kms.saveFailed')}</span> {errorMessage(savePage.error)}</p>}
             </Card>
           )}
 
+          {pagesQuery.isError && <p role="alert">{t('kms.pagesFailed')} {errorMessage(pagesQuery.error)}</p>}
           {pagesQuery.isLoading ? (
             <Spinner size={20} />
           ) : pagesQuery.data?.length === 0 ? (
@@ -252,15 +277,21 @@ export function KmsView() {
                   padding="md"
                   className={s.pageCard}
                   role="button"
-                  tabIndex={0}
+                  tabIndex={editingPage === null ? 0 : -1}
+                  aria-disabled={editingPage !== null}
                   title={t('kms.editPage')}
                   onClick={() => {
+                    if (editingPage !== null) return;
+                    savePage.reset();
                     setEditingPage(page);
                     setPageName(page.name);
                     setPageContent(page.content);
                   }}
                   onKeyDown={(e: React.KeyboardEvent) => {
+                    if (editingPage !== null) return;
                     if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      savePage.reset();
                       setEditingPage(page);
                       setPageName(page.name);
                       setPageContent(page.content);

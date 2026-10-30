@@ -1,6 +1,6 @@
 //! Remote mode config:连接 iOS / 远端 daemon 的目标与运行时状态。
 //!
-//! 仅进程内存储 —— 重启丢失配置;持久化(keyring 或 `~/.reflect/remote.toml`)
+//! 仅进程内存储 —— 重启丢失配置;持久化(keyring 或 `~/.zhuye/remote.toml`)
 //! 留作后续。
 
 use serde::{Deserialize, Serialize};

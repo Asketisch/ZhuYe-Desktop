@@ -1,7 +1,7 @@
 //! 会话统计命令面。
 //!
 //! 薄包装 `reflect_app_core::stats`,GUI 对应 CLI `reflect session stats`:
-//! 只读扫描 rollout JSONL(`~/.reflect/sessions/`)聚合出 token 用量、
+//! 只读扫描 rollout JSONL(`~/.zhuye/sessions/`)聚合出 token 用量、
 //! 模型级拆分、压缩节省与记忆访问次数。
 
 use reflect_app_core::pricing::RateCard;

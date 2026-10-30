@@ -28,7 +28,7 @@ git submodule update --remote reflect-agent
 
 # 2. 审查差异
 git diff --submodule reflect-agent
-git diff reflect-agent/crates/protocol/reflect-protocol/src/
+git diff reflect-agent/crates/protocol/zhuye-protocol/src/
 
 # 3. 如果 reflect-protocol 有变更，重新生成前端类型
 bash scripts/dump-ts-types.sh

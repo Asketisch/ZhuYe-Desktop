@@ -9,10 +9,11 @@
  *   - delete 转发到 reflect_delete_agent_def
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AgentsView } from './AgentsView';
 import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
+import { reflect_save_agent_def, type ReflectAgentDef } from '@/utils/commands';
 
 const calls: Array<{ cmd: string; args: unknown }> = [];
 
@@ -39,8 +40,8 @@ vi.mock('@/utils/commands', async () => {
         },
       ];
     }),
-    reflect_save_agent_def: vi.fn(async (def: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_save_agent_def', args: { def } });
+    reflect_save_agent_def: vi.fn(async (def: Record<string, unknown>, createOnly?: boolean) => {
+      calls.push({ cmd: 'reflect_save_agent_def', args: { def, createOnly } });
       return def;
     }),
     reflect_delete_agent_def: vi.fn(async (name: string) => {
@@ -114,6 +115,59 @@ describe('AgentsView', () => {
         ),
       ).toBe(true);
     });
+    expect(calls.find((c) => c.cmd === 'reflect_save_agent_def')?.args).toMatchObject({ createOnly: true });
+  });
+
+  it('keeps the new agent name editable until saving begins', () => {
+    render(wrap(<AgentsView />));
+    fireEvent.click(screen.getByTestId('agents-add-btn'));
+    const input = screen.getByTestId('agent-editor-name') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'a' } });
+    expect(input.disabled).toBe(false);
+    fireEvent.change(input, { target: { value: 'agent-name' } });
+    expect(input.value).toBe('agent-name');
+    expect(input.disabled).toBe(false);
+  });
+
+  it('keeps edits made while a save is pending', async () => {
+    let finish!: (def: ReflectAgentDef) => void;
+    let saved!: ReflectAgentDef;
+    vi.mocked(reflect_save_agent_def).mockImplementationOnce((def) => {
+      saved = def;
+      return new Promise((resolve) => { finish = resolve; });
+    });
+    render(wrap(<AgentsView />));
+    fireEvent.click(screen.getByTestId('agents-add-btn'));
+    fireEvent.change(screen.getByTestId('agent-editor-name'), { target: { value: 'tester' } });
+    fireEvent.change(screen.getByTestId('agent-editor-description'), { target: { value: 'before' } });
+    fireEvent.click(screen.getByTestId('agent-editor-save'));
+    await waitFor(() => expect(finish).toBeTypeOf('function'));
+    fireEvent.change(screen.getByTestId('agent-editor-description'), { target: { value: 'after' } });
+    expect((screen.getByTestId('agent-editor-name') as HTMLInputElement).disabled).toBe(true);
+    await act(async () => { finish(saved); await Promise.resolve(); });
+    await waitFor(() => expect((screen.getByTestId('agent-editor-description') as HTMLInputElement).value).toBe('after'));
+    expect(screen.getByTestId('agent-editor')).toBeDefined();
+    expect((screen.getByTestId('agent-editor-name') as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('does not close a new editor when an older save completes', async () => {
+    let finish!: (def: ReflectAgentDef) => void;
+    let saved!: ReflectAgentDef;
+    vi.mocked(reflect_save_agent_def).mockImplementationOnce((def) => {
+      saved = def;
+      return new Promise((resolve) => { finish = resolve; });
+    });
+    render(wrap(<AgentsView />));
+    fireEvent.click(screen.getByTestId('agents-add-btn'));
+    fireEvent.change(screen.getByTestId('agent-editor-name'), { target: { value: 'first' } });
+    fireEvent.change(screen.getByTestId('agent-editor-description'), { target: { value: 'description' } });
+    fireEvent.click(screen.getByTestId('agent-editor-save'));
+    await waitFor(() => expect(finish).toBeTypeOf('function'));
+    fireEvent.click(screen.getByTestId('agent-editor-cancel'));
+    fireEvent.click(screen.getByTestId('agents-add-btn'));
+    await act(async () => { finish(saved); await Promise.resolve(); });
+    expect(screen.getByTestId('agent-editor')).toBeDefined();
+    expect((screen.getByTestId('agent-editor-name') as HTMLInputElement).value).toBe('');
   });
 
   it('pre-fills the editor when editing a seeded row', async () => {

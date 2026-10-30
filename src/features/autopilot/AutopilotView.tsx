@@ -1,7 +1,5 @@
 /**
- * Autopilot —— 自动任务调度视图。
- *
- * Phase 3 条目 10：基于 cron 的自动任务创建与执行。
+ * Autopilot 配置和历史视图；调度执行尚未接入。
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Zap, Clock, History } from 'lucide-react';
@@ -62,8 +60,13 @@ export function AutopilotView() {
       subtitle={t('autopilot.subtitle')}
       width="md"
     >
+      <Card level="outlined" padding="md">
+        <p role="status">{t('autopilot.unavailable')}</p>
+      </Card>
       {configQuery.isLoading ? (
         <Spinner size={20} />
+      ) : configQuery.isError ? (
+        <p role="alert">{t('autopilot.configLoadFailed')}</p>
       ) : (
         <>
           {/* Config card */}
@@ -154,6 +157,7 @@ export function AutopilotView() {
                 </Button>
               )}
             </div>
+            {updateMutation.isError && <p role="alert">{t('autopilot.saveFailed')}</p>}
           </Card>
 
           {/* History card */}
@@ -170,6 +174,8 @@ export function AutopilotView() {
 
             {historyQuery.isLoading ? (
               <Spinner size={16} />
+            ) : historyQuery.isError ? (
+              <p role="alert">{t('autopilot.historyLoadFailed')}</p>
             ) : historyQuery.data?.length === 0 ? (
               <EmptyState
                 icon={<Icon icon={Clock} />}

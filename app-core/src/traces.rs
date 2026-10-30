@@ -1,6 +1,6 @@
 //! LLM 调用记录(traces)只读查询 —— GUI 对应 CLI `reflect traces ls / show`。
 //!
-//! 数据源是 `reflect-telemetry` 的 model-io JSONL(`~/.reflect/traces/model-io/`,
+//! 数据源是 `reflect-telemetry` 的 model-io JSONL(`~/.zhuye/traces/model-io/`,
 //! 每次 LLM 调用一条 [`ModelIoRecord`],已脱敏)。本模块只读:
 //! - [`list_traces`] 列 session 摘要(调用数 / 最近时间 / 模型),
 //!   session_id → 可读标题复用 rollout 自定义名 / AI 标题链;

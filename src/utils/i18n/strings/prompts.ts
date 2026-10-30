@@ -22,7 +22,7 @@ const prompts: Record<string, StringEntry> = {
   'promptLayers.rescan':         { en: 'Rescan',                                         'zh-CN': '重新扫描' },
   'promptLayers.effectiveBody':   { en: 'Effective prompt',                               'zh-CN': '生效的提示词' },
   'promptLayers.noBody':          { en: 'No prompt section resolved for this model.',      'zh-CN': '当前模型未解析出提示词段落。' },
-  'promptLayers.hint':           { en: 'Prompt layers are matched to the model automatically. Edit .reflect/prompts/*.md, then rescan to apply.', 'zh-CN': '提示词层按模型自动匹配。修改 .reflect/prompts/*.md 后重新扫描即可生效。' },
+  'promptLayers.hint':           { en: 'Prompt layers are matched to the model automatically. Edit .zhuye/prompts/*.md, then rescan to apply.', 'zh-CN': '提示词层按模型自动匹配。修改 .zhuye/prompts/*.md 后重新扫描即可生效。' },
 };
 
 export default prompts;

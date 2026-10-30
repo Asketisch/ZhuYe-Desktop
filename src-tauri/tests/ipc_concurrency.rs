@@ -136,9 +136,8 @@ fn concurrent_config_writes_keep_the_file_valid() {
     }
 
     // 配置文件仍是合法 TOML。
-    let reflect_home = std::env::var("REFLECT_HOME").expect("夹具应已设置 REFLECT_HOME");
-    let raw =
-        std::fs::read_to_string(format!("{reflect_home}/config.toml")).expect("读回 config.toml");
+    let data_dir = reflect_app_core::paths::user_data_dir().expect("夹具应已设置 HOME");
+    let raw = std::fs::read_to_string(data_dir.join("config.toml")).expect("读回 config.toml");
     let parsed: toml::Value = toml::from_str(&raw).unwrap_or_else(|e| {
         panic!("并发写之后 config.toml 不再是合法 TOML:\n{raw}\n解析错误: {e}")
     });

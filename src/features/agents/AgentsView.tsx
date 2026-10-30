@@ -8,7 +8,7 @@
  *
  * 后端契约：`src/utils/commands/agents.ts` ↔
  * `src-tauri/src/commands/agents.rs` ↔ `reflect-agent/crates/abilities/reflect-agent-def`。
- * 存储：`~/.reflect/agents/<name>.md`，与 TUI/CLI 共享。
+ * 存储：`~/.zhuye/agents/<name>.md`，与 TUI/CLI 共享。
  */
 import { Bot, Plus, Pencil, Trash2, Check } from 'lucide-react';
 import { useState } from 'react';
@@ -109,6 +109,8 @@ export function AgentsView() {
       {ctrl.isEditing && ctrl.draft && (
         <AgentEditor
           draft={ctrl.draft}
+          isCreating={ctrl.isCreating}
+          isSaving={ctrl.isMutating}
           onPatch={ctrl.patchDraft}
           onSave={() => void ctrl.save()}
           onCancel={ctrl.cancelEdit}

@@ -6,7 +6,7 @@
  * Team payload 直接使用核心 crate 类型的序列化形态(snake_case,因为 `TeamFile`
  * 没有派生 `rename_all = "camelCase"`)。
  *
- * 存储复用:数据位于 `~/.reflect/teams/<name>.json`,与 TUI/CLI 共享。
+ * 存储复用:数据位于 `~/.zhuye/teams/<name>.json`,与 TUI/CLI 共享。
  */
 import { invoke } from '../bridge';
 

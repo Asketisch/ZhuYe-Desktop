@@ -5,7 +5,7 @@
 //! 基座最主要的扩展机制,却没有任何自助路径。
 //!
 //! 写路径:改内存里的 `ReflectConfig.mcp_servers` → 落盘
-//! (`~/.reflect/config.toml`)→ 运行时起/停对应 server(注册/反注册其
+//! (`~/.zhuye/config.toml`)→ 运行时起/停对应 server(注册/反注册其
 //! 工具)。与启动时的 `bootstrap_mcp` 同款语义(`mcp::start_one_server` /
 //! `stop_one_server`)。
 //!
@@ -122,6 +122,7 @@ pub async fn reflect_upsert_mcp_server(
     entry: McpServerEntry,
 ) -> CommandResult<()> {
     validate_name(&name)?;
+    let _config_write = agent.inner.config_write_lock.lock().await;
     let mut cfg = agent.inner.cfg.read().clone();
     let existed = cfg.mcp_servers.servers.contains_key(&name);
     cfg.mcp_servers.servers.insert(name.clone(), entry);
@@ -147,9 +148,18 @@ pub async fn reflect_upsert_mcp_server(
     if let Some(mgr) = mgr {
         let tools = agent.tools();
         if existed {
-            crate::mcp::stop_one_server(&mgr, &tools, &name).await;
+            crate::mcp::stop_one_server(&mgr, &tools, &agent.inner.mcp_tools, &name).await;
         }
-        match crate::mcp::start_one_server(&mgr, &tools, mcp_cfg).await {
+        let invoked_tx = agent.inner.mcp_invoked_tx.lock().clone();
+        match crate::mcp::start_one_server(
+            &mgr,
+            &tools,
+            &agent.inner.mcp_tools,
+            mcp_cfg,
+            invoked_tx,
+        )
+        .await
+        {
             Ok(names) => {
                 tracing::info!(server = %name, tools = names.len(), "MCP server started (GUI)")
             }
@@ -167,6 +177,7 @@ pub async fn reflect_delete_mcp_server(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<()> {
+    let _config_write = agent.inner.config_write_lock.lock().await;
     let mut cfg = agent.inner.cfg.read().clone();
     if cfg.mcp_servers.servers.remove(&name).is_none() {
         // 未配置 → 幂等成功(前端不用区分「本来就没有」)。
@@ -177,7 +188,8 @@ pub async fn reflect_delete_mcp_server(
     let mgr = agent.inner.mcp_manager.lock().clone();
     if let Some(mgr) = mgr {
         let tools = agent.tools();
-        let removed = crate::mcp::stop_one_server(&mgr, &tools, &name).await;
+        let removed =
+            crate::mcp::stop_one_server(&mgr, &tools, &agent.inner.mcp_tools, &name).await;
         tracing::info!(server = %name, tools = removed.len(), "MCP server stopped (GUI)");
     }
     Ok(())

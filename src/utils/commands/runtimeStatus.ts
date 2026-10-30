@@ -4,10 +4,11 @@
  * 这些能力基座都有、GUI 此前一个都看不到:
  * - 凭证池健康度(failover 后看不出哪个凭证在冷却);
  * - 已完成的子代理调用(压缩后答不出「刚才派了哪些子代理」);
- * - 记忆分段(agent 实际注入的是切分 + 筛选后的条目,不是整份原文);
+ * - 记忆分段(显示已保存的候选内容);
  * - 配置位置与分析健康度(手改 config.toml 后不知道应用读的是哪个文件)。
  */
 import { invoke } from '../bridge';
+import type { MemoryContext } from './memory';
 
 /** 单个 provider 的凭证池健康度。 */
 export interface CredentialPoolStatus {
@@ -38,7 +39,7 @@ export interface MemorySectionInfo {
   body: string;
   /** 文件内序号(0-based)。 */
   index: number;
-  /** 正文字符数(与 8000 字注入预算对照)。 */
+  /** 正文 Unicode 字符数，不表示实际注入量。 */
   chars: number;
 }
 
@@ -64,9 +65,9 @@ export function reflect_recovery_state(): Promise<SubagentCallRecord[]> {
   return invoke('reflect_recovery_state');
 }
 
-/** 查询记忆的分段视图(与 agent 实际注入的结构一致)。 */
-export function reflect_memory_sections(): Promise<MemorySectionInfo[]> {
-  return invoke('reflect_memory_sections');
+/** 查询磁盘记忆的分段候选项。 */
+export function reflect_memory_sections(expectedContext?: MemoryContext): Promise<MemorySectionInfo[]> {
+  return invoke('reflect_memory_sections', expectedContext ? { expectedContext } : undefined);
 }
 
 /** 查询配置位置与分析健康度。 */

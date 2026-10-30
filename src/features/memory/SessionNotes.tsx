@@ -29,6 +29,7 @@ export function SessionNotes() {
     queryKey: ['note-sessions'],
     queryFn: () => reflect_list_note_sessions(),
     staleTime: 10_000,
+    refetchInterval: 10_000,
   });
 
   // 默认展示当前绑定会话的笔记;用户也可切到其它有笔记的会话。
@@ -38,6 +39,7 @@ export function SessionNotes() {
     queryFn: () => reflect_list_session_notes(target as string),
     enabled: !!target,
     staleTime: 5_000,
+    refetchInterval: 5_000,
   });
 
   const sessions = sessionsQ.data ?? [];
@@ -50,14 +52,21 @@ export function SessionNotes() {
         {t('notes.title')}
       </h3>
 
-      {sessions.length > 1 && (
+      {sessionsQ.isError && (
+        <Card level="flat" padding="sm"><p className={s.empty}>{t('notes.sessionsFailed')}</p></Card>
+      )}
+
+      {(sessions.length > 0 || picked !== null) && (
         <Select
-          value={target ?? ''}
+          value={picked ?? ''}
           onChange={(e) => setPicked(e.target.value || null)}
           aria-label={t('notes.pickSession')}
           data-testid="notes-session-picker"
         >
           <option value="">{t('notes.currentSession')}</option>
+          {picked && !sessions.some((session) => session.sessionId === picked) && (
+            <option value={picked}>{picked.slice(0, 8)}</option>
+          )}
           {sessions.map((s) => (
             <option key={s.sessionId} value={s.sessionId}>
               {s.sessionId.slice(0, 8)} · {s.count}
@@ -73,7 +82,7 @@ export function SessionNotes() {
       ) : notesQ.isError ? (
         <Card level="flat" padding="sm">
           <p className={s.empty}>
-            {notesQ.error instanceof Error ? notesQ.error.message : String(notesQ.error)}
+            {noteErrorMessage(notesQ.error)}
           </p>
         </Card>
       ) : notes.length === 0 ? (
@@ -97,6 +106,13 @@ export function SessionNotes() {
       )}
     </section>
   );
+}
+
+function noteErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg;
+  return String(error);
 }
 
 function formatTime(iso: string): string {

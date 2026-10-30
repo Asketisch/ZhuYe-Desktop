@@ -38,6 +38,8 @@ export function HookEventsPanel() {
         <Card level="flat" padding="sm" className={s.eventsCard}>
           {q.isLoading ? (
             <div className={s.center}><Spinner size={14} /> {t('common.loading')}</div>
+          ) : q.isError ? (
+            <div className={s.center}>{t('hooks.events.failed')}</div>
           ) : (
             <ul className={s.eventsList} data-testid="hooks-events-list">
               {events.map((e) => (
@@ -47,6 +49,7 @@ export function HookEventsPanel() {
                     <span className={s.summary}>{e.description}</span>
                   </div>
                   <div className={s.eventsDecisions}>
+                    {e.decisions.length === 0 && <Badge variant="neutral">{t('hooks.events.notificationOnly')}</Badge>}
                     {e.decisions.map((d) => (
                       <Badge key={d} variant="neutral">{d}</Badge>
                     ))}

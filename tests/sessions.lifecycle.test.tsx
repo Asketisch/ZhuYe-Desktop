@@ -242,6 +242,18 @@ describe('session mutations through the real UI', () => {
     await waitFor(() => expect(screen.queryByTestId('archived-restore-sess-archived')).toBeNull());
   });
 
+  it('binds a newly created session before sending from the new-chat home', async () => {
+    const app = renderApp();
+    await app.navigate('/chat');
+    backend.state.boundSessionId = 'previous-session';
+    await typeAndSend('hello new session');
+    await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
+    expect(backend.callsOf('reflect_create_session')).toHaveLength(1);
+    expect(backend.state.boundSessionId).toBe('sess-new-1');
+    expect(useAgentStore.getState().loadedSessionId).toBe('sess-new-1');
+    expect(app.pathname()).toBe('/chat/sess-new-1');
+  });
+
   it('sending a first message in a session invalidates the sessions query', async () => {
     backend.agent.script = [{ emit: { type: 'agent_message_delta', delta: 'ok' } }];
     const app = renderApp();

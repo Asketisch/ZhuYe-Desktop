@@ -22,8 +22,12 @@ const memory: Record<string, StringEntry> = {
   'memory.add':            { en: 'Add',                       'zh-CN': '添加' },
   'memory.cancel':         { en: 'Cancel',                    'zh-CN': '取消' },
   'memory.edit':           { en: 'Edit',                      'zh-CN': '编辑' },
+  'memory.resumeEdit':     { en: 'Resume draft',              'zh-CN': '继续编辑草稿' },
+  'memory.draft':          { en: 'Draft',                     'zh-CN': '草稿' },
+  'memory.discardDraft':   { en: 'Discard draft',             'zh-CN': '丢弃草稿' },
   'memory.delete':         { en: 'Delete',                    'zh-CN': '删除' },
   'memory.save':           { en: 'Save',                      'zh-CN': '保存' },
+  'memory.editMissing':    { en: 'This entry is no longer in the list. Your draft is preserved below.', 'zh-CN': '此条目已不在列表中，草稿保留在下方。' },
   'memory.key':            { en: 'Key (e.g. preference)',     'zh-CN': '键 (例如 preference)' },
   'memory.value':          { en: 'Value',                     'zh-CN': '值' },
   'memory.scope':          { en: 'Scope',                     'zh-CN': '范围' },
@@ -40,11 +44,13 @@ const memory: Record<string, StringEntry> = {
   'notes.emptyHint':       { en: 'Notes the agent records during a session appear here.', 'zh-CN': 'agent 在会话中记下的结论会显示在这里。' },
   'notes.pickSession':     { en: 'Pick a session',                  'zh-CN': '选择会话' },
   'notes.currentSession':  { en: 'Current session',                 'zh-CN': '当前会话' },
+  'notes.sessionsFailed':  { en: 'Failed to load note sessions.',   'zh-CN': '加载笔记会话失败。' },
   // 记忆作用域提示(核心按 agent 显式启用记忆)
-  'memory.scopeNotDeclared': { en: 'Agent “{agent}” declares no memory scope, so entries here are not injected into the prompt. Add memory = ["project", "user"] to its definition in Agents.', 'zh-CN': '当前 agent「{agent}」未声明记忆作用域,这里写的内容不会被注入 prompt。可在 Agents 里给它的定义加上 memory = ["project", "user"]。' },
-  // 记忆分段(agent 实际注入的结构)
+  'memory.scopeNotDeclared': { en: 'Agent “{agent}” does not enable {missing} memory, so those entries are not injected. Enabled scopes: {scopes}. Change its definition in Agents.', 'zh-CN': '当前 agent「{agent}」未启用{missing}记忆，这些条目不会被注入。已启用作用域：{scopes}。可在 Agents 中修改定义。' },
+  // 已保存的记忆分段
   'memory.sections.title':  { en: 'Memory sections',                   'zh-CN': '记忆分段' },
-  'memory.sections.budget': { en: '{used} / {total} chars injected',  'zh-CN': '注入 {used} / {total} 字符' },
+  'memory.sections.budget': { en: '{used} stored body characters; injection budget {total}', 'zh-CN': '已存正文 {used} 字符；注入预算 {total}' },
+  'memory.sections.failed': { en: 'Failed to load memory sections.', 'zh-CN': '记忆分段加载失败。' },
 };
 
 export default memory;

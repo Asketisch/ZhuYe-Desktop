@@ -987,7 +987,7 @@ describe('reduceEvent — 未知事件类型的前向兼容', () => {
         type: 'plan_draft_updated',
         draft_id: 'refactor.md',
         markdown: '# 计划\n- 步骤',
-        path: '/ws/.reflect/plan/refactor.md',
+        path: '/ws/.zhuye/plan/refactor.md',
       }),
     );
     expect(patch).toEqual({});

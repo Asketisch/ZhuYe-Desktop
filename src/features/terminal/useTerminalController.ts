@@ -95,10 +95,17 @@ export function terminalReducer(state: TerminalState, action: Action): TerminalS
       return { ...state, busy: action.value };
     case 'session/add': {
       const { session, seeds } = action;
+      const earlyLines = state.lines[session.id] ?? [];
+      const terminal = [...earlyLines].reverse().find((line) => line.stream === 'exit' || line.stream === 'error');
+      const parsed = terminal?.stream === 'exit' && terminal.text.trim() !== '' ? Number(terminal.text) : NaN;
+      const initialized = terminal
+        ? { ...session, status: terminal.stream === 'exit' ? 'exited' as const : 'errored' as const,
+            ...(Number.isFinite(parsed) ? { exitCode: parsed } : {}) }
+        : session;
       return {
         ...state,
-        sessions: [...state.sessions, session],
-        lines: { ...state.lines, [session.id]: trimLines(seeds) },
+        sessions: [...state.sessions, initialized],
+        lines: { ...state.lines, [session.id]: trimLines([...seeds, ...earlyLines]) },
         activeId: session.id,
       };
     }
@@ -167,12 +174,29 @@ export interface UseTerminalControllerOptions {
 export function useTerminalController(opts: UseTerminalControllerOptions = {}): TerminalController {
   const runShell = opts.runShell ?? reflect_run_shell;
   const killShell = opts.killShell ?? reflect_kill_shell;
-  const subscribe =
-    opts.subscribe ?? (async (h) => onTerminalOutput(h));
+  const subscribe = opts.subscribe ?? onTerminalOutput;
 
   const [state, dispatch] = useReducer(terminalReducer, initialTerminalState);
   const unlistenRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
+  const listenerReady = useRef<Promise<void> | null>(null);
+  const knownSessions = useRef(new Set<string>());
+  const earlyOutput = useRef(new Map<string, ReflectShellOutputChunk[]>());
+  const starting = useRef(0);
+
+  const appendChunk = useCallback((chunk: ReflectShellOutputChunk) => {
+    dispatch({
+      type: 'session/appendLine', session_id: chunk.session_id,
+      line: { seq: chunk.seq, stream: coerceStream(chunk.stream), text: chunk.data },
+    });
+    if (chunk.stream === 'exit') {
+      const parsed = chunk.data.trim() === '' ? NaN : Number(chunk.data);
+      dispatch({ type: 'session/setStatus', session_id: chunk.session_id, status: 'exited',
+        exitCode: Number.isFinite(parsed) ? parsed : undefined });
+    } else if (chunk.stream === 'error') {
+      dispatch({ type: 'session/setStatus', session_id: chunk.session_id, status: 'errored' });
+    }
+  }, []);
 
   // 挂载时订阅一次；无论解析顺序如何，卸载时都要拆除。
   useEffect(() => {
@@ -181,57 +205,40 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
 
     const handler = (chunk: ReflectShellOutputChunk) => {
       if (!mountedRef.current) return;
-      dispatch({
-        type: 'session/appendLine',
-        session_id: chunk.session_id,
-        line: {
-          seq: chunk.seq,
-          stream: coerceStream(chunk.stream),
-          text: chunk.data,
-        },
-      });
-      if (chunk.stream === 'exit') {
-        // 后端对信号终止的进程发送空 data（status.code() == None）;
-        // 此时保持 exitCode 为 undefined,由视图隐藏 "exit N" 尾巴,
-        // 而不是误显示成 "exit 0"。
-        const parsed = chunk.data.trim() === '' ? NaN : Number(chunk.data);
-        const exitCode = Number.isFinite(parsed) ? parsed : undefined;
-        dispatch({
-          type: 'session/setStatus',
-          session_id: chunk.session_id,
-          status: 'exited',
-          exitCode,
-        });
-      } else if (chunk.stream === 'error') {
-        dispatch({
-          type: 'session/setStatus',
-          session_id: chunk.session_id,
-          status: 'errored',
-        });
+      if (knownSessions.current.has(chunk.session_id)) {
+        appendChunk(chunk);
+      } else if (starting.current > 0) {
+        const buffers = earlyOutput.current;
+        if (!buffers.has(chunk.session_id) && buffers.size >= 64) return;
+        const events = buffers.get(chunk.session_id) ?? [];
+        events.push(chunk);
+        if (events.length > MAX_LINES_PER_SESSION) events.shift();
+        buffers.set(chunk.session_id, events);
       }
     };
 
-    void subscribe(handler).then((un) => {
-      // listen() 进行期间组件可能已经卸载。
-      // 仅当组件仍挂载时才保留 unlisten；否则立即
-      // 释放资源，让订阅被丢弃。
+    const ready = subscribe(handler).then((un) => {
       if (cancelled) {
         try { un(); } catch { /* noop — best effort */ }
         return;
       }
       unlistenRef.current = un;
     });
+    // 避免无人等待时的未处理 rejection，同时让 run 可以读取原始错误。
+    void ready.catch(() => {});
+    listenerReady.current = ready;
 
     return () => {
       cancelled = true;
       mountedRef.current = false;
+      if (listenerReady.current === ready) listenerReady.current = null;
       const un = unlistenRef.current;
       if (un) {
         unlistenRef.current = null;
         try { un(); } catch { /* noop — best effort */ }
       }
     };
-  }, [subscribe]);
+  }, [subscribe, appendChunk]);
 
   const setInput = useCallback((value: string) => {
     dispatch({ type: 'input/set', value });
@@ -248,8 +255,17 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
       dispatch({ type: 'busy/set', value: true });
       dispatch({ type: 'input/set', value: '' });
       try {
-        const sess: ReflectShellSession = await runShell(cmd);
-        dispatch({
+        const ready = listenerReady.current;
+        if (!ready) throw new Error('terminal listener is not ready');
+        await ready;
+        if (!mountedRef.current) return;
+        starting.current += 1;
+        let sess: ReflectShellSession;
+        try {
+          sess = await runShell(cmd);
+          if (!mountedRef.current) return;
+          knownSessions.current.add(sess.id);
+          dispatch({
           type: 'session/add',
           session: {
             id: sess.id,
@@ -258,12 +274,18 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
             status: 'running',
           },
           seeds: [
-            // 负数序列号:后端 stdout 从 1 开始自增、stderr 使用 1_000_000 空间,
-            // 种子行用 0/1 会与第一条 stdout 输出撞 key。
+            // 负数序列号与后端从 1 开始的输出序号区分。
             { seq: -2, stream: 'input', text: `$ ${cmd}` },
             { seq: -1, stream: 'info', text: `cwd: ${sess.cwd}` },
           ],
-        });
+          });
+          const buffered = earlyOutput.current.get(sess.id) ?? [];
+          earlyOutput.current.delete(sess.id);
+          for (const chunk of buffered) appendChunk(chunk);
+        } finally {
+          starting.current -= 1;
+          if (starting.current === 0) earlyOutput.current.clear();
+        }
       } catch (e) {
         // 合成错误会话，让用户就地看到失败信息。
         const errId = `err-${Date.now()}`;
@@ -277,7 +299,7 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
         dispatch({ type: 'busy/set', value: false });
       }
     },
-    [runShell],
+    [runShell, appendChunk],
   );
 
   const killActive = useCallback(async () => {
@@ -297,27 +319,6 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
     dispatch({ type: 'clear', id: state.activeId });
   }, [state.activeId]);
 
-  const appendChunk = useCallback((chunk: ReflectShellOutputChunk) => {
-    dispatch({
-      type: 'session/appendLine',
-      session_id: chunk.session_id,
-      line: { seq: chunk.seq, stream: coerceStream(chunk.stream), text: chunk.data },
-    });
-    if (chunk.stream === 'exit') {
-      dispatch({
-        type: 'session/setStatus',
-        session_id: chunk.session_id,
-        status: 'exited',
-        exitCode: Number(chunk.data) || 0,
-      });
-    } else if (chunk.stream === 'error') {
-      dispatch({
-        type: 'session/setStatus',
-        session_id: chunk.session_id,
-        status: 'errored',
-      });
-    }
-  }, []);
 
   const activeLines = useMemo(
     () => (state.activeId ? state.lines[state.activeId] ?? [] : []),

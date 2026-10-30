@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 use tokio::process::Command as TokioCommand;
 
 use crate::commands::error::{CommandError, CommandResult};
@@ -35,9 +35,53 @@ pub struct ShellOutputChunk {
 }
 
 /// 发一条终端输出事件;应用句柄缺失(mock runtime / 未 setup)时静默丢弃。
-fn emit_chunk(app: &Option<tauri::AppHandle>, chunk: ShellOutputChunk) {
+fn emit_chunk(
+    app: &Option<tauri::AppHandle>,
+    sequence: &parking_lot::Mutex<u64>,
+    mut chunk: ShellOutputChunk,
+) {
+    // 同一把锁覆盖编号与发送，stdout/stderr/exit 的序号与发送顺序一致。
+    let mut current = sequence.lock();
+    *current = current.saturating_add(1);
+    chunk.seq = *current;
     if let Some(app) = app {
         let _ = app.emit("reflect_terminal_output", chunk);
+    }
+}
+
+// 逐行读取字节并容错解码，避免非 UTF-8 输出使 reader 提前退出并堵塞子进程。
+async fn next_output_line<R: AsyncBufRead + Unpin>(
+    reader: &mut R,
+) -> std::io::Result<Option<String>> {
+    let mut bytes = Vec::new();
+    if reader.read_until(b'\n', &mut bytes).await? == 0 {
+        return Ok(None);
+    }
+    if bytes.last() == Some(&b'\n') {
+        bytes.pop();
+        if bytes.last() == Some(&b'\r') {
+            bytes.pop();
+        }
+    }
+    Ok(Some(String::from_utf8_lossy(&bytes).into_owned()))
+}
+
+// 不在等待进程退出时持有锁，否则进程关闭 stdout 后仍在运行时无法 kill。
+async fn wait_for_shell(
+    lock: &crate::shell_sessions::ShellProcess,
+) -> std::io::Result<Option<std::process::ExitStatus>> {
+    loop {
+        {
+            let mut guard = lock.lock().await;
+            let Some(child) = guard.as_mut() else {
+                return Ok(None);
+            };
+            if let Some(status) = child.try_wait()? {
+                guard.take();
+                return Ok(Some(status));
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
 
@@ -90,57 +134,52 @@ pub async fn reflect_run_shell(
     // 在启动 reader 之前先注册 kill 句柄,确保 kill 与 reader 之间能安全竞争。
     let child_lock = Arc::new(tokio::sync::Mutex::new(Some(child)));
     agent.register_shell_session(id.clone(), child_lock.clone());
+    let sequence = Arc::new(parking_lot::Mutex::new(0u64));
 
     // stdout reader —— 还会等待进程退出,并发出 "exit" 事件。
     {
         let app = app.clone();
         let id = id.clone();
         let lock = child_lock.clone();
+        let sequence = sequence.clone();
         let registry = agent.inner().clone();
         tokio::spawn(async move {
-            let mut reader = BufReader::new(stdout).lines();
-            let mut seq: u64 = 0;
-            while let Ok(Some(line)) = reader.next_line().await {
-                seq += 1;
+            let mut reader = BufReader::new(stdout);
+            while let Ok(Some(line)) = next_output_line(&mut reader).await {
                 emit_chunk(
                     &app,
+                    &sequence,
                     ShellOutputChunk {
                         session_id: id.clone(),
                         stream: "stdout".into(),
                         data: line,
-                        seq,
+                        seq: 0,
                     },
                 );
             }
-            // 等待进程退出(若进程尚未被 kill)。
-            let mut g = lock.lock().await;
-            if let Some(mut c) = g.take() {
-                match c.wait().await {
-                    Ok(status) => {
-                        emit_chunk(
-                            &app,
-                            ShellOutputChunk {
-                                session_id: id.clone(),
-                                stream: "exit".into(),
-                                data: status.code().map(|c| c.to_string()).unwrap_or_default(),
-                                seq: seq.saturating_add(1),
-                            },
-                        );
-                    }
-                    Err(e) => {
-                        emit_chunk(
-                            &app,
-                            ShellOutputChunk {
-                                session_id: id.clone(),
-                                stream: "error".into(),
-                                data: e.to_string(),
-                                seq: seq.saturating_add(1),
-                            },
-                        );
-                    }
-                }
+            match wait_for_shell(&lock).await {
+                Ok(Some(status)) => emit_chunk(
+                    &app,
+                    &sequence,
+                    ShellOutputChunk {
+                        session_id: id.clone(),
+                        stream: "exit".into(),
+                        data: status.code().map(|c| c.to_string()).unwrap_or_default(),
+                        seq: 0,
+                    },
+                ),
+                Ok(None) => {}
+                Err(e) => emit_chunk(
+                    &app,
+                    &sequence,
+                    ShellOutputChunk {
+                        session_id: id.clone(),
+                        stream: "error".into(),
+                        data: e.to_string(),
+                        seq: 0,
+                    },
+                ),
             }
-            drop(g);
             // 进程已终结:把注册表条目回收掉。此前只有 kill 路径会删,
             // 自然退出的会话在 map 里留下死条目,长期运行单调泄漏,
             // list 也会返回早已退出的 id。kill 先行时此处为幂等 no-op。
@@ -152,18 +191,18 @@ pub async fn reflect_run_shell(
     {
         let app = app.clone();
         let id = id.clone();
+        let sequence = sequence.clone();
         tokio::spawn(async move {
-            let mut reader = BufReader::new(stderr).lines();
-            let mut seq: u64 = 1_000_000; // 使用独立的序列号空间
-            while let Ok(Some(line)) = reader.next_line().await {
-                seq += 1;
+            let mut reader = BufReader::new(stderr);
+            while let Ok(Some(line)) = next_output_line(&mut reader).await {
                 emit_chunk(
                     &app,
+                    &sequence,
                     ShellOutputChunk {
                         session_id: id.clone(),
                         stream: "stderr".into(),
                         data: line,
-                        seq,
+                        seq: 0,
                     },
                 );
             }
@@ -199,4 +238,46 @@ pub async fn reflect_list_shell_sessions(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<String>> {
     Ok(agent.list_shell_sessions())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn invalid_utf8_does_not_stop_output_reader() {
+        let mut reader = BufReader::new(&b"first\xff\nsecond\r\nlast"[..]);
+        assert_eq!(
+            next_output_line(&mut reader).await.unwrap().as_deref(),
+            Some("first\u{fffd}")
+        );
+        assert_eq!(
+            next_output_line(&mut reader).await.unwrap().as_deref(),
+            Some("second")
+        );
+        assert_eq!(
+            next_output_line(&mut reader).await.unwrap().as_deref(),
+            Some("last")
+        );
+        assert!(next_output_line(&mut reader).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn waiting_for_exit_does_not_block_kill() {
+        let child = TokioCommand::new("sleep").arg("30").spawn().unwrap();
+        let lock = Arc::new(tokio::sync::Mutex::new(Some(child)));
+        let waiter = tokio::spawn({
+            let lock = lock.clone();
+            async move { wait_for_shell(&lock).await }
+        });
+        tokio::task::yield_now().await;
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            let mut guard = lock.lock().await;
+            let mut child = guard.take().unwrap();
+            child.kill().await.unwrap();
+        })
+        .await
+        .expect("kill must not wait for natural exit");
+        assert!(waiter.await.unwrap().unwrap().is_none());
+    }
 }

@@ -16,7 +16,7 @@
 //! `MinimalAgentInner.cron_scheduler` 初始为 `None`;`install_agent_thread`
 //! 注入真 `AgentThread::submission_sender()` 后,driver(30s tick)启动,到
 //! 期 job 的 prompt 作为 `Submission::user_input` 注入 agent loop。在 install
-//! 完成前,CRUD 仍可用(命令层读 RwLock),只是无后台触发。
+//! 完成前,CRUD 返回调度器尚未就绪的错误。
 //!
 //! ## 未做(后续阶段)
 //!
@@ -26,7 +26,7 @@
 //! - 后台 driver tick 间隔配置。
 //! - 一次性 schedule(`run_at` 时间点)。
 
-use reflect_stream::cron::{CronJobSpec, CronScheduler, CronStatus};
+use reflect_stream::cron::{CronJobSpec, CronSchedule, CronScheduler, CronStatus};
 use serde::Serialize;
 use tauri::State;
 
@@ -88,6 +88,14 @@ pub async fn reflect_update_schedule(
     enabled: Option<bool>,
 ) -> CommandResult<CronJobSpec> {
     let s = scheduler(&agent)?;
+    if s.get(&id).is_none() {
+        return Err(CommandError {
+            msg: format!("schedule not found: {id}"),
+        });
+    }
+    if let Some(expression) = schedule.as_deref() {
+        CronSchedule::parse(expression).map_err(CommandError::from)?;
+    }
     let updated = s.update(
         &id,
         schedule.as_deref(),

@@ -38,7 +38,7 @@ export function Composer() {
   // F：草稿按会话持久化 —— 切会话不丢输入；Hero 快捷模板经 prefill
   // 总线写入草稿后聚焦输入框。
   const { activeId } = useActiveSession();
-  const { text, setText } = useComposerDraft(activeId, {
+  const { text, setText, clearSubmittedDraft } = useComposerDraft(activeId, {
     onPrefill: () => requestAnimationFrame(() => textareaRef.current?.focus()),
   });
   const [slashVisible, setSlashVisible] = useState(false);
@@ -66,6 +66,7 @@ export function Composer() {
     attachments,
     history,
     setText,
+    clearSubmittedDraft,
     setBusy,
     setSlashVisible,
     focus,

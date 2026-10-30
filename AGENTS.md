@@ -19,22 +19,23 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 
 - 前端：React 19 + Vite + TanStack Router/Query（`src/`）
 - 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
-- 子模块：`reflect-*` 核心 crate 通过 git submodule 复用（见 `reflect-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
-- 共享核心：`app-core/`（UI 无关的领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / sandbox / stats，供 `src-tauri` 命令层复用）
+- 子模块：`zhuye-*` 核心 crate（桌面端使用 `reflect-*` 依赖别名） 通过 git submodule 复用（见 `reflect-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
+- 共享核心：`app-core/`（UI 无关的领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / sandbox / stats / paths，供 `src-tauri` 命令层复用）
 
 ## 不可妥协的架构规则
 
-1. 将共享/领域后端逻辑优先放在 `app-core/` 和 `reflect-agent/crates/reflect-*` 中。
+1. 将共享/领域后端逻辑优先放在 `app-core/` 和 `reflect-agent/crates/**/zhuye-*` 中。
 2. Tauri 应用是 `reflect_core::AgentThread` 的薄适配层。
 3. TUI 和 GUI 之间不重复逻辑；两者消费同一份 `reflect-protocol` 协议信封。
 4. 除非有意修改协议，否则保持 Tauri 命令名称和负载结构稳定。
 5. 保持前端 IPC 协议与后端命令表一致（`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`）。
+6. 数据目录以 submodule 为准（用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`）。路径只经 `app-core/src/paths.rs` 取，不在功能代码里自拼目录名；与 sessions 树必须同级的目录（归档）从 `reflect_rollout::path::default_base()` 派生。
 
 ## 后端路由规则
 
 后端行为变更遵循以下顺序：
 
-1. 核心 crate（`reflect-agent/crates/reflect-*`，通过 submodule）— 跨运行时逻辑的首选位置。如果变更应放在上游，修改 Reflect-Agent 仓库并升级 submodule（见 `SUBMODULE.md`）。
+1. 核心 crate（`reflect-agent/crates/**/zhuye-*`，通过 submodule）— 跨运行时逻辑的首选位置。如果变更应放在上游，修改 Reflect-Agent 仓库并升级 submodule（见 `SUBMODULE.md`）。
 2. 应用适配层和 Tauri 命令表（`src-tauri/src/lib.rs` + `commands/mod.rs`）。
 3. 前端 IPC 包装（`src/utils/commands/{domain}.ts`）。
 4. 如果新增后端命令，需同步更新所有相关层级 + 测试 + `docs/PROTOCOL_BRIDGE.md` + `docs/CHANGELOG.md`。
@@ -70,7 +71,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 - 应用状态支持模块（位于 `src-tauri/src/`）：`state.rs`、`dock.rs`、`events.rs`、`mcp.rs`、`menu.rs`、`tray.rs`、`shortcut.rs`，及辅助文件 `hook_store.rs`、`memory_store.rs`、`shell_sessions.rs`、`workspace_state.rs`
 - Tauri 命令表：`src-tauri/src/commands/mod.rs` — 薄桶模块，重新导出 `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` 中的命令体和 `error.rs`（定义 `CommandError` / `CommandResult`）
 - Cargo 工作区：`Cargo.toml`（根）+ `src-tauri/Cargo.toml`
-- 子模块核心：`reflect-agent/crates/reflect-*/`（只读镜像，不要直接修改——修改 Reflect-Agent 仓库并升级 submodule）
+- 子模块核心：`reflect-agent/crates/**/zhuye-*/`（只读镜像，不要直接修改——修改 Reflect-Agent 仓库并升级 submodule）
 - 发布门禁入口：`tests/run_all.sh`（分层）+ `tests/lib.sh`（公共助手）
 - 发布门禁分层套件：`tests/static/`（静态审查）、`tests/frontend/`（前端行为）、`tests/backend/`（真后端能力覆盖）、`tests/artifact/`（发布产物）、`tests/e2e/` + `tests/visual/`（视觉回归 + 真窗口冒烟，默认可跳过）、`tests/live/`（实模型演练，真免费模型，默认跳过）
 - 真后端能力覆盖层：`src-tauri/tests/ipc_{core,workspace,domains,agent_ops,goal}.rs` + 共享夹具 `src-tauri/tests/common/mod.rs`
@@ -132,7 +133,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
 - 如果存在无关变更，继续专注自有文件，除非这些变更影响正确性
 - 如果冲突影响正确性，指出问题并选择最安全的路径
 - 修复根本原因，不要打补丁
-- **子模块核心**：不要直接修改 `reflect-agent/crates/reflect-*`；修改 Reflect-Agent 仓库后用 `git submodule update --remote` 升级（详见 `SUBMODULE.md`）
+- **子模块核心**：不要直接修改 `reflect-agent/crates/**/zhuye-*`；修改 Reflect-Agent 仓库后用 `git submodule update --remote` 升级（详见 `SUBMODULE.md`）
 
 ## 验证矩阵
 
@@ -169,7 +170,7 @@ ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 1
   地区门判为**跳过**而非失败。接法见
   [`docs/FREE_MODEL_PRACTICE.md`](docs/FREE_MODEL_PRACTICE.md)。
 - 能力覆盖层在 `src-tauri/tests/ipc_*.rs`，共享夹具
-  `src-tauri/tests/common/mod.rs`（HOME / REFLECT_HOME / cwd 全部沙箱化）。
+  `src-tauri/tests/common/mod.rs`（HOME 与 cwd 全部沙箱化；数据根随之为 `$HOME/.zhuye`）。
 - 覆盖口径（哪个能力域由哪层验、哪些显式排除及理由）见
   [`tests/COVERAGE.md`](tests/COVERAGE.md)。
 - 报告落在 `.test-results/release-review.md`。

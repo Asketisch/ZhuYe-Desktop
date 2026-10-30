@@ -125,7 +125,7 @@ api_key 为空」时直接返回 `None`（该 provider 不注册），于是 `mo
 ### Kilo 车道（免 Key，默认）
 
 ```toml
-# ~/.reflect/config.toml
+# ~/.zhuye/config.toml
 [hooks]
 enabled = []                      # 演练时关掉内置 hook（只验引擎行为）
 

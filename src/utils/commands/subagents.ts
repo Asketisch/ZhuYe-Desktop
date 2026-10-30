@@ -1,12 +1,12 @@
 /**
  * 子代理 spec IPC 包装 —— `call_<role>` 工具的来源。
  *
- * 与 **agent 定义**(`~/.reflect/agents/*.md`,主 agent 的 system prompt /
+ * 与 **agent 定义**(`~/.zhuye/agents/*.md`,主 agent 的 system prompt /
  * 工具白名单)是**两套不同的东西**:后者由 Agents 视图管理,前者此前没有
  * 任何编辑面。
  *
  * 合并口径与运行时同款:`[[subagents]]`(TOML) > 工作区
- * `.reflect/subagents/*.md` > 用户级 `~/.reflect/subagents/*.md` >
+ * `.zhuye/subagents/*.md` > 用户级 `~/.zhuye/subagents/*.md` >
  * 硬编码 explorer。
  */
 import { invoke } from '../bridge';
@@ -45,7 +45,7 @@ export function reflect_get_subagent_spec(role: string): Promise<string | null> 
 }
 
 /**
- * 保存一个子代理 spec(写到工作区 `.reflect/subagents/<role>.md`)。
+ * 保存一个子代理 spec(写到工作区 `.zhuye/subagents/<role>.md`)。
  *
  * `markdown` 是完整文件内容(frontmatter + body)—— 写前由后端解析校验,
  * 非法 frontmatter 直接报错不落盘。

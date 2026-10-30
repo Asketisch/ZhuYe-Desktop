@@ -1,6 +1,6 @@
 //! Agent 定义管理命令 —— 包装 `reflect_agent_def` crate。
 //!
-//! agent profile 管理 UI 的后端。每个 agent 是位于 `~/.reflect/agents/<name>.md`
+//! agent profile 管理 UI 的后端。每个 agent 是位于 `~/.zhuye/agents/<name>.md`
 //! 的 Markdown 文件(带 YAML frontmatter),与 TUI/CLI 共享。
 //!
 //! ## 命令清单
@@ -34,12 +34,11 @@ use tauri::State;
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
 
-/// `~/.reflect/agents/` 目录(存 agent 定义 markdown 文件)。
+/// `~/.zhuye/agents/` 目录(存 agent 定义 markdown 文件)。
 fn agents_dir() -> CommandResult<PathBuf> {
-    let home = dirs::home_dir().ok_or_else(|| CommandError {
+    reflect_app_core::paths::user_data_path(&["agents"]).ok_or_else(|| CommandError {
         msg: "no home dir".into(),
-    })?;
-    Ok(home.join(".reflect/agents"))
+    })
 }
 
 /// 把 `AgentDefinition` 序列化为 markdown（frontmatter + 正文）。
@@ -151,6 +150,7 @@ pub async fn reflect_get_agent_def(
 pub async fn reflect_save_agent_def(
     _agent: State<'_, MinimalAgent>,
     def: AgentDefinition,
+    create_only: Option<bool>,
 ) -> CommandResult<AgentDefinition> {
     if def.name.is_empty() {
         return Err(CommandError {
@@ -166,10 +166,23 @@ pub async fn reflect_save_agent_def(
     std::fs::create_dir_all(&dir).map_err(CommandError::from)?;
     let path = path_for(&def.name, &dir)?;
     let md = serialize_agent_md(&def)?;
-    std::fs::write(&path, md).map_err(CommandError::from)?;
-    // round-trip 校验:写回后重解析,确认可读。
-    let raw = std::fs::read_to_string(&path).map_err(CommandError::from)?;
-    let back = parse_agent_str(&raw).map_err(CommandError::from)?;
+    // 写盘前校验，避免无效内容覆盖已有定义。
+    let back = parse_agent_str(&md).map_err(CommandError::from)?;
+    if create_only.unwrap_or(false) {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .map_err(CommandError::from)?;
+        if let Err(error) = file.write_all(md.as_bytes()) {
+            drop(file);
+            let _ = std::fs::remove_file(&path);
+            return Err(error.into());
+        }
+    } else {
+        std::fs::write(&path, md).map_err(CommandError::from)?;
+    }
     Ok(back)
 }
 
@@ -248,11 +261,15 @@ pub struct ActiveAgentInfo {
 /// 解析活跃 agent 的定义(与核心 `m4_bootstrap` 同口径:工作区优先,
 /// 再用户级;都没有则用内置默认定义)。
 fn resolve_active_def(name: &str, workspace: &Path) -> (bool, Vec<String>) {
-    let home = dirs::home_dir().unwrap_or_default();
-    let mut agents =
-        reflect_agent_def::load_agents_dir(&workspace.join(".reflect/agents")).unwrap_or_default();
+    let mut agents = reflect_agent_def::load_agents_dir(
+        &reflect_app_core::paths::project_data_path(workspace, &["agents"]),
+    )
+    .unwrap_or_default();
     agents.extend(
-        reflect_agent_def::load_agents_dir(&home.join(".reflect/agents")).unwrap_or_default(),
+        reflect_agent_def::load_agents_dir(&reflect_app_core::paths::user_data_path_or_relative(
+            &["agents"],
+        ))
+        .unwrap_or_default(),
     );
     match agents.remove(name) {
         Some(def) => (true, def.memory.iter().map(|s| s.to_string()).collect()),
@@ -299,37 +316,49 @@ pub async fn reflect_get_active_agent(
 /// 设置当前活跃 agent 并**立即重绑**当前会话(新定义立刻生效)。
 ///
 /// 重绑语义与 provider 热重载一致:replay 当前会话历史 → 强制重建线程 →
-/// 保留会话级权限模式。失败时保留旧 agent(不半途切换)。
+/// 保留会话级权限模式。重绑失败时尝试恢复旧 agent，恢复失败会一并报告。
 #[tauri::command]
 pub async fn reflect_set_active_agent(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<ActiveAgentInfo> {
-    crate::agent_state::AgentState::set_active_agent(&name).map_err(|e| CommandError {
-        msg: format!("set active agent failed: {e:#}"),
-    })?;
-    // 有绑定会话 → replay 历史 → 强制重绑(新 agent 立即生效)。
-    if let Some(sid) = agent.bound_session_id() {
+    let _config_write = agent.inner.config_write_lock.lock().await;
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    // 先取得历史；回放失败时不能以空上下文重建或更新活跃 agent。
+    let bound = if let Some(sid) = agent.bound_session_id() {
         let current_mode = agent
             .inner
             .thread
             .lock()
             .as_ref()
             .map(|t| t.config().permission_mode());
-        let preload = match crate::commands::sessions::replay_for_preload(&sid).await {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!(
-                    "[reflect-gui] replay for agent rebind failed ({e:#}); rebinding without history"
-                );
-                Vec::new()
-            }
-        };
-        crate::state::rebind::rebind_session_forced(&agent, sid, preload, current_mode).map_err(
-            |e| CommandError {
-                msg: format!("rebind for active agent failed: {e:#}"),
-            },
-        )?;
+        let preload = crate::commands::sessions::replay_for_preload(&sid)
+            .await
+            .map_err(|e| CommandError {
+                msg: format!("replay for active agent failed: {e:#}"),
+            })?;
+        Some((sid, current_mode, preload))
+    } else {
+        None
+    };
+    let previous = crate::agent_state::AgentState::active_agent();
+    crate::agent_state::AgentState::set_active_agent(&name).map_err(|e| CommandError {
+        msg: format!("set active agent failed: {e:#}"),
+    })?;
+    if let Some((sid, current_mode, preload)) = bound {
+        if let Err(error) =
+            crate::state::rebind::rebind_session_forced(&agent, sid, preload, current_mode)
+        {
+            let rollback = crate::agent_state::AgentState::set_active_agent(&previous);
+            return Err(CommandError {
+                msg: match rollback {
+                    Ok(()) => format!("rebind for active agent failed: {error:#}"),
+                    Err(rollback_error) => format!(
+                        "rebind for active agent failed: {error:#}; restoring previous agent failed: {rollback_error:#}"
+                    ),
+                },
+            });
+        }
     }
     Ok(active_agent_info(&agent))
 }

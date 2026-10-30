@@ -10,7 +10,7 @@
  * 6. Ollama / Anthropic / OpenAI provider 都有显式输入
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SettingsView } from '@/features/settings/SettingsView';
 import { I18nProvider } from '@/utils/i18n';
@@ -103,6 +103,32 @@ describe('SettingsView', () => {
     await waitFor(() => expect(modeArg).toBe('plan'), { timeout: 2000 });
   });
 
+  it('preserves edits made while a save is in flight and config refetches', async () => {
+    let finish!: () => void;
+    let saved = SAMPLE_TOML;
+    let reads = 0;
+    mockInvoke('reflect_save_config', async (_cmd, args) => {
+      const submitted = (args as { toml: string }).toml;
+      await new Promise<void>((resolve) => { finish = resolve; });
+      saved = submitted;
+    });
+    mockInvoke('reflect_get_config', async () => { reads += 1; return saved; });
+    renderSettingsView();
+    fireEvent.click(screen.getByText('Advanced'));
+    const editor = await screen.findByRole('textbox') as HTMLTextAreaElement;
+    await waitFor(() => expect(editor.value).toBe(SAMPLE_TOML));
+    const first = `${SAMPLE_TOML}\n# saved edit`;
+    const second = `${first}\n# later edit`;
+    fireEvent.change(editor, { target: { value: first } });
+    fireEvent.click(screen.getByRole('button', { name: /Save to/ }));
+    await waitFor(() => expect(finish).toBeDefined());
+    fireEvent.change(editor, { target: { value: second } });
+    await act(async () => { finish(); });
+    await waitFor(() => expect(reads).toBeGreaterThan(1));
+    expect(editor.value).toBe(second);
+    expect(saved).toBe(first);
+  });
+
   it('Save button calls reflect_save_config with merged TOML', async () => {
     let savedToml: string | null = null;
     mockInvoke('reflect_save_config', async (_cmd: string, args: unknown) => {
@@ -116,10 +142,10 @@ describe('SettingsView', () => {
     });
     // 再等一帧让 useEffect 把 rawToml 写入。
     await waitFor(() => {
-      expect(screen.getByText('Save to ~/.reflect/config.toml')).toBeDefined();
+      expect(screen.getByText('Save to ~/.zhuye/config.toml')).toBeDefined();
     });
 
-    fireEvent.click(screen.getByText('Save to ~/.reflect/config.toml'));
+    fireEvent.click(screen.getByText('Save to ~/.zhuye/config.toml'));
     await waitFor(() => expect(savedToml).not.toBeNull(), { timeout: 2000 });
     // 合并后的 TOML 应保留 active + anthropic 段(SAMPLE_TOML 的内容)。
     expect(savedToml).toContain('[active]');

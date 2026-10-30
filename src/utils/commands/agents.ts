@@ -3,7 +3,7 @@
  *
  * 对应 `src-tauri/src/commands/agents.rs`(其内部封装
  * `reflect-agent/crates/abilities/reflect-agent-def`)。每个 agent 是一个带 YAML frontmatter 的
- * Markdown 文件,位于 `~/.reflect/agents/<name>.md`,与 TUI/CLI 共享。
+ * Markdown 文件,位于 `~/.zhuye/agents/<name>.md`,与 TUI/CLI 共享。
  *
  * payload 形态与 核心 crate 的 `AgentDefinition` serde shape 一致(snake_case)。
  */
@@ -61,11 +61,11 @@ export async function reflect_get_agent_def(name: string): Promise<ReflectAgentD
 
 /**
  * 创建或更新 agent 定义。序列化到
- * `~/.reflect/agents/<name>.md` 并做往返校验。
+ * `~/.zhuye/agents/<name>.md` 并做往返校验。
  * `name` 与 `description` 为必填项。
  */
-export async function reflect_save_agent_def(def: ReflectAgentDef): Promise<ReflectAgentDef> {
-  return invoke<ReflectAgentDef>('reflect_save_agent_def', { def });
+export async function reflect_save_agent_def(def: ReflectAgentDef, createOnly = false): Promise<ReflectAgentDef> {
+  return invoke<ReflectAgentDef>('reflect_save_agent_def', createOnly ? { def, createOnly: true } : { def });
 }
 
 /** 删除 agent 定义文件。返回 `true` 表示已删除,`false` 表示未找到。 */

@@ -1,7 +1,7 @@
 /**
  * Usage —— 模型级 token 用量视图。
  *
- * 数据源是 rollout JSONL(`~/.reflect/sessions/`)的落盘聚合,与 CLI
+ * 数据源是 rollout JSONL(`~/.zhuye/sessions/`)的落盘聚合,与 CLI
  * `reflect session stats` 同源(后端复用 `reflect-rollout` 的统计实现,
  * 不在桌面端复刻 token 聚合)。
  *

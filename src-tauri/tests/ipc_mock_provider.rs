@@ -121,9 +121,9 @@ fn sse_tool_use() -> String {
 }
 
 fn sse_response(body: String) -> ResponseTemplate {
-    ResponseTemplate::new(200)
-        .insert_header("content-type", "text/event-stream")
-        .set_body_string(body)
+    // 必须用 `set_body_raw` 设类型：`set_body_string` 会把 content-type 覆盖成
+    // `text/plain`，而核心的流式解析会拒绝「200 但不是 text/event-stream」。
+    ResponseTemplate::new(200).set_body_raw(body, "text/event-stream")
 }
 
 // ============================================================================
@@ -637,7 +637,12 @@ fn event_summary(events: &[Value]) -> String {
                 "{}#{} {}",
                 msg_type(e).unwrap_or("?"),
                 event_id(e),
-                e["msg"].to_string().chars().take(120).collect::<String>()
+                // error 事件不截断：截掉 payload 等于截掉唯一的诊断线索。
+                if msg_type(e) == Some("error") {
+                    e["msg"].to_string()
+                } else {
+                    e["msg"].to_string().chars().take(120).collect::<String>()
+                }
             )
         })
         .collect::<Vec<_>>()

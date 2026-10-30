@@ -1,6 +1,6 @@
 //! 能力覆盖层 · 配置向前/向后兼容 —— 旧配置文件在**新进程启动**时必须可用。
 //!
-//! 场景:用户升级应用,`~/.reflect/config.toml` 还是旧版本写的(或被手工
+//! 场景:用户升级应用,`~/.zhuye/config.toml` 还是旧版本写的(或被手工
 //! 编辑过),新进程启动时读它。夹具(`tests/fixtures/config/`)覆盖四种
 //! 形态:最小 / 旧版本全量 / 未知键(前向兼容)/ 当前全量。
 //!
@@ -93,12 +93,12 @@ fn legacy_and_unknown_config_shapes_load_in_a_fresh_process() {
             "reflect-desktop-config-compat-{}-{name}",
             std::process::id()
         ));
-        let reflect = shared.join("home").join(".reflect");
-        std::fs::create_dir_all(&reflect).expect("创建夹具 HOME");
+        let data = shared.join("home").join(".zhuye");
+        std::fs::create_dir_all(&data).expect("创建夹具数据目录");
         std::fs::create_dir_all(shared.join("home").join("workspace")).expect("创建夹具 workspace");
         let raw = std::fs::read_to_string(fixture_path(name))
             .unwrap_or_else(|e| panic!("读不到 fixture {name}: {e}"));
-        std::fs::write(reflect.join("config.toml"), raw).expect("预置 fixture 配置");
+        std::fs::write(data.join("config.toml"), raw).expect("预置 fixture 配置");
 
         let exe = std::env::current_exe().expect("定位测试二进制");
         let status = std::process::Command::new(exe)

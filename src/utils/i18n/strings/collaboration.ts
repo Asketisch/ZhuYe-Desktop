@@ -34,6 +34,8 @@ const collaboration: Record<string, StringEntry> = {
   'collaboration.mcpCommandPlaceholder': { en: 'npx',                      'zh-CN': 'npx' },
   'collaboration.mcpArgs':     { en: 'Arguments',                         'zh-CN': '参数' },
   'collaboration.mcpArgsPlaceholder': { en: '-y @modelcontextprotocol/server-filesystem', 'zh-CN': '-y @modelcontextprotocol/server-filesystem' },
+  'collaboration.mcpArgsUnclosedQuote': { en: 'Close the quotation mark in the arguments.', 'zh-CN': '请闭合参数中的引号。' },
+  'collaboration.mcpArgsHint': { en: 'Use quotes for arguments containing spaces.', 'zh-CN': '包含空格的参数请用引号括起。' },
   'collaboration.mcpUrl':      { en: 'URL',                               'zh-CN': '地址' },
   'collaboration.mcpUrlPlaceholder': { en: 'http://localhost:3000/mcp', 'zh-CN': 'http://localhost:3000/mcp' },
   // 插件管理

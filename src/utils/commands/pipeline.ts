@@ -99,13 +99,13 @@ export function reflect_validate_pipeline(
   return invoke('reflect_validate_pipeline', { tomlSrc });
 }
 
-/** 列出已保存的 pipeline 配置(`~/.reflect/pipelines/*.toml`)。 */
+/** 列出已保存的 pipeline 配置(`~/.zhuye/pipelines/*.toml`)。 */
 export function reflect_list_pipeline_configs(): Promise<PipelineConfigFile[]> {
   return invoke('reflect_list_pipeline_configs');
 }
 
 /**
- * 保存一个 pipeline 配置(写到 `~/.reflect/pipelines/<name>.toml`)。
+ * 保存一个 pipeline 配置(写到 `~/.zhuye/pipelines/<name>.toml`)。
  *
  * 写前由后端跑一次核心校验 —— 非法配置**不落盘**。
  */

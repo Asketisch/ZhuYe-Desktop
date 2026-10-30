@@ -37,6 +37,59 @@ fn workspace_history_round_trips() {
 }
 
 #[test]
+fn switching_workspace_rejects_input_bound_to_the_previous_directory() {
+    let _guard = workspace_lock();
+    let first = temp_workspace("session-workspace-a");
+    let second = temp_workspace("session-workspace-b");
+    set_workspace(&first);
+    let id = invoke_ok("reflect_create_session", json!({}));
+    invoke_ok("reflect_bind_session", json!({ "id": id }));
+    set_workspace(&second);
+
+    let error = invoke_err(
+        "reflect_submit",
+        json!({ "submission": {
+            "id": "stale-workspace",
+            "workspace": second,
+            "op": { "type": "user_input", "items": [{ "type": "text", "text": "hello" }] }
+        }}),
+    );
+    assert!(error.to_string().contains("workspace changed"), "{error}");
+    let error = invoke_err(
+        "reflect_steer",
+        json!({ "items": [{ "type": "text", "text": "hello" }] }),
+    );
+    assert!(error.to_string().contains("workspace changed"), "{error}");
+}
+
+#[test]
+fn opening_a_session_requires_its_recorded_workspace() {
+    let _guard = workspace_lock();
+    let first = temp_workspace("recorded-workspace-a");
+    let second = temp_workspace("recorded-workspace-b");
+    set_workspace(&second);
+    let id = invoke_ok("reflect_create_session", json!({}));
+    let base = reflect_rollout::path::default_base();
+    std::fs::create_dir_all(&base).unwrap();
+    let record = json!({
+        "type": "session_meta", "session_id": id, "model": "test",
+        "started_at": "2026-01-01T00:00:00Z", "workspace": first,
+    });
+    std::fs::write(
+        base.join(format!("{}.jsonl", id.as_str().unwrap())),
+        format!("{record}\n"),
+    )
+    .unwrap();
+    let error = invoke_err("reflect_bind_session", json!({ "id": id }));
+    assert!(
+        error.to_string().contains("session belongs to workspace"),
+        "{error}"
+    );
+    set_workspace(&first);
+    invoke_ok("reflect_bind_session", json!({ "id": id }));
+}
+
+#[test]
 fn native_pickers_report_unavailable_without_desktop_runtime() {
     // mock runtime 下没有应用句柄 —— 原生对话框必须**报结构化错误**,
     // 而不是 panic 或挂死。
@@ -108,6 +161,45 @@ fn path_escape_outside_workspace_is_rejected() {
     assert!(!e.is_null(), "越界读取必须返回错误");
 }
 
+/// 目录列表与搜索都会暴露工作区外的文件名 / 行内容，沙盒规则必须与读写一致。
+#[test]
+fn listing_and_searching_outside_the_workspace_is_rejected() {
+    let _guard = workspace_lock();
+    let root = std::env::temp_dir().join(format!(
+        "reflect-desktop-capability-{}-escape-roots",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&root).expect("create escape root");
+    let ws = root.join("workspace");
+    let outside = root.join("outside");
+    std::fs::create_dir_all(&ws).expect("create workspace");
+    std::fs::create_dir_all(&outside).expect("create outside dir");
+    std::fs::write(outside.join("secret.txt"), "do not leak\n").expect("write outside file");
+    set_workspace(&ws.display().to_string());
+
+    let listed = invoke_err(
+        "reflect_list_dir",
+        json!({ "path": outside.display().to_string(), "maxDepth": 1 }),
+    );
+    assert!(
+        listed.to_string().contains("escapes workspace"),
+        "越界目录列表必须被拒: {listed}"
+    );
+    let searched = invoke_err(
+        "reflect_search_files",
+        json!({ "query": "leak", "path": outside.display().to_string() }),
+    );
+    assert!(
+        searched.to_string().contains("escapes workspace"),
+        "越界搜索必须被拒: {searched}"
+    );
+    let traversed = invoke_err("reflect_list_dir", json!({ "path": "a/../b" }));
+    assert!(
+        traversed.to_string().contains("must not contain '..'"),
+        "带 .. 的列表路径必须被拒: {traversed}"
+    );
+}
+
 #[test]
 fn file_search_returns_ranked_hits() {
     let _guard = workspace_lock();
@@ -118,6 +210,17 @@ fn file_search_returns_ranked_hits() {
         json!({ "query": "capability", "path": ws, "maxResults": 10 }),
     );
     assert!(v.is_object(), "搜索结果应为对象: {v}");
+    let exact = invoke_ok(
+        "reflect_search_files",
+        json!({ "query": "capability layer probe", "path": ws, "maxResults": 1 }),
+    );
+    assert_eq!(exact["hits"].as_array().unwrap().len(), 1);
+    assert_eq!(exact["truncated"], false);
+    let zero = invoke_ok(
+        "reflect_search_files",
+        json!({ "query": "capability layer probe", "path": ws, "maxResults": 0 }),
+    );
+    assert_eq!(zero["truncated"], true);
     let bm25 = invoke_ok(
         "reflect_search_files",
         json!({ "query": "capability", "path": ws, "maxResults": 10, "rank": "bm25" }),
@@ -344,6 +447,177 @@ fn session_export_and_replay_are_reachable() {
         Ok(v) => assert!(v.is_string() || v.is_object(), "导出结果形态异常: {v}"),
         Err(e) => assert!(!e.is_null(), "错误响应不应为 null"),
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn session_exports_replace_links_without_changing_their_targets() {
+    let id = invoke_ok("reflect_create_session", json!({}));
+    let session_id = id.as_str().unwrap();
+    let base = reflect_rollout::path::default_base();
+    std::fs::create_dir_all(&base).unwrap();
+    let record = json!({"type": "session_meta", "session_id": id, "model": "test", "started_at": "2026-01-01T00:00:00Z", "workspace": null});
+    std::fs::write(
+        base.join(format!("{session_id}.jsonl")),
+        format!("{record}\n"),
+    )
+    .unwrap();
+    let export_dir = dirs::home_dir().unwrap().join(".zhuye/exports");
+    std::fs::create_dir_all(&export_dir).unwrap();
+    let external = tempfile::tempdir().unwrap();
+    let target = external.path().join("original");
+    std::fs::write(&target, "unchanged").unwrap();
+    for (extension, command) in [
+        ("json", "reflect_export_session"),
+        ("md", "reflect_export_session_markdown"),
+    ] {
+        let path = export_dir.join(format!("{session_id}.{extension}"));
+        std::os::unix::fs::symlink(&target, &path).unwrap();
+        invoke_ok(command, json!({"id": id}));
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "unchanged");
+        assert!(
+            !std::fs::symlink_metadata(path)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+}
+
+#[test]
+fn deleted_bound_session_rejects_further_submissions() {
+    let _workspace = workspace_lock();
+    let _guard = common::state_lock();
+    let id = invoke_ok("reflect_create_session", json!({}));
+    invoke_ok("reflect_bind_session", json!({"id": id}));
+    invoke_ok("reflect_delete_session", json!({"id": id}));
+    invoke_err(
+        "reflect_submit",
+        json!({"submission": {"id": "after-delete", "op": {"type": "user_input", "items": [{"type": "text", "text": "after deletion"}]}}}),
+    );
+    let records = invoke_ok("reflect_replay_session", json!({"id": id}));
+    assert_eq!(records, json!([]));
+}
+
+#[test]
+fn archived_bound_session_rejects_further_submissions() {
+    let _workspace = workspace_lock();
+    let _guard = common::state_lock();
+    let id = invoke_ok("reflect_create_session", json!({}));
+    invoke_ok("reflect_bind_session", json!({"id": id}));
+    invoke_ok("reflect_archive_session", json!({"id": id}));
+    invoke_err(
+        "reflect_submit",
+        json!({"submission": {"id": "after-archive", "op": {"type": "user_input", "items": [{"type": "text", "text": "after archive"}]}}}),
+    );
+    assert_eq!(
+        invoke_ok("reflect_replay_session", json!({"id": id})),
+        json!([])
+    );
+}
+
+#[test]
+fn failed_archive_restores_the_active_session() {
+    let _workspace = workspace_lock();
+    let _guard = common::state_lock();
+    let id = invoke_ok("reflect_create_session", json!({}));
+    let name = format!("{}.name", id.as_str().unwrap());
+    let base_names = reflect_rollout::path::default_base().join("_names");
+    let archive_names = dirs::home_dir()
+        .unwrap()
+        .join(".zhuye/sessions-archive/_names");
+    std::fs::create_dir_all(&base_names).unwrap();
+    std::fs::create_dir_all(&archive_names).unwrap();
+    std::fs::write(base_names.join(&name), "active").unwrap();
+    std::fs::write(archive_names.join(&name), "existing").unwrap();
+    invoke_ok("reflect_bind_session", json!({"id": id}));
+    invoke_err("reflect_archive_session", json!({"id": id}));
+    assert_eq!(
+        std::fs::read_to_string(base_names.join(&name)).unwrap(),
+        "active"
+    );
+    assert_eq!(
+        std::fs::read_to_string(archive_names.join(&name)).unwrap(),
+        "existing"
+    );
+    invoke_ok(
+        "reflect_submit",
+        json!({"submission": {"id": "after-failed-archive", "op": {"type": "user_input", "items": [{"type": "text", "text": "still active"}]}}}),
+    );
+}
+
+#[test]
+fn unarchive_rejects_the_active_session_until_it_is_switched() {
+    let _workspace = workspace_lock();
+    let _guard = common::state_lock();
+    let id = invoke_ok("reflect_create_session", json!({}));
+    let name = format!("{}.name", id.as_str().unwrap());
+    let archive = dirs::home_dir()
+        .unwrap()
+        .join(".zhuye/sessions-archive/_names");
+    let active = reflect_rollout::path::default_base().join("_names");
+    std::fs::create_dir_all(&archive).unwrap();
+    std::fs::write(archive.join(&name), "archived title").unwrap();
+    invoke_ok("reflect_bind_session", json!({"id": id}));
+    let error = invoke_err("reflect_unarchive_session", json!({"id": id}));
+    assert!(error.to_string().contains("switch sessions first"));
+    assert_eq!(
+        std::fs::read_to_string(archive.join(&name)).unwrap(),
+        "archived title"
+    );
+    assert!(!active.join(&name).exists());
+    let other = invoke_ok("reflect_create_session", json!({}));
+    invoke_ok("reflect_bind_session", json!({"id": other}));
+    invoke_ok("reflect_unarchive_session", json!({"id": id}));
+    assert_eq!(
+        std::fs::read_to_string(active.join(&name)).unwrap(),
+        "archived title"
+    );
+}
+
+#[test]
+fn forked_history_remains_available_after_parent_deletion() {
+    let _workspace = workspace_lock();
+    let _guard = common::state_lock();
+    let id = invoke_ok("reflect_create_session", json!({}));
+    let base = reflect_rollout::path::default_base();
+    std::fs::create_dir_all(&base).unwrap();
+    let record = json!({"type": "session_meta", "session_id": id, "model": "test", "started_at": "2026-01-01T00:00:00Z", "workspace": null});
+    std::fs::write(
+        base.join(format!("{}.jsonl", id.as_str().unwrap())),
+        format!("{record}\n"),
+    )
+    .unwrap();
+    let child = invoke_ok(
+        "reflect_fork_session",
+        json!({"id": id, "branch": "child", "upToTurnId": null}),
+    );
+    let before = invoke_ok("reflect_replay_session", json!({"id": child}));
+    assert!(!before.as_array().unwrap().is_empty());
+    invoke_ok("reflect_delete_session", json!({"id": id}));
+    assert_eq!(
+        invoke_ok("reflect_replay_session", json!({"id": child})),
+        before
+    );
+    assert_eq!(
+        invoke_ok("reflect_replay_session", json!({"id": id})),
+        json!([])
+    );
+}
+
+#[test]
+fn deleting_a_previous_session_does_not_cancel_the_current_session() {
+    let _workspace = workspace_lock();
+    let _guard = common::state_lock();
+    let old = invoke_ok("reflect_create_session", json!({}));
+    let current = invoke_ok("reflect_create_session", json!({}));
+    invoke_ok("reflect_bind_session", json!({"id": old}));
+    invoke_ok("reflect_bind_session", json!({"id": current}));
+    invoke_ok("reflect_delete_session", json!({"id": old}));
+    invoke_ok(
+        "reflect_submit",
+        json!({"submission": {"id": "still-active", "op": {"type": "user_input", "items": [{"type": "text", "text": "current session"}]}}}),
+    );
 }
 
 // ============================================================================

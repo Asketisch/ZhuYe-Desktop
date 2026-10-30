@@ -38,6 +38,11 @@ export function ChatView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+  const sessionEpoch = useRef({ id: sessionId, value: 0 });
+  if (sessionEpoch.current.id !== sessionId) {
+    sessionEpoch.current = { id: sessionId, value: sessionEpoch.current.value + 1 };
+  }
+  useEffect(() => () => { sessionEpoch.current.value += 1; }, []);
 
   // 会话横幅的 Fork 入口:一键把当前会话完整历史复制为子会话并切换过去。
   // 分支名用 CLI 同款默认 `manual`(侧边栏菜单入口可自定义;子会话可再改名)。
@@ -47,11 +52,12 @@ export function ChatView() {
   const [forking, setForking] = useState(false);
   const handleFork = (branch: string, upToTurnId?: string) => {
     if (!sessionId || forking) return;
+    const epoch = sessionEpoch.current.value;
     setForking(true);
     reflect_fork_session(sessionId, branch, upToTurnId)
       .then((child) => {
         pushToast({ kind: 'success', message: t('chat.forked', { id: child }) });
-        setActiveId(child);
+        if (sessionEpoch.current.value === epoch) setActiveId(child);
       })
       .catch((e: unknown) => {
         pushToast({
@@ -66,11 +72,13 @@ export function ChatView() {
   // rollout 记录,引擎下一轮从更短历史回放;writer 侧先写 .bak 备份。
   const rewind = useAgentStore((st) => st.rewind);
   const handleRewind = async (turnId: string) => {
+    const epoch = sessionEpoch.current.value;
     const ok = await confirmDialog({
       title: t('chat.rewindConfirmTitle'),
       message: t('chat.rewindConfirmMessage'),
     });
-    if (!ok || !sessionId) return;
+    if (!ok || !sessionId || epoch !== sessionEpoch.current.value ||
+        useAgentStore.getState().loadedSessionId !== sessionId) return;
     try {
       await rewind(turnId);
       pushToast({ kind: 'success', message: t('chat.rewound') });
@@ -90,6 +98,8 @@ export function ChatView() {
       return;
     }
     const myId = ++requestIdRef.current;
+    // 绑定新线程前移除旧会话的交互，避免加载窗口里向错误线程应答。
+    if (useAgentStore.getState().loadedSessionId !== sessionId) clearSession();
     setLoading(true);
     setError(null);
     // v1.x:先 bind(后端幂等,同 id 短路)再决定 hydrate。bind 保证后端

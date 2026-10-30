@@ -386,7 +386,7 @@ export interface PlanReadyPayload {
   plan_id: string;
   markdown: string;
   /**
-   * plan markdown 落盘路径(`<workspace>/.reflect/plan/<plan_id>.md`)。
+   * plan markdown 落盘路径(`<workspace>/.zhuye/plan/<plan_id>.md`)。
    *
    * core 在 dispatch_plan_ready 时把 plan 写成文件,使其成为可引用、可
    * `cat` 的持久产物;写盘是 best-effort,失败时字段缺省。

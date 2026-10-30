@@ -12,10 +12,11 @@
 //!
 //! ## 隔离
 //!
-//! 每个测试二进制(=每个测试文件)启动时把 `HOME` 与 `REFLECT_HOME` 指向
-//! 一个临时目录 —— 真后端读写 `~/.reflect/*`,不隔离就会污染开发者的
-//! 真实会话、记忆与任务。`REFLECT_HOME` 必须一起设:核心 crate
-//! (tasks / notes / permissions)优先读它,而不是 `$HOME/.reflect`。
+//! 每个测试二进制(=每个测试文件)启动时把 `HOME` 指向
+//! 一个临时目录 —— 真后端读写 `~/.zhuye/*`,不隔离就会污染开发者的
+//! 真实会话、记忆与任务。只设 `HOME` 即可:核心 crate 的数据根是
+//! `$ZHUYE_HOME` > `$HOME/.zhuye`,而会话树(`reflect_rollout`)只认 `$HOME`,
+//! 不设 `ZHUYE_HOME` 才能让两者落在同一个根上。
 //!
 //! ## 生命周期
 //!
@@ -80,16 +81,16 @@ pub fn set_config_before_install(toml: &str) {
     let _ = CONFIG_OVERRIDE.set(toml.to_string());
 }
 
-/// 把 HOME / REFLECT_HOME 指向进程专属临时目录,并把 **cwd** 也挪进去。
+/// 把 HOME 指向进程专属临时目录,并把 **cwd** 也挪进去。
 ///
 /// cwd 也要挪:agent 的初始工作区取自 `current_dir()` —— `cargo test` 的
 /// cwd 是包目录(`src-tauri/`),于是 `project` scope 的记忆会写进
-/// **仓库里**(`src-tauri/.reflect/...`)。能力覆盖层绝不能污染工作树,
+/// **仓库里**(`src-tauri/.zhuye/...`)。能力覆盖层绝不能污染工作树,
 /// 所以连 cwd 一起沙箱化。
 ///
 /// 基目录可用 env `REFLECT_TEST_HOME` 覆盖(默认 = `/tmp/reflect-desktop-
 /// capability-<pid>`)—— `ipc_restart.rs` 用它在**两个进程**间共享同一份
-/// `~/.reflect`,复刻「退出后重启」的恢复场景。
+/// `~/.zhuye`,复刻「退出后重启」的恢复场景。
 fn init_isolated_env() {
     ENV_INIT.call_once(|| {
         let base = std::env::var_os("REFLECT_TEST_HOME")
@@ -99,9 +100,11 @@ fn init_isolated_env() {
                     .join(format!("reflect-desktop-capability-{}", std::process::id()))
             });
         let home = base.join("home");
-        let reflect = home.join(".reflect");
+        // 核心 crate 的数据目录 = `$HOME/.zhuye`(不设 ZHUYE_HOME,让会话树与
+        // 配置/记忆/任务落在同一个根上,与真实安装一致)。
+        let data = home.join(".zhuye");
         let workspace = base.join("workspace");
-        std::fs::create_dir_all(&reflect).expect("create isolated .reflect");
+        std::fs::create_dir_all(&data).expect("create isolated .zhuye");
         std::fs::create_dir_all(&workspace).expect("create isolated workspace");
         // 最小配置:关掉全部内置 hook(能力层只验行为语义,不验 hook 计时)。
         // config.toml 必须存在 —— 否则 ConfigWatcher 启动即报错。
@@ -110,7 +113,7 @@ fn init_isolated_env() {
         // **只在文件不存在时写**:共享 HOME 的重启恢复场景
         // (`ipc_restart.rs`)里,阶段二进程必须看到阶段一留下的配置,
         // 不能被默认值覆盖。普通二进制基目录是全新的,行为不变。
-        let config_path = reflect.join("config.toml");
+        let config_path = data.join("config.toml");
         if !config_path.exists() {
             let config = CONFIG_OVERRIDE.get().cloned().unwrap_or_else(|| {
                 "# 能力覆盖层最小配置:关闭全部内置 hook\n[hooks]\nenabled = []\n".to_string()
@@ -120,8 +123,10 @@ fn init_isolated_env() {
         // SAFETY: 仅在 Once 保护的初始化阶段调用;此时测试线程尚未开始,
         // 进程内没有并发读写环境变量 / cwd 的其它线程。
         unsafe {
+            // 开发者 / CI 可能带着 `ZHUYE_HOME` 进来 —— 核心 crate 一律
+            // 优先读它,不清掉就会绕过 HOME 沙箱读写真实数据目录。
+            std::env::remove_var("ZHUYE_HOME");
             std::env::set_var("HOME", &home);
-            std::env::set_var("REFLECT_HOME", &reflect);
         }
         std::env::set_current_dir(&workspace).expect("enter isolated workspace");
     });

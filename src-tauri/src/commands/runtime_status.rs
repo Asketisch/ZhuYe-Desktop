@@ -5,8 +5,7 @@
 //!   还剩几个能用;
 //! - **已完成的子代理调用** —— 压缩后「刚才跑了哪些子代理、结论是什么」
 //!   答不出(核心把它记在 `SubagentRegistry`,但 GUI 读不到);
-//! - **记忆分段** —— GUI 显示的是整份 MEMORY.md 原文,agent 实际吃到的是
-//!   按 `## ` 切分 + 相关性筛选后的条目;
+//! - **记忆分段** —— 按核心解析器展示已保存的候选条目;
 //! - **配置位置与分析健康度** —— 手改 `config.toml` 后不知道应用读的是
 //!   哪个文件、分析上报是否正常。
 
@@ -147,40 +146,34 @@ pub struct MemorySectionInfo {
     pub body: String,
     /// 文件内序号(0-based,保持原顺序)。
     pub index: usize,
-    /// 正文字符数 —— 与 8000 字注入预算对照可见。
+    /// 正文 Unicode 字符数，不表示实际注入量。
     pub chars: usize,
 }
 
-/// 查询记忆的**分段**视图(与 agent 实际注入的结构一致)。
-///
-/// 核心注入的是「按 `## ` 切分 + BM25 相关性筛选后」的条目,不是整份
-/// MEMORY.md 原文。GUI 此前只显示原文,用户无法知道 agent 实际记住了
-/// 哪几条。
+/// 查询磁盘记忆的分段候选项；实际注入内容还取决于作用域和当前查询。
 #[tauri::command]
 pub async fn reflect_memory_sections(
     agent: State<'_, MinimalAgent>,
+    expected_context: Option<crate::commands::MemoryContext>,
 ) -> CommandResult<Vec<MemorySectionInfo>> {
-    let entries = agent
-        .list_memory()
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    super::memory::validate_context(&agent, expected_context.as_ref())?;
+    let _memory = agent.inner.memory_write_lock.lock().await;
+    let sections = agent
+        .inner
+        .memory_store
+        .sections(&agent.workspace())
         .map_err(crate::commands::error::CommandError::from)?;
-    let mut out: Vec<MemorySectionInfo> = Vec::new();
-    for entry in entries {
-        let scope = match entry.scope.as_str() {
-            "project" => reflect_memory::MemoryScope::Project,
-            "user" => reflect_memory::MemoryScope::User,
-            _ => continue,
-        };
-        for sec in reflect_memory::split_sections(scope, &entry.value) {
-            out.push(MemorySectionInfo {
-                scope: entry.scope.clone(),
-                title: sec.title,
-                chars: sec.body.chars().count(),
-                body: sec.body,
-                index: sec.index,
-            });
-        }
-    }
-    Ok(out)
+    Ok(sections
+        .into_iter()
+        .map(|sec| MemorySectionInfo {
+            scope: sec.scope.to_string(),
+            title: sec.title,
+            chars: sec.body.chars().count(),
+            body: sec.body,
+            index: sec.index,
+        })
+        .collect())
 }
 
 /// 配置文件与分析上报的状态(camelCase 出线)。

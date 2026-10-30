@@ -56,8 +56,10 @@ const isProdSource = (p) =>
 
 // ── 1. 命令面:后端实现 ↔ 注册表 ↔ 前端包装 ─────────────────────────────────
 const cmdDir = 'src-tauri/src/commands';
-const backendFiles = readdirSync(join(ROOT, cmdDir)).filter((f) => f.endsWith('.rs'));
-const backendSrc = backendFiles.map((f) => read(`${cmdDir}/${f}`)).join('\n');
+// 命令体可以落在领域子目录(如 `commands/files/image.rs`,与
+// `config/tests.rs` / `sessions/title_commit.rs` 同一布局)—— 递归扫描。
+const backendFiles = walk(cmdDir, (f) => f.endsWith('.rs'));
+const backendSrc = backendFiles.map((f) => read(f)).join('\n');
 
 // 后端命令体:`#[tauri::command]` 标注的 `pub fn` / `pub async fn`。
 const backendCommands = new Set(
@@ -266,7 +268,7 @@ if (unmerged.length === 0) {
 // ── 7. 前端命令 barrel 完整 ───────────────────────────────────────────────
 const cmdBarrel = read('src/utils/commands/index.ts');
 const domainFiles = readdirSync(join(ROOT, 'src/utils/commands'))
-  .filter((f) => f.endsWith('.ts') && f !== 'index.ts')
+  .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.endsWith('.spec.ts') && f !== 'index.ts')
   .map((f) => f.replace(/\.ts$/, ''));
 const notExported = domainFiles.filter((d) => !cmdBarrel.includes(`'./${d}'`));
 if (notExported.length === 0) {

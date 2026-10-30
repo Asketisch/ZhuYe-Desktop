@@ -17,6 +17,7 @@ pub mod autopilot;
 pub mod discussion;
 pub mod kms;
 pub mod media;
+pub mod paths;
 pub mod pipeline;
 pub mod pricing;
 pub mod sandbox;

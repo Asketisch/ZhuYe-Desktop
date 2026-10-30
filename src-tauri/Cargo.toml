@@ -36,6 +36,7 @@ serde_json                  = { workspace = true }
 serde_yaml                  = { workspace = true }
 tokio                       = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
 anyhow                      = { workspace = true }
+async-trait                 = { workspace = true }
 tracing                     = { workspace = true }
 tracing-subscriber          = { workspace = true }
 parking_lot                 = { workspace = true }
@@ -100,6 +101,7 @@ futures                     = { workspace = true }
 dirs                        = "5"
 # 阶段 2:config 读写命令(to_string_pretty / load_from_str 校验)。
 toml                        = { workspace = true }
+tempfile                    = "3"
 once_cell                   = { workspace = true }
 # Phase 3 item 13：Media Studio（图像解码 / 缩放 / 格式转换）
 # + Computer Use（xcap 截屏 + enigo 鼠标键盘）。
@@ -119,7 +121,6 @@ tauri-build = { workspace = true }
 
 [dev-dependencies]
 tokio-util = { workspace = true }
-tempfile = "3"
 chrono = { workspace = true }
 # `tauri::test` —— 真实 IPC 命令层的测试夹具(mock runtime + get_ipc_response)。
 # 只在 `cargo test` 时参与特性合并,release 构建不受影响(tauri 的 `test`

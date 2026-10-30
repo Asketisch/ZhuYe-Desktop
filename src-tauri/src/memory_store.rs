@@ -1,12 +1,12 @@
 //! Memory 存储 —— 将 memory entry 持久化到 `MEMORY.md` 文件。
 //!
 //! 支持两个 scope:
-//! - `project` —— 存储在当前工作区根目录 `.reflect/agent-memory/<agent>/MEMORY.md`
+//! - `project` —— 存储在当前工作区根目录 `.zhuye/agent-memory/<agent>/MEMORY.md`
 //!   （由调用方传入活动工作区,与 shell/git/files 同源 —— 打包成 .app 后
 //!   进程 cwd 不可写,也不再跟随不了 `reflect_set_workspace`）;
-//! - `user` —— 存储在用户主目录 `~/.reflect/agent-memory/<agent>/MEMORY.md`。
+//! - `user` —— 存储在用户主目录 `~/.zhuye/agent-memory/<agent>/MEMORY.md`。
 //!
-//! 每条 entry 以 `## <key>` 标题块形式追加到文件中。
+//! 每条 entry 以 `## <key>` 标题块形式保存；无法安全拆分的文件作为整份文档编辑。
 //!
 //! ## 路径口径
 //!
@@ -21,7 +21,7 @@
 
 use std::path::{Path, PathBuf};
 
-use reflect_memory::{MemoryScope, resolve_path};
+use reflect_memory::{MemoryScope, resolve_path, split_sections};
 
 use crate::agent_state::AgentState;
 use crate::commands::MemoryEntry;
@@ -33,36 +33,113 @@ const LEGACY_AGENT_DIR: &str = "reflect";
 pub(crate) struct MemoryStore;
 
 impl MemoryStore {
+    /// 对基于列表快照发起的修改校验原内容，避免覆盖较新的记忆。
+    fn check_expected_value(
+        scope: &str,
+        key: &str,
+        content: &str,
+        whole_document: bool,
+        expected: Option<&str>,
+    ) -> anyhow::Result<()> {
+        if let Some(expected) = expected {
+            let matches = memory_entries(scope, content).into_iter().any(|entry| {
+                entry.key == key
+                    && entry.value == expected
+                    && entry.whole_document.unwrap_or(false) == whole_document
+            });
+            if !matches {
+                anyhow::bail!("memory entry changed or was removed; reload before retrying");
+            }
+        }
+        Ok(())
+    }
+
     /// 列出所有 scope 下的 memory 条目。
     pub(crate) fn list(&self, project_root: &Path) -> anyhow::Result<Vec<MemoryEntry>> {
         let mut entries = Vec::new();
         for (scope, path) in self.scopes(project_root)? {
-            if let Ok(content) = std::fs::read_to_string(path) {
-                if !content.trim().is_empty() {
-                    entries.push(MemoryEntry {
-                        scope: scope.to_string(),
-                        key: "(all)".to_string(),
-                        value: content,
-                    });
-                }
-            }
+            let content = read_memory_file(&path)?;
+            entries.extend(memory_entries(scope, &content));
         }
         Ok(entries)
     }
 
+    /// 按核心解析器拆分各文件，保留原始标题及文件内序号。
+    pub(crate) fn sections(
+        &self,
+        project_root: &Path,
+    ) -> anyhow::Result<Vec<reflect_memory::MemorySection>> {
+        let mut sections = Vec::new();
+        for (scope, path) in self.scopes(project_root)? {
+            let content = read_memory_file(&path)?;
+            if !content.trim().is_empty() {
+                sections.extend(split_sections(memory_scope(scope), &content));
+            }
+        }
+        Ok(sections)
+    }
+
     /// 新增 memory entry。
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn add(
         &self,
         scope: &str,
         key: &str,
         value: &str,
         project_root: &Path,
+        replace_document: bool,
+        create_only: bool,
+        expected_value: Option<&str>,
     ) -> anyhow::Result<()> {
+        validate_key(key)?;
+        if replace_document && create_only {
+            anyhow::bail!("cannot create a whole-document replacement");
+        }
         let path = self.path(scope, project_root)?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let mut current = std::fs::read_to_string(&path).unwrap_or_default();
+        let mut current = read_memory_file(&path)?;
+        Self::check_expected_value(scope, key, &current, replace_document, expected_value)?;
+        if replace_document {
+            ensure_whole_document(scope, key, &current)?;
+            std::fs::write(path, value)?;
+            return Ok(());
+        }
+        if value.lines().any(|line| line.starts_with("## ")) {
+            anyhow::bail!("memory value cannot contain a level-two heading");
+        }
+        if create_only
+            && memory_entries(scope, &current)
+                .iter()
+                .any(|entry| entry.key == key)
+        {
+            anyhow::bail!("memory entry already exists: {key}");
+        }
+        let heading = format!("## {key}");
+        let matching = split_sections(memory_scope(scope), &current)
+            .iter()
+            .filter(|section| section.title == key)
+            .count();
+        if matching > 0 && create_only {
+            anyhow::bail!("memory entry already exists: {key}");
+        }
+        if matching > 1 || (matching == 1 && find_exact_heading_line(&current, &heading).is_none())
+        {
+            anyhow::bail!("memory entry has ambiguous headings: {key}");
+        }
+        if let Some((_start, line_end)) = find_exact_heading_line(&current, &heading) {
+            let end = current[line_end..]
+                .find("\n## ")
+                .map(|i| line_end + i)
+                .unwrap_or(current.len());
+            if find_exact_heading_line(&current[end..], &heading).is_some() {
+                anyhow::bail!("memory entry has duplicate headings: {key}");
+            }
+            let updated = format!("{}\n{}{}", &current[..line_end], value, &current[end..]);
+            std::fs::write(path, updated)?;
+            return Ok(());
+        }
         if !current.is_empty() && !current.ends_with('\n') {
             current.push('\n');
         }
@@ -71,20 +148,51 @@ impl MemoryStore {
         Ok(())
     }
 
-    pub(crate) fn remove(&self, scope: &str, key: &str, project_root: &Path) -> anyhow::Result<()> {
+    pub(crate) fn remove(
+        &self,
+        scope: &str,
+        key: &str,
+        project_root: &Path,
+        replace_document: bool,
+        expected_value: Option<&str>,
+    ) -> anyhow::Result<()> {
+        validate_key(key)?;
         let path = self.path(scope, project_root)?;
-        if !path.exists() {
+        let current = match std::fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::NotFound && expected_value.is_none() =>
+            {
+                return Ok(());
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(error) => return Err(error.into()),
+        };
+        Self::check_expected_value(scope, key, &current, replace_document, expected_value)?;
+        if replace_document {
+            ensure_whole_document(scope, key, &current)?;
+            std::fs::remove_file(path)?;
             return Ok(());
         }
-        let current = std::fs::read_to_string(&path)?;
         // 整行精确匹配 `## <key>`:子串前缀匹配会让 key "a" 命中
         // "## about" 的块起点,误删别的条目。
         let heading = format!("## {key}");
+        let matching = split_sections(memory_scope(scope), &current)
+            .iter()
+            .filter(|section| section.title == key)
+            .count();
+        if matching > 1 || (matching == 1 && find_exact_heading_line(&current, &heading).is_none())
+        {
+            anyhow::bail!("memory entry has ambiguous headings: {key}");
+        }
         if let Some((start, line_end)) = find_exact_heading_line(&current, &heading) {
             let end = current[line_end..]
                 .find("\n## ")
                 .map(|index| line_end + index)
                 .unwrap_or(current.len());
+            if find_exact_heading_line(&current[end..], &heading).is_some() {
+                anyhow::bail!("memory entry has duplicate headings: {key}");
+            }
             let mut updated = String::with_capacity(current.len());
             updated.push_str(&current[..start]);
             updated.push_str(&current[end..]);
@@ -115,6 +223,87 @@ impl MemoryStore {
         resolve_path(scope, project_root, &home, &agent_type)
             .map_err(|e| anyhow::anyhow!("resolve memory path: {e}"))
     }
+}
+
+fn read_memory_file(path: &Path) -> anyhow::Result<String> {
+    match std::fs::read_to_string(path) {
+        Ok(content) => Ok(content),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn validate_key(key: &str) -> anyhow::Result<()> {
+    if key.is_empty() || key.trim() != key || key.contains('\n') || key.contains('\r') {
+        anyhow::bail!("memory key must be a nonempty single line without surrounding whitespace");
+    }
+    Ok(())
+}
+
+fn memory_entries(scope: &str, content: &str) -> Vec<MemoryEntry> {
+    if content.trim().is_empty() {
+        return Vec::new();
+    }
+    let sections: Vec<_> = split_sections(memory_scope(scope), content)
+        .into_iter()
+        .filter(|section| !section.title.is_empty() || !section.body.trim().is_empty())
+        .collect();
+    let mut keys = std::collections::HashSet::new();
+    let malformed_heading = content
+        .lines()
+        .filter_map(|line| line.strip_prefix("## "))
+        .any(|title| title.is_empty() || title.trim() != title);
+    if malformed_heading
+        || sections
+            .iter()
+            .any(|section| section.title.is_empty() || !keys.insert(section.title.clone()))
+    {
+        return vec![MemoryEntry {
+            scope: scope.to_string(),
+            key: "(all)".into(),
+            value: content.to_string(),
+            whole_document: Some(true),
+        }];
+    }
+    sections
+        .into_iter()
+        .map(|section| {
+            let heading = format!("## {}", section.title);
+            let (_, line_end) =
+                find_exact_heading_line(content, &heading).expect("validated heading");
+            let end = content[line_end..]
+                .find("\n## ")
+                .map(|i| line_end + i)
+                .unwrap_or(content.len());
+            let body = if end > line_end {
+                &content[line_end + 1..end]
+            } else {
+                ""
+            };
+            MemoryEntry {
+                scope: scope.to_string(),
+                key: section.title,
+                value: body.to_string(),
+                whole_document: None,
+            }
+        })
+        .collect()
+}
+
+fn memory_scope(scope: &str) -> MemoryScope {
+    if scope == "project" {
+        MemoryScope::Project
+    } else {
+        MemoryScope::User
+    }
+}
+
+fn ensure_whole_document(scope: &str, key: &str, content: &str) -> anyhow::Result<()> {
+    let entries = memory_entries(scope, content);
+    if key != "(all)" || entries.len() != 1 || entries[0].whole_document != Some(true) {
+        anyhow::bail!("memory document changed; reload before replacing it");
+    }
+    Ok(())
 }
 
 /// 旧版桌面端(agent 段写死 `reflect`)留下的记忆文件 → 当前活跃 agent 目录。
@@ -190,53 +379,4 @@ fn find_exact_heading_line(text: &str, heading: &str) -> Option<(usize, usize)> 
 }
 
 #[cfg(test)]
-mod tests {
-    use super::find_exact_heading_line;
-    use super::*;
-
-    #[test]
-    fn exact_line_match_rejects_prefix_and_extension() {
-        let text = "## about\nabout body\n## a\na body\n";
-        // key "a" 不能命中 "## about" 的前缀。
-        assert_eq!(find_exact_heading_line(text, "## a"), Some((20, 24)));
-        assert_eq!(find_exact_heading_line(text, "## about"), Some((0, 8)));
-        assert_eq!(find_exact_heading_line(text, "## missing"), None);
-    }
-
-    /// 不变量:GUI 写记忆的路径 == 运行时 pre_loop 注入记忆读的路径。
-    ///
-    /// 两者都经核心的 `resolve_path` + 同一个活跃 agent 名 —— 此前 GUI 写
-    /// 死 `agent-memory/reflect/`、运行时读 `agent-memory/<agent>/`，
-    /// 导致「GUI 里编辑的记忆,agent 根本读不到」。
-    #[test]
-    fn memory_path_matches_core_resolution() {
-        let ws = PathBuf::from("/tmp/reflect-memory-path-test");
-        let home = dirs::home_dir().unwrap_or_default();
-        let agent = AgentState::active_agent();
-        let store = MemoryStore;
-        for (scope, enum_scope) in [
-            ("project", MemoryScope::Project),
-            ("user", MemoryScope::User),
-        ] {
-            let expected = resolve_path(enum_scope, &ws, &home, &agent).unwrap();
-            let actual = store.path(scope, &ws).unwrap();
-            assert_eq!(actual, expected, "{scope} scope 路径与核心不一致");
-        }
-    }
-
-    /// 旧版桌面端遗留的 `agent-memory/reflect/` 数据在迁移后不再被读取 ——
-    /// 迁移把文件搬到了当前活跃 agent 的目录。
-    #[test]
-    fn legacy_dir_is_not_the_active_path() {
-        let ws = PathBuf::from("/tmp/reflect-memory-legacy-test");
-        let home = dirs::home_dir().unwrap_or_default();
-        let active = AgentState::active_agent();
-        if active == LEGACY_AGENT_DIR {
-            // 活跃 agent 就是旧目录名 —— 无需迁移,路径天然一致。
-            return;
-        }
-        let legacy = resolve_path(MemoryScope::Project, &ws, &home, LEGACY_AGENT_DIR).unwrap();
-        let current = resolve_path(MemoryScope::Project, &ws, &home, &active).unwrap();
-        assert_ne!(legacy, current);
-    }
-}
+mod tests;

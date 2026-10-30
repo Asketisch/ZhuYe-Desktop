@@ -23,10 +23,8 @@
 //! ## 视图侧发送
 //!
 //! GUI 层可通过 `subscribe_events()` 订阅——这是一个 `broadcast::Receiver`，
-//! 每次状态变化（`Started` / `Output` /
-//! `Done` / `Error` / `Cancelled`）都会产生一个 `SideChannelEvent`。当前桌面 Tauri 外壳将该
-//! receiver 接入现有的 session-event 转发器，使前端获得
-//! 已在使用的同一 `reflect_event` 通道。
+//! 每次状态变化（`Started` / `Done` / `Error` / `Cancelled`）都会产生
+//! 一个 `SideChannelEvent`。桌面端当前通过查询获取快照，尚未转发这些事件。
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -69,9 +67,7 @@ impl SideChannelStatus {
 /// Registry event 流中的一项。
 ///
 /// 状态变化（Started / Done / Cancelled /
-/// Error）时发送给所有订阅者。runner task 会在 side-channel
-/// 产生内容时发送 `Output` event（目前仅在完成时发送——见 `run_once`
-/// 的说明；后续将支持增量输出流）。
+/// Error）时发送给所有订阅者。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SideChannelEvent {
@@ -146,6 +142,8 @@ pub(crate) struct SideChannelHandle {
     pub started_at_epoch_ms: i64,
     /// 当前状态。
     pub status: SideChannelStatus,
+    /// 终止时固定的运行时长。
+    pub duration_ms: Option<i64>,
     /// 独立的取消 token（不是主 token 的子级）。调用方可触发
     /// `cancel.cancel()`，仅停止此 side-channel。
     pub cancel: CancellationToken,
@@ -153,18 +151,13 @@ pub(crate) struct SideChannelHandle {
 
 impl SideChannelHandle {
     fn snapshot(&self, id: &str) -> SideChannelInfo {
-        let duration_ms = if matches!(self.status, SideChannelStatus::Running) {
-            None
-        } else {
-            Some(self.started_at.elapsed().as_millis() as i64)
-        };
         SideChannelInfo {
             id: id.to_string(),
             agent_name: self.agent_name.clone(),
             prompt: self.prompt.clone(),
             started_at_ms: self.started_at_epoch_ms,
             status: self.status.as_str().to_string(),
-            duration_ms,
+            duration_ms: self.duration_ms,
         }
     }
 }
@@ -174,8 +167,7 @@ impl SideChannelHandle {
 pub struct SideChannelRegistry {
     inner: Arc<Mutex<HashMap<SideChannelId, SideChannelHandle>>>,
     events: broadcast::Sender<SideChannelEvent>,
-    /// 进程级计数器，确保即使两次启动发生在同一墙上时钟毫秒内，id 也唯一。
-    /// 它与 id 中的时间戳部分配合，使我们仍可根据 `started_at_ms` 推导顺序。
+    /// 进程级计数器；回绕时跳过仍存在的 id。
     next_seq: Arc<AtomicU32>,
 }
 
@@ -217,64 +209,53 @@ impl SideChannelRegistry {
     /// 插入新的 side-channel。返回分配的 id 和
     /// 调用方必须持有的取消 handle，并发送 `Started` event。
     pub fn start(&self, agent_name: String, prompt: String) -> (SideChannelId, CancellationToken) {
-        // 计算新的 id；发生冲突时使用进程唯一的 seq 重试。
         let epoch_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        let mut id = format!("side-{:08x}", (epoch_ms as u32).wrapping_mul(2654435761));
-        let mut handle = SideChannelHandle {
+        let handle = SideChannelHandle {
             agent_name: agent_name.clone(),
             prompt: prompt.clone(),
             started_at: Instant::now(),
             started_at_epoch_ms: epoch_ms,
             status: SideChannelStatus::Running,
+            duration_ms: None,
             cancel: CancellationToken::new(),
         };
         let cancel = handle.cancel.clone();
         let mut g = self.inner.lock();
-        if g.contains_key(&id) {
-            // 极少见：同一毫秒内的两次启动产生了相同哈希。使用
-            // 下一个序列号（进程唯一且单调递增）加盐，从而
-            // 无论时序多紧密都不会冲突。
-            let seq = self.next_seq.fetch_add(1, Ordering::Relaxed);
-            id = format!("side-{:08x}", (epoch_ms as u32).wrapping_add(seq));
-            handle.started_at_epoch_ms += seq as i64;
-        } else {
-            // 正常路径也递增 seq，使并发冲突重试时得到
-            // 严格递增的盐值。
-            self.next_seq.fetch_add(1, Ordering::Relaxed);
-        }
+        let id = loop {
+            let candidate = format!("side-{:08x}", self.next_seq.fetch_add(1, Ordering::Relaxed));
+            if !g.contains_key(&candidate) {
+                break candidate;
+            }
+        };
         g.insert(id.clone(), handle);
-        drop(g);
         let _ = self.events.send(SideChannelEvent::Started {
             id: id.clone(),
             agent_name,
             prompt,
             started_at_ms: epoch_ms,
         });
+        drop(g);
         (id, cancel)
     }
 
     /// 按 id 取消 side-channel。触发取消 token 并更新状态。
     /// 找到并取消 side-channel 时返回 `true`。
     pub fn cancel(&self, id: &str) -> bool {
-        let (started_at_epoch_ms,) = {
-            let mut g = self.inner.lock();
-            match g.get_mut(id) {
-                Some(h) if matches!(h.status, SideChannelStatus::Running) => {
-                    h.cancel.cancel();
-                    h.status = SideChannelStatus::Cancelled;
-                    (Some(h.started_at_epoch_ms),)
-                }
-                _ => (None,),
-            }
-        };
-        if let Some(started_epoch) = started_at_epoch_ms {
+        let mut g = self.inner.lock();
+        if let Some(h) = g
+            .get_mut(id)
+            .filter(|h| h.status == SideChannelStatus::Running)
+        {
+            h.cancel.cancel();
+            h.status = SideChannelStatus::Cancelled;
+            h.duration_ms = Some(h.started_at.elapsed().as_millis() as i64);
             let finished_at = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_millis() as i64)
-                .unwrap_or(started_epoch);
+                .unwrap_or(h.started_at_epoch_ms);
             let _ = self.events.send(SideChannelEvent::Cancelled {
                 id: id.to_string(),
                 finished_at_ms: finished_at,
@@ -288,17 +269,19 @@ impl SideChannelRegistry {
     /// 将 side-channel 标记为完成（根据结果设为 `Done` 或 `Error`）。
     /// runner task 完成底层工作时调用。
     pub fn finish(&self, id: &str, status: SideChannelStatus, summary: Option<String>) {
-        let (started_at_epoch_ms,) = {
-            let mut g = self.inner.lock();
-            match g.get_mut(id) {
-                Some(h) => {
-                    h.status = status;
-                    (Some(h.started_at_epoch_ms),)
-                }
-                None => (None,),
+        if status == SideChannelStatus::Running {
+            return;
+        }
+        let mut g = self.inner.lock();
+        if let Some(h) = g
+            .get_mut(id)
+            .filter(|h| h.status == SideChannelStatus::Running)
+        {
+            h.status = status;
+            h.duration_ms = Some(h.started_at.elapsed().as_millis() as i64);
+            if status == SideChannelStatus::Cancelled {
+                h.cancel.cancel();
             }
-        };
-        if let Some(_started_epoch) = started_at_epoch_ms {
             let finished_at_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_millis() as i64)
@@ -318,11 +301,7 @@ impl SideChannelRegistry {
                     id: id.to_string(),
                     finished_at_ms,
                 },
-                SideChannelStatus::Running => SideChannelEvent::Done {
-                    id: id.to_string(),
-                    finished_at_ms,
-                    summary,
-                },
+                SideChannelStatus::Running => unreachable!(),
             };
             let _ = self.events.send(event);
         }
@@ -402,6 +381,57 @@ mod tests {
         r.finish(&id, SideChannelStatus::Done, Some("ok".into()));
         // 已处于终态；取消返回 false。
         assert!(!r.cancel(&id));
+    }
+
+    #[test]
+    fn terminal_state_and_duration_do_not_change_after_cancel() {
+        let r = reg();
+        let mut events = r.subscribe_events();
+        let (id, _) = r.start("default".into(), "x".into());
+        assert!(r.cancel(&id));
+        let duration = r.get(&id).unwrap().duration_ms;
+        std::thread::sleep(Duration::from_millis(15));
+        r.finish(&id, SideChannelStatus::Done, Some("late".into()));
+        let info = r.get(&id).unwrap();
+        assert_eq!(info.status, "cancelled");
+        assert_eq!(info.duration_ms, duration);
+        assert!(matches!(
+            events.try_recv().unwrap(),
+            SideChannelEvent::Started { .. }
+        ));
+        assert!(matches!(
+            events.try_recv().unwrap(),
+            SideChannelEvent::Cancelled { .. }
+        ));
+        assert!(events.try_recv().is_err());
+    }
+
+    #[test]
+    fn id_collision_does_not_replace_existing_handle() {
+        let r = reg();
+        let mut events = r.subscribe_events();
+        let (first, _) = r.start("first".into(), "x".into());
+        r.next_seq.store(1, Ordering::Relaxed);
+        let (second, _) = r.start("second".into(), "y".into());
+        assert_ne!(first, second);
+        assert_eq!(r.get(&first).unwrap().agent_name, "first");
+        let event = events.try_recv().unwrap();
+        if let SideChannelEvent::Started { started_at_ms, .. } = event {
+            assert_eq!(started_at_ms, r.get(&first).unwrap().started_at_ms);
+        } else {
+            panic!("expected started event");
+        }
+    }
+
+    #[test]
+    fn running_is_not_a_terminal_event() {
+        let r = reg();
+        let mut events = r.subscribe_events();
+        let (id, _) = r.start("default".into(), "x".into());
+        events.try_recv().unwrap();
+        r.finish(&id, SideChannelStatus::Running, None);
+        assert_eq!(r.get(&id).unwrap().status, "running");
+        assert!(events.try_recv().is_err());
     }
 
     #[test]

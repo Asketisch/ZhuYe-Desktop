@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::commands::error::{CommandError, CommandResult};
-use crate::commands::files::should_skip;
+use crate::commands::files::{resolve_under_workspace, should_skip};
 use crate::state::MinimalAgent;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -53,20 +53,11 @@ pub async fn reflect_search_files(
     max_results: Option<usize>,
     rank: Option<SearchRank>,
 ) -> CommandResult<FileSearchResult> {
-    let root = match path.as_deref() {
-        Some("") | None => agent.workspace().to_path_buf(),
-        Some(p) => {
-            let pp = Path::new(p);
-            if pp.is_absolute() {
-                pp.to_path_buf()
-            } else {
-                agent.workspace().join(pp)
-            }
-        }
-    };
-    if !root.exists() {
+    // 命中结果会带上匹配行的**内容**，因此搜索根必须与读写同一条工作区沙盒规则。
+    let root = resolve_under_workspace(&agent.workspace(), path.as_deref().unwrap_or(""))?;
+    if !root.is_dir() {
         return Err(CommandError {
-            msg: format!("path does not exist: {}", root.display()),
+            msg: format!("not a directory: {}", root.display()),
         });
     }
     let cap = max_results.unwrap_or(200);
@@ -99,6 +90,7 @@ fn bm25_search(root: &Path, query: &str, cap: usize) -> FileSearchResult {
         .map(|(i, (_, _, line))| (i, line.clone()))
         .collect();
     let ranked = reflect_tools::bm25::rank_lines(&terms, &pairs, BM25_K1, BM25_B);
+    let truncated = ranked.len() > cap || candidates.len() >= BM25_CANDIDATE_LIMIT;
     let hits: Vec<FileSearchHit> = ranked
         .into_iter()
         .take(cap)
@@ -115,8 +107,7 @@ fn bm25_search(root: &Path, query: &str, cap: usize) -> FileSearchResult {
         root: root.display().to_string(),
         query: query.to_string(),
         hits,
-        // 候选被截断时如实标记。
-        truncated: candidates.len() >= BM25_CANDIDATE_LIMIT,
+        truncated,
     }
 }
 
@@ -169,8 +160,7 @@ pub(crate) fn search_walk(
     hits: &mut Vec<FileSearchHit>,
     truncated: &mut bool,
 ) {
-    if hits.len() >= cap {
-        *truncated = true;
+    if *truncated {
         return;
     }
     let Ok(read) = std::fs::read_dir(dir) else {
@@ -179,8 +169,7 @@ pub(crate) fn search_walk(
     let mut entries: Vec<_> = read.filter_map(|e| e.ok()).collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
-        if hits.len() >= cap {
-            *truncated = true;
+        if *truncated {
             return;
         }
         let name = entry.file_name().to_string_lossy().to_string();
@@ -207,19 +196,18 @@ pub(crate) fn search_file(
     cap: usize,
     truncated: &mut bool,
 ) {
-    if hits.len() >= cap {
-        *truncated = true;
+    if *truncated {
         return;
     }
     let Ok(content) = std::fs::read_to_string(path) else {
         return;
     };
     for (i, line) in content.lines().enumerate() {
-        if hits.len() >= cap {
-            *truncated = true;
-            return;
-        }
         if line.to_lowercase().contains(&query.to_lowercase()) {
+            if hits.len() >= cap {
+                *truncated = true;
+                return;
+            }
             hits.push(FileSearchHit {
                 path: path.display().to_string(),
                 line: i + 1,
@@ -234,6 +222,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn bm25_reports_when_results_exceed_cap() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("sample.txt"), "needle one\nneedle two\n").unwrap();
+        let result = bm25_search(dir.path(), "needle", 1);
+        assert_eq!(result.hits.len(), 1);
+        assert!(result.truncated);
+        assert!(!bm25_search(dir.path(), "needle", 2).truncated);
+    }
+
+    #[test]
     fn search_file_basic() {
         let dir = tempdir();
         let p = dir.join("sample.rs");
@@ -244,6 +242,24 @@ mod tests {
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].line, 2);
         assert!(!truncated);
+    }
+
+    #[test]
+    fn substring_truncation_requires_an_extra_match() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("sample.txt"), "needle one\nneedle two\n").unwrap();
+        for (query, cap, expected_hits, expected_truncated) in [
+            ("needle", 2, 2, false),
+            ("needle", 1, 1, true),
+            ("needle", 0, 0, true),
+            ("missing", 0, 0, false),
+        ] {
+            let mut hits = Vec::new();
+            let mut truncated = false;
+            search_walk(dir.path(), query, cap, &mut hits, &mut truncated);
+            assert_eq!(hits.len(), expected_hits);
+            assert_eq!(truncated, expected_truncated);
+        }
     }
 
     #[test]

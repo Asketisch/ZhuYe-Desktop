@@ -7,8 +7,8 @@
  * 所有编排逻辑位于 `useTasksBoardController`。
  *
  * 后端契约：`src/utils/commands/{tasks,teams}.ts` ↔
- * `src-tauri/src/commands/tasks.rs`。存储：`~/.reflect/tasks/<list>/` +
- * `~/.reflect/teams/`，与 TUI/CLI 共享。
+ * `src-tauri/src/commands/tasks.rs`。存储：`~/.zhuye/tasks/<list>/` +
+ * `~/.zhuye/teams/`，与 TUI/CLI 共享。
  */
 import { useState } from 'react';
 import { KanbanSquare, List as ListIcon, Plus, X, FolderKanban, Users } from 'lucide-react';

@@ -134,7 +134,7 @@ fn config_toml(provider: &str, base_url: &str, api_key: &str, model: &str) -> St
     let model = toml_escape(model);
     match provider {
         "ollama" => format!(
-            r#"# 实模型演练层配置(隔离 HOME 内,不影响开发者真实 ~/.reflect)
+            r#"# 实模型演练层配置(隔离 HOME 内,不影响开发者真实 ~/.zhuye)
 [hooks]
 enabled = []
 
@@ -147,7 +147,7 @@ model = "{model}"
 "#
         ),
         _ => format!(
-            r#"# 实模型演练层配置(隔离 HOME 内,不影响开发者真实 ~/.reflect)
+            r#"# 实模型演练层配置(隔离 HOME 内,不影响开发者真实 ~/.zhuye)
 [hooks]
 enabled = []
 

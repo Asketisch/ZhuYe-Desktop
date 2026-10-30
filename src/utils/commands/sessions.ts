@@ -6,6 +6,7 @@
  * `src/types/protocol.ts`。
  */
 import { invoke } from '../bridge';
+import { waitForWorkspaceSwitches } from './workspaces';
 import type { ReflectRolloutRecord, ReflectSessionInfo } from '../types';
 
 /** `reflect_list_sessions` 返回的 session 元数据。 */
@@ -48,8 +49,15 @@ export async function reflect_create_session(): Promise<string> {
  * 模式从 JSONL 审计轨迹恢复(绑定会话而非进程),前端据此同步
  * 权限模式徽标/切换器。
  */
-export async function reflect_bind_session(id: string): Promise<string> {
-  return invoke<string>('reflect_bind_session', { id });
+let bindQueue: Promise<void> = Promise.resolve();
+
+export function reflect_bind_session(id: string): Promise<string> {
+  const result = bindQueue.then(async () => {
+    await waitForWorkspaceSwitches();
+    return invoke<string>('reflect_bind_session', { id });
+  });
+  bindQueue = result.then(() => {}, () => {});
+  return result;
 }
 
 /** 按 id 重命名已有会话。 */

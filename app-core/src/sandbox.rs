@@ -3,11 +3,11 @@
 //! ## 口径（本模块是唯一事实源）
 //!
 //! ```text
-//! env(REFLECT_SANDBOX_OS_LEVEL，若显式设置)  >  配置 [sandbox].os_level
+//! env(ZHUYE_SANDBOX_OS_LEVEL，若显式设置)  >  配置 [sandbox].os_level
 //! ```
 //!
 //! - **env 优先** —— 与核心 CLI 的桥接注释一致（"env 优先于 TOML，让
-//!   `REFLECT_SANDBOX_OS_LEVEL=0` 能临时覆盖配置"），也是运维临时降级
+//!   `ZHUYE_SANDBOX_OS_LEVEL=0` 能临时覆盖配置"），也是运维临时降级
 //!   的唯一逃生口。
 //! - **配置未表态 → 基线开启** —— 核心的安全基线是
 //!   `OsSandbox::default()` = `enabled + strict`（模块文档："v1.3 起
@@ -34,7 +34,7 @@
 
 use reflect_protocol::SandboxPolicy;
 
-/// 解析 env 值 `REFLECT_SANDBOX_OS_LEVEL` → 是否启用。
+/// 解析 env 值 `ZHUYE_SANDBOX_OS_LEVEL` → 是否启用。
 ///
 /// 与核心 `OsSandbox::from_env()` 的解析**逐条对齐**（含空串算关闭）：
 /// `""` / `0` / `false` / `no` / `off` → 关闭；其它 → 开启。
@@ -76,7 +76,7 @@ pub fn sandbox_policy_for(enabled: bool) -> SandboxPolicy {
     }
 }
 
-/// 读取 `~/.reflect/config.toml` 并把 `[sandbox].os_level` 归一成有效值。
+/// 读取 `~/.zhuye/config.toml` 并把 `[sandbox].os_level` 归一成有效值。
 ///
 /// 核心 schema 是 `Option<bool>`，解析后即可区分「没写」（`None`）与
 /// 「写了 false」—— 不再需要嗅探原始 TOML。归一后，内存里的

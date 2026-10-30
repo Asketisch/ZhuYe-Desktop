@@ -26,15 +26,19 @@ mod activity;
 mod agent;
 mod install;
 pub(crate) mod permissions;
+pub(crate) mod plugin_hooks;
+pub(crate) mod plugin_status;
 pub(crate) mod plugins;
 pub(crate) mod quota;
 pub(crate) mod rebind;
+pub(crate) mod recorder_guard;
 pub(crate) mod reload;
 mod remote_config;
 pub(crate) mod sandbox;
 mod session;
 pub(crate) mod subagents;
 mod submit;
+mod task_hooks;
 mod thread_factory;
 
 pub use agent::AgentStatus;
@@ -244,16 +248,11 @@ impl MinimalAgent {
         reflect_stream::cron::CronScheduler,
         reflect_stream::cron::CronDriverHandle,
     ) {
-        let scheduler = reflect_stream::cron::CronScheduler::new(
-            Some(sender),
-            reflect_protocol::ThreadId::new(),
-        );
-        // 若已有 scheduler(含 jobs),把 jobs 迁移过来,避免 install 二次调用丢 jobs。
-        if let Some(prev) = self.inner.cron_scheduler.read().as_ref() {
-            for job in prev.list() {
-                let _ = scheduler.create(&job.schedule, job.prompt.clone(), job.name.clone());
-            }
-        }
+        let existing = self.inner.cron_scheduler.read().clone();
+        let mut scheduler = existing.unwrap_or_else(|| {
+            reflect_stream::cron::CronScheduler::new(None, reflect_protocol::ThreadId::new())
+        });
+        scheduler.rebind_sender(Some(sender));
         let driver = scheduler.clone();
         let driver_handle = driver.start(30);
         (scheduler, driver_handle)
@@ -283,8 +282,17 @@ impl MinimalAgent {
 
     /// 诊断快照:供前端显示状态徽标。
     pub fn agent_status(&self) -> AgentStatus {
-        let thread_ready = self.inner.thread.lock().is_some();
-        let model = self.model_spec();
+        let thread = self.inner.thread.lock().clone();
+        let thread_ready = thread.as_ref().is_some_and(|thread| {
+            !thread.cancel_token().is_cancelled() && !thread.submission_sender().is_closed()
+        });
+        // 占位线程没有绑定会话，显示下一次绑定将使用的配置；已绑定
+        // 会话则显示线程实际模型，即使新配置重绑失败也不会误报。
+        let model = thread
+            .as_ref()
+            .filter(|thread| thread.config().session_id.is_some())
+            .map(|thread| thread.config().current_model())
+            .unwrap_or_else(|| self.model_spec());
         let has_model = model != "stub/test";
         AgentStatus {
             ready: thread_ready,
@@ -313,26 +321,120 @@ impl MinimalAgent {
 
     /// 新增 memory entry。向对应 scope 的 `MEMORY.md` 追加
     /// `## <key>\n<value>`。
-    pub fn add_memory(&self, scope: String, key: String, value: String) -> anyhow::Result<()> {
-        self.inner
-            .memory_store
-            .add(&scope, &key, &value, &self.workspace())
+    pub fn add_memory(
+        &self,
+        scope: String,
+        key: String,
+        value: String,
+        replace_document: bool,
+        create_only: bool,
+        expected_value: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.inner.memory_store.add(
+            &scope,
+            &key,
+            &value,
+            &self.workspace(),
+            replace_document,
+            create_only,
+            expected_value.as_deref(),
+        )
     }
 
     /// 删除 memory entry,移除对应的 `## <key>` 块。
-    pub fn remove_memory(&self, scope: String, key: String) -> anyhow::Result<()> {
-        self.inner
-            .memory_store
-            .remove(&scope, &key, &self.workspace())
+    pub fn remove_memory(
+        &self,
+        scope: String,
+        key: String,
+        replace_document: bool,
+        expected_value: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.inner.memory_store.remove(
+            &scope,
+            &key,
+            &self.workspace(),
+            replace_document,
+            expected_value.as_deref(),
+        )
     }
 
     /// 列出已注册的 hook。
     pub fn list_hooks(&self) -> anyhow::Result<Vec<crate::commands::HookInfo>> {
-        self.inner.hook_store.list()
+        let thread = self
+            .inner
+            .thread
+            .lock()
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("agent thread is not ready"))?;
+        let mut hooks = self.inner.hook_store.list(&thread.hook_engine());
+        hooks.retain(|hook| hook.name != plugin_hooks::FORWARDER_NAME);
+        if let Some(engine) = self.plugin_hook_engine(&thread) {
+            hooks.extend(self.inner.hook_store.list(&engine));
+        }
+        Ok(hooks)
     }
 
     /// 切换 hook 的启用状态。
     pub fn toggle_hook(&self, name: String, enabled: bool) -> anyhow::Result<()> {
-        self.inner.hook_store.toggle(name, enabled)
+        let thread = self
+            .inner
+            .thread
+            .lock()
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("agent thread is not ready"))?;
+        if name == plugin_hooks::FORWARDER_NAME {
+            anyhow::bail!("internal hook cannot be toggled");
+        }
+        let engine = self
+            .plugin_hook_engine(&thread)
+            .filter(|engine| {
+                engine
+                    .hook_names()
+                    .iter()
+                    .any(|registered| registered == &name)
+            })
+            .unwrap_or_else(|| thread.hook_engine());
+        self.inner.hook_store.toggle(&engine, &name, enabled)
+    }
+
+    fn plugin_hook_engine(
+        &self,
+        thread: &Arc<reflect_core::AgentThread>,
+    ) -> Option<Arc<reflect_hooks::HookEngine>> {
+        let slot = self.inner.plugin_hook_slot.lock();
+        let slot = slot.as_ref()?;
+        let owner = slot.thread.upgrade()?;
+        Arc::ptr_eq(&owner, thread).then(|| slot.bridge.engine.clone())
+    }
+
+    pub(crate) fn activate_plugin_mount(&self, thread: &Arc<reflect_core::AgentThread>) {
+        if let Some(slot) = self.inner.plugin_hook_slot.lock().as_ref() {
+            if slot
+                .thread
+                .upgrade()
+                .is_some_and(|owner| Arc::ptr_eq(&owner, thread))
+            {
+                slot.activate.send_replace(true);
+            }
+        }
+    }
+
+    pub(crate) async fn wait_for_plugins(
+        &self,
+        thread: &Arc<reflect_core::AgentThread>,
+    ) -> anyhow::Result<()> {
+        let bridge = {
+            let slot = self.inner.plugin_hook_slot.lock();
+            slot.as_ref().and_then(|slot| {
+                slot.thread
+                    .upgrade()
+                    .filter(|owner| Arc::ptr_eq(owner, thread))
+                    .map(|_| slot.bridge.clone())
+            })
+        };
+        if let Some(bridge) = bridge {
+            bridge.wait_ready().await?;
+        }
+        Ok(())
     }
 }

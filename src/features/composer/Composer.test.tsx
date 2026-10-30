@@ -31,6 +31,11 @@ function renderComposer() {
 beforeEach(() => {
   window.localStorage.clear();
   useAgentStore.getState().reset();
+  // 此文件单独挂载 Composer，模拟路由导航后 ChatView 完成会话绑定。
+  mockInvoke('reflect_create_session', async () => {
+    useAgentStore.setState({ loadedSessionId: 'sess-stub-new' });
+    return 'sess-stub-new';
+  });
 });
 
 describe('Composer prompt-history integration', () => {
@@ -130,6 +135,17 @@ describe('Composer send shortcut', () => {
       return submission.id;
     });
   }
+
+  it('keeps the draft when submission fails', async () => {
+    mockInvoke('reflect_submit', async () => { throw new Error('channel closed'); });
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: 'keep this draft' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(useAgentStore.getState().lastError).toBe('channel closed'));
+    expect(input.value).toBe('keep this draft');
+    expect(localStorage.getItem('reflect.draft.__new__')).toBe('keep this draft');
+  });
 
   it('submits on plain Enter', async () => {
     const submitted: Submission[] = [];
@@ -628,6 +644,23 @@ describe('Composer inline controls', () => {
 // ===========================================================================
 
 describe('Composer bang (!) shell passthrough', () => {
+  it('retains output and exit events arriving before the shell response', async () => {
+    let finish!: (session: { id: string; command: string; cwd: string }) => void;
+    mockInvoke('reflect_run_shell', () => new Promise((resolve) => { finish = resolve; }));
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message reflect/i });
+    fireEvent.change(input, { target: { value: '! echo hi' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(finish).toBeDefined());
+    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'stdout', data: 'one', seq: 1 });
+    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'stdout', data: 'two', seq: 2 });
+    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'exit', data: '0', seq: 3 });
+    finish({ id: 'early', command: 'echo hi', cwd: '/tmp' });
+    await waitFor(() => expect(screen.getByTestId('bang-run-early').getAttribute('data-status')).toBe('done'));
+    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'stderr', data: 'late error', seq: 4 });
+    await waitFor(() => expect(screen.getByTestId('bang-run-early').querySelector('pre')?.textContent).toBe('one\ntwo\nlate error\n'));
+  });
+
   it('runs `! cmd` locally via reflect_run_shell without submitting to the agent', async () => {
     const runShell: string[] = [];
     const submitted: Array<{ id: string }> = [];

@@ -18,6 +18,7 @@ pub mod mcp;
 mod media_backend;
 mod memory_store;
 pub mod menu;
+mod persistence;
 mod shell_sessions;
 pub mod shortcut;
 pub mod state;

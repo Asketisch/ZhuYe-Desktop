@@ -1,6 +1,6 @@
 //! 会话统计只读查询 —— GUI 对应 CLI `reflect session stats` 与模型级用量。
 //!
-//! 数据源是 rollout JSONL(`$HOME/.reflect/sessions/`),聚合**直接复用**
+//! 数据源是 rollout JSONL(`$HOME/.zhuye/sessions/`),聚合**直接复用**
 //! submodule 的 [`reflect_rollout::index::session_stats`] /
 //! [`reflect_rollout::all_model_usage`] —— 与 CLI / SDK 同源,不在桌面端
 //! 复刻 token 聚合逻辑(历史上聚合曾有三份独立实现,统计类型统一后此处

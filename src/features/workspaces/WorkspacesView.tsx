@@ -2,7 +2,7 @@
  * Workspaces —— 项目工作区管理 (B9-04 升级 + 项目目录直通)。
  *
  * - 顶部当前 workspace + 「打开项目目录…」（原生目录选择框 → set）。
- * - 「最近项目」列表来自 `~/.reflect/workspaces.json`（每次切换自动记录），
+ * - 「最近项目」列表来自 `~/.zhuye/workspaces.json`（每次切换自动记录），
  *   按 last_used 倒序；active 用 success badge 标出，可一键切回。
  * - 每张卡可「在文件管理器中显示」（Finder / 资源管理器 / xdg-open）。
  */
@@ -134,6 +134,14 @@ export function WorkspacesView() {
       <h3 className={s.sectionTitle}>{t('workspaces.recent')}</h3>
       {workspacesQ.isLoading ? (
         <div className={s.loading}><Spinner size={20} /></div>
+      ) : workspacesQ.isError ? (
+        <Card level="flat" padding="none">
+          <EmptyState
+            icon={<Icon icon={FolderOpen} />}
+            title={t('workspaces.loadFailed')}
+            description={errMsg(workspacesQ.error)}
+          />
+        </Card>
       ) : workspaces.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState

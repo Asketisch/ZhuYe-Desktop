@@ -42,6 +42,9 @@ export function SideChannelView() {
         </Badge>
       }
     >
+      <Card level="outlined" padding="md">
+        <p role="status">{t('sideChannel.unavailable')}</p>
+      </Card>
       {/* Start form */}
       {ctrl.showForm && (
         <form

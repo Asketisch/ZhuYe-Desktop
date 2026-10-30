@@ -12,6 +12,8 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SideChannelView } from './SideChannelView';
 import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
+import { reflect_start_side_channel, reflect_cancel_side_channel } from '@/utils/commands';
+import { useAgentStore } from '@/stores/agentStore';
 
 const calls: Array<{ cmd: string; args: unknown }> = [];
 
@@ -24,19 +26,19 @@ vi.mock('@/utils/commands', async () => {
       return [
         {
           id: 'side-running01',
-          agent_name: 'reviewer',
+          agentName: 'reviewer',
           prompt: 'audit PR',
-          started_at_ms: 1000,
+          startedAtMs: 1000,
           status: 'running',
-          duration_ms: null,
+          durationMs: null,
         },
         {
           id: 'side-done0002',
-          agent_name: 'default',
+          agentName: 'default',
           prompt: 'echo hi',
-          started_at_ms: 500,
+          startedAtMs: 500,
           status: 'done',
-          duration_ms: 1234,
+          durationMs: 1234,
         },
       ];
     }),
@@ -44,9 +46,9 @@ vi.mock('@/utils/commands', async () => {
       calls.push({ cmd: 'reflect_start_side_channel', args });
       return {
         id: 'side-new0003',
-        agent_name: args.agentName as string,
+        agentName: args.agent_name as string,
         prompt: args.prompt as string,
-        started_at_ms: 2000,
+        startedAtMs: 2000,
       };
     }),
     reflect_cancel_side_channel: vi.fn(async (id: string) => {
@@ -66,11 +68,13 @@ describe('SideChannelView', () => {
     cleanup();
     calls.length = 0;
     resetMockInvoke();
+    useAgentStore.getState().reset();
   });
 
   it('renders the page title and running count badge', async () => {
     render(wrap(<SideChannelView />));
     expect(screen.getByText('Side-channels')).toBeDefined();
+    expect(screen.getByText('Side-channel execution is not available yet. Creating an entry does not run an agent.')).toBeDefined();
     await waitFor(() => {
       expect(screen.getByText('1 running')).toBeDefined();
     });
@@ -82,6 +86,8 @@ describe('SideChannelView', () => {
       expect(screen.getByText('side-running01')).toBeDefined();
       expect(screen.getByText('audit PR')).toBeDefined();
       expect(screen.getByText('echo hi')).toBeDefined();
+      expect(screen.getByText('reviewer')).toBeDefined();
+      expect(screen.getByText('1.2s')).toBeDefined();
     });
   });
 
@@ -121,6 +127,24 @@ describe('SideChannelView', () => {
       },
       { timeout: 2000 },
     );
+    await waitFor(() => expect(useAgentStore.getState().toasts.some((toast) => toast.message.includes('side-new0003'))).toBe(true));
+  });
+
+  it('shows serialized backend errors and preserves the draft', async () => {
+    vi.mocked(reflect_start_side_channel).mockRejectedValueOnce({ msg: 'agent unavailable' });
+    render(wrap(<SideChannelView />));
+    fireEvent.click(screen.getByTestId('side-channel-add-btn'));
+    fireEvent.change(screen.getByTestId('side-channel-start-prompt'), { target: { value: 'keep me' } });
+    fireEvent.click(screen.getByTestId('side-channel-start-submit'));
+    await waitFor(() => expect(useAgentStore.getState().toasts.some((toast) => toast.message.includes('agent unavailable'))).toBe(true));
+    expect((screen.getByTestId('side-channel-start-prompt') as HTMLInputElement).value).toBe('keep me');
+  });
+
+  it('shows serialized cancellation errors', async () => {
+    vi.mocked(reflect_cancel_side_channel).mockRejectedValueOnce({ msg: 'cancel unavailable' });
+    render(wrap(<SideChannelView />));
+    fireEvent.click(await screen.findByTestId('side-channel-cancel-side-running01'));
+    await waitFor(() => expect(useAgentStore.getState().toasts.some((toast) => toast.message.includes('cancel unavailable'))).toBe(true));
   });
 
   it('Cancel click forwards reflect_cancel_side_channel', async () => {

@@ -41,7 +41,7 @@ L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不�
 
 | 能力域 | 命令 | 真后端覆盖（层 / 文件） | 前端覆盖 |
 |---|---|---|---|
-| Agent 生命周期 | `submit` `interrupt` `compact` `rewind` `shutdown` | L3 `ipc_agent_ops.rs` | `chat.full-flow` |
+| Agent 生命周期 | `submit` `interrupt` `compact` `rewind` `shutdown` | L3 `ipc_agent_ops.rs` + `ipc_shutdown.rs`（shutdown 独立进程验证，避免污染共享 app） | `chat.full-flow` |
 | 审批 | `tool_approval` `hook_approval` `plan_approval` | L3 `ipc_agent_ops.rs` | `modals.approvals-questions` |
 | Plan / Goal 模式 | `enter/exit_plan_mode` `enter/exit_goal_mode` | L3 `ipc_agent_ops.rs` | `flows.chat-plan-goal-edit` |
 | Goal 状态快照 | `goal_snapshot` | L3 `ipc_goal.rs`（挂载 / 覆盖 / 退出全周期轮询断言） | store `syncGoalSnapshot` + Composer goal 徽标 tooltip |
@@ -49,17 +49,17 @@ L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不�
 | 追问 | `ask_user_question_response` `ask_user_input_response` | L3 `ipc_agent_ops.rs` | `modals.approvals-questions` |
 | 会话生命周期 | `create` `bind` `list` `rename` `fork` `delete` `archive` `unarchive` `list_archived` `replay` `export` `search_sessions` | L3 `ipc_core.rs` | `sessions.lifecycle` |
 | 会话统计 | `session_stats` `all_model_usage` `model_rate_cards` | L3 `ipc_core.rs` | `usage` |
-| 配置 | `get_config` `save_config` `config_info` `set_model` | L3 `ipc_core.rs` | `settings.config` |
+| 配置 | `get_config` `save_config` `config_info` `set_model` | L3 `ipc_core.rs` + `ipc_model_discovery.rs`（本地模拟清单失败及相同配置重试） | `settings.config` |
 | 运行时状态 | `agent_status` `credential_pool_status` `recovery_state` `memory_sections` `sandbox_status` | L3 `ipc_core.rs` / `ipc_workspace.rs` | `StatusBar` / `AppShell` |
-| 工具 / 技能 / hooks | `list_tools` `list_skills` `list_hooks` `toggle_hook` `list_hook_events` | L3 `ipc_core.rs` | — |
+| 工具 / 技能 / hooks | `list_tools` `list_skills` `list_hooks` `toggle_hook` `list_hook_events` | L3 `ipc_core.rs` + `ipc_hooks.rs`（运行时注册表、重绑、配置更新和任务事件）；Unix 上经真实插件验证首条命令、会话开始 / 结束及任务 hook | — |
 | 记忆 | `list/add/remove_memory` | L3 `ipc_core.rs` | `MemoryView` |
 | 会话笔记 | `list_session_notes` `list_note_sessions` | L3 `ipc_core.rs` | `MemoryView` |
-| 权限规则 / 白名单 | `list/add_permission_rule` `load/save/check_allowlist` | L3 `ipc_core.rs` | `PermissionRulesSection` |
+| 权限规则 / 白名单 | `list/add_permission_rule` `load/save/check_allowlist` | L3 `ipc_core.rs` + `ipc_permission_errors.rs`（权限文件损坏时报告错误）+ `ipc_permission_concurrency.rs`（并发追加不报错、store 保持可解析）+ `ipc_permission_read_only.rs`（Unix 只读文件报权限错误）；`state/permissions.rs` 单测验证用户目录不可用 | `PermissionRulesSection` |
 | 活动日志 | `list/search/clear_activity` `activity_count` | L3 `ipc_core.rs` | — |
-| Agent 定义 | `list/get/save/delete_agent_def` `parse_agent_md` `get/set_active_agent` | L3 `ipc_core.rs` | `AgentsView` |
-| Autopilot | `get/update_autopilot_config` `autopilot_history` | L3 `ipc_core.rs` | — |
+| Agent 定义 | `list/get/save/delete_agent_def` `parse_agent_md` `get/set_active_agent` | L3 `ipc_core.rs` + `ipc_agent_preferences.rs`（损坏与其他偏好保留） | `AgentsView` |
+| Autopilot | `get/update_autopilot_config` `autopilot_history` | L3 `ipc_core.rs` + `ipc_autopilot_errors.rs`（损坏文件报错） | — |
 | Traces / Span | `list_traces` `get_trace` `list_span_logs` `read_span_log` | L3 `ipc_core.rs` | `TracesView` |
-| 工作区 | `list/set/current_workspace` | L3 `ipc_workspace.rs` | `useCurrentWorkspace` |
+| 工作区 | `list/set/current_workspace` | L3 `ipc_workspace.rs` + `ipc_workspace_history.rs`（损坏历史保留与报错） | `useCurrentWorkspace` / `WorkspacesView.test.tsx`（读取错误） |
 | 文件 | `list_dir` `read_file` `write_file` `search_files` | L3 `ipc_workspace.rs` | `FilesView` / `FileTree` |
 | Git | `git_status` `git_diff` `git_log` `git_stage` `git_unstage` `git_commit` | L3 `ipc_workspace.rs`（临时仓库内） | `GitView` / `DiffViewer` |
 | 终端 | `run_shell` `kill_shell` `list_shell_sessions` | L3 `ipc_workspace.rs` | `TerminalView` |
@@ -70,10 +70,10 @@ L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不�
 | 定时任务 | `list/add/update/remove_schedule` `get_schedule_status` | L3 `ipc_domains.rs` | `ScheduleView` |
 | 插件 | `list_plugins` `list_marketplaces` `toggle_plugin` `list_plugin_commands` | L3 `ipc_domains.rs` | `PluginsPanel` |
 | 子代理 spec | `list/save/get/delete_subagent_spec` | L3 `ipc_domains.rs` | `CollaborationView` |
-| MCP | `list_mcp_servers` `mcp_catalog` `upsert/delete_mcp_server` `list_mcp_resources` `list_mcp_prompts` | L3 `ipc_domains.rs` | `McpManager` |
-| LSP | `lsp_status` `lsp_set_enabled` `lsp_diagnostics` | L3 `ipc_domains.rs` | — |
+| MCP | `list_mcp_servers` `mcp_catalog` `upsert/delete_mcp_server` `list_mcp_resources` `list_mcp_prompts` | L3 `ipc_domains.rs` + `ipc_mcp_lifecycle.rs`（空配置启动后新增服务的失败事件）；`mcp.rs` 单测覆盖工具冲突和替换后的所有权清理 | `McpManager` |
+| LSP | `lsp_status` `lsp_set_enabled` `lsp_diagnostics` | L3 `ipc_domains.rs`；上游共享工具单测覆盖固定文件句柄及大小上限，`zhuye-lsp` 单测覆盖路径校验和文档同步，mock server 集成测试覆盖工具调用 | — |
 | 提示词层 | `get_effective_prompt` `prompt_command` | L3 `ipc_domains.rs` | `PromptLayersModal` |
-| KMS 知识库 | `kms_list/create/delete/save_page/get_page/list_pages/search` | L3 `ipc_domains.rs` | `KmsView` |
+| KMS 知识库 | `kms_list/create/delete/save_page/get_page/list_pages/search` | L3 `ipc_domains.rs`（含独占创建）+ `ipc_kms_links.rs`（外部符号链接） | `KmsView` |
 | Side-channel | `start/cancel/list/get_side_channel` | L3 `ipc_domains.rs` | `SideChannelView` |
 | 讨论 / 流水线 | `list_discussions` `validate_pipeline` `list/save_pipeline_config` | L3 `ipc_domains.rs` | `CollaborationView` |
 | 远程 / tailscale | `get/update_remote_config` `get_remote_status` `tailscale_status` `tailscale_daemon_command_preview` `tailscale_daemon_status` | L3 `ipc_domains.rs` | `RemoteView` |
@@ -84,7 +84,8 @@ L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不�
 | **持久化往返契约(语义)** | 21 对「写 → 读」(allowlist / config / memory / schedule / mcp / 权限规则 / agent def / 活跃 agent / 子代理 / squad / team / pipeline / KMS / 任务 / 工作区 / autopilot / remote / 文件 / LSP) | L2 `ipc.roundtrip-contract` + L3 `ipc_roundtrip_contract.rs` 双端同表 | 同左(fakeBackend 侧) |
 | **假模型全链路** | 有模型的完整一轮:submit → AgentThread → HTTP → SSE 解析 → 事件回传(文本流 / bash 工具 + 审批门 + tool_result 第二跳 / HTTP 500 / 流中 interrupt 及恢复) | L3 `ipc_mock_provider.rs`(wiremock 本地假网关,离线确定性) | `chat.full-flow`(ScriptedAgent 模拟层,与 L3 互补) |
 | **并发不变量** | 并行只读 / submit 风暴 + 交错 interrupt / 并发配置写(文件始终合法 TOML、不死锁) | L3 `ipc_concurrency.rs` | — |
-| **重启恢复** | 进程退出后以同一 `~/.reflect` 重启:配置 / 记忆 / 白名单 / agent 定义 / squad / 任务 / 工作区读回 | L3 `ipc_restart.rs`(子进程两阶段) | `sessions.lifecycle`(切换水合,单进程内) |
+| **重启恢复** | 进程退出后以同一 `~/.zhuye` 重启:配置 / 记忆 / 白名单 / agent 定义 / squad / 任务 / 工作区读回 | L3 `ipc_restart.rs`(子进程两阶段) | `sessions.lifecycle`(切换水合,单进程内) |
+| **数据目录统一** | 桌面与核心共享同一个 `.zhuye` 数据目录；就地追加（权限规则 / 项目记忆）读-改-写，保留文件已有内容 | L3 `ipc_namespace_compat.rs` | — |
 | **i18n 渲染级** | 34 条路由 zh-CN 挂载:页面出现中文、无裸 i18n key | — | `views.route-matrix`(zh-CN 遍) |
 | **可访问性(audit)** | 34 条路由 axe-core 审计:serious/critical 违规为零(jsdom 无布局,color-contrast 留给视觉层) | — | `a11y.route-matrix`(与路由矩阵共享同一份表) |
 | **可访问性(键盘)** | 模态 Tab 焦点陷阱;Escape 线上回执(审批 deny / plan revise);堆叠模态仅栈顶响应 | — | `a11y.keyboard` |

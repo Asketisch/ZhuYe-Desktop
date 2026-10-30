@@ -10,7 +10,7 @@
  * Accept/Reject 按钮通过 CustomEvent 从 CM widget 冒泡到 React 容器。
  */
 import { useEffect, useRef } from 'react';
-import { EditorState, Compartment, StateEffect, StateField, RangeSetBuilder } from '@codemirror/state';
+import { Annotation, EditorState, Compartment, StateEffect, StateField, RangeSetBuilder } from '@codemirror/state';
 import {
   EditorView,
   Decoration,
@@ -39,6 +39,9 @@ export interface CodeMirrorEditorProps {
   onRejectHunk: (index: number, currentContent: string) => Promise<string | null>;
   /** 只读模式(二进制/截断回退场景)。 */
   readOnly?: boolean;
+  /** 用户修改缓冲时通知调用方；外部内容同步不触发。 */
+  onChange?: (value: string) => void;
+  onSave?: () => void;
   /**
    * 可选:挂载后写入"读取当前编辑器缓冲"的函数,卸载时清空。
    * 调用方(FilesView 的 Reject All)借此以缓冲而非缓存内容做
@@ -48,6 +51,7 @@ export interface CodeMirrorEditorProps {
 }
 
 const setHunksEffect = StateEffect.define<DiffHunk[]>();
+const externalUpdate = Annotation.define<boolean>();
 
 /** 单个 hunk 的悬浮控件:Accept / Reject + 被删除行的红色块。 */
 class HunkWidget extends WidgetType {
@@ -145,7 +149,9 @@ function buildDecorations(content: string, hunks: DiffHunk[]): {
   hunks.forEach((hunk, index) => {
     const located = locateHunk(content, hunk);
     if (!located) return;
-    for (let line = located.addedStart; line < located.addedEnd; line++) {
+    const firstOffset = hunk.addedOffsets[0] ?? 0;
+    for (const offset of hunk.addedOffsets) {
+      const line = located.addedStart + offset - firstOffset;
       if (line >= docLines.length) break;
       lines.push({ from: lineStart(line), deco: Decoration.line({ class: `cm-addedLine ${s.addedLine}` }) });
     }
@@ -180,14 +186,18 @@ export function CodeMirrorEditor({
   onAcceptHunk,
   onRejectHunk,
   readOnly = false,
+  onChange,
+  onSave,
   bufferRef,
 }: CodeMirrorEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const langCompartment = useRef(new Compartment());
   const readOnlyCompartment = useRef(new Compartment());
-  const handlers = useRef({ onAcceptHunk, onRejectHunk });
-  handlers.current = { onAcceptHunk, onRejectHunk };
+  const handlers = useRef({ onAcceptHunk, onRejectHunk, onChange, onSave });
+  handlers.current = { onAcceptHunk, onRejectHunk, onChange, onSave };
+  const pathRef = useRef(path);
+  pathRef.current = path;
 
   // 暴露缓冲读取函数;卸载时归还 null。
   useEffect(() => {
@@ -208,11 +218,17 @@ export function CodeMirrorEditor({
         extensions: [
           lineNumbers(),
           history(),
-          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          keymap.of([{ key: 'Mod-s', run: () => { handlers.current.onSave?.(); return true; } }, ...defaultKeymap, ...historyKeymap, indentWithTab]),
           hunksField,
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged && !update.transactions.some((tr) => tr.annotation(externalUpdate))) {
+              handlers.current.onChange?.(update.state.doc.toString());
+            }
+          }),
           langCompartment.current.of([]),
-          readOnlyCompartment.current.of(EditorState.readOnly.of(readOnly)),
-          EditorView.editable.of(!readOnly),
+          readOnlyCompartment.current.of([
+            EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly),
+          ]),
           EditorView.theme({
             '&': { fontSize: '13px', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' },
             '.cm-content': { fontFamily: 'var(--font-mono)', paddingBottom: '24px' },
@@ -235,9 +251,11 @@ export function CodeMirrorEditor({
     const onReject = (e: Event) => {
       const index = (e as CustomEvent<number>).detail;
       const content = view.state.doc.toString();
+      const actionPath = pathRef.current;
       void Promise.resolve(handlers.current.onRejectHunk(index, content)).then((next) => {
-        if (next !== null && next !== content) {
-          view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
+        if (viewRef.current === view && pathRef.current === actionPath &&
+            view.state.doc.toString() === content && next !== null && next !== content) {
+          view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next }, annotations: externalUpdate.of(true) });
         }
       });
     };
@@ -270,7 +288,7 @@ export function CodeMirrorEditor({
     } else {
       viewRef.current?.dispatch({ effects: langCompartment.current.reconfigure([]) });
     }
-    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value }, annotations: externalUpdate.of(true) });
     return () => {
       stale = true;
     };
@@ -282,7 +300,7 @@ export function CodeMirrorEditor({
     const view = viewRef.current;
     if (!view) return;
     if (view.state.doc.toString() !== value) {
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value }, annotations: externalUpdate.of(true) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
@@ -295,7 +313,9 @@ export function CodeMirrorEditor({
   // readOnly 切换。
   useEffect(() => {
     viewRef.current?.dispatch({
-      effects: readOnlyCompartment.current.reconfigure(EditorState.readOnly.of(readOnly)),
+      effects: readOnlyCompartment.current.reconfigure([
+        EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly),
+      ]),
     });
   }, [readOnly]);
 

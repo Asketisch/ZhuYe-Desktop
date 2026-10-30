@@ -9,7 +9,7 @@
 //!
 //! 2. **插件管理**(此前 GUI 完全缺失):装了什么、哪个加载失败、启用
 //!    哪些、marketplace 有哪些 —— 全部看不到,只能手改
-//!    `~/.reflect/config.toml` 的 `[plugins] enabled_plugins` 与
+//!    `~/.zhuye/config.toml` 的 `[plugins] enabled_plugins` 与
 //!    `installed_plugins.json`。现提供列表 / 启停 / 卸载 / 本地安装。
 //!
 //! 写路径与核心同款:`PluginManager` 负责 `installed_plugins.json` 的
@@ -47,8 +47,10 @@ pub struct PluginInfo {
     pub install_path: String,
     /// 安装时间(RFC3339)。
     pub installed_at: String,
-    /// 是否在 `[plugins] enabled_plugins` 里(运行时已挂载)。
+    /// 是否在 `[plugins] enabled_plugins` 里。
     pub enabled: bool,
+    /// 当前线程实际加载成功的插件；未加载时为 null。
+    pub runtime: Option<reflect_protocol::PluginLoadedEvent>,
     /// git 安装的 commit sha(本地目录安装时为 null)。
     pub git_commit_sha: Option<String>,
 }
@@ -81,12 +83,33 @@ pub async fn reflect_list_plugin_commands(
 
 /// 列出已安装插件 + 是否启用。
 ///
-/// 启用状态取自 config 的 `[plugins] enabled_plugins` —— 与运行时
-/// 实际挂载的集合同源(见 `state/plugins.rs`)。
+/// 启用状态取自配置；runtime 仅表示当前线程实际加载成功的插件。
 #[tauri::command]
 pub async fn reflect_list_plugins(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<PluginInfo>> {
+    let _config = agent.inner.config_write_lock.lock().await;
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    let _mount = agent.inner.plugin_mount_lock.lock().await;
+    let context = agent.inner.plugin_runtime_context.lock().clone();
+    let current = agent.inner.thread.lock().clone();
+    let loaded = if let Some(context) = context.filter(|context| {
+        context
+            .owner
+            .upgrade()
+            .zip(current.as_ref())
+            .is_some_and(|(owner, current)| {
+                std::sync::Arc::ptr_eq(&owner, current) && !owner.cancel_token().is_cancelled()
+            })
+    }) {
+        context
+            .status
+            .snapshot()
+            .await
+            .map_err(CommandError::from)?
+    } else {
+        Default::default()
+    };
     let enabled: std::collections::HashSet<String> = agent
         .inner
         .cfg
@@ -94,7 +117,7 @@ pub async fn reflect_list_plugins(
         .plugins
         .enabled_plugins
         .iter()
-        .cloned()
+        .filter_map(|id| PluginId::parse_user_input(id).ok().map(|id| id.to_string()))
         .collect();
     let manager = load_plugin_manager()?;
     let out = manager
@@ -107,6 +130,10 @@ pub async fn reflect_list_plugins(
             install_path: entry.install_path.display().to_string(),
             installed_at: entry.installed_at.to_rfc3339(),
             enabled: is_enabled,
+            runtime: loaded
+                .get(id.as_str())
+                .filter(|info| info.scope == scope_str(entry.scope))
+                .cloned(),
             git_commit_sha: entry.git_commit_sha,
         })
         .collect();
@@ -165,13 +192,21 @@ pub async fn reflect_toggle_plugin(
     id: String,
     enabled: bool,
 ) -> CommandResult<()> {
+    let id = PluginId::parse_user_input(&id)
+        .map(|id| id.to_string())
+        .unwrap_or(id);
+    let _config_write = agent.inner.config_write_lock.lock().await;
     let mut cfg = agent.inner.cfg.read().clone();
     let list = &mut cfg.plugins.enabled_plugins;
-    let had = list.iter().any(|p| p == &id);
+    let matches_id = |value: &String| match PluginId::parse_user_input(value) {
+        Ok(value) => value.as_str() == id,
+        Err(_) => value == &id,
+    };
+    let had = list.iter().any(matches_id);
     if enabled && !had {
         list.push(id.clone());
     } else if !enabled && had {
-        list.retain(|p| p != &id);
+        list.retain(|value| !matches_id(value));
     } else {
         // 状态没变 —— 幂等返回(不重复落盘)。
         return Ok(());
@@ -179,21 +214,27 @@ pub async fn reflect_toggle_plugin(
     // 落盘 + 换内存快照。
     crate::commands::config::persist_config(&agent, cfg.clone())?;
     // diff 同步挂/卸(与 provider 热重载的 plugins 分支同语义)。
-    let shared = agent.plugin_runtime();
-    reflect_plugin::reload_plugins(&shared, &cfg.plugins.enabled_plugins).await;
+    let _mount = agent.inner.plugin_mount_lock.lock().await;
+    crate::state::plugins::reload_enabled_plugins(&agent, &cfg.plugins.enabled_plugins)
+        .await
+        .map_err(|e| CommandError {
+            msg: format!("plugin configuration saved, but runtime reload failed: {e:#}"),
+        })?;
     Ok(())
 }
 
 /// 卸载一个插件(按 scope 精确卸载)。
 #[tauri::command]
 pub async fn reflect_uninstall_plugin(
-    _agent: State<'_, MinimalAgent>,
+    agent: State<'_, MinimalAgent>,
     id: String,
     scope: PluginScope,
 ) -> CommandResult<()> {
     let plugin_id = PluginId::parse(&id).map_err(|e| CommandError {
         msg: format!("invalid plugin id: {e}"),
     })?;
+    let _config_write = agent.inner.config_write_lock.lock().await;
+    let _mount = agent.inner.plugin_mount_lock.lock().await;
     let mut manager = load_plugin_manager()?;
     manager
         .uninstall(&plugin_id, scope)
@@ -203,6 +244,11 @@ pub async fn reflect_uninstall_plugin(
     manager.save().map_err(|e| CommandError {
         msg: format!("save plugin state failed: {e}"),
     })?;
+    crate::state::plugins::refresh_installed_plugins(&agent)
+        .await
+        .map_err(|e| CommandError {
+            msg: format!("plugin uninstalled, but runtime refresh failed: {e:#}"),
+        })?;
     Ok(())
 }
 
@@ -212,7 +258,7 @@ pub async fn reflect_uninstall_plugin(
 /// (GUI 的文件选择框可提供)。安装后写 `installed_plugins.json`。
 #[tauri::command]
 pub async fn reflect_install_plugin(
-    _agent: State<'_, MinimalAgent>,
+    agent: State<'_, MinimalAgent>,
     path: String,
     marketplace: String,
     scope: PluginScope,
@@ -220,6 +266,8 @@ pub async fn reflect_install_plugin(
     let mkt = MarketplaceName::parse(&marketplace).map_err(|e| CommandError {
         msg: format!("invalid marketplace name: {e}"),
     })?;
+    let _config_write = agent.inner.config_write_lock.lock().await;
+    let _mount = agent.inner.plugin_mount_lock.lock().await;
     let mut manager = load_plugin_manager()?;
     manager
         .install_local(&path, &mkt, scope)
@@ -229,6 +277,11 @@ pub async fn reflect_install_plugin(
     manager.save().map_err(|e| CommandError {
         msg: format!("save plugin state failed: {e}"),
     })?;
+    crate::state::plugins::refresh_installed_plugins(&agent)
+        .await
+        .map_err(|e| CommandError {
+            msg: format!("plugin installed, but runtime refresh failed: {e:#}"),
+        })?;
     Ok(())
 }
 

@@ -4,14 +4,15 @@
 //! slash 命令;桌面端 thread 走自装配(`thread_factory::construct_thread`),
 //! 本模块把同样的两件事接到 GUI 生命周期上:
 //!
-//! - **挂载**:`construct_thread` 在真实会话(sid = Some)构造完成后调
-//!   [`spawn_mount`],异步执行「卸旧 runtime → bootstrap 新 runtime」。
+//! - **挂载**:真实会话提交到线程槽后，异步执行「结束旧插件会话 →
+//!   卸旧 runtime → bootstrap 新 runtime」。首个 SessionStart 和用户
+//!   输入等待挂载完成，避免遗漏插件 hook 与命令。
 //!   exec 是单会话进程,桌面端一个进程多个会话,因此挂载与线程同寿:
 //!   每次 rebind 重建 runtime(新线程的 hook_engine / skills catalog /
 //!   SubAgentFactory 都是新实例),旧 runtime 显式 `reload_plugins(&old, &[])`
 //!   卸载(drop 不会反注册,插件 MCP server 进程与共享 ToolRegistry 里的
 //!   Plugin 工具都会泄漏)。多次 rebind 的竞态由 [`MinimalAgentInner::
-//!   plugin_mount_lock`] 串行化:后完成者赢,与线程槽的最终状态一致。
+//!   plugin_mount_lock`] 与配置更新串行化；过期线程的挂载会被丢弃。
 //! - **展开**:[`expand_submission`] 在 `MinimalAgent::submit` 投递前把
 //!   `Op::UserInput` 首个 Text 条目命中插件命令时替换为命令正文并标注
 //!   `Submission::source_command`(与 exec `expand_plugin_command` 语义
@@ -41,34 +42,120 @@ use reflect_subagent::SubAgentFactory;
 
 use super::MinimalAgent;
 
+/// 将有效插件 ID 规范化并去重；保留无效值以便上游报告配置错误。
+pub(crate) fn canonical_enabled(enabled: &[String]) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    enabled
+        .iter()
+        .map(|id| {
+            reflect_plugin::PluginId::parse_user_input(id)
+                .map(|parsed| parsed.to_string())
+                .unwrap_or_else(|_| id.clone())
+        })
+        .filter(|id| seen.insert(id.clone()))
+        .collect()
+}
+
+#[derive(Clone)]
+pub(crate) struct PluginRuntimeContext {
+    tools: Arc<reflect_tools::ToolRegistry>,
+    hooks: Arc<HookEngine>,
+    mcp: Arc<McpConnectionManager>,
+    skills: Arc<reflect_skills::SkillsCatalog>,
+    factory: Arc<SubAgentFactory>,
+    event_tx: tokio::sync::mpsc::Sender<reflect_protocol::Event>,
+    pub(crate) status: Arc<super::plugin_status::PluginStatus>,
+    pub(crate) owner: std::sync::Weak<AgentThread>,
+    bridge: Arc<super::plugin_hooks::PluginHookBridge>,
+}
+
+/// 在事件派发暂停期间更新插件并恢复钩子偏好。
+/// 调用方持有 plugin_mount_lock。
+pub(crate) async fn reload_enabled_plugins(
+    agent: &MinimalAgent,
+    enabled: &[String],
+) -> anyhow::Result<()> {
+    let enabled = canonical_enabled(enabled);
+    let context = agent.inner.plugin_runtime_context.lock().clone();
+    let Some(context) = context else {
+        return Ok(());
+    };
+    let _gate = context.bridge.reload_gate.write().await;
+    let shared = agent.plugin_runtime();
+    if let Err(error) = agent.inner.hook_store.apply_disabled(&HookEngine::new()) {
+        reload_plugins(&shared, &[]).await;
+        context.status.clear().await?;
+        return Err(error);
+    }
+    if let Err(error) = context.status.retain_enabled(&enabled).await {
+        reload_plugins(&shared, &[]).await;
+        return Err(error);
+    }
+    reload_plugins(&shared, &enabled).await;
+    if let Err(error) = agent.inner.hook_store.apply_disabled(&context.hooks) {
+        reload_plugins(&shared, &[]).await;
+        context.status.clear().await?;
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// 安装清单发生变化后重建运行时，以读取最新的插件管理器快照。
+/// 调用方持有 plugin_mount_lock。
+pub(crate) async fn refresh_installed_plugins(agent: &MinimalAgent) -> anyhow::Result<()> {
+    let context = agent.inner.plugin_runtime_context.lock().clone();
+    let Some(context) = context else {
+        return Ok(());
+    };
+    let _gate = context.bridge.reload_gate.write().await;
+    let enabled = canonical_enabled(&agent.inner.cfg.read().plugins.enabled_plugins);
+    let shared = agent.plugin_runtime();
+    reload_plugins(&shared, &[]).await;
+    context.status.clear().await?;
+    agent.inner.hook_store.apply_disabled(&HookEngine::new())?;
+    let runtime = bootstrap_plugins(
+        context.tools,
+        context.hooks.clone(),
+        context.mcp,
+        context.skills,
+        context.factory,
+        &enabled,
+        Some(context.event_tx.clone()),
+    )
+    .await;
+    if let Err(error) = agent.inner.hook_store.apply_disabled(&context.hooks) {
+        reload_plugins(&runtime, &[]).await;
+        context.status.clear().await?;
+        *shared.lock().await = None;
+        return Err(error);
+    }
+    *shared.lock().await = runtime.lock().await.take();
+    Ok(())
+}
+
 /// `construct_thread` 收集的挂载材料(sync 侧只收集,异步任务里真挂)。
 pub(crate) struct PluginMount {
     pub(crate) sid: ThreadId,
     pub(crate) thread: Arc<AgentThread>,
     pub(crate) hook_engine: Arc<HookEngine>,
+    pub(crate) bridge: Arc<super::plugin_hooks::PluginHookBridge>,
+    pub(crate) ready: tokio::sync::watch::Sender<bool>,
+    pub(crate) activation: tokio::sync::watch::Receiver<bool>,
     pub(crate) m4: M4Deps,
     pub(crate) model: String,
     pub(crate) registry: SharedModelRegistry,
     /// `[subagent_providers]` 段构建的子代理独立 registry;`None` = 父子共享
     /// (与 exec `bootstrap_m5` 的 `to_child_registry()` 语义一致)。
     pub(crate) child_registry: Option<SharedModelRegistry>,
-    pub(crate) enabled: Vec<String>,
 }
 
-/// 异步挂载插件运行时(卸旧 → 装新)。`construct_thread` 在真实会话分支
-/// 末尾调用;占位线程(sid = None)无 M4 依赖,保持空句柄不挂载。
+/// 异步挂载插件运行时，在线程发布后结束旧会话、卸旧并装新。
 ///
-/// `PluginLoaded` 事件经 session broadcast 透传(mpsc 桥接,前端按
-/// `msg.type` 分发即可见)。挂载失败只影响插件能力,不回滚线程。
+/// `PluginLoaded` 事件经 session broadcast 透传。钩子偏好无法恢复时
+/// 停止挂载并拒绝提交，避免静默绕过用户的禁用设置。
 pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
-    // PluginLoaded → session broadcast 桥(容量 32 足够;下游关闭时静默)。
-    let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<reflect_protocol::Event>(32);
-    let broadcast_tx = agent.inner.session_tx.clone();
-    tauri::async_runtime::spawn(async move {
-        while let Some(event) = event_rx.recv().await {
-            let _ = broadcast_tx.send(event);
-        }
-    });
+    let status = super::plugin_status::PluginStatus::new(agent.inner.session_tx.clone());
+    let event_tx = status.events.clone();
 
     let inner = Arc::clone(&agent.inner);
     let tools = agent.inner.tools.clone();
@@ -78,21 +165,39 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
         sid,
         thread,
         hook_engine,
+        bridge,
+        ready,
+        mut activation,
         m4,
         model,
         registry,
         child_registry,
-        enabled,
     } = mount;
 
     tauri::async_runtime::spawn(async move {
+        if !*activation.borrow_and_update() {
+            tokio::select! {
+                result = activation.changed() => if result.is_err() || !*activation.borrow_and_update() { return; },
+                _ = thread.cancel_token().cancelled() => return,
+            }
+        }
         // 串行化:与并发 rebind 的挂载任务互斥,「卸旧→装新→写句柄」
-        // 不交叉,最终 inner.plugin_runtime 属于最后一次 rebind 的线程。
+        // 不交叉；线程被替换后，尚未执行的旧挂载直接丢弃。
         let _guard = mount_lock.lock().await;
+        if thread.cancel_token().is_cancelled() {
+            return;
+        }
+        // 配置可能在任务排队时已更新，不能使用构造线程时的旧快照。
+        let enabled = canonical_enabled(&inner.cfg.read().plugins.enabled_plugins);
 
         // 1. 卸旧:drop 不反注册,必须显式清到空集(停插件 MCP server、
         //    清共享 ToolRegistry 的 Plugin 工具)。首装时内层为 None,
         //    no-op。句柄 Arc 终身不变,变的是内层 Option<PluginRuntime>。
+        let previous = inner.mounted_plugin_bridge.lock().take();
+        *inner.plugin_runtime_context.lock() = None;
+        if let Some(previous) = previous {
+            previous.finish().await;
+        }
         let old = Arc::clone(&inner.plugin_runtime);
         reload_plugins(&old, &[]).await;
 
@@ -121,18 +226,37 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
 
         // 4. 装新并写回句柄(exec/serve/门面同一入口)。bootstrap_plugins
         //    返回独立的新 Arc,这里只取其内层 PluginRuntime 挂到常驻句柄上。
-        let runtime = bootstrap_plugins(
+        let context = PluginRuntimeContext {
             tools,
-            hook_engine,
+            hooks: hook_engine.clone(),
             mcp,
-            m4.skills.clone(),
+            skills: m4.skills.clone(),
             factory,
+            event_tx: event_tx.clone(),
+            status,
+            owner: Arc::downgrade(&thread),
+            bridge: bridge.clone(),
+        };
+        let runtime = bootstrap_plugins(
+            context.tools.clone(),
+            context.hooks.clone(),
+            context.mcp.clone(),
+            context.skills.clone(),
+            context.factory.clone(),
             &enabled,
             Some(event_tx),
         )
         .await;
+        if let Err(error) = inner.hook_store.apply_disabled(&hook_engine) {
+            tracing::warn!(%error, "failed to restore hook preferences after plugin mount");
+            reload_plugins(&runtime, &[]).await;
+            return;
+        }
         let mounted = runtime.lock().await.take();
         *inner.plugin_runtime.lock().await = mounted;
+        *inner.plugin_runtime_context.lock() = Some(context);
+        *inner.mounted_plugin_bridge.lock() = Some(bridge);
+        ready.send_replace(true);
         tracing::debug!(
             "[reflect-gui] plugin runtime mounted (enabled={:?})",
             enabled

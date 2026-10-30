@@ -15,7 +15,7 @@
  *   - 模块级弹窗栈：堆叠多个 modal 时只有栈顶响应 Escape/Enter/Tab，
  *     避免一次 Esc 把全部待审批同时否决。
  */
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
 import s from './ModalShell.module.css';
@@ -23,10 +23,12 @@ import s from './ModalShell.module.css';
 interface Props {
   title: string;
   open: boolean;
-  onClose: () => void;
-  primaryAction?: { label: string; onClick: () => void; autoFocus?: boolean; dataTestId?: string };
-  secondaryAction?: { label: string; onClick: () => void; dataTestId?: string };
-  tertiaryAction?: { label: string; onClick: () => void };
+  onClose: () => void | Promise<void>;
+  externalBusy?: boolean;
+  onBusyChange?: (busy: boolean) => void;
+  primaryAction?: { label: string; onClick: () => void | Promise<void>; autoFocus?: boolean; dataTestId?: string };
+  secondaryAction?: { label: string; onClick: () => void | Promise<void>; dataTestId?: string };
+  tertiaryAction?: { label: string; onClick: () => void | Promise<void> };
   children: ReactNode;
 }
 
@@ -40,11 +42,39 @@ export function ModalShell({
   title,
   open,
   onClose,
+  externalBusy = false,
+  onBusyChange,
   primaryAction,
   secondaryAction,
   tertiaryAction,
   children,
 }: Props) {
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const busyRef = useRef(false);
+  const externalBusyRef = useRef(externalBusy);
+  externalBusyRef.current = externalBusy;
+  const execute = (action: () => void | Promise<void>) => {
+    if (busyRef.current || externalBusyRef.current) return;
+    busyRef.current = true;
+    onBusyChange?.(true);
+    setBusy(true);
+    setActionError(null);
+    try {
+      void Promise.resolve(action()).catch((error: unknown) => {
+        setActionError(error instanceof Error ? error.message : String(error));
+      }).finally(() => {
+        busyRef.current = false;
+        onBusyChange?.(false);
+        setBusy(false);
+      });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : String(error));
+      busyRef.current = false;
+      onBusyChange?.(false);
+      setBusy(false);
+    }
+  };
   const dialogRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -84,7 +114,7 @@ export function ModalShell({
       if (!isTop()) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        onCloseRef.current();
+        execute(onCloseRef.current);
         return;
       }
       if (e.key === 'Tab') {
@@ -124,7 +154,7 @@ export function ModalShell({
             (tag !== 'TEXTAREA' && tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'BUTTON'))
         ) {
           e.preventDefault();
-          primary.onClick();
+          execute(primary.onClick);
         }
       }
     };
@@ -140,7 +170,7 @@ export function ModalShell({
 
   if (!open) return null;
   return (
-    <div className={s.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={s.overlay} onClick={(e) => { if (e.target === e.currentTarget) execute(onClose); }}>
       <div
         ref={dialogRef}
         role="dialog"
@@ -151,15 +181,15 @@ export function ModalShell({
       >
         <header className={s.header}>
           <h2 className={s.title}>{title}</h2>
-          <IconButton label="Close" size="sm" onClick={onClose}>
+          <IconButton label="Close" size="sm" disabled={busy || externalBusy} onClick={() => execute(onClose)}>
             <Icon icon={X} size={14} />
           </IconButton>
         </header>
-        <div className={s.body}>{children}</div>
+        <div className={s.body}>{children}{actionError && <p role="alert" className={s.error}>{actionError}</p>}</div>
         {(tertiaryAction || secondaryAction || primaryAction) && (
           <footer className={s.footer}>
             {tertiaryAction && (
-              <button className={s.btnGhost} onClick={tertiaryAction.onClick}>
+              <button className={s.btnGhost} disabled={busy || externalBusy} onClick={() => execute(tertiaryAction.onClick)}>
                 {tertiaryAction.label}
               </button>
             )}
@@ -167,7 +197,8 @@ export function ModalShell({
             {secondaryAction && (
               <button
                 className={s.btnSecondary}
-                onClick={secondaryAction.onClick}
+                disabled={busy || externalBusy}
+                onClick={() => execute(secondaryAction.onClick)}
                 data-testid={secondaryAction.dataTestId}
               >
                 {secondaryAction.label}
@@ -177,7 +208,8 @@ export function ModalShell({
               <button
                 ref={primaryRef}
                 className={s.btnPrimary}
-                onClick={primaryAction.onClick}
+                disabled={busy || externalBusy}
+                onClick={() => execute(primaryAction.onClick)}
                 autoFocus={primaryAction.autoFocus}
                 data-testid={primaryAction.dataTestId}
               >

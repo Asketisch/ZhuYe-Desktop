@@ -14,6 +14,7 @@ const toast: Record<string, StringEntry> = {
   'toast.clearAllTitle':      { en: 'Clear all sessions',                'zh-CN': '清空全部会话' },
   'toast.clearAllConfirm':    { en: 'Delete all {count} sessions and their history files?\nThis cannot be undone.', 'zh-CN': '删除全部 {count} 个会话及其历史文件？\n此操作不可撤销。' },
   'toast.deleteFailed':       { en: 'Delete failed: {msg}',              'zh-CN': '删除失败: {msg}' },
+  'toast.listSessionsFailed': { en: 'Unable to load sessions: {msg}',     'zh-CN': '读取会话失败: {msg}' },
   'toast.clearedSessions':    { en: 'Cleared {count} session{plural}.',  'zh-CN': '已清除 {count} 个会话。' },
   'toast.noActiveToExport':   { en: 'No active session to export.',      'zh-CN': '没有可导出的当前会话。' },
   'toast.exportFailed':       { en: 'Export failed: {msg}',              'zh-CN': '导出失败: {msg}' },

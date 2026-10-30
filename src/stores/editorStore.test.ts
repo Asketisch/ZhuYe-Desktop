@@ -6,20 +6,31 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { useEditorStore } from './editorStore';
 import { mockInvoke } from '@/test/setup';
 
-const DIFF = `@@ -1,3 +1,3 @@
+const DIFF = `@@ -1,2 +1,2 @@
 -a
 +AA
  b
 `;
 
 function resetStore() {
-  useEditorStore.setState({ pending: {}, lastEditedPath: null, contentVersion: {} });
+  useEditorStore.setState({ pending: {}, lastEditedPath: null, contentVersion: {}, drafts: {}, saving: {} });
 }
 
 describe('editorStore', () => {
   beforeEach(() => {
     mockInvoke('reflect_write_file', async () => '/ws/file.ts');
     resetStore();
+  });
+
+  it('keeps a revert made while the previous draft is being saved', () => {
+    const store = useEditorStore.getState();
+    store.setDraft('file.ts', 'first', 'original');
+    expect(store.beginSave('file.ts')).toBe(true);
+    expect(store.beginSave('file.ts')).toBe(false);
+    store.setDraft('file.ts', 'original', 'original', true);
+    store.markSaved('file.ts', 'first');
+    expect(useEditorStore.getState().drafts['file.ts']).toEqual({ text: 'original', base: 'first' });
+    store.endSave('file.ts');
   });
 
   it('recordEdit 解析 unified diff 并累计 hunk', () => {
@@ -39,9 +50,11 @@ describe('editorStore', () => {
     useEditorStore.getState().recordEdit('file.ts', DIFF);
     useEditorStore.getState().acceptHunk('file.ts', 0);
     expect(useEditorStore.getState().pending['file.ts']).toBeUndefined();
+    expect(useEditorStore.getState().contentVersion['file.ts']).toBeUndefined();
     useEditorStore.getState().recordEdit('file.ts', DIFF);
     useEditorStore.getState().acceptAll('file.ts');
     expect(useEditorStore.getState().pending['file.ts']).toBeUndefined();
+    expect(useEditorStore.getState().contentVersion['file.ts']).toBeUndefined();
   });
 
   it('rejectHunk:inverse-patch → reflect_write_file → 清除该块', async () => {
@@ -67,4 +80,15 @@ describe('editorStore', () => {
     const failed = await useEditorStore.getState().rejectAll('file.ts', '不匹配\n');
     expect(failed).toBeNull();
   });
+  it('rejectAll 写入期间新增的变更仍保留待审核', async () => {
+    let finish!: (value: string) => void;
+    mockInvoke('reflect_write_file', () => new Promise<string>((resolve) => { finish = resolve; }));
+    useEditorStore.getState().recordEdit('file.ts', DIFF);
+    const pending = useEditorStore.getState().rejectAll('file.ts', 'AA\nb\n');
+    useEditorStore.getState().recordEdit('file.ts', DIFF);
+    finish('/ws/file.ts');
+    await pending;
+    expect(useEditorStore.getState().pending['file.ts'].hunks).toHaveLength(1);
+  });
+
 });

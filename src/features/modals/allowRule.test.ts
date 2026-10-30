@@ -31,6 +31,17 @@ describe('deriveAllowRule', () => {
     expect(deriveAllowRule('Bash', { cmd: '  ls -la  ' })?.shellPattern).toBe('ls -la');
   });
 
+  it('对 glob 元字符逐个转义，避免授权扩大', () => {
+    expect(deriveAllowRule('bash', { cmd: 'echo * ? [x] {a,b}' })?.shellPattern)
+      .toBe('echo [*] [?] [[]x[]] [{]a,b[}]');
+  });
+
+  it('核心无法精确匹配复合命令或跨平台反斜杠时不生成规则', () => {
+    for (const cmd of ['echo a; echo b', 'echo a | cat', 'echo a && echo b', 'echo a\necho b', 'echo \\*']) {
+      expect(deriveAllowRule('bash', { cmd })).toBeNull();
+    }
+  });
+
   it('只读工具 → 整个工具放行', () => {
     expect(deriveAllowRule('read', { path: '/tmp/a' })).toEqual({
       tool: 'read',

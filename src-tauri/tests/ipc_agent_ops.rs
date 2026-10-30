@@ -51,14 +51,13 @@ fn interrupt_is_idempotent() {
 // ============================================================================
 
 #[test]
-fn compact_rewind_shutdown_are_accepted() {
+fn compact_and_rewind_are_accepted() {
     assert_submission_id(&invoke_ok("reflect_compact", json!({})));
     assert_submission_id(&invoke_ok("reflect_rewind", json!({})));
     assert_submission_id(&invoke_ok(
         "reflect_rewind",
         json!({ "toTurnId": "turn-probe" }),
     ));
-    assert_submission_id(&invoke_ok("reflect_shutdown", json!({})));
 }
 
 // ============================================================================
@@ -292,17 +291,6 @@ fn subagent_query_is_readable() {
 // ============================================================================
 // 会话绑定 / 分叉 / 标题
 // ============================================================================
-
-#[test]
-fn bind_session_accepts_unknown_id_without_erroring() {
-    // 未知 id(磁盘上无 JSONL)→ 后端走空历史分支,**不报错**(见
-    // reflect_bind_session 的文档注释)。
-    let v = invoke_ok(
-        "reflect_bind_session",
-        json!({ "id": "00000000-0000-0000-0000-000000000001" }),
-    );
-    assert!(v.is_string(), "bind 应返回权限模式字符串: {v}");
-}
 
 #[test]
 fn fork_session_of_missing_session_is_rejected_or_empty() {

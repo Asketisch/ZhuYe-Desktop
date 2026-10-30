@@ -47,7 +47,7 @@ export function QuestionModal({ question }: { question: PendingQuestion }) {
     const answers = items.map((_, qIdx) => ({
       indices: selections[qIdx] ?? [],
     }));
-    answerQuestion(question.id, { answers });
+    return answerQuestion(question.id, { answers });
   };
 
   return (

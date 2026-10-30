@@ -3,12 +3,16 @@
 //! 通过 `once_cell::Lazy` 单例 + `RwLock` 提供跨线程安全的
 //! workspace override 读写。优先级高于启动时捕获的 cwd。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 
 static WORKSPACE_OVERRIDE: Lazy<RwLock<Option<PathBuf>>> = Lazy::new(|| RwLock::new(None));
+
+pub(crate) fn same_path(a: &Path, b: &Path) -> bool {
+    a == b || matches!((a.canonicalize(), b.canonicalize()), (Ok(a), Ok(b)) if a == b)
+}
 
 pub(crate) struct WorkspaceState;
 

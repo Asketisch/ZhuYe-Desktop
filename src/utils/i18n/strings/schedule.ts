@@ -16,7 +16,7 @@ const schedule: Record<string, StringEntry> = {
   'schedule.cron':                 { en: 'Schedule (cron: min hour dom month dow, e.g. 0 9 * * 1-5)', 'zh-CN': '计划 (cron: 分 时 日 月 周, 如 0 9 * * 1-5)' },
   'schedule.prompt':               { en: 'Prompt (required)',    'zh-CN': '提示 (必填)' },
   'schedule.name':                 { en: 'Name (optional)',      'zh-CN': '名称 (选填)' },
-  'schedule.nextFire':             { en: 'next fire (UTC)',      'zh-CN': '下次触发 (UTC)' },
+  'schedule.nextFire':             { en: 'Next fire (local time)', 'zh-CN': '下次触发（本地时间）' },
   'schedule.remove':               { en: 'Remove',               'zh-CN': '移除' },
   'schedule.toggle':               { en: 'toggle',               'zh-CN': '切换' },
   'schedule.enabled':              { en: 'enabled',              'zh-CN': '已启用' },
@@ -24,6 +24,17 @@ const schedule: Record<string, StringEntry> = {
   'schedule.disable':              { en: 'Disable',              'zh-CN': '禁用' },
   'schedule.enable':               { en: 'Enable',               'zh-CN': '启用' },
   'schedule.active':               { en: 'active',               'zh-CN': '活跃' },
+  'schedule.runtimeNotice':        { en: 'Cron expressions use UTC. Jobs are kept in memory and are lost when the app exits.', 'zh-CN': 'Cron 表达式使用 UTC。任务仅保存在内存中，应用退出后会丢失。' },
+  'schedule.errorCronRequired':    { en: 'Schedule (cron expression) is required.', 'zh-CN': '请填写 cron 表达式。' },
+  'schedule.errorPromptRequired':  { en: 'Prompt is required.', 'zh-CN': '请填写提示。' },
+  'schedule.created':              { en: 'Scheduled “{schedule}”', 'zh-CN': '已创建定时任务“{schedule}”' },
+  'schedule.createFailed':         { en: 'Schedule failed: {message}', 'zh-CN': '创建定时任务失败：{message}' },
+  'schedule.enabledToast':         { en: 'Enabled {name}', 'zh-CN': '已启用 {name}' },
+  'schedule.disabledToast':        { en: 'Disabled {name}', 'zh-CN': '已禁用 {name}' },
+  'schedule.toggleFailed':         { en: 'Toggle failed: {message}', 'zh-CN': '切换定时任务失败：{message}' },
+  'schedule.removed':              { en: 'Removed {name}', 'zh-CN': '已移除 {name}' },
+  'schedule.alreadyRemoved':       { en: '{name} was already removed or not found.', 'zh-CN': '{name} 已移除或不存在。' },
+  'schedule.removeFailed':         { en: 'Remove failed: {message}', 'zh-CN': '移除定时任务失败：{message}' },
 } as const;
 
 export default schedule;

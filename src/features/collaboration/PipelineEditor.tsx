@@ -7,7 +7,7 @@
  * - 配置级 + wiring 级错误交由核心的 `Pipeline::from_toml` 判定
  *   (与实际运行**同一条校验路径**)。
  *
- * 落盘写 `~/.reflect/pipelines/<name>.toml`,非法配置不落盘。
+ * 落盘写 `~/.zhuye/pipelines/<name>.toml`,非法配置不落盘。
  */
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

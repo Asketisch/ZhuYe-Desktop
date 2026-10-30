@@ -368,7 +368,7 @@ describe('context / error / routing events', () => {
   });
 
   it('config_reloaded stamps configReloadedAt', () => {
-    emitEvent('', { type: 'config_reloaded', path: '~/.reflect/config.toml', sections_changed: ['active'], at: 1_700_000_000 });
+    emitEvent('', { type: 'config_reloaded', path: '~/.zhuye/config.toml', sections_changed: ['active'], at: 1_700_000_000 });
     expect(st().configReloadedAt).toBeGreaterThan(0);
   });
 

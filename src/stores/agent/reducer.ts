@@ -493,7 +493,7 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       return { permissionMode: msg.to };
 
     case 'plugin_loaded': {
-      // 插件运行时挂载完成 —— 记「实际挂上了什么」(与配置里的启用列表不同)。
+      // 保留观察到的加载事件；当前状态由插件列表命令提供。
       const info: PluginLoadedInfo = {
         plugin: msg.plugin,
         scope: msg.scope ?? '',

@@ -71,7 +71,7 @@ Reflect Agent 的终端模式 (`reflect tui`) 和无头执行模式 (`reflect ex
 - 显示（主题：亮色 / 暗色 / 系统跟随、强调色、透明度、壁纸）
 - 编辑器（Vim 模式 / 输出样式切换）
 - 提供商（默认提供商 + API 密钥占位符）
-- `ConfigForm` 覆盖 `reflect-agent/crates/resources/reflect-config/src/schema.rs` 中的每个部分；高级原始 TOML 编辑器保留为出口
+- `ConfigForm` 覆盖 `reflect-agent/crates/resources/zhuye-config/src/schema/` 中的每个部分；高级原始 TOML 编辑器保留为出口
 
 ### Coding Plan 与额度自动切换
 

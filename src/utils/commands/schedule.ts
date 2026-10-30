@@ -9,7 +9,7 @@
  *
  * 生命周期:调度器启动时为空;`install_agent_thread` 会注入真正的
  * `AgentThread::submission_sender()` 并启动一个 30s 的驱动 tick。在安装
- * 完成前,CRUD 仍然可用(命令读取 `RwLock`),但不会有后台触发。驱动触发
+ * 完成前,CRUD 返回调度器尚未就绪的错误。驱动触发
  * 到期的 job 时,把其 `prompt` 以 `Submission::user_input` 注入 agent 循环。
  *
  * 暂不在范围内(后续轮次):`run_now`(需要 核心 crate 提供 `pub async fn

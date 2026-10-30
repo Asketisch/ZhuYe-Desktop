@@ -2,8 +2,8 @@
  * Skills & Tools —— 已安装 skills（`reflect_list_skills`）+ 已注册工具
  * （`reflect_list_tools`，按 `mcp__` 前缀分内置 / MCP 两组）。
  *
- * v1.x P3：此前只列工具 —— 真正的 skills（`~/.reflect/skills` 与
- * `<cwd>/.reflect/skills` 下的 SKILL.md 目录）从未展示；现在置顶显示
+ * v1.x P3：此前只列工具 —— 真正的 skills（`~/.zhuye/skills` 与
+ * `<cwd>/.zhuye/skills` 下的 SKILL.md 目录）从未展示；现在置顶显示
  * skills 组（含触发词与允许的工具），空组提示安装路径。
  */
 import { useQuery } from '@tanstack/react-query';

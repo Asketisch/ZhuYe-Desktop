@@ -17,7 +17,7 @@
 # 真后端的 bug 遮住。与 submodule「能力覆盖层不经过任何 SDK」同理。
 #
 # 隔离:HOME / REFLECT_HOME / cwd 全部指向进程专属临时目录
-# (见 `src-tauri/tests/common/mod.rs`),不污染开发者的 `~/.reflect`。
+# (见 `src-tauri/tests/common/mod.rs`),不污染开发者的 `~/.zhuye`。
 #
 # 退出码 0 = 全部通过。
 

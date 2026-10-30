@@ -1,10 +1,33 @@
 //! 知识管理系统 (KMS) —— 基于 grep 的本地知识库 wiki。
 //!
-//! 知识库以 Markdown 文件存储于 `~/.reflect/kms/<name>/`
+//! 知识库以 Markdown 文件存储于 `~/.zhuye/kms/<name>/`
 //! 各页面位于 `pages/*.md`。
 
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+mod browse;
+mod dream;
+mod helpers;
+mod path_guard;
+#[cfg(unix)]
+mod unix_admin;
+#[cfg(unix)]
+mod unix_browse;
+#[cfg(unix)]
+mod unix_page;
+#[cfg(windows)]
+mod windows_admin;
+#[cfg(windows)]
+mod windows_browse;
+#[cfg(windows)]
+mod windows_page;
+#[cfg(not(any(unix, windows)))]
+use helpers::count_md_files;
+#[cfg(not(any(unix, windows)))]
+use helpers::get_modified_at_ms;
+use helpers::{SaveMode, extract_description, extract_tags, extract_title};
+use path_guard::{reject_links, validate_name};
 
 /// 知识库的元数据。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +112,13 @@ pub enum KmsError {
         /// Wiki 名称。
         name: String,
     },
+    /// 页面在编辑期间已改变或被删除。
+    PageChanged {
+        /// Wiki 名称。
+        wiki: String,
+        /// 页面名称。
+        page: String,
+    },
     /// I/O 错误。
     IoError {
         /// 错误信息。
@@ -102,6 +132,9 @@ impl std::fmt::Display for KmsError {
             KmsError::WikiNotFound { name } => write!(f, "Wiki not found: {}", name),
             KmsError::PageNotFound { wiki, page } => write!(f, "Page not found: {}/{}", wiki, page),
             KmsError::WikiAlreadyExists { name } => write!(f, "Wiki already exists: {}", name),
+            KmsError::PageChanged { wiki, page } => {
+                write!(f, "Page changed or was deleted: {}/{}", wiki, page)
+            }
             KmsError::IoError { message } => write!(f, "I/O error: {}", message),
         }
     }
@@ -121,20 +154,22 @@ impl From<std::io::Error> for KmsError {
 pub struct KnowledgeManager {
     /// 所有知识库的根目录。
     root: PathBuf,
+    write_lock: parking_lot::Mutex<()>,
 }
 
 impl KnowledgeManager {
     /// 使用指定的根目录创建新的 KnowledgeManager。
     pub fn new(root: PathBuf) -> Self {
         std::fs::create_dir_all(&root).ok();
-        Self { root }
+        Self {
+            root,
+            write_lock: parking_lot::Mutex::new(()),
+        }
     }
 
     /// 使用默认主目录创建新的 KnowledgeManager。
     pub fn with_default_home() -> Self {
-        let root = dirs::home_dir()
-            .map(|h| h.join(".reflect").join("kms"))
-            .unwrap_or_else(|| PathBuf::from(".reflect/kms"));
+        let root = crate::paths::user_data_path_or_relative(&["kms"]);
         Self::new(root)
     }
 
@@ -157,24 +192,54 @@ impl KnowledgeManager {
         name: &str,
         description: Option<String>,
     ) -> Result<WikiInfo, KmsError> {
+        let _guard = self.write_lock.lock();
+        validate_name(name)?;
+        reject_links(&self.root, std::path::Path::new(name))?;
         let wiki_path = self.wiki_path(name);
-        if wiki_path.exists() {
-            return Err(KmsError::WikiAlreadyExists {
-                name: name.to_string(),
-            });
-        }
-
-        std::fs::create_dir_all(&wiki_path)?;
-        std::fs::create_dir_all(wiki_path.join("pages"))?;
-
         let mut index_content = String::from("---\n");
         if let Some(desc) = &description {
-            index_content.push_str(&format!("description: {}\n", desc));
+            // JSON 字符串同时是合法的 YAML 双引号标量，能够保留换行和空白。
+            let encoded = serde_json::to_string(desc).expect("serializing a string cannot fail");
+            index_content.push_str(&format!("description: {encoded}\n"));
         }
         index_content.push_str("---\n");
-        std::fs::write(wiki_path.join("index.md"), index_content)?;
-
-        let modified_at_ms = get_modified_at_ms(&wiki_path);
+        #[cfg(unix)]
+        let modified_at_ms = unix_admin::create(&self.root, name, index_content.as_bytes())
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    KmsError::WikiAlreadyExists {
+                        name: name.to_string(),
+                    }
+                } else {
+                    error.into()
+                }
+            })?;
+        #[cfg(windows)]
+        let modified_at_ms = windows_admin::create(&self.root, name, index_content.as_bytes())
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    KmsError::WikiAlreadyExists {
+                        name: name.to_string(),
+                    }
+                } else {
+                    error.into()
+                }
+            })?;
+        #[cfg(not(any(unix, windows)))]
+        let modified_at_ms = {
+            std::fs::create_dir_all(&self.root)?;
+            if let Err(error) = std::fs::create_dir(&wiki_path) {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    return Err(KmsError::WikiAlreadyExists {
+                        name: name.to_string(),
+                    });
+                }
+                return Err(error.into());
+            }
+            std::fs::create_dir_all(wiki_path.join("pages"))?;
+            std::fs::write(wiki_path.join("index.md"), index_content)?;
+            get_modified_at_ms(&wiki_path)
+        };
 
         Ok(WikiInfo {
             name: name.to_string(),
@@ -187,56 +252,44 @@ impl KnowledgeManager {
 
     /// 删除知识库。
     pub fn delete_wiki(&self, name: &str) -> Result<(), KmsError> {
-        let wiki_path = self.wiki_path(name);
-        if !wiki_path.exists() {
-            return Err(KmsError::WikiNotFound {
-                name: name.to_string(),
-            });
+        let _guard = self.write_lock.lock();
+        validate_name(name)?;
+        reject_links(&self.root, std::path::Path::new(name))?;
+        #[cfg(unix)]
+        {
+            unix_admin::delete(&self.root, name).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    KmsError::WikiNotFound {
+                        name: name.to_string(),
+                    }
+                } else {
+                    error.into()
+                }
+            })
         }
-        std::fs::remove_dir_all(&wiki_path)?;
-        Ok(())
-    }
-
-    /// 列出所有知识库。
-    pub fn list_wikis(&self) -> Vec<WikiInfo> {
-        let mut wikis = Vec::new();
-        let Ok(entries) = std::fs::read_dir(&self.root) else {
-            return wikis;
-        };
-
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
+        #[cfg(windows)]
+        {
+            windows_admin::delete(&self.root, name).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    KmsError::WikiNotFound {
+                        name: name.to_string(),
+                    }
+                } else {
+                    error.into()
+                }
+            })
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let wiki_path = self.wiki_path(name);
+            if !wiki_path.exists() {
+                return Err(KmsError::WikiNotFound {
+                    name: name.to_string(),
+                });
             }
-            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
-                continue;
-            };
-            let name = name.to_string();
-
-            let pages_dir = path.join("pages");
-            let page_count = count_md_files(&pages_dir);
-
-            let description = if path.join("index.md").exists() {
-                std::fs::read_to_string(path.join("index.md"))
-                    .ok()
-                    .as_deref()
-                    .and_then(extract_description)
-            } else {
-                None
-            };
-
-            let modified_at_ms = get_modified_at_ms(&path);
-
-            wikis.push(WikiInfo {
-                name: name.clone(),
-                description,
-                path: path.clone(),
-                page_count,
-                modified_at_ms,
-            });
+            std::fs::remove_dir_all(&wiki_path)?;
+            Ok(())
         }
-        wikis
     }
 
     /// 将页面保存到知识库。
@@ -248,6 +301,72 @@ impl KnowledgeManager {
         title: Option<String>,
         tags: Vec<String>,
     ) -> Result<Page, KmsError> {
+        self.save_page_inner(wiki, page, content, title, tags, SaveMode::Overwrite)
+    }
+
+    /// 创建页面；同名页面已存在时不覆盖。
+    pub fn create_page(
+        &self,
+        wiki: &str,
+        page: &str,
+        content: &str,
+        title: Option<String>,
+        tags: Vec<String>,
+    ) -> Result<Page, KmsError> {
+        self.save_page_inner(wiki, page, content, title, tags, SaveMode::Create)
+    }
+
+    /// 仅当页面仍与读取时一致时保存。
+    pub fn save_page_if_unchanged(
+        &self,
+        wiki: &str,
+        page: &str,
+        content: &str,
+        title: Option<String>,
+        tags: Vec<String>,
+        expected: &str,
+    ) -> Result<Page, KmsError> {
+        self.save_page_inner(
+            wiki,
+            page,
+            content,
+            title,
+            tags,
+            SaveMode::IfUnchanged(expected),
+        )
+    }
+
+    fn save_page_inner(
+        &self,
+        wiki: &str,
+        page: &str,
+        content: &str,
+        title: Option<String>,
+        tags: Vec<String>,
+        mode: SaveMode<'_>,
+    ) -> Result<Page, KmsError> {
+        let _guard = self.write_lock.lock();
+        validate_name(wiki)?;
+        validate_name(page)?;
+        if let SaveMode::IfUnchanged(expected) = mode {
+            match self.get_page(wiki, page) {
+                Ok(current) if current.content == expected => {}
+                Ok(_) | Err(KmsError::PageNotFound { .. }) | Err(KmsError::WikiNotFound { .. }) => {
+                    return Err(KmsError::PageChanged {
+                        wiki: wiki.to_string(),
+                        page: page.to_string(),
+                    });
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        let create_only = matches!(mode, SaveMode::Create);
+        reject_links(
+            &self.root,
+            &std::path::Path::new(wiki)
+                .join("pages")
+                .join(format!("{page}.md")),
+        )?;
         let wiki_path = self.wiki_path(wiki);
         if !wiki_path.exists() {
             return Err(KmsError::WikiNotFound {
@@ -255,24 +374,54 @@ impl KnowledgeManager {
             });
         }
 
+        #[cfg(not(any(unix, windows)))]
         std::fs::create_dir_all(wiki_path.join("pages"))?;
 
-        let mut full_content = String::from("---\n");
-        if let Some(t) = &title {
-            full_content.push_str(&format!("title: {}\n", t));
-        }
-        if !tags.is_empty() {
-            let tags_str = tags.join(", ");
-            full_content.push_str(&format!("tags: [{}]\n", tags_str));
-        }
-        full_content.push_str("---\n");
-        full_content.push_str(content);
+        // 无显式元数据时原样保存，以支持对包含 frontmatter 的完整页面往返编辑。
+        let full_content = if title.is_none() && tags.is_empty() {
+            content.to_string()
+        } else {
+            let mut result = String::from("---\n");
+            if let Some(t) = &title {
+                result.push_str(&format!("title: {}\n", t));
+            }
+            if !tags.is_empty() {
+                result.push_str(&format!("tags: [{}]\n", tags.join(", ")));
+            }
+            result.push_str("---\n");
+            result.push_str(content);
+            result
+        };
 
-        let page_path = self.page_path(wiki, page);
-        std::fs::write(&page_path, &full_content)?;
+        #[cfg(unix)]
+        let modified_at_ms =
+            unix_page::write(&self.root, wiki, page, full_content.as_bytes(), create_only)?;
+        #[cfg(windows)]
+        let modified_at_ms =
+            windows_page::write(&self.root, wiki, page, full_content.as_bytes(), create_only)?;
+        #[cfg(not(any(unix, windows)))]
+        let modified_at_ms = {
+            let page_path = self.page_path(wiki, page);
+            if create_only {
+                use std::io::Write;
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&page_path)?;
+                if let Err(error) = file.write_all(full_content.as_bytes()) {
+                    drop(file);
+                    let _ = std::fs::remove_file(&page_path);
+                    return Err(error.into());
+                }
+            } else {
+                std::fs::write(&page_path, &full_content)?;
+            }
 
-        let modified_at_ms = get_modified_at_ms(&page_path);
+            get_modified_at_ms(&page_path)
+        };
 
+        let title = extract_title(&full_content);
+        let tags = extract_tags(&full_content);
         Ok(Page {
             name: page.to_string(),
             wiki: wiki.to_string(),
@@ -285,18 +434,54 @@ impl KnowledgeManager {
 
     /// 从知识库获取页面。
     pub fn get_page(&self, wiki: &str, page: &str) -> Result<Page, KmsError> {
-        let page_path = self.page_path(wiki, page);
-        if !page_path.exists() {
-            return Err(KmsError::PageNotFound {
-                wiki: wiki.to_string(),
-                page: page.to_string(),
-            });
-        }
+        validate_name(wiki)?;
+        validate_name(page)?;
+        reject_links(
+            &self.root,
+            &std::path::Path::new(wiki)
+                .join("pages")
+                .join(format!("{page}.md")),
+        )?;
+        #[cfg(unix)]
+        let (content, modified_at_ms) =
+            unix_page::read(&self.root, wiki, page).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    KmsError::PageNotFound {
+                        wiki: wiki.to_string(),
+                        page: page.to_string(),
+                    }
+                } else {
+                    error.into()
+                }
+            })?;
+        #[cfg(windows)]
+        let (content, modified_at_ms) =
+            windows_page::read(&self.root, wiki, page).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    KmsError::PageNotFound {
+                        wiki: wiki.to_string(),
+                        page: page.to_string(),
+                    }
+                } else {
+                    error.into()
+                }
+            })?;
+        #[cfg(not(any(unix, windows)))]
+        let (content, modified_at_ms) = {
+            let page_path = self.page_path(wiki, page);
+            if !page_path.exists() {
+                return Err(KmsError::PageNotFound {
+                    wiki: wiki.to_string(),
+                    page: page.to_string(),
+                });
+            }
 
-        let content = std::fs::read_to_string(&page_path)?;
+            let content = std::fs::read_to_string(&page_path)?;
+            let modified_at_ms = get_modified_at_ms(&page_path);
+            (content, modified_at_ms)
+        };
         let title = extract_title(&content);
         let tags = extract_tags(&content);
-        let modified_at_ms = get_modified_at_ms(&page_path);
 
         Ok(Page {
             name: page.to_string(),
@@ -307,347 +492,7 @@ impl KnowledgeManager {
             modified_at_ms,
         })
     }
-
-    /// 列出知识库中的所有页面。
-    pub fn list_pages(&self, wiki: &str) -> Result<Vec<Page>, KmsError> {
-        let wiki_path = self.wiki_path(wiki);
-        if !wiki_path.exists() {
-            return Err(KmsError::WikiNotFound {
-                name: wiki.to_string(),
-            });
-        }
-
-        let pages_dir = wiki_path.join("pages");
-        let mut pages = Vec::new();
-
-        let Ok(entries) = std::fs::read_dir(&pages_dir) else {
-            return Ok(pages);
-        };
-
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if !path.is_file() || path.extension().is_none_or(|e| e != "md") {
-                continue;
-            }
-            let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
-                continue;
-            };
-            let Ok(content) = std::fs::read_to_string(&path) else {
-                continue;
-            };
-            let title = extract_title(&content);
-            let tags = extract_tags(&content);
-            let modified_at_ms = get_modified_at_ms(&path);
-
-            pages.push(Page {
-                name: name.to_string(),
-                wiki: wiki.to_string(),
-                content,
-                title,
-                tags,
-                modified_at_ms,
-            });
-        }
-
-        Ok(pages)
-    }
-
-    /// 在所有知识库中搜索内容。
-    pub fn search(&self, query: &str) -> Vec<SearchResult> {
-        let mut results = Vec::new();
-        let Ok(entries) = std::fs::read_dir(&self.root) else {
-            return results;
-        };
-
-        for entry in entries.filter_map(|e| e.ok()) {
-            let wiki_path = entry.path();
-            if !wiki_path.is_dir() {
-                continue;
-            }
-            let Some(wiki_name) = wiki_path.file_name().and_then(|n| n.to_str()) else {
-                continue;
-            };
-            let wiki_name = wiki_name.to_string();
-
-            let pages_dir = wiki_path.join("pages");
-            let Ok(page_entries) = std::fs::read_dir(&pages_dir) else {
-                continue;
-            };
-
-            for page_entry in page_entries.filter_map(|e| e.ok()) {
-                let page_path = page_entry.path();
-                if !page_path.is_file() || page_path.extension().is_none_or(|e| e != "md") {
-                    continue;
-                }
-                let Some(page_name) = page_path.file_stem().and_then(|s| s.to_str()) else {
-                    continue;
-                };
-                let page_name = page_name.to_string();
-                let Ok(content) = std::fs::read_to_string(&page_path) else {
-                    continue;
-                };
-
-                let mut matching_lines: Vec<String> = Vec::new();
-                for line in content.lines() {
-                    if line.contains(query) {
-                        matching_lines.push(line.to_string());
-                    }
-                }
-
-                if !matching_lines.is_empty() {
-                    let lc = matching_lines.len();
-                    results.push(SearchResult {
-                        wiki: wiki_name.clone(),
-                        page: page_name,
-                        lines: matching_lines,
-                        line_count: lc,
-                    });
-                }
-            }
-        }
-
-        results
-    }
-
-    /// 运行 dream 会话 - 从最近的会话中提取洞察。
-    pub fn dream(
-        &self,
-        insights: Vec<String>,
-        sessions_analyzed: usize,
-    ) -> Result<DreamResult, KmsError> {
-        let insights_wiki = "dream-insights";
-        if !self.wiki_path(insights_wiki).exists() {
-            self.create_wiki(
-                insights_wiki,
-                Some("Auto-generated insights from sessions".to_string()),
-            )?;
-        }
-
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let page_name = format!("insights-{}", timestamp);
-
-        let mut content = String::from("# Session Insights\n\n");
-        for (i, insight) in insights.iter().enumerate() {
-            content.push_str(&format!("{}. {}\n\n", i + 1, insight));
-        }
-
-        self.save_page(
-            insights_wiki,
-            &page_name,
-            &content,
-            Some(format!("Insights {}", timestamp)),
-            vec!["dream".to_string()],
-        )?;
-
-        Ok(DreamResult {
-            insights,
-            sessions_analyzed,
-            wiki: insights_wiki.to_string(),
-            page: page_name,
-        })
-    }
-}
-
-/// 获取路径自 epoch 起的修改时间戳（毫秒）。
-fn get_modified_at_ms(path: &Path) -> u64 {
-    path.metadata()
-        .ok()
-        .and_then(|m| m.modified().ok())
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
-/// 统计目录中的 .md 文件数。
-fn count_md_files(dir: &Path) -> usize {
-    std::fs::read_dir(dir)
-        .map(|entries| {
-            entries
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    let p = e.path();
-                    p.is_file() && p.extension().is_some_and(|ext| ext == "md")
-                })
-                .count()
-        })
-        .unwrap_or(0)
-}
-
-/// 从 Markdown frontmatter 中提取描述。
-fn extract_description(content: &str) -> Option<String> {
-    let mut lines = content.lines();
-    let first_line = lines.next().unwrap_or_default();
-    if first_line != "---" {
-        return None;
-    }
-    for line in lines {
-        if line == "---" {
-            break;
-        }
-        if line.starts_with("description: ") {
-            let desc = line.trim_start_matches("description: ").trim().to_string();
-            if !desc.is_empty() {
-                return Some(desc);
-            }
-        }
-    }
-    None
-}
-
-/// 从 Markdown frontmatter 中提取标题。
-fn extract_title(content: &str) -> Option<String> {
-    let mut lines = content.lines();
-    let first_line = lines.next().unwrap_or_default();
-    if first_line != "---" {
-        return None;
-    }
-    for line in lines {
-        if line == "---" {
-            break;
-        }
-        if line.starts_with("title: ") {
-            let title = line.trim_start_matches("title: ").trim().to_string();
-            if !title.is_empty() {
-                return Some(title);
-            }
-        }
-    }
-    None
-}
-
-/// 从 Markdown frontmatter 中提取标签。
-fn extract_tags(content: &str) -> Vec<String> {
-    let mut tags = Vec::new();
-    let mut lines = content.lines();
-    let first_line = lines.next().unwrap_or_default();
-    if first_line != "---" {
-        return tags;
-    }
-    for line in lines {
-        if line == "---" {
-            break;
-        }
-        if line.starts_with("tags: ") {
-            let tags_str = line.trim_start_matches("tags: ").trim();
-            let tags_str = tags_str.trim_matches('[').trim_matches(']');
-            tags = tags_str
-                .split(',')
-                .map(|t| t.trim().to_string())
-                .filter(|t| !t.is_empty())
-                .collect();
-        }
-    }
-    tags
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_manager() -> (KnowledgeManager, tempfile::TempDir) {
-        let dir = tempfile::tempdir().unwrap();
-        let manager = KnowledgeManager::new(dir.path().to_path_buf());
-        (manager, dir)
-    }
-
-    #[test]
-    fn create_and_list_wiki() {
-        let (manager, _dir) = create_test_manager();
-        let wiki = manager
-            .create_wiki("test-wiki", Some("Test wiki".to_string()))
-            .unwrap();
-        assert_eq!(wiki.name, "test-wiki");
-        assert_eq!(wiki.page_count, 0);
-
-        let wikis = manager.list_wikis();
-        assert_eq!(wikis.len(), 1);
-        assert_eq!(wikis[0].name, "test-wiki");
-    }
-
-    #[test]
-    fn create_wiki_already_exists_error() {
-        let (manager, _dir) = create_test_manager();
-        manager.create_wiki("test-wiki", None).unwrap();
-        let result = manager.create_wiki("test-wiki", None);
-        assert!(matches!(result, Err(KmsError::WikiAlreadyExists { .. })));
-    }
-
-    #[test]
-    fn save_and_get_page() {
-        let (manager, _dir) = create_test_manager();
-        manager.create_wiki("test-wiki", None).unwrap();
-
-        let page = manager
-            .save_page(
-                "test-wiki",
-                "hello",
-                "# Hello World\nThis is a test page.",
-                Some("Hello".to_string()),
-                vec!["test".to_string()],
-            )
-            .unwrap();
-
-        assert_eq!(page.name, "hello");
-        assert_eq!(page.wiki, "test-wiki");
-        assert_eq!(page.title.as_deref(), Some("Hello"));
-        assert_eq!(page.tags, vec!["test"]);
-        assert!(page.content.contains("# Hello World"));
-    }
-
-    #[test]
-    fn list_pages() {
-        let (manager, _dir) = create_test_manager();
-        manager.create_wiki("test-wiki", None).unwrap();
-        manager
-            .save_page("test-wiki", "page1", "Content 1", None, vec![])
-            .unwrap();
-        manager
-            .save_page("test-wiki", "page2", "Content 2", None, vec![])
-            .unwrap();
-
-        let pages = manager.list_pages("test-wiki").unwrap();
-        assert_eq!(pages.len(), 2);
-    }
-
-    #[test]
-    fn search_pages() {
-        let (manager, _dir) = create_test_manager();
-        manager.create_wiki("test-wiki", None).unwrap();
-        manager
-            .save_page(
-                "test-wiki",
-                "hello",
-                "# Hello World\nThis is a test page.",
-                None,
-                vec![],
-            )
-            .unwrap();
-        manager
-            .save_page(
-                "test-wiki",
-                "goodbye",
-                "# Goodbye\nThis is another page.",
-                None,
-                vec![],
-            )
-            .unwrap();
-
-        let results = manager.search("test");
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].wiki, "test-wiki");
-        assert_eq!(results[0].page, "hello");
-    }
-
-    #[test]
-    fn delete_wiki() {
-        let (manager, _dir) = create_test_manager();
-        manager.create_wiki("test-wiki", None).unwrap();
-        manager.delete_wiki("test-wiki").unwrap();
-
-        let wikis = manager.list_wikis();
-        assert_eq!(wikis.len(), 0);
-    }
-}
+mod tests;

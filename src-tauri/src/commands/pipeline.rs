@@ -2,7 +2,7 @@
 //!
 //! 薄包装 `reflect_app_core::pipeline`,GUI 对应 CLI `reflect pipeline`:
 //! team 四阶段预设(plan → prd → exec → verify)与 TOML DAG 配置两条入口。
-//! 共享 `~/.reflect/tasks|teams/` 存储(与 Squad / Tasks 视图同源)。
+//! 共享 `~/.zhuye/tasks|teams/` 存储(与 Squad / Tasks 视图同源)。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -62,9 +62,9 @@ pub async fn reflect_validate_pipeline(
     Ok(reflect_app_core::pipeline::validate_pipeline_config(manager, &toml_src).await?)
 }
 
-/// pipeline 配置的存放目录(`~/.reflect/pipelines/`)。
+/// pipeline 配置的存放目录(`~/.zhuye/pipelines/`)。
 fn pipelines_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".reflect/pipelines"))
+    reflect_app_core::paths::user_data_path(&["pipelines"])
 }
 
 /// 列出已保存的 pipeline 配置。
@@ -96,7 +96,7 @@ pub async fn reflect_list_pipeline_configs() -> CommandResult<Vec<PipelineConfig
     Ok(out)
 }
 
-/// 保存一个 pipeline 配置(写到 `~/.reflect/pipelines/<name>.toml`)。
+/// 保存一个 pipeline 配置(写到 `~/.zhuye/pipelines/<name>.toml`)。
 ///
 /// 写前先跑一次核心校验 —— 非法配置**不落盘**(避免存下跑不起来的拓扑)。
 #[tauri::command]
@@ -133,7 +133,7 @@ pub async fn reflect_save_pipeline_config(
     })?;
     std::fs::create_dir_all(&dir)?;
     let path = dir.join(format!("{key}.toml"));
-    std::fs::write(&path, &toml_src)?;
+    crate::persistence::write_atomic(&path, toml_src.as_bytes())?;
     Ok(PipelineConfigFile {
         name: key.to_string(),
         path: path.display().to_string(),

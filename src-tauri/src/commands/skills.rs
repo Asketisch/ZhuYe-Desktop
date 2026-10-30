@@ -2,11 +2,11 @@
 //!
 //! ## 为什么不再自己扫盘
 //!
-//! 此前桌面端手写了一份扫描 + YAML 解析(扫 `~/.reflect/skills` 与
-//! `cwd/.reflect/skills`),与核心运行时的实际技能集有两处分叉:
+//! 此前桌面端手写了一份扫描 + YAML 解析(扫 `~/.zhuye/skills` 与
+//! `cwd/.zhuye/skills`),与核心运行时的实际技能集有两处分叉:
 //!
 //! - **目录不同** —— 核心 `m4_bootstrap` 扫的是
-//!   `<workspace>/.reflect/skills` 加 `~/.reflect/skills`;桌面端扫的是
+//!   `<workspace>/.zhuye/skills` 加 `~/.zhuye/skills`;桌面端扫的是
 //!   `cwd`。进程工作目录与 agent 工作区不是一回事,列表因此可能为空或
 //!   指向错误的目录。
 //! - **漏掉内置技能** —— 核心在扫描后还会 `merge_bundled`(把 crate 内置的
@@ -51,10 +51,9 @@ pub struct SkillInfo {
 /// 列出 agent 当前可用的全部技能(与运行时 catalog 同集)。
 #[tauri::command]
 pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SkillInfo>> {
-    let ws_skills: PathBuf = agent.workspace().join(".reflect").join("skills");
-    let home_skills: PathBuf = dirs::home_dir()
-        .map(|h| h.join(".reflect").join("skills"))
-        .unwrap_or_else(|| PathBuf::from(".reflect/skills"));
+    let ws_skills: PathBuf =
+        reflect_app_core::paths::project_data_path(&agent.workspace(), &["skills"]);
+    let home_skills: PathBuf = reflect_app_core::paths::user_data_path_or_relative(&["skills"]);
     let dirs = [ws_skills.as_path(), home_skills.as_path()];
 
     // 与核心 `m4_bootstrap` 同序:工作区在前、用户级在后。

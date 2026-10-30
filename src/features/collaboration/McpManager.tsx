@@ -18,6 +18,7 @@ import { Plus, Server, Trash2, Library, Boxes } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, Icon, Input, Select, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
+import { parseMcpArguments } from './parseMcpArguments';
 import {
   reflect_delete_mcp_server,
   reflect_list_mcp_prompts,
@@ -30,6 +31,12 @@ import {
 import s from './CollaborationView.module.css';
 
 const TRANSPORTS: McpServerEntry['type'][] = ['stdio', 'http', 'sse'];
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg;
+  return String(error);
+}
 
 export function McpManager() {
   const { t } = useI18n();
@@ -55,6 +62,7 @@ export function McpManager() {
   const [command, setCommand] = useState('');
   const [argsText, setArgsText] = useState('');
   const [url, setUrl] = useState('');
+  const [argsError, setArgsError] = useState(false);
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['mcp-servers'] });
@@ -63,12 +71,13 @@ export function McpManager() {
   const upsertMut = useMutation({
     mutationFn: (v: { name: string; entry: McpServerEntry }) =>
       reflect_upsert_mcp_server(v.name, v.entry),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
   const deleteMut = useMutation({
     mutationFn: (name: string) => reflect_delete_mcp_server(name),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
+  const busy = upsertMut.isPending || deleteMut.isPending;
 
   const servers = serversQ.data ?? [];
   const catalog = catalogQ.data ?? [];
@@ -94,16 +103,20 @@ export function McpManager() {
   const submit = async () => {
     const serverName = name.trim();
     if (!serverName) return;
+    let args: string[] | null = null;
+    if (transport === 'stdio') {
+      try {
+        args = parseMcpArguments(argsText);
+      } catch {
+        setArgsError(true);
+        return;
+      }
+    }
+    setArgsError(false);
     const entry: McpServerEntry = {
       type: transport,
       command: transport === 'stdio' ? command.trim() : null,
-      args:
-        transport === 'stdio'
-          ? argsText
-              .split(/\s+/)
-              .map((a) => a.trim())
-              .filter(Boolean)
-          : null,
+      args,
       url: transport === 'stdio' ? null : url.trim(),
     };
     try {
@@ -175,7 +188,9 @@ export function McpManager() {
             <span className={s.detailLabel}>{t('collaboration.mcpResources')}</span>
             <Badge variant="neutral">{resources.length}</Badge>
           </div>
-          {resources.length === 0 ? (
+          {resourcesQ.isLoading ? <Spinner size={16} /> : resourcesQ.isError ? (
+            <p className={s.errorText} role="alert">{errorMessage(resourcesQ.error)}</p>
+          ) : resources.length === 0 ? (
             <p className={s.hint}>{t('collaboration.mcpResourcesEmpty')}</p>
           ) : (
             resources.map((r) => (
@@ -194,7 +209,9 @@ export function McpManager() {
             <span className={s.detailLabel}>{t('collaboration.mcpPrompts')}</span>
             <Badge variant="neutral">{prompts.length}</Badge>
           </div>
-          {prompts.length === 0 ? (
+          {promptsQ.isLoading ? <Spinner size={16} /> : promptsQ.isError ? (
+            <p className={s.errorText} role="alert">{errorMessage(promptsQ.error)}</p>
+          ) : prompts.length === 0 ? (
             <p className={s.hint}>{t('collaboration.mcpPromptsEmpty')}</p>
           ) : (
             prompts.map((p) => (
@@ -227,7 +244,7 @@ export function McpManager() {
             />
             <Select
               value={transport}
-              onChange={(e) => setTransport(e.target.value as McpServerEntry['type'])}
+              onChange={(e) => { setTransport(e.target.value as McpServerEntry['type']); setArgsError(false); }}
               aria-label={t('collaboration.mcpTransport')}
               data-testid="mcp-transport-select"
             >
@@ -249,7 +266,7 @@ export function McpManager() {
               />
               <Input
                 value={argsText}
-                onChange={(e) => setArgsText(e.target.value)}
+                onChange={(e) => { setArgsText(e.target.value); setArgsError(false); }}
                 placeholder={t('collaboration.mcpArgsPlaceholder')}
                 aria-label={t('collaboration.mcpArgs')}
                 data-testid="mcp-args-input"
@@ -266,18 +283,20 @@ export function McpManager() {
               />
             </div>
           )}
+          {transport === 'stdio' && <p className={s.hint}>{t('collaboration.mcpArgsHint')}</p>}
           <Button
             size="sm"
             variant="primary"
             onClick={() => void submit()}
-            disabled={upsertMut.isPending || !name.trim()}
+            disabled={busy || !name.trim()}
             data-testid="mcp-add-submit"
           >
             {t('collaboration.mcpAddSubmit')}
           </Button>
+          {argsError && <p className={s.errorText} role="alert">{t('collaboration.mcpArgsUnclosedQuote')}</p>}
           {upsertMut.isError && (
-            <p className={s.error} data-testid="mcp-add-error">
-              {(upsertMut.error as Error).message}
+            <p className={s.errorText} role="alert" data-testid="mcp-add-error">
+              {errorMessage(upsertMut.error)}
             </p>
           )}
         </Card>
@@ -287,6 +306,8 @@ export function McpManager() {
         <Card level="flat" padding="sm" className={s.mcpCatalog} data-testid="mcp-catalog">
           {catalogQ.isLoading ? (
             <Spinner size={16} />
+          ) : catalogQ.isError ? (
+            <p className={s.errorText} role="alert">{errorMessage(catalogQ.error)}</p>
           ) : catalog.length === 0 ? (
             <p className={s.hint}>{t('collaboration.mcpCatalogEmpty')}</p>
           ) : (
@@ -306,7 +327,7 @@ export function McpManager() {
                       size="sm"
                       variant="ghost"
                       onClick={() => void addFromCatalog(c.id)}
-                      disabled={upsertMut.isPending}
+                      disabled={busy}
                       data-testid={`mcp-catalog-add-${c.id}`}
                     >
                       {t('collaboration.mcpAddSubmit')}
@@ -319,10 +340,17 @@ export function McpManager() {
         </Card>
       )}
 
+      {!showForm && upsertMut.isError && (
+        <p className={s.errorText} role="alert">{errorMessage(upsertMut.error)}</p>
+      )}
+      {deleteMut.isError && <p className={s.errorText} role="alert">{errorMessage(deleteMut.error)}</p>}
+
       {serversQ.isLoading ? (
         <div className={s.loading}>
           <Spinner size={18} />
         </div>
+      ) : serversQ.isError ? (
+        <p className={s.errorText} role="alert">{errorMessage(serversQ.error)}</p>
       ) : servers.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
@@ -336,7 +364,7 @@ export function McpManager() {
         <div className={s.serverList} data-testid="mcp-server-list">
           {servers.map((m) => {
             const rt = runtime.find((r) => r.name === m.name);
-            const failed = rt?.status === 'failed';
+            const failed = !m.running && rt?.status === 'failed';
             return (
               <Card
                 key={m.name}
@@ -361,15 +389,17 @@ export function McpManager() {
                 <Badge variant={failed ? 'danger' : m.running ? 'success' : 'neutral'}>
                   {failed ? 'failed' : m.running ? 'started' : 'stopped'}
                 </Badge>
-                <button
-                  type="button"
-                  className={s.actionBtn}
-                  onClick={() => void deleteMut.mutateAsync(m.name)}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => deleteMut.mutate(m.name)}
                   title={t('collaboration.mcpRemove')}
+                  aria-label={t('collaboration.mcpRemove')}
                   data-testid={`mcp-delete-${m.name}`}
                 >
                   <Icon icon={Trash2} size={12} />
-                </button>
+                </Button>
               </Card>
             );
           })}

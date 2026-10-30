@@ -1,9 +1,9 @@
 /**
  * SubagentSpecsPanel —— 子代理 spec 列表 + 原始 md 编辑器。
  *
- * 子代理 spec（`~/.reflect/subagents/*.md` 或工作区同名目录）是
+ * 子代理 spec（`~/.zhuye/subagents/*.md` 或工作区同名目录）是
  * `call_<role>` 工具的来源 —— 与 Agents 视图管的 **agent 定义**
- * （`~/.reflect/agents/*.md`）是两套不同的东西，此前没有任何编辑面。
+ * （`~/.zhuye/agents/*.md`）是两套不同的东西，此前没有任何编辑面。
  *
  * 编辑器直接编辑**原始 md**（frontmatter + body）—— 文件格式本身就是
  * 核心 `parse_subagent_str` 的输入；写前由后端解析校验，非法 frontmatter

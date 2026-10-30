@@ -9,13 +9,15 @@ use crate::state::MinimalAgent;
 #[derive(Debug, Serialize)]
 pub struct HookInfo {
     pub name: String,
-    pub kind: String, // "read_before_edit" | "plan_mode_gate" | "custom"
+    pub kind: String, // "builtin" | "custom"
     pub enabled: bool,
     pub config_summary: String,
 }
 
 #[tauri::command]
 pub async fn reflect_list_hooks(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<HookInfo>> {
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    let _mount = agent.inner.plugin_mount_lock.lock().await;
     agent
         .list_hooks()
         .map_err(crate::commands::error::CommandError::from)
@@ -27,6 +29,8 @@ pub async fn reflect_toggle_hook(
     name: String,
     enabled: bool,
 ) -> CommandResult<()> {
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    let _mount = agent.inner.plugin_mount_lock.lock().await;
     agent
         .toggle_hook(name, enabled)
         .map_err(crate::commands::error::CommandError::from)
@@ -46,14 +50,10 @@ pub struct HookEventInfo {
 
 /// 列出核心支持的 hook 事件类型与可用决策。
 ///
-/// 此前 GUI 只列 hook 的 name / kind / enabled —— 用户不知道**能在哪些
-/// 时机**挂 hook、每个时机能做什么决策。核心的 `HookEventKind` 有 13 个
-/// 变体,`HookDecision` 有 7 种,这里如实列出。
+/// `decisions` 只列当前运行时会处理的决策；空列表表示仅通知。
 #[tauri::command]
 pub async fn reflect_list_hook_events() -> CommandResult<Vec<HookEventInfo>> {
     use reflect_hooks::HookEventKind;
-    // 工具类事件可用全部决策;其余事件只有部分决策有意义 —— 核心的
-    // `HookEvent` 文档对此有约束,这里按同一口径列。
     const TOOL_DECISIONS: &[&str] = &[
         "allow",
         "deny",
@@ -62,45 +62,65 @@ pub async fn reflect_list_hook_events() -> CommandResult<Vec<HookEventInfo>> {
         "permission_override",
         "ask",
     ];
-    const INFO_DECISIONS: &[&str] = &["allow", "deny", "inject_message"];
-    const TASK_DECISIONS: &[&str] = &["allow", "deny", "inject_message"];
+    const INTERCEPT_DECISIONS: &[&str] = &["allow", "deny", "inject_message"];
+    const NOTIFICATION: &[&str] = &[];
 
     let out = vec![
         (HookEventKind::PreToolUse, "工具执行前", TOOL_DECISIONS),
-        (HookEventKind::PostToolUse, "工具执行后", INFO_DECISIONS),
+        (
+            HookEventKind::PostToolUse,
+            "工具执行后（仅通知）",
+            NOTIFICATION,
+        ),
         (
             HookEventKind::PostToolUseFailure,
             "工具执行失败后",
-            INFO_DECISIONS,
+            NOTIFICATION,
         ),
         (
             HookEventKind::Stop,
-            "回合结束（模型给出最终消息）",
-            INFO_DECISIONS,
+            "回合结束（注入消息仅在否决结束时生效）",
+            INTERCEPT_DECISIONS,
         ),
-        (HookEventKind::SessionStart, "会话开始", INFO_DECISIONS),
+        (
+            HookEventKind::SessionStart,
+            "会话开始（仅通知）",
+            NOTIFICATION,
+        ),
         (
             HookEventKind::UserPromptSubmit,
             "用户提交输入、交给模型之前",
-            INFO_DECISIONS,
+            INTERCEPT_DECISIONS,
         ),
-        (HookEventKind::PreCompact, "上下文压缩前", INFO_DECISIONS),
+        (
+            HookEventKind::PreCompact,
+            "上下文压缩前",
+            INTERCEPT_DECISIONS,
+        ),
         (
             HookEventKind::PostCompact,
             "上下文压缩后（仅信息性，不可回滚）",
-            INFO_DECISIONS,
+            NOTIFICATION,
         ),
-        (HookEventKind::SessionEnd, "会话结束", INFO_DECISIONS),
-        (HookEventKind::TaskCreated, "任务创建后", TASK_DECISIONS),
+        (
+            HookEventKind::SessionEnd,
+            "会话结束（仅通知）",
+            NOTIFICATION,
+        ),
+        (
+            HookEventKind::TaskCreated,
+            "任务创建后（仅通知）",
+            NOTIFICATION,
+        ),
         (
             HookEventKind::TaskCompleted,
             "任务被标记为完成时",
-            TASK_DECISIONS,
+            NOTIFICATION,
         ),
         (
             HookEventKind::TaskUpdated,
             "任务其他字段变更时",
-            TASK_DECISIONS,
+            NOTIFICATION,
         ),
     ];
     Ok(out

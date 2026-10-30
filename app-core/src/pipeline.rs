@@ -2,7 +2,7 @@
 //!
 //! 两条入口,均镜像 CLI 的组装(registry 从配置引导、`REFLECT_MODEL=mock`
 //! 可离线跑通、factory 不带 recorder):
-//! - [`run_team_pipeline`]:用已注册 team(`~/.reflect/teams/`)跑四阶段
+//! - [`run_team_pipeline`]:用已注册 team(`~/.zhuye/teams/`)跑四阶段
 //!   预设(plan → prd → exec → verify),对应 `reflect pipeline team`;
 //! - [`run_pipeline_config`]:读 TOML DAG 配置跑任意拓扑,
 //!   对应 `reflect pipeline run -c`。
@@ -47,7 +47,7 @@ impl std::fmt::Display for PipelineRunError {
 
 impl std::error::Error for PipelineRunError {}
 
-/// 构造默认 TaskManager(走 `~/.reflect/tasks/` 与 `~/.reflect/teams/`,
+/// 构造默认 TaskManager(走 `~/.zhuye/tasks/` 与 `~/.zhuye/teams/`,
 /// 与 GUI squad/tasks 命令共享同一存储)。
 pub fn build_task_manager() -> Result<Arc<TaskManager>, PipelineRunError> {
     let task_store = FileTaskStore::with_default_home()
@@ -251,7 +251,7 @@ pub async fn run_pipeline_config(
         .map_err(|e| PipelineRunError::Run(e.to_string()))
 }
 
-/// 预加载 `~/.reflect/teams/` 下全部 team(节点 label → TeamFile)。
+/// 预加载 `~/.zhuye/teams/` 下全部 team(节点 label → TeamFile)。
 async fn build_team_index(
     manager: &Arc<TaskManager>,
 ) -> Result<HashMap<String, reflect_task::TeamFile>, PipelineRunError> {

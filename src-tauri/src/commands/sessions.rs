@@ -26,12 +26,15 @@ use reflect_rollout::{index as rollout_index, reader as rollout_reader, types::M
 use serde::Serialize;
 
 use crate::commands::error::{CommandError, CommandResult};
+mod name;
+mod sidecar;
+mod title_commit;
 use crate::state::MinimalAgent;
 use tauri::State;
 
-/// 复用 `reflect_rollout::path::default_base()` = `$HOME/.reflect/sessions`。
+/// 复用 `reflect_rollout::path::default_base()` = `$HOME/.zhuye/sessions`。
 ///
-/// v1.x:原 `dirs::home_dir().join(".reflect/sessions")` 与 submodule 的
+/// v1.x:原桌面端自拼 `dirs::home_dir().join(...sessions)` 与 submodule 的
 /// `default_base()` 路径语义等价但拼装独立,改为直接走 core 助手避免
 /// record 端(`reflect_rollout::JsonlRolloutWriter`)与 read 端(sessions_base)
 /// 因环境差异而分叉。两边现在都走同一函数。
@@ -74,6 +77,9 @@ pub async fn reflect_bind_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
 ) -> CommandResult<String> {
+    // 与配置写入、活跃代理切换保持一致的锁顺序，覆盖回放和线程重建。
+    let _config_write = agent.inner.config_write_lock.lock().await;
+    let _transition = agent.inner.session_transition_lock.lock().await;
     if !agent.model_registry_ready() {
         return Err(CommandError {
             msg: "agent not installed yet".into(),
@@ -86,6 +92,18 @@ pub async fn reflect_bind_session(
     let records = replay_session(&base, &id).await.map_err(|e| CommandError {
         msg: format!("replay_session({id}) failed: {e:#}"),
     })?;
+    if let Some(workspace) = records.iter().find_map(|record| match record {
+        RolloutRecord::SessionMeta { workspace, .. } => workspace.as_deref(),
+        _ => None,
+    }) {
+        if !crate::workspace_state::same_path(std::path::Path::new(workspace), &agent.workspace()) {
+            return Err(CommandError {
+                msg: format!(
+                    "session belongs to workspace {workspace}; select that workspace before opening it"
+                ),
+            });
+        }
+    }
     let preload = reflect_core::resume::records_to_preload(&records);
     // 权限模式随会话恢复:取时间序末次 PermissionModeChanged 的目标值。
     // Bypass 绝不是合法运行时目标(见 reflect-core submission_loop 安全基线),
@@ -154,11 +172,15 @@ pub async fn reflect_list_sessions(
 }
 
 #[tauri::command]
-pub async fn reflect_rename_session(id: ThreadId, new_name: String) -> CommandResult<()> {
+pub async fn reflect_rename_session(
+    agent: State<'_, MinimalAgent>,
+    id: ThreadId,
+    new_name: String,
+) -> CommandResult<()> {
     let base = sessions_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
-    rollout_index::rename_session(&base, id, &new_name).map_err(CommandError::from)
+    name::rename(&agent, &base, id, &new_name).await
 }
 
 /// 基于历史会话 fork 出子会话（GUI 入口，对应 CLI `reflect session fork`）。
@@ -173,10 +195,18 @@ pub async fn reflect_rename_session(id: ThreadId, new_name: String) -> CommandRe
 /// 包 `spawn_blocking` 避免阻塞 tauri 异步运行时。
 #[tauri::command]
 pub async fn reflect_fork_session(
+    agent: State<'_, MinimalAgent>,
     id: ThreadId,
     branch: Option<String>,
     up_to_turn_id: Option<TurnId>,
 ) -> CommandResult<String> {
+    let gate;
+    let _operation;
+    {
+        let _transition = agent.inner.session_transition_lock.lock().await;
+        gate = crate::state::recorder_guard::gate_for(&agent, id);
+        _operation = gate.acquire().await.map_err(CommandError::from)?;
+    }
     let base = sessions_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
@@ -202,7 +232,10 @@ pub async fn reflect_fork_session(
     // 分支名写成子会话的自定义名（_names,标题优先级最高）—— 会话列表里
     // 直接可辨,不必再手动 rename。best-effort:失败不影响 fork 本身。
     if let Some(base) = sessions_base() {
-        let _ = rollout_index::rename_session(&base, child_id, &branch_name);
+        let named = base.join("_names").join(format!("{child_id}.name"));
+        if sidecar::reject_links(&named).is_ok() {
+            let _ = rollout_index::rename_session(&base, child_id, &branch_name);
+        }
     }
     Ok(child_id.to_string())
 }
@@ -249,9 +282,14 @@ pub async fn reflect_generate_session_title(
         }
     }
 
-    let records = replay_session(&base, &id).await.map_err(|e| CommandError {
-        msg: format!("replay_session({id}) failed: {e:#}"),
-    })?;
+    let (gate, records) = {
+        let _transition = agent.inner.session_transition_lock.lock().await;
+        let gate = crate::state::recorder_guard::gate_for(&agent, id);
+        let records = replay_session(&base, &id).await.map_err(|e| CommandError {
+            msg: format!("replay_session({id}) failed: {e:#}"),
+        })?;
+        (gate, records)
+    };
     let (user_text, assistant_text) = extract_title_seed(&records);
     let Some(user_text) = user_text else {
         return Err(CommandError {
@@ -319,9 +357,16 @@ pub async fn reflect_generate_session_title(
         });
     };
 
-    std::fs::create_dir_all(&titles_dir).map_err(CommandError::from)?;
-    std::fs::write(&title_path, &title).map_err(CommandError::from)?;
-    Ok(title)
+    title_commit::commit(
+        &agent,
+        &base,
+        id,
+        &user_text,
+        force == Some(true),
+        &title,
+        &gate,
+    )
+    .await
 }
 
 /// 种子文本截断,避免超长首条消息把标题请求撑爆。
@@ -375,14 +420,48 @@ fn message_text(content: &serde_json::Value) -> Option<String> {
     }
 }
 
+/// 删除或归档失败后，用剩余记录恢复原活动会话。
+async fn restore_after_failed_operation(
+    agent: &MinimalAgent,
+    id: ThreadId,
+    mode: Option<PermissionMode>,
+    error: CommandError,
+) -> CommandError {
+    let Some(mode) = mode else {
+        return error;
+    };
+    let restored = match replay_for_preload(&id).await {
+        Ok(preload) => crate::state::rebind::rebind_session(agent, id, preload, Some(mode)),
+        Err(error) => Err(error),
+    };
+    match restored {
+        Ok(()) => error,
+        Err(restore_error) => CommandError {
+            msg: format!(
+                "{}; failed to restore active session: {restore_error:#}",
+                error.msg
+            ),
+        },
+    }
+}
+
 /// 删除 session:移除该 session 的全部 rollout 文件(含文件名错位副本、
 /// 轮转副本)、自定义名,以及旧布局的 `<base>/<id>/` 目录。
 #[tauri::command]
-pub async fn reflect_delete_session(id: ThreadId) -> CommandResult<()> {
+pub async fn reflect_delete_session(
+    agent: State<'_, MinimalAgent>,
+    id: ThreadId,
+) -> CommandResult<()> {
+    let _config = agent.inner.config_write_lock.lock().await;
+    let _transition = agent.inner.session_transition_lock.lock().await;
     let base = sessions_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
-    let removed = delete_session_paths(&base, &id)?;
+    let mode = crate::state::recorder_guard::deactivate_session(&agent, id).await;
+    let removed = match delete_session_paths(&base, &id) {
+        Ok(removed) => removed,
+        Err(error) => return Err(restore_after_failed_operation(&agent, id, mode, error).await),
+    };
     if removed > 0 {
         tracing::info!("[reflect-gui] deleted session {} ({} paths)", id, removed);
     } else {
@@ -395,27 +474,51 @@ pub async fn reflect_delete_session(id: ThreadId) -> CommandResult<()> {
 //
 // rollout 索引/回放对 `<base>` 做全树 `**/*.jsonl` 扫描,归档文件留在树内
 // (如 `_archived/` 子目录)仍会被 `list_sessions` / replay 命中。因此归档
-// 根目录放在 sessions 树之外:`~/.reflect/sessions-archive/`,以「整树
+// 根目录放在 sessions 树之外:`~/.zhuye/sessions-archive/`,以「整树
 // 搬移 + 相对路径不变」为不变量 —— unarchive 沿同一相对路径搬回。
+//
+// 从 rollout 的 sessions 根派生而不是走 `paths::user_data_dir()`:`reflect_rollout`
+// 只认 `$HOME`,若这里改读 `ZHUYE_HOME`,设置了该变量的机器上活跃会话与归档
+// 会分家,unarchive 就再也找不回文件。
 
 fn archive_base() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".reflect/sessions-archive"))
+    let base = sessions_base()?;
+    Some(base.parent()?.join("sessions-archive"))
+}
+
+/// 导出文件的落点(`~/.zhuye/exports/`)。JSON 与 Markdown 导出共用。
+pub(crate) fn exports_dir() -> CommandResult<PathBuf> {
+    let dir =
+        reflect_app_core::paths::user_data_path(&["exports"]).ok_or_else(|| CommandError {
+            msg: "no HOME dir for exports".into(),
+        })?;
+    std::fs::create_dir_all(&dir).map_err(CommandError::from)?;
+    Ok(dir)
 }
 
 /// 归档 session:把该 session 的全部文件(含轮转/错位副本)与自定义名
-/// 从 `~/.reflect/sessions` 搬到 `~/.reflect/sessions-archive`。
+/// 从 `~/.zhuye/sessions` 搬到 `~/.zhuye/sessions-archive`。
 ///
 /// sessions 侧路径走 [`sessions_base`](与 record/read 同源);归档树独立
 /// 于 rollout base(`archive_base`),unarchive 沿同一对目录往返。
 #[tauri::command]
-pub async fn reflect_archive_session(id: ThreadId) -> CommandResult<()> {
+pub async fn reflect_archive_session(
+    agent: State<'_, MinimalAgent>,
+    id: ThreadId,
+) -> CommandResult<()> {
+    let _config = agent.inner.config_write_lock.lock().await;
+    let _transition = agent.inner.session_transition_lock.lock().await;
     let base = sessions_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
     let archive = archive_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
-    let moved = move_session_tree(&base, &archive, &id)?;
+    let mode = crate::state::recorder_guard::deactivate_session(&agent, id).await;
+    let moved = match move_session_tree(&base, &archive, &id) {
+        Ok(moved) => moved,
+        Err(error) => return Err(restore_after_failed_operation(&agent, id, mode, error).await),
+    };
     if moved > 0 {
         tracing::info!("[reflect-gui] archived session {} ({} paths)", id, moved);
     } else {
@@ -424,9 +527,19 @@ pub async fn reflect_archive_session(id: ThreadId) -> CommandResult<()> {
     Ok(())
 }
 
-/// 恢复归档 session:搬回 `~/.reflect/sessions` 原相对路径。
+/// 恢复归档 session:搬回 `~/.zhuye/sessions` 原相对路径。
 #[tauri::command]
-pub async fn reflect_unarchive_session(id: ThreadId) -> CommandResult<()> {
+pub async fn reflect_unarchive_session(
+    agent: State<'_, MinimalAgent>,
+    id: ThreadId,
+) -> CommandResult<()> {
+    let _config = agent.inner.config_write_lock.lock().await;
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    if agent.bound_session_id() == Some(id) {
+        return Err(CommandError {
+            msg: "Cannot restore an archived session while the same session is active; switch sessions first".into(),
+        });
+    }
     let archive = archive_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
@@ -464,47 +577,100 @@ pub async fn reflect_list_archived_sessions(
 /// 把 `from` 树下该 session 的全部文件(`session_files` 定位,含 meta 错位
 /// 副本)+ `_names/<id>.name` 搬到 `to` 树的**同相对路径**。返回搬移数。
 fn move_session_tree(from: &Path, to: &Path, id: &ThreadId) -> CommandResult<usize> {
-    let mut moved = 0usize;
-    for path in session_files(from, id) {
+    let mut sources = session_files(from, id)?;
+    for (dir, extension) in [("_names", "name"), ("_titles", "title")] {
+        let path = from.join(dir).join(format!("{id}.{extension}"));
+        if path.exists() {
+            sources.push(path);
+        }
+    }
+    let mut moves = Vec::with_capacity(sources.len());
+    for path in sources {
         let rel = path
             .strip_prefix(from)
             .map_err(|e| CommandError { msg: e.to_string() })?;
-        move_file(&path, &to.join(rel))?;
-        moved += 1;
+        let target = to.join(rel);
+        match std::fs::symlink_metadata(&target) {
+            Ok(_) => {
+                return Err(CommandError {
+                    msg: format!("session destination already exists: {}", target.display()),
+                });
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.into()),
+        }
+        moves.push((path, target));
     }
-    let name = from.join("_names").join(format!("{id}.name"));
-    if name.exists() {
-        move_file(&name, &to.join("_names").join(format!("{id}.name")))?;
-        moved += 1;
-    }
-    let ai_title = from.join("_titles").join(format!("{id}.title"));
-    if ai_title.exists() {
-        move_file(&ai_title, &to.join("_titles").join(format!("{id}.title")))?;
-        moved += 1;
-    }
-    Ok(moved)
+    move_session_files(&moves, move_file)?;
+    Ok(moves.len())
 }
 
-/// rename 优先(同 `$HOME` 下同文件系统);跨设备时退化为 copy + remove。
+/// 后续文件移动失败时，按逆序恢复已完成的移动；恢复失败时保留剩余副本并报告路径。
+fn move_session_files(
+    moves: &[(PathBuf, PathBuf)],
+    mut mover: impl FnMut(&Path, &Path) -> CommandResult<()>,
+) -> CommandResult<()> {
+    for (index, (source, target)) in moves.iter().enumerate() {
+        if let Err(error) = mover(source, target) {
+            let mut failures = Vec::new();
+            for (original, moved) in moves[..index].iter().rev() {
+                if let Err(rollback) = move_file(moved, original) {
+                    failures.push(format!("{}: {}", moved.display(), rollback.msg));
+                }
+            }
+            return Err(CommandError {
+                msg: if failures.is_empty() {
+                    error.msg
+                } else {
+                    format!("{}; rollback failed for {}", error.msg, failures.join(", "))
+                },
+            });
+        }
+    }
+    Ok(())
+}
+
+/// 以不覆盖现有目标的方式移动，跨设备时以独占创建的副本回退。
 fn move_file(src: &Path, dest: &Path) -> CommandResult<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    match std::fs::rename(src, dest) {
-        Ok(()) => Ok(()),
+    match std::fs::hard_link(src, dest) {
+        Ok(()) => remove_moved_source(src, dest),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(e.into()),
         Err(_) => {
-            std::fs::copy(src, dest)?;
-            std::fs::remove_file(src)?;
-            Ok(())
+            let mut source = std::fs::File::open(src)?;
+            let mut target = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(dest)?;
+            let result = std::io::copy(&mut source, &mut target)
+                .and_then(|_| target.set_permissions(source.metadata()?.permissions()));
+            drop(target);
+            if let Err(error) = result {
+                let _ = std::fs::remove_file(dest);
+                return Err(error.into());
+            }
+            remove_moved_source(src, dest)
         }
     }
+}
+
+fn remove_moved_source(src: &Path, dest: &Path) -> CommandResult<()> {
+    std::fs::remove_file(src).map_err(|error| CommandError {
+        msg: format!(
+            "failed to remove {} after copying to {}: {error}; destination retained",
+            src.display(),
+            dest.display()
+        ),
+    })
 }
 
 /// `reflect_delete_session` 的可测试核心:删除 `base` 下该 session 的
 /// 全部路径,返回删除数。
 fn delete_session_paths(base: &Path, id: &ThreadId) -> CommandResult<usize> {
     let mut removed = 0usize;
-    for path in session_files(base, id) {
+    for path in session_files(base, id)? {
         std::fs::remove_file(&path).map_err(CommandError::from)?;
         removed += 1;
     }
@@ -550,7 +716,7 @@ pub(crate) async fn replay_session(
     id: &ThreadId,
 ) -> anyhow::Result<Vec<RolloutRecord>> {
     let mut records = Vec::new();
-    for path in session_files(base, id) {
+    for path in session_files(base, id)? {
         records.extend(rollout_reader::replay_path(&path).await?);
     }
     Ok(records)
@@ -566,86 +732,95 @@ pub(crate) async fn replay_for_preload(id: &ThreadId) -> anyhow::Result<Vec<Chat
 }
 
 /// 导出路径(JSON / Markdown)共用的回放入口:与 bind/replay 同源,
-/// 不再各自手拼 `home.join(".reflect/sessions")` 导致读写端分叉。
+/// 不再各自手拼 sessions 目录导致读写端分叉。
 pub(crate) async fn replay_for_export(id: &ThreadId) -> anyhow::Result<Vec<RolloutRecord>> {
     let base = sessions_base().ok_or_else(|| anyhow::anyhow!("no HOME dir for sessions"))?;
     replay_session(&base, id).await
 }
 
-/// 把 session 导出为 JSON 到 `~/.reflect/exports/<id>.json` 并返回路径。供 ThreadsView / CommandPalette 的导出菜单使用。
+/// 把 session 导出为 JSON 到 `~/.zhuye/exports/<id>.json` 并返回路径。供 ThreadsView / CommandPalette 的导出菜单使用。
 #[tauri::command]
 pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
-    let home = dirs::home_dir().ok_or_else(|| CommandError {
-        msg: "no home dir".into(),
-    })?;
-    let export_dir = home.join(".reflect/exports");
+    let export_dir = exports_dir()?;
     std::fs::create_dir_all(&export_dir).map_err(CommandError::from)?;
     let dest = export_dir.join(format!("{}.json", id));
     let records = replay_for_export(&id).await.map_err(CommandError::from)?;
     let json = serde_json::to_string_pretty(&records).map_err(|e| CommandError {
         msg: format!("json: {e}"),
     })?;
-    std::fs::write(&dest, json).map_err(CommandError::from)?;
+    super::export::write_export(&dest, |file| {
+        std::io::Write::write_all(file, json.as_bytes())
+    })
+    .map_err(CommandError::from)?;
     Ok(dest.to_string_lossy().into_owned())
 }
 
 // ── 历史会话文件定位(replay 兜底) ──────────────────────────────────────
 
-/// 收集 `id` 对应 session 的全部 JSONL 文件(活跃文件 + 轮转副本,
-/// 可能跨多个日期目录),按时间升序返回:
-///
-/// - 目录层级(日期桶)按全路径字典序 = 时间序(`YYYY/MM/DD`);
-/// - 同目录内 `<id>.1.jsonl` < `.2` < `.3` < 活跃 `<id>.jsonl`
-///   (轮转把旧文件推向更大 N,见 `writer::rotate`)。
-fn session_files(base: &Path, id: &ThreadId) -> Vec<PathBuf> {
-    let mut out: Vec<PathBuf> = Vec::new();
-    collect_session_files(base, id, &mut out);
-    out.sort();
-    out
+/// 收集会话记录并按日期、轮转序号倒序排列（活跃文件最后）。
+fn session_files(base: &Path, id: &ThreadId) -> std::io::Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    match std::fs::read_dir(base) {
+        Ok(entries) => collect_session_files(entries, id, &mut out)?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(out),
+        Err(e) => return Err(e),
+    }
+    out.sort_by(|a, b| {
+        let rank = |path: &Path| {
+            path.file_stem()
+                .and_then(|s| s.to_str())
+                .and_then(|s| s.rsplit_once('.'))
+                .and_then(|(_, suffix)| suffix.parse::<usize>().ok())
+                .unwrap_or(0)
+        };
+        a.parent()
+            .cmp(&b.parent())
+            .then_with(|| rank(b).cmp(&rank(a)))
+            .then_with(|| a.cmp(b))
+    });
+    Ok(out)
 }
 
-fn collect_session_files(dir: &Path, id: &ThreadId, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
+fn collect_session_files(
+    entries: std::fs::ReadDir,
+    id: &ThreadId,
+    out: &mut Vec<PathBuf>,
+) -> std::io::Result<()> {
+    for entry in entries {
+        let entry = entry?;
+        let kind = entry.file_type()?;
         let path = entry.path();
-        if path.is_dir() {
-            collect_session_files(&path, id, out);
-        } else if let Some(file) = matching_session_file(&path, id) {
-            out.push(file);
+        if kind.is_dir() {
+            collect_session_files(std::fs::read_dir(&path)?, id, out)?;
+        } else if kind.is_file() && matching_session_file(&path, id)? {
+            out.push(path);
         }
     }
+    Ok(())
 }
 
-/// 文件名 stem 恰为 `<id>` 或 `<id>.<n>`(1..=MAX_ROTATED_FILES)时命中。
-/// ThreadId 是 UUID(无 `.` 字符),prefix 匹配无歧义。
-///
-/// 匹配优先级与索引(`index::list_sessions`)的 session 识别规则一致:
-/// 1. 首行 `session_meta.session_id == id`(真实数据存在文件名 ≠ meta id
-///    的文件,如 resume 沿用旧文件名写入新线程;meta 是归属的权威来源);
-/// 2. 无 meta 行的文件回退文件名 stem 匹配。
-fn matching_session_file(path: &Path, id: &ThreadId) -> Option<PathBuf> {
+/// 内嵌 session_meta 优先；没有元数据时按文件名匹配。
+fn matching_session_file(path: &Path, id: &ThreadId) -> std::io::Result<bool> {
     if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
-        return None;
+        return Ok(false);
     }
     let id_str = id.to_string();
-    match first_line_session_id(path) {
-        Some(meta) => (meta == id_str).then(|| path.to_path_buf()),
-        None => filename_session_match(path, &id_str),
-    }
+    Ok(match first_line_session_id(path)? {
+        Some(meta) => meta == id_str,
+        None => filename_session_match(path, &id_str).is_some(),
+    })
 }
 
-/// 读 JSONL 首行 `session_meta` 的 session_id。meta 恰好发送一次且先于
-/// 所有其它记录(reader/writer 协议),首行即够;非 meta 开头 → `None`。
-fn first_line_session_id(path: &Path) -> Option<String> {
+fn first_line_session_id(path: &Path) -> std::io::Result<Option<String>> {
     use std::io::BufRead;
-    let file = std::fs::File::open(path).ok()?;
-    let first = std::io::BufReader::new(file).lines().next()?.ok()?;
-    match serde_json::from_str::<RolloutRecord>(&first).ok()? {
-        RolloutRecord::SessionMeta { session_id, .. } => Some(session_id.to_string()),
+    let file = std::fs::File::open(path)?;
+    let Some(first) = std::io::BufReader::new(file).lines().next() else {
+        return Ok(None);
+    };
+    Ok(match serde_json::from_str::<RolloutRecord>(&first?).ok() {
+        Some(RolloutRecord::SessionMeta { session_id, .. }) => Some(session_id.to_string()),
         _ => None,
-    }
+    })
 }
 
 /// 文件名 stem 恰为 `<id>` 或 `<id>.<n>`(1..=MAX_ROTATED_FILES)。
@@ -820,7 +995,7 @@ fn session_file_id(path: &Path) -> Option<String> {
 //
 // v1.x P1：搜索页「会话」tab 的后端。区别于 `reflect_search_files`
 //（工作区源码 grep），这里 grep 的是会话 JSONL 里的 user/assistant 文本，
-// 覆盖活跃树（`~/.reflect/sessions`）与归档树（`~/.reflect/sessions-archive`）。
+// 覆盖活跃树（`~/.zhuye/sessions`）与归档树（`~/.zhuye/sessions-archive`）。
 
 /// 单个会话的搜索命中。
 #[derive(Debug, Clone, Serialize)]
@@ -1197,7 +1372,7 @@ mod tests {
         write_file(&day, "11111111-2222-3333-4444-555555555555.json", "x");
 
         let id = ThreadId::parse_str("11111111-2222-3333-4444-555555555555").unwrap();
-        let files = session_files(base, &id);
+        let files = session_files(base, &id).unwrap();
         let names: Vec<String> = files
             .iter()
             .map(|p| {
@@ -1208,12 +1383,50 @@ mod tests {
                 )
             })
             .collect();
-        // 06/30 在前(更旧),07/01 内 .1 < .3 < 活跃;`999…` 不命中。
+        // 06/30 在前(更旧),07/01 内 .3 最旧、.1 次之、活跃文件最新。
         assert_eq!(names.len(), 4);
         assert!(names[0].starts_with("30/"));
-        assert!(names[1].ends_with(".1.jsonl"));
-        assert!(names[2].ends_with(".3.jsonl"));
+        assert!(names[1].ends_with(".3.jsonl"));
+        assert!(names[2].ends_with(".1.jsonl"));
         assert!(names[3].ends_with("11111111-2222-3333-4444-555555555555.jsonl"));
+    }
+
+    #[tokio::test]
+    async fn replay_orders_rotated_records_from_oldest_to_newest() {
+        let dir = tempdir().unwrap();
+        let sid = ThreadId::new();
+        let tid = TurnId::new();
+        for (suffix, text) in [(".3", "old"), (".1", "middle"), ("", "new")] {
+            let record = RolloutRecord::message(
+                tid,
+                reflect_protocol::MessageRole::User,
+                serde_json::json!(text),
+            );
+            let body = format!("{}\n", serde_json::to_string(&record).unwrap());
+            std::fs::write(dir.path().join(format!("{sid}{suffix}.jsonl")), body).unwrap();
+        }
+        let records = replay_session(dir.path(), &sid).await.unwrap();
+        let messages: Vec<_> = records
+            .iter()
+            .filter_map(|record| match record {
+                RolloutRecord::Message { content, .. } => content.as_str(),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(messages, ["old", "middle", "new"]);
+    }
+
+    #[test]
+    fn session_scan_reports_invalid_root_instead_of_empty_history() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("not-a-directory");
+        std::fs::write(&file, "x").unwrap();
+        assert!(session_files(&file, &ThreadId::new()).is_err());
+        assert!(
+            session_files(&dir.path().join("missing"), &ThreadId::new())
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1230,7 +1443,7 @@ mod tests {
         );
 
         let id = ThreadId::parse_str("11111111-2222-3333-4444-555555555555").unwrap();
-        let files = session_files(base, &id);
+        let files = session_files(base, &id).unwrap();
         assert_eq!(files.len(), 1);
         assert!(
             files[0]
@@ -1243,7 +1456,7 @@ mod tests {
 
         // 反向:按文件名 id(aaaaaaaa)查,meta 归属是 11111111 → 不命中。
         let other = ThreadId::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
-        assert!(session_files(base, &other).is_empty());
+        assert!(session_files(base, &other).unwrap().is_empty());
     }
 
     #[test]
@@ -1269,7 +1482,7 @@ mod tests {
         );
 
         let id = ThreadId::parse_str("11111111-2222-3333-4444-555555555555").unwrap();
-        let files = session_files(base, &id);
+        let files = session_files(base, &id).unwrap();
         // 活跃 + .1 命中;越界 .9 不命中。
         assert_eq!(files.len(), 2);
     }
@@ -1322,6 +1535,117 @@ mod tests {
     }
 
     // ── 归档 / 恢复 ──────────────────────────────────────────────────────
+
+    #[test]
+    fn archive_collision_preserves_all_source_and_destination_files() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("sessions");
+        let archive = dir.path().join("archive");
+        let id = ThreadId::new();
+        let relative = PathBuf::from("2026/01/01").join(format!("{id}.jsonl"));
+        write_file(
+            relative.parent().map(|p| source.join(p)).unwrap().as_path(),
+            &format!("{id}.jsonl"),
+            "source",
+        );
+        write_file(
+            relative
+                .parent()
+                .map(|p| archive.join(p))
+                .unwrap()
+                .as_path(),
+            &format!("{id}.jsonl"),
+            "destination",
+        );
+        let title = source.join("_names").join(format!("{id}.name"));
+        write_file(
+            title.parent().unwrap(),
+            title.file_name().unwrap().to_str().unwrap(),
+            "name",
+        );
+        assert!(move_session_tree(&source, &archive, &id).is_err());
+        assert_eq!(
+            std::fs::read_to_string(source.join(&relative)).unwrap(),
+            "source"
+        );
+        assert_eq!(
+            std::fs::read_to_string(archive.join(&relative)).unwrap(),
+            "destination"
+        );
+        assert_eq!(std::fs::read_to_string(title).unwrap(), "name");
+    }
+
+    #[test]
+    fn move_file_never_overwrites_existing_destination() {
+        let dir = tempdir().unwrap();
+        let src = dir.path().join("src");
+        let dest = dir.path().join("dest");
+        std::fs::write(&src, "source").unwrap();
+        std::fs::write(&dest, "destination").unwrap();
+        assert!(move_file(&src, &dest).is_err());
+        assert_eq!(std::fs::read_to_string(src).unwrap(), "source");
+        assert_eq!(std::fs::read_to_string(dest).unwrap(), "destination");
+    }
+
+    #[test]
+    fn failed_archive_move_restores_previously_moved_files() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("source");
+        let target = dir.path().join("target");
+        std::fs::create_dir_all(&source).unwrap();
+        let moves = [("first", "one"), ("second", "two")]
+            .into_iter()
+            .map(|(from, to)| {
+                let original = source.join(from);
+                std::fs::write(&original, from).unwrap();
+                (original, target.join(to))
+            })
+            .collect::<Vec<_>>();
+        let mut count = 0;
+        let result = move_session_files(&moves, |from, to| {
+            count += 1;
+            if count == 2 {
+                return Err(CommandError {
+                    msg: "simulated failure".into(),
+                });
+            }
+            move_file(from, to)
+        });
+        assert!(result.is_err());
+        assert_eq!(std::fs::read_to_string(&moves[0].0).unwrap(), "first");
+        assert_eq!(std::fs::read_to_string(&moves[1].0).unwrap(), "second");
+        assert!(!moves[0].1.exists());
+        assert!(!moves[1].1.exists());
+    }
+
+    #[test]
+    fn failed_archive_rollback_preserves_both_existing_and_moved_files() {
+        let dir = tempdir().unwrap();
+        let first = dir.path().join("first");
+        let second = dir.path().join("second");
+        let moved = dir.path().join("archive/first");
+        std::fs::write(&first, "original").unwrap();
+        std::fs::write(&second, "second").unwrap();
+        let moves = vec![
+            (first.clone(), moved.clone()),
+            (second, dir.path().join("archive/second")),
+        ];
+        let mut count = 0;
+        let error = move_session_files(&moves, |from, to| {
+            count += 1;
+            if count == 2 {
+                std::fs::write(&first, "new file").unwrap();
+                return Err(CommandError {
+                    msg: "simulated failure".into(),
+                });
+            }
+            move_file(from, to)
+        })
+        .unwrap_err();
+        assert!(error.msg.contains("rollback failed"));
+        assert_eq!(std::fs::read_to_string(first).unwrap(), "new file");
+        assert_eq!(std::fs::read_to_string(moved).unwrap(), "original");
+    }
 
     #[test]
     fn archive_moves_files_and_custom_name_to_archive_tree() {

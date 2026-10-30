@@ -1,7 +1,7 @@
 /**
  * PromptLayersModal —— 提示词层列表(v1.6.1)。
  *
- * 提示词按模型自动匹配外置到 `.reflect/prompts/*.md`,引擎侧经
+ * 提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`,引擎侧经
  * `Op::PromptCommand` 暴露查询与重扫:
  * - `list`   → `EventMsg::PromptList`(可用层 + 生效层 + 当前 spec)
  * - `switch` → `EventMsg::PromptSwitched`(重扫完成 + 新命中层)

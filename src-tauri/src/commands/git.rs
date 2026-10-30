@@ -1,5 +1,8 @@
 //! Git 集成 —— status / diff / log。
 
+mod status;
+
+use status::parse_status_z;
 use std::path::PathBuf;
 use std::process::Command as StdCommand;
 
@@ -103,7 +106,11 @@ pub async fn reflect_list_worktrees() -> CommandResult<Vec<WorktreeInfo>> {
                 head = h.trim().to_string();
             } else if let Some(b) = line.strip_prefix("branch ") {
                 // `refs/heads/<name>` → `<name>`
-                branch = b.trim().rsplit('/').next().unwrap_or("").to_string();
+                branch = b
+                    .trim()
+                    .strip_prefix("refs/heads/")
+                    .unwrap_or(b.trim())
+                    .to_string();
             }
         }
         if path.is_empty() {
@@ -143,6 +150,8 @@ fn run_git(args: &[&str]) -> Result<std::process::Output, CommandError> {
     })?;
     StdCommand::new("git")
         .current_dir(&cwd)
+        // UI 提交的是确切文件名，而不是 Git pathspec 通配符。
+        .env("GIT_LITERAL_PATHSPECS", "1")
         // porcelain/log 输出的路径不做 C 引号转义:默认 quotepath=true 时
         // 非 ASCII 路径是 "\346\226\207..." 形式,UI 会显示乱码且按该路径
         // stage 会因文件不存在而失败。
@@ -181,52 +190,16 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
         });
     }
     let raw = String::from_utf8_lossy(&out.stdout).to_string();
-    let mut branch: Option<String> = None;
-    let mut upstream: Option<String> = None;
-    let mut ahead = 0u32;
-    let mut behind = 0u32;
-    let mut entries: Vec<GitStatusEntry> = Vec::new();
-    for line in raw.lines() {
-        if let Some(rest) = line.strip_prefix("## ") {
-            // 分支头行:"## <branch>" 或 "## <branch>...<upstream> [ahead N, behind M]"
-            if let Some((b, after)) = rest.split_once("...") {
-                branch = Some(b.to_string());
-                if let Some((up, ab)) = after.split_once(' ') {
-                    upstream = Some(up.to_string());
-                    let ab = ab.trim_start_matches('[').trim_end_matches(']');
-                    for part in ab.split(", ") {
-                        if let Some(n) = part.strip_prefix("ahead ") {
-                            ahead = n.parse().unwrap_or(0);
-                        } else if let Some(n) = part.strip_prefix("behind ") {
-                            behind = n.parse().unwrap_or(0);
-                        }
-                    }
-                }
-            } else {
-                branch = Some(rest.to_string());
-            }
-        } else if line.len() >= 3 {
-            let status = &line[0..2];
-            let path = line[3..].trim().to_string();
-            if status.starts_with('R') {
-                if let Some((old, new)) = path.split_once(" -> ") {
-                    entries.push(GitStatusEntry {
-                        path: new.to_string(),
-                        status: status.trim().to_string(),
-                        staged: !is_worktree_only(status),
-                        old_path: Some(old.to_string()),
-                    });
-                    continue;
-                }
-            }
-            entries.push(GitStatusEntry {
-                path,
-                status: status.trim().to_string(),
-                staged: !is_worktree_only(status),
-                old_path: None,
-            });
-        }
+    let paths_out = run_git(&["status", "--porcelain=v1", "--branch", "-z"])?;
+    if !paths_out.status.success() {
+        return Err(CommandError {
+            msg: format!(
+                "git status failed: {}",
+                String::from_utf8_lossy(&paths_out.stderr)
+            ),
+        });
     }
+    let (branch, upstream, ahead, behind, entries) = parse_status_z(&paths_out.stdout);
     Ok(GitStatus {
         branch,
         upstream,
@@ -236,31 +209,6 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
         raw,
         is_repo: true,
     })
-}
-
-/// porcelain v1 两字符码的**第一字符**(index 列)是否为「无暂存变更」:
-/// `' '`(仅工作区修改)或 `'?'`(untracked)。第二字符是工作区列,
-/// 不参与本判定。
-fn is_worktree_only(status: &str) -> bool {
-    matches!(status.as_bytes().first(), Some(b' ') | Some(b'?'))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::is_worktree_only;
-
-    /// `"M "`(已暂存)与 `" M"`(仅工作区)经 trim 折叠成同一个 "M",
-    /// staged 判定必须吃原始两字符码的 index 列。
-    #[test]
-    fn porcelain_index_column_drives_staged() {
-        assert!(is_worktree_only(" M"));
-        assert!(is_worktree_only("??"));
-        assert!(!is_worktree_only("M "));
-        assert!(!is_worktree_only("MM"));
-        assert!(!is_worktree_only("AM"));
-        assert!(!is_worktree_only("A "));
-        assert!(!is_worktree_only("R "));
-    }
 }
 
 /// `git diff --no-color` → unified diff 文本(`staged=true` 时为 staged diff)。

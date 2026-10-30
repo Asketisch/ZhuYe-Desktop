@@ -3,7 +3,7 @@
 //! Squad = 一组 agent + 一个 leader,leader 负责把任务派给成员。
 //! 参考通用 squad 设计，但 ReflectDesktop 不引入
 //! server/DB,直接复用 核心 crate `reflect_task::TaskManager` 的 `TeamFile` 存储
-//! (`~/.reflect/teams/<name>.json`)+ `Task.metadata.actor`(语义层 actor)。
+//! (`~/.zhuye/teams/<name>.json`)+ `Task.metadata.actor`(语义层 actor)。
 //!
 //! ## 与 核心 crate 的关系
 //!

@@ -19,13 +19,13 @@ export interface SessionNoteInfo {
 export interface NoteSessionInfo {
   /** 会话 id(ThreadId uuid)。 */
   sessionId: string;
-  /** 笔记条数。 */
+  /** 当前可读取的笔记条数（最多核心的会话容量）。 */
   count: number;
   /** 最后写入时间(RFC3339);无时间戳时为 null。 */
   updatedAt?: string | null;
 }
 
-/** 列出某会话的笔记(按写入顺序,最新在后);没有笔记时返回空数组。 */
+/** 列出某会话最近的有效笔记(按写入顺序,最新在后);没有笔记时返回空数组。 */
 export function reflect_list_session_notes(id: string): Promise<SessionNoteInfo[]> {
   return invoke('reflect_list_session_notes', { id });
 }

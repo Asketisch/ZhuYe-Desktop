@@ -14,7 +14,10 @@ import s from './MemoryView.module.css';
 export interface MemoryRowProps {
   entry: ReflectMemoryEntry;
   isEditing: boolean;
+  hasDraft?: boolean;
+  removeTitle?: string;
   editValue: string;
+  isMutating: boolean;
   /** 为该条目切换到编辑模式（由控制器初始化缓冲区）。 */
   onEdit: () => void;
   /** 更新进行中的编辑缓冲区。 */
@@ -27,7 +30,10 @@ export interface MemoryRowProps {
 export function MemoryRow({
   entry,
   isEditing,
+  hasDraft = false,
+  removeTitle,
   editValue,
+  isMutating,
   onEdit,
   onChangeEdit,
   onSave,
@@ -41,6 +47,7 @@ export function MemoryRow({
       <div className={s.rowLeft}>
         <Badge variant="neutral">{entry.scope}</Badge>
         <code className={s.key}>{entry.key}</code>
+        {hasDraft && <Badge variant="neutral">{t('memory.draft')}</Badge>}
       </div>
       {isEditing ? (
         <div className={s.editRow} data-testid={`memory-edit-${entryKey(entry)}`}>
@@ -53,7 +60,7 @@ export function MemoryRow({
             data-testid="memory-edit-input"
           />
           <div className={s.editActions}>
-            <button type="button" className={s.saveBtnSmall} onClick={onSave} data-testid="memory-edit-save">
+            <button type="button" className={s.saveBtnSmall} onClick={onSave} disabled={isMutating} data-testid="memory-edit-save">
               <Icon icon={Save} size={11} /> {t('memory.save')}
             </button>
             <button type="button" className={s.cancelBtnSmall} onClick={onCancel}>
@@ -71,7 +78,7 @@ export function MemoryRow({
               type="button"
               className={s.actionBtn}
               onClick={onEdit}
-              title={t('memory.edit')}
+              title={t(hasDraft ? 'memory.resumeEdit' : 'memory.edit')}
             >
               <Icon icon={Plus} size={11} />
             </button>
@@ -79,7 +86,8 @@ export function MemoryRow({
               type="button"
               className={`${s.actionBtn} ${s.actionBtnDanger}`}
               onClick={onRemove}
-              title={t('memory.delete')}
+              disabled={isMutating}
+              title={removeTitle ?? t('memory.delete')}
               data-testid="memory-remove"
             >
               <Icon icon={Trash2} size={11} />

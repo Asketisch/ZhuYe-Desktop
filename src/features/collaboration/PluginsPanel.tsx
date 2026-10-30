@@ -3,7 +3,7 @@
  *
  * 此前 GUI 只能看到插件带来的 slash 命令,**装了什么、哪个加载失败、
  * 启用哪些、marketplace 有哪些全部不可见** —— 只能手改
- * `~/.reflect/config.toml` 的 `[plugins] enabled_plugins` 与
+ * `~/.zhuye/config.toml` 的 `[plugins] enabled_plugins` 与
  * `installed_plugins.json`。
  *
  * 面板提供:
@@ -20,7 +20,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, FolderOpen, Trash2, Power } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, Icon, Input, Select, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import { useAgentStore } from '@/stores/agentStore';
 import {
   reflect_install_plugin,
   reflect_list_marketplaces,
@@ -34,6 +33,12 @@ import s from './CollaborationView.module.css';
 
 const SCOPES: ReflectPluginScope[] = ['user', 'project', 'local', 'managed'];
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg;
+  return String(error);
+}
+
 export function PluginsPanel() {
   const { t } = useI18n();
   const qc = useQueryClient();
@@ -41,14 +46,12 @@ export function PluginsPanel() {
   const [path, setPath] = useState('');
   const [marketplace, setMarketplace] = useState('local');
   const [scope, setScope] = useState<ReflectPluginScope>('user');
-  // 运行时**实际挂载**成功的插件(核心 `plugin_loaded` 事件)—— 与下面的
-  // 「配置里装了哪些」是两件事。
-  const loadedPlugins = useAgentStore((st) => st.loadedPlugins);
-
+  const [actionError, setActionError] = useState<string | null>(null);
   const pluginsQ = useQuery({
     queryKey: ['plugins'],
     queryFn: () => reflect_list_plugins(),
     staleTime: 10_000,
+    refetchInterval: 5_000,
   });
   const marketsQ = useQuery({
     queryKey: ['plugin-marketplaces'],
@@ -63,20 +66,26 @@ export function PluginsPanel() {
   const toggleMut = useMutation({
     mutationFn: (v: { id: string; enabled: boolean }) =>
       reflect_toggle_plugin(v.id, v.enabled),
-    onSuccess: invalidate,
+    onMutate: () => setActionError(null),
+    onError: (error) => setActionError(errorMessage(error)),
+    onSettled: invalidate,
   });
   const uninstallMut = useMutation({
     mutationFn: (v: { id: string; scope: ReflectPluginScope }) =>
       reflect_uninstall_plugin(v.id, v.scope),
-    onSuccess: invalidate,
+    onMutate: () => setActionError(null),
+    onError: (error) => setActionError(errorMessage(error)),
+    onSettled: invalidate,
   });
   const installMut = useMutation({
     mutationFn: (v: { path: string; marketplace: string; scope: ReflectPluginScope }) =>
       reflect_install_plugin(v.path, v.marketplace, v.scope),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
+  const busy = toggleMut.isPending || uninstallMut.isPending || installMut.isPending;
 
   const plugins = pluginsQ.data ?? [];
+  const loadedPlugins = pluginsQ.isError ? [] : plugins.flatMap((plugin) => plugin.runtime ? [plugin.runtime] : []);
   const markets = marketsQ.data ?? [];
 
   const browse = async () => {
@@ -144,24 +153,29 @@ export function PluginsPanel() {
           <Button
             size="sm"
             variant="primary"
-            disabled={installMut.isPending || !path.trim()}
+            disabled={busy || !path.trim()}
             onClick={() =>
-              void installMut.mutateAsync({ path: path.trim(), marketplace: marketplace.trim(), scope })
+              installMut.mutate({ path: path.trim(), marketplace: marketplace.trim(), scope })
             }
             data-testid="plugin-install-submit"
           >
             {t('collaboration.pluginInstallSubmit')}
           </Button>
           {installMut.isError && (
-            <p className={s.error} data-testid="plugin-install-error">
-              {(installMut.error as Error).message}
+            <p className={s.errorText} role="alert" data-testid="plugin-install-error">
+              {errorMessage(installMut.error)}
             </p>
           )}
         </Card>
       )}
 
-      {/* 运行时已挂载 —— 核心 `plugin_loaded` 事件驱动。配置里「启用了」
-          不等于运行时真的挂上了(挂载失败/被 scope 过滤时不会到这)。 */}
+      {actionError && (
+        <p className={s.errorText} role="alert" data-testid="plugin-action-error">
+          {actionError}
+        </p>
+      )}
+
+      {/* 运行时快照只包含当前会话加载成功的插件。 */}
       {loadedPlugins.length > 0 && (
         <ul className={s.serverList} data-testid="plugin-loaded-list">
           {loadedPlugins.map((p) => (
@@ -170,7 +184,7 @@ export function PluginsPanel() {
               <span className={s.serverDetail}>
                 {p.version || t('collaboration.pluginNoVersion')}
                 {p.scope ? ` · ${p.scope}` : ''}
-                {` · ${p.skillCount} skills · ${p.commandCount} cmds`}
+                {` · ${p.skill_count} skills · ${p.command_count} cmds`}
               </span>
               <Badge variant="success">{t('collaboration.pluginLoaded')}</Badge>
             </li>
@@ -181,6 +195,8 @@ export function PluginsPanel() {
       {pluginsQ.isLoading ? (        <div className={s.loading}>
           <Spinner size={18} />
         </div>
+      ) : pluginsQ.isError ? (
+        <p className={s.errorText} role="alert">{errorMessage(pluginsQ.error)}</p>
       ) : plugins.length === 0 ? (
         <Card level="flat" padding="none">
           <EmptyState
@@ -203,29 +219,34 @@ export function PluginsPanel() {
               <Badge variant={p.enabled ? 'success' : 'neutral'}>
                 {p.enabled ? t('collaboration.pluginEnabled') : t('collaboration.pluginDisabled')}
               </Badge>
-              <button
-                type="button"
-                className={s.actionBtn}
-                onClick={() => void toggleMut.mutateAsync({ id: p.id, enabled: !p.enabled })}
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => toggleMut.mutate({ id: p.id, enabled: !p.enabled })}
                 title={p.enabled ? t('collaboration.pluginDisable') : t('collaboration.pluginEnable')}
+                aria-label={p.enabled ? t('collaboration.pluginDisable') : t('collaboration.pluginEnable')}
                 data-testid={`plugin-toggle-${p.id}`}
               >
                 <Icon icon={Power} size={12} />
-              </button>
-              <button
-                type="button"
-                className={s.actionBtn}
-                onClick={() => void uninstallMut.mutateAsync({ id: p.id, scope: p.scope })}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => uninstallMut.mutate({ id: p.id, scope: p.scope })}
                 title={t('collaboration.pluginUninstall')}
+                aria-label={t('collaboration.pluginUninstall')}
                 data-testid={`plugin-uninstall-${p.id}`}
               >
                 <Icon icon={Trash2} size={12} />
-              </button>
+              </Button>
             </Card>
           ))}
         </div>
       )}
 
+      {marketsQ.isError && <p className={s.errorText} role="alert">{errorMessage(marketsQ.error)}</p>}
       {markets.length > 0 && (
         <div className={s.mcpCatalog} data-testid="plugin-marketplaces">
           {markets.map((m) => (

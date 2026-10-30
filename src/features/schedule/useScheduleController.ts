@@ -20,9 +20,16 @@ import {
   type ReflectScheduleStatus,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
 
 export const SCHEDULE_QUERY_KEY = ['schedules'] as const;
 const SCHEDULE_STALE_MS = 15_000;
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg;
+  return String(error);
+}
 
 export interface ScheduleController {
   // 查询
@@ -53,6 +60,7 @@ export interface ScheduleController {
 export function useScheduleController(): ScheduleController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { t } = useI18n();
 
   const [showForm, setShowForm] = useState(false);
   const [newSchedule, setNewSchedule] = useState('0 * * * *');
@@ -103,11 +111,11 @@ export function useScheduleController(): ScheduleController {
     const schedule = newSchedule.trim();
     const prompt = newPrompt.trim();
     if (!schedule) {
-      pushToast({ kind: 'warn', message: 'Schedule (cron expr) is required.' });
+      pushToast({ kind: 'warn', message: t('schedule.errorCronRequired') });
       return;
     }
     if (!prompt) {
-      pushToast({ kind: 'warn', message: 'Prompt is required.' });
+      pushToast({ kind: 'warn', message: t('schedule.errorPromptRequired') });
       return;
     }
     try {
@@ -116,17 +124,17 @@ export function useScheduleController(): ScheduleController {
         prompt,
         name: newName.trim() || undefined,
       });
-      pushToast({ kind: 'success', message: `Scheduled “${schedule}”` });
+      pushToast({ kind: 'success', message: t('schedule.created', { schedule }) });
       setNewPrompt('');
       setNewName('');
       setShowForm(false);
     } catch (e) {
       pushToast({
         kind: 'error',
-        message: `Schedule failed: ${(e as Error).message}`,
+        message: t('schedule.createFailed', { message: errorMessage(e) }),
       });
     }
-  }, [addMut, newName, newPrompt, newSchedule, pushToast]);
+  }, [addMut, newName, newPrompt, newSchedule, pushToast, t]);
 
   const toggle = useCallback(
     async (job: ReflectCronJob) => {
@@ -134,31 +142,31 @@ export function useScheduleController(): ScheduleController {
         await updateMut.mutateAsync({ id: job.id, enabled: !job.enabled });
         pushToast({
           kind: 'success',
-          message: `${job.enabled ? 'Disabled' : 'Enabled'} ${job.name ?? job.id}`,
+          message: t(job.enabled ? 'schedule.disabledToast' : 'schedule.enabledToast', { name: job.name ?? job.id }),
         });
       } catch (e) {
         pushToast({
           kind: 'error',
-          message: `Toggle failed: ${(e as Error).message}`,
+          message: t('schedule.toggleFailed', { message: errorMessage(e) }),
         });
       }
     },
-    [updateMut, pushToast],
+    [updateMut, pushToast, t],
   );
 
   const remove = useCallback(
     async (job: ReflectCronJob) => {
       try {
-        await removeMut.mutateAsync({ id: job.id });
-        pushToast({ kind: 'success', message: `Removed ${job.name ?? job.id}` });
+        const removed = await removeMut.mutateAsync({ id: job.id });
+        pushToast({ kind: removed ? 'success' : 'warn', message: t(removed ? 'schedule.removed' : 'schedule.alreadyRemoved', { name: job.name ?? job.id }) });
       } catch (e) {
         pushToast({
           kind: 'error',
-          message: `Remove failed: ${(e as Error).message}`,
+          message: t('schedule.removeFailed', { message: errorMessage(e) }),
         });
       }
     },
-    [removeMut, pushToast],
+    [removeMut, pushToast, t],
   );
 
   return {

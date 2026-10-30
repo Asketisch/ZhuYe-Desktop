@@ -1,14 +1,14 @@
 //! 子代理 spec 的列表 / 编辑 —— `call_<role>` 工具的来源。
 //!
 //! 此前 GUI 里有两套容易混淆的东西:
-//! - `~/.reflect/agents/*.md` —— **agent 定义**(主 agent 的 system prompt /
+//! - `~/.zhuye/agents/*.md` —— **agent 定义**(主 agent 的 system prompt /
 //!   工具白名单),由 Agents 视图管理;
-//! - `~/.reflect/subagents/*.md` —— **子代理 spec**(`call_<role>` 工具的
+//! - `~/.zhuye/subagents/*.md` —— **子代理 spec**(`call_<role>` 工具的
 //!   来源),**没有任何编辑面**。
 //!
 //! 合并口径与运行时同款(`reflect-exec` 的 `bootstrap_m5`):
-//! **TOML `[[subagents]]` > workspace `.reflect/subagents/*.md` >
-//! home `~/.reflect/subagents/*.md` > 硬编码 explorer**。
+//! **TOML `[[subagents]]` > workspace `.zhuye/subagents/*.md` >
+//! home `~/.zhuye/subagents/*.md` > 硬编码 explorer**。
 //!
 //! 文件格式:顶部 `---` 界定的 YAML frontmatter + body(正文作
 //! `system_prompt` 兜底)—— 由核心的 `parse_subagent_str` 解析。
@@ -28,9 +28,9 @@ use crate::state::MinimalAgent;
 pub enum SubagentSpecSource {
     /// config.toml 的 `[[subagents]]`。
     Config,
-    /// `<workspace>/.reflect/subagents/*.md`。
+    /// `<workspace>/.zhuye/subagents/*.md`。
     Workspace,
-    /// `~/.reflect/subagents/*.md`。
+    /// `~/.zhuye/subagents/*.md`。
     User,
     /// 运行时硬编码的 explorer(全部源为空时的兜底)。
     Builtin,
@@ -66,15 +66,17 @@ pub async fn reflect_list_subagent_specs(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<SubagentSpecInfo>> {
     let cfg = agent.inner.cfg.read().clone();
-    let home = dirs::home_dir().unwrap_or_default();
     let mut merged: std::collections::BTreeMap<String, SubagentSpecInfo> =
         std::collections::BTreeMap::new();
 
     // 优先级从低到高:home md → workspace md → TOML。
     for (dir, source) in [
-        (home.join(".reflect/subagents"), SubagentSpecSource::User),
         (
-            agent.workspace().join(".reflect/subagents"),
+            reflect_app_core::paths::user_data_path_or_relative(&["subagents"]),
+            SubagentSpecSource::User,
+        ),
+        (
+            reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"]),
             SubagentSpecSource::Workspace,
         ),
     ] {
@@ -119,7 +121,7 @@ pub async fn reflect_list_subagent_specs(
     Ok(merged.into_values().collect())
 }
 
-/// 保存一个子代理 spec(写到工作区 `.reflect/subagents/<role>.md`)。
+/// 保存一个子代理 spec(写到工作区 `.zhuye/subagents/<role>.md`)。
 ///
 /// `markdown` 是完整文件内容(frontmatter + body)—— 格式与核心的
 /// `parse_subagent_str` 一致。写前**先解析校验**:非法 frontmatter 直接
@@ -135,7 +137,7 @@ pub async fn reflect_save_subagent_spec(
     let parsed = reflect_subagent::parse_subagent_str(&markdown).map_err(|e| CommandError {
         msg: format!("invalid subagent spec: {e}"),
     })?;
-    let dir = agent.workspace().join(".reflect/subagents");
+    let dir = reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"]);
     std::fs::create_dir_all(&dir)?;
     let path = dir.join(format!("{role}.md"));
     std::fs::write(&path, markdown)?;
@@ -150,9 +152,7 @@ pub async fn reflect_delete_subagent_spec(
     role: String,
 ) -> CommandResult<()> {
     validate_role(&role)?;
-    let path = agent
-        .workspace()
-        .join(".reflect/subagents")
+    let path = reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"])
         .join(format!("{role}.md"));
     if path.exists() {
         std::fs::remove_file(&path)?;
@@ -167,9 +167,7 @@ pub async fn reflect_get_subagent_spec(
     role: String,
 ) -> CommandResult<Option<String>> {
     validate_role(&role)?;
-    let path = agent
-        .workspace()
-        .join(".reflect/subagents")
+    let path = reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"])
         .join(format!("{role}.md"));
     Ok(std::fs::read_to_string(path).ok())
 }

@@ -15,18 +15,19 @@ const MEMORY_SCOPES: ReflectMemoryScope[] = ['project', 'user', 'session'];
 
 export interface AgentEditorProps {
   draft: ReflectAgentDef;
+  isCreating: boolean;
+  isSaving: boolean;
   onPatch: (patch: Partial<ReflectAgentDef>) => void;
   onSave: () => void;
   onCancel: () => void;
 }
 
-export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorProps) {
+export function AgentEditor({ draft, isCreating, isSaving, onPatch, onSave, onCancel }: AgentEditorProps) {
   const { t } = useI18n();
-  const isNew = !draft.name;
   return (
     <Card level="outlined" padding="md" className={s.editor} data-testid="agent-editor">
       <div className={s.editorHeader}>
-        <strong>{isNew ? t('agents.newAgent') : t('agents.editAgent', { name: draft.name })}</strong>
+        <strong>{isCreating ? t('agents.newAgent') : t('agents.editAgent', { name: draft.name })}</strong>
         <div className={s.editorActions}>
           <button
             type="button"
@@ -40,6 +41,7 @@ export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorPro
             type="button"
             className={s.saveBtn}
             onClick={onSave}
+            disabled={isSaving}
             data-testid="agent-editor-save"
           >
             <Icon icon={Save} size={12} /> {t('agents.save')}
@@ -61,7 +63,7 @@ export function AgentEditor({ draft, onPatch, onSave, onCancel }: AgentEditorPro
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPatch({ name: e.target.value })}
             placeholder={t('agents.namePlaceholder')}
             data-testid="agent-editor-name"
-            disabled={!isNew}
+            disabled={!isCreating || isSaving}
           />
         </label>
 

@@ -74,7 +74,7 @@ pnpm tauri dev           # 开发模式（热重载）
 - Editor：vim 开关（占位）
 - Provider：default provider 切换
 
-修改即时落 `~/.reflect/config.toml` 并触发 `ConfigWatcher`（M2.x）。
+修改即时落 `~/.zhuye/config.toml` 并触发 `ConfigWatcher`（M2.x）。
 
 ## 6. 与 TUI 的差异
 

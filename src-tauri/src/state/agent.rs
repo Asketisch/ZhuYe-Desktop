@@ -102,6 +102,14 @@ pub(crate) async fn resolve_model_spec_with_discovery(
 pub(crate) struct MinimalAgentInner {
     /// `Option` 因为 `new_empty` 时还没建。
     pub(crate) thread: ParkingMutex<Option<Arc<AgentThread>>>,
+    /// 配置写入及包含异步回放的会话切换各自串行。
+    pub(crate) rebind_lock: ParkingMutex<()>,
+    pub(crate) config_write_lock: tokio::sync::Mutex<()>,
+    pub(crate) session_transition_lock: tokio::sync::Mutex<()>,
+    pub(crate) recorder_gates: ParkingMutex<
+        std::collections::HashMap<ThreadId, std::sync::Weak<super::recorder_guard::RecorderGate>>,
+    >,
+    pub(crate) memory_write_lock: tokio::sync::Mutex<()>,
     /// 会话事件广播 — 多个 Tauri command / webview 可各自订阅。
     pub(crate) session_tx: broadcast::Sender<Event>,
     /// 共享 config —— 热重载 / settings 读写命令共用。
@@ -114,21 +122,29 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) workspace: PathBuf,
     /// 降级原因(无 API key 等);None 表示正常就绪。
     pub(crate) degraded_reason: ParkingMutex<Option<String>>,
+    pub(crate) pending_rebind_error: ParkingMutex<Option<String>>,
+    pub(crate) pending_plugin_reload_error: ParkingMutex<Option<String>>,
+    pub(crate) pending_model_discovery_error: ParkingMutex<Option<String>>,
     pub(crate) shell_sessions: crate::shell_sessions::ShellSessions,
     pub(crate) memory_store: crate::memory_store::MemoryStore,
     pub(crate) hook_store: crate::hook_store::HookStore,
     /// Task/Team 管理器(供多 agent 命令面调用)。
-    /// 复用 reflect-agent/crates/orchestration/reflect-task 默认 home(`~/.reflect`),与 TUI/CLI 共享数据。
+    /// 复用 reflect-agent/crates/orchestration/reflect-task 默认 home(`~/.zhuye`),与 TUI/CLI 共享数据。
     /// 初始形态:无 hook_engine / event_sink;后续把 TaskCreated/Completed
     /// 事件推前端时再 `with_event_sink`。
     pub(crate) task_manager: Arc<reflect_task::TaskManager>,
+    pub(crate) task_hook_target: super::task_hooks::HookTarget,
+    pub(crate) plugin_hook_slot: ParkingMutex<Option<super::plugin_hooks::PluginHookSlot>>,
+    pub(crate) mounted_plugin_bridge:
+        ParkingMutex<Option<Arc<super::plugin_hooks::PluginHookBridge>>>,
+    pub(crate) plugin_runtime_context: ParkingMutex<Option<super::plugins::PluginRuntimeContext>>,
     /// Cron 调度器。`None` 直到 `install_agent_thread`
     /// 把真 `AgentThread::submission_sender()` 注入(driver 才能真正触发);
     /// 此前 CRUD 仍可用(命令层读 `RwLock`,只是无后台 driver)。
     pub(crate) cron_scheduler: parking_lot::RwLock<Option<reflect_stream::cron::CronScheduler>>,
     /// Side-channel registry:每个 side-channel 持有独立
     /// `CancelToken`,主 agent 的 cancel 不会传播到 side-channel。事件流
-    /// 经 `subscribe_events()` → Tauri `reflect_event` channel 推前端。
+    /// 前端目前通过命令查询快照，事件转发尚未接线。
     pub(crate) side_channels: reflect_app_core::side_channel::SideChannelRegistry,
     /// Remote mode config:iOS / 远端 daemon 连接的目标
     /// (host + port + auth_token) 与运行时状态。进程内存储,重启重置
@@ -165,19 +181,16 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) cron_driver: ParkingMutex<Option<reflect_stream::cron::CronDriverHandle>>,
     /// LSP 连接管理器(按工作区由用户手动开启;None = 未启用)。
     pub(crate) lsp_manager: ParkingMutex<Option<std::sync::Arc<reflect_lsp::LspConnectionManager>>>,
-    /// MCP 连接管理器句柄。v1.6 接线:bootstrap_mcp 的返回值此前被
-    /// `let _ =` 丢弃 —— MCP meta 工具(ListMcpResources / ReadMcpResource
-    /// / ListMcpPrompts / GetMcpPrompt)全部需要持有 manager,导致
-    /// Desktop 一直无法 list/read MCP resources / prompts。install 时
-    /// 写入;None = 未启用(config 无 [mcp_servers] 或 bootstrap 失败)。
+    /// MCP 连接管理器句柄；安装期间创建，即使没有配置服务也保留空管理器。
     pub(crate) mcp_manager: ParkingMutex<Option<std::sync::Arc<reflect_mcp::McpConnectionManager>>>,
+    pub(crate) mcp_tools: crate::mcp::McpTools,
+    pub(crate) mcp_invoked_tx: ParkingMutex<Option<tokio::sync::mpsc::Sender<Event>>>,
     /// 插件运行时句柄(exec/serve 同款 `SharedPluginRuntime`;内层 `None`
     /// = 未挂载:占位线程、HOME 缺失或 plugins 目录不存在)。真实会话
     /// rebind 时由 `state/plugins.rs::spawn_mount` 卸旧装新;submit 边界
     /// 用它展开 `/plugin:*` 命令。
     pub(crate) plugin_runtime: reflect_plugin::SharedPluginRuntime,
-    /// 插件挂载串行锁:并发 rebind 的「卸旧→装新→写句柄」在此互斥,
-    /// 保证句柄最终属于最后一次 rebind 的线程。
+    /// 插件挂载与配置更新共用的串行锁。
     pub(crate) plugin_mount_lock: Arc<tokio::sync::Mutex<()>>,
     /// 应用句柄(生产运行时由 setup 注入一次)。
     ///
@@ -218,9 +231,9 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let (session_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let cfg = reflect_app_core::sandbox::load_config_with_sandbox_baseline();
-    // Task/Team 存储复用 核心 crate 默认 home(REFLECT_HOME 或 $HOME/.reflect),
-    // 与 TUI/CLI 共享 `~/.reflect/tasks/` 与 `~/.reflect/teams/`。
-    // home 解析失败时回退到 cwd 下的 `.reflect`,保证进程仍可启动(命令会报 I/O 错)。
+    // Task/Team 存储复用核心 crate 默认 home（`$ZHUYE_HOME` > `$HOME/.zhuye`），
+    // 与 CLI 共享 `~/.zhuye/tasks/` 与 `~/.zhuye/teams/`。
+    // home 解析失败时回退到 cwd 下的 `.zhuye`,保证进程仍可启动(命令会报 I/O 错)。
     let task_store = Arc::new(
         reflect_task::FileTaskStore::with_default_home()
             .unwrap_or_else(|_| reflect_task::FileTaskStore::new(".")),
@@ -229,7 +242,10 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         reflect_task::FileTeamStore::with_default_home()
             .unwrap_or_else(|_| reflect_task::FileTeamStore::new(".")),
     );
-    let task_manager = Arc::new(reflect_task::TaskManager::new(task_store, team_store));
+    let (task_hook_engine, task_hook_target) = super::task_hooks::task_hook_bridge();
+    let task_manager = Arc::new(
+        reflect_task::TaskManager::new(task_store, team_store).with_hook_engine(task_hook_engine),
+    );
     // Cron scheduler 初始为 None;install_agent_thread 注入真 sender 后重建。
     let cron_scheduler = parking_lot::RwLock::new(None);
     let side_channels = reflect_app_core::side_channel::SideChannelRegistry::new();
@@ -243,16 +259,28 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     )));
     MinimalAgentInner {
         thread: ParkingMutex::new(None),
+        rebind_lock: ParkingMutex::new(()),
+        config_write_lock: tokio::sync::Mutex::new(()),
+        session_transition_lock: tokio::sync::Mutex::new(()),
+        recorder_gates: ParkingMutex::new(std::collections::HashMap::new()),
+        memory_write_lock: tokio::sync::Mutex::new(()),
         session_tx,
         cfg: Arc::new(RwLock::new(cfg)),
         tools: Arc::new(ToolRegistry::new()),
         model_spec: RwLock::new("stub/test".to_string()),
         workspace,
         degraded_reason: ParkingMutex::new(None),
+        pending_rebind_error: ParkingMutex::new(None),
+        pending_plugin_reload_error: ParkingMutex::new(None),
+        pending_model_discovery_error: ParkingMutex::new(None),
         shell_sessions: crate::shell_sessions::ShellSessions::default(),
         memory_store: crate::memory_store::MemoryStore,
         hook_store: crate::hook_store::HookStore::default(),
         task_manager,
+        task_hook_target,
+        plugin_hook_slot: ParkingMutex::new(None),
+        mounted_plugin_bridge: ParkingMutex::new(None),
+        plugin_runtime_context: ParkingMutex::new(None),
         cron_scheduler,
         side_channels,
         remote_config,
@@ -266,6 +294,8 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         cron_driver: ParkingMutex::new(None),
         lsp_manager: ParkingMutex::new(None),
         mcp_manager: ParkingMutex::new(None),
+        mcp_tools: crate::mcp::McpTools::default(),
+        mcp_invoked_tx: ParkingMutex::new(None),
         plugin_runtime: reflect_plugin::empty_plugin_runtime(),
         plugin_mount_lock: Arc::new(tokio::sync::Mutex::new(())),
         app_handle: RwLock::new(None),
@@ -432,7 +462,7 @@ mod tests {
         assert!(!status.ready, "thread not installed yet");
     }
 
-    /// 验证 ReflectConfig 真实加载:从 ~/.reflect/config.toml + env 读到非空 cfg。
+    /// 验证 ReflectConfig 真实加载:从 ~/.zhuye/config.toml + env 读到非空 cfg。
     /// 这是 settings UI 显示的源数据;若 cfg 加载失败,整个 settings 页会空。
     #[test]
     fn cfg_loads_from_real_config() {
@@ -441,7 +471,7 @@ mod tests {
         let cfg = cfg_handle.read();
         // active_provider() 要么从 [active] provider 读到 "anthropic" 等,
         // 要么从 env(OPENAI_API_KEY / ANTHROPIC_API_KEY)推断。
-        // CI 无配置时为 None,本地开发机通常有 ~/.reflect/config.toml。
+        // CI 无配置时为 None,本地开发机通常有 ~/.zhuye/config.toml。
         let providers_count = cfg.active_provider().is_some() as u32;
         assert!(
             providers_count <= 1,

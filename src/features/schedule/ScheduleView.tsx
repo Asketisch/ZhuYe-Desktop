@@ -48,6 +48,7 @@ export function ScheduleView() {
         </>
       }
     >
+      <Card level="outlined" padding="md"><p role="status">{t('schedule.runtimeNotice')}</p></Card>
       {/* Create form */}
       {ctrl.showForm && (
         <form
@@ -79,7 +80,7 @@ export function ScheduleView() {
             onChange={(e) => ctrl.setNewName(e.target.value)}
             data-testid="schedule-create-name"
           />
-          <button type="submit" className={s.saveBtn} data-testid="schedule-create-submit">
+          <button type="submit" className={s.saveBtn} disabled={ctrl.isMutating} data-testid="schedule-create-submit">
             <Icon icon={Plus} size={12} /> {t('schedule.create')}
           </button>
         </form>
@@ -127,6 +128,7 @@ export function ScheduleView() {
                   <button
                     type="button"
                     className={s.actionBtn}
+                    disabled={ctrl.isMutating}
                     onClick={() => void ctrl.toggle(job)}
                     title={job.enabled ? t('schedule.disable') : t('schedule.enable')}
                     data-testid={`schedule-toggle-${job.id}`}
@@ -136,6 +138,7 @@ export function ScheduleView() {
                   <button
                     type="button"
                     className={`${s.actionBtn} ${s.actionBtnDanger}`}
+                    disabled={ctrl.isMutating}
                     onClick={() => void ctrl.remove(job)}
                     title={t('schedule.remove')}
                     data-testid={`schedule-remove-${job.id}`}

@@ -21,7 +21,7 @@ export interface SandboxStatus {
   statusLine: string;
   /** 生效开关(env 优先;未设置 env 时 = `osLevel`)。 */
   enabled: boolean;
-  /** 进程 env `REFLECT_SANDBOX_OS_LEVEL` 的原始值(若用户显式设过)。 */
+  /** 进程 env `ZHUYE_SANDBOX_OS_LEVEL` 的原始值(若用户显式设过)。 */
   envOverride: string | null;
 }
 

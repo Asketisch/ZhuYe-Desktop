@@ -60,4 +60,20 @@ describe('useComposerDraft', () => {
 
     expect(localStorage.getItem(draftKeyFor(null))).toBe('新对话草稿');
   });
+  it('only clears the submitted session draft if its content has not changed', () => {
+    const { result, rerender, unmount } = renderHook(({ id }) => useComposerDraft(id),
+      { initialProps: { id: 'a' as string | null } });
+    act(() => result.current.setText('original'));
+    act(() => result.current.setText('new edit'));
+    act(() => result.current.clearSubmittedDraft('original', 'a'));
+    expect(result.current.text).toBe('new edit');
+    rerender({ id: 'b' });
+    act(() => result.current.setText('other session'));
+    const clear = result.current.clearSubmittedDraft;
+    unmount();
+    clear('new edit', 'a');
+    expect(localStorage.getItem(draftKeyFor('a'))).toBeNull();
+    expect(localStorage.getItem(draftKeyFor('b'))).toBe('other session');
+  });
+
 });

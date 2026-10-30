@@ -2,7 +2,7 @@
  * 提示词层(prompt library)IPC 包装。
  *
  * 薄包装 `reflect_prompt_command` → `Op::PromptCommand`(v1.6.1)。
- * 提示词按模型自动匹配外置到 `.reflect/prompts/*.md`;引擎侧两个动作
+ * 提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`;引擎侧两个动作
  * 都不开 turn,应答经单一 `reflect_event` 通道回流:
  * - `list`  → `EventMsg::PromptList`(可用层 + 生效层)
  * - `switch`→ `EventMsg::PromptSwitched`(重扫完成 + 新命中层)

@@ -7,7 +7,7 @@
  * 没有派生 `rename_all = "camelCase"`);只有 `TaskUpdateResult` 信封采用
  * camelCase(见 `commands/tasks.rs`)。
  *
- * 存储复用:数据位于 `~/.reflect/tasks/<list>/<id>.json`,与 TUI/CLI 共享。
+ * 存储复用:数据位于 `~/.zhuye/tasks/<list>/<id>.json`,与 TUI/CLI 共享。
  */
 import { invoke } from '../bridge';
 

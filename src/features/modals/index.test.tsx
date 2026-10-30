@@ -50,8 +50,7 @@ describe('ModalStack', () => {
 
     // 点 Approve(primary)。
     fireEvent.click(screen.getByText('Approve'));
-    // store action 乐观移除该 pending。
-    expect(useAgentStore.getState().pendingApprovals.length).toBe(0);
+    await waitFor(() => expect(useAgentStore.getState().pendingApprovals.length).toBe(0));
   });
 
   it('renders AskUserModal and submits text', async () => {
@@ -65,7 +64,24 @@ describe('ModalStack', () => {
     const textarea = screen.getByPlaceholderText('Type here...') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'Alice' } });
     fireEvent.click(screen.getByText('Submit'));
-    expect(useAgentStore.getState().pendingAskUser.length).toBe(0);
+    await waitFor(() => expect(useAgentStore.getState().pendingAskUser.length).toBe(0));
+  });
+
+  it('keeps a failed approval open and allows retry', async () => {
+    let attempt = 0;
+    mockInvoke('reflect_tool_approval', async () => {
+      if (++attempt === 1) throw new Error('connection failed');
+      return 'sub-1';
+    });
+    useAgentStore.setState({ pendingApprovals: [
+      { id: 'a1', kind: 'tool', toolName: 'bash', argsSummary: 'ls', turnId: 't1' },
+    ] });
+    render(wrap(<ModalStack />));
+    fireEvent.click(screen.getByText('Approve'));
+    expect((await screen.findByRole('alert')).textContent).toContain('connection failed');
+    expect(useAgentStore.getState().pendingApprovals).toHaveLength(1);
+    fireEvent.click(screen.getByText('Approve'));
+    await waitFor(() => expect(useAgentStore.getState().pendingApprovals).toHaveLength(0));
   });
 
   // —— 「始终允许这条命令」(写进核心的用户级权限文件)——
@@ -106,6 +122,44 @@ describe('ModalStack', () => {
     await waitFor(() => {
       expect(useAgentStore.getState().pendingApprovals.length).toBe(0);
     });
+  });
+
+  it('保存永久规则期间禁止其他审批操作并显示原命令', async () => {
+    let finish!: () => void;
+    const approval = vi.fn(async () => 'sub-1');
+    mockInvoke('reflect_add_permission_rule', () => new Promise<void>((resolve) => { finish = resolve; }));
+    mockInvoke('reflect_tool_approval', approval);
+    useAgentStore.setState({ pendingApprovals: [{
+      id: 'a1', kind: 'tool', toolName: 'bash', argsSummary: 'echo *', args: { cmd: 'echo *' }, turnId: 't1',
+    }] });
+    render(wrap(<ModalStack />));
+    const permanent = screen.getByTestId('approval-allow-always');
+    expect(permanent.textContent).toContain('echo *');
+    fireEvent.click(permanent);
+    expect((screen.getByText('Deny') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByText('Deny'));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(approval).not.toHaveBeenCalled();
+    finish();
+    await waitFor(() => expect(approval).toHaveBeenCalledTimes(1));
+  });
+
+  it('普通审批进行中不能同时写入永久规则', async () => {
+    let finish!: (value: string) => void;
+    const addRule = vi.fn(async () => undefined);
+    mockInvoke('reflect_add_permission_rule', addRule);
+    mockInvoke('reflect_tool_approval', () => new Promise<string>((resolve) => { finish = resolve; }));
+    useAgentStore.setState({ pendingApprovals: [{
+      id: 'a1', kind: 'tool', toolName: 'bash', argsSummary: 'echo x', args: { cmd: 'echo x' }, turnId: 't1',
+    }] });
+    render(wrap(<ModalStack />));
+    fireEvent.click(screen.getByText('Deny'));
+    const permanent = screen.getByTestId('approval-allow-always') as HTMLButtonElement;
+    expect(permanent.disabled).toBe(true);
+    fireEvent.click(permanent);
+    expect(addRule).not.toHaveBeenCalled();
+    finish('sub-1');
+    await waitFor(() => expect(useAgentStore.getState().pendingApprovals).toHaveLength(0));
   });
 
   it('写类工具审批不出现「始终允许」入口(核心规则模型没有路径维度)', () => {

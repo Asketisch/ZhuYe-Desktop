@@ -86,6 +86,10 @@ describe('IPC command contract (exhaustive parity)', () => {
       'reflect_tailscale_daemon_command_preview',
     ];
     for (const name of readOnly) {
+      if (name === 'reflect_kms_list_pages') {
+        await commands.reflect_kms_list_pages('engineering');
+        continue;
+      }
       const fn = (commands as unknown as Record<string, () => unknown>)[name];
       await fn(); // 若 fakeBackend 未注册 → mock invoke 抛错 → 测试失败
     }
@@ -248,8 +252,15 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
     await commands.reflect_add_memory('project', 'test-cmd', 'pnpm test');
     expect(backend.lastArgsOf('reflect_add_memory')).toEqual({ scope: 'project', key: 'test-cmd', value: 'pnpm test' });
     expect(backend.state.memory.length).toBe(3);
+    await expect(commands.reflect_add_memory('project', 'test-cmd', 'overwrite', { createOnly: true })).rejects.toThrow('already exists');
+    await commands.reflect_add_memory('project', 'test-cmd', 'updated');
+    expect(backend.state.memory.find((m) => m.key === 'test-cmd')?.value).toBe('updated');
 
-    await commands.reflect_remove_memory('project', 'test-cmd');
+    await expect(commands.reflect_add_memory('project', 'test-cmd', 'stale', { expectedValue: 'pnpm test' })).rejects.toThrow('changed or was removed');
+    await expect(commands.reflect_remove_memory('project', 'test-cmd', false, undefined, 'pnpm test')).rejects.toThrow('changed or was removed');
+    expect(backend.state.memory.find((m) => m.key === 'test-cmd')?.value).toBe('updated');
+
+    await commands.reflect_remove_memory('project', 'test-cmd', false, undefined, 'updated');
     expect(backend.state.memory.find((m) => m.key === 'test-cmd')).toBeUndefined();
   });
 
@@ -371,6 +382,8 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
   it('agent defs: save/delete by name', async () => {
     await commands.reflect_save_agent_def({ name: 'tester', description: '' } as never);
     expect(backend.callsOf('reflect_save_agent_def').at(-1)?.args).toMatchObject({ def: { name: 'tester' } });
+    await expect(commands.reflect_save_agent_def({ name: 'tester', description: 'replacement' } as never, true)).rejects.toThrow('already exists');
+    expect((await commands.reflect_get_agent_def('tester')).description).toBe('');
 
     await commands.reflect_delete_agent_def('reviewer');
     expect(backend.lastArgsOf('reflect_delete_agent_def')).toEqual({ name: 'reviewer' });
@@ -393,6 +406,8 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
       title: 'Auth',
       tags: ['sec'],
     });
+    await expect(commands.reflect_kms_save_page('engineering', 'auth.md', 'replacement', null, null, true)).rejects.toThrow('already exists');
+    expect((await commands.reflect_kms_get_page('engineering', 'auth.md')).content).toContain('# Auth');
 
     await commands.reflect_kms_search('jwt');
     expect(backend.lastArgsOf('reflect_kms_search')).toEqual({ query: 'jwt' });

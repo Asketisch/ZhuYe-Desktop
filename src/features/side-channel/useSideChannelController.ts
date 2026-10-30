@@ -23,6 +23,12 @@ import { useAgentStore } from '@/stores/agentStore';
 export const SIDECHANNEL_QUERY_KEY = ['side-channels'] as const;
 const SIDECHANNEL_STALE_MS = 5_000;
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'msg' in error && typeof error.msg === 'string') return error.msg;
+  return String(error);
+}
+
 export interface SideChannelController {
   // 查询
   channels: ReflectSideChannelInfo[];
@@ -74,7 +80,7 @@ export function useSideChannelController(): SideChannelController {
       void invalidate();
       pushToast({
         kind: 'success',
-        message: t('sideChannel.toastStarted', { id: res.id.slice(0, 11) }),
+        message: t('sideChannel.toastStarted', { id: res.id }),
       });
     },
   });
@@ -86,8 +92,8 @@ export function useSideChannelController(): SideChannelController {
       pushToast({
         kind: ok ? 'success' : 'warn',
         message: ok
-          ? t('sideChannel.toastCancelled', { id: id.slice(0, 11) })
-          : t('sideChannel.toastAlreadyFinished', { id: id.slice(0, 11) }),
+          ? t('sideChannel.toastCancelled', { id })
+          : t('sideChannel.toastAlreadyFinished', { id }),
       });
     },
   });
@@ -112,7 +118,7 @@ export function useSideChannelController(): SideChannelController {
     } catch (e) {
       pushToast({
         kind: 'error',
-        message: t('sideChannel.errorStart', { message: (e as Error).message }),
+        message: t('sideChannel.errorStart', { message: errorMessage(e) }),
       });
     }
   }, [agentName, prompt, pushToast, startMut, t]);
@@ -124,7 +130,7 @@ export function useSideChannelController(): SideChannelController {
       } catch (e) {
         pushToast({
           kind: 'error',
-          message: t('sideChannel.errorCancel', { message: (e as Error).message }),
+          message: t('sideChannel.errorCancel', { message: errorMessage(e) }),
         });
       }
     },

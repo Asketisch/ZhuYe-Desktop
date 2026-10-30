@@ -8,7 +8,7 @@
  *   - 'Settings' / 'Provider' / 'Permissions' / 'Advanced' 文字
  *   - 'Agent ready' 状态徽标
  *   - permission 按钮 'plan' 触发 reflect_set_permission_mode
- *   - 'Save to ~/.reflect/config.toml' 按钮触发 reflect_save_config
+ *   - 'Save to ~/.zhuye/config.toml' 按钮触发 reflect_save_config
  *
  * 实际渲染使用 ConfigForm —— 它覆盖了 ReflectConfig 的 25+ 配置段,
  * 见 reflect-agent/crates/resources/reflect-config/src/schema.rs。Advanced TOML 编辑器仍然是
@@ -52,7 +52,10 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   // 记录最近一次 seed 值与脏标记：只在缓冲未被修改（或刚保存成功）时接受刷新。
   const seededRef = useRef<string | null>(null);
   const dirtyRef = useRef(false);
+  const rawTomlRef = useRef(rawToml);
+  rawTomlRef.current = rawToml;
   const updateRawToml = useCallback((next: string) => {
+    rawTomlRef.current = next;
     setRawToml(next);
     dirtyRef.current = next !== seededRef.current;
   }, []);
@@ -81,13 +84,13 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
 
   const saveMutation = useMutation({
     mutationFn: async (toml: string) => reflect_save_config(toml),
-    onSuccess: () => {
+    onSuccess: (_result, savedToml) => {
       setSaved(true);
       setError(null);
       setTimeout(() => setSaved(false), 2500);
-      // 保存成功后以当前缓冲为基准，后续 refetch 可以安全覆盖。
-      seededRef.current = rawToml;
-      dirtyRef.current = false;
+      // 以实际提交的快照为基准，保留保存期间产生的新编辑。
+      seededRef.current = savedToml;
+      dirtyRef.current = rawTomlRef.current !== savedToml;
       qc.invalidateQueries({ queryKey: ['config'] });
       qc.invalidateQueries({ queryKey: ['agent-status'] });
     },

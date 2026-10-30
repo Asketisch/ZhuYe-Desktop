@@ -63,10 +63,12 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //     解析要打网络。解析失败 → 降级原因如实上报,model 落 `stub/test`
     //     —— 绝不落占位串 `"provider/free"`:那是发给 provider 的假模型名,
     //     表现为难诊断的「模型不存在」。
+    reflect_config::discovery::clear_catalog_cache();
     let (resolved_spec, discovery_error) =
         super::agent::resolve_model_spec_with_discovery(&cfg_snapshot, &registry).await;
     let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());
     *agent.inner.model_spec.write() = model_spec.clone();
+    *agent.inner.pending_model_discovery_error.lock() = discovery_error.clone();
     *agent.inner.degraded_reason.lock() =
         super::agent::compute_degraded_reason(&cfg_snapshot).or(discovery_error);
     // 3d. 解析完成后再发布 registry —— bind 命令在这之前一律拒绝。
@@ -75,10 +77,19 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     // 4. 构造占位 AgentThread(sid = None,不挂 recorder / 不固定 id)。
     //    占位 thread 给首条消息前的 health-check / 状态命令兜底;
     //    `reflect_bind_session` 会触发 rebind 把它换成带 recorder 的真 thread。
-    let thread = super::thread_factory::construct_thread(agent, None, vec![], None)
-        .expect("install: construct_thread(占位) 不应失败");
+    let thread = match super::thread_factory::construct_thread(agent, None, vec![], None) {
+        Ok(thread) => thread,
+        Err(error) => {
+            let message = format!("failed to construct agent thread: {error:#}");
+            tracing::error!("{message}");
+            *agent.inner.degraded_reason.lock() = Some(message);
+            *agent.inner.model_registry.lock() = None;
+            return;
+        }
+    };
     // 5. 写回 inner(共享 registry 已在步骤 3d 记入 inner,rebind 复用)。
     *agent.inner.thread.lock() = Some(thread.clone());
+    *agent.inner.task_hook_target.write() = Some(thread.hook_engine());
 
     // 6. 启动会话事件转发器。
     super::session::start_forwarder(agent);
@@ -95,6 +106,9 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     // `inner.cron_driver`,rebind_session 时 stop 旧 driver + 换 sender
     // 后重启,保持 jobs Arc 不变。
     let cron_sender = thread.submission_sender();
+    if let Some(mut previous) = agent.inner.cron_driver.lock().take() {
+        previous.stop();
+    }
     let (scheduler, driver_handle) = agent.spawn_cron_scheduler(cron_sender);
     *agent.inner.cron_scheduler.write() = Some(scheduler);
     *agent.inner.cron_driver.lock() = Some(driver_handle);
@@ -105,40 +119,30 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     // MCP 保持安装即启动;LSP 改为按工作区手动开启(见 commands/lsp.rs):
     // 默认不注册 `lsp` tool、不起 server,避免多项目同时撑起多份语言
     // 服务拖累系统。前端在用户开启后调 `reflect_lsp_set_enabled`。
-    let cfg_for_bootstrap = cfg_snapshot.clone();
-    let tools_for_bootstrap = tools.clone();
-    let session_tx_for_bootstrap = agent.inner.session_tx.clone();
-    let inner_for_mcp = agent.inner.clone();
-    tauri::async_runtime::spawn(async move {
-        // v1.6 接线:bootstrap_mcp 返回的 manager 此前被 `let _ =` 丢弃
-        // —— 4 个 MCP meta 工具(Resources 二件套 + Prompts 二件套)都
-        // 需要持有 manager Arc。现在:config 为空时也挂空 manager(工具
-        // 对空列表返回友好结果,与 exec/TUI 对齐),把句柄存进 inner 供
-        // 后续热重载 diff 重启用,并注册 meta 工具。
-        let manager = crate::mcp::bootstrap_mcp(
-            &cfg_for_bootstrap,
-            tools_for_bootstrap.clone(),
-            session_tx_for_bootstrap,
+    {
+        // 与设置命令串行化，发布 manager 后才允许后台启动或修改配置。
+        let _config = agent.inner.config_write_lock.lock().await;
+        let current_cfg = agent.inner.cfg.read().clone();
+        let (manager, invoked_tx) = crate::mcp::bootstrap_mcp(
+            agent,
+            &current_cfg,
+            tools.clone(),
+            agent.inner.session_tx.clone(),
         )
-        .await
-        .unwrap_or_else(|| {
-            let (tx, _rx) = tokio::sync::mpsc::channel::<reflect_mcp::McpLifecycleEvent>(16);
-            std::sync::Arc::new(reflect_mcp::McpConnectionManager::new(tx))
-        });
-        *inner_for_mcp.mcp_manager.lock() = Some(manager.clone());
-        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::ListMcpResourcesTool::new(
+        .await;
+        *agent.inner.mcp_manager.lock() = Some(manager.clone());
+        *agent.inner.mcp_invoked_tx.lock() = Some(invoked_tx);
+        tools.register(Arc::new(reflect_mcp::ListMcpResourcesTool::new(
             manager.clone(),
         )));
-        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::ReadMcpResourceTool::new(
+        tools.register(Arc::new(reflect_mcp::ReadMcpResourceTool::new(
             manager.clone(),
         )));
-        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::ListMcpPromptsTool::new(
+        tools.register(Arc::new(reflect_mcp::ListMcpPromptsTool::new(
             manager.clone(),
         )));
-        tools_for_bootstrap.register(std::sync::Arc::new(reflect_mcp::GetMcpPromptTool::new(
-            manager,
-        )));
-    });
+        tools.register(Arc::new(reflect_mcp::GetMcpPromptTool::new(manager)));
+    }
 
     tracing::info!(
         "[reflect-gui] AgentThread installed (model={}, workspace={}, degraded={})",
@@ -297,5 +301,25 @@ mod tests {
             handle.is_some(),
             "cron_driver 必须保存驱动句柄,否则 cron 永不触发"
         );
+    }
+
+    #[tokio::test]
+    async fn restarting_cron_preserves_job_identity_and_disabled_state() {
+        let agent = MinimalAgent::new_empty();
+        agent.install_agent_thread().await;
+        let old = agent.cron_scheduler().unwrap();
+        let job = old
+            .create("0 9 * * *", "test", Some("probe".into()))
+            .unwrap();
+        let disabled = old.update(&job.id, None, None, None, Some(false)).unwrap();
+        let (sender, _receiver) = tokio::sync::mpsc::channel(1);
+        let (restarted, _driver) = agent.spawn_cron_scheduler(sender);
+        let restored = restarted
+            .get(&job.id)
+            .expect("job identity must be preserved");
+        assert!(!restored.enabled);
+        assert_eq!(restored.created_at, disabled.created_at);
+        assert_eq!(restored.next_fire, disabled.next_fire);
+        assert_eq!(restarted.list().len(), 1);
     }
 }

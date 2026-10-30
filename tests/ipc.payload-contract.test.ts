@@ -53,6 +53,10 @@ describe('payload contract (fakeBackend)', () => {
 
   const entries = Object.entries(doc.commands).sort(([a], [b]) => a.localeCompare(b));
   it.each(entries)('%s accepts the real-backend payload shape', async (cmd, args) => {
+    if (['reflect_kms_get_page', 'reflect_kms_list_pages', 'reflect_kms_save_page'].includes(cmd)) {
+      backend.state.wikis.push({ name: 'contract-probe-wiki', description: '' });
+      backend.state.wikiPages['contract-probe-wiki/index.md'] = { title: null, content: 'fixture', tags: [] };
+    }
     const expanded = expandTmp(args) as Record<string, unknown>;
     let result: unknown;
     await expect(

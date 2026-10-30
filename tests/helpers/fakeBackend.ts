@@ -242,7 +242,7 @@ export interface FakeBackend {
     pipelineConfigs: Array<{ name: string; path: string; toml: string }>;
     /** KMS wiki 列表与页面（key = `${wiki}/${page}`）。 */
     wikis: Array<{ name: string; description: string }>;
-    wikiPages: Record<string, { title: string; content: string; tags: string[] }>;
+    wikiPages: Record<string, { title: string | null; content: string; tags: string[] }>;
     /** Autopilot 配置 —— 线格式与 `app-core::autopilot::AutopilotConfig` 一致（camelCase）。 */
     autopilotConfig: Record<string, unknown>;
     /** 远程配置 —— 线格式与 `src-tauri/src/commands/remote.rs::RemoteConfigSnapshot` 一致（camelCase）。 */
@@ -333,8 +333,8 @@ export function installFakeBackend(): FakeBackend {
         { scope: 'user', key: 'style', value: 'concise', at: nowIso(-7200_000) },
       ],
       hooks: [
-        { name: 'fmt-on-save', event: 'post_tool_use', enabled: true, command: 'rustfmt' },
-        { name: 'audit-deps', event: 'session_start', enabled: false, command: 'cargo audit' },
+        { name: 'fmt-on-save', kind: 'custom', enabled: true, config_summary: 'rustfmt' },
+        { name: 'audit-deps', kind: 'custom', enabled: false, config_summary: 'cargo audit' },
       ],
       skills: [
         { name: 'release', description: 'Cut a release', source: 'builtin' },
@@ -424,10 +424,10 @@ export function installFakeBackend(): FakeBackend {
       ],
       subagentSpecs: { explorer: '---\nname: explorer\nrole: explorer\n---\n' },
       pipelineConfigs: [
-        { name: 'my-pipeline', path: '/tmp/home/.reflect/pipelines/my-pipeline.toml', toml: 'name = "my-pipeline"\n' },
+        { name: 'my-pipeline', path: '/tmp/home/.zhuye/pipelines/my-pipeline.toml', toml: 'name = "my-pipeline"\n' },
       ],
       wikis: [{ name: 'engineering', description: 'Eng wiki' }],
-      wikiPages: { 'engineering/auth': { title: 'Auth', content: '# Auth\nJWT flow', tags: [] } },
+      wikiPages: { 'engineering/auth': { title: 'Auth', content: '---\ntitle: Auth\n---\n# Auth\nJWT flow', tags: [] } },
       autopilotConfig: { enabled: false, schedule: '0 9 * * *', taskTemplate: '', agent: null, maxConcurrent: 1 },
       remoteConfig: { host: '', port: 4732, authToken: null, autoConnect: false, endpoint: '', isReady: false },
       files: {},
@@ -983,10 +983,25 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_list_shell_sessions', handler(() => wire(backend.state.shellSessions)));
 
   // —— 记忆 ——
-  handle('reflect_list_memory', handler(() => wire(backend.state.memory)));
+  const checkMemoryContext = (args: Record<string, any> | undefined) => {
+    const expected = args?.expectedContext;
+    if (expected && (expected.workspace !== (backend.state.workspaces[0]?.path ?? '/Users/dev/project') || expected.agent !== backend.state.activeAgent)) {
+      throw new Error('memory workspace or active agent changed; reload and retry');
+    }
+  };
+  handle('reflect_list_memory', handler((args) => { checkMemoryContext(args); return wire(backend.state.memory); }));
   handle(
     'reflect_add_memory',
     handler((args) => {
+      checkMemoryContext(args);
+      const existing = backend.state.memory.find((m) => m.scope === args?.scope && m.key === args?.key);
+      if (args?.expectedValue !== undefined && (!existing || existing.value !== args.expectedValue || Boolean(existing.wholeDocument) !== Boolean(args?.replaceDocument))) throw new Error('memory entry changed or was removed; reload before retrying');
+      if (args?.replaceDocument && !existing?.wholeDocument) throw new Error('memory document changed; reload before replacing it');
+      if (args?.createOnly && existing) throw new Error(`memory entry already exists: ${String(args?.key)}`);
+      if (existing) {
+        existing.value = args?.value;
+        return;
+      }
       backend.state.memory.push({
         scope: args?.scope,
         key: args?.key,
@@ -998,6 +1013,10 @@ export function installFakeBackend(): FakeBackend {
   handle(
     'reflect_remove_memory',
     handler((args) => {
+      checkMemoryContext(args);
+      const existing = backend.state.memory.find((m) => m.scope === args?.scope && m.key === args?.key);
+      if (args?.expectedValue !== undefined && (!existing || existing.value !== args.expectedValue || Boolean(existing.wholeDocument) !== Boolean(args?.replaceDocument))) throw new Error('memory entry changed or was removed; reload before retrying');
+      if (args?.replaceDocument && !existing?.wholeDocument) throw new Error('memory document changed; reload before replacing it');
       backend.state.memory = backend.state.memory.filter(
         (m) => !(m.scope === args?.scope && m.key === args?.key),
       );
@@ -1013,7 +1032,8 @@ export function installFakeBackend(): FakeBackend {
     'reflect_toggle_hook',
     handler((args) => {
       const h = backend.state.hooks.find((x) => x.name === args?.name);
-      if (h) h.enabled = Boolean(args?.enabled);
+      if (!h) throw new Error(`hook is not registered: ${String(args?.name)}`);
+      h.enabled = Boolean(args?.enabled);
     }),
   );
 
@@ -1271,8 +1291,8 @@ export function installFakeBackend(): FakeBackend {
       memoryScopes: defFound ? ['project'] : [],
       injectBudgetChars: 8000,
       memoryPaths: [
-        { scope: 'project', path: `/tmp/project/.reflect/agent-memory/${name}/MEMORY.md` },
-        { scope: 'user', path: `/tmp/home/.reflect/agent-memory/${name}/MEMORY.md` },
+        { scope: 'project', path: `/tmp/project/.zhuye/agent-memory/${name}/MEMORY.md` },
+        { scope: 'user', path: `/tmp/home/.zhuye/agent-memory/${name}/MEMORY.md` },
       ],
     };
   };
@@ -1365,7 +1385,7 @@ export function installFakeBackend(): FakeBackend {
     handler((args) => {
       const a = args as { name?: string; tomlSrc?: string };
       const name = a?.name ?? 'my-pipeline';
-      const saved = { name, path: `/tmp/home/.reflect/pipelines/${name}.toml`, toml: a?.tomlSrc ?? '' };
+      const saved = { name, path: `/tmp/home/.zhuye/pipelines/${name}.toml`, toml: a?.tomlSrc ?? '' };
       backend.state.pipelineConfigs = backend.state.pipelineConfigs.filter((p) => p.name !== name);
       backend.state.pipelineConfigs.push(saved);
       return saved;
@@ -1380,8 +1400,13 @@ export function installFakeBackend(): FakeBackend {
       decisions: ['allow', 'deny', 'modify_args', 'inject_message', 'permission_override', 'ask'],
     },
     {
+      kind: 'post_tool_use',
+      description: '工具执行后（仅通知）',
+      decisions: [],
+    },
+    {
       kind: 'stop',
-      description: '回合结束（模型给出最终消息）',
+      description: '回合结束（注入消息仅在否决结束时生效）',
       decisions: ['allow', 'deny', 'inject_message'],
     },
   ]));
@@ -1410,7 +1435,7 @@ export function installFakeBackend(): FakeBackend {
         allowedSkills: [],
         maxTurns: null,
         source: 'user',
-        path: `/tmp/home/.reflect/agents/${role}.md`,
+        path: `/tmp/home/.zhuye/agents/${role}.md`,
       })),
   ]));
   // 与真后端一致：get 返回 markdown 原文，未知 role 为 null；save 落 role → markdown；delete 后读为 null。
@@ -1442,7 +1467,7 @@ export function installFakeBackend(): FakeBackend {
       stranded: false,
     },
     {
-      path: '/tmp/project/.reflect/worktrees/reflect-wt-1',
+      path: '/tmp/project/.zhuye/worktrees/reflect-wt-1',
       branch: 'reflect/wt-1',
       head: 'def5678',
       dirty: true,
@@ -1469,17 +1494,33 @@ export function installFakeBackend(): FakeBackend {
       createdAt: '2026-10-01T00:00:00Z',
     },
   ]));
-  handle('reflect_memory_sections', handler(() => [
-    {
-      scope: 'project',
-      title: 'build-cmd',
-      body: 'always run pnpm build before commit',
-      index: 0,
-      chars: 33,
-    },
-  ]));
+  handle('reflect_memory_sections', handler((args) => {
+    checkMemoryContext(args);
+    const sections: Array<{ scope: string; title: string; body: string; index: number; chars: number }> = [];
+    for (const scope of ['project', 'user']) {
+      const entries = backend.state.memory.filter((entry) => entry.scope === scope);
+      const emit = (title: string, body: string) => {
+        const trimmed = body.trimEnd();
+        sections.push({ scope, title, body: trimmed, index: sections.filter((s) => s.scope === scope).length, chars: Array.from(trimmed).length });
+      };
+      for (const entry of entries) {
+        if (!entry.wholeDocument) { emit(entry.key, entry.value); continue; }
+        let title = '';
+        let body = '';
+        let hasContent = false;
+        for (const line of entry.value.split(/\r?\n/)) {
+          if (line.startsWith('## ')) {
+            if (hasContent) emit(title, body);
+            title = line.slice(3).trim(); body = ''; hasContent = true;
+          } else { body += `${line}\n`; hasContent = true; }
+        }
+        if (hasContent) emit(title, body);
+      }
+    }
+    return sections;
+  }));
   handle('reflect_config_info', handler(() => ({
-    path: '/tmp/home/.reflect/config.toml',
+    path: '/tmp/home/.zhuye/config.toml',
     exists: true,
     analyticsEnabled: false,
     analyticsStatus: 'analytics: disabled',
@@ -1658,6 +1699,9 @@ export function installFakeBackend(): FakeBackend {
     handler((args) => {
       const def = args?.def as Record<string, unknown> | undefined;
       if (def) {
+        if (args?.createOnly && backend.state.agentDefs.some((d) => d.name === def.name)) {
+          throw new Error(`agent definition already exists: ${String(def.name)}`);
+        }
         backend.state.agentDefs = backend.state.agentDefs.filter((d) => d.name !== def.name);
         backend.state.agentDefs.push(def);
       }
@@ -1697,11 +1741,13 @@ export function installFakeBackend(): FakeBackend {
   );
 
   // —— kms / 知识库 ——
-  // 与真后端一致：create 落列表（重名覆盖）、save_page 按 `${wiki}/${page 去扩展名}` 落页、
-  // get_page 读回正文、delete 连页一起删。未知页返回 null（真后端对不存在的页报错）。
+  // 页面名称是逻辑名称，包含 .md 时不会被剥离。
   const pageKey = (wiki: unknown, page: unknown) =>
-    `${String(wiki ?? '')}/${String(page ?? '').replace(/\.md$/, '')}`;
-  handle('reflect_kms_list', handler(() => wire(backend.state.wikis)));
+    `${String(wiki ?? '')}/${String(page ?? '')}`;
+  const pageResult = (wiki: string, name: string, page: { title: string | null; content: string; tags: string[] }) =>
+    ({ name, wiki, content: page.content, title: page.title, tags: page.tags, modifiedAtMs: 0 });
+  const wikiResult = (wiki: { name: string; description: string }) => ({ ...wiki, path: `/kms/${wiki.name}`, pageCount: Object.keys(backend.state.wikiPages).filter((key) => key.startsWith(`${wiki.name}/`)).length, modifiedAtMs: 0 });
+  handle('reflect_kms_list', handler(() => wire(backend.state.wikis.map(wikiResult))));
   handle(
     'reflect_kms_create',
     handler((args) => {
@@ -1713,7 +1759,7 @@ export function installFakeBackend(): FakeBackend {
       }
       const wiki = { name, description };
       backend.state.wikis.push(wiki);
-      return wiki;
+      return wikiResult(wiki);
     }),
   );
   handle(
@@ -1731,34 +1777,59 @@ export function installFakeBackend(): FakeBackend {
     handler((args) => {
       // 线格式对齐真后端 Vec<Page>:对象数组(name 不含 .md),不是文件名字符串。
       const wiki = String(args?.wiki ?? '');
+      if (!backend.state.wikis.some((item) => item.name === wiki)) throw new Error(`Wiki not found: ${wiki}`);
       const prefix = `${wiki}/`;
       const saved = Object.keys(backend.state.wikiPages)
         .filter((k) => k.startsWith(prefix))
         .map((k) => {
           const page = backend.state.wikiPages[k];
-          return { name: `${k.slice(prefix.length)}.md`, wiki, content: page.content, title: page.title, tags: page.tags, modified_at_ms: 0 };
+          return pageResult(wiki, k.slice(prefix.length), page);
         });
-      return wire(saved.length ? saved : [
-        { name: 'auth.md', wiki, content: '# Auth\nJWT flow', title: 'Auth', tags: ['auth'], modified_at_ms: 0 },
-        { name: 'release.md', wiki, content: '# Release\nv0.1', title: null, tags: [], modified_at_ms: 0 },
-      ]);
+      return wire(saved);
     }),
   );
   handle(
     'reflect_kms_get_page',
-    handler((args) => backend.state.wikiPages[pageKey(args?.wiki, args?.page)] ?? null),
+    handler((args) => {
+      const wiki = String(args?.wiki ?? '');
+      const name = String(args?.page ?? '');
+      const page = backend.state.wikiPages[pageKey(wiki, name)];
+      if (!page) throw new Error(`Page not found: ${wiki}/${name}`);
+      return wire(pageResult(wiki, name, page));
+    }),
   );
   handle(
     'reflect_kms_save_page',
     handler((args) => {
-      backend.state.wikiPages[pageKey(args?.wiki, args?.page)] = {
-        title: String(args?.title ?? ''),
-        content: String(args?.content ?? ''),
-        tags: Array.isArray(args?.tags) ? (args?.tags as string[]) : [],
+      const wiki = String(args?.wiki ?? '');
+      const name = String(args?.page ?? '');
+      if (!backend.state.wikis.some((item) => item.name === wiki)) throw new Error(`Wiki not found: ${wiki}`);
+      if (args?.createOnly === true && backend.state.wikiPages[pageKey(wiki, name)]) throw new Error(`Page already exists: ${wiki}/${name}`);
+      if (args?.createOnly === true && typeof args?.expectedContent === 'string') throw new Error('createOnly and expectedContent cannot be combined');
+      if (typeof args?.expectedContent === 'string' && backend.state.wikiPages[pageKey(wiki, name)]?.content !== args.expectedContent) throw new Error(`Page changed or was deleted: ${wiki}/${name}`);
+      const title = typeof args?.title === 'string' ? args.title : null;
+      const tags = Array.isArray(args?.tags) ? args.tags as string[] : [];
+      const body = String(args?.content ?? '');
+      const content = title !== null || tags.length > 0
+        ? `---\n${title !== null ? `title: ${title}\n` : ''}${tags.length ? `tags: [${tags.join(', ')}]\n` : ''}---\n${body}` : body;
+      const header = content.startsWith('---\n') ? content.slice(4).split('\n---\n', 1)[0] : '';
+      const stored = {
+        title: header.match(/^title: (.+)$/m)?.[1]?.trim() || null,
+        content,
+        tags: header.match(/^tags: \[(.*)\]$/m)?.[1]?.split(',').map((tag) => tag.trim()).filter(Boolean) ?? [],
       };
+      backend.state.wikiPages[pageKey(wiki, name)] = stored;
+      return wire(pageResult(wiki, name, stored));
     }),
   );
-  handle('reflect_kms_search', handler(() => [{ wiki: 'engineering', page: 'auth.md', snippet: 'JWT flow' }]));
+  handle('reflect_kms_search', handler((args) => {
+    const query = String(args?.query ?? '');
+    return Object.entries(backend.state.wikiPages).flatMap(([key, page]) => {
+      const slash = key.indexOf('/');
+      const lines = page.content.split('\n').filter((line) => line.includes(query));
+      return lines.length ? [{ wiki: key.slice(0, slash), page: key.slice(slash + 1), lines, lineCount: lines.length }] : [];
+    });
+  }));
   handle('reflect_dream', handler(() => undefined));
 
   // —— media / computer use ——

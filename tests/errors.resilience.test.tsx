@@ -49,10 +49,9 @@ describe('stream errors mid-conversation', () => {
     renderApp();
     await typeAndSend('vulnerable question');
 
-    const log = screen.getByRole('log');
-    await waitFor(() => expect(log.textContent).toContain('partial answer'));
+    await waitFor(() => expect(screen.getByRole('log').textContent).toContain('partial answer'));
     await waitFor(() =>
-      expect(log.textContent).toContain('upstream connection reset'),
+      expect(screen.getByRole('log').textContent).toContain('upstream connection reset'),
     );
     // turn 仍正常收尾（错误不阻断生命周期）。
     await waitFor(() => {
@@ -124,7 +123,7 @@ describe('backend failures & recovery', () => {
     );
   });
 
-  it('approval IPC failure still removes the modal optimistically (no dead-lock UI)', async () => {
+  it('approval IPC failure keeps the request available for retry', async () => {
     renderApp();
     emitEvent('sub-err', {
       type: 'approval_request',
@@ -134,15 +133,13 @@ describe('backend failures & recovery', () => {
     await screen.findByText('Tool Approval');
 
     backend.state.failures['reflect_tool_approval'] = new Error('approval bus down');
-    // Modal 按钮的 onClick 是 fire-and-forget；这里以同路径 store action 驱动
-    // 并捕获预期失败（应用层对该 rejection 无 catch，属已知噪音）。
-    await useAgentStore
-      .getState()
-      .approve('tool', 'apr-err', 'approve')
-      .catch(() => {});
+    fireEvent.click(screen.getByText('Approve'));
+    expect((await screen.findByRole('alert')).textContent).toContain('approval bus down');
+    expect(useAgentStore.getState().pendingApprovals).toHaveLength(1);
 
-    // pendingApprovals 先行清除 —— 用户不会被卡死的弹窗阻塞。
-    await waitFor(() => expect(useAgentStore.getState().pendingApprovals.length).toBe(0));
+    delete backend.state.failures['reflect_tool_approval'];
+    fireEvent.click(screen.getByText('Approve'));
+    await waitFor(() => expect(useAgentStore.getState().pendingApprovals).toHaveLength(0));
     await waitFor(() => expect(screen.queryByText('Tool Approval')).toBeNull());
   });
 });
@@ -153,8 +150,7 @@ describe('interrupted turn lifecycle', () => {
     renderApp();
 
     await typeAndSend('long running');
-    const log = screen.getByRole('log');
-    await waitFor(() => expect(log.textContent).toContain('being cut off'));
+    await waitFor(() => expect(screen.getByRole('log').textContent).toContain('being cut off'));
 
     const subId = backend.agent.submissions[0].id;
     emitEvent(subId, { type: 'turn_aborted', turn_id: 't-x', reason: { type: 'shutdown' } });
@@ -168,7 +164,7 @@ describe('interrupted turn lifecycle', () => {
     const turns = useAgentStore.getState().turns;
     await waitFor(() => expect(turns.length).toBe(2));
     expect(turns[1].status).toBe('streaming');
-    await waitFor(() => expect(log.textContent).toContain('fresh start'));
+    await waitFor(() => expect(screen.getByRole('log').textContent).toContain('fresh start'));
   });
 });
 

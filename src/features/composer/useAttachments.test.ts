@@ -67,6 +67,15 @@ describe('useAttachments', () => {
     expect(result.current.attachments).toHaveLength(0);
   });
 
+  it('clears only attachments included in the submitted snapshot', () => {
+    const { result } = renderHook(() => useAttachments());
+    act(() => result.current.addLocalImage('/a'));
+    const sent = result.current.attachments;
+    act(() => result.current.addLocalImage('/b'));
+    act(() => result.current.clearSent(sent));
+    expect(result.current.attachments).toEqual([{ kind: 'local_image', path: '/b' }]);
+  });
+
   it('toUserInputItems converts each kind', () => {
     const { result } = renderHook(() => useAttachments());
     act(() => {
