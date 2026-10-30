@@ -1,13 +1,13 @@
 # Reflect-Agent Submodule 复用指南
 
-本仓库(ReflectDesktop)通过 **git submodule** 复用 [Reflect-Agent](https://github.com/Asketisch/Reflect-Agent) 的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
+本仓库(烛夜桌面端 ZhuYe)通过 **git submodule** 复用烛夜上游仓库（[ZhuYe](https://github.com/Asketisch/ZhuYe)，原 Reflect-Agent）的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
 
-> 历史:ReflectDesktop 之前用 `vendor/` 目录 + `scripts/vendor-sync.sh`(rsync 手动同步 21 个 crate)。该方式无版本指针、同步易漂移,已于本次重构迁移为 git submodule。
+> 历史:本仓库之前用 `vendor/` 目录 + `scripts/vendor-sync.sh`(rsync 手动同步 21 个 crate)。该方式无版本指针、同步易漂移,已于本次重构迁移为 git submodule。
 
 ## 架构原理
 
 ```
-ReflectDesktop (本仓库,workspace 消费端)
+ZhuYe Desktop (本仓库,workspace 消费端)
   ├─ app-core/        (Desktop 自有:UI 无关领域服务层,activity / kms / media / squad / side-channel / tailscale / autopilot)
   ├─ src-tauri/       (Tauri 后端,嵌入 reflect_core::AgentThread)
   └─ reflect-agent/   (submodule → Reflect-Agent 仓库)

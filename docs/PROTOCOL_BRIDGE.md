@@ -370,7 +370,7 @@ fallback spec，**跨模型降级**）。
   ```bash
   # 在 Reflect-Agent 仓库中：
   cargo run -p reflect-protocol --example dump_schema > /tmp/reflect-schema.json
-  # 在 ReflectDesktop 中：
+  # 在烛夜 ZhuYe 桌面端仓库中：
   npx json2ts /tmp/reflect-schema.json -o src/types/protocol.ts
   ```
 

@@ -58,7 +58,7 @@ export function HomeView() {
     <div className={s.root}>
       <header className={s.hero}>
         <div className={s.brand}>
-          <div className={s.logo}>R</div>
+          <div className={s.logo}>Z</div>
           <div>
             <h1 className={s.title}>{t('home.title')}</h1>
             <p className={s.subtitle}>

@@ -1,6 +1,6 @@
-# ReflectDesktop —— 架构文档
+# 烛夜 ZhuYe —— 架构文档
 
-> Reflect Agent 的 Tauri 2 + React 19 桌面 GUI。本文档
+> 烛夜（ZhuYe）agent 的 Tauri 2 + React 19 桌面 GUI。本文档
 > 取代旧的 `Reflect-Agent/docs/gui/03-architecture.md`。
 
 ## 1. 顶层布局
@@ -122,7 +122,7 @@ ReflectDesktop/
                        ▼
             target/release/...
             ├── reflect-desktop (Mach-O)
-            ├── bundle/macos/ReflectDesktop.app
+            ├── bundle/macos/ZhuYe.app
             └── bundle/{dmg,msi,deb,appimage}/...
 ```
 

@@ -1,4 +1,4 @@
-# ReflectDesktop 持续集成。
+# 烛夜 ZhuYe 持续集成。
 #
 # push / PR 触发:前端(typecheck + vitest)与 Rust(fmt + clippy + test)。
 # 注意:本仓库通过 `reflect-agent/` submodule 引用核心 crate,
@@ -73,9 +73,8 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      # 本仓库 gitignore 了 pnpm-lock.yaml,因此有意不传 --frozen-lockfile。
       - name: Install frontend deps
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: pnpm typecheck
         run: pnpm typecheck
@@ -98,7 +97,7 @@ jobs:
           components: rustfmt
 
       # 只检查本仓库自有 crate(app-core + src-tauri):
-      # reflect-agent/ submodule 的格式由上游 Reflect-Agent 仓库的 CI 负责,
+      # reflect-agent/ submodule 的格式由上游 ZhuYe 仓库的 CI 负责,
       # 避免上游格式状态阻塞本仓库。
       - name: cargo fmt --check (own crates)
         run: cargo fmt -p reflect-app-core -p reflect-desktop -- --check

@@ -39,7 +39,7 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let menu = build_tray_menu(app)?;
     TrayIconBuilder::with_id(TRAY_ID)
         .menu(&menu)
-        .tooltip("Reflect Desktop")
+        .tooltip("烛夜 ZhuYe")
         .show_menu_on_left_click(true)
         .icon(load_tray_icon()?)
         .icon_as_template(true)

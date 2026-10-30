@@ -20,9 +20,6 @@ declare const require: (id: string) => unknown;
 function nodeRead(p: string, enc: string = 'utf8'): string {
   return (require('node:fs') as { readFileSync: (p: string, enc: string) => string }).readFileSync(p, enc);
 }
-function nodeReadDir(p: string): string[] {
-  return (require('node:fs') as { readdirSync: (p: string) => string[] }).readdirSync(p);
-}
 function nodeExists(p: string): boolean {
   return (require('node:fs') as { existsSync: (p: string) => boolean; readFileSync: (p: string, enc: string) => string }).existsSync(p);
 }
@@ -490,10 +487,19 @@ describe('Feature barrel exports', () => {
 // ===========================================================================
 
 function readBackendCommandSources(): string {
+  // 命令体可以落在领域子目录(如 commands/files/image.rs)—— 递归扫描,
+  // 与 tests/static/analyze.mjs / tests/ipc.command-contract.test.ts 同口径。
   const commandDir = 'src-tauri/src/commands';
-  return nodeReadDir(commandDir)
-    .filter((name) => name.endsWith('.rs'))
-    .map((name) => nodeRead(`${commandDir}/${name}`))
+  const fs = require('node:fs') as {
+    readdirSync: (p: string, opts: { withFileTypes: boolean }) => { name: string; isDirectory(): boolean }[];
+  };
+  const listRustFiles = (dir: string): string[] =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const p = `${dir}/${entry.name}`;
+      return entry.isDirectory() ? listRustFiles(p) : entry.name.endsWith('.rs') ? [p] : [];
+    });
+  return listRustFiles(commandDir)
+    .map((p) => nodeRead(p))
     .join('\n');
 }
 

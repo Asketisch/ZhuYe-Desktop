@@ -1,4 +1,4 @@
-# ReflectDesktop
+# 烛夜 ZhuYe
 
 [简体中文](README.md) | [English](README.en.md)
 
@@ -9,13 +9,13 @@
 [![React 19](https://img.shields.io/badge/React-19-149eca)]()
 [![English](https://img.shields.io/badge/README-English-blue.svg)](README.en.md)
 
-> Reflect Agent 独立桌面应用：Tauri 2 + React 19，通过 `reflect-protocol` 协议桥接 Reflect Agent 核心。
+> 烛夜（ZhuYe）独立桌面应用：Tauri 2 + React 19，通过 `reflect-protocol` 协议桥接烛夜 agent 核心。
 
 ---
 
 ## 项目说明
 
-Reflect Agent 的终端模式 (`reflect tui`) 和无头执行模式 (`reflect exec "..."`) 共用同一个 `reflect-core::AgentThread`。桌面 GUI 需要在 Tauri 窗口中运行相同的线程，但不希望将 Tauri 2 构建产物耦合到无头代理工具中。因此 ReflectDesktop 将全部 GUI 代码放在本仓库，仅通过 `reflect-agent/` git submodule 消费代理核心。
+烛夜的无头执行模式 (`zhuye exec "..."`) 与 SDK 共用同一个 `reflect-core::AgentThread`（上游 crate 已更名 `zhuye-core`，本仓库以 `reflect-core` 别名引用）。桌面 GUI 需要在 Tauri 窗口中运行相同的线程，但不希望将 Tauri 2 构建产物耦合到无头代理工具中。因此烛夜桌面端将全部 GUI 代码放在本仓库，仅通过 `reflect-agent/` git submodule 消费代理核心。
 
 ---
 
@@ -101,7 +101,7 @@ Reflect Agent 的终端模式 (`reflect tui`) 和无头执行模式 (`reflect ex
 bash scripts/install.sh
 # 安装：
 #   /usr/local/bin/reflect-desktop           （二进制）
-#   ~/Applications/ReflectDesktop.app        （可启动包）
+#   ~/Applications/ZhuYe.app                 （可启动包）
 ```
 
 ### 从源码构建
@@ -208,7 +208,7 @@ ReflectDesktop/
 
 ## 升级代理核心（submodule）
 
-当 Reflect-Agent 发布新版本时：
+当烛夜上游仓库（submodule `reflect-agent`，GitHub：Asketisch/ZhuYe）发布新版本时：
 
 ```bash
 git submodule update --remote reflect-agent
@@ -216,7 +216,7 @@ git diff --submodule reflect-agent
 git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
 ```
 
-`reflect-agent/` 是只读镜像，不要直接编辑；改动请提交到 Reflect-Agent 仓库后升级 submodule（完整流程见 [`SUBMODULE.md`](SUBMODULE.md)）。
+`reflect-agent/` 是只读镜像，不要直接编辑；改动请提交到烛夜上游仓库（ZhuYe）后升级 submodule（完整流程见 [`SUBMODULE.md`](SUBMODULE.md)）。
 
 完整运行手册：[`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md)。
 

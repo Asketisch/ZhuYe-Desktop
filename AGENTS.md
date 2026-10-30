@@ -1,4 +1,4 @@
-# ReflectDesktop Agent 指南
+# 烛夜 ZhuYe Agent 指南
 
 所有文档必须是规范化的，不包含过时评论，仅保留当前有效状态。
 
@@ -15,7 +15,7 @@
 
 ## 项目概况
 
-ReflectDesktop 是 Reflect Agent 的桌面 GUI 应用，基于 Tauri 2 + React 19 构建。
+烛夜（ZhuYe）是烛夜 agent 引擎（上游更名自 Reflect Agent）的桌面 GUI 应用，基于 Tauri 2 + React 19 构建。
 
 - 前端：React 19 + Vite + TanStack Router/Query（`src/`）
 - 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
@@ -193,7 +193,7 @@ bash tests/run_all.sh         # 发布门禁（静态 + 前端 + 真后端 + 产
 ```bash
 pnpm tauri build              # 全平台构建
 pnpm tauri build --bundles app  # 仅 macOS .app
-bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ReflectDesktop.app
+bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
 ```
 
 子模块升级（当 Reflect-Agent 发布新版本时，详见 [`SUBMODULE.md`](SUBMODULE.md)）：

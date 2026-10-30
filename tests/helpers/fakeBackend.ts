@@ -1,5 +1,5 @@
 /**
- * fakeBackend —— ReflectDesktop 全命令模拟后端（应用级测试专用）。
+ * fakeBackend —— 烛夜（ZhuYe）全命令模拟后端（应用级测试专用）。
  *
  * 定位：不是"未 mock 就报错"的占位 mock，而是一个**有状态**的模拟后端：
  *   1. 实现 `src-tauri/src/commands/` 暴露的全部 `reflect_*` 命令 + `ping`，

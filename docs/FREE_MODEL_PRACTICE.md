@@ -1,6 +1,6 @@
 # 免费模型实践测试指南（桌面端）
 
-用**免费模型池**跑 ReflectDesktop 的完整 agent 链路 —— 不需要任何 API Key，
+用**免费模型池**跑烛夜 ZhuYe 桌面端的完整 agent 链路 —— 不需要任何 API Key，
 也不产生费用。
 
 > 上游同源文档：`reflect-agent/docs/FREE_MODEL_PRACTICE.md`（TUI / CLI 侧）。

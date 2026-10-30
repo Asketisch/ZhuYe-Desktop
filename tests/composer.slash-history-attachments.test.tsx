@@ -27,11 +27,11 @@ afterEach(async () => {
 });
 
 function composer(): HTMLTextAreaElement {
-  return screen.getByLabelText('Message Reflect') as HTMLTextAreaElement;
+  return screen.getByLabelText('Message ZhuYe') as HTMLTextAreaElement;
 }
 
 async function send(text: string): Promise<void> {
-  await screen.findByLabelText('Message Reflect');
+  await screen.findByLabelText('Message ZhuYe');
   const textarea = composer();
   fireEvent.change(textarea, { target: { value: text } });
   fireEvent.keyDown(textarea, { key: 'Enter' });
@@ -117,7 +117,7 @@ describe('slash commands (real dispatch → backend)', () => {
 describe('slash popup autocomplete', () => {
   it('typing "/" opens the popup; Escape closes it; selection filters', async () => {
     renderApp();
-    const textarea = await screen.findByLabelText('Message Reflect');
+    const textarea = await screen.findByLabelText('Message ZhuYe');
 
     fireEvent.change(textarea, { target: { value: '/' } });
     const popup = await screen.findByRole('listbox');
@@ -198,7 +198,7 @@ describe('attachments', () => {
 describe('composer ergonomics', () => {
   it('Shift+Enter inserts a newline instead of submitting', async () => {
     renderApp();
-    const textarea = await screen.findByLabelText('Message Reflect');
+    const textarea = await screen.findByLabelText('Message ZhuYe');
     fireEvent.change(textarea, { target: { value: 'line1' } });
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
     // 未触发提交。
@@ -207,7 +207,7 @@ describe('composer ergonomics', () => {
 
   it('empty input does not submit', async () => {
     renderApp();
-    const textarea = await screen.findByLabelText('Message Reflect');
+    const textarea = await screen.findByLabelText('Message ZhuYe');
     fireEvent.keyDown(textarea, { key: 'Enter' });
     expect(backend.agent.submissions.length).toBe(0);
   });

@@ -1,5 +1,5 @@
 /**
- * TanStack Router v1 —— ReflectDesktop 路由树。
+ * TanStack Router v1 —— 烛夜 ZhuYe 路由树。
  *
  * 阶段 2：root component 从 AppLayout 切到 IDE 式 AppShell。
  */

@@ -1,6 +1,6 @@
-# ReflectDesktop —— 用户指南
+# 烛夜 ZhuYe —— 用户指南
 
-> Reflect Agent 桌面端，适用于 macOS / Linux / Windows（Tauri 2 + React 19）。
+> 烛夜（ZhuYe）桌面端，适用于 macOS / Linux / Windows（Tauri 2 + React 19）。
 
 ## 1. 安装
 
@@ -10,7 +10,7 @@
 bash scripts/install.sh
 # 安装到：
 #   /usr/local/bin/reflect-desktop           （二进制文件）
-#   ~/Applications/ReflectDesktop.app        （可启动包）
+#   ~/Applications/ZhuYe.app                 （可启动包）
 ```
 
 ### 从源码
@@ -26,13 +26,13 @@ bash scripts/install.sh
 
 ## 2. 启动
 
-- 在 macOS 上点击 `~/Applications/ReflectDesktop.app`
+- 在 macOS 上点击 `~/Applications/ZhuYe.app`
 - 或：从任意终端运行 `reflect-desktop`（PATH 安装）
 - 开发模式：`pnpm tauri dev`（HMR，开发工具）
 
 ## 3. M1.x 中的功能
 
-> ReflectDesktop 采用 feature-sliced 布局，`src/features/` 下 24 个 slices：
+> 烛夜桌面端采用 feature-sliced 布局，`src/features/` 下 24 个 slices：
 > about / app / apps / collaboration / composer / debug / design-system
 > / dictation / files / git / home / layout / messages / mobile / models
 > / notifications / plan / prompts / settings / shared / skills / terminal
@@ -52,7 +52,7 @@ bash scripts/install.sh
 
 ## 4. IPC 契约
 
-GUI 通过本地进程内 `reflect-core::AgentThread` 消耗 Reflect Agent，由 `reflect_*` Tauri 命令暴露。线协议为 `reflect-protocol::Event` / `Submission`（通过 Tauri 的 JSON 序列化器零拷贝）。
+GUI 通过本地进程内 `reflect-core::AgentThread` 消耗烛夜（ZhuYe）agent，由 `reflect_*` Tauri 命令暴露。线协议为 `reflect-protocol::Event` / `Submission`（通过 Tauri 的 JSON 序列化器零拷贝）。
 
 ```text
 React 19 + Vite
@@ -75,14 +75,14 @@ git submodule update --remote reflect-agent
 | 变体 | 大小 |
 |---|---|
 | `target/release/reflect-desktop`（Mach-O） | 7.5 MB |
-| `target/release/bundle/macos/ReflectDesktop.app`（debug + bundle） | 7.3 MB |
+| `target/release/bundle/macos/ZhuYe.app`（debug + bundle） | 7.3 MB |
 | 通过 `pnpm tauri build` 的跨平台目标 | .dmg / .msi / .deb / .AppImage |
 
-## 6. 从 ReflectAgent 的 TUI 切换
+## 6. 从烛夜 CLI 切换
 
-`reflect tui`（在 `Reflect-Agent` 仓库中）和 `reflect-desktop`（本仓库）
-共享相同的 `~/.zhuye/sessions/` JSONL 存储、相同的模型
-注册表和相同的 MCP 服务器。你可以来回切换
+上游 CLI（二进制已更名 `zhuye`；TUI 由独立的 Reflect-TUI 项目提供）和
+`reflect-desktop`（本仓库）共享相同的 `~/.zhuye/sessions/` JSONL 存储、
+相同的模型注册表和相同的 MCP 服务器。你可以来回切换
 而不丢失状态。
 
 ## 7. 跨平台状态

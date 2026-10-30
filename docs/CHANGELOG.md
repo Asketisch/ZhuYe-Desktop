@@ -1,8 +1,14 @@
 # 更新日志
 
-ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Changelog](https://keepachangelog.com/)，版本号遵守[语义化版本](https://semver.org/)。
+烛夜 ZhuYe 桌面端（仓库原名 ReflectDesktop）的所有重要变更均记录于此。格式遵循 [Keep a Changelog](https://keepachangelog.com/)，版本号遵守[语义化版本](https://semver.org/)。
 
 ## 未发布
+
+### 变更 — 品牌更名烛夜（ZhuYe）
+
+- 对齐上游 submodule 的更名：用户可见品牌全部改为烛夜 / ZhuYe——`productName` 改为 `ZhuYe`（bundle 产物 `ZhuYe.app` / `ZhuYe.dmg` / `ZhuYe.msi` / `zhuye.deb` / `ZhuYe.AppImage`），窗口标题与页面标题「烛夜 ZhuYe」，托盘 tooltip、i18n 文案（应用名 / 欢迎语 / 输入器占位 / 关于页 / 通知）按语言分别使用「烛夜」（zh-CN）与「ZhuYe」（en）；bundle 描述与版权、Cargo 包描述、安装/构建脚本与全部文档同步。上游 CLI 命令引用从 `reflect …` 更正为 `zhuye …`（usage / traces 页与用户指南）。
+- 内部标识保持稳定：Tauri 命令名 `reflect_*`（协议不变量）、crate/二进制名 `reflect-desktop`、`reflect_desktop_lib`、环境变量 `REFLECT_*`、i18n key、bundle identifier `com.asketisch.reflectdesktop`（保护既有用户数据目录）均未改动。
+- 联动修复：`scripts/install.sh` 安装 `ZhuYe.app`；`tests/artifact/run.sh` 的 MSI 解包检查增加 `ZhuYe*.exe` 模式；i18n 单测断言同步更新。
 
 ### 变更 — submodule 基准切到上游 main（0.1.7）
 
@@ -59,6 +65,7 @@ ReflectDesktop 的所有重要变更均记录于此。格式遵循 [Keep a Chang
 - 侧通道页面说明当前只创建注册条目，实际 agent 执行尚未接入。
 - 侧通道操作提示显示完整 ID，并正确展示后端返回的错误消息。
 - 静态审查正确列出分析器发现的各项失败，且不再把命令包装的测试文件当成生产模块；命令面扫描改为递归，领域子目录（如 `commands/files/image.rs`）里的命令体不再被漏计。
+- 发布门禁的 `VISUAL_UPDATE=1` 基线重生成此前删除的是不存在的 `tests/e2e/__baselines__` 目录，从未生效；改指真实基线目录 `tests/visual/__baselines__`，视觉基线得以随品牌更名重生成。
 - 发布门禁正确解析子模块状态标记，并检查已暂存和未暂存的子模块变更。
 - 重新安装调度器时保留任务 ID、启停状态和触发时间；更新无效 cron 表达式时返回解析错误。
 - 定时任务页面正确报告操作错误和已删除状态，避免重复提交，并说明 UTC 计划和进程退出后的任务丢失。

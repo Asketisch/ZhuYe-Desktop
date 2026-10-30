@@ -1,4 +1,4 @@
-# ReflectDesktop
+# ZhuYe (烛夜)
 
 **English** | [简体中文](README.md)
 
@@ -9,13 +9,13 @@
 [![React 19](https://img.shields.io/badge/React-19-149eca)]()
 [![中文](https://img.shields.io/badge/README-中文-red.svg)](README.md)
 
-> A standalone desktop app for the Reflect Agent: Tauri 2 + React 19, bridging the Reflect Agent core through the `reflect-protocol` envelope.
+> A standalone desktop app for the ZhuYe agent: Tauri 2 + React 19, bridging the ZhuYe core through the `reflect-protocol` envelope.
 
 ---
 
 ## What is this?
 
-The terminal mode (`reflect tui`) and the headless mode (`reflect exec "..."`) of Reflect Agent share the same `reflect-core::AgentThread`. The desktop GUI needs to run the same thread inside a Tauri window without coupling Tauri 2 build artifacts into the headless agent tool. ReflectDesktop therefore keeps all GUI code in this repository and consumes the agent core solely through the `reflect-agent/` git submodule.
+The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `reflect-core::AgentThread` (the upstream crate was renamed `zhuye-core`; this repo references it under the `reflect-core` alias). The desktop GUI needs to run the same thread inside a Tauri window without coupling Tauri 2 build artifacts into the headless agent tool. ZhuYe desktop therefore keeps all GUI code in this repository and consumes the agent core solely through the `reflect-agent/` git submodule.
 
 ---
 
@@ -101,7 +101,7 @@ The terminal mode (`reflect tui`) and the headless mode (`reflect exec "..."`) o
 bash scripts/install.sh
 # Installs:
 #   /usr/local/bin/reflect-desktop           (binary)
-#   ~/Applications/ReflectDesktop.app        (launchable bundle)
+#   ~/Applications/ZhuYe.app                 (launchable bundle)
 ```
 
 ### Build from source

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh —— 安装 ReflectDesktop 二进制与 macOS .app
+# install.sh —— 安装烛夜（ZhuYe）二进制与 macOS .app
 # 用法：
 #   bash scripts/install.sh                  # 默认安装到 /usr/local/bin 与 ~/Applications
 #   bash scripts/install.sh --dry-run      # 仅打印动作，不实际执行
@@ -36,7 +36,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 BIN_SRC="$REPO_ROOT/target/release/reflect-desktop"
-APP_SRC="$REPO_ROOT/target/release/bundle/macos/ReflectDesktop.app"
+APP_SRC="$REPO_ROOT/target/release/bundle/macos/ZhuYe.app"
 
 run() {
   echo "+ $*"
@@ -53,10 +53,10 @@ run "install -m 0755 '$BIN_SRC' '$PREFIX/reflect-desktop'"
 
 if [ "$(uname)" = "Darwin" ] && [ -d "$APP_SRC" ]; then
   run "mkdir -p '$APP_DIR'"
-  run "rm -rf '$APP_DIR/ReflectDesktop.app'"
-  run "cp -R '$APP_SRC' '$APP_DIR/ReflectDesktop.app'"
-  echo "installed .app → $APP_DIR/ReflectDesktop.app"
+  run "rm -rf '$APP_DIR/ZhuYe.app'"
+  run "cp -R '$APP_SRC' '$APP_DIR/ZhuYe.app'"
+  echo "installed .app → $APP_DIR/ZhuYe.app"
 fi
 
 echo "done. launch with: $PREFIX/reflect-desktop"
-echo "                  or open $APP_DIR/ReflectDesktop.app on macOS"
+echo "                  or open $APP_DIR/ZhuYe.app on macOS"

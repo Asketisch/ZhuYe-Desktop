@@ -31,7 +31,7 @@ describe('t()', () => {
   });
 
   it('returns English by default', () => {
-    expect(t('app.title')).toBe('Reflect Desktop');
+    expect(t('app.title')).toBe('ZhuYe');
     expect(t('sidebar.sessions')).toBe('Sessions');
   });
 
@@ -51,8 +51,8 @@ describe('t()', () => {
   });
 
   it('composer/chat empty strings are present in both locales', () => {
-    expect(t('composer.placeholder', 'en')).toContain('Ask Reflect');
-    expect(t('composer.placeholder', 'zh-CN')).toContain('Reflect');
+    expect(t('composer.placeholder', 'en')).toContain('Ask ZhuYe');
+    expect(t('composer.placeholder', 'zh-CN')).toContain('烛夜');
     expect(t('chat.empty.title', 'en')).toBe('Start a conversation');
     expect(t('chat.empty.title', 'zh-CN')).toBe('开始一次对话');
   });

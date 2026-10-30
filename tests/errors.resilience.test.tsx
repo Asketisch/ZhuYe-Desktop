@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 async function typeAndSend(text: string): Promise<void> {
-  const textarea = await screen.findByLabelText('Message Reflect');
+  const textarea = await screen.findByLabelText('Message ZhuYe');
   fireEvent.change(textarea, { target: { value: text } });
   fireEvent.keyDown(textarea, { key: 'Enter' });
 }

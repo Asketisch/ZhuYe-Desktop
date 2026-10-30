@@ -16,11 +16,17 @@ import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 
 // node:fs 读取后端源码做一致性比对。
+// 命令体可以落在领域子目录(如 commands/files/image.rs)—— 递归扫描,
+// 与 tests/static/analyze.mjs 同口径。
 const commandDir = 'src-tauri/src/commands';
+const listRustFiles = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = `${dir}/${entry.name}`;
+    return entry.isDirectory() ? listRustFiles(path) : path.endsWith('.rs') ? [path] : [];
+  });
 const backendSource = () =>
-  readdirSync(commandDir)
-    .filter((n) => n.endsWith('.rs'))
-    .map((n) => readFileSync(`${commandDir}/${n}`, 'utf8'))
+  listRustFiles(commandDir)
+    .map((p) => readFileSync(p, 'utf8'))
     .join('\n');
 
 let backend: FakeBackend;

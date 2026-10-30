@@ -26,7 +26,7 @@ export function AboutView() {
       {/* Brand */}
       <Card level="outlined" padding="lg" className={s.brandCard}>
         <div className={s.brandRow}>
-          <div className={s.logo}>R</div>
+          <div className={s.logo}>Z</div>
           <div>
             <div className={s.brandName}>{t('app.title')}</div>
             <div className={s.brandTagline}>{t('about.tagline')}</div>

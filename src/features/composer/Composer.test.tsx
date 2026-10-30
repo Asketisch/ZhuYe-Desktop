@@ -49,7 +49,7 @@ describe('Composer prompt-history integration', () => {
 
   it('restores the pre-browse draft when ArrowDown leaves history', () => {
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
 
     fireEvent.change(input, { target: { value: 'unfinished draft' } });
     input.setSelectionRange(0, 0);
@@ -63,7 +63,7 @@ describe('Composer prompt-history integration', () => {
 
   it('keeps the original draft while browsing multiple history entries', () => {
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
 
     fireEvent.change(input, { target: { value: 'original draft' } });
     input.setSelectionRange(0, 0);
@@ -82,7 +82,7 @@ describe('Composer prompt-history integration', () => {
 
   it('does not submit while an IME composition is active', () => {
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: 'composing' } });
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
     expect(input.value).toBe('composing');
@@ -139,7 +139,7 @@ describe('Composer send shortcut', () => {
   it('keeps the draft when submission fails', async () => {
     mockInvoke('reflect_submit', async () => { throw new Error('channel closed'); });
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: 'keep this draft' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(useAgentStore.getState().lastError).toBe('channel closed'));
@@ -151,7 +151,7 @@ describe('Composer send shortcut', () => {
     const submitted: Submission[] = [];
     trackSubmit(submitted);
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '你好，发送我' } });
 
     const prevented = fireEvent.keyDown(input, { key: 'Enter' });
@@ -169,7 +169,7 @@ describe('Composer send shortcut', () => {
     const submitted: Submission[] = [];
     trackSubmit(submitted);
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: 'cmd enter' } });
 
     fireEvent.keyDown(input, { key: 'Enter', metaKey: true });
@@ -182,7 +182,7 @@ describe('Composer send shortcut', () => {
     const submitted: Submission[] = [];
     trackSubmit(submitted);
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: 'line one' } });
 
     const prevented = fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
@@ -197,7 +197,7 @@ describe('Composer send shortcut', () => {
     const submitted: Submission[] = [];
     trackSubmit(submitted);
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(submitted).toHaveLength(0);
   });
@@ -219,7 +219,7 @@ describe('Composer @ file mention (v1.x)', () => {
   it('typing @ opens the file picker; picking clears @query and adds a chip', async () => {
     mockWorkspaceFiles();
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     // 空 query → 列出全部文件(按 path 字典序), 便于断言目录被过滤。
     fireEvent.change(input, { target: { value: 'read @' } });
 
@@ -248,7 +248,7 @@ describe('Composer @ file mention (v1.x)', () => {
       truncated: false,
     }));
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '@' } });
 
     await screen.findByText('No matching files.');
@@ -257,7 +257,7 @@ describe('Composer @ file mention (v1.x)', () => {
   it('toolbar @ button appends @ and opens the picker directly', async () => {
     mockWorkspaceFiles();
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
 
     fireEvent.click(screen.getByTestId('composer-attach-mention'));
 
@@ -280,7 +280,7 @@ describe('Composer @ file mention (v1.x)', () => {
     });
     mockWorkspaceFiles();
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: 'look @ma' } });
     fireEvent.click(await screen.findByTestId('mention-file-main.ts'));
 
@@ -386,7 +386,7 @@ describe('Composer queue vs steer (C)', () => {
     trackSubmit(submitted);
     useStreamingTurn();
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '排队消息' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -433,7 +433,7 @@ describe('Composer queue vs steer (C)', () => {
     // 切到 Steer 模式。
     fireEvent.click(screen.getByTestId('composer-mode-switch').children[1]);
 
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '转向：改用方案 B' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -461,7 +461,7 @@ describe('Composer queue vs steer (C)', () => {
     useStreamingTurn();
     renderComposer();
 
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '单次转向' } });
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true, metaKey: true });
 
@@ -648,7 +648,7 @@ describe('Composer bang (!) shell passthrough', () => {
     let finish!: (session: { id: string; command: string; cwd: string }) => void;
     mockInvoke('reflect_run_shell', () => new Promise((resolve) => { finish = resolve; }));
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i });
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i });
     fireEvent.change(input, { target: { value: '! echo hi' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(finish).toBeDefined());
@@ -678,7 +678,7 @@ describe('Composer bang (!) shell passthrough', () => {
     trackSubmit(submitted);
     renderComposer();
 
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '! echo hi' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -697,7 +697,7 @@ describe('Composer bang (!) shell passthrough', () => {
 describe('Composer slash popup (stub 下架 + 键盘导航)', () => {
   it('hides no-op stub commands from the popup', async () => {
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '/' } });
 
     const popup = await screen.findByTestId('slash-popup');
@@ -724,7 +724,7 @@ describe('Composer slash popup (stub 下架 + 键盘导航)', () => {
     trackSubmit(submitted);
     renderComposer();
 
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '/' } });
     await screen.findByTestId('slash-popup');
 
@@ -838,7 +838,7 @@ describe('Composer /goal — 开目标会话', () => {
     const calls = trackGoalFlow({ createdId: 'goal-sess-1' });
 
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '/goal make all tests pass' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -858,7 +858,7 @@ describe('Composer /goal — 开目标会话', () => {
     useAgentStore.getState().setGoalActive(true);
 
     renderComposer();
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: '/goal clear' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 

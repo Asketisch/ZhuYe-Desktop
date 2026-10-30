@@ -7,8 +7,8 @@
 import type { StringEntry } from '../types';
 
 const composer: Record<string, StringEntry> = {
-  'composer.placeholder':                    { en: 'Ask Reflect anything…  (/ commands · @ files · ! shell)',  'zh-CN': '向 Reflect 提问…(/ 命令 · @ 文件 · ! 终端)' },
-  'composer.ariaLabel':                      { en: 'Message Reflect',                               'zh-CN': '向 Reflect 发送消息' },
+  'composer.placeholder':                    { en: 'Ask ZhuYe anything…  (/ commands · @ files · ! shell)',    'zh-CN': '向烛夜提问…(/ 命令 · @ 文件 · ! 终端)' },
+  'composer.ariaLabel':                      { en: 'Message ZhuYe',                                 'zh-CN': '向烛夜发送消息' },
   'composer.toolbar.slashCommands':          { en: 'Slash commands',                                'zh-CN': 'Slash 命令' },
   'composer.toolbar.attachFile':             { en: 'Attach file',                                   'zh-CN': '附加文件' },
   'composer.toolbar.attachImage':            { en: 'Attach image',                                  'zh-CN': '附加图片' },

@@ -7,12 +7,12 @@
 import type { StringEntry } from '../types';
 
 const app: Record<string, StringEntry> = {
-  'app.title':  { en: 'Reflect Desktop',  'zh-CN': 'Reflect Desktop' },
-  'app.name':   { en: 'Reflect',          'zh-CN': 'Reflect' },
+  'app.title':  { en: 'ZhuYe',            'zh-CN': '烛夜' },
+  'app.name':   { en: 'ZhuYe',            'zh-CN': '烛夜' },
   'notify.turnFinished': { en: 'Turn finished.', 'zh-CN': '任务已完成。' },
   'notify.approvalBody': {
-    en: 'Reflect needs your attention (approval / question pending).',
-    'zh-CN': 'Reflect 需要你的处理（有待审批 / 待回答问题）。',
+    en: 'ZhuYe needs your attention (approval / question pending).',
+    'zh-CN': '烛夜需要你的处理（有待审批 / 待回答问题）。',
   },
 };
 

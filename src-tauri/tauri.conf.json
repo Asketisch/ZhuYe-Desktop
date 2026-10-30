@@ -1,5 +1,5 @@
 {
-  "productName": "ReflectDesktop",
+  "productName": "ZhuYe",
   "version": "0.1.0",
   "identifier": "com.asketisch.reflectdesktop",
   "build": {
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "ReflectDesktop",
+        "title": "烛夜 ZhuYe",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
@@ -33,11 +33,11 @@
     "active": true,
     "targets": ["app", "dmg", "msi", "deb", "appimage"],
     "category": "DeveloperTool",
-    "shortDescription": "AI coding agent GUI",
-    "longDescription": "Reflect GUI for Reflect-Agent",
+    "shortDescription": "ZhuYe AI coding agent GUI",
+    "longDescription": "烛夜（ZhuYe）—— Standalone desktop GUI for the ZhuYe agent engine.",
     "publisher": "Asketisch",
     "homepage": "https://github.com/Asketisch/ReflectDesktop",
-    "copyright": "Copyright © 2026 Reflect Agent Contributors. Apache-2.0.",
+    "copyright": "Copyright © 2026 烛夜（ZhuYe）Contributors. Apache-2.0.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

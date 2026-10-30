@@ -190,7 +190,7 @@ export function ActivityBar() {
   return (
     <nav className={s.bar} aria-label={t('shell.activityBar')} data-mode={simple ? 'simple' : 'full'}>
       <div className={s.logo} aria-hidden="true" title={t('shell.logoTitle')}>
-        R
+        Z
       </div>
       {simple ? (
         <>

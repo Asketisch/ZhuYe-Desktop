@@ -411,7 +411,7 @@ describe('ChatView hero (new-chat home)', () => {
     });
 
     fireEvent.click(screen.getByTestId('quick-prompt-fix'));
-    const input = screen.getByRole('textbox', { name: /message reflect/i }) as HTMLTextAreaElement;
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     await waitFor(() => {
       expect(input.value).toContain('Fix the following problem');
     });

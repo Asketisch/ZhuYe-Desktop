@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build.sh —— ReflectDesktop 跨平台构建入口。
+# build.sh —— 烛夜（ZhuYe）跨平台构建入口。
 #
 # 检测当前操作系统，选择正确的 Tauri 打包目标，可选地生成
 # macOS 通用二进制，并打印构建产物摘要。
@@ -119,7 +119,7 @@ case "$OS_NAME" in
     ;;
   *)
     echo "unsupported OS: $OS_NAME" >&2
-    echo "ReflectDesktop can be built on macOS, Linux, or Windows (Git Bash)." >&2
+    echo "ZhuYe can be built on macOS, Linux, or Windows (Git Bash)." >&2
     exit 1
     ;;
 esac
@@ -132,7 +132,7 @@ fi
 
 BUNDLES="${BUNDLES_OVERRIDE:-$DEFAULT_BUNDLES}"
 
-echo "── ReflectDesktop build ───────────────────────────────────"
+echo "── ZhuYe build ────────────────────────────────────────────"
 echo "platform:      $PLATFORM ($OS_NAME)"
 echo "bundles:       $BUNDLES"
 echo "profile:       $([ $FAST = true ] && echo release-fast || echo release)"

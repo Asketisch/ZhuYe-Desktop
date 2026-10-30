@@ -8,7 +8,7 @@ import type { StringEntry } from '../types';
 
 const about: Record<string, StringEntry> = {
   'about.title':                     { en: 'About',                                                                                                                    'zh-CN': '关于' },
-  'about.tagline':                   { en: 'Standalone desktop GUI for the Reflect Agent.',                                                                            'zh-CN': '面向 Reflect Agent 的独立桌面 GUI。' },
+  'about.tagline':                   { en: 'Standalone desktop GUI for the ZhuYe agent.',                                                                              'zh-CN': '面向烛夜（ZhuYe agent）的独立桌面 GUI。' },
   'about.version':                   { en: 'Version',                                                                                                                  'zh-CN': '版本' },
   'about.commit':                    { en: 'Commit',                                                                                                                   'zh-CN': 'Commit' },
   'about.buildDate':                 { en: 'Build date',                                                                                                               'zh-CN': '构建时间' },
@@ -20,10 +20,10 @@ const about: Record<string, StringEntry> = {
   'about.status':                    { en: 'Status',                                                                                                                   'zh-CN': '状态' },
   'about.ready':                     { en: 'ready',                                                                                                                    'zh-CN': '就绪' },
   'about.degraded':                  { en: 'degraded',                                                                                                                 'zh-CN': '降级' },
-  'about.agent':                     { en: 'Reflect Agent',                                                                                                            'zh-CN': 'Reflect Agent' },
-  'about.agentDesc':                 { en: 'An AI coding agent that helps you write, review, and refactor code. Reflect Desktop is the native GUI companion.',         'zh-CN': '帮助你写、审查、重构代码的 AI 编程助手。Reflect Desktop 是它的原生 GUI 伴侣。' },
+  'about.agent':                     { en: 'ZhuYe',                                                                                                                    'zh-CN': '烛夜' },
+  'about.agentDesc':                 { en: 'An AI coding agent that helps you write, review, and refactor code. ZhuYe Desktop is the native GUI companion.',           'zh-CN': '帮助你写、审查、重构代码的 AI 编程助手。烛夜桌面端是它的原生 GUI 伴侣。' },
   'about.builtWith':                 { en: 'Built with',                                                                                                               'zh-CN': '技术栈' },
-  'about.builtWithDesc':             { en: 'Tauri 2 · React 19 · TanStack Router/Query · Zustand · Vite. Reflect-Agent core provides the protocol and tool runtime.',  'zh-CN': 'Tauri 2 · React 19 · TanStack Router/Query · Zustand · Vite。Reflect-Agent core 提供协议与工具运行时。' },
+  'about.builtWithDesc':             { en: 'Tauri 2 · React 19 · TanStack Router/Query · Zustand · Vite. The ZhuYe core provides the protocol and tool runtime.',      'zh-CN': 'Tauri 2 · React 19 · TanStack Router/Query · Zustand · Vite。烛夜核心（ZhuYe core）提供协议与工具运行时。' },
   'about.links':                     { en: 'Links',                                                                                                                    'zh-CN': '链接' },
   'about.source':                    { en: 'Source & issues',                                                                                                          'zh-CN': '源码与问题' },
   'about.openSource':                { en: 'Open source',                                                                                                              'zh-CN': '开源' },

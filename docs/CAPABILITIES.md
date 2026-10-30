@@ -1,6 +1,6 @@
 # 核心能力 → GUI 覆盖矩阵
 
-> 本文档是 ReflectDesktop（GUI）与 Reflect-Agent（harness 基座）之间的
+> 本文档是烛夜 ZhuYe（GUI）与烛夜 agent 基座（submodule，上游更名 ZhuYe）之间的
 > **能力对照表**。它回答两个问题：
 > 1. 基座提供了哪些能力，GUI 是否能用、能看到？
 > 2. 还没接的能力有哪些、为什么、后续怎么接？

@@ -1,5 +1,5 @@
 /**
- * i18n —— ReflectDesktop 全量本地化（英 / 中 双语）。
+ * i18n —— 烛夜 ZhuYe 全量本地化（英 / 中 双语）。
  *
  * 设计目标：
  *   - 单一来源的 STRINGS 字典（flat key，避免嵌套 key 漂移）。

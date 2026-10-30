@@ -8,7 +8,7 @@ import type { StringEntry } from '../types';
 
 const home: Record<string, StringEntry> = {
   'home.title':                    { en: 'Home',                                                                   'zh-CN': '首页' },
-  'home.subtitle':                 { en: 'Welcome to Reflect Desktop.',                                            'zh-CN': '欢迎使用 Reflect Desktop。' },
+  'home.subtitle':                 { en: 'Welcome to ZhuYe.',                                                      'zh-CN': '欢迎使用烛夜。' },
   'home.startNew':                 { en: 'Start a new chat',                                                       'zh-CN': '开启新对话' },
   'home.openRecent':               { en: 'Open recent',                                                            'zh-CN': '打开最近' },
   'home.noRecent':                 { en: 'No recent sessions yet.',                                                'zh-CN': '暂无最近会话。' },
@@ -23,7 +23,7 @@ const home: Record<string, StringEntry> = {
   'home.modelsDesc':               { en: 'Switch model or effort',                                                 'zh-CN': '切换模型或 effort' },
   'home.settingsDesc':             { en: 'Provider & permissions',                                                 'zh-CN': '提供商与权限' },
   'home.startNewSession':          { en: 'Start a chat to create your first session.',                             'zh-CN': '开启第一次对话来创建你的第一个会话。' },
-  'home.welcomeTitle':             { en: 'Welcome to Reflect',                                                     'zh-CN': '欢迎使用 Reflect' },
+  'home.welcomeTitle':             { en: 'Welcome to ZhuYe',                                                       'zh-CN': '欢迎使用烛夜' },
   'home.welcomeDesc':              { en: 'AI coding agent — start a conversation or pick up where you left off.',  'zh-CN': 'AI 编程助手——开启对话或继续上次的工作。' },
 };
 

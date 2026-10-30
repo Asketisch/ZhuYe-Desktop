@@ -8,7 +8,7 @@ import type { StringEntry } from '../types';
 
 const usage: Record<string, StringEntry> = {
   'usage.title':          { en: 'Usage',                                                     'zh-CN': '用量' },
-  'usage.subtitle':       { en: 'Model-level token usage read from ~/.zhuye/sessions. Mirrors `reflect session stats` CLI.', 'zh-CN': '从 ~/.zhuye/sessions 读取的模型级 token 用量，对应 `reflect session stats` CLI。' },
+  'usage.subtitle':       { en: 'Model-level token usage read from ~/.zhuye/sessions. Mirrors the `zhuye session stats` CLI.', 'zh-CN': '从 ~/.zhuye/sessions 读取的模型级 token 用量，对应 `zhuye session stats` CLI。' },
   'usage.refresh':        { en: 'Refresh',                                                   'zh-CN': '刷新' },
   'usage.currentSession': { en: 'Current session',                                           'zh-CN': '当前会话' },
   'usage.noSession':      { en: 'No session bound yet',                                     'zh-CN': '尚未绑定会话' },

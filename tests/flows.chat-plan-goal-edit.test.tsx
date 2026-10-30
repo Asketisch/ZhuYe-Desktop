@@ -29,7 +29,7 @@ afterEach(async () => {
 
 /** 在 Composer 输入文本并回车提交（真实键盘路径）。 */
 async function typeAndSend(text: string): Promise<void> {
-  const textarea = await screen.findByLabelText('Message Reflect');
+  const textarea = await screen.findByLabelText('Message ZhuYe');
   fireEvent.change(textarea, { target: { value: text } });
   fireEvent.keyDown(textarea, { key: 'Enter' });
 }

@@ -1,4 +1,4 @@
-# ReflectDesktop 跨平台发布构建器。
+# 烛夜 ZhuYe 跨平台发布构建器。
 #
 # 仅由 `git push --tags v*` 触发。在三个操作系统上并行构建原生安装包，
 # 上传产物到 workflow run，并（若 tag 形如发布版本）附加到 GitHub Release。
@@ -51,7 +51,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry + target
-        uses: Swatin/actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
 
@@ -75,7 +75,7 @@ jobs:
             xvfb
 
       - name: Install frontend deps
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       # L5 真窗口冒烟要 tauri-driver(Linux 直连 webkit2gtk)。
       - name: Install tauri-driver
@@ -102,9 +102,10 @@ jobs:
           retention-days: 30
 
   # ─────────────────────────────────────────────────────────────────────
-  # 覆盖三个操作系统的单一 matrix job。每个 runner 只产出
-  # 自己系统的原生安装包 —— 不做交叉编译（Tauri 无法
-  # 可靠支持交叉编译）。
+  # 覆盖三个操作系统的 matrix job。每个 entry 产出自己目标的原生安装包。
+  # macOS x86_64 在 arm64 runner 上交叉编译 —— macos-13 runner 已被
+  # GitHub 淘汰（上游 ZhuYe 仓库同样迁移为 arm64 交叉编译）；对 Apple
+  # 平台这是受支持的目标交叉（cc 无需外部工具链）。
   # ─────────────────────────────────────────────────────────────────────
   build:
     name: build (${{ matrix.os }} / ${{ matrix.bundles }})
@@ -117,15 +118,19 @@ jobs:
           - os: macos-arm64
             runner: macos-14
             bundles: app,dmg
+            target: ''
           - os: macos-x86_64
-            runner: macos-13
+            runner: macos-14
             bundles: app,dmg
+            target: x86_64-apple-darwin
           - os: linux
             runner: ubuntu-22.04
             bundles: deb,appimage
+            target: ''
           - os: windows
             runner: windows-latest
             bundles: msi
+            target: ''
 
     steps:
       - name: Checkout
@@ -148,6 +153,8 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@v2
@@ -168,14 +175,15 @@ jobs:
             patchelf
 
       - name: Install frontend deps
-        run: pnpm install
-        # 注意：本仓库 gitignore 了 pnpm-lock.yaml，因此有意
-        # 不传 --frozen-lockfile。lockfile 将被重新生成。
+        run: pnpm install --frozen-lockfile
 
       - name: Build native bundles
         # --no-frontend：pnpm tauri build 的 beforeBuildCommand 已运行
         # `pnpm build`；在 CI runner 上跑两次是浪费。
-        run: bash scripts/build.sh --bundles=${{ matrix.bundles }} --no-frontend
+        # --target：macOS x86_64 在 arm64 runner 上交叉编译，其余为空（宿主目标）。
+        run: >-
+          bash scripts/build.sh --bundles=${{ matrix.bundles }} --no-frontend
+          ${{ matrix.target != '' && format('--target={0}', matrix.target) || '' }}
         # Windows runner 在 GHA 中默认没有 bash，但 windows-latest
         # 预装了 Git Bash，是带 `bash` 前缀的 `run:` 步骤的默认 shell。
 
@@ -195,7 +203,9 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           # 将 Tauri 产出的所有安装包文件收集到扁平暂存目录。
-          find target/release/bundle -type f \( \
+          # 宿主目标在 target/release/bundle；--target 交叉编译在
+          # target/<triple>/release/bundle —— 两个根都扫。
+          find target/release/bundle target/*/release/bundle -type f \( \
             -name '*.dmg' -o \
             -name '*.app' -o \
             -name '*.deb' -o \
@@ -208,7 +218,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: reflect-desktop-${{ matrix.os }}
+          name: zhuye-desktop-${{ matrix.os }}
           path: artifacts/*
           if-no-files-found: error
           retention-days: 30

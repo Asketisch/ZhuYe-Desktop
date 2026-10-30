@@ -8,7 +8,7 @@ import type { StringEntry } from '../types';
 
 const traces: Record<string, StringEntry> = {
   'traces.title':        { en: 'LLM Traces',                                            'zh-CN': '模型调用记录' },
-  'traces.subtitle':     { en: 'Local model-io records under ~/.zhuye/traces (redacted). Mirrors `reflect traces` CLI.', 'zh-CN': '~/.zhuye/traces 下的本地模型调用记录（已脱敏），对应 `reflect traces` CLI。' },
+  'traces.subtitle':     { en: 'Local model-io records under ~/.zhuye/traces (redacted). Mirrors the `zhuye traces` CLI.', 'zh-CN': '~/.zhuye/traces 下的本地模型调用记录（已脱敏），对应 `zhuye traces` CLI。' },
   'traces.refresh':      { en: 'Refresh',                                               'zh-CN': '刷新' },
   'traces.sessionList':  { en: 'Sessions',                                              'zh-CN': '会话' },
   'traces.empty':        { en: 'No traces yet',                                         'zh-CN': '暂无调用记录' },

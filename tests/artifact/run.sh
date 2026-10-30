@@ -289,7 +289,7 @@ if [ -n "$MSI_FILE" ]; then
             return 1
         fi
         local exe
-        exe=$(find "$dir" -name 'reflect-desktop*.exe' -o -name 'ReflectDesktop*.exe' 2>/dev/null | head -1)
+        exe=$(find "$dir" -name 'reflect-desktop*.exe' -o -name 'ReflectDesktop*.exe' -o -name 'ZhuYe*.exe' 2>/dev/null | head -1)
         [ -n "$exe" ] || { echo ".msi 解包后未找到主 exe"; rm -rf "$dir"; return 1; }
         local ver
         ver=$(powershell -NoProfile -Command "(Get-Item '$(cygpath -w "$exe" 2>/dev/null || echo "$exe")').VersionInfo.ProductVersion" 2>/dev/null | tr -d '\r')

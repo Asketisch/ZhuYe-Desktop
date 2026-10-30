@@ -40,7 +40,7 @@ export function DesignSystemView() {
     <div className={s.page}>
       <header className={s.header}>
         <h1 className={s.title}>Design System</h1>
-        <p className={s.subtitle}>ReflectDesktop 组件库 catalog —— 深色优先，token 驱动。</p>
+        <p className={s.subtitle}>烛夜（ZhuYe）组件库 catalog —— 深色优先，token 驱动。</p>
       </header>
 
       {/* ===== Colors ===== */}

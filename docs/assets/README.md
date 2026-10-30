@@ -27,7 +27,7 @@
 为避免文档空白，docs 网站 (`docs/index.html`) 在图片缺失时 fallback 到：
 
 ```html
-<img src="./assets/main.png" alt="Reflect Desktop"
+<img src="./assets/main.png" alt="烛夜 ZhuYe"
      onerror="this.src='./assets/placeholder.svg'" />
 ```
 

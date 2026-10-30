@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "ReflectDesktop：Reflect Agent 的 Tauri 2 桌面 GUI（二进制：reflect-desktop）"
+description = "烛夜（ZhuYe）：烛夜 agent 引擎的 Tauri 2 桌面 GUI（二进制：reflect-desktop）"
 
 # 子目录 workspace 成员；必须显式发现 tauri-build。
 build = "build.rs"

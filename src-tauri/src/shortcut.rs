@@ -1,4 +1,4 @@
-//! 全局快捷键 (ReflectDesktop 特有)。
+//! 全局快捷键 (烛夜桌面端 ZhuYe 特有)。
 //!
 //! 用 `tauri-plugin-global-shortcut` 注册应用前台+后台均可触发的快捷键。
 //! 默认注册一项:Cmd+Shift+Space (macOS) / Ctrl+Shift+Space (其他) 切换主窗口

@@ -1,6 +1,6 @@
 # 代码库地图（任务导向）
 
-ReflectDesktop 的权威导航。使用方式：**「需要 X，编辑 Y」**。
+烛夜 ZhuYe 的权威导航。使用方式：**「需要 X，编辑 Y」**。
 
 相关文档：
 
@@ -242,5 +242,5 @@ git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
 ```bash
 pnpm tauri build --bundles app
 bash scripts/install.sh
-# → /usr/local/bin/reflect-desktop + ~/Applications/ReflectDesktop.app
+# → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
 ```
