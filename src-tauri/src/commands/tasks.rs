@@ -27,9 +27,25 @@
 use reflect_task::{Task, TaskId, TaskPatch, TaskStatus, TeamFile};
 use serde::Serialize;
 use tauri::State;
+use tokio::io::AsyncReadExt;
 
 use crate::commands::error::CommandResult;
 use crate::state::MinimalAgent;
+
+/// GUI 拉取任务产出的字节上限；超大交付物应在终端/文件视图中分段查看。
+const TASK_OUTPUT_READ_BYTES: usize = 1024 * 1024;
+
+async fn read_task_output(path: &std::path::Path) -> std::io::Result<String> {
+    let file = tokio::fs::File::open(path).await?;
+    let mut bytes = Vec::new();
+    file.take(TASK_OUTPUT_READ_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .await?;
+    if bytes.len() > TASK_OUTPUT_READ_BYTES {
+        bytes.truncate(TASK_OUTPUT_READ_BYTES);
+    }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
 
 /// `reflect_update_task` 的返回值。
 ///
@@ -197,7 +213,7 @@ pub async fn reflect_get_task_output(
     let Some(path) = task.output_path.clone() else {
         return Ok(String::new());
     };
-    match tokio::fs::read_to_string(&path).await {
+    match read_task_output(&path).await {
         Ok(content) => Ok(content),
         // 文件不存在(worker 还没写)→ 空串,不报错 —— 与核心工具同语义。
         Err(_) => Ok(String::new()),
