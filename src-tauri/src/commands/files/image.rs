@@ -3,6 +3,7 @@
 //! 与本目录其余命令(工作区沙盒内的文件树 / 文本读写)是两个刻意分开的域:
 //! 附件来源可以是 Desktop / Downloads 等任意位置,不走工作区沙盒。
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
@@ -55,7 +56,8 @@ pub async fn reflect_read_image_base64(path: String) -> CommandResult<ImageBase6
             msg: format!("not a supported image file: {path} (expected png/jpg/jpeg/gif/webp/bmp)"),
         });
     };
-    let meta = std::fs::metadata(&p).map_err(CommandError::from)?;
+    let file = std::fs::File::open(&p).map_err(CommandError::from)?;
+    let meta = file.metadata().map_err(CommandError::from)?;
     if !meta.is_file() {
         return Err(CommandError {
             msg: format!("not a file: {}", p.display()),
@@ -69,12 +71,20 @@ pub async fn reflect_read_image_base64(path: String) -> CommandResult<ImageBase6
             ),
         });
     }
-    let bytes = std::fs::read(&p).map_err(CommandError::from)?;
+    let mut bytes = Vec::new();
+    file.take(IMAGE_READ_MAX.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(CommandError::from)?;
+    if bytes.len() as u64 > IMAGE_READ_MAX {
+        return Err(CommandError {
+            msg: format!("image too large: over {IMAGE_READ_MAX} bytes (max {IMAGE_READ_MAX})"),
+        });
+    }
     Ok(ImageBase64Result {
         path: p.display().to_string(),
         mime_type: mime.to_string(),
         base64: crate::commands::media::base64_encode(&bytes),
-        size: meta.len(),
+        size: bytes.len() as u64,
     })
 }
 
