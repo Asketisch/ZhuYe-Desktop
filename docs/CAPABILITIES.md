@@ -8,7 +8,7 @@
 > 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 当前子模块在 `ff2c51e` 基础上补入本地路径安全修复（`c8f4a219`，
+> 当前子模块在 `ff2c51e` 基础上补入本地路径安全修复（`a933fa26`，
 > workspace 版本 0.1.7）。本轮复核协议面、数据目录口径与核心文件工具：
 > 协议信封 / `Op` / `EventMsg` 与上次审计一致；数据目录与环境变量改按上游口径
 > （`$ZHUYE_HOME` > `$HOME/.zhuye`，`ZHUYE_SANDBOX_OS_LEVEL`，见 `app-core/src/paths.rs`）；
@@ -17,7 +17,7 @@
 > 其余能力域沿用上轮结论，尚待逐项复审；在复审完成前本矩阵不能作为
 > 当前版本的发布覆盖结论。
 >
-> 最近审计：submodule `c8f4a219`（0.1.7）。上一轮针对 `e4560bc`（含上游 7 周归并；
+> 最近审计：submodule `a933fa26`（0.1.7）。上一轮针对 `e4560bc`（含上游 7 周归并；
 > 闭合 §4.1 Goal 快照读口与 §3.18 todo 回灌，§3.19 os_level schema 对齐，
 > 新增 `tool_call_args_delta` / `spec_fallback` 事件接线）的结论仍然适用，
 > 除本节列出的命名与 API 变化。
