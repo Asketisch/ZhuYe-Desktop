@@ -168,7 +168,20 @@ pub async fn reflect_run_shell(
                         seq: 0,
                     },
                 ),
-                Ok(None) => {}
+                Ok(None) => {
+                    // kill 路径会先取走句柄并等待进程；此时 stdout 已到 EOF，
+                    // 必须补发终止事件，否则前端会认为会话仍在运行。
+                    emit_chunk(
+                        &app,
+                        &sequence,
+                        ShellOutputChunk {
+                            session_id: id.clone(),
+                            stream: "exit".into(),
+                            data: "killed".into(),
+                            seq: 0,
+                        },
+                    );
+                }
                 Err(e) => emit_chunk(
                     &app,
                     &sequence,
