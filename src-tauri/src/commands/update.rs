@@ -27,6 +27,9 @@ pub struct UpdateInfo {
 /// Default release manifest endpoint. 可通过 env `REFLECT_UPDATE_URL` 覆盖。
 const DEFAULT_UPDATE_URL: &str =
     "https://api.github.com/repos/Asketisch/ReflectDesktop/releases/latest";
+/// Release manifest 的响应体上限；GitHub release 说明可能很长，但
+/// 16 MiB 已远超正常 JSON，防止错误更新源占用无界内存。
+const UPDATE_RESPONSE_MAX: u64 = 16 * 1024 * 1024;
 
 #[tauri::command]
 pub async fn reflect_check_update() -> CommandResult<UpdateInfo> {
@@ -90,7 +93,12 @@ async fn probe_release(url: &str) -> anyhow::Result<(String, Option<String>, Opt
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
         return Err(anyhow::anyhow!("release probe failed: {stderr}"));
     }
-    let json = String::from_utf8_lossy(&out.stdout).to_string();
+    if out.stdout.len() as u64 > UPDATE_RESPONSE_MAX {
+        return Err(anyhow::anyhow!(
+            "release manifest exceeds {UPDATE_RESPONSE_MAX} byte limit"
+        ));
+    }
+    let json = String::from_utf8_lossy(&out.stdout).into_owned();
     let rel: Release =
         serde_json::from_str(&json).map_err(|e| anyhow::anyhow!("parse release json: {e}"))?;
     Ok((rel.tag_name, rel.html_url, rel.body))
