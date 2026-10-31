@@ -8,6 +8,7 @@
 
 - 升级 `@tanstack/react-router`，同步引入修复后的 `seroval`，清除 npm audit 报告的 1 个 critical 和 4 个 high 漏洞。
 - 升级 `quinn-proto`、`rustls`、`rustls-webpki`、`webpki-root-certs`、`webpki-roots` 和 `tokio`，消除 RustSec 报告的 12 个漏洞；`cargo audit` 现在无漏洞告警，仅保留 4 个上游未维护依赖的提醒。
+- 更新开发依赖并锁定受影响的传递依赖版本；`pnpm audit` 现在在依赖和开发依赖中均无已知漏洞。
 - submodule 从上游 `ff2c51e` 补入本地路径安全修复：`read` 与 LSP 文档同步使用固定只读句柄，`write` / `edit` 固定父目录并经私有暂存目录原子替换。路径检查后替换目录项或符号链接不再把读写导向工作区外；预置同名临时文件无法覆盖外部文件。
 - `plan_write`、`notebook_edit` 和 `image_view` 也改用固定文件/目录句柄：Plan mode 的自动写入不能通过替换 plan 目录或目标文件逃出工作区；notebook 保存使用安全替换；图片大小限制在同一句柄上执行。
 - 附件图片读取在同一文件句柄上执行大小限制和内容读取；文件在检查后被追加时不会生成超大 IPC 载荷。
