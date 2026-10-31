@@ -8730,6 +8730,7 @@ name = "zhuye-task"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "fs2",
  "parking_lot",
  "serde",
  "serde_json",
