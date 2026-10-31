@@ -683,7 +683,8 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 |---|---|---|
 | `zhuye-tools/src/sandbox.rs` | `read` / LSP 文档同步固定只读句柄，写入固定父目录并用私有暂存目录 | 目录项或符号链接在检查后替换不再改变读写目标 |
 | `builtins/read.rs` | 同一句柄完成二进制嗅探、大小上限和内容读取 | 文件在检查后增长仍受字节上限约束 |
-| `builtins/{write,edit}.rs` | 独占创建临时文件、句柄级替换、保留 mode / owner / ACL / xattr | 预置临时名符号链接无法覆盖外部文件；失败时保留原文件 |
+| `builtins/{write,edit,plan_write,notebook_edit}.rs` | 独占创建临时文件、句柄级替换、保留 mode / owner / ACL / xattr | 预置临时名符号链接无法覆盖外部文件；失败时保留原文件 |
+| `builtins/image_view.rs` | 固定只读句柄上检查大小并读取 | 检查后文件膨胀不会绕过上限 |
 | `zhuye-lsp/src/{tool.rs,document.rs}` | 路径解析拒绝外部/悬空符号链接，文档从固定句柄读取 | 目录替换后不会把外部文件内容发给 server |
 
 覆盖由上游 crate 单测和 mock LSP server 集成测试提供；桌面侧工作区文件命令
