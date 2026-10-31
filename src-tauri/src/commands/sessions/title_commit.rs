@@ -32,8 +32,7 @@ pub(super) async fn commit(
     if let Some(name) = custom_names(base).get(&id.to_string()) {
         return Ok(name.clone());
     }
-    let directory = base.join("_titles");
-    let path = directory.join(format!("{id}.title"));
+    let path = base.join("_titles").join(format!("{id}.title"));
     // 同 `_names`：链接位必须先验，否则写标题变成写外部文件。
     super::sidecar::reject_links(&path)?;
     if !force && let Ok(existing) = std::fs::read_to_string(&path) {
@@ -42,11 +41,9 @@ pub(super) async fn commit(
             return Ok(existing.to_string());
         }
     }
-    std::fs::create_dir_all(&directory).map_err(CommandError::from)?;
-    super::super::export::write_export(&path, |file| {
-        std::io::Write::write_all(file, title.as_bytes())
-    })
-    .map_err(CommandError::from)?;
+    // 核心写入固定目录句柄并用 `O_NOFOLLOW` 临时文件，消除预检后的替换窗口。
+    reflect_rollout::index::write_session_sidecar(base, id, "title", title.as_bytes())
+        .map_err(CommandError::from)?;
     Ok(title.to_string())
 }
 

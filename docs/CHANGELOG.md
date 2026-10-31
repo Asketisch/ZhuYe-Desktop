@@ -11,6 +11,7 @@
 - `plan_write`、`notebook_edit` 和 `image_view` 也改用固定文件/目录句柄：Plan mode 的自动写入不能通过替换 plan 目录或目标文件逃出工作区；notebook 保存使用安全替换；图片大小限制在同一句柄上执行。
 - 附件图片读取在同一文件句柄上执行大小限制和内容读取；文件在检查后被追加时不会生成超大 IPC 载荷。
 - Agent 定义更新和子代理 spec 保存改为原子替换，进程中断不会留下半截定义或 spec 文件。
+- 会话名称和 AI 标题 sidecar 写入改用上游固定目录句柄、`O_NOFOLLOW` 临时文件和 inode 校验；检查后替换 sidecar 路径不会再写入外部文件。
 - 写入保留原文件的权限位、owner/group、ACL 和扩展属性；只读目标返回权限错误。写入失败保留原文件并清理本次暂存内容。`read` 在同一句柄上执行二进制嗅探、大小上限和内容读取，文件检查后增长不再绕过上限。
 - 验证覆盖上游 `zhuye-tools` 单测、`read_before_edit` 端到端测试、`zhuye-lsp` 路径与目录替换单测、mock LSP server 集成测试；桌面端 `pnpm typecheck`、Rust 编译、全桌面测试和全目标 Clippy 通过。
 
