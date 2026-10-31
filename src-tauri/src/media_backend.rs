@@ -15,7 +15,7 @@
 //! - `Enigo::new()` 没权限 → `MediaError::Unavailable { capability: "input_permission" }`。
 //! - 鼠标键盘动作实际错误 → `MediaError::Other`。
 
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use std::path::Path;
 
 use enigo::{
@@ -143,9 +143,22 @@ impl ImageBackend for RealImageBackend {
         if let Some(parent) = output.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        let mut buf = std::fs::File::create(output).map_err(|e| MediaError::IoError {
-            message: e.to_string(),
-        })?;
+        // 编码可能在中途失败；先写同目录临时文件再替换，避免截断已有输出。
+        let temp = output.with_file_name(format!(
+            ".{}.{}.tmp",
+            output
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "media".into()),
+            uuid::Uuid::new_v4()
+        ));
+        let mut buf = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)
+            .map_err(|e| MediaError::IoError {
+                message: e.to_string(),
+            })?;
         let img_fmt = match resolved_format {
             ImageFormat::Png => ImgFmt::Png,
             ImageFormat::Jpeg => ImgFmt::Jpeg,
@@ -162,7 +175,20 @@ impl ImageBackend for RealImageBackend {
         encoded.map_err(|e| MediaError::Other {
             message: format!("encode failed: {e}"),
         })?;
-        let bytes = std::fs::metadata(output).map(|m| m.len()).unwrap_or(0);
+        buf.flush().map_err(|e| MediaError::IoError {
+            message: e.to_string(),
+        })?;
+        buf.sync_all().map_err(|e| MediaError::IoError {
+            message: e.to_string(),
+        })?;
+        drop(buf);
+        let bytes = std::fs::metadata(&temp).map(|m| m.len()).unwrap_or(0);
+        if let Err(error) = std::fs::rename(&temp, output) {
+            let _ = std::fs::remove_file(&temp);
+            return Err(MediaError::IoError {
+                message: error.to_string(),
+            });
+        }
         Ok(ImageProcessResult {
             output_path: spec.output_path.clone(),
             width: scaled.width(),
