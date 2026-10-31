@@ -944,9 +944,12 @@ fn walk_for_titles(dir: &Path, out: &mut HashMap<String, String>) {
 /// (与索引的识别规则一致 —— 真实数据存在文件名 ≠ meta id 的文件),
 /// 无 meta 行时回退文件名 stem(`<id>.jsonl` / `<id>.<n>.jsonl`)。
 fn first_user_message_title_file(path: &Path) -> Option<(String, String)> {
-    let body = std::fs::read_to_string(path).ok()?;
+    use std::io::BufRead;
+    let file = std::fs::File::open(path).ok()?;
+    let lines = std::io::BufReader::new(file).lines();
     let mut meta_id: Option<String> = None;
-    for line in body.lines() {
+    for line in lines {
+        let line = line.ok()?;
         let trimmed = line.trim();
         if trimmed.is_empty() {
             continue;
