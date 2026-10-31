@@ -103,7 +103,7 @@ impl MemoryStore {
         Self::check_expected_value(scope, key, &current, replace_document, expected_value)?;
         if replace_document {
             ensure_whole_document(scope, key, &current)?;
-            std::fs::write(path, value)?;
+            crate::persistence::write_atomic(&path, value.as_bytes())?;
             return Ok(());
         }
         if value.lines().any(|line| line.starts_with("## ")) {
@@ -137,14 +137,14 @@ impl MemoryStore {
                 anyhow::bail!("memory entry has duplicate headings: {key}");
             }
             let updated = format!("{}\n{}{}", &current[..line_end], value, &current[end..]);
-            std::fs::write(path, updated)?;
+            crate::persistence::write_atomic(&path, updated.as_bytes())?;
             return Ok(());
         }
         if !current.is_empty() && !current.ends_with('\n') {
             current.push('\n');
         }
         current.push_str(&format!("\n## {key}\n{value}\n"));
-        std::fs::write(path, current)?;
+        crate::persistence::write_atomic(&path, current.as_bytes())?;
         Ok(())
     }
 
@@ -196,7 +196,7 @@ impl MemoryStore {
             let mut updated = String::with_capacity(current.len());
             updated.push_str(&current[..start]);
             updated.push_str(&current[end..]);
-            std::fs::write(path, updated)?;
+            crate::persistence::write_atomic(&path, updated.as_bytes())?;
         }
         Ok(())
     }
