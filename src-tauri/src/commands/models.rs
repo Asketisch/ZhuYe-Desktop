@@ -11,8 +11,34 @@ use serde::Serialize;
 use serde_json::Value;
 use std::time::Duration;
 
+use futures::StreamExt;
+
 use super::model_catalog::{ProviderModelsResult, free_model_rules, parse_models_response};
 use crate::commands::error::{CommandError, CommandResult};
+
+/// 成功响应体上限。模型清单可能很长，但 20 MiB 已远超常规供应商；
+/// 配置错误指向二进制 / 无限流时不能无界读入内存。
+const MODELS_RESPONSE_MAX: u64 = 20 * 1024 * 1024;
+/// 连通性测试只期待一条短回复。
+const CHAT_TEST_RESPONSE_MAX: u64 = 1024 * 1024;
+
+/// 读响应体并在超出上限时报错；额外读 1 字节用于区分“恰好等于上限”。
+async fn read_bounded_body(resp: reqwest::Response, limit: u64) -> Result<Vec<u8>, CommandError> {
+    let mut bytes = Vec::new();
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|error| CommandError {
+            msg: format!("failed to read response: {error}"),
+        })?;
+        bytes.extend_from_slice(&chunk);
+        if bytes.len() as u64 > limit {
+            return Err(CommandError {
+                msg: format!("response exceeds {limit} byte limit"),
+            });
+        }
+    }
+    Ok(bytes)
+}
 
 /// 按接入端口施加鉴权头。
 ///
@@ -123,16 +149,16 @@ pub async fn reflect_list_provider_models(
         });
     }
     if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        let snippet: String = body.chars().take(200).collect();
+        let body = read_bounded_body(resp, MODELS_RESPONSE_MAX)
+            .await
+            .unwrap_or_default();
+        let snippet: String = String::from_utf8_lossy(&body).chars().take(200).collect();
         return Err(CommandError {
             msg: format!("API error (HTTP {status}): {snippet}"),
         });
     }
     // 先读完整 body(读体失败 = 瞬时),再解析(解析失败 = 确定性)。
-    let body = resp.bytes().await.map_err(|e| CommandError {
-        msg: format!("failed to read response: {e}"),
-    })?;
+    let body = read_bounded_body(resp, MODELS_RESPONSE_MAX).await?;
     let models = parse_models_response(&endpoint, &body, &rules)?;
     tracing::info!(endpoint = %endpoint, count = models.len(), "provider models listed");
     Ok(ProviderModelsResult { endpoint, models })
@@ -269,15 +295,15 @@ pub async fn reflect_test_provider_chat(
         });
     }
     if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        let snippet: String = body.chars().take(200).collect();
+        let body = read_bounded_body(resp, CHAT_TEST_RESPONSE_MAX)
+            .await
+            .unwrap_or_default();
+        let snippet: String = String::from_utf8_lossy(&body).chars().take(200).collect();
         return Err(CommandError {
             msg: format!("API error (HTTP {status}): {snippet}"),
         });
     }
-    let body = resp.bytes().await.map_err(|e| CommandError {
-        msg: format!("failed to read response: {e}"),
-    })?;
+    let body = read_bounded_body(resp, CHAT_TEST_RESPONSE_MAX).await?;
     let reply = parse_chat_test_reply(&endpoint, &body)?;
     tracing::info!(endpoint = %endpoint, reply_len = reply.len(), "provider chat test ok");
     Ok(ProviderChatTestResult { reply })
