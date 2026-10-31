@@ -4,6 +4,12 @@
 
 ## 未发布
 
+### 修复 — 核心文件工具路径竞态
+
+- submodule 从上游 `ff2c51e` 补入本地路径安全修复 `454350ad`：`read` 与 LSP 文档同步使用固定只读句柄，`write` 固定父目录并经私有暂存目录原子替换。路径检查后替换目录项或符号链接不再把读写导向工作区外；预置同名临时文件无法覆盖外部文件。
+- 写入保留原文件的权限位、owner/group、ACL 和扩展属性；只读目标返回权限错误。写入失败保留原文件并清理本次暂存内容。`read` 在同一句柄上执行二进制嗅探、大小上限和内容读取，文件检查后增长不再绕过上限。
+- 验证覆盖上游 `zhuye-tools` 单测、`read_before_edit` 端到端测试、`zhuye-lsp` 路径与目录替换单测、mock LSP server 集成测试；桌面端 `pnpm typecheck`、Rust 编译、全桌面测试和全目标 Clippy 通过。
+
 ### 变更 — 品牌更名烛夜（ZhuYe）
 
 - 对齐上游 submodule 的更名：用户可见品牌全部改为烛夜 / ZhuYe——`productName` 改为 `ZhuYe`（bundle 产物 `ZhuYe.app` / `ZhuYe.dmg` / `ZhuYe.msi` / `zhuye.deb` / `ZhuYe.AppImage`），窗口标题与页面标题「烛夜 ZhuYe」，托盘 tooltip、i18n 文案（应用名 / 欢迎语 / 输入器占位 / 关于页 / 通知）按语言分别使用「烛夜」（zh-CN）与「ZhuYe」（en）；bundle 描述与版权、Cargo 包描述、安装/构建脚本与全部文档同步。上游 CLI 命令引用从 `reflect …` 更正为 `zhuye …`（usage / traces 页与用户指南）。

@@ -8,14 +8,16 @@
 > 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 当前子模块切到上游 main（`ff2c51e`，workspace 版本 0.1.7）。本轮只复核了三件事：
+> 当前子模块在 `ff2c51e` 基础上补入本地路径安全修复（`454350ad`，
+> workspace 版本 0.1.7）。本轮复核协议面、数据目录口径与核心文件工具：
 > 协议信封 / `Op` / `EventMsg` 与上次审计一致；数据目录与环境变量改按上游口径
 > （`$ZHUYE_HOME` > `$HOME/.zhuye`，`ZHUYE_SANDBOX_OS_LEVEL`，见 `app-core/src/paths.rs`）；
 > 上游删掉的 API（`IncompletePermissionResolver`、`ToolRegistry::{register_if_absent_owned,
 > unregister_if_same}`、`zhuye-paths`/`reflect-compat`）在桌面侧的替代实现已接线。
-> **其余能力域沿用上轮结论，尚待逐项复审；在复审完成前本矩阵不能作为当前版本的发布覆盖结论。**
+> 其余能力域沿用上轮结论，尚待逐项复审；在复审完成前本矩阵不能作为
+> 当前版本的发布覆盖结论。
 >
-> 最近审计：submodule `ff2c51e`（0.1.7）。上一轮针对 `e4560bc`（含上游 7 周归并；
+> 最近审计：submodule `454350ad`（0.1.7）。上一轮针对 `e4560bc`（含上游 7 周归并；
 > 闭合 §4.1 Goal 快照读口与 §3.18 todo 回灌，§3.19 os_level schema 对齐，
 > 新增 `tool_call_args_delta` / `spec_fallback` 事件接线）的结论仍然适用，
 > 除本节列出的命名与 API 变化。
@@ -673,21 +675,19 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
   「shell 会话列表」→ §2 归为**有意不接线**（桌面端本地诊断命令，
   界面用自己的会话状态更准）。
 
-### 4.2 核心文件工具的路径竞态防护（上游缺失，桌面端已按现状记录）
+### 4.2 核心文件工具的路径竞态防护（上游已闭合，桌面端已接入 submodule）
 
-`ff2c51e` 起的上游实现里，工具侧路径仍是「先 canonicalize 检查、再按路径读写」两步：
+`454350ad` 已把「先检查、后按路径读写」改为固定文件/目录句柄：
 
 | 位置 | 现状 | 后果 |
 |---|---|---|
-| `zhuye-tools/src/sandbox.rs::resolve_sandbox_path` | canonicalize + `starts_with` | 检查之后替换目录项或符号链接，可把读写导向工作区外 |
-| `builtins/read.rs` | `fs::metadata` 查大小后 `fs::read_to_string` | 文件在两步之间增长时无上限；句柄不固定 |
-| `builtins/write.rs` | 固定临时名 `<target>.zhuye-tmp` + `fs::write` + `rename` | 预置同名符号链接可覆盖外部文件；原子替换丢弃原文件 mode / owner / ACL / xattr |
-| `zhuye-lsp/src/{tool.rs,document.rs}` | 同上检查 + `fs::read_to_string` | 文档同步把外部文件内容发给 server 的路径仍在 |
+| `zhuye-tools/src/sandbox.rs` | `read` / LSP 文档同步固定只读句柄，写入固定父目录并用私有暂存目录 | 目录项或符号链接在检查后替换不再改变读写目标 |
+| `builtins/read.rs` | 同一句柄完成二进制嗅探、大小上限和内容读取 | 文件在检查后增长仍受字节上限约束 |
+| `builtins/write.rs` | 独占创建临时文件、句柄级替换、保留 mode / owner / ACL / xattr | 预置临时名符号链接无法覆盖外部文件；失败时保留原文件 |
+| `zhuye-lsp/src/{tool.rs,document.rs}` | 路径解析拒绝外部/悬空符号链接，文档从固定句柄读取 | 目录替换后不会把外部文件内容发给 server |
 
-桌面端自己的读写面（`src-tauri/src/commands/files.rs::resolve_under_workspace` +
-逐组件固定父目录）已按更严的口径实现并有 L3 用例覆盖，但**agent 侧工具走的是核心实现**，
-所以这条缺口真实存在于发布产物里。修它要在 Reflect-Agent 仓库改，再升 submodule
-（见 `SUBMODULE.md`）；桌面端不打算在适配层复刻一份文件工具来绕过。
+覆盖由上游 crate 单测和 mock LSP server 集成测试提供；桌面侧工作区文件命令
+仍保留自己的固定父目录实现并有 L3 用例覆盖。
 
 ### 4.1 Goal 状态可观测（上游已闭合,桌面端已接线）
 
