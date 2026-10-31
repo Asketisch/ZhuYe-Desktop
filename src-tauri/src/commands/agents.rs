@@ -181,7 +181,7 @@ pub async fn reflect_save_agent_def(
             return Err(error.into());
         }
     } else {
-        std::fs::write(&path, md).map_err(CommandError::from)?;
+        crate::persistence::write_atomic(&path, md.as_bytes()).map_err(CommandError::from)?;
     }
     Ok(back)
 }

@@ -140,7 +140,7 @@ pub async fn reflect_save_subagent_spec(
     let dir = reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"]);
     std::fs::create_dir_all(&dir)?;
     let path = dir.join(format!("{role}.md"));
-    std::fs::write(&path, markdown)?;
+    crate::persistence::write_atomic(&path, markdown.as_bytes())?;
     tracing::info!(role = %parsed.role, path = %path.display(), "subagent spec saved");
     Ok(())
 }
