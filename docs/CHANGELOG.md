@@ -4,6 +4,15 @@
 
 ## 未发布
 
+（空 —— 下一批变更从这里开始。）
+
+## 0.0.1 — 2026-11-02
+
+首个 tag 发布（`v0.0.1`），跨平台安装包由 GitHub Actions 自动构建：
+macOS arm64 / x86_64（.dmg）、Linux（.deb / .AppImage）、Windows（.msi）。
+发布流水线（`release.yml`）在构建前先跑完整发布门禁（L1 静态审查 + L2 前端 +
+L3 真后端 + L5 真窗口 e2e），产物审查通过才出包，审查报告随发布附件。
+
 ### 修复 — GitHub CI 全线失败（submodule 指针回退 / Node 20 / 缓存路径）
 
 - **submodule 指针回退**：路径安全批次（`53d62c1f`，14 个 commit）此前只存在于本地分支、从未推到上游，随后一次 GUI git 工具提交把指针退回上游 `main`（`ff2c51e`），桌面侧 `title_commit.rs` 依赖的 `reflect_rollout::index::write_session_sidecar` 随之消失，clippy / test 三平台全部编译失败。现把该批次 rebase 到上游 `main`（0.1.8，`4deeeea3`）之上（零冲突，`cargo metadata --locked` 通过）并推到上游，submodule 钉住 `d063a5f`——CI 从此能拉到它。
