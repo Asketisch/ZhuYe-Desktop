@@ -15,6 +15,11 @@
 //!
 //! 现在直接复用核心的 `reflect_skills::{scan_skills_dirs, bundled_skills}`,
 //! 目录与合并语义与运行时逐行一致,GUI 不再可能与 agent 分叉。
+//!
+//! 内置技能包受 `[active] bundled_skills` 门控(上游 0.1.8 起**默认关闭**):
+//! 核心 `m4_bootstrap` 只在开关为 true 时 `merge_bundled`,这里按同一开关
+//! 决定是否把内置技能并入列表 —— 否则 GUI 会列出 15 个 agent 根本没加载、
+//! `load_skill` 也激活不了的技能。
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -59,12 +64,15 @@ pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResul
     // 与核心 `m4_bootstrap` 同序:工作区在前、用户级在后。
     let mut metas = scan_skills_dirs(&dirs);
     let mut seen: HashSet<String> = metas.iter().map(|m| m.name.clone()).collect();
-    // `merge_bundled` 的语义:同名不覆盖(用户/工作区技能优先)。
+    // `merge_bundled` 的语义:同名不覆盖(用户/工作区技能优先);
+    // 且只在 `[active] bundled_skills = true` 时合入(与核心 bootstrap 同门)。
     let mut bundled: HashSet<String> = HashSet::new();
-    for b in bundled_skills() {
-        if seen.insert(b.name.clone()) {
-            bundled.insert(b.name.clone());
-            metas.push(b);
+    if agent.inner.cfg.read().active.bundled_skills {
+        for b in bundled_skills() {
+            if seen.insert(b.name.clone()) {
+                bundled.insert(b.name.clone());
+                metas.push(b);
+            }
         }
     }
 

@@ -8,8 +8,15 @@
 > 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 当前子模块在 `ff2c51e` 基础上补入本地路径安全修复（`53d62c1f`，
-> workspace 版本 0.1.7）。本轮复核协议面、数据目录口径与核心文件工具：
+> 当前子模块 `d063a5f`：上游 `main`（`4deeeea3`，workspace 版本 0.1.8）之上
+> rebase 入 14 个本地路径安全修复（原 `53d62c1f` 批次，基于 `ff2c51e` / 0.1.7；
+> 该批次此前只存在于本地分支，CI 拉不到 → 本轮推到上游 `main` 后重新钉住）。
+> 0.1.7 → 0.1.8 的上游增量只有一项能力变化：`[active] bundled_skills`
+> （内置 15 项编码向 skill **默认关闭**，显式 `true` 才合入 catalog）——
+> 桌面侧 `reflect_list_skills` 同按此开关决定是否列出内置技能（否则 GUI
+> 会列出 agent 根本没加载的 skill），设置页 `[active]` 节已补对应开关
+> （`src/features/settings/config/schema.ts`）。
+> 本轮复核协议面、数据目录口径与核心文件工具：
 > 协议信封 / `Op` / `EventMsg` 与上次审计一致；数据目录与环境变量改按上游口径
 > （`$ZHUYE_HOME` > `$HOME/.zhuye`，`ZHUYE_SANDBOX_OS_LEVEL`，见 `app-core/src/paths.rs`）；
 > 上游删掉的 API（`IncompletePermissionResolver`、`ToolRegistry::{register_if_absent_owned,
@@ -17,7 +24,7 @@
 > 其余能力域沿用上轮结论，尚待逐项复审；在复审完成前本矩阵不能作为
 > 当前版本的发布覆盖结论。
 >
-> 最近审计：submodule `53d62c1f`（0.1.7）。上一轮针对 `e4560bc`（含上游 7 周归并；
+> 最近审计：submodule `d063a5f`（0.1.8 + 路径安全批次）。上一轮针对 `e4560bc`（含上游 7 周归并；
 > 闭合 §4.1 Goal 快照读口与 §3.18 todo 回灌，§3.19 os_level schema 对齐，
 > 新增 `tool_call_args_delta` / `spec_fallback` 事件接线）的结论仍然适用，
 > 除本节列出的命名与 API 变化。

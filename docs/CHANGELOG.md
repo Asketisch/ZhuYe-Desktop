@@ -4,6 +4,36 @@
 
 ## 未发布
 
+### 修复 — GitHub CI 全线失败（submodule 指针回退 / Node 20 / 缓存路径）
+
+- **submodule 指针回退**：路径安全批次（`53d62c1f`，14 个 commit）此前只存在于本地分支、从未推到上游，随后一次 GUI git 工具提交把指针退回上游 `main`（`ff2c51e`），桌面侧 `title_commit.rs` 依赖的 `reflect_rollout::index::write_session_sidecar` 随之消失，clippy / test 三平台全部编译失败。现把该批次 rebase 到上游 `main`（0.1.8，`4deeeea3`）之上（零冲突，`cargo metadata --locked` 通过）并推到上游，submodule 钉住 `d063a5f`——CI 从此能拉到它。
+- **前端测试 worker 启动即崩**：npm audit 修复把 `jsdom` 升到 30，其依赖 `undici@8` 要求 Node ≥ 22.19（`decompress.js` 用到 zstd zlib API），CI 的 Node 20（2026-04 已 EOL）上 125 个 fork worker 全部启动失败。`ci.yml` / `release.yml` 统一升到 Node 24（与本地开发一致），`package.json` 补 `engines.node >= 22.19.0` 让需求显式化。
+- **static-audit 假失败**：该 job 配了 `cache: pnpm` 却从不 `pnpm install`，pnpm store 不存在时 `setup-node` 的 post 步骤以 "Path Validation Error" 判失败，把 21/21 通过的审查结果拖成红色。静态层只用 node 内置模块，去掉 pnpm 与缓存配置。
+- **升级适配 — `[active] bundled_skills`**：上游 0.1.8 把 15 个内置编码 skill 改为**默认关闭**（`m4_bootstrap` 只在开关为 true 时 `merge_bundled`）。`reflect_list_skills` 同按此开关决定是否列出内置技能，否则 GUI 会列出 agent 根本没加载、`load_skill` 也激活不了的技能；设置页 `[active]` 节补对应布尔开关（含 zh-CN / en 文案）。
+- `docs/CAPABILITIES.md` 审计基线更新为 `d063a5f`。
+
+### 修复 — release.yml 全平台打包从未跑通的两个潜在 bug
+
+`release.yml`（macOS arm64 / x86_64 + Linux deb / AppImage + Windows msi）此前从未被触发过，静态审查与首次真跑发现四处一旦跑必失败的问题：
+
+- **`webkit2gtk-driver` 在 ubuntu-latest 上消失**（首次触发实测）：ubuntu-latest 自 2026-10-19 起迁到 Ubuntu 26，L5 真窗口冒烟依赖的 `webkit2gtk-driver` 在 26 里已无安装候选，gate 的 apt 步骤退出 100。gate job 固定为 `ubuntu-24.04`（noble 仍有该包），发布门禁用可复现的已知环境。
+- **e2e 层依赖缺失**（第二次首跑实测，`E2E_REQUIRED=1` 如实判死）：视觉回归的 Playwright 浏览器二进制从未安装（playwright-core 免 postinstall 下载）——gate 补 `playwright-core install --with-deps chromium`（必须走仓库内 playwright-core，浏览器 revision 与驱动绑定）；窗口冒烟的 `selenium-webdriver` 从未声明进 `package.json`（该测试在任何机器上都从未真正跑过：macOS 设计上跳过，Linux 首跑即 import 失败）——补进 devDependencies（4.52.0）。
+- **窗口冒烟测试对着不存在的 API 写**（第三次首跑实测，selenium 装上后即 `TypeError`）：`webdriver` 不是 selenium-webdriver 的命名导出，`Session.create` / `byCss().waitUntilVisible()` 均不存在——从未有机器真正运行过它（tsconfig 只含 `src`，typecheck 也罩不到 tests/）。按真实 4.x API 重写（`Builder().usingServer().withCapabilities().build()` / `By` / `until.elementLocated` / `driver.takeScreenshot`），并补 `@types/selenium-webdriver`。
+- **视觉基线与 runner 渲染字节级不一致**（同一轮实测，全部路由挂）：基线在 dev 机（macOS）生成，Chromium 跨平台字体栅化必然不同，字节比对跨平台无意义。`release.yml` 增加 `workflow_dispatch` 输入 `visual_update`：在 runner 上重生成全部基线并上传 `visual-baselines` artifact，人工审查后入库——基线从此以发布环境的渲染为准（74 张已重生成入库）。
+- **窗口冒烟：tauri-driver 没跑在 xvfb 下**（第四轮实测，会话 60s 永远 ready 不了）：tauri-driver 派生的 WebKitWebDriver→应用需要 `DISPLAY` 开窗口，旧实现只把 vitest（HTTP 客户端，无需显示）包进 xvfb，注释与实现相反。驱动改为自身跑在 `xvfb-run` 下 + `WEBKIT_DISABLE_COMPOSITING_MODE=1`（CI 无 GPU，合成器走软件渲染）+ `setsid` 独立进程组收尾整组击杀（防孤儿 driver 占 4444 端口）；`beforeAll` 超时 60s→120s（冷启动 debug 二进制 + 软件渲染首帧偏慢）。
+- **release-review artifact 永远为空**（同一轮实测）：`.test-results` 是隐藏目录，upload-artifact v4.4 起默认排除隐藏文件/目录（显式路径也不行），tag 发布时 release job 会因取不到报告而 `fail_on_unmatched_files` 失败——补 `include-hidden-files: true`。
+- **窗口冒烟壳层断言竞态**（第五轮实测，会话已建立、3 用例过 2）：`body` 自 index.html 起就存在，React 首次提交前单发 `findElement` 查侧栏会竞态 `NoSuchElement`——改为 `until.elementLocated('[data-testid="shell-sidebar"]')` 等待壳层真实挂载（应用自身测试同款钩子）；窗口截图纳入 release-review artifact 便于失败诊断。
+- **Linux 构建缺链接期开发库**（第七轮实测，gate 全绿后首个 build job）：`libspa-sys` 的 build.rs 要 pkg-config 找到 `libpipewire-0.3`（xcap 截屏链），release.yml 的 Linux 构建清单只有运行时依赖（deb.depends 口径）——补齐与 ci.yml clippy/test 同一批的链接期库（pipewire/alsa/gbm/drm/egl/wayland）。
+- **macOS 交叉构建产物未签名**（同一轮实测：arm64 宿主构建过签名检查、x86_64 交叉构建挂）：tauri-bundler 在未配置身份时不做 bundle 级签名，宿主产物靠链接器顺手落的 ad-hoc 内嵌签名通过 `codesign -dv`，交叉编译时链接器连这个都不落。build.sh 构建后对全部 `.app` 显式 `codesign --force --deep --sign -` 封印（幂等；本机实测由 `linker-signed / Info.plist=not bound` 变为正式 bundle 封印）。正式分发（Developer ID + 公证）另行传 `SIGNING_IDENTITY`。
+- **Linux 构建基线必须提到 24.04**（第八轮实测，补齐开发库后暴露下一层）：`xcap 0.9` 在 Linux 硬依赖 `pipewire 0.10`（无 feature 可关），而 `libspa 0.10` 生成的绑定要 SPA 0.3.65+ 的 API（`spa_meta_first` / `spa_meta_region_is_valid` / `spa_video_info_raw.flags`）。ubuntu-22.04 只有 pipewire 0.3.48，头文件直接编不过（7 个 E0425/E0560/E0308）；24.04 是 1.0.5，满足。Linux 构建 job 改 `ubuntu-24.04`（glibc 2.39 仍是当前主流桌面发行版基线）。
+- **Linux 产物审查同样挂死**（第九轮实测，审查跑 27 分钟未归）：`.AppImage --appimage-extract` 在无 `/dev/fuse` 的 CI 上默认路径会阻塞，且输出被 `>/dev/null 2>&1` 吞掉、无超时。改为 `APPIMAGE_EXTRACT_AND_RUN=1`（强制内嵌 squashfs 离线解包，不试 FUSE）+ 180s 看门狗；失败时回显解包日志尾部（原先全静默）。
+- **Windows 产物审查无限挂死**（同一轮实测，MSI 已产出、审查步骤挂 30+ 分钟后手动取消）：`msiexec /a` 管理解包在 CI 上偶发等死。`check_msi` 重构为双路径：msiexec 带看门狗（180s，`run_with_timeout`）；超时/失败自动降级为 `WindowsInstaller.Installer` COM 只读表查询（Property 表 ProductVersion + File 表确认主 exe，不执行安装序列、不碰服务、不会挂）。
+- **调试二进制加载的是 WebKit 错误页**（第六轮实拍截图："Could not connect to localhost: Connection refused"）：debug 构建按 `devUrl`（localhost:5173）加载前端、没有内嵌资源，而窗口冒烟从未起过 vite——应用从未真正渲染过。run.sh 现在先起 `pnpm dev` 并轮询就绪（30s）再建会话，套件结束统一收掉 vite 进程。
+
+- **"Locate artifacts" 四个 job 全挂**：`find target/release/bundle target/*/release/bundle` 在 `set -euo pipefail` 下，只要任一路径不存在 `find` 就以非零码退出——宿主构建没有 `target/*/release/bundle`，交叉构建没有 `target/release/bundle`，两种布局都踩。现只把**存在**的根交给 `find`，一个都没有时以 `::error::` 显式失败；顺带删掉 `-type f -name '*.app'` 这个永远匹配不到的死模式（`.app` 是目录，macOS 交付物是 `.dmg`）。
+- **macos-14 runner 退役**：`macos-14` 于 2026-11-02 完全退役（actions/runner-images#13518），release.yml 两个 macOS job 触发即报「no runner available」。固定为 `macos-15`（不用会漂移到 macos-26 的 `macos-latest`，避免包内 SDK/工具链版本漂移）；arm64 → x86_64 目标交叉不受影响。
+- **macos-x86_64 产物审查误判**：`tests/lib.sh` 的 `DIST_DIR` 默认 `target/release/bundle`，交叉编译产物在 `target/x86_64-apple-darwin/release/bundle`，`ARTIFACT_REQUIRED=1` 下会以「发布产物存在 FAIL」终止。"Audit release artifact" 步骤现按 `matrix.target` 传 `DIST_DIR`。
+
 ### 修复 — 核心文件工具路径竞态
 
 - 升级 `@tanstack/react-router`，同步引入修复后的 `seroval`，清除 npm audit 报告的 1 个 critical 和 4 个 high 漏洞。

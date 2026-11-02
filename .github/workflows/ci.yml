@@ -39,16 +39,14 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
+      # 静态层只跑 node 内置模块(tests/static/analyze.mjs + `node -p`),
+      # 不装 node_modules —— 所以不配 pnpm,也不开 `cache: pnpm`:
+      # 没跑过 `pnpm install` 时 store 路径不存在,setup-node 的 post 步骤
+      # 会以 "Path Validation Error" 把整个 job 判失败。
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: 24
 
       - name: Run static audit layer
         run: bash tests/run_all.sh static
@@ -67,10 +65,13 @@ jobs:
         with:
           version: 10
 
+      # Node 24(与 package.json `engines.node` 对齐):vitest 的 jsdom 30
+      # 依赖 undici 8,后者要求 Node ≥ 22.19;Node 20 上 worker 启动即崩
+      # (`decompress.js` 读不到 zstd zlib API)。Node 20 已于 2026-04 EOL。
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install frontend deps

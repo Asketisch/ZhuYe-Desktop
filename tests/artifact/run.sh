@@ -247,8 +247,18 @@ if [ -n "$APPIMAGE_FILE" ]; then
         local root
         root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-appimage-audit.XXXXXX")
         cp "$APPIMAGE_FILE" "$root/app.AppImage"
-        if ! (cd "$root" && chmod +x app.AppImage && ./app.AppImage --appimage-extract >/dev/null 2>&1); then
-            echo "--appimage-extract 解包失败"
+        # APPIMAGE_EXTRACT_AND_RUN=1:强制走内嵌的 squashfs 离线解包,
+        # 不试 FUSE —— CI 无 /dev/fuse,默认路径会阻塞或提示挂载失败。
+        # 看门狗 180s:解包卡住不能让审查步骤无限等(与 check_msi 同理)。
+        local rc=0
+        (
+            cd "$root"
+            chmod +x app.AppImage
+            APPIMAGE_EXTRACT_AND_RUN=1 run_with_timeout 180 ./app.AppImage --appimage-extract
+        ) >"$root/extract.log" 2>&1 || rc=$?
+        if [ "$rc" -ne 0 ]; then
+            echo "--appimage-extract 解包失败/超时(rc=$rc)"
+            tail -5 "$root/extract.log" 2>/dev/null | sed 's/^/         │ /'
             rm -rf "$root"
             return 1
         fi
@@ -277,29 +287,73 @@ if [ -n "$MSI_FILE" ]; then
         pkg_version=$(node -p "require('./package.json').version" 2>/dev/null) || {
             echo "读不到 package.json 版本"; return 1
         }
-        # 管理映像解包(不安装):验 exe 存在 + ProductVersion 与 package.json 一致。
+        # 管理解包路径 A:msiexec /a(服务参与,CI 上偶发挂死 —— 必须
+        # 加看门狗,否则审查步骤无限等,烧光整个 job)。
         local dir
         dir=$(mktemp -d "${TMPDIR:-/tmp}/reflect-msi-audit.XXXXXX")
         # cygpath:git-bash 的 mktemp 路径要转成 Windows 路径给 msiexec。
         local windir="$dir"
         command -v cygpath >/dev/null 2>&1 && windir=$(cygpath -w "$dir")
-        if ! msiexec /a "$(cygpath -w "$MSI_FILE" 2>/dev/null || echo "$MSI_FILE")" /qn TARGETDIR="$windir"; then
-            echo "msiexec 管理映像解包失败"
+        local msi_win
+        msi_win=$(cygpath -w "$MSI_FILE" 2>/dev/null || echo "$MSI_FILE")
+        echo "msiexec 管理映像解包(看门狗 180s)..."
+        if run_with_timeout 180 msiexec /a "$msi_win" /qn TARGETDIR="$windir"; then
+            local exe
+            exe=$(find "$dir" -name 'reflect-desktop*.exe' -o -name 'ReflectDesktop*.exe' -o -name 'ZhuYe*.exe' 2>/dev/null | head -1)
+            [ -n "$exe" ] || { echo ".msi 解包后未找到主 exe"; rm -rf "$dir"; return 1; }
+            local ver
+            ver=$(powershell -NoProfile -Command "(Get-Item '$(cygpath -w "$exe" 2>/dev/null || echo "$exe")').VersionInfo.ProductVersion" 2>/dev/null | tr -d '\r')
             rm -rf "$dir"
-            return 1
+            if [ -n "$ver" ] && [ "$ver" != "$pkg_version" ]; then
+                echo "exe ProductVersion=$ver ≠ package.json=$pkg_version"
+                return 1
+            fi
+            echo ".msi 深度校验通过(msiexec 解包,exe 版本 $pkg_version)"
+            return 0
         fi
-        local exe
-        exe=$(find "$dir" -name 'reflect-desktop*.exe' -o -name 'ReflectDesktop*.exe' -o -name 'ZhuYe*.exe' 2>/dev/null | head -1)
-        [ -n "$exe" ] || { echo ".msi 解包后未找到主 exe"; rm -rf "$dir"; return 1; }
-        local ver
-        ver=$(powershell -NoProfile -Command "(Get-Item '$(cygpath -w "$exe" 2>/dev/null || echo "$exe")').VersionInfo.ProductVersion" 2>/dev/null | tr -d '\r')
-        if [ -n "$ver" ] && [ "$ver" != "$pkg_version" ]; then
-            echo "exe ProductVersion=$ver ≠ package.json=$pkg_version"
-            rm -rf "$dir"
-            return 1
-        fi
+        echo "msiexec 路径失败/超时 —— 改走 COM 只读表查询(不经 Windows Installer 服务)"
         rm -rf "$dir"
-        echo ".msi 深度校验通过(exe 存在,版本 $pkg_version)"
+        # 管理解包路径 B:WindowsInstaller.Installer COM 打开数据库只读,
+        # 直接查 Property / File 表 —— 不执行安装序列,不碰服务,不会挂。
+        # exe 存在性经 File 表(负载文件清单)确认;FileName 可能是
+        # "短名|长名" 语法,匹配按包含 + .exe 结尾而非行首锚定。
+        local ps_script psout
+        ps_script=$(cat <<'PSEOF'
+$ErrorActionPreference = 'Stop'
+$i = New-Object -ComObject WindowsInstaller.Installer
+$db = $i.GetType().InvokeMember('OpenDatabase','InvokeMethod',$null,$i,@($env:MSI_WIN,0))
+$q = "SELECT Value FROM Property WHERE Property = 'ProductVersion'"
+$v = $db.GetType().InvokeMember('OpenView','InvokeMethod',$null,$db,@($q))
+$v.GetType().InvokeMember('Execute','InvokeMethod',$null,$v,$null)
+$r = $v.GetType().InvokeMember('Fetch','InvokeMethod',$null,$v,$null)
+Write-Output ("VERSION=" + $r.GetType().InvokeMember('StringData','GetProperty',$null,$r,@(1)))
+$q2 = "SELECT FileName FROM File"
+$v2 = $db.GetType().InvokeMember('OpenView','InvokeMethod',$null,$db,@($q2))
+$v2.GetType().InvokeMember('Execute','InvokeMethod',$null,$v2,$null)
+$found = 0
+while ($true) {
+    $row = $v2.GetType().InvokeMember('Fetch','InvokeMethod',$null,$v2,$null)
+    if ($null -eq $row) { break }
+    $n = $row.GetType().InvokeMember('StringData','GetProperty',$null,$row,@(1))
+    if ($n -match '(reflect|zhuye).*\.exe$') { $found = 1; Write-Output ("EXE=" + $n) }
+}
+Write-Output ("EXE_FOUND=" + $found)
+PSEOF
+)
+        psout=$(MSI_WIN="$msi_win" powershell -NoProfile -ExecutionPolicy Bypass -Command "$ps_script" 2>&1 | tr -d '\r')
+        echo "$psout" | sed 's/^/         │ /'
+        local ver exe_found
+        ver=$(echo "$psout" | sed -n 's/^VERSION=//p' | head -1)
+        exe_found=$(echo "$psout" | sed -n 's/^EXE_FOUND=//p' | head -1)
+        if [ "$exe_found" != "1" ]; then
+            echo ".msi File 表中未找到主 exe(COM 只读路径)"
+            return 1
+        fi
+        if [ -n "$ver" ] && [ "$ver" != "$pkg_version" ]; then
+            echo "ProductVersion=$ver ≠ package.json=$pkg_version"
+            return 1
+        fi
+        echo ".msi 深度校验通过(COM 只读表查询,exe 存在,版本 $pkg_version)"
         return 0
     }
     tcase ".msi 深度校验(管理映像解包 + exe 版本)" check_msi

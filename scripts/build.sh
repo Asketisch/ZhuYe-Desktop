@@ -227,6 +227,22 @@ case "$PLATFORM" in
   windows) BUNDLE_DIR="target/${TARGET_SUBDIR}${PROFILE_DIR}/bundle/msi" ;;
 esac
 
+# ── macOS ad-hoc 封印 ────────────────────────────────────────────────────
+# tauri-bundler 在未配置签名身份时不做 bundle 级签名:主二进制只有链接器
+# 顺手落的 ad-hoc 内嵌签名(Info.plist=not bound,无 _CodeSignature 封印);
+# 而**交叉编译**时链接器连内嵌签名都不落 —— `codesign -dv` 直接判未签名。
+# 构建后对全部 .app 显式 ad-hoc 封印(幂等,已签名会被覆盖),宿主/交叉
+# 都落到可校验的 bundle 签名。正式分发签名(Developer ID + 公证)需另行
+# 传 SIGNING_IDENTITY 走上游签名流程,不在这一步。
+if [ "$PLATFORM" = "macos" ] && command -v codesign >/dev/null 2>&1; then
+  for dir in $BUNDLE_DIR; do
+    for app in "$dir"/*.app; do
+      [ -d "$app" ] || continue   # glob didn't match
+      run "codesign --force --deep --sign - '$app'"
+    done
+  done
+fi
+
 # ── Artifact summary ─────────────────────────────────────────────────────
 # 人类可读的大小辅助函数：macOS 与 Linux 的 `du -h` 行为一致；
 # 若 numfmt/du 不可用则回退到原始字节数。

@@ -111,21 +111,51 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
                 cargo build -p reflect-desktop
         fi
         APP_BIN="$ROOT/target/debug/reflect-desktop"
+        # 调试二进制按 devUrl(http://localhost:5173)加载前端,没有内嵌
+        # 资源 —— 必须先起 vite dev server 并等就绪,否则 webview 显示的是
+        # WebKit 的 "Could not connect to localhost" 错误页(实拍见
+        # .test-results/e2e-window.png)。app_served 由收尾分支读取。
+        start_dev_server() {
+            (
+                cd "$ROOT"
+                pnpm dev > "$RESULT_DIR/e2e-vite.log" 2>&1
+            ) &
+            VITE_PID=$!
+            local i
+            for i in $(seq 1 60); do
+                curl -fsS http://localhost:5173/ >/dev/null 2>&1 && return 0
+                sleep 0.5
+            done
+            return 1
+        }
+        app_served=0
         if [ ! -x "$APP_BIN" ]; then
             tcase "调试二进制存在" false
+        elif ! start_dev_server; then
+            tcase "vite dev server 就绪(30s)" false
+            tail -15 "$RESULT_DIR/e2e-vite.log" 2>/dev/null | sed 's/^/         │ /'
         else
+            app_served=1
             # 2) 隔离环境(不碰开发者的 ~/.zhuye)。
             make_isolated_env
-            # 3) 起 tauri-driver(默认端口 4444)。
-            tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &
+            # 3) 起 tauri-driver(默认端口 4444)。**必须自己跑在 xvfb 下**:
+            #    WebKitWebDriver 会派生被测应用,应用开窗口需要 DISPLAY ——
+            #    旧实现只把 vitest(HTTP 客户端,无需显示)包进 xvfb,应用侧
+            #    反而没有显示,会话永远 ready 不了,beforeAll 60s 超时。
+            #    另因 CI 无 GPU,WebKit 合成器必须走软件渲染,否则 webview
+            #    首帧可能卡死(WebView 官方 CI 同款环境变量)。setsid 让
+            #    driver 树自成进程组,收尾时可整组击杀(xvfb-run 不转发
+            #    信号给子命令,只 kill 它会留下孤儿 driver 占着 4444)。
+            setsid env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a \
+                tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &
             DRIVER_PID=$!
-            # 4) xvfb 包住整个驱动+被测进程;webdriver 客户端在 vitest 里建会话。
+            # 4) webdriver 客户端(vitest)只与 tauri-driver 走 HTTP,无需显示;
+            #    显示由驱动侧的 xvfb 提供。
             run_window_smoke() {
                 TAURI_APP_BIN="$APP_BIN" pnpm exec vitest run \
                     --config tests/e2e/vitest.config.ts tests/e2e/window.smoke.test.ts
             }
             if command -v xvfb-run >/dev/null 2>&1; then
-                xvfb-run -a bash -c "true"   # 预热:确认 xvfb 可用
                 (
                     cd "$ROOT"
                     TAURI_APP_BIN="$APP_BIN" xvfb-run -a pnpm exec vitest run \
@@ -139,6 +169,8 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
                 ) > "$RESULT_DIR/e2e-window.log" 2>&1 && rc=0 || rc=$?
             fi
             kill "$DRIVER_PID" 2>/dev/null || true
+            # 整组击杀 driver 树(tauri-driver / WebKitWebDriver / 被测应用)。
+            kill -- -"$DRIVER_PID" 2>/dev/null || true
             wait "$DRIVER_PID" 2>/dev/null || true
             cleanup_isolated_env
             if [ "$rc" -eq 0 ]; then
@@ -152,6 +184,11 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
                 tail -30 "$RESULT_DIR/e2e-window.log" 2>/dev/null | sed 's/^/         │ /'
                 printf 'FAIL\t窗口冒烟(真进程/真后端/真窗口)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
             fi
+        fi
+        # vite dev server 无论冒烟成败都要收(随套件退出,不留给下一个套件)。
+        if [ "${app_served:-0}" -eq 1 ] && [ -n "${VITE_PID:-}" ]; then
+            kill "$VITE_PID" 2>/dev/null || true
+            wait "$VITE_PID" 2>/dev/null || true
         fi
     else
         require_or_fail "窗口冒烟(tauri-driver + WebKitWebDriver)" tauri-driver WebKitWebDriver || true

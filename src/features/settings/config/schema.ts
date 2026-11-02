@@ -41,6 +41,9 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   // provider = 接入端口（API 协议端点），仅 anthropic / openai 两种。
   // Ollama 走 OpenAI 兼容端口：base_url 指向本地服务即可，不再是独立选项。
   { section: 'active', key: 'provider', labelKey: 'settings.config.field.active.provider', kind: 'select', options: ['anthropic', 'openai'] },
+  // 内置 skill 包开关（上游 0.1.8 起默认关闭）：核心 bootstrap 与
+  // `reflect_list_skills` 同按此开关决定是否合入 15 个编译期内置技能。
+  { section: 'active', key: 'bundled_skills', labelKey: 'settings.config.field.active.bundled_skills', kind: 'boolean' },
 
   { section: 'anthropic', key: 'api_key', labelKey: 'settings.config.field.anthropic.api_key', kind: 'text', secret: true, placeholderKey: 'settings.config.placeholder.anthropic.api_key' },
   { section: 'anthropic', key: 'base_url', labelKey: 'settings.config.field.anthropic.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.anthropic.base_url' },
