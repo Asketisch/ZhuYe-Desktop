@@ -149,13 +149,32 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
             setsid env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a \
                 tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &
             DRIVER_PID=$!
+            # 3.5) 等驱动就绪:tauri-driver 后台启动,绑定 4444 需要一点
+            #      时间 —— 旧实现起完就跑客户端,首连撞上绑定窗口就是
+            #      ECONNREFUSED(v0.0.1 tag 门禁实测翻车,前几轮全靠运气)。
+            #      /dev/tcp 探端口(bash 内建,不引入 curl 依赖);驱动进程
+            #      死掉立即短路,不空等 30s。
+            driver_ready=0
+            for _ in $(seq 1 60); do
+                if (exec 3<>/dev/tcp/127.0.0.1/4444) 2>/dev/null; then
+                    driver_ready=1
+                    break
+                fi
+                kill -0 "$DRIVER_PID" 2>/dev/null || break
+                sleep 0.5
+            done
             # 4) webdriver 客户端(vitest)只与 tauri-driver 走 HTTP,无需显示;
             #    显示由驱动侧的 xvfb 提供。
             run_window_smoke() {
                 TAURI_APP_BIN="$APP_BIN" pnpm exec vitest run \
                     --config tests/e2e/vitest.config.ts tests/e2e/window.smoke.test.ts
             }
-            if command -v xvfb-run >/dev/null 2>&1; then
+            rc=0
+            if [ "$driver_ready" -ne 1 ]; then
+                rc=1
+                echo "         │ tauri-driver 30s 未监听 4444 —— 驱动日志:"
+                tail -15 "$RESULT_DIR/e2e-tauri-driver.log" 2>/dev/null | sed 's/^/         │ /'
+            elif command -v xvfb-run >/dev/null 2>&1; then
                 (
                     cd "$ROOT"
                     TAURI_APP_BIN="$APP_BIN" xvfb-run -a pnpm exec vitest run \
