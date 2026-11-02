@@ -50,6 +50,10 @@ export type EventMsgType =
   // 子代理可观测 (2;v1.4 C1)
   | 'subagent_progress'
   | 'subagent_status'
+  // side-channel agent (3;v1.x WP9,develop 收编)
+  | 'side_channel_started'
+  | 'side_channel_finished'
+  | 'side_channel_status'
   // 审批 (1)
   | 'approval_request'
   // 用户提问 (2)
@@ -512,6 +516,45 @@ export interface SubagentStatusPayload {
 }
 
 // ============================================================================
+// side-channel agent (v1.x WP9)
+// ============================================================================
+
+/**
+ * 单条 side-channel 公开视图(camelCase,镜像 Rust `SideChannelInfo`)。
+ * 与 `reflect_list_side_channels` 命令返回的 `ReflectSideChannelInfo`
+ * 同一 wire 形状。
+ */
+export interface SideChannelInfoPayload {
+  id: string;
+  agentName: string;
+  prompt: string;
+  startedAtMs: number;
+  /** `"running" | "done" | "cancelled" | "error"`。 */
+  status: 'running' | 'done' | 'cancelled' | 'error';
+  /** 已运行时长(毫秒);仍在运行时为 `null`。 */
+  durationMs: number | null;
+}
+
+/**
+ * `side_channel_started` / `side_channel_finished` 共用载荷(镜像 Rust
+ * `SideChannelEvent`,`tag = "kind"` snake_case 判别):
+ * Started / Done / Cancelled / Error 四态。
+ */
+export type SideChannelEventPayload =
+  | { kind: 'started'; id: string; agent_name: string; prompt: string; started_at_ms: number }
+  | { kind: 'done'; id: string; finished_at_ms: number; summary?: string }
+  | { kind: 'cancelled'; id: string; finished_at_ms: number }
+  | { kind: 'error'; id: string; finished_at_ms: number; message: string };
+
+/**
+ * `side_channel_status` —— 通道二(查询):`Op::QuerySideChannels` 的
+ * 应答快照(镜像 Rust `SideChannelStatusSnapshot`,camelCase)。
+ */
+export interface SideChannelStatusPayload {
+  channels: SideChannelInfoPayload[];
+}
+
+// ============================================================================
 // EventMsgByType —— 判别联合
 // ============================================================================
 
@@ -575,6 +618,10 @@ export interface EventMsgByType {
   plan_draft_updated: PlanDraftUpdatedPayload;
   plan_step: PlanStepPayload;
   permission_mode_changed: PermissionModeChangedPayload;
+  // side-channel (v1.x WP9)
+  side_channel_started: SideChannelEventPayload;
+  side_channel_finished: SideChannelEventPayload;
+  side_channel_status: SideChannelStatusPayload;
   // 插件 / 配额
   plugin_loaded: PluginLoadedPayload;
   quota_exhausted: QuotaExhaustedPayload;

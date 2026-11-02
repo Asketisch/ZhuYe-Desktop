@@ -164,6 +164,60 @@ pub(crate) fn construct_thread(
         cfg = cfg.with_initial_permission_mode(mode);
     }
 
+    // v1.x side-channel driver:引擎原生旁路 agent(WP9,develop 收编)。
+    // 工厂与 facade `build_side_channel_driver` 同口径:按 agent 定义名
+    // `build_default_m4` 构独立 AgentThread,recorder = None(不写主
+    // 历史),取消令牌由 registry 生成 —— 主 agent 的 interrupt 不会误杀。
+    //
+    // **registry 是进程级的**(`MinimalAgentInner.side_channels`,Arc 共享
+    // 状态):desktop 每次 rebind 重建 thread/driver,但 registry 状态
+    // (在跑的通道 / 事件流)跨 rebind 存活 —— 查询与取消始终可达。
+    // 工厂闭包动态读 workspace / model_spec:rebind 换工作区或热重载换
+    // 模型后,新 side-channel 立即用当前值。
+    let side_driver = {
+        let inner_for_side = Arc::clone(&agent.inner);
+        let registry_for_side = Arc::clone(
+            &agent
+                .inner
+                .model_registry
+                .lock()
+                .clone()
+                .expect("model_registry 必须在 install 阶段已建"),
+        );
+        let tools_for_side = Arc::clone(&agent.inner.tools);
+        let factory: reflect_core::side_channel::SideThreadFactory = Arc::new(
+            move |agent_name: &str, cancel: tokio_util::sync::CancellationToken| {
+                let workspace = crate::workspace_state::WorkspaceState::get()
+                    .unwrap_or_else(|| inner_for_side.workspace.clone());
+                let model = inner_for_side.model_spec.read().clone();
+                let mut m4 = reflect::m4_bootstrap::build_default_m4(
+                    &workspace,
+                    agent_name,
+                    &model,
+                    &registry_for_side,
+                    ThreadId::new(),
+                )?;
+                // 不写主历史:摘掉 recorder。
+                m4.recorder = None;
+                let side_cfg = AgentConfig::new(model.clone(), workspace.clone())
+                    .with_m4(m4)
+                    .with_cancel(cancel);
+                Ok(AgentThread::new(
+                    side_cfg,
+                    Arc::clone(&registry_for_side),
+                    Arc::clone(&tools_for_side),
+                    None,
+                    None,
+                ))
+            },
+        );
+        reflect_core::side_channel::SideChannelDriver::new(
+            agent.inner.side_channels.clone(),
+            factory,
+        )
+    };
+    cfg = cfg.with_side_channel_driver(side_driver);
+
     // 插件挂载材料快照:model spec 与线程配置一致；启用列表在异步
     // 挂载时读取最新配置，避免排队期间的设置变更被旧快照覆盖。
     let model_for_plugins = cfg.current_model().to_string();

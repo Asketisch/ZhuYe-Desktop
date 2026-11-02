@@ -4,6 +4,22 @@
 
 ## 未发布
 
+### 变更 — submodule develop 重叠收敛（app-core 九模块切换上游单一事实源）
+
+submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个提交）后，上游把一批桌面自研领域逻辑收编进框架本体（多份提交自述「收编自 ReflectDesktop …」）。本轮把重叠面全部切到上游实现，桌面侧只保留真正的装配层（media / stats / tailscale / traces / discussion / pipeline）：
+
+- **删除并切换**（7 个全重叠模块）：`paths` → `reflect_config::paths`（12 个消费文件机械重命名）；`actor` → `reflect_task::Actor`（Actor 下沉 protocol）；`squad` → `reflect_task::squad`（上游顺带修复 created_at 丢失 / NotFound 映射两个 bug）；`autopilot` → `reflect_stream::autopilot`（上游补真实 cron 到期判定 + `fire_if_due` 闭环）；`pricing` → `reflect_llm::providers` 公开费率表（桌面"合成用量反解"hack 退役）；`kms` → `reflect_kms`（API 逐字一致）；`side_channel` → `reflect_core::side_channel` 引擎原生（见下）。
+- **收缩为垫片**（2 个部分重叠）：`activity` 再导出 `reflect_telemetry::activity`（上游连 `map_event`/`pump_events` 都是桌面实现的移植版），桌面保留 `ActivityLog` 句柄支撑 Inbox「清空」；`sandbox` 解析/优先级走 `reflect_sandbox::os_sandbox`，桌面只留协议映射与配置归一两块胶水。
+- **Side-channel 引擎原生执行**（capability 升级）：`thread_factory` 构造 `SideChannelDriver` 注入 `AgentConfig` —— 旁路 agent 从此真的会跑（此前只有 registry 记账,执行从未接线）。registry 为进程级 Arc 共享,跨会话 rebind 存活;四个命令 wire 形状不变,内部改走协议 `Op::Start|Cancel|QuerySideChannels` 并等待配对应答事件。
+- **主仓 workspace 适配**：根 `Cargo.toml` 补齐 develop 新增的 workspace.dependencies 继承键（`zhuye-fs/git/kms/import/computer-use/shell/git-tools/exec/cli/py` + `rusqlite`），`pyo3` 0.23 → 0.30（与核心 workspace 对齐,pyo3-ffi 在 Python 3.14 下硬校验版本上限）。
+- **前端**：`side_channel_started/finished/status` 三个事件变体进类型联合 + reducer（`sideChannels` 进程级投影）；SideChannelView 订阅生命周期事件即时刷新（原来只能 5s 轮询）。
+- **桌面侧随 upstream 收编的两处行为差异**：markdown 导出标题从 `# Reflect session` 统一为上游 `# ZhuYe session`（渲染器切 `zhuye-rollout::export` 单一事实源,写盘仍保留桌面"替换 symlink"语义）；终端 shell 会话 id 从 UUID v4 改为上游池分配的 `sh-<8hex>`（执行与缓冲收编 `zhuye-shell`,Tauri 事件形状与逐行推送语义不变）。
+- **文档**：`docs/PROTOCOL_BRIDGE.md` 补 side-channel 三 Op + 三事件（§3.13）；`docs/CAPABILITIES.md` 增 §3.25/§3.26 并刷新矩阵。
+
+### 修复 — 会话标题 sidecar 写入跟随核心演进
+
+develop 把 `reflect_rollout::index::write_session_sidecar` 从核心移除（标题生成本就是桌面特性）。`_titles/<id>.title` 落盘改为桌面自有实现：链接位预检（拒绝 symlink/重解析点,防止写工作区外）+ 同目录临时文件 + rename 原子替换 —— 半截文件与链接写穿两个窗口都不存在。
+
 ### 修复 — 窗口冒烟驱动启动竞态
 
 - v0.0.1 tag 门禁实测翻车：`tauri-driver` 后台启动后 `run.sh` 没有任何就绪等待，vitest 首连撞上端口绑定窗口直接 `ECONNREFUSED`（此前多轮全绿纯属运气）。现在启动后轮询 4444 端口（`/dev/tcp` 探测，零外部依赖），最多 30 秒；驱动进程死掉立即短路；未就绪时判失败并回显驱动日志。三种路径（未监听 / 进程死 / 已监听）本地实测。

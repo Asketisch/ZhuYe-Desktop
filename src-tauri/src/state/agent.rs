@@ -142,25 +142,26 @@ pub(crate) struct MinimalAgentInner {
     /// 把真 `AgentThread::submission_sender()` 注入(driver 才能真正触发);
     /// 此前 CRUD 仍可用(命令层读 `RwLock`,只是无后台 driver)。
     pub(crate) cron_scheduler: parking_lot::RwLock<Option<reflect_stream::cron::CronScheduler>>,
-    /// Side-channel registry:每个 side-channel 持有独立
-    /// `CancelToken`,主 agent 的 cancel 不会传播到 side-channel。事件流
-    /// 前端目前通过命令查询快照，事件转发尚未接线。
-    pub(crate) side_channels: reflect_app_core::side_channel::SideChannelRegistry,
+    /// Side-channel registry(进程级,引擎 `zhuye-core::side_channel` 的
+    /// Arc 共享状态):`thread_factory` 每次 rebind 用它重建 driver,
+    /// 在跑的 side-channel 与事件流跨 rebind 存活。命令层经引擎
+    /// `Op::Start/Cancel/QuerySideChannels` 走同一份状态。
+    pub(crate) side_channels: reflect_core::side_channel::SideChannelRegistry,
     /// Remote mode config:iOS / 远端 daemon 连接的目标
     /// (host + port + auth_token) 与运行时状态。进程内存储,重启重置
     /// —— 持久化留作后续。
     pub(crate) remote_config: parking_lot::RwLock<RemoteConfig>,
     /// KMS 知识库管理器:grep-based wiki + /dream。
-    pub(crate) kms_manager: reflect_app_core::kms::KnowledgeManager,
+    pub(crate) kms_manager: reflect_kms::KnowledgeManager,
     /// Autopilot 管理器:自动任务调度。
-    pub(crate) autopilot_manager: reflect_app_core::autopilot::AutopilotManager,
+    pub(crate) autopilot_manager: reflect_stream::autopilot::AutopilotManager,
     /// Activity 日志管理器:本地事件审计 timeline。
     /// 由 `install_agent_thread` 订阅 session broadcast 把 `Event` 映射成
     /// `ActivityEvent` 后写入。
-    pub(crate) activity_logger: Arc<reflect_app_core::activity::ActivityLogger>,
+    pub(crate) activity_log: Arc<reflect_app_core::activity::ActivityLog>,
     /// Squad 管理器:复用 `task_manager` 的 TeamFile 存储,
     /// 提供 leader 委派语义层。
-    pub(crate) squad_manager: Arc<reflect_app_core::squad::SquadManager>,
+    pub(crate) squad_manager: Arc<reflect_task::SquadManager>,
     /// v1.x 会话持久化:`install_agent_thread` 一次性构造好的共享 ModelRegistry。
     /// `rebind_session` 重建 AgentThread 时复用(provider clients 昂贵,
     /// 不每次重建);注册到 inner 后 `construct_thread` 直接读。
@@ -248,15 +249,13 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     );
     // Cron scheduler 初始为 None;install_agent_thread 注入真 sender 后重建。
     let cron_scheduler = parking_lot::RwLock::new(None);
-    let side_channels = reflect_app_core::side_channel::SideChannelRegistry::new();
+    let side_channels = reflect_core::side_channel::SideChannelRegistry::new();
     let remote_config = parking_lot::RwLock::new(RemoteConfig::default());
-    let kms_manager = reflect_app_core::kms::KnowledgeManager::with_default_home();
-    let autopilot_manager = reflect_app_core::autopilot::AutopilotManager::new();
-    let activity_logger = Arc::new(reflect_app_core::activity::ActivityLogger::with_default_home());
+    let kms_manager = reflect_kms::KnowledgeManager::with_default_home();
+    let autopilot_manager = reflect_stream::autopilot::AutopilotManager::new();
+    let activity_log = reflect_app_core::activity::ActivityLog::with_default_home();
     // SquadManager 复用 task_manager(team 存储),必须在 task_manager 之后构造。
-    let squad_manager = Arc::new(reflect_app_core::squad::SquadManager::new(Arc::clone(
-        &task_manager,
-    )));
+    let squad_manager = Arc::new(reflect_task::SquadManager::new(Arc::clone(&task_manager)));
     MinimalAgentInner {
         thread: ParkingMutex::new(None),
         rebind_lock: ParkingMutex::new(()),
@@ -286,7 +285,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         remote_config,
         kms_manager,
         autopilot_manager,
-        activity_logger,
+        activity_log,
         squad_manager,
         model_registry: ParkingMutex::new(None),
         quota_tracker: ParkingMutex::new(None),

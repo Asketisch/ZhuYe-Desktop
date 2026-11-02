@@ -8,7 +8,7 @@
  *
  * 参考 `useMemoryController` / `useTasksBoardController` 的模式。
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   reflect_cancel_side_channel,
@@ -17,6 +17,7 @@ import {
   type ReflectSideChannelInfo,
   type ReflectStartSideChannelResult,
 } from '@/utils/commands';
+import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 
@@ -71,6 +72,19 @@ export function useSideChannelController(): SideChannelController {
   const invalidate = useCallback(
     () => qc.invalidateQueries({ queryKey: [...SIDECHANNEL_QUERY_KEY] }),
     [qc],
+  );
+
+  // v1.x WP9:实时更新走协议事件(与 TUI 同一信封)。started/finished
+  // 是生命周期里程碑 —— 收到即失效查询缓存,不等 5s 轮询。
+  useEffect(
+    () =>
+      subscribeAgentEvent((event) => {
+        const type = event.msg?.type;
+        if (type === 'side_channel_started' || type === 'side_channel_finished') {
+          void invalidate();
+        }
+      }),
+    [invalidate],
   );
 
   const startMut = useMutation({

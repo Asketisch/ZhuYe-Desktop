@@ -18,7 +18,7 @@
 > （`src/features/settings/config/schema.ts`）。
 > 本轮复核协议面、数据目录口径与核心文件工具：
 > 协议信封 / `Op` / `EventMsg` 与上次审计一致；数据目录与环境变量改按上游口径
-> （`$ZHUYE_HOME` > `$HOME/.zhuye`，`ZHUYE_SANDBOX_OS_LEVEL`，见 `app-core/src/paths.rs`）；
+> （`$ZHUYE_HOME` > `$HOME/.zhuye`，`ZHUYE_SANDBOX_OS_LEVEL`，见 `reflect_config::paths`）；
 > 上游删掉的 API（`IncompletePermissionResolver`、`ToolRegistry::{register_if_absent_owned,
 > unregister_if_same}`、`zhuye-paths`/`reflect-compat`）在桌面侧的替代实现已接线。
 > 其余能力域沿用上轮结论，尚待逐项复审；在复审完成前本矩阵不能作为
@@ -49,12 +49,12 @@
 
 | 能力族 | 核心 crate | 关键 API | GUI 状态 |
 |---|---|---|---|
-| 协议 Op / EventMsg | `reflect-protocol` | `Op`(**22** 变体) / `EventMsg`(**45** 变体) | ✅ **20/22** Op 有命令（另 2 个是 SDK 专用：`RegisterTools` / `ToolExecutionResponse`，见 §2）；**45/45** EventMsg 有 TS 类型 + reducer（逐条核对，2026-10-21） |
+| 协议 Op / EventMsg | `reflect-protocol` | `Op`(**25** 变体) / `EventMsg`(**49** 变体) | ✅ **23/25** Op 有命令（另 2 个是 SDK 专用：`RegisterTools` / `ToolExecutionResponse`，见 §2）；**49/49** EventMsg 有 TS 类型 + reducer（side-channel 三事件 v1.x 接线,2026-11-03） |
 | 线程运行时 | `reflect-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 `AgentConfig` 缺权限解析器（已修，见 §3.1） |
 | LLM / Provider | `reflect-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` | 🟡 有 plans / quota + **凭证池健康度**（§3.15，冷却原因在核心内不公开） |
-| 计价 | `reflect-llm::providers` | `price` / `is_priced` / `ModelPricing` | ✅ 费率卡由核心费率表**反解**（`app-core/src/pricing.rs`） |
-| Autopilot | `app-core::autopilot` | 配置和历史持久化 | 🟡 仅配置和历史读写；自动调度、任务执行、并发限制与历史写入尚未接入，页面已说明 |
-| 侧通道 | `app-core::side_channel` | 注册表 / 取消 / 状态快照 | 🟡 仅注册和快照查询；实际 agent 执行与事件转发尚未接入 |
+| 计价 | `reflect-llm::providers` | `pricing_table` / `pricing_for` / `RateCard` | ✅ 费率卡直接读核心公开费率表（develop 收编;桌面反解 shim 已删） |
+| Autopilot | `reflect-stream::autopilot` | 配置/历史持久化 + `should_run`(真实 cron 到期判定) + `fire_if_due` 闭环 | 🟡 配置和历史读写已收编上游单一事实源；`fire_if_due` 调度闭环已在上游可用,桌面后台 driver 接线见「有意不接线」节 |
+| 侧通道 | `reflect-core::side_channel` | `SideChannelDriver` / `SideChannelRegistry` / `Op::Start\|Cancel\|QuerySideChannels` | ✅ **引擎原生执行**(develop WP9 收编):driver 经线程工厂注入,命令走协议三 Op,事件三变体全接线(reducer + 视图订阅);registry 进程级共享,跨会话 rebind 存活 |
 | 权限 | `reflect-permissions` | `FilePermissionStore` / `StorePermissionResolver` | ✅ 三层 store 已挂载（CLI 同构）+ Settings 可见生效规则 |
 | 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；`mcp_servers` / `lsp_servers` / `permissions` 仅 raw TOML |
 | 模型清单发现 | `reflect-config::discovery` / `reflect-llm::model_catalog` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24） |
@@ -658,6 +658,49 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
   并**直接写数组字面量** —— 此前 `plugins.enabled_plugins` 会被
   `encodeScalar` 二次编码成**字符串**，落到 TOML 上与后端
   `Vec<String>` 不匹配（保存配置报校验错误）；顺手修掉。
+
+### 3.25 submodule develop 重叠收敛（app-core 九模块切换上游单一事实源）
+
+submodule 升级到 develop（`0220677`，v0.1.8 + 41 commits）后，上游把一批
+桌面自研领域逻辑**收编进框架本体**（多份提交自述「收编自
+ReflectDesktop …」）。本轮把重叠面全部切到上游实现，桌面侧只保留真正的
+装配层：
+
+| app-core 模块 | 处置 | 消费方现状 |
+|---|---|---|
+| `paths` | 删除 → `reflect_config::paths`（同名 1:1，上游多了 getpwuid 兜底） | `src-tauri` 12 个文件机械重命名 |
+| `actor` | 删除 → `reflect_task::Actor`（Actor 下沉 protocol） | `state/activity.rs` 直用 |
+| `squad` | 删除 → `reflect_task::squad`（上游修复 created_at 丢失 / NotFound 映射两 bug） | `state/agent.rs` + `commands/squad.rs` |
+| `autopilot` | 删除 → `reflect_stream::autopilot`（上游补真实 cron 到期判定 + `fire_if_due` 闭环） | `state/agent.rs` + `commands/autopilot.rs` |
+| `pricing` | 删除 → `reflect_llm::providers::{rate_card(s), pricing_table}`（上游公开费率表,反解 hack 退役） | `commands/stats.rs` |
+| `kms` | 删除 → `reflect_kms`（API 逐字一致） | `state/agent.rs` + `commands/kms.rs` |
+| `activity` | 收缩为再导出垫片 → `reflect_telemetry::activity`（上游连 `map_event` / `pump_events` 都是桌面实现的移植版）;桌面保留 `ActivityLog` 句柄支撑 Inbox「清空」 | `state/activity.rs` 只剩订阅循环 |
+| `sandbox` | 收缩为两小助手 → 解析/优先级走 `reflect_sandbox::os_sandbox` | 调用形状不变 |
+| `side_channel` | 删除 → `reflect_core::side_channel` **引擎原生**（见 §3.26） | 命令走协议 Op |
+
+保留（无重叠,真正的桌面侧装配）：`media` / `stats`（协议→camelCase DTO
+适配）/ `tailscale` / `traces` / `discussion` / `pipeline`。
+
+### 3.26 Side-channel 引擎原生执行（driver 接线 + 事件面全通）
+
+develop WP9 上游自述「桌面端缺失的那一半」——此前桌面只有 registry
+（记 id / 取消 / 快照），**实际执行从未接线**；本轮切到引擎原生实现：
+
+- **执行**：`thread_factory.rs` 构造 `SideChannelDriver` 注入
+  `AgentConfig.side_channel_driver` —— 旁路 agent 按定义名独立建线程
+  （recorder = None,不写主历史,独立取消令牌,并发上限 8）。
+- **进程级 registry**：`SideChannelRegistry` 为 Arc 共享状态,桌面每次
+  rebind 重建 thread/driver 时**共享同一 registry** —— 在跑的
+  side-channel 与其事件流跨会话切换存活（否则 rebind 即孤儿,不可取消
+  不可查询）。工厂闭包动态读 workspace / model_spec,rebind 后新通道
+  立即用当前值。
+- **命令桥**：四个命令保持 wire 形状不变（`StartSideChannelResult` /
+  `bool` / `SideChannelInfo[]`）,内部改提交
+  `Op::Start|Cancel|QuerySideChannels` 并等待与 submission id 配对的
+  应答事件;driver 未配置 / 工厂失败 / 并发满以 Error 事件诚实应答。
+- **前端**：三个事件变体（`side_channel_started/finished/status`）进
+  类型联合 + reducer（`sideChannels` 进程级投影）;SideChannelView 订阅
+  生命周期事件即时失效查询缓存（原来只能靠 5s 轮询）。
 
 ---
 

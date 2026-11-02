@@ -57,8 +57,8 @@ pub struct SkillInfo {
 #[tauri::command]
 pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SkillInfo>> {
     let ws_skills: PathBuf =
-        reflect_app_core::paths::project_data_path(&agent.workspace(), &["skills"]);
-    let home_skills: PathBuf = reflect_app_core::paths::user_data_path_or_relative(&["skills"]);
+        reflect_config::paths::project_data_path(&agent.workspace(), &["skills"]);
+    let home_skills: PathBuf = reflect_config::paths::data_path_or_relative(&["skills"]);
     let dirs = [ws_skills.as_path(), home_skills.as_path()];
 
     // 与核心 `m4_bootstrap` 同序:工作区在前、用户级在后。

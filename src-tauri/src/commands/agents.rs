@@ -36,7 +36,7 @@ use crate::state::MinimalAgent;
 
 /// `~/.zhuye/agents/` 目录(存 agent 定义 markdown 文件)。
 fn agents_dir() -> CommandResult<PathBuf> {
-    reflect_app_core::paths::user_data_path(&["agents"]).ok_or_else(|| CommandError {
+    reflect_config::paths::data_path(&["agents"]).ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })
 }
@@ -261,14 +261,15 @@ pub struct ActiveAgentInfo {
 /// 解析活跃 agent 的定义(与核心 `m4_bootstrap` 同口径:工作区优先,
 /// 再用户级;都没有则用内置默认定义)。
 fn resolve_active_def(name: &str, workspace: &Path) -> (bool, Vec<String>) {
-    let mut agents = reflect_agent_def::load_agents_dir(
-        &reflect_app_core::paths::project_data_path(workspace, &["agents"]),
-    )
+    let mut agents = reflect_agent_def::load_agents_dir(&reflect_config::paths::project_data_path(
+        workspace,
+        &["agents"],
+    ))
     .unwrap_or_default();
     agents.extend(
-        reflect_agent_def::load_agents_dir(&reflect_app_core::paths::user_data_path_or_relative(
-            &["agents"],
-        ))
+        reflect_agent_def::load_agents_dir(&reflect_config::paths::data_path_or_relative(&[
+            "agents",
+        ]))
         .unwrap_or_default(),
     );
     match agents.remove(name) {

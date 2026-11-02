@@ -37,11 +37,13 @@ import { reduceEvent } from './reducer';
 import { appendItem, markTurn } from './turns';
 import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
 import { createToastActions, uuid } from './toast';
-import type { AgentState, SubagentsState, TurnItem } from './types';
+import type { AgentState, SideChannelsState, SubagentsState, TurnItem } from './types';
 
 export const useAgentStore = create<AgentState>((set, get) => {
   // 会话作用域的子代理可观测投影的空态(复用引用,避免每处字面量)。
   const EMPTY_SUBAGENTS: SubagentsState = { feed: [], lastStatus: null };
+  // side-channel 投影是进程级(注册表在后端跨 rebind 存活),hydrate/clear 不复位。
+  const EMPTY_SIDECHANNELS: SideChannelsState = { lastSnapshot: null, revision: 0 };
   let goalSnapshotGeneration = 0;
   // 按 plan 最大上下文自动压缩控制器(内部有开关/节流/触发闩)。
   const autoCompact = createAutoCompactController({
@@ -145,6 +147,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   goalActive: false,
   goalSnapshot: null,
   subagents: EMPTY_SUBAGENTS,
+  sideChannels: EMPTY_SIDECHANNELS,
   todos: [],
   planSteps: [],
   loadedPlugins: [],

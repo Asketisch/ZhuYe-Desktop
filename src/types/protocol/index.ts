@@ -87,6 +87,9 @@ export {
   type SubagentRunState,
   type SubagentStatusSnapshot,
   type SubagentStatusPayload,
+  type SideChannelInfoPayload,
+  type SideChannelEventPayload,
+  type SideChannelStatusPayload,
 } from './event';
 
 // ----- Submission / Op -----

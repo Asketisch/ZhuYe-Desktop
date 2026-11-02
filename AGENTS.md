@@ -20,7 +20,7 @@
 - 前端：React 19 + Vite + TanStack Router/Query（`src/`）
 - 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
 - 子模块：`zhuye-*` 核心 crate（桌面端使用 `reflect-*` 依赖别名） 通过 git submodule 复用（见 `reflect-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
-- 共享核心：`app-core/`（UI 无关的领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / sandbox / stats / paths，供 `src-tauri` 命令层复用）
+- 共享核心：`app-core/`（UI 无关的领域服务层：activity / media / tailscale / traces / discussion / pipeline / sandbox / stats，供 `src-tauri` 命令层复用。与 submodule 重叠的实现已收敛到上游：actor / squad → `reflect-task`，autopilot → `reflect-stream`，kms → `reflect-kms`，pricing → `reflect-llm`，activity 实体 → `reflect-telemetry`，side-channel → `reflect-core`，paths → `reflect-config::paths`）
 
 ## 不可妥协的架构规则
 
@@ -29,7 +29,7 @@
 3. TUI 和 GUI 之间不重复逻辑；两者消费同一份 `reflect-protocol` 协议信封。
 4. 除非有意修改协议，否则保持 Tauri 命令名称和负载结构稳定。
 5. 保持前端 IPC 协议与后端命令表一致（`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`）。
-6. 数据目录以 submodule 为准（用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`）。路径只经 `app-core/src/paths.rs` 取，不在功能代码里自拼目录名；与 sessions 树必须同级的目录（归档）从 `reflect_rollout::path::default_base()` 派生。
+6. 数据目录以 submodule 为准（用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`）。路径只经 `reflect_config::paths` 取，不在功能代码里自拼目录名；与 sessions 树必须同级的目录（归档）从 `reflect_rollout::path::default_base()` 派生。
 
 ## 后端路由规则
 

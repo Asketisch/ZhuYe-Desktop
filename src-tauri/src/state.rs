@@ -182,12 +182,6 @@ impl MinimalAgent {
         self.inner.cron_scheduler.read().clone()
     }
 
-    /// Side-channel 注册表句柄。命令层
-    /// `commands/side_channel.rs` 用它 start / cancel / list。
-    pub fn side_channels(&self) -> reflect_app_core::side_channel::SideChannelRegistry {
-        self.inner.side_channels.clone()
-    }
-
     /// 远程模式配置：host + port + auth_token + auto_connect。
     /// 命令层 `commands/remote.rs` 用它持久化配置(进程内);连接状态(传输 up/down)
     /// 留作后续 driver 任务。
@@ -202,24 +196,24 @@ impl MinimalAgent {
     }
 
     /// KMS 知识库管理器。
-    pub fn kms_manager(&self) -> &reflect_app_core::kms::KnowledgeManager {
+    pub fn kms_manager(&self) -> &reflect_kms::KnowledgeManager {
         &self.inner.kms_manager
     }
 
     /// Autopilot 管理器。
-    pub fn autopilot_manager(&self) -> &reflect_app_core::autopilot::AutopilotManager {
+    pub fn autopilot_manager(&self) -> &reflect_stream::autopilot::AutopilotManager {
         &self.inner.autopilot_manager
     }
 
     /// Activity 日志管理器。
     /// `install_agent_thread` 会 spawn 一个 task 订阅 session broadcast,
     /// 把 `Event` 映射成 `ActivityEvent` 写入。
-    pub fn activity_logger(&self) -> Arc<reflect_app_core::activity::ActivityLogger> {
-        Arc::clone(&self.inner.activity_logger)
+    pub fn activity_log(&self) -> Arc<reflect_app_core::activity::ActivityLog> {
+        Arc::clone(&self.inner.activity_log)
     }
 
     /// Squad 管理器:复用 task_manager 的 team 存储。
-    pub fn squad_manager(&self) -> Arc<reflect_app_core::squad::SquadManager> {
+    pub fn squad_manager(&self) -> Arc<reflect_task::SquadManager> {
         Arc::clone(&self.inner.squad_manager)
     }
 
@@ -256,23 +250,6 @@ impl MinimalAgent {
         let driver = scheduler.clone();
         let driver_handle = driver.start(30);
         (scheduler, driver_handle)
-    }
-
-    /// 注册一个 shell session,返回 kill handle 放入 map。
-    pub fn register_shell_session(
-        &self,
-        id: String,
-        child: Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>,
-    ) {
-        self.inner.shell_sessions.register(id, child);
-    }
-
-    /// 移除并返回 shell session 的 kill handle。
-    pub fn take_shell_session(
-        &self,
-        id: &str,
-    ) -> Option<Arc<tokio::sync::Mutex<Option<tokio::process::Child>>>> {
-        self.inner.shell_sessions.take(id)
     }
 
     /// 列出当前活跃的 shell session id。

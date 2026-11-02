@@ -106,7 +106,7 @@ pub async fn reflect_list_permission_rules(
 
     // 2. 项目级 `<workspace>/.zhuye/permissions.toml`。
     let project_path =
-        reflect_app_core::paths::project_data_path(&agent.workspace(), &["permissions.toml"]);
+        reflect_config::paths::project_data_path(&agent.workspace(), &["permissions.toml"]);
     let project_store = FilePermissionStore::with_path(project_path);
     for r in list_rules(&project_store, "project").await? {
         out.push(PermissionRuleInfo {

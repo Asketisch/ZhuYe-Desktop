@@ -164,7 +164,7 @@
 
 `reflect-agent/` 是上游 `Reflect-Agent` 仓库 zhuye-* crate 的只读 git submodule 镜像，通过 `git submodule update --remote` 升级（完整流程见 `SUBMODULE.md`）。引用的 crate 集合由根 `Cargo.toml` 的 `[workspace.dependencies]` 声明（如 `reflect-agent/crates/protocol/zhuye-protocol/`、`reflect-agent/crates/runtime/zhuye-core/` 等）。
 
-`app-core/`（与 `reflect-agent/` 平级的本仓库 crate）承载 Tauri 命令层的 UI 无关领域服务（activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / stats / sandbox）；GUI 渲染状态由前端 `src/stores/agent/` 负责。上游核心改动优先改 Reflect-Agent 仓库，再升级 submodule。
+`app-core/`（与 `reflect-agent/` 平级的本仓库 crate）承载 Tauri 命令层的 UI 无关领域服务（activity / media / tailscale / traces / discussion / pipeline / stats / sandbox；与 submodule 重叠的 actor / squad / autopilot / kms / pricing / side-channel / paths 实现已收敛到上游 crate,消费方直接 import）；GUI 渲染状态由前端 `src/stores/agent/` 负责。上游核心改动优先改 Reflect-Agent 仓库，再升级 submodule。
 
 ---
 

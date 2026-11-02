@@ -1,11 +1,15 @@
 //! Terminal shell exec —— 流式 stdout/stderr 到前端事件。
+//!
+//! 执行与缓冲已收编进上游 `reflect_shell`(常驻 shell 会话插件):
+//! 会话池持有进程 + 输出缓冲,桌面端以适配 task 把上游拉模型
+//! (`read_delta` 游标增量)转回推模型(逐行 `reflect_terminal_output`
+//! 事件),前端 IPC 形状不变。
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
-use tokio::process::Command as TokioCommand;
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -13,8 +17,8 @@ use crate::state::MinimalAgent;
 /// `reflect_run_shell` 返回给前端的 shell 会话元数据。
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ShellSession {
-    /// 唯一会话 id(UUID v4);用于关联后续 `reflect_terminal_output` 事件
-    /// 以及调用 `reflect_kill_shell`。
+    /// 唯一会话 id(`sh-<8hex>`,上游池分配);用于关联后续
+    /// `reflect_terminal_output` 事件以及调用 `reflect_kill_shell`。
     pub id: String,
     /// 已发起的命令。
     pub command: String,
@@ -49,48 +53,53 @@ fn emit_chunk(
     }
 }
 
-// 逐行读取字节并容错解码，避免非 UTF-8 输出使 reader 提前退出并堵塞子进程。
-async fn next_output_line<R: AsyncBufRead + Unpin>(
-    reader: &mut R,
-) -> std::io::Result<Option<String>> {
-    let mut bytes = Vec::new();
-    if reader.read_until(b'\n', &mut bytes).await? == 0 {
-        return Ok(None);
+/// 把一段缓冲(若干完整行)按行拆成 chunk 推给前端。
+fn emit_lines(
+    app: &Option<tauri::AppHandle>,
+    sequence: &parking_lot::Mutex<u64>,
+    session_id: &str,
+    stream: &str,
+    buffer: &str,
+) {
+    for line in buffer.lines() {
+        emit_chunk(
+            app,
+            sequence,
+            ShellOutputChunk {
+                session_id: session_id.to_string(),
+                stream: stream.to_string(),
+                data: line.to_string(),
+                seq: 0,
+            },
+        );
     }
-    if bytes.last() == Some(&b'\n') {
-        bytes.pop();
-        if bytes.last() == Some(&b'\r') {
-            bytes.pop();
-        }
-    }
-    Ok(Some(String::from_utf8_lossy(&bytes).into_owned()))
 }
 
-// 不在等待进程退出时持有锁，否则进程关闭 stdout 后仍在运行时无法 kill。
-async fn wait_for_shell(
-    lock: &crate::shell_sessions::ShellProcess,
-) -> std::io::Result<Option<std::process::ExitStatus>> {
-    loop {
-        {
-            let mut guard = lock.lock().await;
-            let Some(child) = guard.as_mut() else {
-                return Ok(None);
-            };
-            if let Some(status) = child.try_wait()? {
-                guard.take();
-                return Ok(Some(status));
+/// 上游退出监视会在退出时向 stdout 缓冲追加 `[exit N]` 标记行(供
+/// `shell_read` 工具消费);桌面端推模型用独立 `exit` 事件表达同一语义,
+/// 这里把标记行剥掉,避免终端里出现重复的退出行。
+fn strip_exit_marker(buffer: &str) -> &str {
+    let trimmed = buffer.trim_end_matches(['\n', '\r']);
+    match trimmed.rsplit_once('\n') {
+        Some((head, last)) if last.starts_with("[exit ") && last.ends_with(']') => {
+            // 标记行不在缓冲末尾(罕见:后续又有输出)→ 原样返回。
+            if trimmed.ends_with(']') && last.starts_with("[exit ") {
+                head
+            } else {
+                trimmed
             }
         }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        _ if trimmed.starts_with("[exit ") && trimmed.ends_with(']') => "",
+        _ => trimmed,
     }
 }
 
 /// 启动 `cmd`(单条 shell 表达式),把 stdout/stderr 流式转发为带 `session_id`
 /// 的 `reflect_terminal_output` 事件。返回会话 id 供前端匹配 chunk。
 ///
-/// 真实 PTY(resize / raw mode)不在初版范围 —— 这里使用
-/// `tokio::process::Command` 加管道化 stdout/stderr,按行输出 chunk,
-/// 由前端负责 ANSI 安全转义后渲染。
+/// 真实 PTY(resize / raw mode)不在范围(上游同样明确不做)—— 走
+/// `tokio::process` 管道化 stdout/stderr,按行输出 chunk,由前端负责
+/// ANSI 安全转义后渲染。macOS 用登录 shell(zsh -lc),其余平台 sh -lc。
 ///
 /// 应用句柄从托管状态取(而非直接当参数)—— 命令签名不与 runtime 绑死,
 /// 能力覆盖层才能用 mock runtime 驱动真实命令体。句柄缺失时命令**照常
@@ -102,122 +111,66 @@ pub async fn reflect_run_shell(
 ) -> CommandResult<ShellSession> {
     let app = agent.app_handle();
     let cwd = agent.workspace().display().to_string();
-    let id = uuid::Uuid::new_v4().to_string();
-    let workdir = agent.workspace().clone();
+    let workdir = agent.workspace();
 
-    // 构造命令。借助 shell 以支持管道/重定向(macOS 上是 zsh,其他平台是 sh)。
+    // 借助 shell 以支持管道/重定向(macOS 上是 zsh,其他平台是 sh)。
     let shell = if cfg!(target_os = "macos") {
         "/bin/zsh"
     } else {
         "/bin/sh"
     };
-    let mut command = TokioCommand::new(shell);
-    command
-        .arg("-lc")
-        .arg(&cmd)
-        .current_dir(&workdir)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .stdin(std::process::Stdio::null());
+    let argv = vec![shell.to_string(), "-lc".into(), cmd.clone()];
 
-    let mut child = command.spawn().map_err(|e| CommandError {
-        msg: format!("spawn failed: {e}"),
-    })?;
+    // env_clear = false:终端要继承用户环境(PATH / HOME / 凭据)。
+    let session = agent
+        .inner
+        .shell_sessions
+        .run(argv, &workdir, false)
+        .map_err(|e| CommandError {
+            msg: format!("spawn failed: {e}"),
+        })?;
+    let id = session.id.clone();
 
-    let stdout = child.stdout.take().ok_or_else(|| CommandError {
-        msg: "no stdout handle".into(),
-    })?;
-    let stderr = child.stderr.take().ok_or_else(|| CommandError {
-        msg: "no stderr handle".into(),
-    })?;
-
-    // 在启动 reader 之前先注册 kill 句柄,确保 kill 与 reader 之间能安全竞争。
-    let child_lock = Arc::new(tokio::sync::Mutex::new(Some(child)));
-    agent.register_shell_session(id.clone(), child_lock.clone());
-    let sequence = Arc::new(parking_lot::Mutex::new(0u64));
-
-    // stdout reader —— 还会等待进程退出,并发出 "exit" 事件。
+    // 适配 task:上游拉模型(缓冲 + 游标)→ 桌面推模型(逐行事件)。
+    // 30ms 轮询;read_delta 消费游标,增量不丢不重。
     {
         let app = app.clone();
         let id = id.clone();
-        let lock = child_lock.clone();
-        let sequence = sequence.clone();
-        let registry = agent.inner().clone();
-        tokio::spawn(async move {
-            let mut reader = BufReader::new(stdout);
-            while let Ok(Some(line)) = next_output_line(&mut reader).await {
-                emit_chunk(
-                    &app,
-                    &sequence,
-                    ShellOutputChunk {
-                        session_id: id.clone(),
-                        stream: "stdout".into(),
-                        data: line,
-                        seq: 0,
-                    },
-                );
-            }
-            match wait_for_shell(&lock).await {
-                Ok(Some(status)) => emit_chunk(
-                    &app,
-                    &sequence,
-                    ShellOutputChunk {
-                        session_id: id.clone(),
-                        stream: "exit".into(),
-                        data: status.code().map(|c| c.to_string()).unwrap_or_default(),
-                        seq: 0,
-                    },
-                ),
-                Ok(None) => {
-                    // kill 路径会先取走句柄并等待进程；此时 stdout 已到 EOF，
-                    // 必须补发终止事件，否则前端会认为会话仍在运行。
+        let sequence = Arc::new(parking_lot::Mutex::new(0u64));
+        let pool = agent.inner.clone();
+        tauri::async_runtime::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(30)).await;
+                let (delta, exited) = session.read_delta();
+                let stdout = if exited {
+                    strip_exit_marker(&delta.stdout)
+                } else {
+                    delta.stdout.as_str()
+                };
+                emit_lines(&app, &sequence, &id, "stdout", stdout);
+                emit_lines(&app, &sequence, &id, "stderr", &delta.stderr);
+                if exited {
+                    // 上游把信号终止映射为 -1(ExitStatus::code() 为 None);
+                    // 桌面端沿用旧的 "killed" 表达,数值退出码原样透传。
+                    let data = match delta.exit_code {
+                        Some(code) if code >= 0 => code.to_string(),
+                        _ => "killed".into(),
+                    };
                     emit_chunk(
                         &app,
                         &sequence,
                         ShellOutputChunk {
                             session_id: id.clone(),
                             stream: "exit".into(),
-                            data: "killed".into(),
+                            data,
                             seq: 0,
                         },
                     );
+                    // 进程已终结:把池条目回收掉,自然退出的会话不再留在
+                    // list 里(kill 先行时 remove 为幂等 no-op)。
+                    let _ = pool.shell_sessions.remove(&id).await;
+                    break;
                 }
-                Err(e) => emit_chunk(
-                    &app,
-                    &sequence,
-                    ShellOutputChunk {
-                        session_id: id.clone(),
-                        stream: "error".into(),
-                        data: e.to_string(),
-                        seq: 0,
-                    },
-                ),
-            }
-            // 进程已终结:把注册表条目回收掉。此前只有 kill 路径会删,
-            // 自然退出的会话在 map 里留下死条目,长期运行单调泄漏,
-            // list 也会返回早已退出的 id。kill 先行时此处为幂等 no-op。
-            let _ = registry.take_shell_session(&id);
-        });
-    }
-
-    // stderr 读取 task
-    {
-        let app = app.clone();
-        let id = id.clone();
-        let sequence = sequence.clone();
-        tokio::spawn(async move {
-            let mut reader = BufReader::new(stderr);
-            while let Ok(Some(line)) = next_output_line(&mut reader).await {
-                emit_chunk(
-                    &app,
-                    &sequence,
-                    ShellOutputChunk {
-                        session_id: id.clone(),
-                        stream: "stderr".into(),
-                        data: line,
-                        seq: 0,
-                    },
-                );
             }
         });
     }
@@ -235,12 +188,8 @@ pub async fn reflect_kill_shell(
     agent: State<'_, MinimalAgent>,
     session_id: String,
 ) -> CommandResult<()> {
-    if let Some(handle) = agent.take_shell_session(&session_id) {
-        let mut g = handle.lock().await;
-        if let Some(mut child) = g.take() {
-            let _ = child.start_kill();
-            let _ = child.wait().await;
-        }
+    if let Some(session) = agent.inner.shell_sessions.get(&session_id) {
+        session.kill().await;
     }
     Ok(())
 }
@@ -257,40 +206,19 @@ pub async fn reflect_list_shell_sessions(
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn invalid_utf8_does_not_stop_output_reader() {
-        let mut reader = BufReader::new(&b"first\xff\nsecond\r\nlast"[..]);
+    #[test]
+    fn exit_marker_is_stripped_from_stdout_tail() {
         assert_eq!(
-            next_output_line(&mut reader).await.unwrap().as_deref(),
-            Some("first\u{fffd}")
+            strip_exit_marker("line1\nline2\n[exit 0]\n"),
+            "line1\nline2"
         );
-        assert_eq!(
-            next_output_line(&mut reader).await.unwrap().as_deref(),
-            Some("second")
-        );
-        assert_eq!(
-            next_output_line(&mut reader).await.unwrap().as_deref(),
-            Some("last")
-        );
-        assert!(next_output_line(&mut reader).await.unwrap().is_none());
+        assert_eq!(strip_exit_marker("only\n"), "only");
+        assert_eq!(strip_exit_marker("[exit 137]\n"), "");
     }
 
-    #[tokio::test]
-    async fn waiting_for_exit_does_not_block_kill() {
-        let child = TokioCommand::new("sleep").arg("30").spawn().unwrap();
-        let lock = Arc::new(tokio::sync::Mutex::new(Some(child)));
-        let waiter = tokio::spawn({
-            let lock = lock.clone();
-            async move { wait_for_shell(&lock).await }
-        });
-        tokio::task::yield_now().await;
-        tokio::time::timeout(std::time::Duration::from_secs(2), async {
-            let mut guard = lock.lock().await;
-            let mut child = guard.take().unwrap();
-            child.kill().await.unwrap();
-        })
-        .await
-        .expect("kill must not wait for natural exit");
-        assert!(waiter.await.unwrap().unwrap().is_none());
+    #[test]
+    fn literal_exit_like_output_is_kept_unless_it_is_the_marker() {
+        // 中间的 [exit N] 形似行不是监视标记,原样保留。
+        assert_eq!(strip_exit_marker("[exit 0]\nmore\n"), "[exit 0]\nmore");
     }
 }

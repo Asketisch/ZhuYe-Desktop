@@ -1,19 +1,16 @@
 /**
- * Side-channel 封装 —— Phase 2 第 1 项。
+ * Side-channel 封装(v1.x WP9)。
  *
- * 对应 `src-tauri/src/commands/side_channel.rs`(其内部封装
- * `reflect-app-core::side_channel::SideChannelRegistry`)。注册表为每条
- * side-channel 持有独立的 `CancelToken`;主 agent 的 `Cmd+C` 不会取消
- * side-channel。前端通过查询快照获得状态，注册表事件尚未转发。
- *
- * 暂不在范围内(后续轮次):真正执行 side-channel 的 driver 任务
- * (把其 prompt 作为 `Submission::user_input` 接入 agent 循环,并在完成时
- * 更新注册表条目)。注册表与命令已经就位,可以在不改动 IPC 面的前提下
- * 后续追加 driver。
+ * 后端已收编引擎原生实现:命令把 `Op::Start/Cancel/QuerySideChannels`
+ * 提交进 `AgentThread`,由 `SideChannelDriver`(state/thread_factory.rs
+ * 构造注入)真正执行 agent;应答是与 submission id 配对的
+ * `SideChannelStarted` / `SideChannelFinished` / `SideChannelStatus`
+ * 事件(扇出到 `reflect_event` 通道)。前端通过查询快照 + 订阅
+ * `side_channel_*` 事件刷新状态。
  */
 import { invoke } from '../bridge';
 
-// ── 类型(对应 `reflect_app_core::side_channel::{Status, Info}`,camelCase) ──
+// ── 类型(镜像 `zhuye_protocol::{SideChannelInfo, SideChannelEvent}`,camelCase) ──
 
 export type ReflectSideChannelStatus = 'running' | 'done' | 'cancelled' | 'error';
 

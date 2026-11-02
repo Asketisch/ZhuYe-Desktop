@@ -53,6 +53,10 @@ reflect-sandbox             = { workspace = true }
 # 提示词库(按模型匹配的外置层)—— 查询当前模型实际生效的 prompt 正文
 reflect-prompt              = { workspace = true }
 reflect-memory              = { workspace = true }
+# KMS 本地知识库(实现收编上游 zhuye-kms;GUI 查询/编辑命令面在 commands/kms.rs)
+reflect-kms                 = { workspace = true }
+# 常驻 shell 会话池(收编自桌面 shell_sessions.rs + commands/shell.rs 的 pump 细节)
+reflect-shell               = { workspace = true }
 reflect-permissions         = { workspace = true }
 reflect-tools               = { workspace = true }
 reflect-llm                 = { workspace = true }

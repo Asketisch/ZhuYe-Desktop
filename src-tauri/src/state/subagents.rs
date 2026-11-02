@@ -94,11 +94,12 @@ pub(crate) fn bootstrap_subagents(
     factory.set_parent_skills(m4.skills.clone());
 
     // 合并 spec(TOML > workspace md > home md)。
-    let home_md = reflect_subagent::load_subagents_dir(
-        &reflect_app_core::paths::user_data_path_or_relative(&["subagents"]),
-    )
-    .unwrap_or_default();
-    let ws_md = reflect_subagent::load_subagents_dir(&reflect_app_core::paths::project_data_path(
+    let home_md =
+        reflect_subagent::load_subagents_dir(&reflect_config::paths::data_path_or_relative(&[
+            "subagents",
+        ]))
+        .unwrap_or_default();
+    let ws_md = reflect_subagent::load_subagents_dir(&reflect_config::paths::project_data_path(
         workspace,
         &["subagents"],
     ))

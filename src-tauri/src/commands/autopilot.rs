@@ -1,7 +1,7 @@
 //! Autopilot 命令。
 //!
 //! Autopilot 配置和历史存储；尚未接入自动调度。
-//! `reflect_app_core::autopilot::AutopilotManager` 的薄包装,
+//! `reflect_stream::autopilot::AutopilotManager` 的薄包装,
 //! 把配置和运行历史暴露给前端。
 //!
 //! ## 命令清单
@@ -10,7 +10,7 @@
 //! - `reflect_update_autopilot_config(config)` — 写入新配置
 //! - `reflect_autopilot_history` — 拉取最近 run 历史
 
-use reflect_app_core::autopilot::{AutopilotConfig, AutopilotRun};
+use reflect_stream::autopilot::{AutopilotConfig, AutopilotRun};
 use tauri::State;
 
 use crate::commands::error::{CommandError, CommandResult};

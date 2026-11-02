@@ -4,8 +4,8 @@
 //! 只读扫描 rollout JSONL(`~/.zhuye/sessions/`)聚合出 token 用量、
 //! 模型级拆分、压缩节省与记忆访问次数。
 
-use reflect_app_core::pricing::RateCard;
 use reflect_app_core::stats::{ModelUsage, SessionStats};
+use reflect_llm::providers::RateCard;
 use reflect_protocol::ThreadId;
 use tauri::State;
 
@@ -34,7 +34,7 @@ pub async fn reflect_all_model_usage(
 
 /// 查询一批模型的费率卡(让 GUI 能解释「这笔费用怎么算出来的」)。
 ///
-/// 费率由核心的静态费率表反解(见 `app_core::pricing`),桌面端不持有
+/// 费率来自核心公开的静态费率表(`reflect_llm::providers::pricing_table`),桌面端不持有
 /// 第二份费率表 —— 核心更新价目后 GUI 自动跟随。模型不在表内 →
 /// `priced = false`,不给编造的数字。
 #[tauri::command]
@@ -42,5 +42,5 @@ pub async fn reflect_model_rate_cards(
     _agent: State<'_, MinimalAgent>,
     models: Vec<String>,
 ) -> CommandResult<Vec<RateCard>> {
-    Ok(reflect_app_core::pricing::rate_cards(&models))
+    Ok(reflect_llm::providers::rate_cards(&models))
 }

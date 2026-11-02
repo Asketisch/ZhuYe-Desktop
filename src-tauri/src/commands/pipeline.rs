@@ -64,7 +64,7 @@ pub async fn reflect_validate_pipeline(
 
 /// pipeline 配置的存放目录(`~/.zhuye/pipelines/`)。
 fn pipelines_dir() -> Option<PathBuf> {
-    reflect_app_core::paths::user_data_path(&["pipelines"])
+    reflect_config::paths::data_path(&["pipelines"])
 }
 
 /// 列出已保存的 pipeline 配置。

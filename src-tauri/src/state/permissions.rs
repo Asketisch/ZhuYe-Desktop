@@ -115,7 +115,7 @@ fn apply_permission_layers_with_user(
     }
 
     // 项目级权限 —— `<workspace>/.zhuye/permissions.toml`(与 CLI 同一路径)。
-    let project_path = reflect_app_core::paths::project_data_path(workspace, &["permissions.toml"]);
+    let project_path = reflect_config::paths::project_data_path(workspace, &["permissions.toml"]);
     let project_store: Arc<dyn PermissionStore> =
         Arc::new(FilePermissionStore::with_path(project_path));
 
@@ -162,7 +162,7 @@ mod tests {
     fn missing_user_store_keeps_config_and_project_denies() {
         let dir = tempfile::tempdir().unwrap();
         // 路径取自同一个助手，避免测试与实现的目录名各说各话。
-        let permissions_dir = reflect_app_core::paths::project_data_dir(dir.path());
+        let permissions_dir = reflect_config::paths::project_data_dir(dir.path());
         std::fs::create_dir_all(&permissions_dir).unwrap();
         std::fs::write(
             permissions_dir.join("permissions.toml"),

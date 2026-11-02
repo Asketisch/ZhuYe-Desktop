@@ -29,7 +29,7 @@ pub struct WorkspaceInfo {
 }
 
 fn workspaces_file() -> Option<PathBuf> {
-    reflect_app_core::paths::user_data_path(&["workspaces.json"])
+    reflect_config::paths::data_path(&["workspaces.json"])
 }
 
 /// 不存在时返回空表；读取或解析失败时保留原文件并报告错误。

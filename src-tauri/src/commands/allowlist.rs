@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::commands::error::{CommandError, CommandResult};
 
 fn allowlist_path() -> Option<PathBuf> {
-    reflect_app_core::paths::user_data_path(&["approval_allowlist.json"])
+    reflect_config::paths::data_path(&["approval_allowlist.json"])
 }
 
 #[derive(Debug, Serialize, Deserialize)]

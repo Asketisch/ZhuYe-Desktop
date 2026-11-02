@@ -72,11 +72,11 @@ pub async fn reflect_list_subagent_specs(
     // 优先级从低到高:home md → workspace md → TOML。
     for (dir, source) in [
         (
-            reflect_app_core::paths::user_data_path_or_relative(&["subagents"]),
+            reflect_config::paths::data_path_or_relative(&["subagents"]),
             SubagentSpecSource::User,
         ),
         (
-            reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"]),
+            reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"]),
             SubagentSpecSource::Workspace,
         ),
     ] {
@@ -137,7 +137,7 @@ pub async fn reflect_save_subagent_spec(
     let parsed = reflect_subagent::parse_subagent_str(&markdown).map_err(|e| CommandError {
         msg: format!("invalid subagent spec: {e}"),
     })?;
-    let dir = reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"]);
+    let dir = reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"]);
     std::fs::create_dir_all(&dir)?;
     let path = dir.join(format!("{role}.md"));
     crate::persistence::write_atomic(&path, markdown.as_bytes())?;
@@ -152,7 +152,7 @@ pub async fn reflect_delete_subagent_spec(
     role: String,
 ) -> CommandResult<()> {
     validate_role(&role)?;
-    let path = reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"])
+    let path = reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"])
         .join(format!("{role}.md"));
     if path.exists() {
         std::fs::remove_file(&path)?;
@@ -167,7 +167,7 @@ pub async fn reflect_get_subagent_spec(
     role: String,
 ) -> CommandResult<Option<String>> {
     validate_role(&role)?;
-    let path = reflect_app_core::paths::project_data_path(&agent.workspace(), &["subagents"])
+    let path = reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"])
         .join(format!("{role}.md"));
     Ok(std::fs::read_to_string(path).ok())
 }

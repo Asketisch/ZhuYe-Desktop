@@ -477,7 +477,7 @@ pub async fn reflect_delete_session(
 // 根目录放在 sessions 树之外:`~/.zhuye/sessions-archive/`,以「整树
 // 搬移 + 相对路径不变」为不变量 —— unarchive 沿同一相对路径搬回。
 //
-// 从 rollout 的 sessions 根派生而不是走 `paths::user_data_dir()`:`reflect_rollout`
+// 从 rollout 的 sessions 根派生而不是走 `paths::data_dir()`:`reflect_rollout`
 // 只认 `$HOME`,若这里改读 `ZHUYE_HOME`,设置了该变量的机器上活跃会话与归档
 // 会分家,unarchive 就再也找不回文件。
 
@@ -488,10 +488,9 @@ fn archive_base() -> Option<PathBuf> {
 
 /// 导出文件的落点(`~/.zhuye/exports/`)。JSON 与 Markdown 导出共用。
 pub(crate) fn exports_dir() -> CommandResult<PathBuf> {
-    let dir =
-        reflect_app_core::paths::user_data_path(&["exports"]).ok_or_else(|| CommandError {
-            msg: "no HOME dir for exports".into(),
-        })?;
+    let dir = reflect_config::paths::data_path(&["exports"]).ok_or_else(|| CommandError {
+        msg: "no HOME dir for exports".into(),
+    })?;
     std::fs::create_dir_all(&dir).map_err(CommandError::from)?;
     Ok(dir)
 }

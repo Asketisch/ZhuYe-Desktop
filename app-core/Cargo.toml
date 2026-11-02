@@ -44,6 +44,8 @@ chrono      = { workspace = true }
 anyhow      = { workspace = true }
 # pipeline TOML 校验(结构摘要:只读顶层 `nodes` 表,字段语义交核心校验)
 toml        = { workspace = true }
+# OS 沙箱解析(env>config>基线)已收编上游;桌面侧仅保留协议映射胶水
+reflect-sandbox = { workspace = true }
 tempfile    = "3"
 uuid        = { workspace = true }
 

@@ -41,8 +41,9 @@ pub(super) async fn commit(
             return Ok(existing.to_string());
         }
     }
-    // 核心写入固定目录句柄并用 `O_NOFOLLOW` 临时文件，消除预检后的替换窗口。
-    reflect_rollout::index::write_session_sidecar(base, id, "title", title.as_bytes())
+    // 桌面端自有原子写（核心已移除该写入）：预检链接位 + 同目录临时文件
+    // + rename 替换，消除半截文件与链接写穿两个窗口。
+    super::sidecar::write_session_sidecar(base, id, "title", title.as_bytes())
         .map_err(CommandError::from)?;
     Ok(title.to_string())
 }

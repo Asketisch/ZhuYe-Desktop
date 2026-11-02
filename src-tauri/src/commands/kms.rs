@@ -1,9 +1,9 @@
 //! 知识管理系统(KMS)命令。
 //!
 //! 基于 grep 的 wiki + /dream 会话挖掘。
-//! 包装 `reflect_app_core::kms::KnowledgeManager`。
+//! 包装 `reflect_kms::KnowledgeManager`。
 
-use reflect_app_core::kms::{DreamResult, KmsError, Page, SearchResult, WikiInfo};
+use reflect_kms::{DreamResult, KmsError, Page, SearchResult, WikiInfo};
 use tauri::State;
 
 use crate::commands::error::{CommandError, CommandResult};

@@ -16,7 +16,7 @@ pub(crate) struct HookStore {
 impl Default for HookStore {
     fn default() -> Self {
         Self {
-            path: reflect_app_core::paths::user_data_path(&["hook_state.json"]),
+            path: reflect_config::paths::data_path(&["hook_state.json"]),
             lock: Mutex::new(()),
         }
     }

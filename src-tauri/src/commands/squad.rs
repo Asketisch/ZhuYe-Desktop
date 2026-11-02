@@ -1,10 +1,10 @@
 //! Squad + Leader 委派命令面。
 //!
-//! 薄包装 `reflect_app_core::squad::SquadManager`,在 TaskManager 之上提供
+//! 薄包装 `reflect_task::SquadManager`,在 TaskManager 之上提供
 //! leader 委派语义层。
 
-use reflect_app_core::squad::{SquadError, SquadSpec};
 use reflect_task::Task;
+use reflect_task::{SquadError, SquadSpec};
 use tauri::State;
 
 use super::CommandResult;

@@ -47,6 +47,7 @@ reflect-compact    = { package = "zhuye-compact", path = "reflect-agent/crates/a
 reflect-recovery   = { package = "zhuye-recovery", path = "reflect-agent/crates/abilities/zhuye-recovery" }
 reflect-notes      = { package = "zhuye-notes", path = "reflect-agent/crates/abilities/zhuye-notes" }
 reflect-sanitize   = { package = "zhuye-sanitize", path = "reflect-agent/crates/abilities/zhuye-sanitize" }
+reflect-kms        = { package = "zhuye-kms", path = "reflect-agent/crates/abilities/zhuye-kms" }
 
 # resources 层
 reflect-config      = { package = "zhuye-config", path = "reflect-agent/crates/resources/zhuye-config" }
@@ -56,6 +57,8 @@ reflect-rollout     = { package = "zhuye-rollout", path = "reflect-agent/crates/
 reflect-telemetry   = { package = "zhuye-telemetry", path = "reflect-agent/crates/resources/zhuye-telemetry" }
 reflect-sandbox     = { package = "zhuye-sandbox", path = "reflect-agent/crates/resources/zhuye-sandbox" }
 reflect-ast         = { package = "zhuye-ast", path = "reflect-agent/crates/resources/zhuye-ast" }
+reflect-fs          = { package = "zhuye-fs", path = "reflect-agent/crates/resources/zhuye-fs" }
+reflect-git         = { package = "zhuye-git", path = "reflect-agent/crates/resources/zhuye-git" }
 
 # orchestration 层
 reflect-subagent    = { package = "zhuye-subagent", path = "reflect-agent/crates/orchestration/zhuye-subagent" }
@@ -69,6 +72,10 @@ reflect-mcp         = { package = "zhuye-mcp", path = "reflect-agent/crates/inte
 reflect-lsp         = { package = "zhuye-lsp", path = "reflect-agent/crates/integrations/zhuye-lsp" }
 reflect-integration = { package = "zhuye-integration", path = "reflect-agent/crates/integrations/zhuye-integration" }
 reflect-stream      = { package = "zhuye-stream", path = "reflect-agent/crates/integrations/zhuye-stream" }
+reflect-import      = { package = "zhuye-import", path = "reflect-agent/crates/integrations/zhuye-import" }
+reflect-computer-use = { package = "zhuye-computer-use", path = "reflect-agent/crates/integrations/zhuye-computer-use" }
+reflect-shell       = { package = "zhuye-shell", path = "reflect-agent/crates/integrations/zhuye-shell" }
+reflect-git-tools   = { package = "zhuye-git-tools", path = "reflect-agent/crates/integrations/zhuye-git-tools" }
 
 # runtime 层
 reflect-core = { package = "zhuye-core", path = "reflect-agent/crates/runtime/zhuye-core" }
@@ -87,6 +94,7 @@ zhuye-compact = { path = "reflect-agent/crates/abilities/zhuye-compact" }
 zhuye-recovery = { path = "reflect-agent/crates/abilities/zhuye-recovery" }
 zhuye-notes = { path = "reflect-agent/crates/abilities/zhuye-notes" }
 zhuye-sanitize = { path = "reflect-agent/crates/abilities/zhuye-sanitize" }
+zhuye-kms = { path = "reflect-agent/crates/abilities/zhuye-kms" }
 zhuye-config = { path = "reflect-agent/crates/resources/zhuye-config" }
 zhuye-permissions = { path = "reflect-agent/crates/resources/zhuye-permissions" }
 zhuye-plugin = { path = "reflect-agent/crates/resources/zhuye-plugin" }
@@ -94,6 +102,8 @@ zhuye-rollout = { path = "reflect-agent/crates/resources/zhuye-rollout" }
 zhuye-telemetry = { path = "reflect-agent/crates/resources/zhuye-telemetry" }
 zhuye-sandbox = { path = "reflect-agent/crates/resources/zhuye-sandbox" }
 zhuye-ast = { path = "reflect-agent/crates/resources/zhuye-ast" }
+zhuye-fs = { path = "reflect-agent/crates/resources/zhuye-fs" }
+zhuye-git = { path = "reflect-agent/crates/resources/zhuye-git" }
 zhuye-subagent = { path = "reflect-agent/crates/orchestration/zhuye-subagent" }
 zhuye-discussion = { path = "reflect-agent/crates/orchestration/zhuye-discussion" }
 zhuye-task = { path = "reflect-agent/crates/orchestration/zhuye-task" }
@@ -103,7 +113,14 @@ zhuye-mcp = { path = "reflect-agent/crates/integrations/zhuye-mcp" }
 zhuye-lsp = { path = "reflect-agent/crates/integrations/zhuye-lsp" }
 zhuye-integration = { path = "reflect-agent/crates/integrations/zhuye-integration" }
 zhuye-stream = { path = "reflect-agent/crates/integrations/zhuye-stream" }
+zhuye-import = { path = "reflect-agent/crates/integrations/zhuye-import" }
+zhuye-computer-use = { path = "reflect-agent/crates/integrations/zhuye-computer-use" }
+zhuye-shell = { path = "reflect-agent/crates/integrations/zhuye-shell" }
+zhuye-git-tools = { path = "reflect-agent/crates/integrations/zhuye-git-tools" }
 zhuye-core = { path = "reflect-agent/crates/runtime/zhuye-core" }
+zhuye-exec = { path = "reflect-agent/crates/runtime/zhuye-exec" }
+zhuye-cli  = { path = "reflect-agent/crates/runtime/zhuye-cli" }
+zhuye-py   = { path = "reflect-agent/crates/runtime/zhuye-py" }
 zhuye = { path = "reflect-agent/crates/runtime/zhuye" }
 
 # Desktop 自有共享层(UI 无关应用层,Tauri 与未来其它 runtime 复用)
@@ -139,7 +156,8 @@ tauri-build        = { version = "2", features = [] }
 # LLM/Tools(核心 crate 依赖,需在此声明供 workspace=true 解析)
 reqwest            = { version = "0.12", features = ["json", "stream", "gzip", "rustls-tls"] }
 tiktoken-rs        = "0.12"
-pyo3               = "0.23"
+# pyo3 ≥ 0.27 才正式支持 Python 3.14 final;0.30 进一步支持 3.15,与核心 workspace 对齐。
+pyo3               = "0.30"
 walkdir            = "2"
 ignore             = "0.4"
 similar            = "2"
@@ -154,6 +172,8 @@ rankfns            = "0.1"
 htmd               = "0.5"
 minijinja          = "2"
 sled               = "0.34"
+# 会话导入(zhuye-import):ZCode 历史存于 SQLite;bundled 自带 C 源,免系统依赖。
+rusqlite           = { version = "0.37", features = ["bundled"] }
 filetime           = "0.2"
 pollster           = "0.4"
 lsp-types          = { version = "=0.97", default-features = false }

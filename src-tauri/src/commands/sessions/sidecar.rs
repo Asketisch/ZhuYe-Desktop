@@ -1,14 +1,20 @@
-//! 会话 sidecar 文件（`_names/<id>.name`、`_titles/<id>.title`）落盘前的链接校验。
+//! 会话 sidecar 文件（`_names/<id>.name`、`_titles/<id>.title`）的
+//! 链接校验与安全写入。
 //!
-//! 核心 rollout 按路径写这两个文件，会**跟随符号链接**：工作树里只要放一个
-//! `<session-id>.name → /outside/protected`，一次改名或一次 AI 标题写入就变成
-//! 覆盖工作区外任意可写文件。桌面端不复制一份 sidecar 写入逻辑（真值格式归
-//! 核心），改为在调用核心之前校验链接位。
+//! 核心按路径写这两个文件时会**跟随符号链接**：工作树里只要放一个
+//! `<session-id>.name → /outside/protected`，一次改名或一次 AI 标题写入
+//! 就变成覆盖工作区外任意可写文件。桌面端在写入前校验链接位，把用户
+//! 错误提前暴露。
 //!
-//! 上游 `zhuye-rollout` 已用固定目录句柄和 `O_NOFOLLOW` 临时文件根治替换
-//! 窗口；这里保留预检，可在进入核心前给出明确的用户错误。
+//! develop 起核心已移除 `write_session_sidecar`（标题生成是桌面端
+//! 特性），`_titles` 落盘由本模块承担：同目录临时文件 + `persist`
+//! （rename）原子替换。rename 永不写穿目标 —— 即使预检后路径被并发
+//! 换成 symlink，也只是把链接替换为普通文件，不会写到工作区外。
 
+use std::io::Write;
 use std::path::Path;
+
+use reflect_protocol::ThreadId;
 
 use crate::commands::error::{CommandError, CommandResult};
 
@@ -45,6 +51,29 @@ fn is_link_or_reparse(metadata: &std::fs::Metadata) -> bool {
     {
         false
     }
+}
+
+/// 会话 sidecar 原子写入：`<base>/_<kind>s/<id>.<kind>`
+/// （kind = "title" → `_titles/<id>.title`，"name" → `_names/<id>.name`）。
+///
+/// 与旧的 `fs::write` 不同：`fs::write` 会先截断目标并跟随链接；这里
+/// 写同目录临时文件后 rename 替换，半截文件与链接写穿都不可能发生。
+pub(super) fn write_session_sidecar(
+    base: &Path,
+    id: ThreadId,
+    kind: &str,
+    content: &[u8],
+) -> std::io::Result<()> {
+    // 目录名是复数(`_titles` / `_names`),文件名是单数扩展名。
+    let dir = base.join(format!("_{kind}s"));
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join(format!("{id}.{kind}"));
+    reject_links(&path).map_err(|error| std::io::Error::other(error.msg))?;
+    let mut temp = tempfile::NamedTempFile::new_in(&dir)?;
+    temp.as_file_mut().write_all(content)?;
+    temp.as_file().sync_all()?;
+    temp.persist(&path).map_err(|error| error.error)?;
+    Ok(())
 }
 
 #[cfg(all(test, unix))]

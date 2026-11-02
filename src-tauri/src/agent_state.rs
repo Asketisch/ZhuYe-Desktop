@@ -48,7 +48,7 @@ struct DesktopPrefs {
 
 /// 桌面端偏好文件路径(`~/.zhuye/desktop.json`)。
 fn prefs_path() -> Option<PathBuf> {
-    reflect_app_core::paths::user_data_path(&["desktop.json"])
+    reflect_config::paths::data_path(&["desktop.json"])
 }
 
 pub(crate) struct AgentState;

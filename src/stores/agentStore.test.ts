@@ -54,6 +54,7 @@ const emptyState = (): AgentState => ({
   promptList: async () => {},
   promptRescan: async () => {},
   subagents: { feed: [], lastStatus: null },
+  sideChannels: { lastSnapshot: null, revision: 0 },
   enqueueMessage: () => {},
   removeQueued: () => {},
   updateQueued: () => {},
@@ -965,6 +966,57 @@ describe('reduceEvent — plugin / quota', () => {
     );
     expect(patch.subagents?.lastStatus).toHaveLength(1);
     expect(patch.subagents?.lastStatus?.[0]).toMatchObject({ child_id: 'c-2', state: 'running' });
+  });
+
+  it('side_channel_started / finished 递增 revision,不改快照', () => {
+    const started = reduceEvent(
+      emptyState(),
+      ev('evt-sc1', {
+        type: 'side_channel_started',
+        kind: 'started',
+        id: 'side-00000001',
+        agent_name: 'explorer',
+        prompt: 'scan the repo',
+        started_at_ms: 1,
+      }),
+    );
+    expect(started.sideChannels?.revision).toBe(1);
+    // 展开保留初值 null(快照只由 status 事件 / 查询写入)。
+    expect(started.sideChannels?.lastSnapshot).toBeNull();
+
+    const base = { ...emptyState(), sideChannels: { lastSnapshot: [], revision: 3 } };
+    const finished = reduceEvent(
+      base,
+      ev('evt-sc2', {
+        type: 'side_channel_finished',
+        kind: 'done',
+        id: 'side-00000001',
+        finished_at_ms: 9,
+        summary: 'ok',
+      }),
+    );
+    expect(finished.sideChannels?.revision).toBe(4);
+  });
+
+  it('side_channel_status 写入 lastSnapshot 快照', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('evt-sc3', {
+        type: 'side_channel_status',
+        channels: [
+          {
+            id: 'side-00000001',
+            agentName: 'explorer',
+            prompt: 'scan the repo',
+            startedAtMs: 1,
+            status: 'running',
+            durationMs: null,
+          },
+        ],
+      }),
+    );
+    expect(patch.sideChannels?.lastSnapshot).toHaveLength(1);
+    expect(patch.sideChannels?.lastSnapshot?.[0]).toMatchObject({ id: 'side-00000001', status: 'running' });
   });
 });
 
