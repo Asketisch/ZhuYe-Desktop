@@ -302,16 +302,30 @@ PY
 
 # ── 便携超时:run_with_timeout <秒> <命令...> ─────────────────────────────
 # macOS 无 coreutils timeout;后台起进程,轮询等待,超时 SIGTERM+SIGKILL。
+#
+# 必须杀**整个进程组**:被测对象常是壳脚本(AppImage 自解压、msiexec 包装),
+# 它会 spawn 孙进程;只 kill 直接子进程会留下孙进程继续占着管道,重定向
+# 的那一端永远不 EOF —— 看门狗超时了但调用方仍然挂死(实测 AppImage 审查
+# 跑了 16+ 分钟未归,正是这个原因)。setsid 让子命令自成进程组,超时按
+# 组击杀;kill -0 以「组长」为判活依据。
 run_with_timeout() {
     local secs="$1"; shift
-    "$@" &
+    # setsid 存在时优先(Linux);macOS 无 setsid,退回普通后台启动
+    # (那些平台上的被测命令通常不 spawn 孙进程)。
+    if command -v setsid >/dev/null 2>&1; then
+        setsid "$@" &
+    else
+        "$@" &
+    fi
     local pid=$!
     local waited=0
     while kill -0 "$pid" 2>/dev/null; do
         if [ "$waited" -ge "$secs" ]; then
-            kill -TERM "$pid" 2>/dev/null
+            # 先 TERM 再 KILL,两者都按**进程组**发。pid 是组长(setsid 下),
+            # 负号表示整个组;无 setsid 时 -TERM 对自身进程可能报错,已屏蔽。
+            kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null
             sleep 1
-            kill -9 "$pid" 2>/dev/null
+            kill -KILL "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null
             wait "$pid" 2>/dev/null
             return 124
         fi
