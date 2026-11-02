@@ -322,7 +322,7 @@ jobs:
         run: ls -la release-assets/ release-review/ 2>/dev/null || true
 
       - name: Attach to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             release-assets/*
