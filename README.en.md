@@ -15,7 +15,7 @@
 
 ## What is this?
 
-The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `reflect-core::AgentThread` (the upstream crate was renamed `zhuye-core`; this repo references it under the `reflect-core` alias). The desktop GUI needs to run the same thread inside a Tauri window without coupling Tauri 2 build artifacts into the headless agent tool. ZhuYe desktop therefore keeps all GUI code in this repository and consumes the agent core solely through the `reflect-agent/` git submodule.
+The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `reflect-core::AgentThread` (the upstream crate was renamed `zhuye-core`; this repo references it under the `reflect-core` alias). The desktop GUI needs to run the same thread inside a Tauri window without coupling Tauri 2 build artifacts into the headless agent tool. ZhuYe desktop therefore keeps all GUI code in this repository and consumes the agent core solely through the `zhuye-agent/` git submodule.
 
 ---
 
@@ -71,7 +71,7 @@ The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `ref
 - Display (light / dark / system-follow theme, accent color, opacity, wallpaper)
 - Editor (Vim mode / output style)
 - Providers (default provider + API key placeholder)
-- `ConfigForm` covers every section of `reflect-agent/crates/resources/reflect-config/src/schema.rs`; an advanced raw TOML editor remains as an escape hatch
+- `ConfigForm` covers every section of `zhuye-agent/crates/resources/reflect-config/src/schema.rs`; an advanced raw TOML editor remains as an escape hatch
 
 ### Coding plans & quota failover
 
@@ -156,7 +156,7 @@ cd src-tauri && cargo check
 
 ```
 ReflectDesktop/
-├── reflect-agent/   # git submodule of the Reflect-Agent repo (reflect-* core crates)
+├── zhuye-agent/   # git submodule of the Reflect-Agent repo (reflect-* core crates)
 │                    # read-only mirror; upgrade via git submodule update --remote
 ├── app-core/       # shared UI-agnostic reducer & state modules
 ├── src/            # React 19 + Vite feature-sliced frontend
@@ -212,12 +212,12 @@ Full history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 When Reflect-Agent publishes a new version:
 
 ```bash
-git submodule update --remote reflect-agent
-git diff --submodule reflect-agent
-git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
+git submodule update --remote zhuye-agent
+git diff --submodule zhuye-agent
+git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 ```
 
-`reflect-agent/` is a read-only mirror — never edit it in place; submit changes to the Reflect-Agent repo and bump the submodule (full runbook in [`SUBMODULE.md`](SUBMODULE.md)).
+`zhuye-agent/` is a read-only mirror — never edit it in place; submit changes to the Reflect-Agent repo and bump the submodule (full runbook in [`SUBMODULE.md`](SUBMODULE.md)).
 
 Complete runbook: [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md).
 

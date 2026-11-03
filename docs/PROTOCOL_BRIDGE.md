@@ -9,7 +9,7 @@
 ## 1. 信封
 
 ```rust
-// reflect-agent/crates/protocol/zhuye-protocol/src/event.rs
+// zhuye-agent/crates/protocol/zhuye-protocol/src/event.rs
 pub struct Event {
     pub id: String,     // matches Submission.id; EVENT_ID_NONE = "" for lifecycle
     pub msg: EventMsg,  // serde-tagged enum (snake_case)
@@ -27,7 +27,7 @@ pub struct Event {
 
 ## 2. 提交（UI → 后端）
 
-`Op` 变体列在 `reflect-agent/crates/protocol/zhuye-protocol/src/op.rs` 中；每个 1:1 映射到一个 Tauri 命令，其主体位于 `src-tauri/src/commands/<domain>.rs`（由 `src-tauri/src/commands/mod.rs` re-export）。完整集合见下方 §2.0 表格；规范的 Op→命令映射是唯一真相源，应在 `reflect-protocol/src/op.rs` 变更时重新生成。
+`Op` 变体列在 `zhuye-agent/crates/protocol/zhuye-protocol/src/op.rs` 中；每个 1:1 映射到一个 Tauri 命令，其主体位于 `src-tauri/src/commands/<domain>.rs`（由 `src-tauri/src/commands/mod.rs` re-export）。完整集合见下方 §2.0 表格；规范的 Op→命令映射是唯一真相源，应在 `reflect-protocol/src/op.rs` 变更时重新生成。
 
 > **注**:除 `UserInput` 经 `reflect_submit` 接受完整 `Submission` 外,其余 Op 命令
 > 后端在 `commands/<domain>.rs` 内部构造 `Op` 并经 `MinimalAgent::submit_op` 投递。
@@ -173,7 +173,7 @@ pub struct Submission {
 `source_command` 同为可选字段，由后端在插件命令展开（`/plugin:ns:name args` → 命令正文，
 `state/plugins.rs::expand_submission`）时标注，仅作 rollout / 遥测来源，前端不读写。
 
-### 2.1 `UserInputItem`（`reflect-agent/crates/protocol/zhuye-protocol/src/item.rs`）
+### 2.1 `UserInputItem`（`zhuye-agent/crates/protocol/zhuye-protocol/src/item.rs`）
 
 | 变体 | 字段 | 前端来源 |
 |---|---|---|
@@ -217,7 +217,7 @@ pub struct Submission {
 
 ## 3. 事件（后端 → UI）
 
-`EventMsg` 使用 `#[serde(tag = "type", rename_all = "snake_case")]`（变体列表位于 `reflect-agent/crates/protocol/zhuye-protocol/src/event_msg/mod.rs`）。
+`EventMsg` 使用 `#[serde(tag = "type", rename_all = "snake_case")]`（变体列表位于 `zhuye-agent/crates/protocol/zhuye-protocol/src/event_msg/mod.rs`）。
 
 > **命名**：Rust `enum` 使用 **PascalCase 结构变体**（如 `TurnStarted(TurnStartedEvent)`），但 serde 发出 **snake_case** 鉴别器（`turn_started`）供前端使用。前端 TypeScript 使用 snake_case 形式。
 
@@ -374,7 +374,7 @@ fallback spec，**跨模型降级**）。
   npx json2ts /tmp/reflect-schema.json -o src/types/protocol.ts
   ```
 
-- **子模块升级**：`git submodule update --remote reflect-agent` 拉取最新核心 crate（见 `SUBMODULE.md`）。升级后，重新运行 dump → json2ts 流水线。
+- **子模块升级**：`git submodule update --remote zhuye-agent` 拉取最新核心 crate（见 `SUBMODULE.md`）。升级后，重新运行 dump → json2ts 流水线。
 
 ---
 
@@ -479,7 +479,7 @@ export async function onReflectEvent(handler: (e: ReflectEvent) => void) {
 
 ## 8. 参考
 
-- Rust 真相源：`reflect-agent/crates/protocol/zhuye-protocol/src/{event.rs,event_msg/mod.rs,op.rs,item.rs,submission.rs}`
+- Rust 真相源：`zhuye-agent/crates/protocol/zhuye-protocol/src/{event.rs,event_msg/mod.rs,op.rs,item.rs,submission.rs}`
 - TS 镜像：`src/types/protocol.ts`
 - Tauri 命令注册表：`src-tauri/src/lib.rs`（处理程序列表）+ `src-tauri/src/commands/mod.rs`（桶文件）+ `src-tauri/src/commands/<domain>.rs` 中各域主体
 - 事件转发器：`src-tauri/src/events.rs::forward_agent_events`

@@ -180,7 +180,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # 必须递归拉 submodule —— 核心 crate(reflect-protocol / reflect-core
-          # 等)全在 reflect-agent/ 里,缺了就编不过。
+          # 等)全在 zhuye-agent/ 里,缺了就编不过。
           submodules: recursive
 
       - name: Install Node + pnpm

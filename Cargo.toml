@@ -16,7 +16,7 @@ authors = ["Reflect Agent Contributors"]
 
 # ── 成员 crate 统一 lint 策略 ──────────────────────────────────────
 # 通过清单级 [lints](而非 CI 的 RUSTFLAGS=-D warnings)拒绝警告:
-# 清单级 deny 只作用于本仓库自有 crate。reflect-agent/ submodule 以
+# 清单级 deny 只作用于本仓库自有 crate。zhuye-agent/ submodule 以
 # path 依赖参与编译,cargo 视其为"本地包",全局 -D warnings 会连带
 # 拒绝上游警告并阻塞 CI;上游代码的警告应由 Reflect-Agent 仓库修复。
 [workspace.lints.rust]
@@ -25,86 +25,86 @@ warnings = "deny"
 [workspace.lints.clippy]
 all = "deny"
 
-# ── 核心依赖:从 reflect-agent submodule 通过 path 引用 ──
+# ── 核心依赖:从 zhuye-agent submodule 通过 path 引用 ──
 # 注:Cargo 不支持嵌套 workspace,这里只用 path 依赖,不把核心 crate 列入 members。
-# 核心 crate 仍属于 reflect-agent 自己的 workspace,通过 path 被本仓库消费。
+# 核心 crate 仍属于 zhuye-agent 自己的 workspace,通过 path 被本仓库消费。
 # workspace.dependencies 必须**完整声明**核心 crate 用 `workspace = true` 继承的全部项
 # (含内部 reflect-* 与外部 crate),否则跨 workspace 解析会失败。
 [workspace.dependencies]
 # protocol 层
-reflect-protocol = { package = "zhuye-protocol", path = "reflect-agent/crates/protocol/zhuye-protocol" }
+reflect-protocol = { package = "zhuye-protocol", path = "zhuye-agent/crates/protocol/zhuye-protocol" }
 
 # abilities 层
-reflect-llm        = { package = "zhuye-llm", path = "reflect-agent/crates/abilities/zhuye-llm" }
-reflect-tools      = { package = "zhuye-tools", path = "reflect-agent/crates/abilities/zhuye-tools" }
-reflect-bm25       = { package = "zhuye-bm25", path = "reflect-agent/crates/abilities/zhuye-bm25" }
-reflect-hooks      = { package = "zhuye-hooks", path = "reflect-agent/crates/abilities/zhuye-hooks" }
-reflect-skills     = { package = "zhuye-skills", path = "reflect-agent/crates/abilities/zhuye-skills" }
-reflect-memory     = { package = "zhuye-memory", path = "reflect-agent/crates/abilities/zhuye-memory" }
-reflect-agent-def  = { package = "zhuye-agent-def", path = "reflect-agent/crates/abilities/zhuye-agent-def" }
-reflect-prompt     = { package = "zhuye-prompt", path = "reflect-agent/crates/abilities/zhuye-prompt" }
-reflect-compact    = { package = "zhuye-compact", path = "reflect-agent/crates/abilities/zhuye-compact" }
-reflect-recovery   = { package = "zhuye-recovery", path = "reflect-agent/crates/abilities/zhuye-recovery" }
-reflect-notes      = { package = "zhuye-notes", path = "reflect-agent/crates/abilities/zhuye-notes" }
-reflect-sanitize   = { package = "zhuye-sanitize", path = "reflect-agent/crates/abilities/zhuye-sanitize" }
+reflect-llm        = { package = "zhuye-llm", path = "zhuye-agent/crates/abilities/zhuye-llm" }
+reflect-tools      = { package = "zhuye-tools", path = "zhuye-agent/crates/abilities/zhuye-tools" }
+reflect-bm25       = { package = "zhuye-bm25", path = "zhuye-agent/crates/abilities/zhuye-bm25" }
+reflect-hooks      = { package = "zhuye-hooks", path = "zhuye-agent/crates/abilities/zhuye-hooks" }
+reflect-skills     = { package = "zhuye-skills", path = "zhuye-agent/crates/abilities/zhuye-skills" }
+reflect-memory     = { package = "zhuye-memory", path = "zhuye-agent/crates/abilities/zhuye-memory" }
+reflect-agent-def  = { package = "zhuye-agent-def", path = "zhuye-agent/crates/abilities/zhuye-agent-def" }
+reflect-prompt     = { package = "zhuye-prompt", path = "zhuye-agent/crates/abilities/zhuye-prompt" }
+reflect-compact    = { package = "zhuye-compact", path = "zhuye-agent/crates/abilities/zhuye-compact" }
+reflect-recovery   = { package = "zhuye-recovery", path = "zhuye-agent/crates/abilities/zhuye-recovery" }
+reflect-notes      = { package = "zhuye-notes", path = "zhuye-agent/crates/abilities/zhuye-notes" }
+reflect-sanitize   = { package = "zhuye-sanitize", path = "zhuye-agent/crates/abilities/zhuye-sanitize" }
 
 # resources 层
-reflect-config      = { package = "zhuye-config", path = "reflect-agent/crates/resources/zhuye-config" }
-reflect-permissions = { package = "zhuye-permissions", path = "reflect-agent/crates/resources/zhuye-permissions" }
-reflect-plugin      = { package = "zhuye-plugin", path = "reflect-agent/crates/resources/zhuye-plugin" }
-reflect-rollout     = { package = "zhuye-rollout", path = "reflect-agent/crates/resources/zhuye-rollout" }
-reflect-telemetry   = { package = "zhuye-telemetry", path = "reflect-agent/crates/resources/zhuye-telemetry" }
-reflect-sandbox     = { package = "zhuye-sandbox", path = "reflect-agent/crates/resources/zhuye-sandbox" }
-reflect-ast         = { package = "zhuye-ast", path = "reflect-agent/crates/resources/zhuye-ast" }
+reflect-config      = { package = "zhuye-config", path = "zhuye-agent/crates/resources/zhuye-config" }
+reflect-permissions = { package = "zhuye-permissions", path = "zhuye-agent/crates/resources/zhuye-permissions" }
+reflect-plugin      = { package = "zhuye-plugin", path = "zhuye-agent/crates/resources/zhuye-plugin" }
+reflect-rollout     = { package = "zhuye-rollout", path = "zhuye-agent/crates/resources/zhuye-rollout" }
+reflect-telemetry   = { package = "zhuye-telemetry", path = "zhuye-agent/crates/resources/zhuye-telemetry" }
+reflect-sandbox     = { package = "zhuye-sandbox", path = "zhuye-agent/crates/resources/zhuye-sandbox" }
+reflect-ast         = { package = "zhuye-ast", path = "zhuye-agent/crates/resources/zhuye-ast" }
 
 # orchestration 层
-reflect-subagent    = { package = "zhuye-subagent", path = "reflect-agent/crates/orchestration/zhuye-subagent" }
-reflect-discussion  = { package = "zhuye-discussion", path = "reflect-agent/crates/orchestration/zhuye-discussion" }
-reflect-task        = { package = "zhuye-task", path = "reflect-agent/crates/orchestration/zhuye-task" }
-reflect-pipeline    = { package = "zhuye-pipeline", path = "reflect-agent/crates/orchestration/zhuye-pipeline" }
-reflect-goal        = { package = "zhuye-goal", path = "reflect-agent/crates/orchestration/zhuye-goal" }
+reflect-subagent    = { package = "zhuye-subagent", path = "zhuye-agent/crates/orchestration/zhuye-subagent" }
+reflect-discussion  = { package = "zhuye-discussion", path = "zhuye-agent/crates/orchestration/zhuye-discussion" }
+reflect-task        = { package = "zhuye-task", path = "zhuye-agent/crates/orchestration/zhuye-task" }
+reflect-pipeline    = { package = "zhuye-pipeline", path = "zhuye-agent/crates/orchestration/zhuye-pipeline" }
+reflect-goal        = { package = "zhuye-goal", path = "zhuye-agent/crates/orchestration/zhuye-goal" }
 
 # integrations 层
-reflect-mcp         = { package = "zhuye-mcp", path = "reflect-agent/crates/integrations/zhuye-mcp" }
-reflect-lsp         = { package = "zhuye-lsp", path = "reflect-agent/crates/integrations/zhuye-lsp" }
-reflect-integration = { package = "zhuye-integration", path = "reflect-agent/crates/integrations/zhuye-integration" }
-reflect-stream      = { package = "zhuye-stream", path = "reflect-agent/crates/integrations/zhuye-stream" }
+reflect-mcp         = { package = "zhuye-mcp", path = "zhuye-agent/crates/integrations/zhuye-mcp" }
+reflect-lsp         = { package = "zhuye-lsp", path = "zhuye-agent/crates/integrations/zhuye-lsp" }
+reflect-integration = { package = "zhuye-integration", path = "zhuye-agent/crates/integrations/zhuye-integration" }
+reflect-stream      = { package = "zhuye-stream", path = "zhuye-agent/crates/integrations/zhuye-stream" }
 
 # runtime 层
-reflect-core = { package = "zhuye-core", path = "reflect-agent/crates/runtime/zhuye-core" }
-reflect      = { package = "zhuye", path = "reflect-agent/crates/runtime/zhuye" }
+reflect-core = { package = "zhuye-core", path = "zhuye-agent/crates/runtime/zhuye-core" }
+reflect      = { package = "zhuye", path = "zhuye-agent/crates/runtime/zhuye" }
 
-zhuye-protocol = { path = "reflect-agent/crates/protocol/zhuye-protocol" }
-zhuye-llm = { path = "reflect-agent/crates/abilities/zhuye-llm" }
-zhuye-tools = { path = "reflect-agent/crates/abilities/zhuye-tools" }
-zhuye-bm25 = { path = "reflect-agent/crates/abilities/zhuye-bm25" }
-zhuye-hooks = { path = "reflect-agent/crates/abilities/zhuye-hooks" }
-zhuye-skills = { path = "reflect-agent/crates/abilities/zhuye-skills" }
-zhuye-memory = { path = "reflect-agent/crates/abilities/zhuye-memory" }
-zhuye-agent-def = { path = "reflect-agent/crates/abilities/zhuye-agent-def" }
-zhuye-prompt = { path = "reflect-agent/crates/abilities/zhuye-prompt" }
-zhuye-compact = { path = "reflect-agent/crates/abilities/zhuye-compact" }
-zhuye-recovery = { path = "reflect-agent/crates/abilities/zhuye-recovery" }
-zhuye-notes = { path = "reflect-agent/crates/abilities/zhuye-notes" }
-zhuye-sanitize = { path = "reflect-agent/crates/abilities/zhuye-sanitize" }
-zhuye-config = { path = "reflect-agent/crates/resources/zhuye-config" }
-zhuye-permissions = { path = "reflect-agent/crates/resources/zhuye-permissions" }
-zhuye-plugin = { path = "reflect-agent/crates/resources/zhuye-plugin" }
-zhuye-rollout = { path = "reflect-agent/crates/resources/zhuye-rollout" }
-zhuye-telemetry = { path = "reflect-agent/crates/resources/zhuye-telemetry" }
-zhuye-sandbox = { path = "reflect-agent/crates/resources/zhuye-sandbox" }
-zhuye-ast = { path = "reflect-agent/crates/resources/zhuye-ast" }
-zhuye-subagent = { path = "reflect-agent/crates/orchestration/zhuye-subagent" }
-zhuye-discussion = { path = "reflect-agent/crates/orchestration/zhuye-discussion" }
-zhuye-task = { path = "reflect-agent/crates/orchestration/zhuye-task" }
-zhuye-pipeline = { path = "reflect-agent/crates/orchestration/zhuye-pipeline" }
-zhuye-goal = { path = "reflect-agent/crates/orchestration/zhuye-goal" }
-zhuye-mcp = { path = "reflect-agent/crates/integrations/zhuye-mcp" }
-zhuye-lsp = { path = "reflect-agent/crates/integrations/zhuye-lsp" }
-zhuye-integration = { path = "reflect-agent/crates/integrations/zhuye-integration" }
-zhuye-stream = { path = "reflect-agent/crates/integrations/zhuye-stream" }
-zhuye-core = { path = "reflect-agent/crates/runtime/zhuye-core" }
-zhuye = { path = "reflect-agent/crates/runtime/zhuye" }
+zhuye-protocol = { path = "zhuye-agent/crates/protocol/zhuye-protocol" }
+zhuye-llm = { path = "zhuye-agent/crates/abilities/zhuye-llm" }
+zhuye-tools = { path = "zhuye-agent/crates/abilities/zhuye-tools" }
+zhuye-bm25 = { path = "zhuye-agent/crates/abilities/zhuye-bm25" }
+zhuye-hooks = { path = "zhuye-agent/crates/abilities/zhuye-hooks" }
+zhuye-skills = { path = "zhuye-agent/crates/abilities/zhuye-skills" }
+zhuye-memory = { path = "zhuye-agent/crates/abilities/zhuye-memory" }
+zhuye-agent-def = { path = "zhuye-agent/crates/abilities/zhuye-agent-def" }
+zhuye-prompt = { path = "zhuye-agent/crates/abilities/zhuye-prompt" }
+zhuye-compact = { path = "zhuye-agent/crates/abilities/zhuye-compact" }
+zhuye-recovery = { path = "zhuye-agent/crates/abilities/zhuye-recovery" }
+zhuye-notes = { path = "zhuye-agent/crates/abilities/zhuye-notes" }
+zhuye-sanitize = { path = "zhuye-agent/crates/abilities/zhuye-sanitize" }
+zhuye-config = { path = "zhuye-agent/crates/resources/zhuye-config" }
+zhuye-permissions = { path = "zhuye-agent/crates/resources/zhuye-permissions" }
+zhuye-plugin = { path = "zhuye-agent/crates/resources/zhuye-plugin" }
+zhuye-rollout = { path = "zhuye-agent/crates/resources/zhuye-rollout" }
+zhuye-telemetry = { path = "zhuye-agent/crates/resources/zhuye-telemetry" }
+zhuye-sandbox = { path = "zhuye-agent/crates/resources/zhuye-sandbox" }
+zhuye-ast = { path = "zhuye-agent/crates/resources/zhuye-ast" }
+zhuye-subagent = { path = "zhuye-agent/crates/orchestration/zhuye-subagent" }
+zhuye-discussion = { path = "zhuye-agent/crates/orchestration/zhuye-discussion" }
+zhuye-task = { path = "zhuye-agent/crates/orchestration/zhuye-task" }
+zhuye-pipeline = { path = "zhuye-agent/crates/orchestration/zhuye-pipeline" }
+zhuye-goal = { path = "zhuye-agent/crates/orchestration/zhuye-goal" }
+zhuye-mcp = { path = "zhuye-agent/crates/integrations/zhuye-mcp" }
+zhuye-lsp = { path = "zhuye-agent/crates/integrations/zhuye-lsp" }
+zhuye-integration = { path = "zhuye-agent/crates/integrations/zhuye-integration" }
+zhuye-stream = { path = "zhuye-agent/crates/integrations/zhuye-stream" }
+zhuye-core = { path = "zhuye-agent/crates/runtime/zhuye-core" }
+zhuye = { path = "zhuye-agent/crates/runtime/zhuye" }
 
 # Desktop 自有共享层(UI 无关应用层,Tauri 与未来其它 runtime 复用)
 reflect-app-core    = { path = "app-core" }

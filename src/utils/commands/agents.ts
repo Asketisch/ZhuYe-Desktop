@@ -2,7 +2,7 @@
  * Agent 定义封装 —— Phase 1 第 3 项。
  *
  * 对应 `src-tauri/src/commands/agents.rs`(其内部封装
- * `reflect-agent/crates/abilities/reflect-agent-def`)。每个 agent 是一个带 YAML frontmatter 的
+ * `zhuye-agent/crates/abilities/zhuye-agent-def`)。每个 agent 是一个带 YAML frontmatter 的
  * Markdown 文件,位于 `~/.zhuye/agents/<name>.md`,与 TUI/CLI 共享。
  *
  * payload 形态与 核心 crate 的 `AgentDefinition` serde shape 一致(snake_case)。

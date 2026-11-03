@@ -3,7 +3,7 @@
 > 本文档是烛夜（ZhuYe）**发布阶段**的功能审查口径：每个能力域由哪一层
 > 验、验的是**真后端**还是**模拟后端**、哪些能力**显式排除**以及为什么。
 >
-> 与 submodule 的 `reflect-agent/tests/COVERAGE.md` 同构 —— 覆盖不是
+> 与 submodule 的 `zhuye-agent/tests/COVERAGE.md` 同构 —— 覆盖不是
 > 「跑过多少测试」，而是「**哪些能力没被验到，���什么**」。
 
 ---
@@ -25,7 +25,7 @@ L3 验真后端命令体的行为（但模型是假的）。模拟后端的 bug 
 真命令体 + **真模型** + 真网络（真实 SSE 帧、真实思考过程、真实 429、真实
 截断续作）。三层合起来才是完整功能面。
 
-L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不进 CI
+L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 CI
 门禁）、断言只到**协议形状**（不断言回答文本）、上游限流/地区门判为**跳过**
 而不是失败。
 

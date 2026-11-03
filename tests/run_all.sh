@@ -103,7 +103,7 @@ REPORT="$RESULT_DIR/release-review.md"
     echo "生成时间:$(date '+%Y-%m-%d %H:%M:%S %Z')"
     echo "提交:$(git rev-parse --short HEAD 2>/dev/null || echo '未知')"
     echo "分支:$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '未知')"
-    echo "submodule:$(git submodule status reflect-agent 2>/dev/null | awk '{print substr($1,1,7)}' || echo '未知')"
+    echo "submodule:$(git submodule status zhuye-agent 2>/dev/null | awk '{print substr($1,1,7)}' || echo '未知')"
     echo
     echo "## 分层结果"
     echo

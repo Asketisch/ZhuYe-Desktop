@@ -1,7 +1,7 @@
 /**
  * Reflect protocol —— Token 用量统计结构。
  *
- * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/usage.rs`。被 `TurnCompletePayload`、
+ * 对应 `zhuye-agent/crates/protocol/reflect-protocol/src/usage.rs`。被 `TurnCompletePayload`、
  * `CollabMessagePayload` 共享，并被 `TokenCountPayload` 扩展（见 `./event.ts`）。
  *
  * 顶层同步警告见 `./index.ts`。

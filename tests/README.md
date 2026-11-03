@@ -135,7 +135,7 @@ L2 验前端行为与线格式，但它的后端是**模拟**的
 真后端的 bug 遮住**。L3 补上这一块：直接驱动真命令体。L6 再补一格：
 真命令体 + **真模型**。
 
-> 这与 submodule `reflect-agent/tests/` 的分层同理：能力覆盖层**不经过
+> 这与 submodule `zhuye-agent/tests/` 的分层同理：能力覆盖层**不经过
 > 任何 SDK**（那里是 Python 打真二进制的原始 wire），因为 SDK 自身的 bug
 > 会把 Rust 的 bug 遮住。这里的「SDK」就是前端那层 `invoke` 包装与
 > `fakeBackend`。submodule 侧另有 `tests/live/`（实模型层），桌面端的

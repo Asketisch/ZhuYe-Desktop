@@ -39,7 +39,7 @@ Discussions 或公开 PR 提交,以免在补丁发布前被恶意利用。
 
 - **GitHub Security Advisory**:
   [新建私密报告](https://github.com/Asketisch/ReflectDesktop/security/advisories/new)(首选)
-- **邮箱**:`security@reflect-agent.dev`
+- **邮箱**:`security@zhuye-agent.dev`
 - **主题前缀**:`[SECURITY]`(便于邮件过滤)
 
 ### 报告应包含的信息

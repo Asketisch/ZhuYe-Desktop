@@ -11,7 +11,7 @@
  *   - 'Save to ~/.zhuye/config.toml' 按钮触发 reflect_save_config
  *
  * 实际渲染使用 ConfigForm —— 它覆盖了 ReflectConfig 的 25+ 配置段,
- * 见 reflect-agent/crates/resources/reflect-config/src/schema.rs。Advanced TOML 编辑器仍然是
+ * 见 zhuye-agent/crates/resources/reflect-config/src/schema.rs。Advanced TOML 编辑器仍然是
  * 逃生口,所有未知字段都会保留。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';

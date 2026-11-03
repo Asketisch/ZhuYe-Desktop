@@ -4,6 +4,18 @@
 
 ## 未发布
 
+### 变更 — submodule 目录改名 `reflect-agent` → `zhuye-agent`
+
+- 本仓库内的 submodule 路径与注册名统一为 `zhuye-agent`（`.gitmodules` 段名 + path、
+  gitlink、本地 config 经 `git mv` + `git submodule sync` 一致迁移）；上游仓库
+  （`Asketisch/Reflect-Agent`）不变，升级流程见 `SUBMODULE.md`。
+- 全量同步引用面：根 `Cargo.toml` 的 50+ 处 path 依赖、测试（`tests/static/run.sh`
+  的 submodule 状态/指针检查、`submodule-status.test.sh` 的 mock、`run_all.sh`
+  banner）、CI 注释、`scripts/dump-ts-types.sh`、`docs/*` 与源码注释。
+  `reflect-agent-def` 依赖别名与 `reflect-*` 包别名**不受影响**（对应上游包
+  `zhuye-agent-def` 等，别名机制与目录名无关）。
+- `docs/CHANGELOG.md` 历史条目保持原样（历史记录不回写）。
+
 （其余下一批变更从这里开始。）
 
 ## 0.0.2 — 2026-11-03

@@ -2,14 +2,14 @@
  * 共享 Tauri 类型 —— reflect-protocol 镜像 + ReflectAgent 特定类型。
  *
  * 权威来源：
- * - Rust: `reflect-agent/crates/protocol/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
+ * - Rust: `zhuye-agent/crates/protocol/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
  * - TS:   `src/types/protocol.ts`（事件/Submission 判别联合）
  */
 
 export interface ReflectSessionInfo {
   /**
    * 镜像 `reflect_protocol::SessionInfo`，与 `reflect_list_sessions`
-   * 返回的结构一致（`reflect-agent/crates/protocol/reflect-protocol/src/recorder.rs::SessionInfo`）。
+   * 返回的结构一致（`zhuye-agent/crates/protocol/reflect-protocol/src/recorder.rs::SessionInfo`）。
    * 基础 4 字段 + 会话标题/累计用量 —— 更丰富的信息（provider、cwd 等）
    * 必须通过单独的命令暴露，而不是在这里追加。
    */

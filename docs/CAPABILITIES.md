@@ -5,7 +5,7 @@
 > 1. 基座提供了哪些能力，GUI 是否能用、能看到？
 > 2. 还没接的能力有哪些、为什么、后续怎么接？
 >
-> 审计范围：`reflect-agent/crates/**`（submodule 只读镜像）对照
+> 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
 > 当前子模块 `d063a5f`：上游 `main`（`4deeeea3`，workspace 版本 0.1.8）之上
@@ -666,7 +666,7 @@ team 的任务列表」—— 想加一个团队只能**手写 JSON**。
 **GUI 接线面当前没有待接缺口。** 此前列表中的各项已分别闭合。
 唯一遗留的是 §4.2 —— 它不在 GUI 侧，而在核心文件工具里。
 
-- 「todo 清单只出不进」→ **上游已闭合**（reflect-agent v1.7 `d621397`：
+- 「todo 清单只出不进」→ **上游已闭合**（zhuye-agent v1.7 `d621397`：
   `AgentConfig.todos_slot` 共享槽 + `tool_exec` 渲染清单 + `pre_loop`
   注入 `## Current Todo List` 段 —— agent 每轮都能看到自己刚写的清单）。
 - 「Goal 状态可观测」→ **上游已闭合 + 桌面端已接线**（见 §4.1）。

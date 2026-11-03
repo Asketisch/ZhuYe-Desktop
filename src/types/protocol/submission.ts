@@ -1,7 +1,7 @@
 /**
  * Reflect protocol —— Submission 信封。
  *
- * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/submission.rs` 的 `Submission`。
+ * 对应 `zhuye-agent/crates/protocol/reflect-protocol/src/submission.rs` 的 `Submission`。
  * Rust 端序列化为 `{ id, op, client_user_message_id?, trace?, workspace? }`；
  * `op` payload 为 `./op.ts` 中的判别联合。
  *

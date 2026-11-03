@@ -8,7 +8,7 @@
  *
  * ## 协议同步警告
  *
- * 本目录与 `reflect-agent/crates/protocol/reflect-protocol`（Tauri IPC 信封的 Rust 模式）**手动同步**。
+ * 本目录与 `zhuye-agent/crates/protocol/reflect-protocol`（Tauri IPC 信封的 Rust 模式）**手动同步**。
  * 领域模块与 Rust 类型之间的任何偏差会导致 wire-format bug：
  *   - `ReflectEvent` / `ReflectEventMsg` ↔ `serde(rename_all = "snake_case")`
  *   - `ReflectSubmission` / `ReflectSubmissionOp` ↔ `Submission` / `Op`
@@ -19,7 +19,7 @@
  *   - `ReflectSessionInfo` / `ReflectRolloutRecord` ↔ `SessionInfo` / `RolloutRecord`
  *
  * ## 更新流程
- * 1. 在 `reflect-agent/crates/protocol/reflect-protocol/src/...` 中编辑/添加 Rust 枚举/变体。
+ * 1. 在 `zhuye-agent/crates/protocol/reflect-protocol/src/...` 中编辑/添加 Rust 枚举/变体。
  * 2. 在对应的领域模块中镜像修改（保留 snake_case 字段名、判别符、
  *    `ReviewDecision::Deny` 的 `{ deny: { reason } }` 形状）。
  * 3. 若涉及新事件类型，将其加入 `EventMsgType`、`EventMsgByType`

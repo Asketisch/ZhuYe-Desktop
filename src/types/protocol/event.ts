@@ -1,7 +1,7 @@
 /**
  * Reflect protocol —— Tauri `reflect_event` 信封。
  *
- * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/event.rs` 和 `event_msg.rs`。
+ * 对应 `zhuye-agent/crates/protocol/reflect-protocol/src/event.rs` 和 `event_msg.rs`。
  * 外层信封形状为 `{ id: string; msg: ReflectEventMsg }`。`EventMsgByType` 映射
  * 是 Rust `EventMsg` 枚举的类型层镜像,允许 TS 通过 `event.msg.type` 收窄类型。
  *

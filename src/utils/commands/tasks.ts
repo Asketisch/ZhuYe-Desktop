@@ -2,7 +2,7 @@
  * Task 管理封装 —— Phase 1 多 agent 命令面。
  *
  * 对应 `src-tauri/src/commands/tasks.rs` 的 Task 部分(其内部封装
- * `reflect-agent/crates/orchestration/reflect-task::TaskManager`)。Team 封装并列存放在 `./teams.ts`。
+ * `zhuye-agent/crates/orchestration/reflect-task::TaskManager`)。Team 封装并列存放在 `./teams.ts`。
  * Task payload 直接使用核心 crate 类型的序列化形态(snake_case,因为 `Task`
  * 没有派生 `rename_all = "camelCase"`);只有 `TaskUpdateResult` 信封采用
  * camelCase(见 `commands/tasks.rs`)。

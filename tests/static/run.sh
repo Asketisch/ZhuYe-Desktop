@@ -85,19 +85,19 @@ tcase "CHANGELOG 覆盖当前版本" check_changelog
 # ── 4. 能力矩阵新鲜度(审计到的 submodule commit 与实际一致)──────────────
 check_capabilities_fresh() {
     local status marker full_sha sha
-    status=$(git -C "$ROOT" submodule status reflect-agent 2>/dev/null) || { echo "读不到 reflect-agent submodule 状态"; return 1; }
+    status=$(git -C "$ROOT" submodule status zhuye-agent 2>/dev/null) || { echo "读不到 zhuye-agent submodule 状态"; return 1; }
     marker=${status:0:1}
     full_sha=${status:1:40}
     if [ "$marker" = '-' ] || [ "$marker" = 'U' ]; then
-        echo "reflect-agent submodule 未初始化或存在冲突"
+        echo "zhuye-agent submodule 未初始化或存在冲突"
         return 1
     fi
     if [ "$marker" != ' ' ] && [ "$marker" != '+' ]; then
-        echo "reflect-agent submodule 状态标记无效"
+        echo "zhuye-agent submodule 状态标记无效"
         return 1
     fi
     if [[ ! "$full_sha" =~ ^[[:xdigit:]]{40}$ ]]; then
-        echo "reflect-agent submodule 状态格式无效"
+        echo "zhuye-agent submodule 状态格式无效"
         return 1
     fi
     sha=${full_sha:0:7}
@@ -112,11 +112,11 @@ tcase "能力矩阵与 submodule 版本一致" check_capabilities_fresh
 
 # ── 5. 子模块指针已提交(未提交 = 发布产物不可复现)───────────────────────
 check_submodule_committed() {
-    if git -C "$ROOT" diff --quiet --ignore-submodules=none --submodule=short HEAD -- reflect-agent 2>/dev/null; then
-        echo "reflect-agent submodule 指针已提交"
+    if git -C "$ROOT" diff --quiet --ignore-submodules=none --submodule=short HEAD -- zhuye-agent 2>/dev/null; then
+        echo "zhuye-agent submodule 指针已提交"
         return 0
     fi
-    echo "reflect-agent submodule 指针有未提交改动 —— 发布产物不可复现"
+    echo "zhuye-agent submodule 指针有未提交改动 —— 发布产物不可复现"
     return 1
 }
 tcase "submodule 指针已提交" check_submodule_committed

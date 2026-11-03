@@ -3,7 +3,7 @@
 用**免费模型池**跑烛夜 ZhuYe 桌面端的完整 agent 链路 —— 不需要任何 API Key，
 也不产生费用。
 
-> 上游同源文档：`reflect-agent/docs/FREE_MODEL_PRACTICE.md`（TUI / CLI 侧）。
+> 上游同源文档：`zhuye-agent/docs/FREE_MODEL_PRACTICE.md`（TUI / CLI 侧）。
 > 两边同口径，本篇只讲**桌面端**特有的接法（GUI 入口、门禁层 L6、
 > Tauri IPC 链路）。
 
@@ -73,7 +73,7 @@ node packages/standalone/cli.mjs --port 18900
 ```
 
 > 端口被占时会自动顺延（18900 → 18901 …），实际端口看启动日志。
-> submodule 侧有封装脚本 `reflect-agent/scripts/ofm_gateway.sh`。
+> submodule 侧有封装脚本 `zhuye-agent/scripts/ofm_gateway.sh`。
 
 ⚠️ OpenCode 车道按**账号**计额度，429 很常见（提示 `Free usage limit
 reached`）；地区门按出口 IP 判（`403 REGION_BLOCKED` /「not available in

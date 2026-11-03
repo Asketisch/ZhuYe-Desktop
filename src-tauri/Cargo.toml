@@ -71,13 +71,13 @@ lsp-types                   = { workspace = true }
 # 完整 M4(skills/memory/compaction/notes),与 CLI/TUI 行为对齐。仅依赖
 # tokio,无 pyo3/hyper 等重 crate。
 reflect                     = { workspace = true }
-# 多 agent 协调:Task/Team/Coordinator(reflect-agent/crates/orchestration/reflect-task 已实现 TaskManager 全套 API)。
+# 多 agent 协调:Task/Team/Coordinator(zhuye-agent/crates/orchestration/reflect-task 已实现 TaskManager 全套 API)。
 # Phase 1 暴露命令面;UI 与 hook/event_sink 注入留后续阶段。
 reflect-task                = { workspace = true }
-# Schedule(cron):reflect-agent/crates/integrations/reflect-stream 的 CronScheduler(create/update/delete/tick)。
+# Schedule(cron):zhuye-agent/crates/integrations/reflect-stream 的 CronScheduler(create/update/delete/tick)。
 # Phase 1 第 2 项暴露命令面;后台 driver 与持久化留后续。
 reflect-stream              = { workspace = true }
-# Agent definitions:reflect-agent/crates/abilities/reflect-agent-def 的 Markdown + frontmatter 解析/加载。
+# Agent definitions:zhuye-agent/crates/abilities/zhuye-agent-def 的 Markdown + frontmatter 解析/加载。
 # Phase 1 第 3 项:agent profile 管理页(列表/创建/编辑/删除)。
 reflect-agent-def           = { workspace = true }
 # 插件系统(v1.x):[plugins] enabled_plugins 挂载(skills/agents/mcp/commands)
@@ -105,7 +105,7 @@ tempfile                    = "3"
 once_cell                   = { workspace = true }
 # Phase 3 item 13：Media Studio（图像解码 / 缩放 / 格式转换）
 # + Computer Use（xcap 截屏 + enigo 鼠标键盘）。
-# 纯本地依赖 — reflect-agent 核心 crate（submodule）不动。
+# 纯本地依赖 — zhuye-agent 核心 crate（submodule）不动。
 image                       = { workspace = true }
 xcap                        = { workspace = true }
 enigo                       = { workspace = true }
