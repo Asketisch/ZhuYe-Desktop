@@ -6,7 +6,8 @@
 #   - macOS .app 的 Info.plist 键是否齐、版本是否与 package.json 一致;
 #   - 前端资源是否真的嵌进了二进制(而不是只躺在 dist/ 里);
 #   - bundle 里有没有开发残留(.DS_Store / sourcemap / node_modules);
-#   - macOS 签名是否成立;
+#   - macOS 签名封印是否可校验(散装 .app + 挂载 DMG 验里面那份 .app ——
+#     后者才是真正发出去的形态);
 #   - Linux .deb 深度解包(usr/bin 可执行 / .desktop(Exec) / 图标 /
 #     control 版本)与 .AppImage 解包(AppRun / .desktop);
 #   - Windows .msi 管理映像解包(exe 存在 + ProductVersion);
@@ -179,19 +180,61 @@ if [ -n "$APP_BUNDLE" ]; then
     }
     tcase "bundle 内无开发残留(.DS_Store / sourcemap / node_modules)" check_no_dev_leftovers
 
+    # 必须用 --verify --deep --strict 验**封印有效性**,不能只看 `codesign -dv`
+    # 是否成功 —— -dv 是显示动词,主二进制上有链接器顺手落的 ad-hoc 内嵌签名
+    # 就能过,而 bundle 封印(_CodeSignature/CodeResources)可能完全缺失;
+    # 那种包下载后 Gatekeeper 直接判「已损坏」(v0.0.1 DMG 实测)。
     check_codesign() {
         if ! require_cmd codesign; then
             echo "本机无 codesign —— 跳过签名检查"
             return 0
         fi
-        if codesign -dv "$APP_BUNDLE" >/dev/null 2>&1; then
-            echo "codesign 校验通过($(codesign -dv "$APP_BUNDLE" 2>&1 | grep -o 'Signature=.*' | head -1))"
-            return 0
+        if ! codesign --verify --deep --strict "$APP_BUNDLE" 2> "$RESULT_DIR/codesign-verify.log"; then
+            echo "codesign 封印校验失败(--verify --deep --strict):"
+            tail -3 "$RESULT_DIR/codesign-verify.log" 2>/dev/null | sed 's/^/         │ /'
+            return 1
         fi
-        echo "codesign 校验失败 —— 未签名或签名损坏"
-        return 1
+        echo "codesign 封印校验通过($(codesign -dv "$APP_BUNDLE" 2>&1 | grep -o 'Signature=.*' | head -1))"
+        return 0
     }
-    tcase "macOS 签名成立" check_codesign
+    tcase "macOS 签名成立(bundle 封印可校验)" check_codesign
+
+    # DMG 是 macOS 真正发出去的形态 —— 散装 .app 封印了不代表 DMG 里的
+    # 那份也封印了(签名发生在打包期才有效,后置封印救不了已打好的 DMG)。
+    # 必须挂载 DMG 直接验里面那份 .app 的封印。
+    DMG_FILE=$(find "$DIST_DIR/dmg" -maxdepth 1 -name '*.dmg' 2>/dev/null | head -1)
+    if [ -n "$DMG_FILE" ]; then
+        check_dmg_signature() {
+            if ! require_cmd hdiutil; then
+                echo "本机无 hdiutil —— 跳过 DMG 审计"
+                return 0
+            fi
+            local mount
+            mount=$(mktemp -d "${TMPDIR:-/tmp}/reflect-dmg-audit.XXXXXX")
+            if ! run_with_timeout 120 hdiutil attach -readonly -nobrowse -noautoopen \
+                -mountpoint "$mount" "$DMG_FILE" >/dev/null 2>&1; then
+                echo "DMG 挂载失败/超时:$DMG_FILE"
+                rm -rf "$mount"
+                return 1
+            fi
+            local rc=1
+            local inner
+            inner=$(find "$mount" -maxdepth 1 -name '*.app' 2>/dev/null | head -1)
+            if [ -z "$inner" ]; then
+                echo "DMG 顶层找不到 .app"
+            elif ! codesign --verify --deep --strict "$inner" 2> "$RESULT_DIR/codesign-dmg-verify.log"; then
+                echo "DMG 内 .app 封印校验失败(--verify --deep --strict):"
+                tail -3 "$RESULT_DIR/codesign-dmg-verify.log" 2>/dev/null | sed 's/^/         │ /'
+            else
+                echo "DMG 内 .app 封印校验通过($(basename "$DMG_FILE"))"
+                rc=0
+            fi
+            hdiutil detach "$mount" -force >/dev/null 2>&1 || true
+            rm -rf "$mount"
+            return "$rc"
+        }
+        tcase "macOS DMG 内 .app 封印可校验(真正发出的形态)" check_dmg_signature
+    fi
 fi
 
 # ── 3. Linux:.deb / .AppImage 内容 ────────────────────────────────────────

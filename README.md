@@ -104,6 +104,16 @@ bash scripts/install.sh
 #   ~/Applications/ZhuYe.app                 （可启动包）
 ```
 
+> **DMG 打不开提示「已损坏」？** 发布包为 ad-hoc 签名（无 Apple 开发者证书、
+> 未公证）。macOS 会对一切下载的 app 打隔离标记，Gatekeeper 对没有开发者
+> 身份的包统一报「已损坏，无法打开」——这是系统策略，不是包真的坏了。执行：
+>
+> ```bash
+> xattr -cr /Applications/ZhuYe.app   # 或实际的安装路径
+> ```
+>
+> 之后即可正常打开。应用内功能不受影响。
+
 ### 从源码构建
 
 ```bash

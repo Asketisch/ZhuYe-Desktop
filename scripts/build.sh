@@ -227,13 +227,13 @@ case "$PLATFORM" in
   windows) BUNDLE_DIR="target/${TARGET_SUBDIR}${PROFILE_DIR}/bundle/msi" ;;
 esac
 
-# ── macOS ad-hoc 封印 ────────────────────────────────────────────────────
-# tauri-bundler 在未配置签名身份时不做 bundle 级签名:主二进制只有链接器
-# 顺手落的 ad-hoc 内嵌签名(Info.plist=not bound,无 _CodeSignature 封印);
-# 而**交叉编译**时链接器连内嵌签名都不落 —— `codesign -dv` 直接判未签名。
-# 构建后对全部 .app 显式 ad-hoc 封印(幂等,已签名会被覆盖),宿主/交叉
-# 都落到可校验的 bundle 签名。正式分发签名(Developer ID + 公证)需另行
-# 传 SIGNING_IDENTITY 走上游签名流程,不在这一步。
+# ── macOS ad-hoc 封印(兜底) ──────────────────────────────────────────────
+# 常规路径:tauri.conf.json 的 bundle.macOS.signingIdentity="-" 让 bundler
+# 在打包期封印 .app —— 关键在**时序**:DMG 由 .app 打出,封印必须发生在
+# DMG 创建之前,否则 DMG 里的 app 无封印,下载后 Gatekeeper 判「已损坏」
+# (v0.0.1 实测翻车:此处的后置封印只救了散装 .app,救不了已打好的 DMG)。
+# 这个循环保留为兜底:绕过 conf 的构建路径(旧 tag / TAURI_CLI_ARGS 覆盖)
+# 至少保证散装 .app 可校验。幂等,已签名会被覆盖。
 if [ "$PLATFORM" = "macos" ] && command -v codesign >/dev/null 2>&1; then
   for dir in $BUNDLE_DIR; do
     for app in "$dir"/*.app; do

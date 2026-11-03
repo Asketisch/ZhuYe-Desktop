@@ -4,11 +4,45 @@
 
 ## 未发布
 
+（其余下一批变更从这里开始。）
+
+## 0.0.2 — 2026-11-03
+
+跨平台安装包修复版：macOS DMG 里的 app 自 v0.0.1 起缺 bundle 封印，
+Gatekeeper 对下载的包直接判「已损坏」。同时首批应用 logo（金鸡望月 +
+莲花烛火）随包分发。
+
 ### 修复 — 窗口冒烟驱动启动竞态
 
 - v0.0.1 tag 门禁实测翻车：`tauri-driver` 后台启动后 `run.sh` 没有任何就绪等待，vitest 首连撞上端口绑定窗口直接 `ECONNREFUSED`（此前多轮全绿纯属运气）。现在启动后轮询 4444 端口（`/dev/tcp` 探测，零外部依赖），最多 30 秒；驱动进程死掉立即短路；未就绪时判失败并回显驱动日志。三种路径（未监听 / 进程死 / 已监听）本地实测。
 
-（其余下一批变更从这里开始。）
+### 修复 — DMG 内 .app 无 bundle 封印，下载后 Gatekeeper 判「已损坏」
+
+v0.0.1 的 macOS 安装包挂载后，包内 `ZhuYe.app` 的签名状态是
+`flags=adhoc,linker-signed / Info.plist=not bound / Sealed Resources=none`
+—— bundle 级封印（`_CodeSignature/CodeResources`）完全缺失，`codesign --verify
+--deep --strict` 报 "code has no resources but signature indicates they must be
+present"。下载的 app 带隔离标记，Gatekeeper 对封印无效的包直接判
+**「已损坏，无法打开，移到废纸篓」**。三处叠加导致：
+
+- **封印时序错误（根因）**：`tauri build --bundles app,dmg` 一次调用里 DMG
+  由**当时的** `.app` 打出；build.sh 的 `codesign --force --deep --sign -`
+  兜底循环跑在构建结束之后 —— 只救了散装 `.app`，永远救不了已打好的 DMG。
+  现改为 `tauri.conf.json` 的 `bundle.macOS.signingIdentity: "-"`，bundler
+  在打包期（DMG 创建之前）封印，宿主与交叉构建同路径。
+- **产物审查放水**：L4 的签名检查用 `codesign -dv`（显示动词，主二进制有
+  链接器 ad-hoc 签名即过）且只审散装 `.app`。现改用 `codesign --verify
+  --deep --strict` 验封印有效性，并新增挂载 DMG 验包内 `.app` 封印的用例
+  —— 审「真正发出去的形态」。
+- **README 补安装说明**：ad-hoc 包无开发者身份，Gatekeeper 的「已损坏」
+  提示是系统策略，`xattr -cr /Applications/ZhuYe.app` 后即可正常打开。
+
+### 变更 — 采用 logo.png 作为跨平台统一应用 logo
+
+- 以仓库根 `logo.png`（1254×1254，金鸡望月 + 莲花烛火）为唯一源图，`pnpm tauri icon` 全量重生成 `src-tauri/icons/`：`icon.icns`（macOS Dock/Finder——此前缺失，bundle 图标表里没有任何 `.icns` 项）、`icon.ico`（Windows）、`32x32/128x128/128x128@2x/256x256/icon.png`（Linux hicolor / AppImage）。`bundle.icon` 补 `icon.icns` 与 `128x128@2x.png` 两项。
+- 托盘 `icon32.png` 改为从 logo 派生的模板 glyph：按亮度抠掉深底生成 alpha + 反预乘恢复色彩 + 紧裁剪，`icon_as_template(true)` 下菜单栏随深/亮色主题自动着色（路径不变，`include_bytes!` 零代码改动）。
+- 前端 favicon 落地：`index.html` 一直引用 `/tauri-icon.png` 但该文件从不存在（无 `public/` 目录），新增 `public/tauri-icon.png`（512×512）补上悬空引用。
+- 清理 `tauri icon` 顺带产出的无消费方资产（UWP `Square*Logo.png`/`StoreLogo.png`、`android/`、`ios/`、未引用的 `64x64.png`）——本仓库打包目标只有 app/dmg/msi/deb/appimage。
 
 ## 0.0.1 — 2026-11-02
 
