@@ -5,8 +5,8 @@ import type { StringEntry } from '../types';
 
 const sideChannel: Record<string, StringEntry> = {
   'sideChannel.title':                { en: 'Side-channels', 'zh-CN': '侧通道' },
-  'sideChannel.subtitle':             { en: 'Manage side-channel registry entries.', 'zh-CN': '管理侧通道注册条目。' },
-  'sideChannel.unavailable':          { en: 'Side-channel execution is not available yet. Creating an entry does not run an agent.', 'zh-CN': '侧通道执行尚未接入。创建条目不会运行 agent。' },
+  'sideChannel.subtitle':             { en: 'Run and manage independent side-channel agents.', 'zh-CN': '运行与管理独立的旁路 agent。' },
+  'sideChannel.unavailable':          { en: 'Each side-channel runs as an independent agent (own cancel token, no main-history writes); terminal states arrive as live events.', 'zh-CN': '每条侧通道作为独立 agent 运行（独立取消令牌、不写主历史），终态以实时事件送达。' },
   'sideChannel.runningCount':         { en: '{count} running', 'zh-CN': '{count} 个运行中' },
   'sideChannel.agentNamePlaceholder': { en: 'Agent name (e.g. default, reviewer)', 'zh-CN': 'Agent 名称 (如 default、reviewer)' },
   'sideChannel.promptPlaceholder':    { en: 'Prompt (required)', 'zh-CN': 'Prompt (必填)' },

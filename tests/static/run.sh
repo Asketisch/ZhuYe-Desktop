@@ -110,6 +110,20 @@ check_capabilities_fresh() {
 }
 tcase "能力矩阵与 submodule 版本一致" check_capabilities_fresh
 
+# ── 4b. submodule 清单奇偶一致(跨 workspace 继承键完整)────────────────────
+# Cargo 不支持嵌套 workspace:核心 crate 经 path 被本仓库消费时,它们的
+# `workspace = true` 一律解析到**本仓库根 Cargo.toml**。子模块
+# `[workspace.dependencies]` 每新增一个键(升级 develop 时常见:
+# zhuye-fs / zhuye-kms / rusqlite …)而根清单未镜像,`cargo metadata` 对
+# **整个工作区**报 "dependency.X was not found in workspace.dependencies",
+# 什么都编不了。这里做纯文本奇偶校验,把缺键在编译前点名。
+# 根清单允许多出键(tauri / xcap 等桌面专属),只查"子模块有、根没有"。
+check_submodule_manifest_parity() {
+    [ -f "$ROOT/reflect-agent/Cargo.toml" ] || { echo "reflect-agent/Cargo.toml 不存在 —— submodule 未初始化"; return 1; }
+    node "$HERE/manifest-parity.mjs" "$ROOT/reflect-agent/Cargo.toml" "$ROOT/Cargo.toml"
+}
+tcase "submodule 清单奇偶一致(workspace.dependencies 继承键)" check_submodule_manifest_parity
+
 # ── 5. 子模块指针已提交(未提交 = 发布产物不可复现)───────────────────────
 check_submodule_committed() {
     if git -C "$ROOT" diff --quiet --ignore-submodules=none --submodule=short HEAD -- reflect-agent 2>/dev/null; then

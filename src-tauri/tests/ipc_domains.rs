@@ -492,9 +492,26 @@ fn dream_writes_insights_to_a_wiki() {
 // ============================================================================
 // Side-channel
 // ============================================================================
+//
+// v1.x WP9 起 side-channel 是**引擎原生执行**(driver 经线程工厂注入):
+// 夹具没有 provider,旁路 agent 启动后毫秒级跑到终态(done / error)。
+// 因此断言的是真实语义 —— "启动即返回 id + 很快到终态",而不是旧
+// app-core 空壳时代的"启动后永远 running"。
+
+/// 等待通道离开 running(引擎无 provider 时终态来得很快;CI 冷机留足预算)。
+fn wait_side_channel_terminal(id: &str) -> serde_json::Value {
+    for _ in 0..200 {
+        let got = invoke_ok("reflect_get_side_channel", json!({ "id": id }));
+        if got["status"] != "running" {
+            return got;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    panic!("side-channel {id} 20s 内未到终态(无 provider 时应快速结束)");
+}
 
 #[test]
-fn side_channel_start_list_cancel() {
+fn side_channel_start_list_get_and_terminal_cancel_semantics() {
     let started = invoke_ok(
         "reflect_start_side_channel",
         json!({ "agentName": "probe-helper", "prompt": "探针提示" }),
@@ -503,7 +520,10 @@ fn side_channel_start_list_cancel() {
         .as_str()
         .expect("side-channel 缺少 id")
         .to_string();
+    assert_eq!(started["agentName"], "probe-helper");
+    assert!(started["startedAtMs"].is_number());
 
+    // 列表 / 单条快照走 Op::QuerySideChannels 应答配对。
     let list = invoke_ok("reflect_list_side_channels", json!({}));
     assert!(
         list.as_array()
@@ -512,18 +532,109 @@ fn side_channel_start_list_cancel() {
             .any(|s| s["id"] == id),
         "side-channel 未出现在列表里"
     );
-
     let got = invoke_ok("reflect_get_side_channel", json!({ "id": id.clone() }));
     assert_eq!(got["id"], id, "side-channel 读回 id 不符: {got}");
     assert_eq!(got["agentName"], "probe-helper");
     assert_eq!(got["startedAtMs"], started["startedAtMs"]);
-    assert!(got["durationMs"].is_null());
 
-    let cancelled = invoke_ok("reflect_cancel_side_channel", json!({ "id": id }));
-    assert_eq!(cancelled, true);
-    let finished = invoke_ok("reflect_get_side_channel", json!({ "id": id }));
-    assert_eq!(finished["status"], "cancelled");
-    assert!(finished["durationMs"].is_number());
+    // 真实语义:无 provider → 旁路 agent 很快到终态,带完成时长。
+    let terminal = wait_side_channel_terminal(&id);
+    assert!(
+        matches!(terminal["status"].as_str(), Some("done") | Some("error")),
+        "无 provider 的 side-channel 应以 done/error 收尾: {terminal}"
+    );
+    assert!(terminal["durationMs"].is_number(), "{terminal}");
+
+    // 终态通道的取消 → false(boolean 语义:未知 / 已终态都不算生效)。
+    let cancelled = invoke_ok("reflect_cancel_side_channel", json!({ "id": id.clone() }));
+    assert_eq!(cancelled, false, "已终态的通道取消应返回 false");
+    let after = invoke_ok("reflect_get_side_channel", json!({ "id": id }));
+    assert_eq!(after["status"], terminal["status"], "取消不应改写终态");
+
+    // 未知 id:get 报错、cancel 返回 false。
+    assert!(invoke("reflect_get_side_channel", json!({ "id": "side-deadbeef" })).is_err());
+    assert_eq!(
+        invoke_ok(
+            "reflect_cancel_side_channel",
+            json!({ "id": "side-deadbeef" })
+        ),
+        false
+    );
+}
+
+/// 事件信封断言(v1.x WP9 接线):
+/// 1. `side_channel_started` 经 submission id 配对发到 `reflect_event`;
+/// 2. **运行终态**经终态补发器(`state/side_channel_forwarder`)以
+///    `EVENT_ID_NONE` 信封到达 —— 引擎 driver 只推进 registry,不发协议
+///    终态事件,桌面端补的那一环必须有真 IPC 证据。
+#[test]
+fn side_channel_lifecycle_events_reach_the_frontend() {
+    let _guard = common::state_lock();
+
+    // 先注册事件采集(内部拿夹具锁,与 invoke 顺序调用安全)。
+    let collected = std::sync::Arc::new(std::sync::Mutex::new(Vec::<serde_json::Value>::new()));
+    let sink = collected.clone();
+    common::listen("reflect_event", move |event: tauri::Event| {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(event.payload()) {
+            sink.lock().unwrap_or_else(|e| e.into_inner()).push(v);
+        }
+    });
+
+    let started = invoke_ok(
+        "reflect_start_side_channel",
+        json!({ "agentName": "probe-events", "prompt": "事件信封探针" }),
+    );
+    let id = started["id"]
+        .as_str()
+        .expect("side-channel 缺少 id")
+        .to_string();
+
+    let find = |pred: &dyn Fn(&serde_json::Value) -> bool| -> Option<serde_json::Value> {
+        for _ in 0..200 {
+            {
+                let guard = collected.lock().unwrap_or_else(|e| e.into_inner());
+                if let Some(hit) = guard.iter().find(|e| pred(e)) {
+                    return Some(hit.clone());
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        None
+    };
+
+    // ── 断言 1:Started 信封(submission id 配对,载荷 kind=started)。
+    let started_event = find(&|e| {
+        e["msg"]["type"] == "side_channel_started"
+            && e["msg"]["id"] == serde_json::Value::String(id.clone())
+            && e["msg"]["kind"] == "started"
+    })
+    .expect("20s 内应收到 side_channel_started 事件信封");
+    assert_eq!(started_event["msg"]["agent_name"], "probe-events");
+    assert!(
+        !started_event["id"].as_str().unwrap_or_default().is_empty(),
+        "Started 事件应绑定 submission id: {started_event}"
+    );
+
+    // ── 断言 2:运行终态信封(forwarder 补发:外层 id 为空串,kind 为
+    //    done / error —— 无 provider 时旁路 agent 以何种终态收尾由引擎决定,
+    //    这里只断言"终态确实到了前端"这条链路)。
+    let terminal = find(&|e| {
+        e["msg"]["type"] == "side_channel_finished"
+            && e["msg"]["id"] == serde_json::Value::String(id.clone())
+            && e["id"] == ""
+    })
+    .expect("20s 内应收到终态补发信封(side_channel_finished,外层 id 为空串)");
+    assert!(
+        matches!(
+            terminal["msg"]["kind"].as_str(),
+            Some("done") | Some("error")
+        ),
+        "终态 kind 应为 done/error: {terminal}"
+    );
+    assert!(
+        terminal["msg"]["finished_at_ms"].is_number(),
+        "终态应带完成时间戳: {terminal}"
+    );
 }
 
 #[test]

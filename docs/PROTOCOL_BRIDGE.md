@@ -345,7 +345,7 @@ fallback spec，**跨模型降级**）。
 
 ### 3.13 Side-channel agent (3) — v1.x WP9
 
-用户驱动的旁路 agent(`Op::StartSideChannel` 发起,引擎 `SideChannelDriver` 执行,独立取消令牌,不写主历史)。事件经 per-submission 通道 + 会话扇出双路送达。
+用户驱动的旁路 agent(`Op::StartSideChannel` 发起,引擎 `SideChannelDriver` 执行,独立取消令牌,不写主历史)。事件经 per-submission 通道 + 会话扇出双路送达。**终态补发**:引擎 driver 的 Done / Cancelled / Error 只推进进程内 registry(不发协议事件,`SideChannelFinished` 仅覆盖启动失败路径);桌面端 `state/side_channel_forwarder.rs` 订阅共享 registry 的广播,把运行终态以 `EVENT_ID_NONE` 外层 id 补发到 `reflect_event`(`Started` 由 submission_loop 带 submission id 发出,不补发避免双计)。
 
 | 变体 | 字段 | UI |
 |---|---|---|

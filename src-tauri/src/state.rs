@@ -36,6 +36,7 @@ pub(crate) mod reload;
 mod remote_config;
 pub(crate) mod sandbox;
 mod session;
+pub mod side_channel_forwarder;
 pub(crate) mod subagents;
 mod submit;
 mod task_hooks;
@@ -180,6 +181,12 @@ impl MinimalAgent {
     /// 命令层 `commands/schedule.rs` 据此决定走真 scheduler 还是空响应。
     pub fn cron_scheduler(&self) -> Option<reflect_stream::cron::CronScheduler> {
         self.inner.cron_scheduler.read().clone()
+    }
+
+    /// Side-channel registry 句柄(进程级共享,与 driver 同一份 Arc)。
+    /// 能力覆盖层夹具起终态补发器用。
+    pub fn side_channel_registry(&self) -> reflect_core::side_channel::SideChannelRegistry {
+        self.inner.side_channels.clone()
     }
 
     /// 远程模式配置：host + port + auth_token + auto_connect。

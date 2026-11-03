@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SideChannelView } from './SideChannelView';
-import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
+import { createTestQueryClient, emitMockEvent, resetMockInvoke } from '@/test/setup';
 import { reflect_start_side_channel, reflect_cancel_side_channel } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 
@@ -74,7 +74,7 @@ describe('SideChannelView', () => {
   it('renders the page title and running count badge', async () => {
     render(wrap(<SideChannelView />));
     expect(screen.getByText('Side-channels')).toBeDefined();
-    expect(screen.getByText('Side-channel execution is not available yet. Creating an entry does not run an agent.')).toBeDefined();
+    expect(screen.getByText('Each side-channel runs as an independent agent (own cancel token, no main-history writes); terminal states arrive as live events.')).toBeDefined();
     await waitFor(() => {
       expect(screen.getByText('1 running')).toBeDefined();
     });
@@ -89,6 +89,35 @@ describe('SideChannelView', () => {
       expect(screen.getByText('reviewer')).toBeDefined();
       expect(screen.getByText('1.2s')).toBeDefined();
     });
+  });
+
+  it('refetches the list when a side_channel lifecycle event arrives on the bus', async () => {
+    // v1.x WP9:控制器订阅 `reflect_event` 上的 side_channel_started /
+    // side_channel_finished,收到即失效查询缓存 —— 不等 5s 轮询。
+    render(wrap(<SideChannelView />));
+    await waitFor(() => screen.getByTestId('side-channel-row-side-running01'));
+    const listCalls = () => calls.filter((c) => c.cmd === 'reflect_list_side_channels').length;
+    const before = listCalls();
+    // 总线监听是异步挂上的(mock listen):在 waitFor 里重复投递,
+    // 挂上后第一条就会触发 invalidate → refetch。
+    await waitFor(() => {
+      emitMockEvent('reflect_event', {
+        id: '',
+        msg: { type: 'side_channel_finished', kind: 'done', id: 'side-running01', finished_at_ms: 2 },
+      });
+      expect(listCalls()).toBeGreaterThan(before);
+    });
+  });
+
+  it('ignores unrelated events (no spurious refetch)', async () => {
+    render(wrap(<SideChannelView />));
+    await waitFor(() => screen.getByTestId('side-channel-row-side-running01'));
+    const listCalls = () => calls.filter((c) => c.cmd === 'reflect_list_side_channels').length;
+    const before = listCalls();
+    emitMockEvent('reflect_event', { id: 'evt', msg: { type: 'agent_message', text: 'hi' } });
+    // 给异步 invalidate 一个机会 —— 不应有新的列表调用。
+    await new Promise((r) => setTimeout(r, 50));
+    expect(listCalls()).toBe(before);
   });
 
   it('running row exposes Cancel; terminal rows do not', async () => {

@@ -173,6 +173,17 @@ pub fn harness() -> MutexGuard<'static, Harness> {
             });
         }
 
+        // 与生产 install 6a-2 对齐:side-channel 终态补发(driver 的
+        // Done / Cancelled / Error → reflect_event)。夹具未 set_app_handle,
+        // install 里的自动 spawn 会跳过,这里手动起。
+        {
+            let registry = app.state::<MinimalAgent>().side_channel_registry();
+            reflect_desktop_lib::state::side_channel_forwarder::spawn_side_channel_forwarder(
+                app.handle().clone(),
+                &registry,
+            );
+        }
+
         let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
             .build()
             .expect("build mock webview");

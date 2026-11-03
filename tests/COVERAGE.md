@@ -74,7 +74,7 @@ L6 与 submodule 的 `reflect-agent/tests/live/` 同口径：默认 SKIP（不�
 | LSP | `lsp_status` `lsp_set_enabled` `lsp_diagnostics` | L3 `ipc_domains.rs`；上游共享工具单测覆盖固定文件句柄及大小上限，`zhuye-lsp` 单测覆盖路径校验和文档同步，mock server 集成测试覆盖工具调用 | — |
 | 提示词层 | `get_effective_prompt` `prompt_command` | L3 `ipc_domains.rs` | `PromptLayersModal` |
 | KMS 知识库 | `kms_list/create/delete/save_page/get_page/list_pages/search` | L3 `ipc_domains.rs`（含独占创建）+ `ipc_kms_links.rs`（外部符号链接） | `KmsView` |
-| Side-channel | `start/cancel/list/get_side_channel` | L3 `ipc_domains.rs` | `SideChannelView` |
+| Side-channel | `start/cancel/list/get_side_channel` + `side_channel_started/finished/status` 事件信封 | L3 `ipc_domains.rs`(含终态补发断言) | `SideChannelView` |
 | 讨论 / 流水线 | `list_discussions` `validate_pipeline` `list/save_pipeline_config` | L3 `ipc_domains.rs` | `CollaborationView` |
 | 远程 / tailscale | `get/update_remote_config` `get_remote_status` `tailscale_status` `tailscale_daemon_command_preview` `tailscale_daemon_status` | L3 `ipc_domains.rs` | `RemoteView` |
 | 探针 | `ping` | L3 `ipc_core.rs` | `app.smoke` |

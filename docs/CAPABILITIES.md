@@ -701,6 +701,10 @@ develop WP9 上游自述「桌面端缺失的那一半」——此前桌面只�
 - **前端**：三个事件变体（`side_channel_started/finished/status`）进
   类型联合 + reducer（`sideChannels` 进程级投影）;SideChannelView 订阅
   生命周期事件即时失效查询缓存（原来只能靠 5s 轮询）。
+- **终态补发**：引擎 driver 的运行终态（Done/Cancelled/Error）只推进
+  registry,不发协议事件 —— 桌面端 `side_channel_forwarder` 订阅共享
+  registry 广播,以 `EVENT_ID_NONE` 信封补发 `side_channel_finished`,
+  终态实时可达（能力覆盖层有真 IPC 断言）。
 
 ---
 

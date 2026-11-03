@@ -251,6 +251,10 @@ tests/
 ├── static/                                 # L1 静态审查层
 │   ├── run.sh
 │   ├── analyze.mjs                         # 源码级交叉比对（命令面 / 路由 / 命名空间 …）
+│   ├── manifest-parity.mjs                 # submodule 清单奇偶校验（继承键缺一即断）
+│   ├── manifest-parity.test.sh             # 上一行的自测（正向 / 缺键点名 / 多键容忍 / 空段失败）
+│   ├── submodule-status.test.sh            # submodule 指针检查的自测
+│   ├── analyzer-status.test.sh             # 分析器状态的自测
 │   └── baseline.json                       # 棘轮基线
 ├── frontend/run.sh                         # L2 前端行为层
 ├── backend/run.sh                          # L3 真后端能力覆盖层

@@ -113,4 +113,64 @@ mod tests {
         std::fs::write(names.join("session-1.name"), "name").unwrap();
         assert!(reject_links(&names.join("session-1.name")).is_ok());
     }
+
+    fn thread_id(seed: &str) -> ThreadId {
+        ThreadId::parse_str(seed).unwrap()
+    }
+
+    /// develop 收编修复的主断言:写入落在复数目录 `_titles/<id>.title`,
+    /// 内容完整、可覆盖重写,且不残留临时文件。
+    #[test]
+    fn write_session_sidecar_lands_at_the_plural_dir_and_overwrites() {
+        let base = tempfile::tempdir().unwrap();
+        let id = thread_id("11111111-2222-3333-4444-555555555555");
+        write_session_sidecar(base.path(), id, "title", b"first").unwrap();
+        let path = base.path().join("_titles").join(format!("{id}.title"));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "first");
+        // 原子替换:重写覆盖,不留 tempfile 残渣。
+        write_session_sidecar(base.path(), id, "title", b"second title").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "second title");
+        assert_eq!(
+            std::fs::read_dir(base.path().join("_titles"))
+                .unwrap()
+                .count(),
+            1
+        );
+    }
+
+    /// 链接位拒绝在**写入路径**生效:目标已是 symlink 时整个写入报错,
+    /// 链接外面的真实文件原样保留。
+    #[test]
+    fn write_session_sidecar_rejects_a_linked_target_without_touching_it() {
+        let base = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let protected = outside.path().join("protected");
+        std::fs::write(&protected, "original").unwrap();
+        let titles = base.path().join("_titles");
+        std::fs::create_dir_all(&titles).unwrap();
+        let id = thread_id("22222222-3333-4444-5555-666666666666");
+        symlink(&protected, titles.join(format!("{id}.title"))).unwrap();
+
+        let error = write_session_sidecar(base.path(), id, "title", b"evil").unwrap_err();
+        assert!(
+            error.to_string().contains("符号链接"),
+            "错误应说明链接拒绝: {error}"
+        );
+        assert_eq!(std::fs::read_to_string(&protected).unwrap(), "original");
+    }
+
+    /// 目录本身是链接时同样拒绝(防 `_titles → /outside` 整目录劫持)。
+    #[test]
+    fn write_session_sidecar_rejects_a_linked_directory() {
+        let base = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let linked_titles = outside.path().join("_titles");
+        std::fs::create_dir_all(&linked_titles).unwrap();
+        symlink(&linked_titles, base.path().join("_titles")).unwrap();
+        let id = thread_id("33333333-4444-5555-6666-777777777777");
+        let error = write_session_sidecar(base.path(), id, "title", b"x").unwrap_err();
+        assert!(error.to_string().contains("符号链接"), "{error}");
+        // 链接指向的目录里什么都没写进去。
+        assert_eq!(std::fs::read_dir(&linked_titles).unwrap().count(), 0);
+    }
 }

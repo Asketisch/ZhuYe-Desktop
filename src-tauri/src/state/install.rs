@@ -99,6 +99,17 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //     互不阻塞。
     super::activity::subscribe_activity_logger(agent);
 
+    // 6a-2. 启动 side-channel 终态补发:引擎 driver 的 Done / Cancelled /
+    //     Error 只推进 registry,不发协议事件;桌面端订阅进程级共享
+    //     registry 的广播,把终态映射回 `reflect_event` 通道,前端才能
+    //     实时感知旁路 agent 完成(而非等下一次快照查询)。
+    if let Some(app) = agent.app_handle() {
+        super::side_channel_forwarder::spawn_side_channel_forwarder(
+            app,
+            &agent.inner.side_channels,
+        );
+    }
+
     // 6b. 注入 Cron 调度器 + 启动后台 driver。
     //
     // v1.x 修复:此前 `let _driver_handle = driver.start(30)` 立即 drop

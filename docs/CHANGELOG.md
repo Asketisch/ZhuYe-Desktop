@@ -16,6 +16,39 @@ submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个�
 - **桌面侧随 upstream 收编的两处行为差异**：markdown 导出标题从 `# Reflect session` 统一为上游 `# ZhuYe session`（渲染器切 `zhuye-rollout::export` 单一事实源,写盘仍保留桌面"替换 symlink"语义）；终端 shell 会话 id 从 UUID v4 改为上游池分配的 `sh-<8hex>`（执行与缓冲收编 `zhuye-shell`,Tauri 事件形状与逐行推送语义不变）。
 - **文档**：`docs/PROTOCOL_BRIDGE.md` 补 side-channel 三 Op + 三事件（§3.13）；`docs/CAPABILITIES.md` 增 §3.25/§3.26 并刷新矩阵。
 
+### 测试 — submodule 接线修复的配套测试面（含一处接线缺口修复）
+
+- **发现并修复接线缺口**：引擎 `SideChannelDriver` 的运行终态（Done /
+  Cancelled / Error）只推进进程内 registry,不发协议事件
+  （`SideChannelFinished` 仅覆盖启动失败路径）—— 前端此前只能等下一次
+  快照查询才看到旁路 agent 完成。新增
+  `state/side_channel_forwarder.rs` 订阅共享 registry 广播,把终态以
+  `EVENT_ID_NONE` 信封补发到 `reflect_event`（`Started` 不补发避免双计）;
+  install 与能力覆盖层夹具各 spawn 一份,与 `forward_agent_events` 同待遇。
+- **L1 静态门禁新增「submodule 清单奇偶一致」**
+  （`tests/static/manifest-parity.mjs` + 自测 `manifest-parity.test.sh`）：
+  子模块 `[workspace.dependencies]` 的每个继承键都必须在根清单镜像 ——
+  本轮升级正是栽在缺 `zhuye-fs` 上（整个工作区解析失败）。升级 submodule
+  后缺键会在编译前被逐个点名,不再撞 `cargo metadata` 报错。
+- **L3 新增 `cargo metadata` 解析冒烟**（放 fmt/clippy 之前,秒级）：
+  跨 workspace 继承键完整性的权威校验 —— 这里断了后面全无意义。
+- **side-channel 真 IPC 测试按真实引擎语义重写并加事件信封断言**
+  （`ipc_domains.rs`）：引擎原生实现下旁路 agent 真的会跑（夹具无
+  provider,毫秒级到终态）,旧测试"启动后永远 running"的假设是 app-core
+  空壳时代的产物。新断言：启动返回 id + 列表/单条快照走
+  `Op::QuerySideChannels` 配对、终态语义（done/error + durationMs）、
+  终态通道取消返回 `false`、未知 id 行为、`side_channel_started` 信封
+  （submission id 配对）与 `side_channel_finished` 终态补发信封
+  （外层 id 为空串）—— 后者是终态补发器的真 IPC 证据。
+- **sidecar 原子写单元测试**（`sessions/sidecar.rs`）：`_titles/<id>.title`
+  复数目录落点、覆盖重写无临时文件残渣、目标为链接时拒绝且外部文件
+  原样保留、`_titles` 目录本身为链接时拒绝。
+- **前端控制器订阅测试**（`SideChannelView.test.tsx`）：bus 上收到
+  `side_channel_finished` 立即失效查询缓存（不等 5s 轮询）、无关事件
+  不触发重取;顺带把"侧通道执行尚未接入"的过时文案改为真实能力描述。
+- **forwarder 映射单元测试**：Started 跳过 / Done / Cancelled / Error
+  字段逐字搬运 / registry 广播 → 协议事件端到端冒烟。
+
 ### 修复 — 会话标题 sidecar 写入跟随核心演进
 
 develop 把 `reflect_rollout::index::write_session_sidecar` 从核心移除（标题生成本就是桌面特性）。`_titles/<id>.title` 落盘改为桌面自有实现：链接位预检（拒绝 symlink/重解析点,防止写工作区外）+ 同目录临时文件 + rename 原子替换 —— 半截文件与链接写穿两个窗口都不存在。

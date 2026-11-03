@@ -2,6 +2,7 @@
 # tests/backend/run.sh —— 真后端能力覆盖层(发布门禁 L3)。
 #
 # 这一层测的是**真后端**:
+#   0. `cargo metadata` —— submodule 跨 workspace 解析(继承键完整的权威校验);
 #   1. `cargo fmt --check` —— 本仓库自有 crate 的格式(不检查 submodule);
 #   2. `cargo clippy --workspace --all-targets` —— 警告拒绝;
 #   3. `cargo test --workspace --all-targets` —— 单元测试 + **能力覆盖层**。
@@ -35,6 +36,15 @@ if ! require_cmd cargo; then
     tfinish
     exit 0
 fi
+
+# ── 0. 跨 workspace 解析(submodule 继承键的权威校验)────────────────────
+# L1 的清单奇偶校验是纯文本近似;这里让 cargo 自己说话:核心 crate 的
+# `workspace = true` 全部解析到根清单,任何一个缺键都会让 metadata 对
+# **整个工作区**报错(升级 submodule 后首个会断的地方)。只解析不编译,
+# 秒级完成,放最前面 —— 这里断了后面 fmt/clippy/test 全无意义。
+tcase_log "cargo metadata(submodule 跨 workspace 解析)" \
+    "$RESULT_DIR/backend-metadata.log" \
+    cargo metadata --no-deps --format-version 1 --quiet
 
 # ── 1. 格式 ───────────────────────────────────────────────────────────────
 # 只检查本仓库自有 crate(app-core + src-tauri):reflect-agent/ submodule
