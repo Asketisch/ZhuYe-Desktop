@@ -368,7 +368,7 @@ fallback spec，**跨模型降级**）。
 - **前端类型重新生成**：当 `reflect-protocol` 变更时，运行：
 
   ```bash
-  # 在 Reflect-Agent 仓库中：
+  # 在 ZhuYe 仓库中：
   cargo run -p reflect-protocol --example dump_schema > /tmp/reflect-schema.json
   # 在烛夜 ZhuYe 桌面端仓库中：
   npx json2ts /tmp/reflect-schema.json -o src/types/protocol.ts

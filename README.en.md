@@ -156,7 +156,7 @@ cd src-tauri && cargo check
 
 ```
 ReflectDesktop/
-├── zhuye-agent/   # git submodule of the Reflect-Agent repo (reflect-* core crates)
+├── zhuye-agent/   # git submodule of the ZhuYe repo (reflect-* core crates)
 │                    # read-only mirror; upgrade via git submodule update --remote
 ├── app-core/       # shared UI-agnostic reducer & state modules
 ├── src/            # React 19 + Vite feature-sliced frontend
@@ -209,7 +209,7 @@ Full history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 ## Upgrading the agent core (submodule)
 
-When Reflect-Agent publishes a new version:
+When ZhuYe publishes a new version:
 
 ```bash
 git submodule update --remote zhuye-agent
@@ -217,7 +217,7 @@ git diff --submodule zhuye-agent
 git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 ```
 
-`zhuye-agent/` is a read-only mirror — never edit it in place; submit changes to the Reflect-Agent repo and bump the submodule (full runbook in [`SUBMODULE.md`](SUBMODULE.md)).
+`zhuye-agent/` is a read-only mirror — never edit it in place; submit changes to the ZhuYe repo and bump the submodule (full runbook in [`SUBMODULE.md`](SUBMODULE.md)).
 
 Complete runbook: [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md).
 

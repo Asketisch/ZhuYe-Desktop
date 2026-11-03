@@ -25,7 +25,7 @@
 6. 事件转发器：`src-tauri/src/events.rs`
 7. Reflect 协议类型：`zhuye-agent/crates/protocol/zhuye-protocol/src/{event.rs,event_msg/mod.rs,op.rs,item.rs}`
 
-如果行为也需要在无头（CLI/TUI）中运行，该变更优先放在 Reflect-Agent 仓库（submodule），再升级 submodule 引用。
+如果行为也需要在无头（CLI/TUI）中运行，该变更优先放在 ZhuYe 仓库（submodule），再升级 submodule 引用。
 
 ---
 
@@ -58,7 +58,7 @@
 | **给真后端命令加能力覆盖用例** | `src-tauri/tests/ipc_<domain>.rs`（新增文件）+ `src-tauri/tests/common/mod.rs`（共享夹具）。命令注册表在 `src-tauri/src/lib.rs::configure` —— **不要**另建一份命令清单 |
 | **改发布门禁** | `tests/run_all.sh`（总入口）+ `tests/lib.sh`（公共助手）+ `tests/{static,frontend,backend,artifact,e2e,live}/run.sh`（分层）+ `tests/static/analyze.mjs`（源码级交叉比对）+ `tests/static/baseline.json`（棘轮基线）|
 | **改覆盖口径** | `tests/COVERAGE.md`（能力 → 套件映射 + 显式排除项与理由）|
-| 更改协议类型 | `zhuye-agent/crates/protocol/zhuye-protocol/src/*.rs`（改 Reflect-Agent 仓库后升级 submodule）|
+| 更改协议类型 | `zhuye-agent/crates/protocol/zhuye-protocol/src/*.rs`（改 ZhuYe 仓库后升级 submodule）|
 | 更改 agent store reducer / 动作 | `src/stores/agent/reducer.ts`（规范）。`src/stores/agentStore.ts` 是兼容 re-export —— 不要在那里添加新代码。 |
 
 ---
@@ -162,9 +162,9 @@
 
 ## 核心 Crate（submodule）
 
-`zhuye-agent/` 是上游 `Reflect-Agent` 仓库 zhuye-* crate 的只读 git submodule 镜像，通过 `git submodule update --remote` 升级（完整流程见 `SUBMODULE.md`）。引用的 crate 集合由根 `Cargo.toml` 的 `[workspace.dependencies]` 声明（如 `zhuye-agent/crates/protocol/zhuye-protocol/`、`zhuye-agent/crates/runtime/zhuye-core/` 等）。
+`zhuye-agent/` 是上游 `ZhuYe` 仓库 zhuye-* crate 的只读 git submodule 镜像，通过 `git submodule update --remote` 升级（完整流程见 `SUBMODULE.md`）。引用的 crate 集合由根 `Cargo.toml` 的 `[workspace.dependencies]` 声明（如 `zhuye-agent/crates/protocol/zhuye-protocol/`、`zhuye-agent/crates/runtime/zhuye-core/` 等）。
 
-`app-core/`（与 `zhuye-agent/` 平级的本仓库 crate）承载 Tauri 命令层的 UI 无关领域服务（activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / stats / sandbox）；GUI 渲染状态由前端 `src/stores/agent/` 负责。上游核心改动优先改 Reflect-Agent 仓库，再升级 submodule。
+`app-core/`（与 `zhuye-agent/` 平级的本仓库 crate）承载 Tauri 命令层的 UI 无关领域服务（activity / kms / media / squad / side-channel / tailscale / autopilot / actor / traces / discussion / pipeline / pricing / stats / sandbox）；GUI 渲染状态由前端 `src/stores/agent/` 负责。上游核心改动优先改 ZhuYe 仓库，再升级 submodule。
 
 ---
 

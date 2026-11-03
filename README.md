@@ -165,7 +165,7 @@ cd src-tauri && cargo check
 
 ```
 ReflectDesktop/
-├── zhuye-agent/   # Reflect-Agent 仓库的 git submodule（reflect-* 核心 crate）
+├── zhuye-agent/   # ZhuYe 仓库的 git submodule（reflect-* 核心 crate）
 │                    # 只读镜像，通过 git submodule update --remote 升级
 ├── app-core/       # 共享的 UI 无关 reducer 与状态模块
 ├── src/            # React 19 + Vite + 功能切片组件

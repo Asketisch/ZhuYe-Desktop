@@ -1,12 +1,12 @@
 # 多 Agent / 核心子模块升级运行手册
 
-> 升级 `zhuye-agent/` submodule 到上游 `Reflect-Agent` 新版本的权威清单。
+> 升级 `zhuye-agent/` submodule 到上游 `ZhuYe` 新版本的权威清单。
 > （历史说明：本仓库曾用 `vendor/` + `scripts/vendor-sync.sh` 同步核心 crate，
 > 已迁移为 git submodule，旧 vendor 流程不再适用。）
 
 ## 何时升级
 
-- Reflect-Agent 发布新版本（标签 `v*`）。
+- ZhuYe 发布新版本（标签 `v*`）。
 - `reflect-protocol` / `reflect-core` / `reflect-rollout` 等落地了影响 GUI 行为的修复。
 - 新增了 `Op` / `EventMsg` 变体（前端类型需要重新生成）。
 
@@ -23,7 +23,7 @@
 ## 升级流程
 
 ```bash
-# 1. 拉取最新核心（submodule 跟踪 Reflect-Agent 默认分支）
+# 1. 拉取最新核心（submodule 跟踪 ZhuYe 默认分支）
 git submodule update --remote zhuye-agent
 
 # 2. 审查差异
@@ -48,7 +48,7 @@ git commit -m "chore: bump zhuye-agent submodule (<原因>)"
 ## 冲突策略
 
 - **zhuye-agent/**：submodule 只读镜像，绝不直接编辑。如果需要热修复，
-  先在 Reflect-Agent 仓库打补丁，再 `git submodule update --remote` 升级。
+  先在 ZhuYe 仓库打补丁，再 `git submodule update --remote` 升级。
 - **src/types/protocol.ts**：从 schema 重新生成；除非绝对必要否则不手工编辑。
 - **app-core/**：GUI 和 Tauri 适配层共享；如有变更需与上游协调。
 

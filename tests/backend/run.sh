@@ -38,7 +38,7 @@ fi
 
 # ── 1. 格式 ───────────────────────────────────────────────────────────────
 # 只检查本仓库自有 crate(app-core + src-tauri):zhuye-agent/ submodule
-# 的格式由上游 Reflect-Agent 仓库的 CI 负责,不该阻塞本仓库。
+# 的格式由上游 ZhuYe 仓库的 CI 负责,不该阻塞本仓库。
 tcase_log "cargo fmt --check(自有 crate)" \
     "$RESULT_DIR/backend-fmt.log" \
     cargo fmt -p reflect-app-core -p reflect-desktop -- --check

@@ -18,7 +18,7 @@ authors = ["Reflect Agent Contributors"]
 # 通过清单级 [lints](而非 CI 的 RUSTFLAGS=-D warnings)拒绝警告:
 # 清单级 deny 只作用于本仓库自有 crate。zhuye-agent/ submodule 以
 # path 依赖参与编译,cargo 视其为"本地包",全局 -D warnings 会连带
-# 拒绝上游警告并阻塞 CI;上游代码的警告应由 Reflect-Agent 仓库修复。
+# 拒绝上游警告并阻塞 CI;上游代码的警告应由 ZhuYe 仓库修复。
 [workspace.lints.rust]
 warnings = "deny"
 

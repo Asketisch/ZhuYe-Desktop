@@ -7,7 +7,7 @@
 //!   (stub model + EchoTool,不依赖网络);4 个产品联动 (tray / menu / shortcut / dock) 实装;
 //!   macOS close-to-tray。
 //!
-//! 蓝图:Reflect-Agent `docs/gui/03-architecture.md` §5 (M1.x 设计沉淀)。
+//! 蓝图:ZhuYe `docs/gui/03-architecture.md` §5 (M1.x 设计沉淀)。
 
 mod agent_state;
 pub mod commands;
