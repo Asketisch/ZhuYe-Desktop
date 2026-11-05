@@ -1,4 +1,4 @@
-# Reflect-Agent GUI 规划总览（已归档）
+# ZhuYe GUI 规划总览（已归档）
 
 > ⚠️ **本文档为 M1 阶段设计稿快照。** 实施蓝图与决策已迁移：
 >
@@ -13,7 +13,7 @@
 
 ## 1. 历史背景
 
-M1 启动时（2026-06）Reflect-Agent 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC ratatui+crossterm、47 slash 命令、22 段状态栏）但 GUI 缺位。本目录沉淀 Reflect GUI 方案蓝图，为后续 `crates/reflect-gui/` 实施提供设计依据。
+M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC ratatui+crossterm、47 slash 命令、22 段状态栏）但 GUI 缺位。本目录沉淀 Reflect GUI 方案蓝图，为后续 `crates/reflect-gui/` 实施提供设计依据。
 
 终端形态天然局限：
 

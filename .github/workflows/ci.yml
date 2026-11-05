@@ -1,7 +1,7 @@
 # 烛夜 ZhuYe 持续集成。
 #
 # push / PR 触发:前端(typecheck + vitest)与 Rust(fmt + clippy + test)。
-# 注意:本仓库通过 `reflect-agent/` submodule 引用核心 crate,
+# 注意:本仓库通过 `zhuye-agent/` submodule 引用核心 crate,
 # 必须递归 checkout submodule 才能编译。
 
 name: ci
@@ -98,7 +98,7 @@ jobs:
           components: rustfmt
 
       # 只检查本仓库自有 crate(app-core + src-tauri):
-      # reflect-agent/ submodule 的格式由上游 ZhuYe 仓库的 CI 负责,
+      # zhuye-agent/ submodule 的格式由上游 ZhuYe 仓库的 CI 负责,
       # 避免上游格式状态阻塞本仓库。
       - name: cargo fmt --check (own crates)
         run: cargo fmt -p reflect-app-core -p reflect-desktop -- --check
@@ -157,7 +157,7 @@ jobs:
             libwayland-dev
 
       # 警告拒绝策略在成员 crate 清单的 [lints] 表中声明(见根 Cargo.toml 注释):
-      # 只对本仓库自有 crate deny,reflect-agent/ submodule 的上游警告不阻塞本仓库。
+      # 只对本仓库自有 crate deny,zhuye-agent/ submodule 的上游警告不阻塞本仓库。
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets
 

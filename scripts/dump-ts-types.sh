@@ -9,7 +9,7 @@
 #
 # 为什么需要它（B1-01）：
 #   此前 protocol.ts 是手写的 33 行摘要，每次 `Op` / `EventMsg` 新增
-#   都会与 Rust 端漂移。现在 reflect-agent/crates/protocol/zhuye-protocol/src/op.rs 中
+#   都会与 Rust 端漂移。现在 zhuye-agent/crates/protocol/zhuye-protocol/src/op.rs 中
 #   任何新 `Op::Foo` 变体，运行本脚本后都会自动出现在 TS 类型中。
 #
 # 用法：
@@ -51,7 +51,7 @@ cat > "$HEADER_TMP" <<'BANNER'
 /**
  * 自动生成 —— 请勿手改。
  *
- * 来源：reflect-agent/crates/protocol/zhuye-protocol 类型，经 `cargo run --example dump_schema` 生成
+ * 来源：zhuye-agent/crates/protocol/zhuye-protocol 类型，经 `cargo run --example dump_schema` 生成
  * 重新生成：`bash scripts/dump-ts-types.sh` 或 `pnpm run types:gen`
  */
 BANNER

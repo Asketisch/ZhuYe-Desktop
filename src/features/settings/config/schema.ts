@@ -1,7 +1,7 @@
 /**
  * ReflectConfig 的纯结构化配置 schema。
  *
- * 覆盖 reflect-agent/crates/resources/reflect-config/src/schema.rs 暴露的每个分区
+ * 覆盖 zhuye-agent/crates/resources/reflect-config/src/schema.rs 暴露的每个分区
  * （25+ 个分区，包括 mcp_servers / lsp_servers / hooks / routing /
  * subagent_providers / coordinator / postgres_session / sse_redis /
  * voice / dap / acp / feature_flags / ask_user_question / sanitize /

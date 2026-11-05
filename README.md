@@ -15,7 +15,7 @@
 
 ## 项目说明
 
-烛夜的无头执行模式 (`zhuye exec "..."`) 与 SDK 共用同一个 `reflect-core::AgentThread`（上游 crate 已更名 `zhuye-core`，本仓库以 `reflect-core` 别名引用）。桌面 GUI 需要在 Tauri 窗口中运行相同的线程，但不希望将 Tauri 2 构建产物耦合到无头代理工具中。因此烛夜桌面端将全部 GUI 代码放在本仓库，仅通过 `reflect-agent/` git submodule 消费代理核心。
+烛夜的无头执行模式 (`zhuye exec "..."`) 与 SDK 共用同一个 `reflect-core::AgentThread`（上游 crate 已更名 `zhuye-core`，本仓库以 `reflect-core` 别名引用）。桌面 GUI 需要在 Tauri 窗口中运行相同的线程，但不希望将 Tauri 2 构建产物耦合到无头代理工具中。因此烛夜桌面端将全部 GUI 代码放在本仓库，仅通过 `zhuye-agent/` git submodule 消费代理核心。
 
 ---
 
@@ -71,7 +71,7 @@
 - 显示（主题：亮色 / 暗色 / 系统跟随、强调色、透明度、壁纸）
 - 编辑器（Vim 模式 / 输出样式切换）
 - 提供商（默认提供商 + API 密钥占位符）
-- `ConfigForm` 覆盖 `reflect-agent/crates/resources/zhuye-config/src/schema/` 中的每个部分；高级原始 TOML 编辑器保留为出口
+- `ConfigForm` 覆盖 `zhuye-agent/crates/resources/zhuye-config/src/schema/` 中的每个部分；高级原始 TOML 编辑器保留为出口
 
 ### Coding Plan 与额度自动切换
 
@@ -103,6 +103,16 @@ bash scripts/install.sh
 #   /usr/local/bin/reflect-desktop           （二进制）
 #   ~/Applications/ZhuYe.app                 （可启动包）
 ```
+
+> **DMG 打不开提示「已损坏」？** 发布包为 ad-hoc 签名（无 Apple 开发者证书、
+> 未公证）。macOS 会对一切下载的 app 打隔离标记，Gatekeeper 对没有开发者
+> 身份的包统一报「已损坏，无法打开」——这是系统策略，不是包真的坏了。执行：
+>
+> ```bash
+> xattr -cr /Applications/ZhuYe.app   # 或实际的安装路径
+> ```
+>
+> 之后即可正常打开。应用内功能不受影响。
 
 ### 从源码构建
 
@@ -155,7 +165,7 @@ cd src-tauri && cargo check
 
 ```
 ReflectDesktop/
-├── reflect-agent/   # Reflect-Agent 仓库的 git submodule（reflect-* 核心 crate）
+├── zhuye-agent/   # ZhuYe 仓库的 git submodule（reflect-* 核心 crate）
 │                    # 只读镜像，通过 git submodule update --remote 升级
 ├── app-core/       # 共享的 UI 无关 reducer 与状态模块
 ├── src/            # React 19 + Vite + 功能切片组件
@@ -208,15 +218,15 @@ ReflectDesktop/
 
 ## 升级代理核心（submodule）
 
-当烛夜上游仓库（submodule `reflect-agent`，GitHub：Asketisch/ZhuYe）发布新版本时：
+当烛夜上游仓库（submodule `zhuye-agent`，GitHub：Asketisch/ZhuYe）发布新版本时：
 
 ```bash
-git submodule update --remote reflect-agent
-git diff --submodule reflect-agent
-git add reflect-agent && git commit -m "chore: bump reflect-agent submodule"
+git submodule update --remote zhuye-agent
+git diff --submodule zhuye-agent
+git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 ```
 
-`reflect-agent/` 是只读镜像，不要直接编辑；改动请提交到烛夜上游仓库（ZhuYe）后升级 submodule（完整流程见 [`SUBMODULE.md`](SUBMODULE.md)）。
+`zhuye-agent/` 是只读镜像，不要直接编辑；改动请提交到烛夜上游仓库（ZhuYe）后升级 submodule（完整流程见 [`SUBMODULE.md`](SUBMODULE.md)）。
 
 完整运行手册：[`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md)。
 

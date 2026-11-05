@@ -7,7 +7,7 @@
 //! model_call 节点 —— 调用成功后记录用量,窗口耗尽 → `QuotaExhausted`
 //! 事件 + credential 冷却,graph 层自动 failover 到池中下一个凭证。
 //!
-//! 逻辑与 `reflect-agent/crates/runtime/reflect-exec/src/runtime_config.rs`
+//! 逻辑与 `zhuye-agent/crates/runtime/reflect-exec/src/runtime_config.rs`
 //! 的 `build_quota_tracker` 保持一致(该文件为 headless 参考实现;桌面端
 //! 不依赖 reflect-exec,故在此平移)。submodule 不动。
 

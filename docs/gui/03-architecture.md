@@ -4,7 +4,7 @@
 >
 > 关键差异：设计稿中 `crates/reflect-gui/` 路径在 ReflectDesktop 项目中演化为 **根目录 `src-tauri/`** + **`app-core/`**；`reflect-*` crate 不再 fork 而是通过 `vendor/` mirror 同步。
 
-本文档定义 Reflect-Agent GUI 的总体技术架构、crate 划分、目录结构与边界规约。
+本文档定义 ZhuYe GUI 的总体技术架构、crate 划分、目录结构与边界规约。
 
 ---
 
@@ -375,7 +375,7 @@ crates/reflect-gui/src/
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.icns", "icons/icon.ico"],
     "category": "DeveloperTool",
     "shortDescription": "AI coding agent GUI",
-    "longDescription": "Reflect GUI for Reflect-Agent",
+    "longDescription": "Reflect GUI for ZhuYe",
     "publisher": "Asketisch",
     "homepage": "https://github.com/Asketisch/ReflectDesktop"
   },

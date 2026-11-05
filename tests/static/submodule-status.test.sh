@@ -10,7 +10,7 @@ mkdir -p "$TMP/bin" "$TMP/results"
 cat > "$TMP/bin/git" <<'EOF'
 #!/usr/bin/env bash
 if [[ "$1" == '-C' && "$3" == 'submodule' && "$4" == 'status' ]]; then
-    printf '%s%s reflect-agent\n' "$TEST_MARKER" e4560bcedc6bb775eb4f8bf5e14164e3d07e88fc
+    printf '%s%s zhuye-agent\n' "$TEST_MARKER" e4560bcedc6bb775eb4f8bf5e14164e3d07e88fc
     exit 0
 fi
 if [[ "$1" == '-C' && "$3" == 'diff' ]]; then

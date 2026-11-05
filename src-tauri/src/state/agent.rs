@@ -129,7 +129,7 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) memory_store: crate::memory_store::MemoryStore,
     pub(crate) hook_store: crate::hook_store::HookStore,
     /// Task/Team 管理器(供多 agent 命令面调用)。
-    /// 复用 reflect-agent/crates/orchestration/reflect-task 默认 home(`~/.zhuye`),与 TUI/CLI 共享数据。
+    /// 复用 zhuye-agent/crates/orchestration/reflect-task 默认 home(`~/.zhuye`),与 TUI/CLI 共享数据。
     /// 初始形态:无 hook_engine / event_sink;后续把 TaskCreated/Completed
     /// 事件推前端时再 `with_event_sink`。
     pub(crate) task_manager: Arc<reflect_task::TaskManager>,

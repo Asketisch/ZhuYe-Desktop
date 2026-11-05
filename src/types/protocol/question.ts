@@ -1,7 +1,7 @@
 /**
  * Reflect 协议 —— Question / QuestionOption / Answer / AskUserAnswer。
  *
- * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/question.rs`（结构化多题提示）。
+ * 对应 `zhuye-agent/crates/protocol/reflect-protocol/src/question.rs`（结构化多题提示）。
  * 所有 wire-format 字段名使用 snake_case。
  *
  * 顶层同步警告见 `./index.ts`。

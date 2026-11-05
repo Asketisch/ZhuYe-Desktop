@@ -27,10 +27,10 @@
  *
  * ## 协议同步警告
  *
- * 本目录（因此本 shim）**手动同步**于 `reflect-agent/crates/protocol/reflect-protocol`
+ * 本目录（因此本 shim）**手动同步**于 `zhuye-agent/crates/protocol/reflect-protocol`
  * （Tauri IPC 信封的 Rust 模式）。领域模块与 Rust 类型之间的任何
  * 偏差会导致 wire-format bug。更新流程：
- *   1. 在 `reflect-agent/crates/protocol/reflect-protocol/src/...` 编辑 Rust 枚举/变体。
+ *   1. 在 `zhuye-agent/crates/protocol/reflect-protocol/src/...` 编辑 Rust 枚举/变体。
  *   2. 在对应领域模块中镜像修改，保留 snake_case 字段名、判别符及
  *      `ReviewDecision::Deny` 的 `{ deny: { reason } }` 形状。
  *   3. 若涉及新事件类型，将其加入 `EventMsgType`、`EventMsgByType`

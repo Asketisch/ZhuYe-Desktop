@@ -21,7 +21,7 @@
 //! ## 未做(后续阶段)
 //!
 //! - event_sink 注入（Task 生命周期事件推前端留待后续阶段）
-//! - Schedule(cron)命令(Phase 1 第 2 项,见 `reflect-agent/crates/integrations/reflect-stream/cron.rs`)
+//! - Schedule(cron)命令(Phase 1 第 2 项,见 `zhuye-agent/crates/integrations/reflect-stream/cron.rs`)
 //! - Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,但「启用 + 重启 agent」更重)
 
 use reflect_task::{Task, TaskId, TaskPatch, TaskStatus, TeamFile};

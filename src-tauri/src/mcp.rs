@@ -1,6 +1,6 @@
 //! MCP / LSP 运行时接入(阶段 3d)。
 //!
-//! 参照 `Reflect-Agent/crates/runtime/reflect-exec/src/bootstrap.rs` 的
+//! 参照 `ZhuYe/crates/runtime/reflect-exec/src/bootstrap.rs` 的
 //! `bootstrap_m6` / `bootstrap_lsp`,但把 lifecycle event 推到 MinimalAgent
 //! 的 session broadcast(单一事件通道,前端 dispatcher 按 msg.type 分发)。
 //!

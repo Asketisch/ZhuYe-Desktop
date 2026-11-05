@@ -39,7 +39,7 @@ Discussions 或公开 PR 提交,以免在补丁发布前被恶意利用。
 
 - **GitHub Security Advisory**:
   [新建私密报告](https://github.com/Asketisch/ReflectDesktop/security/advisories/new)(首选)
-- **邮箱**:`security@reflect-agent.dev`
+- **邮箱**:`security@zhuye-agent.dev`
 - **主题前缀**:`[SECURITY]`(便于邮件过滤)
 
 ### 报告应包含的信息
@@ -75,7 +75,7 @@ Discussions 或公开 PR 提交,以免在补丁发布前被恶意利用。
 - 任何用户的真实姓名、邮箱、IP、token
 - 任何 session / rollout 文件内容(可能含敏感上下文)
 
-核心引擎(Reflect-Agent)自带 `secret-sanitize` 工具,会在落盘前自动检测并
+核心引擎(ZhuYe)自带 `secret-sanitize` 工具,会在落盘前自动检测并
 脱敏常见凭据模式(`sk-...`、`ghp_...`、Bearer 头、配置 `api_key` 字段等)。
 但请**不要依赖**自动检测 —— 自觉遵守永远是最稳妥的防线。
 

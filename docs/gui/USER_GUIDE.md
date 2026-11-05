@@ -1,6 +1,6 @@
 # Reflect GUI 用户指南
 
-> Reflect-Agent 桌面 GUI（Tauri 2 + React 19）—— M1 MVP（2026-07+）
+> ZhuYe 桌面 GUI（Tauri 2 + React 19）—— M1 MVP（2026-07+）
 
 ## 1. 安装
 

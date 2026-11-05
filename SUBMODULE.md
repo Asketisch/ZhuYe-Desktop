@@ -1,6 +1,6 @@
-# Reflect-Agent Submodule 复用指南
+# ZhuYe Agent Submodule 复用指南
 
-本仓库(烛夜桌面端 ZhuYe)通过 **git submodule** 复用烛夜上游仓库（[ZhuYe](https://github.com/Asketisch/ZhuYe)，原 Reflect-Agent）的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
+本仓库(烛夜桌面端 ZhuYe)通过 **git submodule** 复用烛夜上游仓库（[ZhuYe](https://github.com/Asketisch/ZhuYe)，原名 Reflect-Agent）的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
 
 > 历史:本仓库之前用 `vendor/` 目录 + `scripts/vendor-sync.sh`(rsync 手动同步 21 个 crate)。该方式无版本指针、同步易漂移,已于本次重构迁移为 git submodule。
 
@@ -10,11 +10,11 @@
 ZhuYe Desktop (本仓库,workspace 消费端)
   ├─ app-core/        (Desktop 自有:UI 无关领域服务层,activity / kms / media / squad / side-channel / tailscale / autopilot)
   ├─ src-tauri/       (Tauri 后端,嵌入 reflect_core::AgentThread)
-  └─ reflect-agent/   (submodule → Reflect-Agent 仓库)
+  └─ zhuye-agent/   (submodule → ZhuYe 仓库)
        └─ crates/{protocol,abilities,resources,orchestration,integrations,runtime}/zhuye-*
 ```
 
-**关键约束**:Cargo 不支持嵌套 workspace。本仓库**不**把核心 crate 列入 `workspace.members`,而是用 `path` 依赖引用(`reflect-core = { package = "zhuye-core", path = "reflect-agent/crates/runtime/zhuye-core" }`)。
+**关键约束**:Cargo 不支持嵌套 workspace。本仓库**不**把核心 crate 列入 `workspace.members`,而是用 `path` 依赖引用(`reflect-core = { package = "zhuye-core", path = "zhuye-agent/crates/runtime/zhuye-core" }`)。
 
 ⚠️ 核心 crate 用 `workspace = true` 继承依赖,会解析到**本仓库**根 `workspace.dependencies`。因此 `[workspace.dependencies]` 必须完整声明核心 crate 引用的全部 zhuye-* 与外部依赖。
 
@@ -41,21 +41,21 @@ git submodule update --init --recursive
 ### 升级核心到最新
 
 ```bash
-git submodule update --remote reflect-agent
-git diff --submodule reflect-agent
-git add reflect-agent
-git commit -m "chore: bump reflect-agent submodule"
+git submodule update --remote zhuye-agent
+git diff --submodule zhuye-agent
+git add zhuye-agent
+git commit -m "chore: bump zhuye-agent submodule"
 ```
 
 ### 本地联调核心改动
 
 ```bash
 # 改核心 → push → 本仓库 pull
-cd ../Reflect-Agent
+cd ../ZhuYe
 # ... 改代码 ...
 git push
 cd ../ReflectDesktop
-git submodule update --remote reflect-agent
+git submodule update --remote zhuye-agent
 ```
 
 ### 升级核心后的适配检查
@@ -76,15 +76,15 @@ git submodule update --remote reflect-agent
 ## 当前 submodule 指针
 
 ```bash
-git submodule status reflect-agent
+git submodule status zhuye-agent
 ```
 
-submodule 默认跟踪 Reflect-Agent 的 `main` 分支(`git submodule update --remote` 拉取其最新提交)。
+submodule 默认跟踪 ZhuYe 的 `main` 分支(`git submodule update --remote` 拉取其最新提交)。
 
 ## 旧 vendor 模式迁移记录
 
 本次迁移(vendor → submodule)顺带修复的版本漂移:
-- 移除 `reflect-async-graph` 死声明(该 crate 在 Reflect-Agent 已不存在)
+- 移除 `zhuye-async-graph` 死声明(该 crate 在 ZhuYe 已不存在)
 - `Op::Interrupt` 升级为 struct variant `{ child_id }`
 - `Op::PlanApproval` 字段 `decision` → `choice`(类型 `PlanApprovalChoice`)
 - `EventMsg` 新增 `PlanStep` / `PluginLoaded` / `QuotaExhausted`

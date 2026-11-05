@@ -2,7 +2,7 @@
  * Schedule (cron) 封装 —— Phase 1 第 2 项。
  *
  * 对应 `src-tauri/src/commands/schedule.rs`(其内部封装
- * `reflect-agent/crates/integrations/reflect-stream::cron::CronScheduler`)。payload 直接使用核心 crate 类型
+ * `zhuye-agent/crates/integrations/reflect-stream::cron::CronScheduler`)。payload 直接使用核心 crate 类型
  * 的序列化形态(snake_case,因为 `CronJobSpec` 没有派生
  * `rename_all = "camelCase"`);只有 `ScheduleStatus` 信封使用 camelCase
  * (与 Rust 的 `#[serde(rename_all = "camelCase")]` 保持一致)。

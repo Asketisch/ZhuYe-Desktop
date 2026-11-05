@@ -1,13 +1,13 @@
 # 烛夜 ZhuYe —— 架构文档
 
 > 烛夜（ZhuYe）agent 的 Tauri 2 + React 19 桌面 GUI。本文档
-> 取代旧的 `Reflect-Agent/docs/gui/03-architecture.md`。
+> 取代旧的 `ZhuYe/docs/gui/03-architecture.md`。
 
 ## 1. 顶层布局
 
 ```
 ReflectDesktop/
-├── reflect-agent/           # git submodule：Reflect-Agent 仓库的 reflect-* crate
+├── zhuye-agent/           # git submodule：ZhuYe 仓库的 reflect-* crate
 │                            # 只读镜像，不要直接修改（见 SUBMODULE.md）
 ├── app-core/                # Tauri 命令层的共享领域服务（UI 无关）
 ├── src/                     # React 19 + Vite + 功能切片
@@ -127,7 +127,7 @@ ReflectDesktop/
 ```
 
 `scripts/install.sh` 消费二进制 + 安装包。核心 crate 通过 git submodule
-（`reflect-agent/`）引用，用 `git submodule update --remote` 升级
+（`zhuye-agent/`）引用，用 `git submodule update --remote` 升级
 （完整流程见 `SUBMODULE.md`）。两者相互独立 —— 构建期不存在依赖关系。
 
 ## 4. 状态流转
@@ -175,7 +175,7 @@ ReflectDesktop/
 
 ## 5. 核心子模块
 
-`reflect-agent/` 是 Reflect-Agent 仓库 reflect-* crate 的 **只读**
+`zhuye-agent/` 是 ZhuYe 仓库 reflect-* crate 的 **只读**
 git submodule 镜像。submodule 模式让 GUI 保持自己的发布节奏，
 不依赖 agent 仓库的 CI，同时仍能获得 reflect-protocol /
 reflect-core 等的 bug 修复。
@@ -183,11 +183,11 @@ reflect-core 等的 bug 修复。
 升级方式：
 
 ```bash
-# 从 Reflect-Agent 仓库拉取最新核心
-git submodule update --remote reflect-agent
-git diff --submodule reflect-agent   # 审查
-git add reflect-agent
-git commit -m "chore: bump reflect-agent submodule"
+# 从 ZhuYe 仓库拉取最新核心
+git submodule update --remote zhuye-agent
+git diff --submodule zhuye-agent   # 审查
+git add zhuye-agent
+git commit -m "chore: bump zhuye-agent submodule"
 ```
 
 子模块有意排除 GUI 不依赖的部分（如 `reflect` 顶层二进制等 TUI/CLI

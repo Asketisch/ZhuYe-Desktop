@@ -67,7 +67,7 @@ reflect-core::AgentThread（M1.x：MinimalAgent 存根；M2.x：真实）
 当 agent 发布额外钩子/工具/内置功能时，同步一次：
 
 ```bash
-git submodule update --remote reflect-agent
+git submodule update --remote zhuye-agent
 ```
 
 ## 5. 包大小

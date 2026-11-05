@@ -1,7 +1,7 @@
 /**
  * Reflect protocol —— UserInputItem 判别联合。
  *
- * 对应 `reflect-agent/crates/protocol/reflect-protocol/src/item.rs` 中的 `UserInputItem`。每个
+ * 对应 `zhuye-agent/crates/protocol/reflect-protocol/src/item.rs` 中的 `UserInputItem`。每个
  * 变体使用 `type` discriminator 标记,与 Rust 的
  * `#[serde(rename_all = "snake_case")]` 枚举对齐。`question_answer` 变体
  * 引用 `AskUserAnswer`(见 `./question.ts`)。

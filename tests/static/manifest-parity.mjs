@@ -44,7 +44,7 @@ if (missing.length) {
   console.log(
     `根 Cargo.toml [workspace.dependencies] 缺少子模块继承键(${missing.length}):${missing.join(' ')}`,
   );
-  console.log('→ 按 reflect-agent/Cargo.toml 同名同版本补到根清单(含 zhuye-* 的 path 项与外部依赖)');
+  console.log('→ 按 zhuye-agent/Cargo.toml 同名同版本补到根清单(含 zhuye-* 的 path 项与外部依赖)');
   process.exit(1);
 }
 console.log(`根清单完整镜像子模块 ${subKeys.size} 个 workspace.dependencies 继承键`);

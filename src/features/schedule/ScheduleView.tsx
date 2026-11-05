@@ -6,7 +6,7 @@
  * `useScheduleController`。
  *
  * 后端契约：`src/utils/commands/schedule.ts` ↔
- * `src-tauri/src/commands/schedule.rs` ↔ `reflect-agent/crates/integrations/reflect-stream::cron`。
+ * `src-tauri/src/commands/schedule.rs` ↔ `zhuye-agent/crates/integrations/reflect-stream::cron`。
  * 驱动程序（30 秒 tick）通过将到期任务的 prompt 作为
  * `Submission::user_input` 注入 agent 循环来触发执行。
  */

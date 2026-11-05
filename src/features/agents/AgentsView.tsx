@@ -7,7 +7,7 @@
  * max_turns / memory scopes。
  *
  * 后端契约：`src/utils/commands/agents.ts` ↔
- * `src-tauri/src/commands/agents.rs` ↔ `reflect-agent/crates/abilities/reflect-agent-def`。
+ * `src-tauri/src/commands/agents.rs` ↔ `zhuye-agent/crates/abilities/zhuye-agent-def`。
  * 存储：`~/.zhuye/agents/<name>.md`，与 TUI/CLI 共享。
  */
 import { Bot, Plus, Pencil, Trash2, Check } from 'lucide-react';
