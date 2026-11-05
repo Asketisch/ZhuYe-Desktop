@@ -8371,14 +8371,14 @@ dependencies = [
 
 [[package]]
 name = "zhuye-fs"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "tempfile",
 ]
 
 [[package]]
 name = "zhuye-git"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "pretty_assertions",
  "serde",
@@ -8445,7 +8445,7 @@ dependencies = [
 
 [[package]]
 name = "zhuye-kms"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "parking_lot",
  "rustix 1.1.4",
@@ -8718,7 +8718,7 @@ dependencies = [
 
 [[package]]
 name = "zhuye-shell"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "parking_lot",
  "serde",
