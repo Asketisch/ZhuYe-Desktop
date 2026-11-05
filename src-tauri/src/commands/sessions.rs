@@ -325,7 +325,10 @@ pub async fn reflect_generate_session_title(
             cache_control: None,
             ephemeral: false,
         }]),
-        max_tokens: Some(64),
+        // 思考型模型(如 Qwen3 系)会先烧大量 reasoning token 才出正文;
+        // 64 只够非思考模型,思考模型下正文为空 → "empty title"。
+        // 标题本身仍由 derive_title 清洗截断(≤48 字符),放宽无副作用。
+        max_tokens: Some(2048),
         temperature: Some(0.3),
         ..ChatRequest::default()
     };

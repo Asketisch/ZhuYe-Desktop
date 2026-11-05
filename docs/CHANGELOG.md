@@ -65,6 +65,13 @@ submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个�
 
 develop 把 `reflect_rollout::index::write_session_sidecar` 从核心移除（标题生成本就是桌面特性）。`_titles/<id>.title` 落盘改为桌面自有实现：链接位预检（拒绝 symlink/重解析点,防止写工作区外）+ 同目录临时文件 + rename 原子替换 —— 半截文件与链接写穿两个窗口都不存在。
 
+### 修复 — 思考型模型下会话标题生成必空
+
+标题生成 `max_tokens: 64` 只够非思考模型;思考型模型(如 Qwen3 系,局域网
+vLLM 网关实测)会先烧光预算在 reasoning 段,正文为零 → `model returned an
+empty title`。放宽到 2048,标题仍经 `derive_title` 清洗截断(≤48 字符),
+非思考模型行为不变。由 L6 实模型演练(局域网网关实测)首次捕获。
+
 （其余下一批变更从这里开始。）
 
 ## 0.0.2 — 2026-11-03

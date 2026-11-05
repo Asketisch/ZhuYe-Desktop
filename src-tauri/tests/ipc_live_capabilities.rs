@@ -122,6 +122,36 @@ fn wait_until(m: usize, budget: Duration, pred: impl Fn(&[Value]) -> bool) -> bo
     }
 }
 
+/// 场景内自动批准:副作用工具(spawn subagent / ask_user / bash …)在
+/// `Prompt` 权限下默认要审批,而 tool-approval 场景把模式设成 prompt
+/// 后不恢复 —— 后续场景的工具调用会被审批门拦住,回合永不终态
+/// (2026-11 局域网网关实测:subagent / ask-user 连续超时,事件转储
+/// 显示每次都卡在 approval_request)。等待循环里出现审批请求就当场
+/// 批准,每个 request_id 只批一次。
+fn approve_pending(evs: &[Value]) {
+    static APPROVED: OnceLock<std::sync::Mutex<std::collections::HashSet<String>>> =
+        OnceLock::new();
+    let mut approved = APPROVED
+        .get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()))
+        .lock()
+        .expect("APPROVED lock");
+    for e in evs {
+        if ty(e) != "approval_request" {
+            continue;
+        }
+        let id = e["msg"]["request_id"].as_str().unwrap_or_default();
+        if id.is_empty() || !approved.insert(id.to_string()) {
+            continue;
+        }
+        drop(approved);
+        let _ = op(
+            "reflect_tool_approval",
+            json!({ "id": id, "decision": "approve" }),
+        );
+        return;
+    }
+}
+
 /// 等到出现终态事件。
 fn wait_terminal(m: usize, budget: Duration) -> bool {
     wait_until(m, budget, |evs| evs.iter().any(is_terminal))
@@ -721,6 +751,12 @@ fn scenario_goal_mode() -> Verdict {
     ) {
         return Verdict::Failed(format!("reflect_enter_goal_mode 失败:{e}"));
     }
+    // 与 GUI `dispatchSubmission.ts::start_goal` 同款顺序:core 的
+    // EnterGoalMode 只挂载自校验控制器、**不启动 turn** —— 不先发一条
+    // 用户消息,循环永不开始(此前零事件 900s 超时即此因)。
+    if let Err(e) = submit("Reply with exactly: GOALDONE and do not use tools.") {
+        return Verdict::Failed(format!("goal 首条消息提交失败:{e}"));
+    }
     // goal 模式会**自动**多轮续作,且每轮结束还要多跑一次 LM 自校验 ——
     // 预算给得比普通回合宽(可用 REFLECT_LIVE_GOAL_BUDGET 覆盖)。
     let goal_budget = Duration::from_secs(
@@ -908,8 +944,14 @@ fn scenario_subagent() -> Verdict {
     ) {
         return Verdict::Failed(format!("reflect_submit 失败:{e}"));
     }
-    if !wait_terminal(m, turn_budget()) {
-        return Verdict::Failed("等待回合终态超时".into());
+    if !wait_until(m, turn_budget(), |evs| {
+        approve_pending(evs);
+        evs.iter().any(is_terminal)
+    }) {
+        return Verdict::Failed(format!(
+            "等待回合终态超时。已收到:{}",
+            summarize_events(&since(m))
+        ));
     }
     let evs = since(m);
     if let Some(reason) = blocked_by_upstream(&evs) {
@@ -939,12 +981,16 @@ fn scenario_ask_user() -> Verdict {
         return Verdict::Failed(format!("reflect_submit 失败:{e}"));
     }
     let asked = wait_until(m, turn_budget(), |evs| {
+        approve_pending(evs);
         count(evs, "ask_user_question") > 0
             || count(evs, "ask_user_input") > 0
             || evs.iter().any(is_terminal)
     });
     if !asked {
-        return Verdict::Failed("等待追问事件超时".into());
+        return Verdict::Failed(format!(
+            "等待追问事件超时。已收到:{}",
+            summarize_events(&since(m))
+        ));
     }
     let evs = since(m);
     if let Some(reason) = blocked_by_upstream(&evs) {

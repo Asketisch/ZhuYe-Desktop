@@ -39,7 +39,11 @@ use tauri::{App, Manager, WebviewWindow};
 use reflect_desktop_lib::state::MinimalAgent;
 
 /// 单条命令的墙钟预算。超时不当"卡死"处理,而是让**这一条**失败。
-const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
+/// 30s 对 mock 模型绰绰有余;但实模型演练层(L6)的同步命令会在命令体
+/// 内联跑完整条 LLM 链(如 `reflect_run_team_pipeline` = 4 个节点逐个
+/// 调模型)—— 思考型模型下单节点就可能超过 30s,窗口必须给足(2026-11
+/// 局域网网关实测:team-pipeline 在 30s 窗口下间歇性超时)。
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(180);
 
 static HARNESS: OnceLock<Mutex<Harness>> = OnceLock::new();
 static ENV_INIT: Once = Once::new();
