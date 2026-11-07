@@ -154,6 +154,11 @@ submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
   渲染度量漂移，38 路由 × dark/light 逐字节比对全量过期（About 等纯文本
   宽度差逐像素审查确认非布局回归;Models 页差异来自上述溢出修复）。按
   「删除 `__baselines__/` 重跑、人工审查后入库」政策重生成。
+- **side-channel startedAtMs 时敏断言去 flaky**：上游对同一逻辑属性
+  双重打点（registry 句柄 stamp vs 协议 Started 应答重新取 `now_ms()`，
+  `submission_loop.rs:1190`），毫秒翻边时差 1ms 使 L3 ipc_domains 严格
+  相等断言偶发失败。测试改身份字段严格断言 + 时间戳 ≤5ms 容差，上游
+  发现记入 `tests/COVERAGE.md`「上游待修」。
 
 （其余下一批变更从这里开始。）
 

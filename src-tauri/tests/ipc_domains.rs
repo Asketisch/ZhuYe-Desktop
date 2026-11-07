@@ -535,7 +535,17 @@ fn side_channel_start_list_get_and_terminal_cancel_semantics() {
     let got = invoke_ok("reflect_get_side_channel", json!({ "id": id.clone() }));
     assert_eq!(got["id"], id, "side-channel 读回 id 不符: {got}");
     assert_eq!(got["agentName"], "probe-helper");
-    assert_eq!(got["startedAtMs"], started["startedAtMs"]);
+    // ⚠️ startedAtMs 是**两个时间源**:registry 句柄 stamp(快照/列表
+    // 数据源)与协议 Started 应答的 `now_ms()`(上游 submission_loop
+    // 构造事件时重新取)—— 毫秒翻边时相差 1ms,L3 实测复现过。身份
+    // 字段逐字断言;时间戳断言一致性容差(≤5ms)。上游单一事实源修复
+    // 后(见 COVERAGE.md「上游待修」)可收回严格相等。
+    let started_ms = started["startedAtMs"].as_i64().expect("start 回执缺 startedAtMs");
+    let got_ms = got["startedAtMs"].as_i64().expect("快照缺 startedAtMs");
+    assert!(
+        (got_ms - started_ms).abs() <= 5,
+        "start 回执与快照的 startedAtMs 应一致(容差 5ms): started={started_ms} got={got_ms}"
+    );
 
     // 真实语义:无 provider → 旁路 agent 很快到终态,带完成时长。
     let terminal = wait_side_channel_terminal(&id);

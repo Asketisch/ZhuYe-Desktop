@@ -193,6 +193,13 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
   wiremock(L3)与 Anthropic 直连不触发,只有部分 OpenAI 兼容路线判死。
   上游待修(工具层占位文本或序列化层归一化);修复前 L6 discussion 场景
   在该路线上稳定 FAIL,属**已定位的上游缺陷**,不是演练层的误判。
+- **side-channel `startedAtMs` 双时间源**(L3 实测,毫秒翻边时 flaky):
+  `registry.start()` 给句柄打一次 `now_ms()`(快照/列表数据源),上游
+  `submission_loop` 构造协议 `SideChannelStarted` 应答时**重新取**
+  `now_ms()`(`submission_loop.rs:1190`)—— 两次调用跨毫秒边界时相差
+  1ms,桌面 ipc_domains 的严格相等断言偶发失败。桌面测试改为身份字段
+  严格断言 + 时间戳 ≤5ms 容差;上游待修(`driver.start()` 返回句柄
+  stamp 供协议应答复用,单一事实源),修复后可收回严格相等。
 
 ---
 
