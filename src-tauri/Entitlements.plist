@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  烛夜 ZhuYe macOS 签名授权(tauri-macos-distribution 技能采纳)。
+
+  刻意**不启用**的部分(与通用模板不同,勿"补全"):
+  - com.apple.security.app-sandbox:沙箱会禁止 spawn 任意用户进程 ——
+    终端(`!` 命令)、shell 会话、MCP stdio、git/hooks 全是产品核心能力,
+    本应用永远不走 App Store 分发,沙箱只有害处。
+  - com.apple.security.cs.allow-jit / allow-unsigned-executable-memory:
+    WKWebView 的 JIT 在 Apple 签名的独立 WebContent 进程里,宿主不需要。
+  - com.apple.security.device.audio-input(听写用麦克风):非沙箱下由
+    TCC 首次使用弹窗授权,无需授权键。
+
+  当前 adhoc 签名下本文件随签名嵌入(声明性);未来 Developer ID +
+  hardened runtime 公证时,同样无需追加例外 —— spawn 子进程不受
+  hardened runtime 限制。若某天引入需要例外的能力,在此逐条补充并
+  说明理由。
+-->
+<plist version="1.0">
+<dict>
+</dict>
+</plist>

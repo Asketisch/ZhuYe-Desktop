@@ -133,3 +133,7 @@ tauri = { version = "2", features = ["test"] }
 # 本地 mock LLM 服务 —— `tests/ipc_mock_provider.rs` 用它顶替真模型跑通
 # submit → AgentThread → HTTP → SSE 解析 → 事件回传的全链路(离线、确定性)。
 wiremock = { workspace = true }
+# 属性测试(rust-testing 技能采纳):纯函数的无穷输入面 —— 终端退出标记
+# 剥离、标题派生、搜索摘要的字节/字符边界 —— 用随机输入找枚举用例的盲区。
+# 只进 dev 依赖,release 构建不受影响。
+proptest = "1"

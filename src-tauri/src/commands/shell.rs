@@ -201,6 +201,7 @@ pub async fn reflect_list_shell_sessions(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn exit_marker_is_stripped_from_stdout_tail() {
@@ -216,5 +217,30 @@ mod tests {
     fn literal_exit_like_output_is_kept_unless_it_is_the_marker() {
         // 中间的 [exit N] 形似行不是监视标记,原样保留。
         assert_eq!(strip_exit_marker("[exit 0]\nmore\n"), "[exit 0]\nmore");
+    }
+
+    // ====== 属性测试(rust-testing 技能采纳)======
+    // strip_exit_marker 的输入面是任意的进程 stdout —— 多字节字符、
+    // 形似标记的残缺行、CRLF 混排都可能出现。枚举用例覆盖不完,用随机
+    // 输入锁三条性质:剥一行标记可还原、幂等、任意 UTF-8 不 panic。
+
+    proptest::proptest! {
+        // 追加一行完整标记后剥离,必须精确还原原文 —— 无论原文多诡异
+        // (残缺标记、多字节、空串、纯换行)。这是该函数存在的目的。
+        // 注:幂等性**不是**契约 —— 函数只剥一行(上游监视每回合恰好
+        // 追加一行);强剥多行会吞掉用户 echo 的形似标记行。
+        #[test]
+        fn appended_marker_line_strips_exactly(
+            body in ".*",
+            code in 0u32..=u32::MAX,
+        ) {
+            let with_marker = format!("{body}\n[exit {code}]\n");
+            prop_assert_eq!(strip_exit_marker(&with_marker), body);
+        }
+
+        #[test]
+        fn arbitrary_utf8_does_not_panic(buffer in ".*") {
+            let _ = strip_exit_marker(&buffer);
+        }
     }
 }

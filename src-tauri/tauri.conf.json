@@ -51,7 +51,8 @@
       "minimumSystemVersion": "11.0",
       "exceptionDomain": "",
       "frameworks": [],
-      "signingIdentity": "-"
+      "signingIdentity": "-",
+      "entitlements": "./Entitlements.plist"
     },
     "windows": {
       "webviewInstallMode": {

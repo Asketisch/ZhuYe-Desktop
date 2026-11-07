@@ -194,6 +194,33 @@ mattpocock code-review 862K、apollographql rust-best-practices 22K）并对
   而改;`@/utils/commands` 兼容桶导入仅 3 处且 ESM 生产构建摇树消除,
   仓库标准已定为兼容形态,保持。
 
+### 优化 — Rust + Tauri 技能落地（dchuk tauri 39 技能系列 / ecc rust-testing）
+
+第二轮技能发现:tauri 侧选定 dchuk/claude-code-tauri-skills（36 星但
+39 技能的完整 Tauri v2 系列,远超同领域其它候选）与 affaan-m/ecc
+（29.9 万星,活跃维护）的 rust-testing;低信誉候选（nodnarbnitram 17 星
+等）按 find-skills 质量门跳过。github.com:443 中断期间改走
+api.github.com 手工落盘（与 CLI 同布局）。落地项:
+
+- **macOS 签名授权**（tauri-macos-distribution 技能）:新增
+  `src-tauri/Entitlements.plist` 并接入 `tauri.conf.json`。刻意**不启
+  用** App Store 沙箱（终端 spawn 任意用户进程是产品核心能力）、不加
+  JIT/库校验例外（WKWebView JIT 在 Apple 签名的独立进程）—— 文件内
+  注释逐条说明取舍;重新打包 + codesign 验证授权已嵌入签名,产物层
+  8/8（含启动冒烟）通过。
+- **属性测试**（rust-testing 技能,`proptest` 进 dev 依赖）:三个桌面
+  自有纯函数锁无穷输入面 —— `strip_exit_marker`（追加一行标记必精确
+  还原 + 任意 UTF-8 不 panic;**幂等性经论证不属契约**:强剥多行会吞
+  用户 echo 的形似标记行,注释留证）、`derive_title` 消费契约（单行/
+  ≤48+`…`/无首尾空白/空白输入必 None）、`build_snippet`（任意字符
+  边界不 panic + 折叠语义）。lib 测试 234 → 含属性用例全绿。
+- **CSP / capabilities 差距审计**（tauri-csp / tauri-capabilities 技能
+  对照）:现有 CSP 与技能推荐形态逐项一致,`main.json` 权能已是最小
+  显式集 —— 无需改动,M1.1 的安全基线仍然成立。
+- **tauri-testing 技能对照**:WebDriver 平台表与仓库 L5 实现逐字一致
+  （macOS 无 WKWebView 桥是官方口径）;mockIPC 弱于自建 fakeBackend
+  （188 命令 + 线格式契约样本），不引入。
+
 （其余下一批变更从这里开始。）
 
 ## 0.0.2 — 2026-11-03

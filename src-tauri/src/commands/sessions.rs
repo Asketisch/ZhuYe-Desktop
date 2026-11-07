@@ -1202,7 +1202,61 @@ mod search_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use tempfile::tempdir;
+
+    // ====== 属性测试(rust-testing 技能采纳)======
+
+    proptest::proptest! {
+        // derive_title 的桌面消费契约(上游 recorder.rs 的实现):非空输入
+        // 必产 Some;输出单行、无首尾空白;截断时 48 字符 + `…`。标题直接
+        // 进 GUI 列表,这些不变式坏了就是显示回归。
+        #[test]
+        fn derived_title_is_bounded_and_single_line(text in ".*") {
+            if let Some(title) = derive_title(&text) {
+                let n = title.chars().count();
+                prop_assert!(
+                    n <= reflect_protocol::recorder::TITLE_MAX_CHARS + 1,
+                    "超长: {} ({})",
+                    title,
+                    n
+                );
+                prop_assert!(
+                    !title.contains('\n') && !title.contains('\r'),
+                    "含换行: {:?}",
+                    title
+                );
+                prop_assert_eq!(title.trim(), title.clone(), "首尾空白: {:?}", title);
+                prop_assert!(!title.is_empty());
+            }
+            // 空白输入必产 None(调用方据此保持 title = null)。
+            if text.trim().is_empty() {
+                prop_assert!(derive_title(&text).is_none());
+            }
+        }
+
+        #[test]
+        fn snippet_never_panics_on_valid_char_boundaries(
+            text in ".*",
+            skip in 0usize..64,
+        ) {
+            // match_start 由搜索层产生,恒为字符边界;这里以任意字符边界
+            // 模拟。属性:不 panic + 输出无连续空格、无换行(折叠语义)。
+            let start = text
+                .char_indices()
+                .map(|(i, _)| i)
+                .chain(std::iter::once(text.len()))
+                .nth(skip.min(text.chars().count()))
+                .unwrap_or(text.len());
+            let snippet = build_snippet(&text, start, 0);
+            prop_assert!(!snippet.contains("  "), "连续空格: {:?}", snippet);
+            prop_assert!(
+                !snippet.contains('\n') && !snippet.contains('\r'),
+                "含换行: {:?}",
+                snippet
+            );
+        }
+    }
 
     // 分页逻辑与 reflect_list_sessions 的 limit/offset 切片保持一致。
     // 这里不启动 Tauri runtime,而是在合成的 Vec<String> 上复现切片语义,
