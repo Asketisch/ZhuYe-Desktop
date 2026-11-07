@@ -165,6 +165,11 @@ pub struct PermissionRuleInput {
     /// Bash 命令 glob(仅 Bash 工具 + 有命令上下文时生效)。
     #[serde(default)]
     pub shell_pattern: Option<String>,
+    /// 资源 glob(如 `/etc/*` / `https://evil.example/*`;上游 v1.x 新增
+    /// 维度)。无资源上下文的调用不参与 Allow/Ask 匹配,Deny 侧 fail-closed。
+    /// GUI 规则编辑面尚未暴露该维度,线缆上加字段保持向后兼容(缺省 None)。
+    #[serde(default)]
+    pub resource_glob: Option<String>,
 }
 
 /// 只读的用户级权限文件必须报权限错误,不能被临时文件替换静默覆盖。
@@ -238,6 +243,7 @@ fn build_permission_rule(input: PermissionRuleInput) -> Result<PermissionRule, C
         action,
         tool_glob: input.tool_glob,
         shell_pattern: input.shell_pattern,
+        resource_glob: input.resource_glob,
     })
 }
 
@@ -251,6 +257,7 @@ mod tests {
             action: action.to_string(),
             tool_glob: None,
             shell_pattern: None,
+            resource_glob: None,
         }
     }
 

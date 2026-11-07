@@ -368,6 +368,19 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       };
     }
 
+    // v1.x(submodule main):运行时扩展重扫完成 —— toast 提示「skills
+    // 已刷新」并展示条目总数(协议约定由 UI 提示,与 prompt_switched 同款)。
+    case 'extensions_rescanned': {
+      const toast: AgentState['toasts'][number] = {
+        id: `rescan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        kind: 'info',
+        message: `skills 已刷新,共 ${msg.skills} 条`,
+        ttlMs: 4000,
+        createdAt: Date.now(),
+      };
+      return { toasts: [...state.toasts, toast] };
+    }
+
     case 'routing':
       return {
         lastRouting: {

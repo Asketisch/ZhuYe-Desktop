@@ -117,28 +117,23 @@ pub(crate) fn construct_thread(
         // 决定加载哪条 agent 定义,以及记忆目录(`.zhuye/agent-memory/<agent>/`)，
         // 与 GUI 的 Agents 视图 / Memory 视图同源。
         let active_agent = crate::agent_state::AgentState::active_agent();
-        let m4 = match reflect::m4_bootstrap::build_default_m4(
+        // 上游 v1.x 起 `build_default_m4` 不可失败(提示词扫描等失败在
+        // 上游内部降级为日志),直接接 recorder —— 持久化是承诺而非
+        // nice-to-have,GuardedRecorder 的接线不再依赖可失败的组装步骤。
+        let mut m4 = reflect::m4_bootstrap::build_default_m4(
             &agent.workspace(),
             &active_agent,
             &cfg.current_model(),
             &registry,
             sid,
-        ) {
-            Ok(mut m4) => {
-                m4.recorder = Some(Arc::new(super::recorder_guard::GuardedRecorder::new(
-                    reflect_rollout::JsonlRolloutWriter::new(
-                        reflect_rollout::path::default_base(),
-                        sid,
-                    ),
-                    super::recorder_guard::gate_for(agent, sid),
-                )));
-                m4
-            }
-            Err(e) => {
-                // 持久化是承诺而非 nice-to-have:失败必须可见。
-                anyhow::bail!("build_default_m4 失败,recorder 接线回退为无持久化: {e:#}");
-            }
-        };
+        );
+        m4.recorder = Some(Arc::new(super::recorder_guard::GuardedRecorder::new(
+            reflect_rollout::JsonlRolloutWriter::new(
+                reflect_rollout::path::default_base(),
+                sid,
+            ),
+            super::recorder_guard::gate_for(agent, sid),
+        )));
         cfg = cfg.with_m4(m4.clone()).with_session_id(sid);
         // 会话笔记工具 + 子代理 `call_<role>` 工具 —— 此前桌面端**都没注册**:
         // agent 既写不了会话笔记(GUI 的笔记面板因此永远是空的),也委派不了
@@ -196,7 +191,7 @@ pub(crate) fn construct_thread(
                     &model,
                     &registry_for_side,
                     ThreadId::new(),
-                )?;
+                );
                 // 不写主历史:摘掉 recorder。
                 m4.recorder = None;
                 let side_cfg = AgentConfig::new(model.clone(), workspace.clone())

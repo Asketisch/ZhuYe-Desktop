@@ -111,8 +111,9 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     }
     case 'effort': {
       const level = parsed.args[0]?.toLowerCase();
-      if (!level || !['low', 'medium', 'high'].includes(level)) {
-        return { kind: 'reject', message: '/effort requires: low | medium | high' };
+      // 上游 v1.x 起 max / ultra 为新增档位。
+      if (!level || !['low', 'medium', 'high', 'max', 'ultra'].includes(level)) {
+        return { kind: 'reject', message: '/effort requires: low | medium | high | max | ultra' };
       }
       return {
         kind: 'submit_with_submission',

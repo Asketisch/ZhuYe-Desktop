@@ -30,13 +30,16 @@ import {
 } from '@/features/settings/config/plans';
 import s from './ModelsView.module.css';
 
-const REASONING_EFFORTS = ['low', 'medium', 'high'] as const;
+// 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。
+const REASONING_EFFORTS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
 type Effort = (typeof REASONING_EFFORTS)[number];
 
 const EFFORT_HINTS: Record<Effort, LocaleKey> = {
   low: 'models.effort.lowDesc',
   medium: 'models.effort.mediumDesc',
   high: 'models.effort.highDesc',
+  max: 'models.effort.maxDesc',
+  ultra: 'models.effort.ultraDesc',
 };
 
 export function ModelsView() {

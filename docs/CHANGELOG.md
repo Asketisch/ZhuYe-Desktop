@@ -109,6 +109,32 @@ specified`;curl 探针证实同参换非空串即 200)。L6 discussion 场景稳
 修复归上游(ZhuYe 仓库):工具层空结果用占位文本,或序列化层对空 content
 归一化;之后按 `SUBMODULE.md` 升级。
 
+### 变更 — submodule 接线 main（`0220677` → `321cb825`,v0.1.10 + 5）
+
+submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
+与 `SUBMODULE.md` 的声明口径一致）并把 pin 前移 44 个提交到
+`321cb825`（v0.1.10 + 5;原 pin 是 main 的祖先,纯快进无回退）。
+
+- **主仓 workspace 适配**：根 `Cargo.toml` 镜像 8 个新继承键
+  （`zhuye-audit` / `zhuye-secrets` / `zhuye-wasm` + `sha2` / `aes-gcm` /
+  `hkdf` / `wasmtime` / `wasmtime-wasi`,版本与上游逐字对齐 —— wasmtime
+  锁 `=30.0.1`,与 guest 侧 wit-bindgen 0.40 同代）。
+- **上游 API 断裂跟随**：`RolloutRecorder` 错误类型化（`RolloutError`,
+  去 anyhow 批次）→ `recorder_guard` 两个 impl 与会话搜索回放改签名,
+  gate 关闭语义不变;`build_default_m4` 不可失败化（提示词扫描失败上游
+  内部降级为日志）→ `thread_factory` 主线程与 side-channel 工厂去掉
+  `Result` 解包;`PermissionRule` 新增 `resource_glob` 资源维度 → 命令
+  输入透传（serde default,旧线缆兼容）。
+- **新能力接线**：`Op::RescanExtensions` 桥接为 `reflect_rescan_extensions`
+  命令（四方一致 + `extensions_rescanned` 事件进前端类型联合 + reducer
+  toast,skills 改动不重启即生效;GUI 触发按钮待接）;思考档位 `max` /
+  `ultra` 全 UI 面（`parse_effort` / Composer / `/effort` slash /
+  Models 视图 / i18n,按模型能力表发送前钳制）;`ThinkingDelta.kind`
+  additive 字段进前端 payload 类型。
+- **文档**:`docs/PROTOCOL_BRIDGE.md` 补 `reflect_rescan_extensions` 行 +
+  `extensions_rescanned` 事件（§3.11）+ `thinking_delta.kind`;
+  `docs/CAPABILITIES.md` 增 §3.27 审计（覆盖矩阵含 🟡 半接线项）。
+
 （其余下一批变更从这里开始。）
 
 ## 0.0.2 — 2026-11-03

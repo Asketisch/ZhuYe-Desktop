@@ -196,6 +196,8 @@ pub async fn reflect_get_effort(agent: State<'_, MinimalAgent>) -> CommandResult
         ReasoningEffortMirror::Low => "low",
         ReasoningEffortMirror::Medium => "medium",
         ReasoningEffortMirror::High => "high",
+        ReasoningEffortMirror::Max => "max",
+        ReasoningEffortMirror::Ultra => "ultra",
     }
     .to_string())
 }
@@ -324,15 +326,18 @@ pub async fn reflect_goal_snapshot(
 
 // ====== 辅助:字符串 → 强类型 ======
 
-/// `"low"|"medium"|"high"` → `ReasoningEffortMirror`。
+/// `"low"|"medium"|"high"|"max"|"ultra"` → `ReasoningEffortMirror`
+/// (上游 v1.x 起新增 max / ultra 档,按模型能力表在发送前钳制)。
 pub(crate) fn parse_effort(s: &str) -> CommandResult<ReasoningEffortMirror> {
     Ok(match s.to_ascii_lowercase().as_str() {
         "low" => ReasoningEffortMirror::Low,
         "medium" => ReasoningEffortMirror::Medium,
         "high" => ReasoningEffortMirror::High,
+        "max" => ReasoningEffortMirror::Max,
+        "ultra" => ReasoningEffortMirror::Ultra,
         other => {
             return Err(CommandError {
-                msg: format!("invalid effort '{other}'; expected low|medium|high"),
+                msg: format!("invalid effort '{other}'; expected low|medium|high|max|ultra"),
             });
         }
     })
@@ -441,6 +446,9 @@ mod tests {
             ReasoningEffortMirror::Medium
         );
         assert_eq!(parse_effort("HIGH").unwrap(), ReasoningEffortMirror::High);
+        // 上游 v1.x 新档位:max / ultra。
+        assert_eq!(parse_effort("max").unwrap(), ReasoningEffortMirror::Max);
+        assert_eq!(parse_effort("ULTRA").unwrap(), ReasoningEffortMirror::Ultra);
         assert!(parse_effort("nope").is_err());
     }
 

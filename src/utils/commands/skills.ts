@@ -31,3 +31,17 @@ export interface ReflectSkillInfo {
 export async function reflect_list_skills(): Promise<ReflectSkillInfo[]> {
   return invoke<ReflectSkillInfo[]>('reflect_list_skills');
 }
+
+/**
+ * 触发运行时扩展目录重扫(上游 v1.x `Op::RescanExtensions`):
+ * `.zhuye/skills/`(workspace + 用户级)新增/修改不重启即生效。
+ * 不开 turn;结果经 `extensions_rescanned` 事件回推(skills 条目总数)。
+ * 返回 submission id。`commands` 位当前恒回 `false`(上游 commands
+ * 索引的运行时重扫尚未接线,命令正文实时读盘)。
+ */
+export async function reflect_rescan_extensions(
+  skills = true,
+  commands = false,
+): Promise<string> {
+  return invoke<string>('reflect_rescan_extensions', { skills, commands });
+}

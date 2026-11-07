@@ -96,6 +96,7 @@ pub struct Event {
 | `reflect_pick_workspace_folder` | `null` | `string?`（原生目录选择框，取消 → `null`；走 `tauri-plugin-dialog` Rust API，不经 JS IPC） | `commands/workspaces.rs` / `commands/workspaces.ts` |
 | `reflect_reveal_path` | `{ path }` | `null`（在 Finder / 资源管理器 / xdg-open 中定位） | `commands/workspaces.rs` / `commands/workspaces.ts` |
 | `reflect_list_skills` | `null` | `SkillEntry[]` | `commands/skills.rs` / `commands/skills.ts` |
+| `reflect_rescan_extensions` | `{ skills?, commands? }`（缺省 `skills=true` / `commands=false`） | `string`（submission id） | `commands/skills.rs` / `commands/skills.ts`。`Op::RescanExtensions` 派生命令（v1.x，submodule main）：运行时重扫扩展目录，`.zhuye/skills/`（workspace + 用户级）新增/修改不重启即生效。不开 turn；应答 `extensions_rescanned` 事件（§3.11）回推 skills 条目总数。`commands` 位当前恒回 `false`（上游 commands 索引的运行时重扫尚未接线，命令正文实时读盘）。GUI 消费面待接（能力矩阵 🟡） |
 | `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory` | `{ expectedContext? }` / `{ scope, key, value, createOnly?, replaceDocument?, expectedContext?, expectedValue? }` / `{ scope, key, replaceDocument?, expectedContext?, expectedValue? }` | `MemoryEntry[]` / `null` / `null` | `commands/memory.rs` / `commands/memory.ts`。按 `##` 标题列出和更新条目；无标题或标题存在歧义的旧文档以 `wholeDocument: true` 表示，编辑或删除须显式传 `replaceDocument: true`；`createOnly: true` 拒绝已有条目。`expectedContext: { workspace, agent }` 与当前工作区或活跃代理不匹配时拒绝操作；`expectedValue` 与当前条目或文档不符时拒绝更新和删除。校验与桌面端记忆命令受同一锁保护，外部写入不受该锁保护。省略可选字段兼容原调用负载。 |
 | `reflect_list_hooks` / `reflect_toggle_hook` | `null` / `{ name, enabled }` | `HookInfo[]` / `null` | 列出当前线程及插件引擎已注册的 hook，切换会修改引擎并持久化启停偏好；未注册名称返回错误。插件重载期间暂停插件钩子，恢复禁用偏好失败时卸载插件并报告错误。首条输入和插件 SessionStart 等待挂载，旧插件在卸载前收到一次 SessionEnd。配置中的 hook 变更在已绑定会话时触发重绑，未绑定时在下次绑定生效。 |
 | `reflect_check_update` | `null` | update info | `commands/update.rs` / `commands/updates.ts` |
@@ -239,7 +240,7 @@ pub struct Submission {
 |---|---|---|
 | `agent_message` | `text: String` | Non-streaming final bubble |
 | `agent_message_delta` | `delta: String` | Stream chunk → append to last assistant bubble |
-| `thinking_delta` | `delta: String` | Reasoning block (collapsible) |
+| `thinking_delta` | `delta: String`、`kind?: "raw" \| "summary" \| "unknown"`（v1.x additive，上游 `#[serde(default)]` 旧事件兼容；`raw` = token 级流式默认，`summary` = 推理摘要） | Reasoning block (collapsible)；`kind` 前端类型已登记，渲染暂不区分（与旧行为一致） |
 | `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential/model). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?`、`model?`（v1.x 模型级统计:本轮实际命中的模型 spec 如 `"openai/gpt-4o"`；旧引擎不上报 → 缺省） |
 
 ### 3.3 Tools (5)
@@ -328,13 +329,14 @@ fallback spec，**跨模型降级**）。
 | `subagent_progress` | `SubagentProgressEvent`（通道一:推送） | Inspector 子代理区块滚动 feed（封顶 200 条）—— 父级 `CallSubAgentTool` 转发的子代理中间进度（message / tool_begin / tool_end） |
 | `subagent_status` | `SubagentStatusEvent`（通道二:查询应答） | Inspector 子代理区块状态快照（`reflect_query_subagents` 发起;turn 收尾且 feed 非空时自动刷新,亦可手动） |
 
-### 3.11 Prompt layers (2) — v1.6.1
-提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`（`.zhuye/prompts/` 用户目录层 + 内置厂商层，三级回退 default → 厂商 → 精确模型名）。引擎侧经 `Op::PromptCommand` 暴露查询与重扫，两个动作都**不开 turn** —— 应答事件经 per-submission 通道 + 会话扇出双路送达。
+### 3.11 Prompt layers / extensions rescan (3) — v1.6.1 / v1.x
+提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`（`.zhuye/prompts/` 用户目录层 + 内置厂商层，三级回退 default → 厂商 → 精确模型名）。引擎侧经 `Op::PromptCommand` 暴露查询与重扫，两个动作都**不开 turn** —— 应答事件经 per-submission 通道 + 会话扇出双路送达。v1.x（submodule main）起 `Op::RescanExtensions` 把同样的「改完即生效」带到 skills 目录，应答 `extensions_rescanned`。
 
 | 变体 | 字段 | UI |
 |---|---|---|
 | `prompt_list` | `PromptListEvent`：`available: Vec<String>`（可绑定的层文件名，不含 `.md`）、`current_spec: String`（当前 model spec）、`active_layers: Vec<String>`（当前 spec 实际命中的用户层，内嵌厂商层不记录） | `PromptLayersModal` 展示「当前模型 / 生效层 / 可用层」；`/prompt` slash 展开（经 `reflect_prompt_command` 的 `list` 动作发起）。reducer 写 `store.prompt`（**进程级** —— 提示词库不随会话切换重置） |
 | `prompt_switched` | `PromptSwitchedEvent`：`action: String`（`"reload"`；预留未来聚焦切换的层名）、`active_layers: Vec<String>`（重扫后当前 spec 的生效用户层） | toast 提示「提示词已刷新」并展示新命中层；reducer 更新 `store.prompt.activeLayers` + 记 `switchedAt`。「重新扫描」按钮发起 `switch` 动作（用户改了 `.zhuye/prompts/*.md` 后让改动即时生效） |
+| `extensions_rescanned` | `ExtensionsRescannedEvent`：`skills: usize`（重扫后条目总数，文件型 + 插件型；未请求为 0）、`commands: bool`（commands 重扫是否被处理，当前恒 `false`） | `reflect_rescan_extensions`（§2）的应答；reducer toast 提示「skills 已刷新」并展示条目总数。GUI 触发按钮待接（能力矩阵 🟡） |
 
 ### 3.12 Plugin / Quota (2)
 

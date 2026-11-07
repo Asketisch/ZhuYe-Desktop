@@ -120,8 +120,9 @@ describe('executeSlash — Tier A real dispatch', () => {
     expect(r.kind).toBe('reject');
   });
 
-  it('/effort low|medium|high ok', () => {
-    for (const level of ['low', 'medium', 'high']) {
+  it('/effort low|medium|high|max|ultra ok', () => {
+    // 上游 v1.x 起 max / ultra 为新增档位。
+    for (const level of ['low', 'medium', 'high', 'max', 'ultra']) {
       const p = parseSlash(`/effort ${level}`);
       if (!p.isSlash) throw new Error('not slash');
       const r = executeSlash(p as ParsedSlash, CTX);

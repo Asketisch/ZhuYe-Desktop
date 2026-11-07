@@ -18,7 +18,8 @@ export type PermissionMode =
 export type ApprovalPolicy = 'auto' | 'prompt' | 'deny';
 export type SandboxPolicy = 'workspace_only' | 'os_sandbox' | 'full_access';
 export type RiskLevel = 'low' | 'medium' | 'high';
-export type ReasoningEffort = 'low' | 'medium' | 'high';
+/** 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。 */
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max' | 'ultra';
 
 /** ReviewDecision 使用 snake_case 标记。Deny 携带 `{ reason: string }` payload。 */
 export type ReviewDecision = 'approve' | { deny: { reason: string } } | 'approve_for_session';

@@ -440,7 +440,7 @@ export interface AgentState {
   approvePlan: (id: string, choice: PlanApprovalChoice) => Promise<void>;
   enterPlanMode: (task: string) => Promise<void>;
   exitPlanMode: () => Promise<void>;
-  setEffort: (level: 'low' | 'medium' | 'high') => Promise<void>;
+  setEffort: (level: 'low' | 'medium' | 'high' | 'max' | 'ultra') => Promise<void>;
   setPermissionMode: (mode: string) => Promise<void>;
   cyclePermissionMode: () => Promise<void>;
   /**

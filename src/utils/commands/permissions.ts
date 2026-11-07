@@ -12,7 +12,7 @@ export async function reflect_set_effort(level: string): Promise<string> {
   return invoke<string>('reflect_set_effort', { level });
 }
 
-/** 读回当前 reasoning effort("low"|"medium"|"high";pre-install 为 "low")。 */
+/** 读回当前 reasoning effort("low"|"medium"|"high"|"max"|"ultra";pre-install 为 "low")。 */
 export async function reflect_get_effort(): Promise<string> {
   return invoke<string>('reflect_get_effort');
 }

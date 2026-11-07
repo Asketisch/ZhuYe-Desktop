@@ -3,7 +3,7 @@
 use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
-use reflect_protocol::{RolloutRecord, RolloutRecorder, SessionInfo, ThreadId, TurnId};
+use reflect_protocol::{RolloutError, RolloutRecord, RolloutRecorder, SessionInfo, ThreadId, TurnId};
 use tokio::sync::RwLock;
 
 use super::MinimalAgent;
@@ -100,28 +100,32 @@ impl GuardedRecorder {
 
 #[async_trait]
 impl RolloutRecorder for GuardedRecorder {
-    async fn record(&self, record: RolloutRecord) -> anyhow::Result<()> {
+    async fn record(&self, record: RolloutRecord) -> Result<(), RolloutError> {
         let enabled = self.gate.enabled.read().await;
         if !*enabled {
-            anyhow::bail!("session recorder is closed");
+            return Err(RolloutError::Io(std::io::Error::other(
+                "session recorder is closed",
+            )));
         }
         let result = self.inner.record(record).await;
         drop(enabled);
         result
     }
 
-    async fn replay(&self, id: ThreadId) -> anyhow::Result<Vec<RolloutRecord>> {
+    async fn replay(&self, id: ThreadId) -> Result<Vec<RolloutRecord>, RolloutError> {
         self.inner.replay(id).await
     }
 
-    async fn list_sessions(&self) -> anyhow::Result<Vec<SessionInfo>> {
+    async fn list_sessions(&self) -> Result<Vec<SessionInfo>, RolloutError> {
         self.inner.list_sessions().await
     }
 
-    async fn truncate_after(&self, id: Option<&TurnId>) -> anyhow::Result<usize> {
+    async fn truncate_after(&self, id: Option<&TurnId>) -> Result<usize, RolloutError> {
         let enabled = self.gate.enabled.read().await;
         if !*enabled {
-            anyhow::bail!("session recorder is closed");
+            return Err(RolloutError::Io(std::io::Error::other(
+                "session recorder is closed",
+            )));
         }
         let result = self.inner.truncate_after(id).await;
         drop(enabled);
@@ -141,18 +145,18 @@ mod tests {
 
     #[async_trait]
     impl RolloutRecorder for BlockingRecorder {
-        async fn record(&self, _: RolloutRecord) -> anyhow::Result<()> {
+        async fn record(&self, _: RolloutRecord) -> Result<(), RolloutError> {
             self.started.notify_one();
             self.release.notified().await;
             Ok(())
         }
-        async fn replay(&self, _: ThreadId) -> anyhow::Result<Vec<RolloutRecord>> {
+        async fn replay(&self, _: ThreadId) -> Result<Vec<RolloutRecord>, RolloutError> {
             Ok(vec![])
         }
-        async fn list_sessions(&self) -> anyhow::Result<Vec<SessionInfo>> {
+        async fn list_sessions(&self) -> Result<Vec<SessionInfo>, RolloutError> {
             Ok(vec![])
         }
-        async fn truncate_after(&self, _: Option<&TurnId>) -> anyhow::Result<usize> {
+        async fn truncate_after(&self, _: Option<&TurnId>) -> Result<usize, RolloutError> {
             Ok(0)
         }
     }

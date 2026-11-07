@@ -30,7 +30,8 @@ import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import s from './ComposerControls.module.css';
 
-const EFFORTS = ['low', 'medium', 'high'] as const;
+// 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。
+const EFFORTS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
 type Effort = (typeof EFFORTS)[number];
 
 /** 常用权限模式子集（完整 7 段仍在 Settings → Permissions）。

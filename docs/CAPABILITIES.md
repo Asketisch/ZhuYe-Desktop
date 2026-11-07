@@ -706,6 +706,27 @@ develop WP9 上游自述「桌面端缺失的那一半」——此前桌面只�
   registry 广播,以 `EVENT_ID_NONE` 信封补发 `side_channel_finished`,
   终态实时可达（能力覆盖层有真 IPC 断言）。
 
+### 3.27 submodule 接线 main（`0220677` → `321cb825`,v0.1.10 + 5）
+
+submodule 从 develop pin 切到 **main 分支**（`.gitmodules` 补
+`branch = main`,与 `SUBMODULE.md` 声明的跟踪口径一致;pin 前移 44 个提交,
+`0220677` 是 main 的祖先,纯快进无回退）。上游 v0.1.9/v0.1.10 两批能力中,
+桌面侧接线与适配情况:
+
+| 上游能力 | 桌面接线 | 状态 |
+|---|---|---|
+| `Op::RescanExtensions` + `extensions_rescanned` 事件 | 命令 `reflect_rescan_extensions`（四方:impl / registry / TS 包装 / fakeBackend）+ 事件类型联合 + reducer toast（§3.11）;GUI 触发按钮待接 | 🟡 |
+| 思考档位 `max` / `ultra`（`SetEffort` 按模型能力表钳制） | 后端 `parse_effort` / `get_effort` + Composer 控件 + `/effort` slash + Models 视图 + i18n | ✅ |
+| `ThinkingDelta.kind`（`raw` / `summary`,serde default 旧线兼容） | 前端 payload 类型登记;渲染暂不区分（与旧行为一致） | 🟡 |
+| `PermissionRule.resource_glob` 资源维度 | 命令输入加 `resourceGlob`（serde default,向后兼容）;规则编辑 UI 未暴露 | 🟡 |
+| WASM 组件插件宿主（`zhuye-wasm` / wasmtime 30） / 配置导入（`zhuye-import`） / 会话队列调度器 / secrets / audit | 随引擎自动生效;GUI 无专属消费面,后续按需接线 | 🟡 |
+| `RolloutRecorder` 错误类型化（`RolloutError`）/ `build_default_m4` 不可失败化 | 桌面 `recorder_guard` / `thread_factory` 跟随适配,语义不变 | ✅ |
+
+主仓 workspace 适配:根 `Cargo.toml` 镜像 8 个新继承键
+（`zhuye-audit` / `zhuye-secrets` / `zhuye-wasm` + `sha2` / `aes-gcm` /
+`hkdf` / `wasmtime` / `wasmtime-wasi`,后四者版本与上游逐字对齐,
+wasmtime 锁 `=30.0.1` 与 guest 侧 wit-bindgen 0.40 同代）。
+
 ---
 
 ## 4. 剩余缺口与后续

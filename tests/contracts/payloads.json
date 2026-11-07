@@ -596,6 +596,10 @@
       "path": "${TMP}/contract-probe.txt",
       "content": "hello contract\n"
     },
-    "reflect_goal_snapshot": {}
+    "reflect_goal_snapshot": {},
+    "reflect_rescan_extensions": {
+      "skills": true,
+      "commands": false
+    }
   }
 }

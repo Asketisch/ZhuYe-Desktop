@@ -93,7 +93,9 @@ export type EventMsgType =
   | 'quota_exhausted'
   // 提示词层 (2;v1.6.1)
   | 'prompt_list'
-  | 'prompt_switched';
+  | 'prompt_switched'
+  // 扩展重扫 (1;v1.x,submodule main)
+  | 'extensions_rescanned';
 
 // ============================================================================
 // EventMsg payload 结构体
@@ -144,6 +146,12 @@ export interface AgentMessageDeltaPayload {
 
 export interface ThinkingDeltaPayload {
   delta: string;
+  /**
+   * v1.x(submodule main)思考增量的语义类型:`"raw"` token 级流式(默认),
+   * `"summary"` 推理摘要。上游 `#[serde(default)]` 保持旧事件线缆兼容,
+   * 旧引擎可能缺省 → `undefined` 视同 `"raw"`。
+   */
+  kind?: 'raw' | 'summary' | 'unknown';
 }
 
 export interface TokenCountPayload extends TokenUsagePayload {
@@ -177,6 +185,18 @@ export interface PromptSwitchedPayload {
   action: string;
   /** 重扫后当前 spec 的生效用户层(让 UI 立即看到新命中)。 */
   active_layers: string[];
+}
+
+/**
+ * `extensions_rescanned` —— v1.x(submodule main):`Op::RescanExtensions`
+ * 的应答,运行时扩展目录重扫完成。payload 镜像 Rust
+ * `ExtensionsRescannedEvent`(wire 为 snake_case)。
+ */
+export interface ExtensionsRescannedPayload {
+  /** skills 目录重扫后的条目总数(文件型 + 插件型;未请求重扫时为 0)。 */
+  skills: number;
+  /** commands 重扫请求是否被处理。当前恒为 `false`(上游尚未接线)。 */
+  commands: boolean;
 }
 
 export interface ToolCallBeginPayload {
@@ -628,6 +648,8 @@ export interface EventMsgByType {
   // 提示词层 (v1.6.1)
   prompt_list: PromptListPayload;
   prompt_switched: PromptSwitchedPayload;
+  // 扩展重扫 (v1.x,submodule main)
+  extensions_rescanned: ExtensionsRescannedPayload;
 }
 
 /** ReflectEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */

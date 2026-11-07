@@ -1025,6 +1025,12 @@ export function installFakeBackend(): FakeBackend {
 
   // —— 技能 / 钩子 ——
   handle('reflect_list_skills', handler(() => wire(backend.state.skills)));
+  // 扩展重扫(上游 v1.x Op::RescanExtensions 的桥接):fake 无运行时,
+  // 回 submission 形状的占位 id;真实条目数走 extensions_rescanned 事件。
+  handle(
+    'reflect_rescan_extensions',
+    handler(() => `rescan-fake-${Date.now()}`),
+  );
   handle('reflect_list_hooks', handler(() => wire(backend.state.hooks)));
   // 插件 slash 命令列表(fakeBackend 无插件运行时,恒空列表)。
   handle('reflect_list_plugin_commands', handler(() => wire([])));

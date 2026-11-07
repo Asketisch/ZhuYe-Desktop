@@ -1117,7 +1117,9 @@ pub async fn reflect_search_sessions(
 
 /// 回放失败静默（单个坏文件不应让整个搜索 500）。
 async fn replay_path_quiet(path: &Path) -> anyhow::Result<Vec<RolloutRecord>> {
-    rollout_reader::replay_path(path).await
+    // 上游 v1.x 起回放错误类型化为 `RolloutError`(thiserror),经 `From`
+    // 装回 anyhow —— 本函数只做静默透传,不改错误语义。
+    rollout_reader::replay_path(path).await.map_err(anyhow::Error::from)
 }
 
 /// 取命中位置前后 ~60 字符的窗口，折叠空白为单空格（JSONL 文本常带换行）。

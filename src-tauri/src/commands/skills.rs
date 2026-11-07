@@ -24,6 +24,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use reflect_protocol::Op;
 use reflect_skills::{bundled_skills, scan_skills_dirs};
 use serde::Serialize;
 use tauri::State;
@@ -96,4 +97,22 @@ pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResul
         })
         .collect();
     Ok(out)
+}
+
+/// 触发运行时扩展目录重扫 —— `Op::RescanExtensions`(上游 v1.x):
+/// `.zhuye/skills/`(workspace + 用户级)的新增/修改不重启即生效。
+/// 不开 turn;应答经 `extensions_rescanned` 事件回推(skills 条目总数),
+/// 这里投递并返回 submission id(与 `reflect_set_effort` 同款发后即走)。
+#[tauri::command]
+pub async fn reflect_rescan_extensions(
+    agent: State<'_, MinimalAgent>,
+    skills: Option<bool>,
+    commands: Option<bool>,
+) -> CommandResult<String> {
+    Ok(agent
+        .submit_op(Op::RescanExtensions {
+            skills: skills.unwrap_or(true),
+            commands: commands.unwrap_or(false),
+        })
+        .await?)
 }
