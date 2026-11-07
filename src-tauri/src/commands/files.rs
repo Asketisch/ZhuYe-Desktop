@@ -112,8 +112,7 @@ fn walk_dir(
             .modified()
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs() as i64);
         out.push(DirEntry {
             name,
             path: path.display().to_string(),
@@ -132,8 +131,7 @@ pub(crate) fn depth_first_sort_key(entry: &std::fs::DirEntry) -> (u8, String) {
     let name = entry.file_name().to_string_lossy().to_string();
     let is_dir = entry
         .file_type()
-        .map(|t| if t.is_dir() { 0 } else { 1 })
-        .unwrap_or(1);
+        .map_or(1, |t| if t.is_dir() { 0 } else { 1 });
     (is_dir, name.to_ascii_lowercase())
 }
 
@@ -248,8 +246,7 @@ fn atomic_write(path: &Path, content: &[u8]) -> std::io::Result<()> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let stem = path
         .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "file".to_string());
+        .map_or_else(|| "file".to_string(), |n| n.to_string_lossy().into_owned());
     let temp = parent.join(format!(".{stem}.{}.tmp", uuid::Uuid::new_v4()));
     let existing = std::fs::metadata(path).ok();
     if let Some(meta) = &existing {

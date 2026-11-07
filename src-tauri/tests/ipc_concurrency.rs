@@ -146,8 +146,7 @@ fn concurrent_config_writes_keep_the_file_valid() {
     let entries = parsed
         .get("mcp_servers")
         .and_then(|m| m.as_table())
-        .map(|t| t.len())
-        .unwrap_or(0);
+        .map_or(0, |t| t.len());
     assert!(
         (1..=WRITERS).contains(&entries),
         "并发写后 mcp_servers 条数 {entries} 不在 1..={WRITERS} —— 全部丢失或计数异常"

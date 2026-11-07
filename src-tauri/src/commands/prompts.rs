@@ -63,7 +63,7 @@ pub async fn reflect_get_effective_prompt(
         .collect();
     Ok(EffectivePrompt {
         model,
-        layers: set.layers.clone(),
+        layers: set.layers,
         sections,
     })
 }

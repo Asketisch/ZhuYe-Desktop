@@ -709,7 +709,8 @@ develop WP9 上游自述「桌面端缺失的那一半」——此前桌面只�
 ### 3.27 submodule 接线 main（`0220677` → `321cb825`,v0.1.10 + 5）
 
 submodule 从 develop pin 切到 **main 分支**（`.gitmodules` 补
-`branch = main`,与 `SUBMODULE.md` 声明的跟踪口径一致;pin 前移 44 个提交,
+`branch = main`,与 `SUBMODULE.md` 声明的跟踪口径一致;pin 前移 75 个提交
+（含合并）,
 `0220677` 是 main 的祖先,纯快进无回退）。上游 v0.1.9/v0.1.10 两批能力中,
 桌面侧接线与适配情况:
 

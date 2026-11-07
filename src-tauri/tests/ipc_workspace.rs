@@ -261,7 +261,7 @@ fn shell_session_runs_and_registers() {
     );
 
     // 幂等 kill。
-    invoke_ok("reflect_kill_shell", json!({ "sessionId": id.clone() }));
+    invoke_ok("reflect_kill_shell", json!({ "sessionId": id.as_str() }));
     invoke_ok("reflect_kill_shell", json!({ "sessionId": id }));
 }
 

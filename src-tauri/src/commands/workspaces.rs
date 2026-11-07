@@ -51,8 +51,7 @@ fn upsert_history(path: &Path, entry: WorkspaceInfo) -> CommandResult<()> {
     let prev_count = list
         .iter()
         .find(|w| w.path == entry.path)
-        .map(|w| w.session_count)
-        .unwrap_or(0);
+        .map_or(0, |w| w.session_count);
     let mut entry = entry;
     entry.session_count = prev_count;
     list.retain(|w| w.path != entry.path);
@@ -78,9 +77,8 @@ pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
     let list = read_history(&path)?;
     if list.is_empty() {
         // 无历史时仅返回当前 workspace，保证视图有可切换的落点。
-        let cur = dirs::home_dir()
-            .map(|h| h.join(".").display().to_string())
-            .unwrap_or_else(|| ".".to_string());
+        let cur =
+            dirs::home_dir().map_or_else(|| ".".to_string(), |h| h.join(".").display().to_string());
         return Ok(vec![WorkspaceInfo {
             path: cur,
             label: "default".to_string(),
@@ -112,8 +110,7 @@ pub async fn reflect_set_workspace(
     if let Some(hist) = workspaces_file() {
         let label = p
             .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.clone());
+            .map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
         let entry = WorkspaceInfo {
             path: path.clone(),
             label,
@@ -252,8 +249,7 @@ fn parent_or_err(p: &Path) -> CommandResult<PathBuf> {
 fn unix_now() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs())
 }
 
 #[cfg(test)]

@@ -80,7 +80,7 @@ fn listing_500_sessions_stays_within_budget() {
     let t0 = Instant::now();
     let v = common::invoke_ok("reflect_list_sessions", json!({}));
     let elapsed = t0.elapsed();
-    let count = v.as_array().map(|a| a.len()).unwrap_or(0);
+    let count = v.as_array().map_or(0, |a| a.len());
     assert!(count >= 500, "应索引到 500 条会话,实际 {count}");
     assert_within(
         "list_sessions(500 条 rollout)",
@@ -98,7 +98,7 @@ fn replaying_a_5k_record_session_stays_within_budget() {
     let t0 = Instant::now();
     let v = common::invoke_ok("reflect_replay_session", json!({ "id": id }));
     let elapsed = t0.elapsed();
-    let records = v.as_array().map(|a| a.len()).unwrap_or(0);
+    let records = v.as_array().map_or(0, |a| a.len());
     assert!(records >= 5_000, "回放应含 5000 条记录,实际 {records}");
     assert_within(
         "replay_session(5k 行)",

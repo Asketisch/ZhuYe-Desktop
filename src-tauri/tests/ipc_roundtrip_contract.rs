@@ -107,8 +107,7 @@ fn expectations_hold(rt: &Roundtrip, result: &Value, tmp: &str) -> Vec<String> {
                 failures.push(format!(
                     "[{}] {where_} 应等于 {want},实际 {}",
                     rt.name,
-                    got.map(|v| v.to_string())
-                        .unwrap_or_else(|| "<缺失>".into())
+                    got.map_or_else(|| "<缺失>".into(), |v| v.to_string())
                 ));
             }
         }

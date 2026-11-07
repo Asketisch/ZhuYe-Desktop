@@ -131,8 +131,7 @@ impl MemoryStore {
         if let Some((_start, line_end)) = find_exact_heading_line(&current, &heading) {
             let end = current[line_end..]
                 .find("\n## ")
-                .map(|i| line_end + i)
-                .unwrap_or(current.len());
+                .map_or(current.len(), |i| line_end + i);
             if find_exact_heading_line(&current[end..], &heading).is_some() {
                 anyhow::bail!("memory entry has duplicate headings: {key}");
             }
@@ -188,8 +187,7 @@ impl MemoryStore {
         if let Some((start, line_end)) = find_exact_heading_line(&current, &heading) {
             let end = current[line_end..]
                 .find("\n## ")
-                .map(|index| line_end + index)
-                .unwrap_or(current.len());
+                .map_or(current.len(), |index| line_end + index);
             if find_exact_heading_line(&current[end..], &heading).is_some() {
                 anyhow::bail!("memory entry has duplicate headings: {key}");
             }
@@ -273,8 +271,7 @@ fn memory_entries(scope: &str, content: &str) -> Vec<MemoryEntry> {
                 find_exact_heading_line(content, &heading).expect("validated heading");
             let end = content[line_end..]
                 .find("\n## ")
-                .map(|i| line_end + i)
-                .unwrap_or(content.len());
+                .map_or(content.len(), |i| line_end + i);
             let body = if end > line_end {
                 &content[line_end + 1..end]
             } else {
@@ -366,10 +363,7 @@ fn find_exact_heading_line(text: &str, heading: &str) -> Option<(usize, usize)> 
     while let Some(rel) = text[from..].find(heading) {
         let start = from + rel;
         let at_line_start = start == 0 || text.as_bytes()[start - 1] == b'\n';
-        let line_end = text[start..]
-            .find('\n')
-            .map(|i| start + i)
-            .unwrap_or(text.len());
+        let line_end = text[start..].find('\n').map_or(text.len(), |i| start + i);
         if at_line_start && text[start..line_end].trim_end() == heading {
             return Some((start, line_end));
         }

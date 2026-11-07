@@ -259,11 +259,6 @@ impl MinimalAgent {
         (scheduler, driver_handle)
     }
 
-    /// 列出当前活跃的 shell session id。
-    pub fn list_shell_sessions(&self) -> Vec<String> {
-        self.inner.shell_sessions.list()
-    }
-
     /// 诊断快照:供前端显示状态徽标。
     pub fn agent_status(&self) -> AgentStatus {
         let thread = self.inner.thread.lock().clone();
@@ -275,8 +270,10 @@ impl MinimalAgent {
         let model = thread
             .as_ref()
             .filter(|thread| thread.config().session_id.is_some())
-            .map(|thread| thread.config().current_model())
-            .unwrap_or_else(|| self.model_spec());
+            .map_or_else(
+                || self.model_spec(),
+                |thread| thread.config().current_model(),
+            );
         let has_model = model != "stub/test";
         AgentStatus {
             ready: thread_ready,

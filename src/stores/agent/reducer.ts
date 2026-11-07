@@ -221,18 +221,14 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       // v1.4 C1 通道二:Op::QuerySubagents 的应答快照 → Inspector 展示。
       return { subagents: { ...state.subagents, lastStatus: msg.children } };
 
+    // v1.x WP9:side-channel 生命周期/快照**不写 agent 状态投影** —— 唯一
+    // 消费方 SideChannelView 直接订阅 agentEventBus 即时失效 react-query
+    // 缓存(进程级注册表在后端共享,与 store 无关)。case 仅维护穷尽性
+    // 守卫;曾有的 lastSnapshot/revision 字段无生产消费方,已删。
     case 'side_channel_started':
     case 'side_channel_finished':
-      // v1.x WP9 生命周期里程碑:快照随后由 status 事件 / 查询命令刷新,
-      // 这里以 revision 计数通知订阅方(视图据此立即失效查询缓存)。
-      return {
-        sideChannels: { ...state.sideChannels, revision: state.sideChannels.revision + 1 },
-      };
-
     case 'side_channel_status':
-      // v1.x WP9 通道二:Op::QuerySideChannels 的应答快照(进程级投影,
-      // 不随会话复位)。
-      return { sideChannels: { ...state.sideChannels, lastSnapshot: msg.channels } };
+      return {};
 
     case 'approval_request': {
       // plan 类型的审批走独立的 plan_ready 事件 + pendingPlan + PlanReadyModal,

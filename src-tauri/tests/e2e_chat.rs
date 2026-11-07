@@ -196,8 +196,7 @@ async fn e2e_anthropic_client_streams_real_llm() {
     // 如果 model 含 provider 前缀,剥掉(client 只要纯 model 名)。
     let pure_model = model
         .split_once('/')
-        .map(|(_, m)| m)
-        .unwrap_or(&model)
+        .map_or(&model[..], |(_, m)| m)
         .to_string();
     eprintln!("pure model = {pure_model}, base = {base_url:?}");
 

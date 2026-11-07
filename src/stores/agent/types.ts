@@ -1,5 +1,4 @@
 import type {
-  SideChannelInfoPayload,
   SubagentStatusSnapshot,
   UserInputItem,
 } from '@/types/protocol';
@@ -284,18 +283,6 @@ export interface SubagentsState {
 export const SUBAGENT_FEED_CAP = 200;
 
 /**
- * Side-channel agent 状态(v1.x WP9)—— **进程级而非会话级**:side-channel
- * 是独立于主 agent 会话的旁路运行(注册表在后端进程级共享,切会话
- * 不重置 —— 因此 hydrate/clear 不清理此字段)。
- */
-export interface SideChannelsState {
-  /** 最近一次 `side_channel_status` 应答快照(`Op::QuerySideChannels`);尚未查询过时为 null。 */
-  lastSnapshot: SideChannelInfoPayload[] | null;
-  /** 生命周期事件计数(started/finished);订阅方以差值感知「有新动态」。 */
-  revision: number;
-}
-
-/**
  * 提示词层状态(v1.6.1)—— `prompt_list` / `prompt_switched` 事件的投影。
  *
  * **进程级而非会话级**:提示词库由 `Op::PromptCommand` 作用在引擎的
@@ -347,8 +334,6 @@ export interface AgentState {
   goalSnapshot: GoalSnapshotPayload | null;
   /** 子代理可观测(v1.4 C1)—— 会话作用域,见 SubagentsState。 */
   subagents: SubagentsState;
-  /** Side-channel 投影(进程级,不随会话复位)。 */
-  sideChannels: SideChannelsState;
   /**
    * agent 的 todo 清单(来自 `TodoWrite` 工具的输出元数据)。
    *

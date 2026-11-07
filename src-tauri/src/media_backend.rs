@@ -72,13 +72,11 @@ impl ImageBackend for RealImageBackend {
             .modified()
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_millis() as u64);
         // 尽力读维(失败不算 error,返回 None)。
         let (width, height) = image::image_dimensions(path)
             .ok()
-            .map(|(w, h)| (Some(w), Some(h)))
-            .unwrap_or((None, None));
+            .map_or((None, None), |(w, h)| (Some(w), Some(h)));
         Ok(MediaAsset {
             path: path.to_path_buf(),
             filename,
@@ -148,8 +146,7 @@ impl ImageBackend for RealImageBackend {
             ".{}.{}.tmp",
             output
                 .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "media".into()),
+                .map_or_else(|| "media".into(), |n| n.to_string_lossy().into_owned()),
             uuid::Uuid::new_v4()
         ));
         let mut buf = std::fs::OpenOptions::new()
@@ -182,7 +179,7 @@ impl ImageBackend for RealImageBackend {
             message: e.to_string(),
         })?;
         drop(buf);
-        let bytes = std::fs::metadata(&temp).map(|m| m.len()).unwrap_or(0);
+        let bytes = std::fs::metadata(&temp).map_or(0, |m| m.len());
         if let Err(error) = std::fs::rename(&temp, output) {
             let _ = std::fs::remove_file(&temp);
             return Err(MediaError::IoError {

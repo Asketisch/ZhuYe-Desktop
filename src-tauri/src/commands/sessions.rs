@@ -120,14 +120,10 @@ pub async fn reflect_bind_session(
             msg: format!("rebind_session failed: {e:#}"),
         }
     })?;
-    let mode = agent
-        .inner
-        .thread
-        .lock()
-        .as_ref()
-        .map(|t| crate::commands::agent::permission_mode_str(t.config().permission_mode()))
-        .unwrap_or("auto")
-        .to_string();
+    let mode = agent.inner.thread.lock().as_ref().map_or_else(
+        || "auto".to_string(),
+        |t| crate::commands::agent::permission_mode_str(t.config().permission_mode()).to_string(),
+    );
     Ok(mode)
 }
 

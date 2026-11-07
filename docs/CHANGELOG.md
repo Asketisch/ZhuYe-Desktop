@@ -112,8 +112,9 @@ specified`;curl 探针证实同参换非空串即 200)。L6 discussion 场景稳
 ### 变更 — submodule 接线 main（`0220677` → `321cb825`,v0.1.10 + 5）
 
 submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
-与 `SUBMODULE.md` 的声明口径一致）并把 pin 前移 44 个提交到
-`321cb825`（v0.1.10 + 5;原 pin 是 main 的祖先,纯快进无回退）。
+与 `SUBMODULE.md` 的声明口径一致）并把 pin 前移 75 个提交（含合并;
+`git rev-list --count` 口径）到 `321cb825`（v0.1.10 + 5;原 pin 是 main
+的祖先,纯快进无回退）。
 
 - **主仓 workspace 适配**：根 `Cargo.toml` 镜像 8 个新继承键
   （`zhuye-audit` / `zhuye-secrets` / `zhuye-wasm` + `sha2` / `aes-gcm` /
@@ -129,8 +130,9 @@ submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
   命令（四方一致 + `extensions_rescanned` 事件进前端类型联合 + reducer
   toast,skills 改动不重启即生效;GUI 触发按钮待接）;思考档位 `max` /
   `ultra` 全 UI 面（`parse_effort` / Composer / `/effort` slash /
-  Models 视图 / i18n,按模型能力表发送前钳制）;`ThinkingDelta.kind`
-  additive 字段进前端 payload 类型。
+  Models 视图 / i18n;超出模型支持上限时由上游 `zhuye_llm` 能力表在发送
+  前钳制,桌面只放宽档位面）;`ThinkingDelta.kind` additive 字段进前端
+  payload 类型。
 - **文档**:`docs/PROTOCOL_BRIDGE.md` 补 `reflect_rescan_extensions` 行 +
   `extensions_rescanned` 事件（§3.11）+ `thinking_delta.kind`;
   `docs/CAPABILITIES.md` 增 §3.27 审计（覆盖矩阵含 🟡 半接线项）。
@@ -159,6 +161,38 @@ submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
   `submission_loop.rs:1190`），毫秒翻边时差 1ms 使 L3 ipc_domains 严格
   相等断言偶发失败。测试改身份字段严格断言 + 时间戳 ≤5ms 容差，上游
   发现记入 `tests/COVERAGE.md`「上游待修」。
+
+### 优化 — 技能驱动的三面体检（react-best-practices / rust-best-practices / code-review）
+
+安装三个高口碑 agent skill（vercel-labs react-best-practices 878K 安装、
+mattpocock code-review 862K、apollographql rust-best-practices 22K）并对
+全仓跑了一遍审计,落地项:
+
+- **Rust 性能纪律对齐上游**（Apollo 手册 + clippy perf 组）：桌面自有
+  crate 与测试清零 `map().unwrap_or*`（22 处 → `map_or`/`map_or_else`）、
+  冗余克隆（10 处:含 `workspace()`/`current_model()` 已返回 owned 的
+  二次克隆、闭包内局部多余 clone、`json!` 改 `as_str` 借用）、多余
+  `collect`（改 `any` 短路）。现在桌面代码在 `-D perf -D redundant_clone
+  -D needless_collect -D map_unwrap_or` 下与上游同纪律零告警。
+- **code-review 双轴发现修复**（Standards 轴）：
+  `PROTOCOL_BRIDGE.md` 的 `reflect_get_effort` 行更新真实位置与档位;
+  `SUBMODULE.md` 过时的 `app-core/src/paths.rs` 表述改为
+  `reflect_config::paths`;`thread_factory` side-driver 处重复的
+  registry lock+expect 改复用同函数已取的 Arc;`strip_exit_marker`
+  被外层 guard 蕴含的不可达死分支删除;`list_shell_sessions` 中间人
+  转发删除(与其余 shell 命令同款直通 `shell_sessions`)。
+- **code-review 双轴发现修复**（Spec 轴）：CHANGELOG/CAPABILITIES 的
+  pin 前移数字 44 → 实测 75(`rev-list` 含合并口径);effort 档位条目
+  注明钳制发生在上游 `zhuye_llm` 能力表(桌面只放宽档位面)。
+- **Speculative Generality 清理**（smell 基线）：store 的
+  `sideChannels.lastSnapshot/revision` 投影无生产消费方(唯一视图
+  SideChannelView 走 agentEventBus + react-query),字段、reducer case
+  写入与空态全部删除;reducer 保留三个 case 返回空 patch 维护穷尽性
+  守卫,测试改为断言「事件不写状态」。
+- **React 审计结论**（vercel 规则 70 条）：窄 selector、无内联组件、
+  无非被动滚动监听、惰性初始化齐备 —— 无高价值低风险剩余项,不为改
+  而改;`@/utils/commands` 兼容桶导入仅 3 处且 ESM 生产构建摇树消除,
+  仓库标准已定为兼容形态,保持。
 
 （其余下一批变更从这里开始。）
 

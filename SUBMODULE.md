@@ -20,7 +20,7 @@ ZhuYe Desktop (本仓库,workspace 消费端)
 
 桌面端用 Cargo 包别名保留 `reflect_*` Rust 导入；**数据目录以 submodule 为准**：用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`。没有兼容 feature，也不改环境变量。
 
-`app-core/src/paths.rs` 是这条解析规则的唯一入口（`user_data_dir` / `user_data_path` / `project_data_dir`）。桌面自有状态文件必须经它取路径，不要再自拼目录名，否则 GUI 与 agent 会各自读写一套数据。
+`reflect_config::paths`（submodule）是这条解析规则的唯一入口（`user_data_dir` / `user_data_path` / `project_data_dir`）。桌面自有状态文件必须经它取路径,不要再自拼目录名,否则 GUI 与 agent 会各自读写一套数据。
 
 一处例外：会话 rollout 树走 `reflect_rollout::path::default_base()`，它只认 `$HOME`（不读 `ZHUYE_HOME`）。因此**必须与 sessions 同树**的目录（归档 `sessions-archive`）从它的父目录派生，而不是走 `user_data_dir()`——设置了 `ZHUYE_HOME` 时两者不同根，归档会找不到会话。
 

@@ -275,22 +275,18 @@ mod tests {
             .expect("install 后 scheduler 已建")
             .create("* * * * *", "test prompt", None)
             .expect("schedule valid");
-        let original_id = job.id.clone();
+        let original_id = job.id;
 
         let sid = reflect_protocol::ThreadId::new();
         rebind_session(&agent, sid, vec![], None).unwrap();
         // 重建 scheduler / 重启 driver 后,job 列表应仍含同一 id。
-        let after_ids: Vec<String> = agent
+        let job_kept = agent
             .cron_scheduler()
             .expect("rebind 后 scheduler 仍存在")
             .list()
             .into_iter()
-            .map(|j| j.id)
-            .collect();
-        assert!(
-            after_ids.contains(&original_id),
-            "job id 必须在 rebind 后保留"
-        );
+            .any(|j| j.id == original_id);
+        assert!(job_kept, "job id 必须在 rebind 后保留");
     }
 
     /// `initial_mode = Some` 时新线程必须带上该会话级 PermissionMode

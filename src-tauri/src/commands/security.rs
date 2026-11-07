@@ -48,7 +48,7 @@ impl From<SecurityScanReport> for SecurityScanResult {
 pub async fn reflect_run_security_scan(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<SecurityScanResult> {
-    let workspace: PathBuf = agent.workspace().to_path_buf();
+    let workspace: PathBuf = agent.workspace();
     let report = tokio::task::spawn_blocking(move || {
         reflect_integration::security_scan::run_cargo_audit(Some(&workspace))
     })

@@ -81,14 +81,10 @@ fn emit_lines(
 fn strip_exit_marker(buffer: &str) -> &str {
     let trimmed = buffer.trim_end_matches(['\n', '\r']);
     match trimmed.rsplit_once('\n') {
-        Some((head, last)) if last.starts_with("[exit ") && last.ends_with(']') => {
-            // 标记行不在缓冲末尾(罕见:后续又有输出)→ 原样返回。
-            if trimmed.ends_with(']') && last.starts_with("[exit ") {
-                head
-            } else {
-                trimmed
-            }
-        }
+        // 末行恰是完整标记行 → 剥掉,返回其前方内容。(标记行"不在末尾
+        // 的"缓冲不会进这个 arm:guard 已要求末行以 `[exit ` 开头且以
+        // `]` 结尾。)
+        Some((head, last)) if last.starts_with("[exit ") && last.ends_with(']') => head,
         _ if trimmed.starts_with("[exit ") && trimmed.ends_with(']') => "",
         _ => trimmed,
     }
@@ -134,7 +130,6 @@ pub async fn reflect_run_shell(
     // 适配 task:上游拉模型(缓冲 + 游标)→ 桌面推模型(逐行事件)。
     // 30ms 轮询;read_delta 消费游标,增量不丢不重。
     {
-        let app = app.clone();
         let id = id.clone();
         let sequence = Arc::new(parking_lot::Mutex::new(0u64));
         let pool = agent.inner.clone();
@@ -199,7 +194,8 @@ pub async fn reflect_kill_shell(
 pub async fn reflect_list_shell_sessions(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<String>> {
-    Ok(agent.list_shell_sessions())
+    // 与 run/get/remove 同款直通 `shell_sessions`(无转发层)。
+    Ok(agent.inner.shell_sessions.list())
 }
 
 #[cfg(test)]

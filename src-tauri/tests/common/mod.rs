@@ -97,12 +97,13 @@ pub fn set_config_before_install(toml: &str) {
 /// `~/.zhuye`,复刻「退出后重启」的恢复场景。
 fn init_isolated_env() {
     ENV_INIT.call_once(|| {
-        let base = std::env::var_os("REFLECT_TEST_HOME")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| {
+        let base = std::env::var_os("REFLECT_TEST_HOME").map_or_else(
+            || {
                 std::env::temp_dir()
                     .join(format!("reflect-desktop-capability-{}", std::process::id()))
-            });
+            },
+            std::path::PathBuf::from,
+        );
         let home = base.join("home");
         // 核心 crate 的数据目录 = `$HOME/.zhuye`(不设 ZHUYE_HOME,让会话树与
         // 配置/记忆/任务落在同一个根上,与真实安装一致)。

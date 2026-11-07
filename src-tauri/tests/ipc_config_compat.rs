@@ -81,8 +81,7 @@ fn legacy_and_unknown_config_shapes_load_in_a_fresh_process() {
         let marker = FIXTURES
             .iter()
             .find(|(n, _)| n == &name)
-            .map(|(_, m)| *m)
-            .unwrap_or_else(|| panic!("未知 fixture: {name}"));
+            .map_or_else(|| panic!("未知 fixture: {name}"), |(_, m)| *m);
         run_fixture(&name, marker);
         return;
     }

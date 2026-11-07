@@ -168,14 +168,9 @@ pub(crate) fn construct_thread(
     // 模型后,新 side-channel 立即用当前值。
     let side_driver = {
         let inner_for_side = Arc::clone(&agent.inner);
-        let registry_for_side = Arc::clone(
-            &agent
-                .inner
-                .model_registry
-                .lock()
-                .clone()
-                .expect("model_registry 必须在 install 阶段已建"),
-        );
+        // 与上方 L81 同一份进程级 registry(初始化只此一次,无需再走
+        // lock + expect 重取)。
+        let registry_for_side = Arc::clone(&registry);
         let tools_for_side = Arc::clone(&agent.inner.tools);
         let factory: reflect_core::side_channel::SideThreadFactory = Arc::new(
             move |agent_name: &str, cancel: tokio_util::sync::CancellationToken| {
@@ -191,7 +186,7 @@ pub(crate) fn construct_thread(
                 );
                 // 不写主历史:摘掉 recorder。
                 m4.recorder = None;
-                let side_cfg = AgentConfig::new(model.clone(), workspace.clone())
+                let side_cfg = AgentConfig::new(model, workspace)
                     .with_m4(m4)
                     .with_cancel(cancel);
                 Ok(AgentThread::new(
@@ -212,7 +207,7 @@ pub(crate) fn construct_thread(
 
     // 插件挂载材料快照:model spec 与线程配置一致；启用列表在异步
     // 挂载时读取最新配置，避免排队期间的设置变更被旧快照覆盖。
-    let model_for_plugins = cfg.current_model().to_string();
+    let model_for_plugins = cfg.current_model();
     let plugin_bridge = mounted_m4.as_ref().map(|(sid, _)| {
         let (bridge, ready) = super::plugin_hooks::PluginHookBridge::new(*sid, cfg.cancel.clone());
         hook_engine.register(super::plugin_hooks::PluginHookForwarder(bridge.clone()));

@@ -35,8 +35,7 @@ const UPDATE_RESPONSE_MAX: u64 = 16 * 1024 * 1024;
 pub async fn reflect_check_update() -> CommandResult<UpdateInfo> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs() as i64);
     let current = env!("CARGO_PKG_VERSION").to_string();
     let url =
         std::env::var("REFLECT_UPDATE_URL").unwrap_or_else(|_| DEFAULT_UPDATE_URL.to_string());

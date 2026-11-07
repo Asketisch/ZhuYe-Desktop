@@ -49,8 +49,7 @@ pub(crate) fn canonical_enabled(enabled: &[String]) -> Vec<String> {
         .iter()
         .map(|id| {
             reflect_plugin::PluginId::parse_user_input(id)
-                .map(|parsed| parsed.to_string())
-                .unwrap_or_else(|_| id.clone())
+                .map_or_else(|_| id.clone(), |parsed| parsed.to_string())
         })
         .filter(|id| seen.insert(id.clone()))
         .collect()

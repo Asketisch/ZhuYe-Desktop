@@ -203,18 +203,15 @@ fn classify_error(code: &str, message: &str, details: Option<&Value>) -> Outcome
     let tried = details
         .and_then(|d| d.get("tried"))
         .and_then(|t| t.as_array());
-    let tried_empty = tried.map(|a| a.is_empty()).unwrap_or(true);
+    let tried_empty = tried.is_some_and(|a| a.is_empty());
     let tried_says = |needle: &str| -> bool {
-        tried
-            .map(|arr| {
-                arr.iter().any(|c| {
-                    c.get("outcome")
-                        .and_then(|o| o.as_str())
-                        .map(|o| o.to_lowercase().contains(needle))
-                        .unwrap_or(false)
-                })
+        tried.is_some_and(|arr| {
+            arr.iter().any(|c| {
+                c.get("outcome")
+                    .and_then(|o| o.as_str())
+                    .is_some_and(|o| o.to_lowercase().contains(needle))
             })
-            .unwrap_or(false)
+        })
     };
 
     // 限流:显式码 / 文案 / `tried` 里的 rate_limited outcome。

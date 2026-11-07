@@ -532,7 +532,7 @@ fn side_channel_start_list_get_and_terminal_cancel_semantics() {
             .any(|s| s["id"] == id),
         "side-channel 未出现在列表里"
     );
-    let got = invoke_ok("reflect_get_side_channel", json!({ "id": id.clone() }));
+    let got = invoke_ok("reflect_get_side_channel", json!({ "id": id.as_str() }));
     assert_eq!(got["id"], id, "side-channel 读回 id 不符: {got}");
     assert_eq!(got["agentName"], "probe-helper");
     // ⚠️ startedAtMs 是**两个时间源**:registry 句柄 stamp(快照/列表
@@ -558,7 +558,7 @@ fn side_channel_start_list_get_and_terminal_cancel_semantics() {
     assert!(terminal["durationMs"].is_number(), "{terminal}");
 
     // 终态通道的取消 → false(boolean 语义:未知 / 已终态都不算生效)。
-    let cancelled = invoke_ok("reflect_cancel_side_channel", json!({ "id": id.clone() }));
+    let cancelled = invoke_ok("reflect_cancel_side_channel", json!({ "id": id.as_str() }));
     assert_eq!(cancelled, false, "已终态的通道取消应返回 false");
     let after = invoke_ok("reflect_get_side_channel", json!({ "id": id }));
     assert_eq!(after["status"], terminal["status"], "取消不应改写终态");

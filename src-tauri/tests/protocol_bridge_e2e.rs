@@ -193,7 +193,7 @@ async fn model_spec_and_workspace_accessors() {
         "workspace should be a non-empty absolute path or at least a real path"
     );
     // set_workspace 之后访问器必须返回覆盖值,而不是启动时捕获的原 cwd。
-    let original = ws.clone();
+    let original = ws;
     let override_path = std::path::PathBuf::from("/tmp/reflect-workspace-override-test");
     std::fs::create_dir_all(&override_path).expect("create override dir");
     agent.set_workspace(override_path.clone());
