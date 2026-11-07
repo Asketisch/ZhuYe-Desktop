@@ -128,10 +128,7 @@ pub(crate) fn construct_thread(
             sid,
         );
         m4.recorder = Some(Arc::new(super::recorder_guard::GuardedRecorder::new(
-            reflect_rollout::JsonlRolloutWriter::new(
-                reflect_rollout::path::default_base(),
-                sid,
-            ),
+            reflect_rollout::JsonlRolloutWriter::new(reflect_rollout::path::default_base(), sid),
             super::recorder_guard::gate_for(agent, sid),
         )));
         cfg = cfg.with_m4(m4.clone()).with_session_id(sid);

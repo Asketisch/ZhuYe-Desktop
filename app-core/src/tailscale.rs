@@ -127,8 +127,7 @@ async fn run_probe() -> std::result::Result<TailscaleStatus, String> {
     let running = value
         .get("BackendState")
         .and_then(|v| v.as_str())
-        .map(|s| s.eq_ignore_ascii_case("Running"))
-        .unwrap_or(false);
+        .is_some_and(|s| s.eq_ignore_ascii_case("Running"));
 
     let dns_name = value
         .get("Self")

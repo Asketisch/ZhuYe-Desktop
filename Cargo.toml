@@ -19,11 +19,35 @@ authors = ["Reflect Agent Contributors"]
 # 清单级 deny 只作用于本仓库自有 crate。zhuye-agent/ submodule 以
 # path 依赖参与编译,cargo 视其为"本地包",全局 -D warnings 会连带
 # 拒绝上游警告并阻塞 CI;上游代码的警告应由 ZhuYe 仓库修复。
+#
+# ⚠️ 与 [workspace.dependencies] 同一机制:submodule crate 的
+# `[lints] workspace = true` 也解析到**本仓库根** —— 下面的 allow
+# 清单必须与 zhuye-agent/Cargo.toml 的 [workspace.lints.clippy] 中
+# 的 M1 宽松清单保持镜像(上游代码按这份 allow 修,桌面少镜像一条
+# 就会在上游存量代码上误报)。上游收紧/放宽时随 submodule 升级同步。
+# 上游的性能 deny 纪律(redundant_clone / needless_collect /
+# map_unwrap_or,pedantic/nursery 组)是上游内部自查口径,桌面**不
+# 继承** —— 避免上游每次收紧都迫使桌面清理存量;上游 crate 在桌面
+# 构建下顶多告警(不 deny),其自身 CI 会把关。
 [workspace.lints.rust]
 warnings = "deny"
 
 [workspace.lints.clippy]
+# 基线:默认 lint 全拒(显式化 CI 的 -D warnings 语义)。
 all = "deny"
+# M1 宽松清单(上游原 16 个 lib.rs 顶部逐字复制的 11 条 allow,集中于
+# 其 workspace;此处镜像)。priority 必须高于 all,否则会被 all=deny 压掉。
+derivable_impls    = { level = "allow", priority = 10 }
+needless_lifetimes = { level = "allow", priority = 10 }
+collapsible_if     = { level = "allow", priority = 10 }
+io_other_error     = { level = "allow", priority = 10 }
+collapsible_match  = { level = "allow", priority = 10 }
+needless_borrow    = { level = "allow", priority = 10 }
+redundant_closure  = { level = "allow", priority = 10 }
+or_fun_call        = { level = "allow", priority = 10 }
+option_if_let_else = { level = "allow", priority = 10 }
+nonminimal_bool    = { level = "allow", priority = 10 }
+manual_div_ceil    = { level = "allow", priority = 10 }
 
 # ── 核心依赖:从 zhuye-agent submodule 通过 path 引用 ──
 # 注:Cargo 不支持嵌套 workspace,这里只用 path 依赖,不把核心 crate 列入 members。

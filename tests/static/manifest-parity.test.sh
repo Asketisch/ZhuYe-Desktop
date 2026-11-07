@@ -30,4 +30,45 @@ if node "$HERE/manifest-parity.mjs" "$TMP/sub-empty.toml" "$ROOT/Cargo.toml" > "
     echo "子模块段为空时应失败" >&2; exit 1
 fi
 grep -q '解析为空' "$TMP/empty.log"
+
+# 5. lints 奇偶:真实清单的 clippy allow 键已镜像 → 通过(输出镜像数)。
+node "$HERE/manifest-parity.mjs" "$ROOT/zhuye-agent/Cargo.toml" "$ROOT/Cargo.toml" > "$TMP/ok2.log"
+if grep -q '缺少子模块 allow 继承键' "$TMP/ok2.log"; then
+    echo "真实清单 lints 不应缺键" >&2; exit 1
+fi
+
+# 6. 子模块带 allow、根缺同名 allow → 失败且点名;根 deny 多出不算错。
+cat > "$TMP/sub-lints.toml" <<'TOML'
+[workspace]
+members = []
+[workspace.dependencies]
+foo = "1"
+[workspace.lints.clippy]
+all = "deny"
+collapsible_if = { level = "allow", priority = 10 }
+manual_div_ceil = "allow"
+TOML
+cat > "$TMP/root-lints-missing.toml" <<'TOML'
+[workspace.dependencies]
+foo = "1"
+[workspace.lints.clippy]
+all = "deny"
+TOML
+if node "$HERE/manifest-parity.mjs" "$TMP/sub-lints.toml" "$TMP/root-lints-missing.toml" > "$TMP/lints.log"; then
+    echo "缺 allow 继承键时应失败" >&2; exit 1
+fi
+grep -q '缺少子模块 allow 继承键(2)' "$TMP/lints.log"
+grep -q 'collapsible_if' "$TMP/lints.log"
+grep -q 'manual_div_ceil' "$TMP/lints.log"
+cat > "$TMP/root-lints-ok.toml" <<'TOML'
+[workspace.dependencies]
+foo = "1"
+[workspace.lints.clippy]
+all = "deny"
+some_upstream_denied_lint = "deny"
+collapsible_if = { level = "allow", priority = 10 }
+manual_div_ceil = "allow"
+TOML
+node "$HERE/manifest-parity.mjs" "$TMP/sub-lints.toml" "$TMP/root-lints-ok.toml" > "$TMP/lints-ok.log"
+grep -q '镜像子模块 2 个 clippy allow 继承键' "$TMP/lints-ok.log"
 echo "manifest-parity self-test: ok"

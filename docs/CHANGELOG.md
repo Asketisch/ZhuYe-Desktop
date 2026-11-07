@@ -135,6 +135,26 @@ submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
   `extensions_rescanned` 事件（§3.11）+ `thinking_delta.kind`;
   `docs/CAPABILITIES.md` 增 §3.27 审计（覆盖矩阵含 🟡 半接线项）。
 
+### 修复 — 接线 main 的三处门禁与视觉收尾
+
+- **lints 跨 workspace 继承**：submodule crate 的 `[lints] workspace = true`
+  与 dependencies 同机制解析到**本仓库根** —— 上游新把 clippy 宽松清单
+  （collapsible_if / derivable_impls 等 11 条 allow）搬进其
+  `[workspace.lints]` 后，根清单只有 `all = "deny"` 基线，上游存量代码在
+  L3 clippy 上误报 10+ 条。根清单镜像上游 allow 清单（deny 级性能纪律
+  不继承 —— 上游 CI 自查）；`app-core` 顺手清掉 3 处 `map().unwrap_or`
+  存量（`media.rs` ×2 / `tailscale.rs` ×1）。
+- **Models 视图 effort 分段溢出**：5 档 × 说明文案以 flex 项内容最小
+  宽度撑破容器，`ultra` 被挤出裁切。`SegmentedControl` stacked 模式允许
+  换行（`min-width: 0` + `white-space: normal`），新档位文案收紧。
+- **L1 静态门禁新增「lints 奇偶一致」**：子模块 `[workspace.lints.clippy]`
+  的每条 allow 级键必须在根清单同名同级别镜像（`manifest-parity.mjs`
+  扩展 + 自测 2 例）—— 与依赖键奇偶同款「编译前点名」。
+- **视觉基线整体重生成**：chromium 缓存 11/5 重新下载 + macOS 26.5 字体
+  渲染度量漂移，38 路由 × dark/light 逐字节比对全量过期（About 等纯文本
+  宽度差逐像素审查确认非布局回归;Models 页差异来自上述溢出修复）。按
+  「删除 `__baselines__/` 重跑、人工审查后入库」政策重生成。
+
 （其余下一批变更从这里开始。）
 
 ## 0.0.2 — 2026-11-03

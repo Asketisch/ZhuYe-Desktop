@@ -31,7 +31,12 @@
 
 .wrap[data-stacked] .opt {
   flex: 1;
+  /* 卡片式分段常带说明文案,选项一多(如 effort 的 5 档)单行 nowrap 会
+   * 以内容最小宽度撑破容器(flex 项默认 min-width:auto),尾部选项被
+   * 挤出裁切。stacked 模式允许换行均分宽度;紧凑模式仍保持 nowrap。 */
+  min-width: 0;
   padding: var(--space-2) var(--space-3);
+  white-space: normal;
 }
 
 .wrap[data-size='sm'] .opt {

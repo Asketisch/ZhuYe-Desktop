@@ -309,8 +309,7 @@ pub fn scan_dir_for_assets(dir: &Path) -> Result<Vec<MediaAsset>, MediaError> {
             .modified()
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_millis() as u64);
         let mime = mime_from_format(ImageFormat::from_ext(ext).unwrap());
         out.push(MediaAsset {
             path,
@@ -375,8 +374,7 @@ impl ImageBackend for MetadataOnlyBackend {
             .modified()
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_millis() as u64);
         Ok(MediaAsset {
             path: path.to_path_buf(),
             filename,

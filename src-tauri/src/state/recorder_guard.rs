@@ -3,7 +3,9 @@
 use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
-use reflect_protocol::{RolloutError, RolloutRecord, RolloutRecorder, SessionInfo, ThreadId, TurnId};
+use reflect_protocol::{
+    RolloutError, RolloutRecord, RolloutRecorder, SessionInfo, ThreadId, TurnId,
+};
 use tokio::sync::RwLock;
 
 use super::MinimalAgent;
