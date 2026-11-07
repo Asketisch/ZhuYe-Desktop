@@ -474,25 +474,59 @@ fn scenario_tool_approval() -> Verdict {
     if let Some(reason) = blocked_by_upstream(&evs) {
         return Verdict::Skipped(reason);
     }
-    let Some(req) = first(&evs, "approval_request").cloned() else {
+    if first(&evs, "approval_request").is_none() {
         return Verdict::Skipped("本轮模型未发起工具调用(模型行为,非产品缺陷)".into());
-    };
-    let request_id = req["msg"]["request_id"]
-        .as_str()
-        .unwrap_or_default()
-        .to_string();
-    if request_id.is_empty() {
-        return Verdict::Failed("approval_request 缺少 request_id".into());
     }
-    if let Err(e) = op(
-        "reflect_tool_approval",
-        json!({ "id": request_id, "decision": "approve" }),
-    ) {
-        return Verdict::Failed(format!("批准失败:{e}"));
+    // prompt 模式下**每一次**工具调用都有独立的 approval_request;只答
+    // 第一条会让回合卡在第二道审批门上,表现为假超时。逐条批准直到终态,
+    // 对病理性工具循环设 12 条上限(超限判模型行为)。
+    let mut answered: Vec<String> = Vec::new();
+    let mut capped = false;
+    loop {
+        let evs = since(m);
+        let mut pending: Vec<String> = Vec::new();
+        for e in evs.iter().filter(|e| ty(e) == "approval_request") {
+            let rid = e["msg"]["request_id"].as_str().unwrap_or_default();
+            if rid.is_empty() {
+                return Verdict::Failed("approval_request 缺少 request_id".into());
+            }
+            if !answered.iter().any(|a| a == rid) {
+                pending.push(rid.to_string());
+            }
+        }
+        if pending.is_empty() {
+            if evs.iter().any(is_terminal) {
+                break;
+            }
+            let m0 = mark();
+            if !wait_until(m0, turn_budget(), |e| {
+                e.iter()
+                    .any(|ev| ty(ev) == "approval_request" || is_terminal(ev))
+            }) {
+                return Verdict::Failed("批准后等待回合终态超时".into());
+            }
+            continue;
+        }
+        if answered.len() + pending.len() > 12 {
+            // 超限收摊:先中断把卡在第 13 道审批门上的回合终止掉 ——
+            // 留着这道没人应答的门会污染后续场景(submit 排队 → 无事件)。
+            // 批准-执行链已发生 12 跳,照常断言。
+            let _ = op("reflect_interrupt", json!({}));
+            let _ = wait_terminal(m, Duration::from_secs(30));
+            capped = true;
+            break;
+        }
+        for rid in pending {
+            if let Err(e) = op(
+                "reflect_tool_approval",
+                json!({ "id": rid, "decision": "approve" }),
+            ) {
+                return Verdict::Failed(format!("批准失败:{e}"));
+            }
+            answered.push(rid);
+        }
     }
-    if !wait_terminal(m, turn_budget()) {
-        return Verdict::Failed("批准后等待回合终态超时".into());
-    }
+    let approved = answered.len();
     let evs = since(m);
     let outputs: String = evs
         .iter()
@@ -510,9 +544,20 @@ fn scenario_tool_approval() -> Verdict {
                 tool_call_args(&evs)
             ));
         }
+        if capped {
+            return Verdict::Skipped(format!(
+                "模型反复发起工具调用触顶 {approved} 次(参数未含预期串)—— 模型行为,非产品缺陷。模型发的参数:{:?}",
+                tool_call_args(&evs)
+            ));
+        }
         return Verdict::Failed(format!(
             "批准后工具未真正执行 —— 输出里没有预期串。模型发的参数:{:?}。实际:{outputs}",
             tool_call_args(&evs)
+        ));
+    }
+    if capped {
+        return Verdict::Passed(format!(
+            "审批门拦下 → 批准 → 工具真跑(批准链 {approved} 跳全部生效;模型未收敛,回合按上限中断)"
         ));
     }
     Verdict::Passed("审批门拦下 → 批准 → 工具真跑".into())
@@ -554,6 +599,11 @@ fn scenario_interrupt() -> Verdict {
     }
     let evs = since(m);
     if count(&evs, "turn_aborted") == 0 && count(&evs, "turn_complete") == 0 {
+        // 终态可能是 error/stream_error(上游 429 掐死流)—— 那是环境态,
+        // 不是「中断没生效」。先按上游态归类。
+        if let Some(reason) = blocked_by_upstream(&evs) {
+            return Verdict::Skipped(reason);
+        }
         return Verdict::Failed("中断后既没有 turn_aborted 也没有 turn_complete".into());
     }
     Verdict::Passed("中断后回合终止".into())
@@ -753,7 +803,8 @@ fn scenario_goal_mode() -> Verdict {
     }
     // 与 GUI `dispatchSubmission.ts::start_goal` 同款顺序:core 的
     // EnterGoalMode 只挂载自校验控制器、**不启动 turn** —— 不先发一条
-    // 用户消息,循环永不开始(此前零事件 900s 超时即此因)。
+    // 用户消息,循环永不开始(此前零事件 900s 超时即此因;早前全矩阵里
+    // 本场景的 PASS 是蹭了上一场景收尾回合的 turn_complete,属假阳性)。
     if let Err(e) = submit("Reply with exactly: GOALDONE and do not use tools.") {
         return Verdict::Failed(format!("goal 首条消息提交失败:{e}"));
     }
@@ -767,6 +818,8 @@ fn scenario_goal_mode() -> Verdict {
     );
     let finished = wait_until(m, goal_budget, |evs| count(evs, "turn_complete") > 0);
     let evs = since(m);
+    // 无论判定如何都先退出 goal 模式,别把后续场景拖进自动续作。
+    let _ = op("reflect_exit_goal_mode", json!({}));
     if let Some(reason) = blocked_by_upstream(&evs) {
         return Verdict::Skipped(reason);
     }
@@ -781,8 +834,6 @@ fn scenario_goal_mode() -> Verdict {
     if content == 0 {
         return Verdict::Skipped("goal 模式跑完但没有正文".into());
     }
-    // 退出 goal 模式,别把后续场景拖进自动续作。
-    let _ = op("reflect_exit_goal_mode", json!({}));
     Verdict::Passed(format!(
         "goal 模式跑了 {turns} 轮 · 正文 {content}B(无专属事件,按续作回合计数)"
     ))
@@ -1286,6 +1337,10 @@ fn live_capability_matrix() {
         if !scenario_selected(name) {
             continue;
         }
+        // 场景隔离:权限模式统一复位到 bubble(自动批准)。上一个场景
+        // (如 tool-approval)留在 prompt 会让后续回合卡在没人应答的审批
+        // 门上 —— 超时/「无事件」都是环境串扰的假阳性,不是产品缺陷。
+        let _ = set_permission_mode("bubble");
         let v = f();
         report(name, &v);
         // 上游配额被打满 → 后面的场景只会继续撞墙,提前收场。

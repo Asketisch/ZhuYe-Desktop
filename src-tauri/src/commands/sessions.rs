@@ -340,10 +340,15 @@ pub async fn reflect_generate_session_title(
             msg: format!("title generation request failed: {e}"),
         })?;
     let mut raw = String::new();
+    // 纯推理型模型(免费池实测:Cohere 系把正文全写进 `delta.reasoning`,
+    // `content` 恒为 null)下 ContentDelta 一个都收不到。标题是清洗性产物,
+    // 正文为空时回退用思考文本派生,不再误报「empty title」。
+    let mut thinking = String::new();
     use futures::StreamExt;
     while let Some(event) = stream.next().await {
         match event {
             Ok(ChatEvent::ContentDelta(delta)) => raw.push_str(&delta),
+            Ok(ChatEvent::ThinkingDelta(delta)) => thinking.push_str(&delta),
             Ok(ChatEvent::MessageStop | ChatEvent::MessageStopTruncated { .. }) => break,
             Ok(_) => {}
             Err(e) => {
@@ -352,6 +357,9 @@ pub async fn reflect_generate_session_title(
                 });
             }
         }
+    }
+    if raw.trim().is_empty() {
+        raw = thinking;
     }
     // 与列表派生标题同一清洗规则(折叠空白 + ≤48 字符),保证列表排版一致。
     let Some(title) = derive_title(&raw) else {

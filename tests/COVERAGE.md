@@ -186,6 +186,13 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 - **`kms_list_pages` 的 `Page.name` 实际带 `.md` 后缀**(与 app-core
   结构体文档注释「不含 .md」相悖) —— 契约按**实际行为**对齐(fake 与
   roundtrips 均为带后缀形态),上游文档注释待修正。
+- **空字符串工具结果在 OpenAI 兼容网关上有路线性雷**(L6 免费池实测):
+  `zhuye-discussion` 的 `read_messages` 空邮箱返回 `text: ""` →
+  `zhuye-llm` 序列化为 `"content": ""` → Kilo 网关 Cohere 路线 400
+  (`all elements in tool_results must have the 'outputs' property`)。
+  wiremock(L3)与 Anthropic 直连不触发,只有部分 OpenAI 兼容路线判死。
+  上游待修(工具层占位文本或序列化层归一化);修复前 L6 discussion 场景
+  在该路线上稳定 FAIL,属**已定位的上游缺陷**,不是演练层的误判。
 
 ---
 

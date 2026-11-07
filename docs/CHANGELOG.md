@@ -72,6 +72,43 @@ vLLM 网关实测)会先烧光预算在 reasoning 段,正文为零 → `model re
 empty title`。放宽到 2048,标题仍经 `derive_title` 清洗截断(≤48 字符),
 非思考模型行为不变。由 L6 实模型演练(局域网网关实测)首次捕获。
 
+### 修复 — 会话标题生成对纯推理型模型恒报「empty title」
+
+免费模型池实测（L6 session-title 场景）复现：Cohere 系模型把正文全部写进
+`delta.reasoning`（`content` 恒为 `null`，curl 探针证实），而
+`reflect_generate_session_title` 只收集 `ChatEvent::ContentDelta`，得到空串后
+误报 `model returned an empty title`。`src-tauri/src/commands/sessions.rs` 现在
+同时收集 `ThinkingDelta`，正文为空时以思考文本派生标题（标题走同一
+`derive_title` 清洗：折叠空白 + ≤48 字符）。
+
+### 修复 — L6 能力矩阵两处假阳性(审批漏答 + prompt 模式跨场景泄漏)
+
+`src-tauri/tests/ipc_live_capabilities.rs`:
+
+- **tool-approval** 原来只批准第一条 `approval_request` —— prompt 模式下模型
+  每次工具调用都要审批,第二条起回合卡在无人应答的审批门上,表现为
+  「批准后等待终态超时」的假阳性。现在逐条批准直到终态,并对病理性工具
+  循环设 12 条上限(触顶先 `reflect_interrupt` 收摊、不污染后续场景,
+  已发生的批准-执行链照常断言)。
+- **场景隔离**:矩阵主循环每个场景前把权限模式复位到 `bubble`(自动批准)
+  —— tool-approval 留在 `prompt` 会让 goal-mode「无事件」、subagent
+  「超时」,全是环境串扰而非产品缺陷。
+- **goal-mode 补首轮 submit**:`Op::EnterGoalMode` 只挂载自校验控制器、
+  不启动 turn(与 GUI `/goal` 的「先 arm 再发消息」同形,见
+  `dispatchSubmission.ts`)。原场景单跑时循环永不开始;早前全矩阵里的
+  PASS 是蹭了 plan-mode 收尾回合的 `turn_complete`,属假阳性。现在场景
+  与 GUI 同形(enter → submit),自动续作不泄漏给后续场景(每个场景前
+  复位权限模式兜底,`exit_goal_mode` 在通过路径收尾)。
+
+### 发现(上游,待修) — 空工具结果触发 Cohere 路线 400
+
+`zhuye-discussion` 的 `read_messages` 在邮箱为空时返回 `text: ""`,经
+`zhuye-llm` OpenAI 序列化发出 `"content": ""` —— Kilo 网关 Cohere 路线直接
+400(`all elements in tool_results must have the 'outputs' property
+specified`;curl 探针证实同参换非空串即 200)。L6 discussion 场景稳定复现。
+修复归上游(ZhuYe 仓库):工具层空结果用占位文本,或序列化层对空 content
+归一化;之后按 `SUBMODULE.md` 升级。
+
 （其余下一批变更从这里开始。）
 
 ## 0.0.2 — 2026-11-03
