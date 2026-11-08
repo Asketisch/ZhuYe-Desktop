@@ -23,6 +23,7 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/../lib.sh"
+source "$HERE/lib.sh"
 
 cd "$ROOT"
 
@@ -197,9 +198,10 @@ if [ -n "$APP_BUNDLE" ]; then
         # 授权必须已嵌入签名(src-tauri/Entitlements.plist 经
         # tauri.conf.json bundle.macOS.entitlements 接线)。封印校验只验
         # 完整性,授权缺失验不出 —— 而 entitlements 决定分发渠道能力
-        # (公证/App Store),忘了接线要到公证/上架才炸。这里断言签名里
-        # 真的带授权 blob(哪怕内容为空 dict —— 接线本身就是事实)。
-        if ! codesign -d --entitlements :- "$APP_BUNDLE" 2>/dev/null > "$RESULT_DIR/codesign-entitlements.log"; then
+        # (公证/App Store),忘了接线要到公证/上架才炸。断言逻辑抽在
+        # artifact/lib.sh,自测(codesign-entitlements.test.sh)跑的是
+        # 生产同一份函数。
+        if ! codesign_entitlements_ok "$APP_BUNDLE" "$RESULT_DIR/codesign-entitlements.log"; then
             echo "签名未嵌入授权(--entitlements 读不到)—— Entitlements.plist 接线缺失:"
             echo "         │ 期望 tauri.conf.json bundle.macOS.entitlements → src-tauri/Entitlements.plist"
             return 1
@@ -467,5 +469,8 @@ if launch_smoke_enabled; then
         tcase "Linux 启动冒烟(xvfb 下 10s 内不崩)" check_launch_smoke_linux
     fi
 fi
+
+# ── 6. 门禁自测(与自测脚本共享生产断言,rust-testing:测试也要测)────
+tcase "门禁自测(codesign 授权断言)" bash "$HERE/codesign-entitlements.test.sh"
 
 tfinish

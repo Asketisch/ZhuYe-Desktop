@@ -246,6 +246,33 @@ code-review 双轴子代理复核技能批次自身。落地修复:
 - **CHANGELOG 措辞对齐实际**:「三个桌面自有纯函数」→「两个自有 +
   上游 derive_title 消费契约」;codesign 验证由流程声称改为门禁固化。
 
+### 测试 — 技能驱动的门禁脚本补强（rust-testing / tauri-testing 落地）
+
+对**测试脚本本身**（分层门禁 shell）按技能补强,四处:
+
+- **自测编排缺口闭合**（最大一处）:`manifest-parity` /
+  `submodule-status` / `analyzer-status` 三个 `*.test.sh` 此前只有文档
+  提及、**从无执行入口**。L1 新增「门禁自测脚本」用例全量执行,目录内
+  新增自测自动纳管。首跑即抓出**无限递归**:analyzer-status /
+  submodule-status 内部会再跑一遍 run.sh（受控夹具）→ 自测块 → 再跑
+  run.sh 套娃卡死。护栏:执行自测时注入 `RUN_SELFTESTS=0`,子进程
+  run.sh 跳过自测用例 —— 按构造消除,未来自测内嵌 run.sh 也安全。
+- **codesign 授权断言抽 lib + 自测**（L4 8→9 用例):断言抽到
+  `artifact/lib.sh`,新增 `codesign-entitlements.test.sh` 用 PATH 垫片
+  伪造 codesign 四形态(嵌入/无授权/空输出/目标缺失)—— 自测跑生产
+  同一份函数,与 L3 夹具驱动生产命令表同一道理。
+- **doc-test 绊网**（L3 4→6 用例之一):`cargo test --workspace --doc`
+  —— `--all-targets` 不含 doctest(cargo 行为),`///` 示例从没人跑;
+  当前基线 0 例,写了示例门禁自动开始验。
+- **llvm-cov 行覆盖报告**（rust-testing Test Coverage;报告型无门槛):
+  装了 `cargo-llvm-cov` 才跑,数字进审查报告。首测**行覆盖 86.55%**
+  (83,046 行;技能基准 General code 80%+)。
+- CI 对照(tauri-testing CI Integration):仓库 CI 已含 tauri-driver /
+  xvfb / E2E_REQUIRED 全套,无缺口。
+
+验证:L1 23 ✓(含自测编排) · L3 6 ✓(3342 用例 + doc-test + 覆盖报告)
+· L4 9 ✓(含 codesign 自测,启动冒烟)。
+
 （其余下一批变更从这里开始。）
 
 ## 0.0.2 — 2026-11-03

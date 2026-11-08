@@ -58,7 +58,15 @@ tcase_log "cargo clippy --workspace --all-targets" \
     "$RESULT_DIR/backend-clippy.log" \
     cargo clippy --workspace --all-targets
 
-# ── 3. 测试(单元 + 能力覆盖层)────────────────────────────────────────────
+# ── 3. 文档测试(rust-testing 技能:Testing Commands)─────────────────────
+# `--all-targets` 不含 doctest(cargo 行为)—— `///` 注释里的 ```rust
+# 代码块从没人跑,API 演进后示例悄悄腐烂。单独跑;当前基线 0 例,本用例
+# 是绊网:今后写了示例,门禁自动开始验它。
+tcase_log "cargo doc-test(/// 示例可编译可运行)" \
+    "$RESULT_DIR/backend-doctest.log" \
+    cargo test --workspace --doc
+
+# ── 4. 测试(单元 + 能力覆盖层)────────────────────────────────────────────
 tcase_log "cargo test --workspace --all-targets(含能力覆盖层)" \
     "$RESULT_DIR/backend-test.log" \
     cargo test --workspace --all-targets
@@ -69,6 +77,17 @@ if [ -f "$RESULT_DIR/backend-test.log" ]; then
     if [ "$cap_count" -gt 0 ]; then
         echo "  ↳ 本次通过用例:$cap_count 条"
     fi
+fi
+
+# ── 5. 行覆盖报告(rust-testing 技能:Test Coverage;可选,装了才跑)───────
+# 只出报告不设硬门槛:当前基线未知,先让数字进审查报告,阈值另议。
+# llvm-cov 要以覆盖旗标重编全部 target,耗时长 —— 缺工具时跳过不算败。
+if command -v cargo-llvm-cov >/dev/null 2>&1; then
+    tcase_log "cargo llvm-cov 行覆盖报告(报告型,无门槛)" \
+        "$RESULT_DIR/backend-coverage.log" \
+        cargo llvm-cov --workspace --all-targets --summary-only
+else
+    tskip "cargo llvm-cov 行覆盖报告" "未安装 cargo-llvm-cov(cargo install cargo-llvm-cov)—— 报告型用例跳过,不阻塞门禁"
 fi
 
 tfinish

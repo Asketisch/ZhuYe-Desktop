@@ -174,4 +174,40 @@ check_toolchain() {
 }
 tcase "工具链锁定" check_toolchain
 
+# ── 9. 门禁自测(*.test.sh 全量执行)────────────────────────────────────
+# manifest-parity / submodule-status / analyzer-status 三个自测此前只有
+# 文档提及、从无执行入口 —— 「测试测试的脚本」自己没人测(rust-testing
+# 技能:被忽略的失败测试等于没有测试)。这里统一执行;新增自测放进本
+# 目录即自动纳管,无需改编排。
+#
+# ⚠️ 再入护栏:analyzer-status / submodule-status 两个自测内部会**再跑
+# 一遍本 run.sh**(伪造 node/git 的受控夹具)。执行自测时注入
+# RUN_SELFTESTS=0,子进程里的 run.sh 看到即跳过本用例 —— 否则
+# run.sh → 自测 → run.sh → 自测 → … 无限递归(首跑实测套娃卡死)。
+run_selftests() {
+    local failed=0 script total=0
+    for script in "$HERE"/*.test.sh; do
+        [ -f "$script" ] || continue
+        total=$((total + 1))
+        local log="$RESULT_DIR/static-selftest-$(basename "$script").log"
+        if ! RUN_SELFTESTS=0 bash "$script" > "$log" 2>&1; then
+            echo "自测失败:$(basename "$script")"
+            tail -10 "$log" | sed 's/^/         │ /'
+            failed=1
+        fi
+    done
+    if [ "$total" -eq 0 ]; then
+        echo "目录里没有任何 *.test.sh —— 自测被整体移除了?"
+        return 1
+    fi
+    if [ "$failed" -eq 0 ]; then
+        echo "门禁自测全过(${total} 个)"
+        return 0
+    fi
+    return 1
+}
+if [ "${RUN_SELFTESTS:-1}" = "1" ]; then
+    tcase "门禁自测脚本(*.test.sh 全量执行)" run_selftests
+fi
+
 tfinish

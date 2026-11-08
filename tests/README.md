@@ -252,13 +252,21 @@ tests/
 │   ├── run.sh
 │   ├── analyze.mjs                         # 源码级交叉比对（命令面 / 路由 / 命名空间 …）
 │   ├── manifest-parity.mjs                 # submodule 清单奇偶校验（继承键缺一即断）
-│   ├── manifest-parity.test.sh             # 上一行的自测（正向 / 缺键点名 / 多键容忍 / 空段失败）
+│   ├── manifest-parity.test.sh             # 自测（正向 / 缺键点名 / 多键容忍 / 空段失败）
 │   ├── submodule-status.test.sh            # submodule 指针检查的自测
 │   ├── analyzer-status.test.sh             # 分析器状态的自测
 │   └── baseline.json                       # 棘轮基线
 ├── frontend/run.sh                         # L2 前端行为层
 ├── backend/run.sh                          # L3 真后端能力覆盖层
-├── artifact/run.sh                         # L4 发布产物审查层
+├── artifact/                               # L4 发布产物审查层
+│   ├── run.sh
+│   ├── lib.sh                              # 共享断言（codesign 授权嵌入检查）
+│   └── codesign-entitlements.test.sh       # 上一行的自测（PATH 垫片伪造 codesign 四形态）
+#
+# 自测执行入口:static/ 的三个 *.test.sh 由 L1「门禁自测脚本」用例统一
+# 执行;codesign 自测由 L4 自身编排（static 扫不到 artifact/ 目录）。
+# 递归护栏:自测内部再跑 run.sh 时置 RUN_SELFTESTS=0,子进程跳过自测
+# 用例 —— 否则 run.sh → 自测 → run.sh 无限递归。
 ├── e2e/                                    # L5 视觉回归 + 真窗口冒烟
 │   ├── run.sh
 │   └── window.smoke.test.ts                # tauri-driver 真窗口冒烟（仅 Linux）

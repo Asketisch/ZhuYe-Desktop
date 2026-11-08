@@ -14,8 +14,8 @@
 |---|---|---|---|---|
 | L1 | `tests/static/` | 源码与仓库状态：命令面**四方**一致（后端实现 ↔ `lib.rs` 注册表 ↔ 前端包装 ↔ 测试替身 `fakeBackend`）、路由↔视图、版本四处一致、CHANGELOG / 能力矩阵新鲜度、仓库卫生、调试残留、生产文件大小预算棘轮、真后端命令覆盖棘轮 | 静态分析 | 0 = 通过 |
 | L2 | `tests/frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量（`src/` 99 个文件 + `tests/` 10 个文件） | **模拟**（`fakeBackend`） | 0 = 通过 |
-| L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`） | **真** | 0 = 通过 |
-| L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 | 0 = 通过 |
+| L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / doc-test（`///` 示例绊网，`--all-targets` 不含 doctest）/ `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`）/ llvm-cov 行覆盖报告（装了才跑，报告型无门槛；2026-11 首测 **86.55%**） | **真** | 0 = 通过 |
+| L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / **签名封印 + 授权已嵌入**（`codesign_entitlements_ok`，自测 `codesign-entitlements.test.sh` 同步编排）/ DMG 内封印 | 真产物 | 0 = 通过 |
 | L5 | `tests/e2e/` | 视觉回归（全路由 × dark/light 截图基线，真实前端 + fakeBackend 浏览器态构建）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）；依赖缺失时默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
 | L6 | `tests/live/` | **实模型演练**：`reflect_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `reflect_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`REFLECT_LIVE=1` 开启 | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
 
