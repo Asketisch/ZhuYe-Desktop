@@ -9278,6 +9278,7 @@ dependencies = [
  "chrono",
  "futures",
  "parking_lot",
+ "proptest",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -9671,6 +9672,7 @@ version = "0.0.2"
 dependencies = [
  "async-trait",
  "chrono",
+ "proptest",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -9877,6 +9879,7 @@ dependencies = [
  "ignore",
  "once_cell",
  "parking_lot",
+ "proptest",
  "regex",
  "reqwest 0.12.28",
  "rustix 1.1.4",

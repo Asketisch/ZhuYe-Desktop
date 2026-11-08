@@ -175,6 +175,9 @@ schemars           = "0.8"
 once_cell          = "1"
 wiremock           = "0.6"
 insta              = { version = "1", features = ["yaml"] }
+# v1.x(上游 0.1.11):property-based 测试 —— 纯函数不变式用随机输入
+# 探索,补手写用例盲区(桌面侧已在 src-tauri dev-dependencies 使用)。
+proptest           = "1"
 
 # Tauri 2 stack (used only by src-tauri)
 tauri              = { version = "2", features = [] }
