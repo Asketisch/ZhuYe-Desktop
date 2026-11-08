@@ -728,6 +728,13 @@ submodule 从 develop pin 切到 **main 分支**（`.gitmodules` 补
 `hkdf` / `wasmtime` / `wasmtime-wasi`,后四者版本与上游逐字对齐,
 wasmtime 锁 `=30.0.1` 与 guest 侧 wit-bindgen 0.40 同代）。
 
+### 3.28 submodule 跟随 main（`321cb825` → `54c8a001`,v0.1.11）
+
+上游 7 个提交（含合并）:版本 bump **v0.1.11** 四处同步;上游同步落地
+proptest / 覆盖率基线（桌面此前两轮已先行,本轮只消费其 `proptest`
+继承键——parity 门禁在编译前点名补到根清单）。协议/运行时 API 零
+变化,桌面无适配;全量门禁（L1–L6）在 bump 后复跑通过。
+
 ---
 
 ## 4. 剩余缺口与后续

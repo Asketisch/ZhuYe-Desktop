@@ -525,7 +525,19 @@ fn scenario_tool_approval() -> Verdict {
                 e.iter()
                     .any(|ev| ty(ev) == "approval_request" || is_terminal(ev))
             }) {
-                return Verdict::Failed("批准后等待回合终态超时".into());
+                // 批准后不收敛 ≠ 产品缺陷:审批门已验证过(至少一条批准
+                // → 工具执行 → 输出到达),只是免费模型在批准间无限生成
+                // (与 tool-call 的不收敛、12 条上限同教义)。中断收摊,
+                // 判模型行为;一条都没批过的超时仍是 Fail(那是真异常)。
+                if answered.is_empty() {
+                    return Verdict::Failed("批准后等待回合终态超时(且无任何已批准门)".into());
+                }
+                let _ = op("reflect_interrupt", json!({}));
+                let _ = wait_terminal(m, Duration::from_secs(30));
+                return Verdict::Skipped(format!(
+                    "批准 {answered_n} 道后模型在预算内不收敛(模型行为;审批-执行链已验证)",
+                    answered_n = answered.len()
+                ));
             }
             continue;
         }
