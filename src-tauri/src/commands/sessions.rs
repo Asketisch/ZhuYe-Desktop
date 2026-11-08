@@ -1206,13 +1206,16 @@ mod tests {
     use tempfile::tempdir;
 
     // ====== 属性测试(rust-testing 技能采纳)======
+    // 策略用 `any::<String>()`(含换行/控制字符的全域 String),不用正则
+    // ".*" —— 其 `.` 不匹配换行,覆盖不了多行会话正文。
 
     proptest::proptest! {
-        // derive_title 的桌面消费契约(上游 recorder.rs 的实现):非空输入
-        // 必产 Some;输出单行、无首尾空白;截断时 48 字符 + `…`。标题直接
-        // 进 GUI 列表,这些不变式坏了就是显示回归。
+        // derive_title 的**桌面消费契约**(实现在上游 recorder.rs,桌面经
+        // reflect_protocol 消费):非空输入必产 Some;输出单行、无首尾
+        // 空白;截断时 48 字符 + `…`。标题直接进 GUI 列表,坏了就是显示
+        // 回归 —— 锁消费端可见的形状,上游实现细节不在这里复制。
         #[test]
-        fn derived_title_is_bounded_and_single_line(text in ".*") {
+        fn derived_title_is_bounded_and_single_line(text in any::<String>()) {
             if let Some(title) = derive_title(&text) {
                 let n = title.chars().count();
                 prop_assert!(
@@ -1226,7 +1229,8 @@ mod tests {
                     "含换行: {:?}",
                     title
                 );
-                prop_assert_eq!(title.trim(), title.clone(), "首尾空白: {:?}", title);
+                let trimmed = title.trim();
+                prop_assert!(trimmed == title, "首尾空白: {:?}", title);
                 prop_assert!(!title.is_empty());
             }
             // 空白输入必产 None(调用方据此保持 title = null)。
@@ -1237,7 +1241,7 @@ mod tests {
 
         #[test]
         fn snippet_never_panics_on_valid_char_boundaries(
-            text in ".*",
+            text in any::<String>(),
             skip in 0usize..64,
         ) {
             // match_start 由搜索层产生,恒为字符边界;这里以任意字符边界

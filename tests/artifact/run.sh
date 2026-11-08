@@ -194,10 +194,20 @@ if [ -n "$APP_BUNDLE" ]; then
             tail -3 "$RESULT_DIR/codesign-verify.log" 2>/dev/null | sed 's/^/         │ /'
             return 1
         fi
-        echo "codesign 封印校验通过($(codesign -dv "$APP_BUNDLE" 2>&1 | grep -o 'Signature=.*' | head -1))"
+        # 授权必须已嵌入签名(src-tauri/Entitlements.plist 经
+        # tauri.conf.json bundle.macOS.entitlements 接线)。封印校验只验
+        # 完整性,授权缺失验不出 —— 而 entitlements 决定分发渠道能力
+        # (公证/App Store),忘了接线要到公证/上架才炸。这里断言签名里
+        # 真的带授权 blob(哪怕内容为空 dict —— 接线本身就是事实)。
+        if ! codesign -d --entitlements :- "$APP_BUNDLE" 2>/dev/null > "$RESULT_DIR/codesign-entitlements.log"; then
+            echo "签名未嵌入授权(--entitlements 读不到)—— Entitlements.plist 接线缺失:"
+            echo "         │ 期望 tauri.conf.json bundle.macOS.entitlements → src-tauri/Entitlements.plist"
+            return 1
+        fi
+        echo "codesign 封印校验通过 + 授权已嵌入($(codesign -dv "$APP_BUNDLE" 2>&1 | grep -o 'Signature=.*' | head -1))"
         return 0
     }
-    tcase "macOS 签名成立(bundle 封印可校验)" check_codesign
+    tcase "macOS 签名成立(bundle 封印可校验 + 授权已嵌入)" check_codesign
 
     # DMG 是 macOS 真正发出去的形态 —— 散装 .app 封印了不代表 DMG 里的
     # 那份也封印了(签名发生在打包期才有效,后置封印救不了已打好的 DMG)。

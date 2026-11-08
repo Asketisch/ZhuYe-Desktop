@@ -206,20 +206,45 @@ api.github.com 手工落盘（与 CLI 同布局）。落地项:
   `src-tauri/Entitlements.plist` 并接入 `tauri.conf.json`。刻意**不启
   用** App Store 沙箱（终端 spawn 任意用户进程是产品核心能力）、不加
   JIT/库校验例外（WKWebView JIT 在 Apple 签名的独立进程）—— 文件内
-  注释逐条说明取舍;重新打包 + codesign 验证授权已嵌入签名,产物层
-  8/8（含启动冒烟）通过。
-- **属性测试**（rust-testing 技能,`proptest` 进 dev 依赖）:三个桌面
-  自有纯函数锁无穷输入面 —— `strip_exit_marker`（追加一行标记必精确
-  还原 + 任意 UTF-8 不 panic;**幂等性经论证不属契约**:强剥多行会吞
-  用户 echo 的形似标记行,注释留证）、`derive_title` 消费契约（单行/
-  ≤48+`…`/无首尾空白/空白输入必 None）、`build_snippet`（任意字符
-  边界不 panic + 折叠语义）。lib 测试 234 → 含属性用例全绿。
+  注释逐条说明取舍。产物门禁同步补强:codesign 校验新增**授权已嵌入
+  签名**断言（此前只验封印,授权缺失验不出 —— code-review Spec 轴
+  抓出的证据缺口）,重新打包后产物层 8/8（含启动冒烟）通过。
+- **属性测试**（rust-testing 技能,`proptest` 进 dev 依赖）:两个桌面
+  自有纯函数 + 一个上游函数的消费契约,锁无穷输入面 ——
+  `strip_exit_marker`（追加一行标记必精确还原 + 任意输出不 panic;
+  **幂等性经论证不属契约**:强剥多行会吞用户 echo 的形似标记行,注释
+  留证）、`build_snippet`（任意字符边界不 panic + 折叠语义）、
+  `derive_title` 消费契约（单行/≤48+`…`/无首尾空白/空白输入必 None;
+  实现在上游,桌面只锁消费端可见形状）。策略用 `any::<String>()` 全域
+  生成（含换行/控制字符）—— 正则 `".*"` 的 `.` 不匹配换行,「任意」
+  会名不符实（code-review 双轴复核抓出后修正）。lib 测试含属性用例
+  全绿,并以 `PROPTEST_CASES=2048` 加压复跑通过。
 - **CSP / capabilities 差距审计**（tauri-csp / tauri-capabilities 技能
   对照）:现有 CSP 与技能推荐形态逐项一致,`main.json` 权能已是最小
   显式集 —— 无需改动,M1.1 的安全基线仍然成立。
 - **tauri-testing 技能对照**:WebDriver 平台表与仓库 L5 实现逐字一致
   （macOS 无 WKWebView 桥是官方口径）;mockIPC 弱于自建 fakeBackend
   （188 命令 + 线格式契约样本），不引入。
+
+### 测试 — 技能批次全量验证 + 双轴复核修复
+
+以全部在案技能跑完整门禁（L1–L6 全开,含启动冒烟与实模型）,并用
+code-review 双轴子代理复核技能批次自身。落地修复:
+
+- **属性测试策略修正**（Standards 轴）:proptest 正则 `".*"` 的 `.`
+  不匹配换行 —— 「任意 UTF-8/CRLF」名不符实。三处策略改
+  `any::<String>()` 全域生成,`PROPTEST_CASES=1024/2048` 加压复跑通过;
+  块注释与实现同步（性质条数、幂等否决自证不再矛盾）。
+- **产物门禁补授权断言**（Spec 轴证据缺口）:`check_codesign` 新增
+  `codesign -d --entitlements` 断言 —— 此前只验封印完整性,Entitlements
+  接线缺失要等到公证/上架才炸;现在签名里没授权 blob 直接判失败
+  （本地 8/8 复跑通过）。
+- **L6 tool-call 预算内不收敛分类**（实测新形态）:免费模型 6 次工具
+  调用全部配对、输出到达,但回合在预算内不收口 —— 机械健康的证据
+  齐全时应判模型行为（与 tool-approval 12 条上限同教义）:中断收摊 +
+  Skipped 带证据摘要;无配对证据的超时仍 Fail。
+- **CHANGELOG 措辞对齐实际**:「三个桌面自有纯函数」→「两个自有 +
+  上游 derive_title 消费契约」;codesign 验证由流程声称改为门禁固化。
 
 （其余下一批变更从这里开始。）
 

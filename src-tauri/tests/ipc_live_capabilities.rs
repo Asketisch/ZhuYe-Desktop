@@ -405,6 +405,28 @@ fn scenario_tool_call() -> Verdict {
         if let Some(reason) = blocked_by_upstream(&evs) {
             return Verdict::Skipped(reason);
         }
+        // 预算内不收敛 ≠ 产品缺陷:机械是否健康看**配对证据** ——
+        // begin/end 成对 + 预期输出到达 + 无引擎错误,说明提交→模型→
+        // 工具执行→输出回传全链路在工作,只是免费模型不收口(与
+        // tool-approval 的 12 条上限同教义)。此时中断收摊、判模型行为;
+        // 无配对证据的超时仍是 Fail(那是真异常)。
+        let begins = count(&evs, "tool_call_begin");
+        let ends = count(&evs, "tool_call_end");
+        let outputs: String = evs
+            .iter()
+            .filter(|e| ty(e) == "tool_call_end")
+            .map(|e| e["msg"]["output"].to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        if begins > 0 && begins == ends && outputs.contains("live-tool-ok") {
+            let _ = op("reflect_interrupt", json!({}));
+            let _ = wait_terminal(m, Duration::from_secs(30));
+            return Verdict::Skipped(format!(
+                "模型 {begins} 次工具调用全部成对且输出含预期串,但预算内不收敛 \
+                 (模型行为,机械配对已验证)。已收到:{}",
+                summarize_events(&evs)
+            ));
+        }
         // 回合没终止 —— 把已发生的事带出来(工具调用了几次?有审批吗?),
         // 否则「超时」这三个字对定位毫无帮助。
         return Verdict::Failed(format!(

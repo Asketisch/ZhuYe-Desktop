@@ -9,6 +9,9 @@
     本应用永远不走 App Store 分发,沙箱只有害处。
   - com.apple.security.cs.allow-jit / allow-unsigned-executable-memory:
     WKWebView 的 JIT 在 Apple 签名的独立 WebContent 进程里,宿主不需要。
+  - com.apple.security.cs.disable-library-validation:当前只加载系统与
+    自签框架,无需装载任意第三方插件库;未来若引入需例外的能力,在此
+    补充并说明。
   - com.apple.security.device.audio-input(听写用麦克风):非沙箱下由
     TCC 首次使用弹窗授权,无需授权键。
 
