@@ -306,7 +306,9 @@ export interface PermissionBubblePayload {
 }
 
 export interface ContextCompactedPayload {
-  strategy: 'noop' | 'microcompact' | 'smart_prune' | 'llm_summarize';
+  // wire 值镜像 Rust `ContextCompactedStrategy`(rename_all = snake_case):
+  // `LlMSummarize` → `ll_m_summarize`(缩写分段,不是 `llm_summarize`)。
+  strategy: 'noop' | 'microcompact' | 'smart_prune' | 'll_m_summarize';
   removed_messages: number;
   before_tokens: number;
   after_tokens: number;

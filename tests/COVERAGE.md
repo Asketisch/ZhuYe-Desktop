@@ -100,6 +100,9 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | **模型发现(清单实时拉取)** | `model = "free"` → 运行时查 provider 清单 → 按免费规则挑一个 → 写进运行时配置;失败**如实上报**(不回落占位串) | L6 `ipc_live_free_model.rs`(随实模型层跑) | — |
 | **实模型能力域矩阵** | 15 个场景覆盖**其余依赖模型的命令面**:工具调用(bubble 自动批准)/ 工具审批(prompt→批准→真跑)/ 中断 / 压缩 / 回退 / plan 模式(plan_request→plan_ready→plan_approved)/ goal 模式 / 会话标题生成 / 任务工具 / 子代理 / 追问 / 讨论(llmBacked=true)/ 流水线 / 团队流水线。**模型不配合判跳过**(非失败) | L6 `ipc_live_capabilities.rs`(默认 SKIP) | — |
 
+| **事件面线格式契约(全变体)** | 协议 `EventMsg` **全部 50 个变体**的最小合法样本(`tests/contracts/events.json`):真协议 serde 反序列化 + wire roundtrip + 未知 type/缺必填字段探测器 | L2 `ipc.event-contract` + L3 `ipc_event_contract.rs` + L1 `event-parity`(Rust enum ↔ TS 联合 ↔ 样本表三方奇偶) | 同左(fakeBackend 侧) |
+| **视图行为(九切片)** | home / models / skills / prompts / debug / dictation / about / apps / mobile 的交互与数据投影:会话导航、set_model/set_effort 线格式、`mcp__` 前缀分组、模板经 store.submit、ping 版本面、本地连接翻转 | — | `views.untested-slices`(路由矩阵之外的交互增量) |
+| **门禁自测(测试测试的脚本)** | `lib.sh` 原语(tcase/tfinish/suite_absorb/run_with_timeout 状态分类)、`run_all.sh` 聚合(未知套件/报告结构/GATE_STRICT 无跳过不误报)、LIVE_CASE 折叠(与 `live/run.sh` 消费同一份 awk) | L1 `static/*.test.sh`(7 个自测统一编排) | — |
 **合计**：后端 185 条 `reflect_*` 命令中，能力覆盖层**直接驱动 179 条
 （96.8%）**；余下 6 条在 §3 逐条说明排除理由。
 
@@ -193,6 +196,16 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
   wiremock(L3)与 Anthropic 直连不触发,只有部分 OpenAI 兼容路线判死。
   上游待修(工具层占位文本或序列化层归一化);修复前 L6 discussion 场景
   在该路线上稳定 FAIL,属**已定位的上游缺陷**,不是演练层的误判。
+- **`EventMsg::AskUserInput` 的 `discriminant()` 与 serde wire tag 不一致**(上游内部):
+  discriminant 返回 `"ask_user"`,serde `rename_all=snake_case` 的 wire tag 是
+  `ask_user_input`。事件面契约(L3 `ipc_event_contract.rs`)因此锚定
+  **wire type**(重序列化后的 `type` 字段)而非 discriminant —— wire 才是
+  `reflect_event` 通道上消费者看到的形态。上游待统一(discriminant 跟随
+  serde tag),修复后桌面无感(前端走 wire)。
+- **`ContextCompactedStrategy::LlMSummarize` 的 wire 值是 `ll_m_summarize`**
+  (serde snake_case 对 `LlMSummarize` 的缩写分段),不是 `llm_summarize`。
+  前端 `ContextCompactedPayload.strategy` 已按 wire 修正 —— 此前类型写的
+  `llm_summarize` 永远匹配不上真实事件(事件面契约实测抓到)。
 - **side-channel `startedAtMs` 双时间源**(L3 实测,毫秒翻边时 flaky):
   `registry.start()` 给句柄打一次 `now_ms()`(快照/列表数据源),上游
   `submission_loop` 构造协议 `SideChannelStarted` 应答时**重新取**

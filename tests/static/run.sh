@@ -124,6 +124,15 @@ check_submodule_manifest_parity() {
 }
 tcase "submodule 清单奇偶一致(workspace.dependencies 继承键)" check_submodule_manifest_parity
 
+# ── 4c. 事件面三方奇偶(Rust enum ↔ TS 联合 ↔ 契约样本)──────────────────
+# 协议 EventMsg 的变体名单三处必须一致 —— submodule 升级新增/改名事件时,
+# reducer 对未知 type 是安全降级,不守这层漂移会静默通过全部测试。样本表
+# 被 L2(ipc.event-contract)与 L3(ipc_event_contract.rs)同时消费。
+check_event_parity() {
+    node "$HERE/event-parity.mjs"
+}
+tcase "事件面三方奇偶(EventMsg 变体 = TS 联合 = 契约样本)" check_event_parity
+
 # ── 5. 子模块指针已提交(未提交 = 发布产物不可复现)───────────────────────
 check_submodule_committed() {
     if git -C "$ROOT" diff --quiet --ignore-submodules=none --submodule=short HEAD -- zhuye-agent 2>/dev/null; then

@@ -4,6 +4,38 @@
 
 ## 未发布
 
+### 变更 — 测试链路收口:事件面契约三层落地 + 门禁假绿修复 + 九视图行为测试
+
+参考 submodule v0.1.12 测试提交(`5f45f0ac` 能力覆盖层收口)的「全量收口 +
+字段级断言 + 覆盖矩阵」纪律,对桌面六层门禁做同向收口:
+
+- **事件面跨运行时契约**(此前命令面有 payloads.json 双端契约、事件面零锁定):
+  `tests/contracts/events.json` 收录协议 `EventMsg` **全部 50 个变体**的最小
+  合法样本;L3 `ipc_event_contract.rs` 驱动真协议 serde 反序列化 + wire
+  roundtrip + 未知 type / 缺必填字段探测器;L2 `ipc.event-contract` 经真实
+  bus → reducer 断言不落 unknown 分支;L1 `event-parity.mjs` 做 Rust enum ↔
+  TS 联合 ↔ 样本表三方奇偶(submodule 升级新增/改名事件时逐个点名)。
+  **实测抓到 3 处真实漂移并修复**:reducer 缺 `tool_call_args_delta` 显式
+  case(穷尽性守卫漏网);TS `ContextCompactedPayload.strategy` 写的
+  `llm_summarize` 与 wire `ll_m_summarize` 不符;`EventMsg::AskUserInput`
+  上游 discriminant(`ask_user`)与 wire tag(`ask_user_input`)不一致
+  (契约锚定 wire,上游待统一,记 COVERAGE 已知特征)。
+- **门禁假绿修复**:artifact 层 5 处「缺工具 → return 0 → 记 PASS」改 tskip;
+  e2e 视觉层编排失败此前丢弃返回值照常记过;视觉基线缺失在 CI
+  (`E2E_REQUIRED=1`)下判失败 + 基线集合 ↔ 路由矩阵完整性校验;
+  `run_all.sh` 报告新增「层内跳过明细」段,`GATE_STRICT=1`(release 流水线
+  已接)把整层/层内跳过升级为失败;tcase PASS 落输出末行为 reason。
+- **门禁自测**:新增 `lib.test.sh`(tcase/tfinish/suite_absorb/
+  run_with_timeout 状态分类)、`run_all.test.sh`(未知套件/报告结构/
+  GATE_STRICT 无跳过不误报)、`live-fold.test.sh`(LIVE_CASE 折叠,与
+  `live/run.sh` 消费同一份 `fold_live_cases.awk`)—— L1 自测编排扩到 7 个。
+- **九视图行为测试** `tests/views.untested-slices.test.tsx`(11 用例):
+  home 会话导航、models 的 set_model/set_effort 线格式、skills 的
+  `mcp__` 分组、prompts 模板经 store.submit、debug 状态镜像、dictation
+  jsdom 空态、about ping 版本面、apps 本地翻转、mobile 零后端调用。
+- **L3/L6**:cargo test 加 `--no-fail-fast`(失败报告要全貌);修复
+  `grep -c || echo 0` 的 "0\n0" 计数缺陷。
+
 ### 变更 — submodule 接线 main `54c8a001` → `5f45f0ac`(v0.1.12)
 
 上游 6 个提交:版本 bump **v0.1.12** 四处同步;SDK 文档门禁接入 CI、

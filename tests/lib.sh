@@ -45,6 +45,8 @@ suite_begin() {
 
 # tcase <名称> <命令...>:执行一条用例,记录通过/失败。
 # 命令可以是外部命令,也可以是本脚本定义的 shell 函数。
+# PASS 时把输出末行落进报告的 reason 列 —— 「校验摘要 / 签名形态 / 跳过
+# 原因」这类关键上下文不再因为用例通过而被丢弃(suite_absorb 同格式)。
 tcase() {
     local name="$1"
     shift
@@ -52,7 +54,13 @@ tcase() {
     if out="$("$@" 2>&1)"; then
         PASS_COUNT+=1
         echo "  [ok]   $name"
-        printf 'PASS\t%s\n' "$name" >> "$RESULT_DIR/$SUITE_NAME.cases"
+        local reason
+        reason=$(printf '%s\n' "$out" | sed '/^[[:space:]]*$/d' | tail -1)
+        if [ -n "$reason" ]; then
+            printf 'PASS\t%s\t%s\n' "$name" "$reason" >> "$RESULT_DIR/$SUITE_NAME.cases"
+        else
+            printf 'PASS\t%s\n' "$name" >> "$RESULT_DIR/$SUITE_NAME.cases"
+        fi
         return 0
     fi
     FAIL_COUNT+=1

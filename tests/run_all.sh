@@ -95,6 +95,42 @@ for suite in "${SUITE_NAMES[@]}"; do
     fi
 done
 
+# ── 汇总统计(报告块之前算好,供报告与终端两处消费)───────────────────────
+SKIPPED_LAYERS=0
+for i in "${!SUITE_NAMES[@]}"; do
+    [ "$(suite_status "${SUITE_NAMES[$i]}")" = "skip" ] && SKIPPED_LAYERS=$((SKIPPED_LAYERS + 1))
+done
+
+# 层内跳过统计与明细:整层跑过但个别用例因缺工具/缺依赖跳过 —— 发布结论
+# 必须让「没真正审过」的部分可见,而不是埋在逐用例列表里。
+SKIPPED_CASES=0
+SKIP_DETAIL=""
+for i in "${!SUITE_NAMES[@]}"; do
+    suite_file="${SUITE_FILES[$i]}"
+    [ -n "$suite_file" ] && [ -f "$RESULT_DIR/$suite_file.cases" ] || continue
+    skips=$(grep -c $'^SKIP\t' "$RESULT_DIR/$suite_file.cases" 2>/dev/null || true)
+    [ "${skips:-0}" -gt 0 ] || continue
+    SKIPPED_CASES=$((SKIPPED_CASES + skips))
+    SKIP_DETAIL="${SKIP_DETAIL}- \`${SUITE_NAMES[$i]}\`:${skips} 条
+"
+    SKIP_DETAIL="${SKIP_DETAIL}$(grep $'^SKIP\t' "$RESULT_DIR/$suite_file.cases" | sed 's/^SKIP\t/  - /' | cut -c1-160)
+"
+done
+
+# GATE_STRICT=1(发布流水线可选):跳过 = 没真正审过 = 不允许发布。
+# 覆盖两层语义:整层 SKIP(依赖缺失整层没跑)与层内 SKIP(个别用例缺
+# 工具)。默认 0 保持既有行为(跳过不算失败,报告标注)。
+if [ "${GATE_STRICT:-0}" = "1" ]; then
+    if [ "$SKIPPED_LAYERS" -gt 0 ]; then
+        echo "  ⛔ GATE_STRICT=1:$SKIPPED_LAYERS 层整层未跑 —— 判失败"
+        OVERALL=1
+    fi
+    if [ "$SKIPPED_CASES" -gt 0 ]; then
+        echo "  ⛔ GATE_STRICT=1:层内有 $SKIPPED_CASES 条跳过 —— 判失败"
+        OVERALL=1
+    fi
+fi
+
 # ── 发布审查报告 ──────────────────────────────────────────────────────────
 REPORT="$RESULT_DIR/release-review.md"
 {
@@ -118,21 +154,29 @@ REPORT="$RESULT_DIR/release-review.md"
         echo "| $((i + 1)) | \`${SUITE_NAMES[$i]}\` | $mark | ${SUITE_SUMMARY[$i]} |"
     done
     echo
-    SKIPPED_LAYERS=0
-    for i in "${!SUITE_NAMES[@]}"; do
-        [ "$(suite_status "${SUITE_NAMES[$i]}")" = "skip" ] && SKIPPED_LAYERS=$((SKIPPED_LAYERS + 1))
-    done
     if [ "$OVERALL" -ne 0 ]; then
         echo "**结论:存在阻断项 —— 禁止发布。**"
     elif [ "$SKIPPED_LAYERS" -gt 0 ]; then
         echo "**结论:无阻断项,但有 $SKIPPED_LAYERS 层未真正审过(标记为 ⏭ 跳过)"
         echo "—— 发布前请补跑那些层。**"
+    elif [ "$SKIPPED_CASES" -gt 0 ]; then
+        echo "**结论:无阻断项;有 $SKIPPED_CASES 条用例在层内跳过(未真正审过,"
+        echo "明细见下)。设 GATE_STRICT=1 可把跳过升级为失败。**"
     else
         echo "**结论:全部通过 —— 允许发布。**"
     fi
     echo
     echo "> 「⏭ 跳过」= 该层因依赖缺失而**没有真正跑**(如本地未构建产物时的"
-    echo "> 产物审查层)。发布流水线里产物审查是必跑的,不会跳过。"
+    echo "> 产物审查层)。发布流水线里产物审查是必跑的,不会跳过;"
+    echo "> GATE_STRICT=1 时任何跳过(整层或层内)都判失败。"
+    echo
+    echo "## 层内跳过明细"
+    echo
+    if [ -n "$SKIP_DETAIL" ]; then
+        printf '%s\n' "$SKIP_DETAIL"
+    else
+        echo "(无)"
+    fi
     echo
     echo "## 逐用例明细"
     echo
@@ -157,6 +201,8 @@ if [ "$OVERALL" -ne 0 ]; then
     echo "══════════════ 发布门禁:存在失败(禁止发布)══════════════"
 elif [ "$SKIPPED_LAYERS" -gt 0 ]; then
     echo "══════════════ 发布门禁:无阻断项,但有 $SKIPPED_LAYERS 层未真正审过 ══════════════"
+elif [ "$SKIPPED_CASES" -gt 0 ]; then
+    echo "══════════════ 发布门禁:无阻断项,$SKIPPED_CASES 条用例层内跳过 ══════════════"
 else
     echo "══════════════ 发布门禁:全部通过 ══════════════"
 fi

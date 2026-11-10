@@ -66,20 +66,14 @@ RAW="$RESULT_DIR/live-cases.raw"
     cd "$ROOT/src-tauri" &&
     REFLECT_LIVE=1 cargo test \
         --test ipc_live_free_model --test ipc_live_capabilities \
-        -- --ignored --nocapture
+        -- --ignored --nocapture --test-threads=1
 ) > "$LOG" 2>&1
 CARGO_STATUS=$?
 
 # 把 Rust 侧打印的 `LIVE_CASE\t<名>\t<状态>\t<原因>` 折进门禁用例表。
-# 格式与 `suite_absorb` 对齐:PASS / FAIL / SKIP。
-awk -F'\t' '
-    /^LIVE_CASE\t/ {
-        status = $3; name = $2; reason = $4;
-        if (status == "PASS")      printf "PASS\t%s\t%s\n", name, reason;
-        else if (status == "FAIL") printf "FAIL\t%s\t%s\n", name, reason;
-        else                       printf "SKIP\t%s\t%s\n", name, reason;
-    }
-' "$LOG" > "$RAW"
+# 折叠逻辑在 fold_live_cases.awk —— 与自测(live-fold.test.sh)消费
+# **同一份**文件,防复制漂移。
+awk -F'\t' -f "$HERE/fold_live_cases.awk" "$LOG" > "$RAW"
 
 if [ ! -s "$RAW" ]; then
     # 没有产出任何用例行 —— Rust 侧崩在打点之前,或 cargo 根本没跑起来。

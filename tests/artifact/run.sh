@@ -185,148 +185,150 @@ if [ -n "$APP_BUNDLE" ]; then
     # 是否成功 —— -dv 是显示动词,主二进制上有链接器顺手落的 ad-hoc 内嵌签名
     # 就能过,而 bundle 封印(_CodeSignature/CodeResources)可能完全缺失;
     # 那种包下载后 Gatekeeper 直接判「已损坏」(v0.0.1 DMG 实测)。
-    check_codesign() {
-        if ! require_cmd codesign; then
-            echo "本机无 codesign —— 跳过签名检查"
+    # 缺 codesign 时记 SKIP 而不是 PASS —— 「没验」不能伪装成「验过」。
+    if require_cmd codesign; then
+        check_codesign() {
+            if ! codesign --verify --deep --strict "$APP_BUNDLE" 2> "$RESULT_DIR/codesign-verify.log"; then
+                echo "codesign 封印校验失败(--verify --deep --strict):"
+                tail -3 "$RESULT_DIR/codesign-verify.log" 2>/dev/null | sed 's/^/         │ /'
+                return 1
+            fi
+            # 授权必须已嵌入签名(src-tauri/Entitlements.plist 经
+            # tauri.conf.json bundle.macOS.entitlements 接线)。封印校验只验
+            # 完整性,授权缺失验不出 —— 而 entitlements 决定分发渠道能力
+            # (公证/App Store),忘了接线要到公证/上架才炸。断言逻辑抽在
+            # artifact/lib.sh,自测(codesign-entitlements.test.sh)跑的是
+            # 生产同一份函数。
+            if ! codesign_entitlements_ok "$APP_BUNDLE" "$RESULT_DIR/codesign-entitlements.log"; then
+                echo "签名未嵌入授权(--entitlements 读不到)—— Entitlements.plist 接线缺失:"
+                echo "         │ 期望 tauri.conf.json bundle.macOS.entitlements → src-tauri/Entitlements.plist"
+                return 1
+            fi
+            echo "codesign 封印校验通过 + 授权已嵌入($(codesign -dv "$APP_BUNDLE" 2>&1 | grep -o 'Signature=.*' | head -1))"
             return 0
-        fi
-        if ! codesign --verify --deep --strict "$APP_BUNDLE" 2> "$RESULT_DIR/codesign-verify.log"; then
-            echo "codesign 封印校验失败(--verify --deep --strict):"
-            tail -3 "$RESULT_DIR/codesign-verify.log" 2>/dev/null | sed 's/^/         │ /'
-            return 1
-        fi
-        # 授权必须已嵌入签名(src-tauri/Entitlements.plist 经
-        # tauri.conf.json bundle.macOS.entitlements 接线)。封印校验只验
-        # 完整性,授权缺失验不出 —— 而 entitlements 决定分发渠道能力
-        # (公证/App Store),忘了接线要到公证/上架才炸。断言逻辑抽在
-        # artifact/lib.sh,自测(codesign-entitlements.test.sh)跑的是
-        # 生产同一份函数。
-        if ! codesign_entitlements_ok "$APP_BUNDLE" "$RESULT_DIR/codesign-entitlements.log"; then
-            echo "签名未嵌入授权(--entitlements 读不到)—— Entitlements.plist 接线缺失:"
-            echo "         │ 期望 tauri.conf.json bundle.macOS.entitlements → src-tauri/Entitlements.plist"
-            return 1
-        fi
-        echo "codesign 封印校验通过 + 授权已嵌入($(codesign -dv "$APP_BUNDLE" 2>&1 | grep -o 'Signature=.*' | head -1))"
-        return 0
-    }
-    tcase "macOS 签名成立(bundle 封印可校验 + 授权已嵌入)" check_codesign
+        }
+        tcase "macOS 签名成立(bundle 封印可校验 + 授权已嵌入)" check_codesign
+    else
+        tskip "macOS 签名成立(bundle 封印可校验 + 授权已嵌入)" "本机无 codesign"
+    fi
 
     # DMG 是 macOS 真正发出去的形态 —— 散装 .app 封印了不代表 DMG 里的
     # 那份也封印了(签名发生在打包期才有效,后置封印救不了已打好的 DMG)。
     # 必须挂载 DMG 直接验里面那份 .app 的封印。
     DMG_FILE=$(find "$DIST_DIR/dmg" -maxdepth 1 -name '*.dmg' 2>/dev/null | head -1)
     if [ -n "$DMG_FILE" ]; then
-        check_dmg_signature() {
-            if ! require_cmd hdiutil; then
-                echo "本机无 hdiutil —— 跳过 DMG 审计"
-                return 0
-            fi
-            local mount
-            mount=$(mktemp -d "${TMPDIR:-/tmp}/reflect-dmg-audit.XXXXXX")
-            if ! run_with_timeout 120 hdiutil attach -readonly -nobrowse -noautoopen \
-                -mountpoint "$mount" "$DMG_FILE" >/dev/null 2>&1; then
-                echo "DMG 挂载失败/超时:$DMG_FILE"
+        if require_cmd hdiutil; then
+            check_dmg_signature() {
+                local mount
+                mount=$(mktemp -d "${TMPDIR:-/tmp}/reflect-dmg-audit.XXXXXX")
+                if ! run_with_timeout 120 hdiutil attach -readonly -nobrowse -noautoopen \
+                    -mountpoint "$mount" "$DMG_FILE" >/dev/null 2>&1; then
+                    echo "DMG 挂载失败/超时:$DMG_FILE"
+                    rm -rf "$mount"
+                    return 1
+                fi
+                local rc=1
+                local inner
+                inner=$(find "$mount" -maxdepth 1 -name '*.app' 2>/dev/null | head -1)
+                if [ -z "$inner" ]; then
+                    echo "DMG 顶层找不到 .app"
+                elif ! codesign --verify --deep --strict "$inner" 2> "$RESULT_DIR/codesign-dmg-verify.log"; then
+                    echo "DMG 内 .app 封印校验失败(--verify --deep --strict):"
+                    tail -3 "$RESULT_DIR/codesign-dmg-verify.log" 2>/dev/null | sed 's/^/         │ /'
+                else
+                    echo "DMG 内 .app 封印校验通过($(basename "$DMG_FILE"))"
+                    rc=0
+                fi
+                hdiutil detach "$mount" -force >/dev/null 2>&1 || true
                 rm -rf "$mount"
-                return 1
-            fi
-            local rc=1
-            local inner
-            inner=$(find "$mount" -maxdepth 1 -name '*.app' 2>/dev/null | head -1)
-            if [ -z "$inner" ]; then
-                echo "DMG 顶层找不到 .app"
-            elif ! codesign --verify --deep --strict "$inner" 2> "$RESULT_DIR/codesign-dmg-verify.log"; then
-                echo "DMG 内 .app 封印校验失败(--verify --deep --strict):"
-                tail -3 "$RESULT_DIR/codesign-dmg-verify.log" 2>/dev/null | sed 's/^/         │ /'
-            else
-                echo "DMG 内 .app 封印校验通过($(basename "$DMG_FILE"))"
-                rc=0
-            fi
-            hdiutil detach "$mount" -force >/dev/null 2>&1 || true
-            rm -rf "$mount"
-            return "$rc"
-        }
-        tcase "macOS DMG 内 .app 封印可校验(真正发出的形态)" check_dmg_signature
+                return "$rc"
+            }
+            tcase "macOS DMG 内 .app 封印可校验(真正发出的形态)" check_dmg_signature
+        else
+            tskip "macOS DMG 内 .app 封印可校验(真正发出的形态)" "本机无 hdiutil"
+        fi
     fi
 fi
 
 # ── 3. Linux:.deb / .AppImage 内容 ────────────────────────────────────────
 if [ -n "$DEB_FILE" ]; then
-    check_deb_contents() {
-        if ! require_cmd dpkg-deb; then
-            echo "本机无 dpkg-deb —— 跳过 .deb 内容检查"
+    if require_cmd dpkg-deb; then
+        check_deb_contents() {
+            local pkg_version
+            pkg_version=$(node -p "require('./package.json').version" 2>/dev/null) || {
+                echo "读不到 package.json 版本"; return 1
+            }
+            # control 元数据:版本必须与 package.json 一致。
+            local deb_version
+            deb_version=$(dpkg-deb -f "$DEB_FILE" Version 2>/dev/null)
+            if [ "$deb_version" != "$pkg_version" ]; then
+                echo ".deb control Version=$deb_version ≠ package.json=$pkg_version"
+                return 1
+            fi
+            # 解包验真实布局:可执行文件 / .desktop / 图标。
+            local root
+            root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-deb-audit.XXXXXX")
+            dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null || { echo "dpkg-deb -x 解包失败"; return 1; }
+            local exe="$root/usr/bin/reflect-desktop"
+            if [ ! -x "$exe" ]; then
+                echo ".deb 缺少可执行文件 usr/bin/reflect-desktop(实际:$(ls "$root/usr/bin" 2>/dev/null))"
+                return 1
+            fi
+            local desktop
+            desktop=$(find "$root/usr/share/applications" -name '*.desktop' 2>/dev/null | head -1)
+            if [ -z "$desktop" ]; then
+                echo ".deb 缺少 .desktop 文件"
+                return 1
+            fi
+            grep -q '^Exec=' "$desktop" || { echo ".desktop 缺 Exec 键"; return 1; }
+            if ! find "$root/usr/share/icons" -type f 2>/dev/null | grep -q .; then
+                echo ".deb 缺少图标(/usr/share/icons)"
+                return 1
+            fi
+            rm -rf "$root"
+            echo ".deb 深度校验通过(可执行 + .desktop(Exec) + 图标 + control 版本 $pkg_version)"
             return 0
-        fi
-        local pkg_version
-        pkg_version=$(node -p "require('./package.json').version" 2>/dev/null) || {
-            echo "读不到 package.json 版本"; return 1
         }
-        # control 元数据:版本必须与 package.json 一致。
-        local deb_version
-        deb_version=$(dpkg-deb -f "$DEB_FILE" Version 2>/dev/null)
-        if [ "$deb_version" != "$pkg_version" ]; then
-            echo ".deb control Version=$deb_version ≠ package.json=$pkg_version"
-            return 1
-        fi
-        # 解包验真实布局:可执行文件 / .desktop / 图标。
-        local root
-        root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-deb-audit.XXXXXX")
-        dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null || { echo "dpkg-deb -x 解包失败"; return 1; }
-        local exe="$root/usr/bin/reflect-desktop"
-        if [ ! -x "$exe" ]; then
-            echo ".deb 缺少可执行文件 usr/bin/reflect-desktop(实际:$(ls "$root/usr/bin" 2>/dev/null))"
-            return 1
-        fi
-        local desktop
-        desktop=$(find "$root/usr/share/applications" -name '*.desktop' 2>/dev/null | head -1)
-        if [ -z "$desktop" ]; then
-            echo ".deb 缺少 .desktop 文件"
-            return 1
-        fi
-        grep -q '^Exec=' "$desktop" || { echo ".desktop 缺 Exec 键"; return 1; }
-        if ! find "$root/usr/share/icons" -type f 2>/dev/null | grep -q .; then
-            echo ".deb 缺少图标(/usr/share/icons)"
-            return 1
-        fi
-        rm -rf "$root"
-        echo ".deb 深度校验通过(可执行 + .desktop(Exec) + 图标 + control 版本 $pkg_version)"
-        return 0
-    }
-    tcase ".deb 深度校验(可执行 / .desktop / 图标 / control 版本)" check_deb_contents
+        tcase ".deb 深度校验(可执行 / .desktop / 图标 / control 版本)" check_deb_contents
+    else
+        tskip ".deb 深度校验(可执行 / .desktop / 图标 / control 版本)" "本机无 dpkg-deb"
+    fi
 fi
 
 if [ -n "$APPIMAGE_FILE" ]; then
-    check_appimage() {
-        if ! require_cmd file; then
-            echo "本机无 file —— 跳过 .AppImage 解包检查"; return 0
-        fi
-        local root
-        root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-appimage-audit.XXXXXX")
-        cp "$APPIMAGE_FILE" "$root/app.AppImage"
-        # APPIMAGE_EXTRACT_AND_RUN=1:强制走内嵌的 squashfs 离线解包,
-        # 不试 FUSE —— CI 无 /dev/fuse,默认路径会阻塞或提示挂载失败。
-        # 看门狗 180s:解包卡住不能让审查步骤无限等(与 check_msi 同理)。
-        local rc=0
-        (
-            cd "$root"
-            chmod +x app.AppImage
-            APPIMAGE_EXTRACT_AND_RUN=1 run_with_timeout 180 ./app.AppImage --appimage-extract
-        ) >"$root/extract.log" 2>&1 || rc=$?
-        if [ "$rc" -ne 0 ]; then
-            echo "--appimage-extract 解包失败/超时(rc=$rc)"
-            tail -5 "$root/extract.log" 2>/dev/null | sed 's/^/         │ /'
+    if require_cmd file; then
+        check_appimage() {
+            local root
+            root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-appimage-audit.XXXXXX")
+            cp "$APPIMAGE_FILE" "$root/app.AppImage"
+            # APPIMAGE_EXTRACT_AND_RUN=1:强制走内嵌的 squashfs 离线解包,
+            # 不试 FUSE —— CI 无 /dev/fuse,默认路径会阻塞或提示挂载失败。
+            # 看门狗 180s:解包卡住不能让审查步骤无限等(与 check_msi 同理)。
+            local rc=0
+            (
+                cd "$root"
+                chmod +x app.AppImage
+                APPIMAGE_EXTRACT_AND_RUN=1 run_with_timeout 180 ./app.AppImage --appimage-extract
+            ) >"$root/extract.log" 2>&1 || rc=$?
+            if [ "$rc" -ne 0 ]; then
+                echo "--appimage-extract 解包失败/超时(rc=$rc)"
+                tail -5 "$root/extract.log" 2>/dev/null | sed 's/^/         │ /'
+                rm -rf "$root"
+                return 1
+            fi
+            [ -e "$root/squashfs-root/AppRun" ] || { echo "AppImage 缺 AppRun"; rm -rf "$root"; return 1; }
+            local desktop
+            desktop=$(find "$root/squashfs-root" -maxdepth 1 -name '*.desktop' | head -1)
+            [ -n "$desktop" ] || { echo "AppImage 缺 .desktop"; rm -rf "$root"; return 1; }
+            grep -q '^Exec=' "$desktop" || { echo "AppImage .desktop 缺 Exec 键"; rm -rf "$root"; return 1; }
             rm -rf "$root"
-            return 1
-        fi
-        [ -e "$root/squashfs-root/AppRun" ] || { echo "AppImage 缺 AppRun"; rm -rf "$root"; return 1; }
-        local desktop
-        desktop=$(find "$root/squashfs-root" -maxdepth 1 -name '*.desktop' | head -1)
-        [ -n "$desktop" ] || { echo "AppImage 缺 .desktop"; rm -rf "$root"; return 1; }
-        grep -q '^Exec=' "$desktop" || { echo "AppImage .desktop 缺 Exec 键"; rm -rf "$root"; return 1; }
-        rm -rf "$root"
-        echo ".AppImage 解包校验通过(AppRun + .desktop(Exec))"
-        return 0
-    }
-    tcase ".AppImage 深度校验(AppRun / .desktop)" check_appimage
+            echo ".AppImage 解包校验通过(AppRun + .desktop(Exec))"
+            return 0
+        }
+        tcase ".AppImage 深度校验(AppRun / .desktop)" check_appimage
+    else
+        tskip ".AppImage 深度校验(AppRun / .desktop)" "本机无 file 命令"
+    fi
 fi
 
 # ── 4. Windows:.msi ───────────────────────────────────────────────────────
@@ -441,32 +443,32 @@ if launch_smoke_enabled; then
     fi
 
     if [ -n "$DEB_FILE" ] || [ -n "$APPIMAGE_FILE" ]; then
-        check_launch_smoke_linux() {
-            if ! require_cmd xvfb-run; then
-                echo "本机无 xvfb-run —— 跳过启动冒烟(仅 CI ubuntu 可跑)"
-                return 0
-            fi
-            local target=""
-            if [ -n "$DEB_FILE" ]; then
-                local root
-                root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-launch-deb.XXXXXX")
-                dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null
-                target="$root/usr/bin/reflect-desktop"
-            elif [ -n "$APPIMAGE_FILE" ]; then
-                target="$APPIMAGE_FILE"
-                chmod +x "$target" 2>/dev/null
-            fi
-            [ -n "$target" ] && [ -e "$target" ] || { echo "找不到可启动的二进制"; return 1; }
-            run_with_timeout 10 xvfb-run -a "$target"
-            local rc=$?
-            if [ "$rc" -eq 124 ] || [ "$rc" -eq 0 ]; then
-                echo "Linux 二进制启动冒烟通过(退出码 $rc)"
-                return 0
-            fi
-            echo "Linux 二进制启动即崩(退出码 $rc)"
-            return 1
-        }
-        tcase "Linux 启动冒烟(xvfb 下 10s 内不崩)" check_launch_smoke_linux
+        if require_cmd xvfb-run; then
+            check_launch_smoke_linux() {
+                local target=""
+                if [ -n "$DEB_FILE" ]; then
+                    local root
+                    root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-launch-deb.XXXXXX")
+                    dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null
+                    target="$root/usr/bin/reflect-desktop"
+                elif [ -n "$APPIMAGE_FILE" ]; then
+                    target="$APPIMAGE_FILE"
+                    chmod +x "$target" 2>/dev/null
+                fi
+                [ -n "$target" ] && [ -e "$target" ] || { echo "找不到可启动的二进制"; return 1; }
+                run_with_timeout 10 xvfb-run -a "$target"
+                local rc=$?
+                if [ "$rc" -eq 124 ] || [ "$rc" -eq 0 ]; then
+                    echo "Linux 二进制启动冒烟通过(退出码 $rc)"
+                    return 0
+                fi
+                echo "Linux 二进制启动即崩(退出码 $rc)"
+                return 1
+            }
+            tcase "Linux 启动冒烟(xvfb 下 10s 内不崩)" check_launch_smoke_linux
+        else
+            tskip "Linux 启动冒烟(xvfb 下 10s 内不崩)" "本机无 xvfb-run(仅 CI ubuntu 可跑)"
+        fi
     fi
 fi
 

@@ -67,14 +67,19 @@ tcase_log "cargo doc-test(/// 示例可编译可运行)" \
     cargo test --workspace --doc
 
 # ── 4. 测试(单元 + 能力覆盖层)────────────────────────────────────────────
+# --no-fail-fast:首个失败 binary 后其余 30+ 个测试 binary 照常跑 —— 失败
+# 报告要的是全貌,不是第一块碎片(退出码仍非零,门禁不受影响)。
 tcase_log "cargo test --workspace --all-targets(含能力覆盖层)" \
     "$RESULT_DIR/backend-test.log" \
-    cargo test --workspace --all-targets
+    cargo test --workspace --all-targets --no-fail-fast
 
 # 能力覆盖层的规模报出来 —— 报告里能直接看到真后端验了多少条命令。
 if [ -f "$RESULT_DIR/backend-test.log" ]; then
-    cap_count=$(grep -c '^test .* \.\.\. ok$' "$RESULT_DIR/backend-test.log" 2>/dev/null || echo 0)
-    if [ "$cap_count" -gt 0 ]; then
+    # 注意 grep -c 零匹配时输出 "0" 且退出码 1 —— 不能写 `|| echo 0`
+    # (会把 "0\n0" 塞进变量,整数比较直接报错)。
+    cap_count=$(grep -c '^test .* \.\.\. ok$' "$RESULT_DIR/backend-test.log" 2>/dev/null || true)
+    cap_count=${cap_count:-0}
+    if [ "$cap_count" -gt 0 ] 2>/dev/null; then
         echo "  ↳ 本次通过用例:$cap_count 条"
     fi
 fi

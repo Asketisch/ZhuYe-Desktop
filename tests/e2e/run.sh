@@ -63,10 +63,13 @@ fi
 # ── A. 视觉回归(全平台可跑,Chromium headless)───────────────────────────
 run_visual() {
     # 1) 构建浏览器态前端(fakeBackend shim 注入)。
-    tcase_log "视觉层前端构建(vite build --config vite.config.visual.ts)" \
+    if ! tcase_log "视觉层前端构建(vite build --config vite.config.visual.ts)" \
         "$RESULT_DIR/e2e-visual-build.log" \
-        pnpm exec vite build --config vite.config.visual.ts
+        pnpm exec vite build --config vite.config.visual.ts; then
+        return 1
+    fi
     if [ ! -s "$ROOT/dist-visual/index.html" ]; then
+        tcase "视觉层前端构建产物(dist-visual/index.html)" false
         echo "         │ dist-visual/ 未产出,视觉回归无法继续"
         return 1
     fi
@@ -77,12 +80,15 @@ run_visual() {
         echo "  ↳ VISUAL_UPDATE=1 —— 基线将全部重生成(人工审查后入库)"
     fi
     # 3) Playwright(仅下载 Chromium;core 包免 postinstall 浏览器全家桶)。
+    #    依赖缺失必须**记录成用例**(tskip / 失败),不能只 echo —— 否则
+    #    E2E_REQUIRED=1 的发布流水线里"该跑没跑"与"跑了"无法区分。
     if ! node -e "require.resolve('playwright-core/package.json')" >/dev/null 2>&1; then
         if [ "${E2E_REQUIRED:-0}" = "1" ]; then
-            echo "         │ E2E_REQUIRED=1:playwright 未安装,判失败"
+            tcase "视觉回归(playwright 依赖齐备)" false
+            echo "         │ E2E_REQUIRED=1:playwright-core 未安装,判失败(先: pnpm exec playwright-core install chromium)"
             return 1
         fi
-        echo "  ↳ playwright 未安装(先: pnpm install --with-playwright 或 pnpm dlx playwright install chromium)—— 视觉回归跳过"
+        tskip "视觉回归" "playwright-core 未安装(先: pnpm install --with-playwright 或 pnpm dlx playwright install chromium)"
         return 0
     fi
     # 4) 用 vitest 跑视觉 spec(复用仓库的 vitest 基建;--config 指向
@@ -90,13 +96,15 @@ run_visual() {
     tcase_log "视觉回归(全路由 × dark/light 基线比对)" \
         "$RESULT_DIR/e2e-visual.log" \
         pnpm exec vitest run --config tests/visual/vitest.config.ts tests/visual/visual.spec.ts
-    local rc=$?
-    # 首跑写基线不算失败:检测基线是否为本轮新生成。
-    return $rc
 }
 
 if [ "${E2E_SKIP_VISUAL:-0}" != "1" ]; then
-    run_visual
+    # 之前这里丢弃返回值:run_visual 内部判失败后整层照样"通过"。
+    if ! run_visual; then
+        FAIL_COUNT+=1
+        FAIL_NAMES+=("视觉回归(编排失败)")
+        printf 'FAIL\t视觉回归(编排失败)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
+    fi
 else
     tskip "视觉回归" "E2E_SKIP_VISUAL=1"
 fi

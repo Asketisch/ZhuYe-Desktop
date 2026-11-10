@@ -106,6 +106,9 @@ jobs:
       - name: Run release gate
         env:
           E2E_REQUIRED: '1'
+          # GATE_STRICT:跳过 = 没真正审过。发布流水线依赖已装齐(上面两步
+          # install),任何整层/层内跳过都判失败 —— 不允许「没跑」静默放行。
+          GATE_STRICT: '1'
           VISUAL_UPDATE: ${{ inputs.visual_update && '1' || '0' }}
         run: bash tests/run_all.sh static frontend backend e2e
 

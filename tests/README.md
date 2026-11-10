@@ -299,6 +299,8 @@ tests/
 ├── composer.slash-history-attachments.test.tsx  # 输入框：斜杠命令/历史/附件
 ├── settings.config.test.tsx                # 设置页配置读写
 ├── views.route-matrix.test.tsx             # 34 条路由的视图矩阵
+├── views.untested-slices.test.tsx          # 九个零测试视图的交互与数据投影
+├── ipc.event-contract.test.ts              # 事件面契约(fakeBackend 侧):50 变体不落 unknown
 └── errors.resilience.test.tsx              # 错误与韧性
 ```
 

@@ -85,11 +85,36 @@ function hasBaselines(): boolean {
   return existsSync(BASELINES) && readdirSync(BASELINES).some((f) => f.endsWith('.png'));
 }
 
+/**
+ * 基线缺失的策略:本地(VISUAL_UPDATE=1 或显式首跑)写盘并通过;CI 上
+ * **判失败** —— 缺基线 = 该路由的视觉回归被静默停用,零容忍。
+ * 发布流水线(run_all.sh e2e)通过 env `VISUAL_UPDATE` 显式声明写基线。
+ */
+const BASELINE_WRITE_MODE =
+  process.env.VISUAL_UPDATE === '1' || process.env.VISUAL_WRITE === '1' || !hasBaselines();
+
 let server: Server;
 let port: number;
 let browser: Browser;
 let context: BrowserContext;
 const written: string[] = [];
+
+// 基线集合完整性:与路由矩阵 × 双主题**恰好相等** —— 缺失(新增路由忘
+// 提交)或多余(路由已删基线未清)都点名。首跑(目录空)跳过。
+it('visual baseline set matches the route matrix × themes exactly', () => {
+  if (!hasBaselines()) return;
+  const expected = new Set<string>();
+  for (const { route } of ROUTES) {
+    const name = route === '/' ? 'index' : route.replace(/^\//, '').replace(/\//g, '-');
+    expected.add(`${name}--dark.png`);
+    expected.add(`${name}--light.png`);
+  }
+  const actual = new Set(readdirSync(BASELINES).filter((f) => f.endsWith('.png')));
+  const missing = [...expected].filter((f) => !actual.has(f));
+  const stale = [...actual].filter((f) => !expected.has(f));
+  expect(missing, `缺基线(新增路由忘了提交?): ${missing.join(', ')}`).toEqual([]);
+  expect(stale, `陈旧基线(路由已删未清理): ${stale.join(', ')}`).toEqual([]);
+});
 
 beforeAll(async () => {
   if (!existsSync(path.join(DIST, 'index.html'))) {
@@ -127,7 +152,16 @@ describe.each(ROUTES)('visual $route', ({ route }) => {
 
     mkdirSync(BASELINES, { recursive: true });
     const baseline = path.join(BASELINES, name);
-    if (!hasBaselines() || !existsSync(baseline)) {
+    if (!existsSync(baseline)) {
+      if (!BASELINE_WRITE_MODE) {
+        // 只缺个别基线(如新增路由忘提交)而目录里已有其他基线:CI 上
+        // 必须失败 —— 否则该路由的视觉回归等于被静默停用。
+        if (process.env.CI || process.env.E2E_REQUIRED === '1') {
+          throw new Error(
+            `基线缺失且未声明写基线(VISUAL_UPDATE=1 / VISUAL_WRITE=1):${name} —— 该路由的视觉回归被静默停用;审查新基线后入库,或本地首跑生成`,
+          );
+        }
+      }
       const { writeFileSync } = await import('node:fs');
       writeFileSync(baseline, shot);
       written.push(name);

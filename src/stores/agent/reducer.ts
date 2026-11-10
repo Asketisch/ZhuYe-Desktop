@@ -197,6 +197,14 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       // 保穷尽 no-op,避免长命令期间高频重渲染。
       return {};
 
+    case 'tool_call_args_delta':
+      // v1.5:工具参数流式增量(模型生成 tool_use 参数期间的逐段预览)。
+      // GUI 不做参数实时回显 —— 最终参数以 tool_call_begin 的完整 args
+      // 为准。显式 no-op 保穷尽:漏写会落进 default 逃过穷尽性守卫
+      // (事件契约 ipc.event-contract 以非空 patch 断言抓这种漂移,
+      // 实测曾抓到本 case 缺失)。
+      return {};
+
     case 'subagent_progress': {
       // v1.4 C1 通道一:子代理进度推送 → Inspector 子代理区块的滚动
       // feed(封顶丢弃最旧,防长会话无界增长)。
