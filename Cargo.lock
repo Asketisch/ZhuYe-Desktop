@@ -9351,6 +9351,7 @@ dependencies = [
  "zhuye-protocol",
  "zhuye-recovery",
  "zhuye-sandbox",
+ "zhuye-sanitize",
  "zhuye-skills",
  "zhuye-subagent",
  "zhuye-telemetry",
@@ -9904,6 +9905,7 @@ dependencies = [
  "zhuye-protocol",
  "zhuye-rollout",
  "zhuye-sandbox",
+ "zhuye-sanitize",
 ]
 
 [[package]]

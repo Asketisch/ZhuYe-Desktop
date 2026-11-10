@@ -4,6 +4,16 @@
 
 ## 未发布
 
+### 变更 — submodule 接线 main `54c8a001` → `5f45f0ac`(v0.1.12)
+
+上游 6 个提交:版本 bump **v0.1.12** 四处同步;SDK 文档门禁接入 CI、
+Op 类型层补齐协议全集(`sdks/` 发布面,协议 crate 本体零变更)、README
+精简下沉、注释纠偏、上游能力覆盖层收口。运行时新增 `[prompt_guard]`
+配置段(opt-in 提示注入检测,默认关)与 `zhuye-sanitize` 内部依赖——
+根清单镜像键无增删,`Cargo.lock` 自动跟随。桌面适配一处:
+zhuye-llm `ChatEvent` 新增 `AgentMessage` 变体(非流式 provider 整段
+消息形态),`e2e_chat.rs` 穷举 match 补分支;前端协议面零变更。
+
 ### 变更 — submodule 目录改名 `reflect-agent` → `zhuye-agent`
 
 - 本仓库内的 submodule 路径与注册名统一为 `zhuye-agent`（`.gitmodules` 段名 + path、

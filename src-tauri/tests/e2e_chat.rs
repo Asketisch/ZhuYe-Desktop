@@ -415,6 +415,8 @@ fn event_kind(e: &reflect_llm::ChatEvent) -> &'static str {
     match e {
         reflect_llm::ChatEvent::MessageStart { .. } => "MessageStart",
         reflect_llm::ChatEvent::ContentDelta(_) => "ContentDelta",
+        // submodule 升级后 reflect-llm 新增 variant(非流式 provider 的整段消息形态)
+        reflect_llm::ChatEvent::AgentMessage { .. } => "AgentMessage",
         reflect_llm::ChatEvent::ToolUseStart { .. } => "ToolUseStart",
         reflect_llm::ChatEvent::ToolUseDelta(_) => "ToolUseDelta",
         reflect_llm::ChatEvent::ThinkingDelta(_) => "ThinkingDelta",
