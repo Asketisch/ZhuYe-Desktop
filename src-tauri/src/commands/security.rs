@@ -41,6 +41,26 @@ impl From<SecurityScanReport> for SecurityScanResult {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn security_scan_report_conversion_preserves_wire_fields() {
+        let report = SecurityScanReport {
+            ran: true,
+            exit_code: Some(1),
+            output: "vulnerability output".into(),
+            summary: "cargo audit 完成(exit 1)".into(),
+        };
+        let result = SecurityScanResult::from(report);
+        assert!(result.ran);
+        assert_eq!(result.exit_code, Some(1));
+        assert_eq!(result.output, "vulnerability output");
+        assert!(result.summary.contains("exit 1"));
+    }
+}
+
 /// 在当前工作区跑一次 `cargo audit`(有界超时)。
 ///
 /// 阻塞调用(可能跑 30s)→ 放进 `spawn_blocking`,不占住 async worker。

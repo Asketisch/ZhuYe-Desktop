@@ -1,0 +1,8 @@
+{
+  "comment": "已完成后端命令若因宿主环境无法自动测试,在此登记原因;无测试且无排除项会被静态门禁拒绝。",
+  "commands": {
+    "reflect_run_security_scan": {
+      "reason": "真实 cargo audit 会拉取 RustSec advisory DB(网络),命令转换层由离线单元测试覆盖;联网扫描在独立审计 workflow/手工验证"
+    }
+  }
+}

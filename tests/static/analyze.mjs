@@ -67,6 +67,17 @@ const backendCommands = new Set(
   [...backendSrc.matchAll(/pub (?:async )?fn (reflect_\w+)/g)].map((m) => m[1]),
 );
 
+// 生产命令文件内的 `#[cfg(test)]` 单元测试同样属于命令测试证据;
+// IPC 测试扫描只负责集成路径,不能把模块内测试误判为“无测试”。
+const commandUnitTested = new Set();
+for (const file of backendFiles) {
+  const source = read(file);
+  if (!source.includes('#[cfg(test)]')) continue;
+  for (const match of source.matchAll(/"(reflect_\w+)"/g)) {
+    commandUnitTested.add(match[1]);
+  }
+}
+
 const libSrc = read('src-tauri/src/lib.rs');
 const handlerMatch = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]\)/);
 if (!handlerMatch) {
@@ -328,6 +339,43 @@ if (capCovered.length >= capFloor) {
   fail(
     'capability-command-coverage',
     `能力覆盖层命令覆盖跌到 ${capCovered.length} < 基线 ${capFloor}`,
+  );
+}
+
+// ── 9b. 已完成命令必须有测试引用或显式环境排除 ─────────────────────────
+// 字符串引用不等于行为通过,但“从未被任何后端测试引用”能机械发现
+// 已完成命令完全没有测试入口的情况。排除项必须写明环境原因。
+let commandTestExclusions = {};
+try {
+  commandTestExclusions = JSON.parse(read('tests/command-test-exclusions.json')).commands ?? {};
+} catch (error) {
+  fail('registered-command-test-exclusions', `排除表无法解析:${error.message}`);
+}
+for (const [command, exclusion] of Object.entries(commandTestExclusions)) {
+  if (!backendCommands.has(command)) {
+    fail('registered-command-test-exclusions', `排除项指向不存在的命令:${command}`);
+  }
+  if (!exclusion || typeof exclusion.reason !== 'string' || exclusion.reason.trim() === '') {
+    fail('registered-command-test-exclusions', `排除项缺少原因:${command}`);
+  }
+}
+const untestedCommands = [...backendCommands]
+  .filter(
+    (cmd) =>
+      !capInvoked.has(cmd) &&
+      !commandUnitTested.has(cmd) &&
+      !(cmd in commandTestExclusions),
+  )
+  .sort();
+if (untestedCommands.length === 0) {
+  pass(
+    'registered-command-has-test',
+    `${backendCommands.size} 条命令均有测试引用或显式环境排除`,
+  );
+} else {
+  fail(
+    'registered-command-has-test',
+    `已完成命令无测试引用:${untestedCommands.join(', ')}`,
   );
 }
 

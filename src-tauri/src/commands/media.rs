@@ -41,6 +41,12 @@ pub async fn reflect_image_process(spec: ImageProcessSpec) -> CommandResult<Imag
 #[tauri::command]
 pub async fn reflect_screenshot(_agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     let backend = RealComputerBackend::new();
+    screenshot_base64_with(&backend)
+}
+
+/// 截图命令的可测核心:注入 backend 以便单元测试覆盖 base64 编码与错误映射,
+/// 生产路径始终传真实 `RealComputerBackend`。
+pub(crate) fn screenshot_base64_with(backend: &dyn ComputerBackend) -> CommandResult<String> {
     let bytes = backend.screenshot()?;
     Ok(base64_encode(&bytes))
 }
@@ -114,4 +120,55 @@ pub(crate) fn base64_encode(bytes: &[u8]) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TESTED_COMMANDS: &[&str] = &["reflect_screenshot"];
+
+    struct FakeComputerBackend {
+        result: Result<Vec<u8>, MediaError>,
+    }
+
+    impl ComputerBackend for FakeComputerBackend {
+        fn capability(&self) -> BackendCapability {
+            BackendCapability::Full
+        }
+
+        fn screenshot(&self) -> Result<Vec<u8>, MediaError> {
+            self.result.clone()
+        }
+
+        fn execute(&self, _action: &ComputerUseAction) -> Result<(), MediaError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn screenshot_command_encodes_backend_bytes_as_base64() {
+        assert_eq!(TESTED_COMMANDS, &["reflect_screenshot"]);
+        let backend = FakeComputerBackend {
+            result: Ok(vec![0x89, b'P', b'N', b'G']),
+        };
+        let encoded = screenshot_base64_with(&backend).expect("截图编码失败");
+        assert_eq!(encoded, "iVBORw==");
+    }
+
+    #[test]
+    fn screenshot_command_maps_backend_unavailable_error() {
+        let backend = FakeComputerBackend {
+            result: Err(MediaError::Unavailable {
+                capability: "screenshot".into(),
+                reason: "no monitors detected".into(),
+            }),
+        };
+        let error = screenshot_base64_with(&backend).expect_err("应返回结构化错误");
+        assert!(
+            error.msg.contains("media unavailable") && error.msg.contains("no monitors"),
+            "错误应保留后端诊断:{}",
+            error.msg
+        );
+    }
 }
