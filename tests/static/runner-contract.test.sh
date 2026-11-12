@@ -155,10 +155,10 @@ case "$*" in
 esac
 PNPM
 chmod +x "$TMP/bin/node" "$TMP/bin/pnpm"
-FAKE_UNAME=Darwin VISUAL_UPDATE=1 bash "$FIXTURE/tests/run_all.sh" e2e > "$TMP/e2e.log" 2>&1 || fail "生成基线在普通模式应记录跳过"
+FAKE_UNAME=Darwin E2E_SKIP_WINDOW=1 VISUAL_UPDATE=1 bash "$FIXTURE/tests/run_all.sh" e2e > "$TMP/e2e.log" 2>&1 || fail "生成基线在普通模式应记录跳过"
 grep -q $'^SKIP\t视觉基线比对' "$RESULT_DIR/e2e.cases" || fail "生成基线不得标记为已比较"
 if FAKE_UNAME=Darwin VISUAL_UPDATE=1 GATE_STRICT=1 bash "$FIXTURE/tests/run_all.sh" e2e > "$TMP/e2e.log" 2>&1; then fail "严格门禁不得放行基线生成"; fi
-FAKE_UNAME=Darwin bash "$FIXTURE/tests/run_all.sh" e2e > "$TMP/e2e.log" 2>&1 || fail "本地首次生成基线在普通模式应记录跳过"
+FAKE_UNAME=Darwin E2E_SKIP_WINDOW=1 bash "$FIXTURE/tests/run_all.sh" e2e > "$TMP/e2e.log" 2>&1 || fail "本地首次生成基线在普通模式应记录跳过"
 grep -q $'^SKIP\t视觉基线比对' "$RESULT_DIR/e2e.cases" || fail "本地首次生成也不得视为比较通过"
 
 REFLECT_LIVE=1 FAKE_CARGO_MODE=pass bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1 || { cat "$TMP/live.log"; fail "完整实模型结果应通过"; }

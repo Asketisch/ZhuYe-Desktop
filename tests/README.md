@@ -53,7 +53,7 @@ REFLECT_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认�
 | L2 | `frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量 | **模拟**（`fakeBackend`） |
 | L3 | `backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层） | **真**（模型是假的） |
 | L4 | `artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 |
-| L5 | `e2e/` | 视觉回归（全路由 × dark/light 截图基线）+ WebDriver 真窗口冒烟（仅 Linux）。依赖缺失时默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
+| L5 | `e2e/` | 视觉回归（全路由 × dark/light 截图基线）+ 真窗口冒烟（Linux/Windows WebDriver、macOS CoreGraphics）。`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
 | L6 | `live/` | **真免费模型**演练：真实 provider + 真实 SSE + 真实限流。默认跳过，`REFLECT_LIVE=1` 开启 | **真**（模型也是真的） |
 
 ### L5 视觉回归与真窗口冒烟
@@ -75,15 +75,14 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
   `reducedMotion: 'reduce'` + 注入 CSS 关闭动画/过渡/光标、
   `document.fonts.ready` 等待字体。本地缺基线时可生成，门禁标记为跳过；
   严格环境缺基线判失败。显式重生成也不算完成基线比对。
-- **WebDriver 冒烟**（`window.smoke.test.ts`）：Linux 上 `tauri-driver` +
-  `webkit2gtk-driver`（`xvfb-run` 下）启动当前源码构建的真窗口，使用隔离
-  HOME 和本机 SSE 模型替身验证用户输入 → 真实 IPC → AgentThread → 事件 →
-  界面回复、问题单选/多选/自定义答案与密文输入回执，并断言状态栏显示配置的模型和 token 用量；同时覆盖工具审批、
-  批准后沙箱写盘、终端、文件编辑、Git、记忆、任务、会话切换、流中中断、
-  Goal 控制器和压缩请求回执。截图留存
-  `.test-results/e2e-window.png`。macOS 无 WKWebView WebDriver、Windows
-  需 MSDP——按 Tauri 官方口径平台门控，mac/Win 上 tskip（UI 面由视觉
-  回归覆盖）。
+- **真窗口冒烟**（`window.smoke.test.ts` + `macos_window_smoke.sh`）：Linux
+  用 `tauri-driver` + `webkit2gtk-driver`（`xvfb-run` 下），Windows 用
+  `tauri-driver` + `msedgedriver`；macOS 无 WKWebView WebDriver，改用
+  CoreGraphics 验证真实进程的 1280×800 在屏主窗口并截图。Linux 测试使用
+  隔离 HOME 和本机 SSE 模型替身验证用户输入 → 真实 IPC → AgentThread →
+  事件 → 界面回复、工具审批、批准后沙箱写盘、终端、文件编辑、Git、记忆、
+  任务、会话切换、流中中断、Goal 控制器和压缩请求回执。截图留存
+  `.test-results/e2e-window.png` / `.test-results/e2e-window-macos.png`。
 - 窗口测试由 `tests/e2e/window-client.sh` 固定连接本次启动的本机
   `127.0.0.1:4444`，不会继承外部 `TAURI_DRIVER_URL`。
 - 本地首跑需 `pnpm install`（playwright-core）+ 系统内已有 Playwright
@@ -327,7 +326,8 @@ tests/
 # 用例 —— 否则 run.sh → 自测 → run.sh 无限递归。
 ├── e2e/                                    # L5 视觉回归 + 真窗口冒烟
 │   ├── run.sh
-│   └── window.smoke.test.ts                # tauri-driver 真窗口冒烟（仅 Linux）
+│   ├── window.smoke.test.ts                # tauri-driver 真窗口冒烟（Linux/Windows）
+│   └── macos_window_smoke.sh               # macOS CoreGraphics 原生窗口探针
 ├── live/                                   # L6 实模型演练层（真免费模型）
 │   └── run.sh                              # REFLECT_LIVE=1 才真跑（默认跳过）
 ├── visual/                                 # 视觉回归（L5 的视觉半边）
@@ -454,3 +454,29 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
   fakeBackend 完整接管（`resetMockInvoke` 后重新注册）。
 - 线协议以 `docs/PROTOCOL_BRIDGE.md` 为契约，契约测试对文档覆盖率设下限，
   新增后端命令时若文档未更新会失败。
+
+## 统一测试调度器(PLAN.md §1.4 接口)
+
+`runner.py` 是跨平台(Python 3.10+,仅标准库)任务调度入口,把 PLAN.md
+第 4 章任务 ID(`desktop.*`)映射到本仓既有六层(static / frontend / backend /
+artifact / e2e / live):
+
+```bash
+python3 tests/runner.py list                     # 任务 / 选集 / 用例索引
+python3 tests/runner.py run --suite pr           # PR 门禁选集
+python3 tests/runner.py run --case D-E05         # 按 PLAN 用例 ID 定向
+python3 tests/runner.py run --suite release --artifact <安装包路径>
+```
+
+- 结果语义:`pass / fail / skip / infra_error / timeout / pending(未覆盖)`;
+  统一 runner 会为 E2E 注入 `E2E_REQUIRED=1`,依赖缺失判失败;
+  Linux/Windows 走 WebDriver,macOS 走 CoreGraphics 原生窗口探针。后端
+  Rust 测试已跨三平台执行,两者不可互相替代。签名、安装升级与产物启动
+  由 L4 强制审查;真机输入法专项保持显式登记,不假绿。
+- 报告:`.test-runner/report.json` + `junit.xml` + 人类摘要;记录 HEAD、
+  工作树状态与子模块指针(两个客户端固定不同 Runtime 版本,见 PLAN §1.3)。
+- 任务注册表见 `test_registry.py`。
+
+L1 还会机械核对每条已注册命令是否有 IPC/命令体单测引用。确需依赖宿主机或
+网络的命令必须写入 `tests/command-test-exclusions.json` 并给出原因;排除项
+指向不存在命令或原因为空同样失败。

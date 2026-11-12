@@ -26,6 +26,16 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  runner-tests:
+    name: test runner registry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest -v tests.test_runner
+
   # 静态审查层:命令面四方一致 / 路由↔视图 / 版本四处一致 /
   # CHANGELOG 与能力矩阵新鲜度 / 仓库卫生 / 调试残留 / 文件大小预算棘轮。
   # 纯静态分析,秒级 —— 每次 push/PR 都跑,挡住"接线漂移"。
@@ -115,10 +125,8 @@ jobs:
             runner: ubuntu-latest
           - os: macos
             runner: macos-latest
-          # Windows 只进 clippy(编译级)矩阵,不进 test:
-          # 能力覆盖夹具靠 HOME 隔离,而 Windows 的 dirs::home_dir() 走
-          # USERPROFILE,跑测试会污染真实用户目录 —— 见 tests/COVERAGE.md。
-          # 发布产物(release.yml)本就在 windows-latest 构建成功,编译面有保证。
+          # Windows 同时跑 clippy 与后端能力层;测试夹具已隔离
+          # USERPROFILE / APPDATA,不再污染真实用户目录。
           - os: windows
             runner: windows-latest
     steps:
@@ -173,6 +181,8 @@ jobs:
             runner: ubuntu-latest
           - os: macos
             runner: macos-latest
+          - os: windows
+            runner: windows-latest
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
@@ -206,3 +216,84 @@ jobs:
 
       - name: cargo test
         run: cargo test --workspace --all-targets
+
+  e2e-native:
+    name: native e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu
+            runner: ubuntu-24.04
+          - os: macos
+            runner: macos-latest
+          - os: windows
+            runner: windows-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf \
+            libpipewire-0.3-dev \
+            libasound2-dev \
+            libgbm-dev \
+            libdrm-dev \
+            libegl-dev \
+            libwayland-dev \
+            webkit2gtk-driver \
+            xvfb
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright chromium
+        run: pnpm exec playwright-core install --with-deps chromium
+
+      - name: Install tauri-driver
+        if: runner.os != 'macOS'
+        run: cargo install tauri-driver --locked
+
+      - name: Install matching Microsoft Edge WebDriver
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+          Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.cargo\bin"
+
+      - name: Run native e2e
+        env:
+          E2E_REQUIRED: '1'
+          GATE_STRICT: '1'
+        run: bash tests/run_all.sh e2e

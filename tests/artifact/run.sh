@@ -235,16 +235,28 @@ if [ -n "$APP_BUNDLE" ]; then
         local rc=0
         HOME="$home" ZHUYE_HEADLESS=1 run_with_timeout 10 \
             "$prefix/reflect-desktop" --help >"$log" 2>&1 || rc=$?
+        if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+            echo "已安装二进制启动失败(退出码 $rc):"
+            tail -8 "$log" 2>/dev/null | sed 's/^/         │ /'
+            return 1
+        fi
+        [ -x "$prefix/reflect-desktop" ] || {
+            echo "安装升级后二进制缺失:$prefix/reflect-desktop"
+            return 1
+        }
+        rm "$prefix/reflect-desktop"
+        [ -e "$prefix/reflect-desktop" ] && {
+            echo "卸载后二进制仍存在:$prefix/reflect-desktop"
+            return 1
+        }
         rm -rf "$tmp"
         if [ "$rc" -eq 0 ] || [ "$rc" -eq 124 ]; then
-            echo "已安装二进制启动冒烟通过(退出码 $rc)"
+            echo "已安装二进制启动、升级与卸载冒烟通过(启动退出码 $rc)"
             return 0
         fi
-        echo "已安装二进制启动失败(退出码 $rc):"
-        tail -8 "$log" 2>/dev/null | sed 's/^/         │ /'
         return 1
     }
-    tcase "已安装二进制启动冒烟(--help,隔离 HOME)" check_installed_binary_launch
+    tcase "已安装二进制启动 / 升级 / 卸载冒烟(隔离 HOME)" check_installed_binary_launch
 
     # 必须用 --verify --deep --strict 验**封印有效性**,不能只看 `codesign -dv`
     # 是否成功 —— -dv 是显示动词,主二进制上有链接器顺手落的 ad-hoc 内嵌签名

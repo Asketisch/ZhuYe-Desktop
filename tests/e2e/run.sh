@@ -5,7 +5,8 @@
 #   A. **WebDriver 冒烟**(真进程/真后端/真窗口):tauri-driver +
 #      WebKitWebDriver(Linux)驱动**构建出的调试二进制**,断言 webview
 #      加载了前端、壳层挂载、状态条由真 agent_status 渲染,截图落盘。
-#      macOS 无 WKWebView WebDriver(Tauri 官方口径)→ 本机 tskip。
+#      macOS 无 WKWebView WebDriver,使用 CoreGraphics 窗口层做原生窗口
+#      探针并截图留证;Windows 需 WebDriver 专项后接入。
 #   B. **视觉回归**(浏览器态):`vite build --config vite.config.visual.ts`
 #      把真实前端 + fakeBackend shim 打成 dist-visual/,Playwright(Chromium
 #      headless)对全部路由 × dark/light 截图比对基线。基线缺失 = 首跑
@@ -39,7 +40,7 @@ PLATFORM="$(uname -s)"
 
 cleanup_e2e() {
     if [ -n "${DRIVER_PID:-}" ]; then
-        kill -- -"$DRIVER_PID" 2>/dev/null || true
+        kill -- -"$DRIVER_PID" 2>/dev/null || kill "$DRIVER_PID" 2>/dev/null || true
         kill "$DRIVER_PID" 2>/dev/null || true
         wait "$DRIVER_PID" 2>/dev/null || true
         DRIVER_PID=""
@@ -148,9 +149,22 @@ else
     fi
 fi
 
-# ── B. WebDriver 冒烟(仅 Linux;mac/Windows 跳过)────────────────────────
-if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
-    if command -v tauri-driver >/dev/null 2>&1 && command -v WebKitWebDriver >/dev/null 2>&1; then
+# ── B. 真窗口冒烟(Linux/Windows WebDriver,macOS 系统窗口层)──────────
+WEBDRIVER_PLATFORM=0
+NATIVE_DRIVER=""
+case "$PLATFORM" in
+    Linux)
+        WEBDRIVER_PLATFORM=1
+        NATIVE_DRIVER="WebKitWebDriver"
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        WEBDRIVER_PLATFORM=1
+        NATIVE_DRIVER="msedgedriver"
+        ;;
+esac
+
+if [ "$WEBDRIVER_PLATFORM" -eq 1 ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
+    if command -v tauri-driver >/dev/null 2>&1 && command -v "$NATIVE_DRIVER" >/dev/null 2>&1; then
         tcase_log "窗口本地模型替身协议" \
             "$RESULT_DIR/e2e-mock-provider-test.log" \
             node --test "$HERE/mock-provider.test.mjs"
@@ -161,6 +175,7 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
             "$RESULT_DIR/e2e-window-build.log" \
             cargo build -p reflect-desktop || build_ok=0
         APP_BIN="$ROOT/target/debug/reflect-desktop"
+        [ "$PLATFORM" = "Linux" ] || APP_BIN="$APP_BIN.exe"
         # 调试二进制按 devUrl(http://localhost:5173)加载前端,没有内嵌
         # 资源 —— 必须先起 vite dev server 并等就绪,否则 webview 显示的是
         # WebKit 的 "Could not connect to localhost" 错误页(实拍见
@@ -171,7 +186,11 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
                 echo "端口 5173 已被占用" > "$RESULT_DIR/e2e-vite.log"
                 return 1
             fi
-            setsid pnpm exec vite --strictPort > "$RESULT_DIR/e2e-vite.log" 2>&1 &
+            if [ "$PLATFORM" = "Linux" ]; then
+                setsid pnpm exec vite --strictPort > "$RESULT_DIR/e2e-vite.log" 2>&1 &
+            else
+                pnpm exec vite --strictPort > "$RESULT_DIR/e2e-vite.log" 2>&1 &
+            fi
             VITE_PID=$!
             local i
             for i in $(seq 1 60); do
@@ -237,8 +256,12 @@ EOF
                 driver_port_busy=1
                 echo "端口 4444 已被占用" > "$RESULT_DIR/e2e-tauri-driver.log"
             else
-                setsid env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a \
+                if [ "$PLATFORM" = "Linux" ]; then
+                    setsid env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a \
+                        tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &
+                else
                     tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &
+                fi
                 DRIVER_PID=$!
             fi
             # 3.5) 等驱动就绪:tauri-driver 后台启动,绑定 4444 需要一点
@@ -273,7 +296,7 @@ EOF
             cleanup_e2e
             if [ "$rc" -eq 0 ]; then
                 PASS_COUNT+=1
-                echo "  [ok]   窗口冒烟(tauri-driver + WebKitWebDriver,截图落 .test-results/e2e-window.png)"
+                echo "  [ok]   窗口冒烟(tauri-driver + $NATIVE_DRIVER,截图落 .test-results/e2e-window.png)"
                 printf 'PASS\t窗口冒烟(真进程/真后端/真窗口)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
             else
                 FAIL_COUNT+=1
@@ -286,13 +309,39 @@ EOF
         # vite dev server 无论冒烟成败都要收(随套件退出,不留给下一个套件)。
         cleanup_e2e
     else
-        require_or_fail "窗口冒烟(tauri-driver + WebKitWebDriver)" tauri-driver WebKitWebDriver || true
+        require_or_fail "窗口冒烟(tauri-driver + $NATIVE_DRIVER)" tauri-driver "$NATIVE_DRIVER" || true
+    fi
+elif [ "$PLATFORM" = "Darwin" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
+    if command -v swift >/dev/null 2>&1 && command -v screencapture >/dev/null 2>&1; then
+        build_ok=1
+        tcase_log "构建调试二进制(cargo build -p reflect-desktop)" \
+            "$RESULT_DIR/e2e-macos-build.log" \
+            cargo build -p reflect-desktop || build_ok=0
+        APP_BIN="$ROOT/target/debug/reflect-desktop"
+        if [ "$build_ok" -ne 1 ] || [ ! -x "$APP_BIN" ]; then
+            tcase "macOS 原生窗口冒烟" false
+        elif ! make_isolated_env; then
+            tcase "macOS 原生窗口隔离环境" false
+        elif tcase_log "macOS 原生窗口冒烟(真实进程 + CoreGraphics + 截图)" \
+            "$RESULT_DIR/e2e-macos-smoke.log" \
+            bash "$HERE/macos_window_smoke.sh" "$APP_BIN" "$RESULT_DIR"; then
+            PASS_COUNT+=1
+            echo "  [ok]   macOS 原生窗口冒烟(截图落 .test-results/e2e-window-macos.png)"
+            printf 'PASS\tmacOS 原生窗口冒烟(真实进程/系统窗口层)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
+        else
+            FAIL_COUNT+=1
+            FAIL_NAMES+=("macOS 原生窗口冒烟")
+            printf 'FAIL\tmacOS 原生窗口冒烟(真实进程/系统窗口层)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
+        fi
+        cleanup_e2e
+    else
+        require_or_fail "macOS 原生窗口冒烟(swift / screencapture)" swift screencapture || true
     fi
 else
     if [ "${E2E_REQUIRED:-0}" = "1" ]; then
         tcase "窗口冒烟不能跳过(E2E_REQUIRED=1)" false
-    elif [ "$PLATFORM" != "Linux" ]; then
-        tskip "窗口冒烟" "tauri-driver 直连仅 Linux/Windows 有原生桥;macOS 无 WKWebView WebDriver(Tauri 官方口径)—— 视觉回归覆盖 UI 面"
+    elif [ "$PLATFORM" = "Windows" ]; then
+        tskip "窗口冒烟" "Windows WebDriver 专项待接入;当前不能计为 macOS/Linux 同级覆盖"
     else
         tskip "窗口冒烟" "E2E_SKIP_WINDOW=1"
     fi

@@ -16,7 +16,7 @@
 | L2 | `tests/frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量；具体规模以运行报告为准 | **模拟**（`fakeBackend`） | 0 = 通过 |
 | L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / doc-test（`///` 示例绊网，`--all-targets` 不含 doctest）/ `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`）/ llvm-cov 行覆盖报告（装了才跑，可通过 `BACKEND_COVERAGE=0` 关闭；报告型无门槛） | **真** | 0 = 通过 |
 | L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / **签名封印 + 授权已嵌入**（`codesign_entitlements_ok`，自测 `codesign-entitlements.test.sh` 同步编排）/ DMG 内封印 | 真产物 | 0 = 通过 |
-| L5 | `tests/e2e/` | 视觉回归（全路由 × dark/light 截图基线，真实前端 + fakeBackend 浏览器态构建）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）；依赖缺失时默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
+| L5 | `tests/e2e/` | 视觉回归（全路由 × dark/light 截图基线，真实前端 + fakeBackend 浏览器态构建）+ 真窗口冒烟（Linux/Windows WebDriver；macOS CoreGraphics）；`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
 | L6 | `tests/live/` | **实模型演练**：`reflect_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `reflect_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`REFLECT_LIVE=1` 开启 | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
 
 **为什么 L2、L3 与 L6 都要有**：L2 验前端行为与线格式（后端是模拟的），
@@ -50,7 +50,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | 追问 | `ask_user_question_response` `ask_user_input_response` | L3 `ipc_agent_ops.rs` + `ipc_question_runtime.rs`（结构化问答）+ `ipc_input_runtime.rs`（自由文本、敏感标志、持久化请求外部回执）+ `ipc_human_restart.rs`（跨进程保留请求并重试消费答案） | `modals.approvals-questions` |
 | 会话生命周期 | `create` `bind` `list` `rename` `fork` `delete` `archive` `unarchive` `list_archived` `replay` `export` `search_sessions` | L3 `ipc_core.rs` | `sessions.lifecycle` |
 | 会话统计 | `session_stats` `all_model_usage` `model_rate_cards` | L3 `ipc_core.rs` | `usage` |
-| 配置 | `get_config` `save_config` `config_info` `set_model` | L3 `ipc_core.rs` + `ipc_model_discovery.rs`（本地模拟清单失败及相同配置重试）+ `ipc_settings_restart.rs`（跨进程保存的预算约束新 Agent 回合） | `settings.config` |
+| 配置 | `get_config` `save_config` `config_info` `set_model` | L3 `ipc_core.rs` + `ipc_model_discovery.rs`（本地模拟清单失败及相同配置重试）+ `ipc_settings_restart.rs`（跨进程保存的预算约束新 Agent 回合）+ `ipc_settings_concurrency.rs`（并发模型切换不丢写） | `settings.config` |
 | 运行时状态 | `agent_status` `credential_pool_status` `recovery_state` `memory_sections` `sandbox_status` | L3 `ipc_core.rs` / `ipc_workspace.rs` | `StatusBar` / `AppShell` |
 | 工具 / 技能 / hooks | `list_tools` `list_skills` `rescan_extensions` `list_hooks` `toggle_hook` `list_hook_events` | L3 `ipc_core.rs`、`ipc_hooks.rs`；`ipc_extensions.rs` 验证绑定会话后新增、删除技能的重扫及事件配对；`ipc_skill_runtime.rs` 验证模型加载技能正文 | — |
 | 记忆 | `list/add/remove_memory` | L3 `ipc_core.rs` | `MemoryView` |
@@ -84,7 +84,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | **线格式契约(参数形状)** | 全部 188 条命令的参数样本:fakeBackend 收得下；真后端对排除清单之外的样本验证反序列化 | L2 `ipc.payload-contract` + L3 `ipc_payload_contract.rs` + L1 `payload-sample-complete` | 同左(fakeBackend 侧) |
 | **持久化往返契约(语义)** | 21 对「写 → 读」(allowlist / config / memory / schedule / mcp / 权限规则 / agent def / 活跃 agent / 子代理 / squad / team / pipeline / KMS / 任务 / 工作区 / autopilot / remote / 文件 / LSP) | L2 `ipc.roundtrip-contract` + L3 `ipc_roundtrip_contract.rs` 双端同表 | 同左(fakeBackend 侧) |
 | **假模型全链路** | 有模型的完整一轮:submit → AgentThread → HTTP → SSE 解析 → 事件回传(文本流 / bash 工具 + 审批门 + tool_result 第二跳 / HTTP 500 / 流中 interrupt 及恢复);跨进程回放旧用户与助手消息后继续模型请求 | L3 `ipc_mock_provider.rs`、`ipc_chat_restart.rs`(wiremock 本地假网关,离线确定性) | `chat.full-flow`(ScriptedAgent 模拟层,与 L3 互补) |
-| **并发不变量** | 并行只读 / submit 风暴 + 交错 interrupt / 并发配置写(文件始终合法 TOML、不死锁) | L3 `ipc_concurrency.rs` | — |
+| **并发不变量** | 并行只读 / submit 风暴 + 交错 interrupt / 并发配置写(文件始终合法 TOML、不死锁);两个模型切换并发执行后两个 provider 段均保留 | L3 `ipc_concurrency.rs`、`ipc_settings_concurrency.rs` | — |
 | **重启恢复** | 进程退出后以同一 `~/.zhuye` 重启:配置 / 记忆 / 白名单 / agent 定义 / squad / 任务 / 定时任务 / 工作区读回；会话重命名、分叉、归档和删除状态跨进程保持 | L3 `ipc_restart.rs`、`ipc_session_lifecycle_restart.rs`(子进程两阶段) | `sessions.lifecycle`(切换水合,单进程内) |
 | **数据目录统一** | 桌面与核心共享同一个 `.zhuye` 数据目录；就地追加（权限规则 / 项目记忆）读-改-写，保留文件已有内容 | L3 `ipc_namespace_compat.rs` | — |
 | **i18n 渲染级** | 34 条路由 zh-CN 挂载:页面出现中文、无裸 i18n key | — | `views.route-matrix`(zh-CN 遍) |
@@ -159,7 +159,7 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 |---|---|---|
 | 生产文件 ≤ 500 行 | `src-tauri/src/commands/sessions.rs` 等 11 个文件超限 | 新增超限文件 → L1 失败 |
 | `PROTOCOL_BRIDGE.md` 命令覆盖率 | 91.9% | 覆盖率跌破基线 → L1 失败 |
-| 后端测试源码命令引用 | 引用 **182/188** 条；不代表实际执行 | 引用数跌破基线 → L1 失败 |
+| 已完成命令的测试入口 | **188/188** 条命令均有 IPC/命令体单元测试引用或带原因的环境排除（当前 1 条:`reflect_run_security_scan` 依赖联网 RustSec 数据库） | 新增无证据命令、坏排除表、空原因或过期排除项 → L1 失败 |
 
 另有**已知的真后端行为特征**（能力覆盖层照实记录，不算缺陷）：
 
@@ -179,9 +179,9 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 - **`reflect_toggle_plugin` 对不存在的插件幂等返回 `Ok(null)`**，不报错。
 - **`reflect_release_task` 对未认领的任务报错**（`not claimed (nothing
   to release)`）；`reflect_claim_task` 在无待认领任务时返回 `null`。
-- **Windows 不进 Rust test 矩阵**:能力覆盖夹具靠 `HOME` 隔离,而
-  Windows 的 `dirs::home_dir()` 走 `USERPROFILE` —— 跑测试会污染真实
-  用户目录。Windows 由 clippy 矩阵(编译级)与 release 产物构建覆盖。
+- **Windows 原生窗口 E2E 尚未接入**:Windows 已进入 Rust 后端测试矩阵,
+  测试夹具同时隔离 `USERPROFILE` / `HOMEDRIVE` + `HOMEPATH` / `APPDATA` /
+  `LOCALAPPDATA`;这不等于原生 Tauri 窗口 E2E,窗口矩阵仍待补。
 - **菜单构建不能在测试线程跑**:muda 绑定主线程(macOS 实测
   `MenuChild can only be created on the main thread`),「构建出的菜单 ↔
   常量表」互校因此退化为静态对齐自检 + 行为派发测试(`menu.rs` 单测)。
