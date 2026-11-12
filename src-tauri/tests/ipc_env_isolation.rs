@@ -28,6 +28,13 @@ fn isolation_probe_child() {
         );
     }
     let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap());
+    if cfg!(windows) {
+        assert_eq!(
+            std::path::PathBuf::from(std::env::var_os("USERPROFILE").unwrap()),
+            home,
+            "Windows 用户目录也必须隔离"
+        );
+    }
     let data = reflect_config::paths::data_dir().unwrap();
     assert_eq!(data, home.join(".zhuye"));
     let store = reflect_tools::HumanInputStore::from_env_or_default().unwrap();

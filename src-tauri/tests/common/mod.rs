@@ -12,9 +12,10 @@
 //!
 //! ## 隔离
 //!
-//! 每个测试二进制(=每个测试文件)启动时把 `HOME` 指向
+//! 每个测试二进制(=每个测试文件)启动时把用户目录(Unix `HOME`,
+//! Windows `USERPROFILE` / `HOMEDRIVE` + `HOMEPATH`)指向
 //! 一个临时目录 —— 真后端读写 `~/.zhuye/*`,不隔离就会污染开发者的
-//! 真实会话、记忆与任务。只设 `HOME` 即可:核心 crate 的数据根是
+//! 真实会话、记忆与任务。核心 crate 的数据根是
 //! `$ZHUYE_HOME` > `$HOME/.zhuye`。同时清除人工输入、回滚、配额等
 //! 独立路径覆盖以及 provider 凭证，避免绕过隔离目录或连接真实服务。
 //!
@@ -152,6 +153,13 @@ pub fn init_isolated_env() {
                 std::env::remove_var(key);
             }
             std::env::set_var("HOME", &home);
+            // `dirs::home_dir()` 在 Windows 读取 USERPROFILE / HOMEDRIVE+HOMEPATH,
+            // 不读取 HOME;只隔离 HOME 会让测试写入真实用户目录。
+            std::env::set_var("USERPROFILE", &home);
+            std::env::set_var("HOMEDRIVE", "");
+            std::env::set_var("HOMEPATH", &home);
+            std::env::set_var("APPDATA", home.join("AppData/Roaming"));
+            std::env::set_var("LOCALAPPDATA", home.join("AppData/Local"));
         }
         std::env::set_current_dir(&workspace).expect("enter isolated workspace");
     });
