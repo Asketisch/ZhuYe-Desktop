@@ -8,7 +8,7 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `5f45f0a`（v0.1.12；完整 SHA `5f45f0ac`）。本轮复审 `d063a5f → 5f45f0ac`
+> 最近审计：submodule `f4bb705`（v0.1.12；完整 SHA `f4bb7057`）。本轮增量复审 `5f45f0ac → f4bb7057`
 > 全部 538 个文件，按协议、运行时、工具、LLM/配置、编排、插件/导入、CLI/SDK
 > 七个能力族逐项对照桌面命令与前端消费面（详见 §3.30）。命令面由静态门禁
 > 验证 189 个注册命令全部有前端消费面；事件面由三方奇偶门禁验证 50 个
@@ -757,11 +757,22 @@ SDK 专用。`EventMsg` 为 50 个变体，三方奇偶与 reducer/视图消费�
 完成复审解除）；真后端 L3 全量 3,407 条测试通过；前端全量 1,529 条测试通过；
 真实窗口覆盖与逐域限制见 `tests/RUNTIME_COVERAGE.md`。
 
+### 3.31 增量复审 `5f45f0ac → f4bb7057`（v0.1.12）
+
+上游 5 个提交集中在测试与 lint 收口：统一调度器接入协议契约矩阵；rollout
+新增只读目录、真实 ENOSPC 与跨实例锁竞争回归；`zhuye-llm` 拆出静态上下文
+窗口查询，避免并行单测读取进程级 override；最后移除 TokenCount 统计冗余
+clone。协议、命令面、事件面、工具接口与配置 schema 均零变更，桌面无适配。
+
+复审证据：Runtime `cargo test --workspace` 全绿；`cargo clippy --workspace
+--all-targets -- -D warnings` 在 Rust 1.100 通过。桌面静态门禁 26/26、真后端
+3,443 条测试通过；前端全量 1,536 条测试通过；三平台 native e2e 矩阵由 CI 执行。
+
 ---
 
 ## 4. 剩余缺口与后续
 
-当前子模块的能力矩阵已按 `5f45f0ac` 复审；接线不等于全链路运行态验证。
+当前子模块的能力矩阵已按 `f4bb7057` 复审；接线不等于全链路运行态验证。
 已确认的运行态覆盖与待验证项见 `tests/RUNTIME_COVERAGE.md`；
 以下记录此前已处理的项目。
 
