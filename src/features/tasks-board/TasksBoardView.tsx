@@ -108,6 +108,28 @@ export function TasksBoardView() {
             data-testid="tasks-list-id-input"
             placeholder={t('tasks.listPlaceholder')}
           />
+          {ctrl.sessions.length > 0 && (
+            <>
+              <div className={s.listPickerLabel}>{t('tasks.sessionLists')}</div>
+              <div className={s.teamChips}>
+                {ctrl.sessions.map((session) => (
+                  <button
+                    key={session.session_id}
+                    type="button"
+                    className={s.teamChip}
+                    data-active={ctrl.listId === session.session_id || undefined}
+                    title={session.session_id}
+                    onClick={() => {
+                      ctrl.setListId(session.session_id);
+                      setShowListPicker(false);
+                    }}
+                  >
+                    {session.title || session.session_id.slice(0, 8)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           {ctrl.teamNames.length > 0 && (
             <>
               <div className={s.listPickerLabel}>{t('tasks.teams')}</div>

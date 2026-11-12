@@ -15,8 +15,8 @@
 //! 每个测试二进制(=每个测试文件)启动时把 `HOME` 指向
 //! 一个临时目录 —— 真后端读写 `~/.zhuye/*`,不隔离就会污染开发者的
 //! 真实会话、记忆与任务。只设 `HOME` 即可:核心 crate 的数据根是
-//! `$ZHUYE_HOME` > `$HOME/.zhuye`,而会话树(`reflect_rollout`)只认 `$HOME`,
-//! 不设 `ZHUYE_HOME` 才能让两者落在同一个根上。
+//! `$ZHUYE_HOME` > `$HOME/.zhuye`。同时清除人工输入、回滚、配额等
+//! 独立路径覆盖以及 provider 凭证，避免绕过隔离目录或连接真实服务。
 //!
 //! ## 生命周期
 //!
@@ -92,15 +92,18 @@ pub fn set_config_before_install(toml: &str) {
 /// **仓库里**(`src-tauri/.zhuye/...`)。能力覆盖层绝不能污染工作树,
 /// 所以连 cwd 一起沙箱化。
 ///
-/// 基目录可用 env `REFLECT_TEST_HOME` 覆盖(默认 = `/tmp/reflect-desktop-
-/// capability-<pid>`)—— `ipc_restart.rs` 用它在**两个进程**间共享同一份
+/// 基目录可用 env `REFLECT_TEST_HOME` 覆盖；默认使用随机唯一临时目录。
+/// `ipc_restart.rs` 用覆盖项在**两个进程**间共享同一份
 /// `~/.zhuye`,复刻「退出后重启」的恢复场景。
-fn init_isolated_env() {
+pub fn init_isolated_env() {
     ENV_INIT.call_once(|| {
         let base = std::env::var_os("REFLECT_TEST_HOME").map_or_else(
             || {
-                std::env::temp_dir()
-                    .join(format!("reflect-desktop-capability-{}", std::process::id()))
+                tempfile::Builder::new()
+                    .prefix("reflect-desktop-capability-")
+                    .tempdir()
+                    .expect("create unique capability directory")
+                    .keep()
             },
             std::path::PathBuf::from,
         );
@@ -128,9 +131,26 @@ fn init_isolated_env() {
         // SAFETY: 仅在 Once 保护的初始化阶段调用;此时测试线程尚未开始,
         // 进程内没有并发读写环境变量 / cwd 的其它线程。
         unsafe {
-            // 开发者 / CI 可能带着 `ZHUYE_HOME` 进来 —— 核心 crate 一律
-            // 优先读它,不清掉就会绕过 HOME 沙箱读写真实数据目录。
-            std::env::remove_var("ZHUYE_HOME");
+            // 目录覆盖项和 provider 凭证可能绕过隔离 HOME 或连接真实服务。
+            for key in [
+                "ZHUYE_HOME",
+                "ZHUYE_HUMAN_INPUT_DIR",
+                "ZHUYE_ROLLOUT_BASE",
+                "ZHUYE_QUOTA_STATE",
+                "ZHUYE_SESSION_ID",
+                "ZHUYE_SANDBOX_WRITABLE",
+                "ZHUYE_UNTRUSTED_ALLOW_BARE",
+                "ZHUYE_MODEL",
+                "ZHUYE_PROVIDER",
+                "ZHUYE_APPROVALS",
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "OLLAMA_API_KEY",
+                "OLLAMA_HOST",
+                "BRAVE_API_KEY",
+            ] {
+                std::env::remove_var(key);
+            }
             std::env::set_var("HOME", &home);
         }
         std::env::set_current_dir(&workspace).expect("enter isolated workspace");

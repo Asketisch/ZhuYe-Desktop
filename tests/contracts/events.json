@@ -161,7 +161,7 @@
         {
           "header": "Approach",
           "question": "Which approach?",
-          "options": [{ "label": "A", "description": "option a" }],
+          "options": [{ "label": "A", "description": "option a" }, { "label": "B", "description": "option b" }],
           "multi_select": false
         }
       ]
@@ -169,7 +169,9 @@
     "ask_user_input": {
       "type": "ask_user_input",
       "request_id": "req-event-3",
-      "prompt": "type your answer"
+      "prompt": "type your answer",
+      "secret": true,
+      "placeholder": "enter value"
     },
     "permission_bubble": {
       "type": "permission_bubble",
@@ -266,6 +268,7 @@
     },
     "plan_request": {
       "type": "plan_request",
+      "plan_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
       "task": "refactor module x"
     },
     "plan_ready": {

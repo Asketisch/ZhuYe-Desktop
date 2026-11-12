@@ -12,7 +12,7 @@
  * 挂载，如独立测试），失败静默为空态。
  */
 import { useEffect, useState } from 'react';
-import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBranch, Gauge, Bot, RefreshCw } from 'lucide-react';
+import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBranch, Gauge, Bot, RefreshCw, Square } from 'lucide-react';
 import { Icon, Badge, IconButton, Tooltip } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import type { SubagentProgressEntry } from '@/stores/agentStore';
@@ -396,6 +396,7 @@ function SubagentsSection() {
   const feed = useAgentStore((st) => st.subagents.feed);
   const lastStatus = useAgentStore((st) => st.subagents.lastStatus);
   const querySubagents = useAgentStore((st) => st.querySubagents);
+  const interruptSubagent = useAgentStore((st) => st.interruptSubagent);
   const { t } = useI18n();
 
   if (feed.length === 0 && lastStatus === null) return null;
@@ -437,6 +438,19 @@ function SubagentsSection() {
                   {`×${child.iteration} · ${child.total_tokens.toLocaleString()}`}
                 </span>
                 <Badge variant={statusBadge(child.state)}>{child.state}</Badge>
+                {child.state === 'running' && (
+                  <IconButton
+                    size="sm"
+                    variant="danger"
+                    label={t('inspector.subagents.cancel')}
+                    onClick={() =>
+                      void interruptSubagent(child.child_id).catch(() => {})
+                    }
+                    data-testid={`inspector-subagent-cancel-${child.child_id}`}
+                  >
+                    <Icon icon={Square} size={12} />
+                  </IconButton>
+                )}
               </li>
             ))}
           </ul>

@@ -1,0 +1,30 @@
+{
+  "ops": {
+    "user_input": {"type":"user_input", "items":[{"type":"text","text":"hello"}]},
+    "compact": {"type":"compact"},
+    "interrupt": {"type":"interrupt", "child_id":"child-1"},
+    "rewind": {"type":"rewind", "to_turn_id":"turn-1"},
+    "shutdown": {"type":"shutdown"},
+    "tool_approval": {"type":"tool_approval", "id":"approval-1", "decision":"approve"},
+    "hook_approval": {"type":"hook_approval", "id":"approval-2", "decision":{"deny":{"reason":"no"}}},
+    "enter_plan_mode": {"type":"enter_plan_mode", "task":"plan this"},
+    "exit_plan_mode": {"type":"exit_plan_mode"},
+    "plan_approval": {"type":"plan_approval", "id":"plan-1", "choice":"manual_approve"},
+    "set_effort": {"type":"set_effort", "effort":"high"},
+    "ask_user_question_response": {"type":"ask_user_question_response", "id":"q-1", "answers":{"answers":[{"selected":[0],"custom":"other"}]}},
+    "ask_user_input_response": {"type":"ask_user_input_response", "id":"q-2", "text":"answer"},
+    "set_permission_mode": {"type":"set_permission_mode", "mode":"prompt"},
+    "cycle_permission_mode": {"type":"cycle_permission_mode"},
+    "enter_goal_mode": {"type":"enter_goal_mode", "goal":"finish", "verify_command":"true", "token_budget":1000},
+    "exit_goal_mode": {"type":"exit_goal_mode"},
+    "prompt_command": {"type":"prompt_command", "action":{"type":"switch","layer":null}},
+    "rescan_extensions": {"type":"rescan_extensions", "skills":true, "commands":false},
+    "register_tools": {"type":"register_tools", "tools":[{"name":"probe","description":"probe tool","parameters":{"type":"object"}}]},
+    "tool_execution_response": {"type":"tool_execution_response", "call_id":"call-1", "output":{"content":[{"type":"text","text":"ok"}],"is_error":false,"metadata":{},"elapsed_ms":1}},
+    "steer": {"type":"steer", "priority":"now", "items":[{"type":"text","text":"continue"}]},
+    "query_subagents": {"type":"query_subagents", "child_id":"child-1"},
+    "start_side_channel": {"type":"start_side_channel", "agent":"helper", "prompt":"summarize"},
+    "cancel_side_channel": {"type":"cancel_side_channel", "id":"channel-1"},
+    "query_side_channels": {"type":"query_side_channels", "id":"channel-1"}
+  }
+}

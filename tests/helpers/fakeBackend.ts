@@ -1669,6 +1669,7 @@ export function installFakeBackend(): FakeBackend {
     result: { consensus: false, rounds: 1 },
     llmBacked: false,
   })));
+  handle('reflect_cancel_discussions', handler(() => 0));
 
   // —— pipeline(DAG 流水线)——
   handle('reflect_run_team_pipeline', handler(() => ({

@@ -12,25 +12,31 @@
  * 控制器→视图连线 + IPC 调用形状。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { TasksBoardView } from './TasksBoardView';
 import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
 
 // 跟踪调用，以便断言可以检查 cmd + args。
 const calls: Array<{ cmd: string; args: unknown }> = [];
+const sessionFixtures: Array<{ session_id: string; title: string; model: string; started_at: string; message_count: number }> = [];
+let liveTaskAppeared = false;
 
 vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
+    reflect_list_sessions: vi.fn(async () => sessionFixtures),
     reflect_list_tasks: vi.fn(async (list: string) => {
       calls.push({ cmd: 'reflect_list_tasks', args: { list } });
-      return list === 'seeded'
+      if (list === 'default' && liveTaskAppeared) {
+        return [{ id: 3, list_id: list, subject: 'Agent created this', description: '', status: 'pending', blocks: [], blocked_by: [], metadata: {}, created_at: 0, updated_at: 0 }];
+      }
+      return list === 'seeded' || list === 'agent-session-id'
         ? [
             {
               id: 1,
-              list_id: 'seeded',
+              list_id: list,
               subject: 'Write tests',
               description: '',
               status: 'pending',
@@ -42,7 +48,7 @@ vi.mock('@/utils/commands', async () => {
             },
             {
               id: 2,
-              list_id: 'seeded',
+              list_id: list,
               subject: 'Ship it',
               description: '',
               status: 'in_progress',
@@ -83,6 +89,8 @@ describe('TasksBoardView', () => {
   beforeEach(() => {
     cleanup();
     calls.length = 0;
+    sessionFixtures.length = 0;
+    liveTaskAppeared = false;
     resetMockInvoke();
   });
 
@@ -92,6 +100,34 @@ describe('TasksBoardView', () => {
     await waitFor(() => {
       expect(screen.getByText(/is empty/i)).toBeDefined();
     });
+  });
+
+  it('opens an agent session task list from the session picker', async () => {
+    sessionFixtures.push({ session_id: 'agent-session-id', title: 'Agent conversation', model: 'test', started_at: '2026-01-01T00:00:00Z', message_count: 1 });
+    const client = createTestQueryClient();
+    client.setQueryData(['sessions', { workspace: null }], []);
+    render(<QueryClientProvider client={client}><TasksBoardView /></QueryClientProvider>);
+    fireEvent.click(screen.getByTestId('tasks-list-picker-toggle'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Agent conversation' }));
+    expect(await screen.findByText('Write tests')).toBeDefined();
+    expect(calls).toContainEqual({ cmd: 'reflect_list_tasks', args: { list: 'agent-session-id' } });
+  });
+
+  it('refreshes the active task list while the board remains open', async () => {
+    vi.useFakeTimers();
+    try {
+      render(wrap(<TasksBoardView />));
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      const before = calls.filter((call) => call.cmd === 'reflect_list_tasks').length;
+      expect(before).toBeGreaterThan(0);
+      liveTaskAppeared = true;
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_100); });
+      expect(calls.filter((call) => call.cmd === 'reflect_list_tasks').length).toBeGreaterThan(before);
+      expect(screen.getByText('Agent created this')).toBeDefined();
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+    }
   });
 
   it('opens the create form on Add click', async () => {

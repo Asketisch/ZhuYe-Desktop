@@ -369,7 +369,7 @@ export interface CollabMessagePayload {
 
 export interface CollabFinishedPayload {
   id: string;
-  outcome: string; // "consensus" | "no_consensus" | "finished"
+  outcome: string; // "consensus" | "no_consensus" | "finished" | "failed" | "cancelled"
   rounds: number;
 }
 
@@ -405,6 +405,7 @@ export interface LspServerFailedPayload {
 }
 
 export interface PlanRequestPayload {
+  plan_id: string;
   task: string;
 }
 

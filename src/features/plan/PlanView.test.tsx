@@ -66,4 +66,22 @@ describe('PlanView —— plan 执行进度', () => {
     render(<PlanView />);
     expect(screen.getByText('做一件事')).toBeDefined();
   });
+
+  it('展示协议 plan_ready 的 markdown 正文', () => {
+    useAgentStore.setState({
+      pendingPlan: { id: 'p1', turnId: 't1', kind: 'ready', payload: { markdown: '## 计划\n- 实际步骤' } },
+    } as never);
+    render(<PlanView />);
+    expect(screen.getByText('- 实际步骤')).toBeDefined();
+  });
+
+  it('进入计划模式的请求只提供进入和暂不进入', () => {
+    useAgentStore.setState({
+      pendingPlan: { id: 'p1', turnId: 't1', kind: 'request', payload: { task: '检查项目' } },
+    } as never);
+    render(<PlanView />);
+    expect(screen.getByText('检查项目')).toBeDefined();
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /Auto Mode|自动模式/ })).toBeNull();
+  });
 });

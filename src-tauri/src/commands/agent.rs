@@ -107,8 +107,18 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
 }
 
 #[tauri::command]
-pub async fn reflect_interrupt(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
-    Ok(agent.interrupt().await?)
+pub async fn reflect_interrupt(
+    agent: State<'_, MinimalAgent>,
+    child_id: Option<String>,
+) -> CommandResult<String> {
+    match child_id {
+        Some(child_id) => Ok(agent
+            .submit_op(Op::Interrupt {
+                child_id: Some(child_id),
+            })
+            .await?),
+        None => Ok(agent.interrupt().await?),
+    }
 }
 
 // ====== 14 个 Op 命令:构造 Op 经 submit_op 真正驱动 AgentThread ======

@@ -101,11 +101,11 @@ check_capabilities_fresh() {
         return 1
     fi
     sha=${full_sha:0:7}
-    if grep -Fq "$sha" docs/CAPABILITIES.md; then
-        echo "docs/CAPABILITIES.md 已覆盖 submodule $sha"
+    if grep -Fq "> 最近审计：submodule \`$sha\`" docs/CAPABILITIES.md; then
+        echo "docs/CAPABILITIES.md 最近审计版本为 $sha"
         return 0
     fi
-    echo "docs/CAPABILITIES.md 未提及当前 submodule $sha —— 能力矩阵已过期"
+    echo "docs/CAPABILITIES.md 的最近审计版本不是 $sha —— 能力矩阵尚未完整复审"
     return 1
 }
 tcase "能力矩阵与 submodule 版本一致" check_capabilities_fresh
@@ -132,6 +132,9 @@ check_event_parity() {
     node "$HERE/event-parity.mjs"
 }
 tcase "事件面三方奇偶(EventMsg 变体 = TS 联合 = 契约样本)" check_event_parity
+
+# 提交操作的 Rust enum 与两个 TS 联合均需完整，字段语义由其他测试验证。
+tcase "提交操作奇偶(Rust Op = TS 联合 = 样本)" node "$HERE/op-parity.mjs"
 
 # ── 5. 子模块指针已提交(未提交 = 发布产物不可复现)───────────────────────
 check_submodule_committed() {

@@ -51,6 +51,17 @@ pub(crate) async fn hot_reload_provider_stack(
     // 调用方持有配置写锁；会话切换也遵循配置锁 → 会话锁的顺序。
     let _transition = agent.inner.session_transition_lock.lock().await;
     let mut reload_errors = Vec::new();
+    if old.token_budget != new.token_budget
+        && let Some(thread) = agent.inner.thread.lock().as_ref()
+    {
+        thread
+            .config()
+            .set_token_budget(reflect_core::config::token_budget_from_env(
+                new.token_budget
+                    .as_ref()
+                    .and_then(|section| section.session_total_tokens),
+            ));
+    }
     // 0. 插件段变更:不打断会话,直接 diff 同步挂/卸(exec handle_reload
     //    的 plugins 分支同语义)。provider 栈变更触发的 rebind 会走
     //    spawn_mount 全量重挂,不依赖这里;此分支覆盖「只改了 [plugins]」
@@ -84,9 +95,9 @@ pub(crate) async fn hot_reload_provider_stack(
     if provider_changed {
         info!("[reflect-gui] provider stack changed; rebuilding registry + quota tracker");
 
-        // 1. 重建 registry(无 provider 时降级分支会注册 EchoTool,语义同 install)。
+        // 1. 重建模型注册表，内置工具仍由共享工具表管理。
         reflect_config::discovery::clear_catalog_cache();
-        let registry = super::thread_factory::build_registry(new, agent.tools());
+        let registry = super::thread_factory::build_registry(new);
 
         // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
         //    model 解析诚实化后,provider 在但无显式 model 也是降级态

@@ -176,7 +176,7 @@ fn permission_mode_can_be_cycled() {
 fn ask_user_responses_are_accepted() {
     let v = invoke_ok(
         "reflect_ask_user_question_response",
-        json!({ "id": "q-probe", "answers": { "answers": [{ "indices": [0] }] } }),
+        json!({ "id": "q-probe", "answers": { "answers": [{ "selected": [0] }] } }),
     );
     assert_submission_id(&v);
 

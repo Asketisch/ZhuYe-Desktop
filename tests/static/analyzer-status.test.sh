@@ -19,7 +19,7 @@ fi
 exec "$REAL_NODE" "$@"
 EOF
 chmod +x "$TMP/bin/node"
-export PATH="$TMP/bin:$PATH" RESULT_DIR="$TMP/results"
+export PATH="$TMP/bin:$PATH" RESULT_DIR="$TMP/results" RUN_SELFTESTS=0
 for mode in fail crash pass; do
     export ANALYZER_TEST_MODE="$mode"
     # 仓库可能有其他发布阻断项，只检查分析器的分类。

@@ -6,7 +6,7 @@ import type { StringEntry } from '../types';
 const autopilot: Record<string, StringEntry> = {
   'autopilot.title':                 { en: 'Autopilot', 'zh-CN': '自动任务' },
   'autopilot.subtitle':              { en: 'Configure automatic task scheduling and view its history.', 'zh-CN': '配置自动任务调度并查看历史记录。' },
-  'autopilot.unavailable':           { en: 'Automatic task execution is not available yet. These settings are saved but do not start scheduled tasks.', 'zh-CN': '自动任务执行尚未接入。这些设置会保存，但不会启动定时任务。' },
+  'autopilot.executionStatus':       { en: 'Enabled schedules run in the background and update this history. A selected agent runs in an isolated side channel.', 'zh-CN': '启用后的计划会在后台运行并更新此历史；指定 Agent 会在隔离旁路中运行。' },
   'autopilot.configuration':         { en: 'Configuration', 'zh-CN': '配置' },
   'autopilot.enabled':               { en: 'Configured as enabled', 'zh-CN': '配置为启用' },
   'autopilot.disabled':              { en: 'Configured as disabled', 'zh-CN': '配置为禁用' },
@@ -16,6 +16,7 @@ const autopilot: Record<string, StringEntry> = {
   'autopilot.taskTemplate':          { en: 'Task template', 'zh-CN': '任务模板' },
   'autopilot.taskTemplatePlaceholder': { en: 'Prompt template for automatically created tasks...', 'zh-CN': '自动创建任务的 Prompt 模板…' },
   'autopilot.agent':                 { en: 'Agent', 'zh-CN': 'Agent' },
+  'autopilot.agentDefault':          { en: 'Default active agent', 'zh-CN': '默认活跃 Agent' },
   'autopilot.agentPlaceholder':      { en: 'default (optional)', 'zh-CN': 'default（选填）' },
   'autopilot.maxConcurrent':         { en: 'Max concurrent', 'zh-CN': '最大并发' },
   'autopilot.edit':                  { en: 'Edit', 'zh-CN': '编辑' },

@@ -3,35 +3,24 @@
  *
  * 行为契约(从原 modals/index.tsx 抽出,不可变):
  *   - title 为 i18n `modal.question.title`。
- *   - primary 为 Submit(autoFocus=false),onClose 走空 answers 路径。
- *   - 每个 item 渲染 question / options,checkbox vs radio 由 `multiSelect` 决定。
- *   - 提交时组装 `{ indices: [...] }` 数组 → store `answerQuestion`。
- *
- * QuestionItem/QuestionOption 仅在本文件使用,不污染外部 import 命名空间。
+ *   - 选项模式和回执遵循协议的 `multi_select` / `selected` 字段。
+ *   - 每题支持可选的自定义答案；关闭时逐题发送空答案。
  */
 import { useState } from 'react';
+import { Input } from '@/features/design-system';
 import { useAgentStore, type PendingQuestion } from '@/stores/agentStore';
+import type { Question } from '@/types/protocol';
 import { useI18n } from '@/utils/i18n';
 import { ModalShell } from './ModalShell';
 import s from './index.module.css';
 
-interface QuestionOption {
-  label?: string;
-  description?: string;
-}
-interface QuestionItem {
-  question?: string;
-  header?: string;
-  options?: QuestionOption[];
-  multiSelect?: boolean;
-}
-
 export function QuestionModal({ question }: { question: PendingQuestion }) {
   const { t } = useI18n();
   const answerQuestion = useAgentStore((st) => st.answerQuestion);
-  const payload = question.payload as { questions?: QuestionItem[] };
+  const payload = question.payload as { questions?: Question[] };
   const items = payload?.questions ?? [];
   const [selections, setSelections] = useState<Record<number, number[]>>({});
+  const [customAnswers, setCustomAnswers] = useState<Record<number, string>>({});
 
   const toggle = (qIdx: number, optIdx: number, multi: boolean) => {
     setSelections((prev) => {
@@ -45,7 +34,8 @@ export function QuestionModal({ question }: { question: PendingQuestion }) {
 
   const submit = () => {
     const answers = items.map((_, qIdx) => ({
-      indices: selections[qIdx] ?? [],
+      selected: selections[qIdx] ?? [],
+      ...(customAnswers[qIdx]?.trim() ? { custom: customAnswers[qIdx].trim() } : {}),
     }));
     return answerQuestion(question.id, { answers });
   };
@@ -54,12 +44,12 @@ export function QuestionModal({ question }: { question: PendingQuestion }) {
     <ModalShell
       title={t('modal.question.title')}
       open={true}
-      onClose={() => answerQuestion(question.id, { answers: [] })}
+      onClose={() => answerQuestion(question.id, { answers: items.map(() => ({ selected: [] })) })}
       primaryAction={{ label: t('modal.submit'), onClick: submit, autoFocus: false }}
     >
       {items.length === 0 && <p>{t('modal.question.empty')}</p>}
       {items.map((item, qIdx) => {
-        const multi = Boolean(item.multiSelect);
+        const multi = item.multi_select;
         return (
           <div key={qIdx} className={s.questionItem}>
             <p className={s.questionText}>{item.question ?? item.header ?? t('modal.question.fallback', { n: qIdx + 1 })}</p>
@@ -83,6 +73,14 @@ export function QuestionModal({ question }: { question: PendingQuestion }) {
                 );
               })}
             </div>
+            <Input
+              type="text"
+              className={s.otherInput}
+              aria-label={`${t('modal.question.other')} — ${item.question || item.header}`}
+              placeholder={t('modal.question.other')}
+              value={customAnswers[qIdx] ?? ''}
+              onChange={(event) => setCustomAnswers((prev) => ({ ...prev, [qIdx]: event.target.value }))}
+            />
           </div>
         );
       })}

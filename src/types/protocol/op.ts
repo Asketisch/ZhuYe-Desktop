@@ -11,6 +11,7 @@
 
 import type { AskUserAnswer } from './question';
 import type { UserInputItem } from './item';
+import type { ToolOutput } from './event';
 import type {
   ApprovalPolicy,
   ReasoningEffort,
@@ -37,7 +38,16 @@ export type OpType =
   | 'ask_user_question_response'
   | 'ask_user_input_response'
   | 'set_permission_mode'
-  | 'cycle_permission_mode';
+  | 'cycle_permission_mode'
+  | 'enter_goal_mode'
+  | 'exit_goal_mode'
+  | 'prompt_command'
+  | 'rescan_extensions'
+  | 'register_tools'
+  | 'tool_execution_response'
+  | 'start_side_channel'
+  | 'cancel_side_channel'
+  | 'query_side_channels';
 
 export interface ThreadSettingsOverrides {
   model?: string;
@@ -55,7 +65,7 @@ export interface W3cTraceContext {
 
 export type ReflectSubmissionOp =
   | { type: 'user_input'; items: UserInputItem[]; thread_settings?: ThreadSettingsOverrides }
-  | { type: 'interrupt' }
+  | { type: 'interrupt'; child_id?: string | null }
   | { type: 'shutdown' }
   | { type: 'compact' }
   | { type: 'rewind'; to_turn_id?: string | null }
@@ -79,4 +89,13 @@ export type ReflectSubmissionOp =
   | { type: 'ask_user_question_response'; id: string; answers: AskUserAnswer }
   | { type: 'ask_user_input_response'; id: string; text: string }
   | { type: 'set_permission_mode'; mode: PermissionMode }
-  | { type: 'cycle_permission_mode' };
+  | { type: 'cycle_permission_mode' }
+  | { type: 'enter_goal_mode'; goal: string; verify_command?: string | null; token_budget?: number | null }
+  | { type: 'exit_goal_mode' }
+  | { type: 'prompt_command'; action: { type: 'list' } | { type: 'switch'; layer?: string | null } }
+  | { type: 'rescan_extensions'; skills: boolean; commands: boolean }
+  | { type: 'register_tools'; tools: { name: string; description: string; parameters: unknown }[] }
+  | { type: 'tool_execution_response'; call_id: string; output: ToolOutput }
+  | { type: 'start_side_channel'; agent: string; prompt: string }
+  | { type: 'cancel_side_channel'; id: string }
+  | { type: 'query_side_channels'; id?: string | null };

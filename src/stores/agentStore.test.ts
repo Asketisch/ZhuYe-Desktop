@@ -51,6 +51,7 @@ const emptyState = (): AgentState => ({
   submitItems: async () => {},
   steer: async () => {},
   querySubagents: async () => {},
+  interruptSubagent: async () => {},
   promptList: async () => {},
   promptRescan: async () => {},
   subagents: { feed: [], lastStatus: null },
@@ -762,8 +763,9 @@ describe('reduceEvent — LSP', () => {
 
 describe('reduceEvent — plan mode', () => {
   it('plan_request sets pendingPlan', () => {
-    const patch = reduceEvent(emptyState(), ev('t1', { type: 'plan_request', task: 'refactor auth' }));
-    expect(patch.pendingPlan?.id).toBe('refactor auth');
+    const patch = reduceEvent(emptyState(), ev('t1', { type: 'plan_request', plan_id: 'plan-1', task: 'refactor auth' }));
+    expect(patch.pendingPlan?.id).toBe('plan-1');
+    expect(patch.pendingPlan?.kind).toBe('request');
   });
 
   it('plan_ready sets pendingPlan with plan_id', () => {

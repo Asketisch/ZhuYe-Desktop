@@ -9,14 +9,7 @@
 
 use std::sync::Arc;
 
-use reflect_tools::{
-    ToolRegistry,
-    builtins::{
-        BashTool, DeleteTool, EditTool, EnterPlanModeTool, EnterWorktreeTool, ExitPlanModeTool,
-        ExitWorktreeTool, GlobTool, GrepTool, NotebookEditTool, ReadTool, ToolSearchTool,
-        WebFetchTool, WebSearchTool, WriteTool,
-    },
-};
+use reflect_tools::ToolRegistry;
 
 use super::MinimalAgent;
 
@@ -34,10 +27,19 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     // 1. 读 cfg 快照。
     let cfg_snapshot = agent.inner.cfg.read().clone();
     let workspace = agent.inner.workspace.clone();
+    let activity_enabled = cfg_snapshot
+        .telemetry
+        .as_ref()
+        .is_none_or(|section| section.activity_enabled());
 
     // 2. 注册内置工具到共享 registry(MCP/LSP 后续也注册进来)。
     let tools = agent.inner.tools.clone();
-    register_builtin_tools(&tools);
+    let max_questions = cfg_snapshot
+        .ask_user_question
+        .as_ref()
+        .and_then(|section| section.resolved())
+        .map(|resolved| u32::from(resolved.max_questions));
+    register_builtin_tools(&tools, max_questions);
     // 2a. 任务工具 —— GUI 里有任务板,agent 也得能驱动它(此前只有 GUI 侧
     //     的 CRUD,agent 既看不到也改不了任务)。
     super::subagents::register_task_tools(&tools, agent.task_manager());
@@ -47,7 +49,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //    可能要打 provider 的模型清单端点(最长 ~20s)。这段窗口里
     //    `model_registry_ready()` 必须保持 false,否则前端发来的 bind 命令
     //    会用「还没解析的」model spec 构造线程(动态值场景 = 占位串)。
-    let registry = super::thread_factory::build_registry(&cfg_snapshot, Arc::clone(&tools));
+    let registry = super::thread_factory::build_registry(&cfg_snapshot);
 
     // 3a. coding plan 配额追踪器:config 声明了 quota 的 credential 才会
     //     构建(Some);全无声明 → None(与 headless 行为对齐)。
@@ -97,7 +99,9 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     // 6a. 启动 Activity logger 订阅:独立 broadcast receiver
     //     把每个 Event 映射成 ActivityEvent 写入本地 timeline,与 forwarder
     //     互不阻塞。
-    super::activity::subscribe_activity_logger(agent);
+    if activity_enabled {
+        super::activity::subscribe_activity_logger(agent);
+    }
 
     // 6a-2. 启动 side-channel 终态补发:引擎 driver 的 Done / Cancelled /
     //     Error 只推进 registry,不发协议事件;桌面端订阅进程级共享
@@ -123,6 +127,14 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     let (scheduler, driver_handle) = agent.spawn_cron_scheduler(cron_sender);
     *agent.inner.cron_scheduler.write() = Some(scheduler);
     *agent.inner.cron_driver.lock() = Some(driver_handle);
+
+    // 6c. Autopilot 驱动共享配置/历史管理器；每次 tick 读取当前线程，
+    // 会话 rebind 后无需重启即可改投新 submission sender。
+    if let Some(mut previous) = agent.inner.autopilot_driver.lock().take() {
+        previous.stop();
+    }
+    let autopilot_driver = super::autopilot::spawn_autopilot_driver(agent);
+    *agent.inner.autopilot_driver.lock() = Some(autopilot_driver);
 
     // 7. MCP / LSP bootstrap—— 读 cfg 的 [mcp_servers]/[lsp_servers],
     //    启动 server + 注册 tool。lifecycle event 经 session broadcast 推前端。
@@ -163,30 +175,13 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     );
 }
 
-/// 注册 16 个 reflect-tools 内置工具到 `ToolRegistry`。
-///
-/// `ToolSearchTool` 需要持有 registry 句柄,最后注册(否则它搜不到其他工具)。
-/// 全部工具零参数构造(除 ToolSearchTool)。
-fn register_builtin_tools(tools: &Arc<ToolRegistry>) {
-    // 文件/执行类。
-    tools.register(Arc::new(BashTool::default()));
-    tools.register(Arc::new(ReadTool));
-    tools.register(Arc::new(WriteTool));
-    tools.register(Arc::new(EditTool));
-    tools.register(Arc::new(DeleteTool));
-    tools.register(Arc::new(GrepTool));
-    tools.register(Arc::new(GlobTool));
-    tools.register(Arc::new(NotebookEditTool));
-    // Plan / Worktree。
-    tools.register(Arc::new(EnterPlanModeTool));
-    tools.register(Arc::new(ExitPlanModeTool));
-    tools.register(Arc::new(EnterWorktreeTool));
-    tools.register(Arc::new(ExitWorktreeTool));
-    // Web。
-    tools.register(Arc::new(WebFetchTool::new()));
-    tools.register(Arc::new(WebSearchTool::new()));
-    // 工具搜索 —— 持有 registry 句柄,最后注册。
-    tools.register(Arc::new(ToolSearchTool::new(Arc::clone(tools))));
+/// 与上游运行时共用内置工具清单，AST 实现由桌面侧注入。
+fn register_builtin_tools(tools: &Arc<ToolRegistry>, max_questions: Option<u32>) {
+    reflect_tools::register_builtin_tools(
+        tools,
+        max_questions,
+        Arc::new(reflect_ast::AstTool::new()),
+    );
 }
 
 #[cfg(test)]
@@ -194,14 +189,26 @@ mod tests {
     use super::*;
     use crate::state::MinimalAgent;
 
-    #[test]
-    fn register_builtin_tools_populates_registry() {
+    #[tokio::test]
+    async fn register_builtin_tools_populates_registry() {
         let tools = Arc::new(ToolRegistry::new());
-        register_builtin_tools(&tools);
+        register_builtin_tools(&tools, Some(2));
         let names = tools.list();
-        // 15 个内置工具(不含 EchoTool —— 仅降级模式注册)。
-        // 注意:工具 name() 与 struct 名不一致,且风格混杂 ——
-        // 多数 snake_case,但 plan/worktree 系列是 PascalCase(上游历史遗留)。
+        assert_eq!(names.len(), reflect_tools::BUILTIN_TOOL_COUNT);
+        let question = serde_json::json!({
+            "header": "Probe", "question": "Choose?", "multi_select": false,
+            "options": [{ "label": "A", "description": "a" }, { "label": "B", "description": "b" }]
+        });
+        let error = tools
+            .get("ask_user_question")
+            .unwrap()
+            .execute(
+                reflect_tools::ToolContext::for_workspace(std::env::temp_dir()),
+                serde_json::json!({ "questions": [question.clone(), question.clone(), question] }),
+            )
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("too many questions"), "{error}");
         for expected in [
             "bash",
             "read",
@@ -218,6 +225,12 @@ mod tests {
             "web_fetch",
             "web_search",
             "tool_search",
+            "ask_user_question",
+            "ask_user",
+            "request_human_input",
+            "background_status",
+            "PlanWrite",
+            "ast",
         ] {
             assert!(
                 names.contains(&expected.to_string()),

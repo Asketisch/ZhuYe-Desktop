@@ -12,11 +12,14 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
+use async_trait::async_trait;
 use reflect_pipeline::{FailurePolicy, Pipeline, PipelineContext, PipelineReport};
 use reflect_protocol::ThreadId;
 use reflect_subagent::SubAgentFactory;
 use reflect_task::{FileTaskStore, FileTeamStore, TaskManager};
+use reflect_tools::Tool as _;
 use reflect_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
@@ -169,8 +172,9 @@ pub async fn validate_pipeline_config(
 
     // 真实校验:核心的 `from_toml`(与运行同一条路径)。
     let validation = Pipeline::from_toml(toml_src, |label, runner, params| {
-        let team = team_index.get(label)?;
-        reflect_pipeline::nodes::default_runner_for(label, runner, params, |_| Some(team.clone()))
+        reflect_pipeline::nodes::default_runner_for(label, runner, params, |name| {
+            team_index.get(name).cloned()
+        })
     });
 
     Ok(match validation {
@@ -219,13 +223,12 @@ pub async fn run_pipeline_config(
     let team_index = build_team_index(&manager).await?;
 
     let pipeline = Pipeline::from_toml(&toml_src, |label, runner, params| {
-        let Some(team) = team_index.get(label) else {
-            tracing::warn!(
-                "pipeline node '{label}' requires team '{label}' (create it in Squad view first)"
-            );
-            return None;
-        };
-        reflect_pipeline::nodes::default_runner_for(label, runner, params, |_| Some(team.clone()))
+        if runner == "shell" {
+            return desktop_shell_runner(label, params, inputs.clone());
+        }
+        reflect_pipeline::nodes::default_runner_for(label, runner, params, |name| {
+            team_index.get(name).cloned()
+        })
     })
     .map_err(|e| PipelineRunError::Config(e.to_string()))?;
 
@@ -249,6 +252,129 @@ pub async fn run_pipeline_config(
         .run(ctx)
         .await
         .map_err(|e| PipelineRunError::Run(e.to_string()))
+}
+
+#[derive(Debug)]
+struct DesktopShellNodeRunner {
+    name: String,
+    command: String,
+    timeout: Duration,
+    workspace: std::path::PathBuf,
+    inputs: HashMap<String, String>,
+}
+
+impl DesktopShellNodeRunner {
+    fn from_params(
+        name: &str,
+        params: &toml::Value,
+        inputs: HashMap<String, String>,
+    ) -> Option<Self> {
+        let parsed: reflect_pipeline::nodes::shell::ShellNodeParams =
+            match params.clone().try_into() {
+                Ok(parsed) => parsed,
+                Err(e) => {
+                    tracing::warn!(
+                        "pipeline shell node `{name}` has invalid params ({e}); node dropped"
+                    );
+                    return None;
+                }
+            };
+        let runner =
+            match reflect_pipeline::nodes::shell::ShellNodeRunner::from_params(name, &parsed) {
+                Ok(runner) => runner,
+                Err(e) => {
+                    tracing::warn!("pipeline shell node `{name}` rejected ({e}); node dropped");
+                    return None;
+                }
+            };
+        Some(Self {
+            name: runner.name,
+            command: runner.command,
+            timeout: runner.timeout,
+            workspace: runner.workspace,
+            inputs,
+        })
+    }
+}
+
+#[async_trait]
+impl reflect_pipeline::runner::NodeRunner for DesktopShellNodeRunner {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    async fn run(
+        &self,
+        ctx: &reflect_pipeline::runner::NodeContext,
+    ) -> Result<reflect_pipeline::runner::NodeOutcome, reflect_pipeline::PipelineError> {
+        let upstream: HashMap<String, serde_json::Value> = ctx.inputs.clone();
+        let command =
+            reflect_pipeline::template::render(&self.command, &ctx.topic, &self.inputs, &upstream)
+                .map_err(|error| {
+                    reflect_pipeline::PipelineError::node_msg(
+                        self.name.clone(),
+                        format!("template render failed: {error}"),
+                    )
+                })?;
+        let mut tool_context = reflect_tools::ToolContext::for_workspace(self.workspace.clone());
+        tool_context.timeout = self.timeout;
+        tool_context.cancel = ctx.cancel.clone();
+        let started = std::time::Instant::now();
+        let output = reflect_tools::builtins::BashTool::default()
+            .execute(tool_context, serde_json::json!({ "cmd": command }))
+            .await;
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+        match output {
+            Ok(output) => {
+                let exit_code = output
+                    .metadata
+                    .get("exit_code")
+                    .and_then(|value| value.as_i64());
+                let stdout = output
+                    .content
+                    .iter()
+                    .filter_map(|block| match block {
+                        reflect_protocol::ContentBlock::Text { text } => Some(text.clone()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let outputs = serde_json::json!({
+                    "stdout": stdout,
+                    "exit_code": exit_code,
+                    "elapsed_ms": elapsed_ms,
+                });
+                if exit_code == Some(0) && !output.is_error {
+                    Ok(reflect_pipeline::runner::NodeOutcome {
+                        status: reflect_pipeline::runner::NodeStatus::Success,
+                        outputs,
+                        error: None,
+                    })
+                } else {
+                    Ok(reflect_pipeline::runner::NodeOutcome {
+                        status: reflect_pipeline::runner::NodeStatus::Failed(format!(
+                            "command exited with {exit_code:?}"
+                        )),
+                        outputs,
+                        error: None,
+                    })
+                }
+            }
+            Err(error) => Ok(reflect_pipeline::runner::NodeOutcome::failure(format!(
+                "shell node '{}' failed: {error}",
+                self.name
+            ))),
+        }
+    }
+}
+
+fn desktop_shell_runner(
+    label: &str,
+    params: Option<&toml::Value>,
+    inputs: HashMap<String, String>,
+) -> Option<Arc<dyn reflect_pipeline::runner::NodeRunner>> {
+    DesktopShellNodeRunner::from_params(label, params?, inputs)
+        .map(|runner| Arc::new(runner) as Arc<dyn reflect_pipeline::runner::NodeRunner>)
 }
 
 /// 预加载 `~/.zhuye/teams/` 下全部 team(节点 label → TeamFile)。

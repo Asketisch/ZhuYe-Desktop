@@ -73,6 +73,27 @@ describe('FilesView LSP', () => {
     await waitFor(() => expect(chip.textContent).toContain('LSP on'));
   });
 
+  it('clears shared LSP status only after the backend confirms disable', async () => {
+    localStorage.setItem(lspPrefKey(WORKSPACE), 'on');
+    useAgentStore.setState({ lspServers: [{ name: 'fixture', status: 'started', detail: '1 methods' }] });
+    mockInvoke('reflect_lsp_status', async () => ({ enabled: true, servers: ['fixture'] }));
+    let attempts = 0;
+    mockInvoke('reflect_lsp_set_enabled', async () => {
+      if (++attempts === 1) throw new Error('shutdown failed');
+      return { enabled: false, servers: [] };
+    });
+    renderView();
+    const chip = await screen.findByTestId('files-lsp-toggle') as HTMLButtonElement;
+    await waitFor(() => expect(chip.disabled).toBe(false));
+    fireEvent.click(chip);
+    expect((await screen.findByRole('alert')).textContent).toContain('shutdown failed');
+    expect(useAgentStore.getState().lspServers).toHaveLength(1);
+    await waitFor(() => expect(chip.disabled).toBe(false));
+    fireEvent.click(chip);
+    await waitFor(() => expect(useAgentStore.getState().lspServers).toEqual([]));
+    expect(localStorage.getItem(lspPrefKey(WORKSPACE))).toBe('off');
+  });
+
   it('切换失败保留实际状态和原偏好，并允许重试', async () => {
     mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
     let attempts = 0;

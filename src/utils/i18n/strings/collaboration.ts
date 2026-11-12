@@ -75,6 +75,8 @@ const collaboration: Record<string, StringEntry> = {
   'collaboration.discussionPickConfig': { en: 'Choose config…',                    'zh-CN': '选择配置…' },
   'collaboration.discussionRun':        { en: 'Run discussion',                    'zh-CN': '运行讨论' },
   'collaboration.discussionRunning':    { en: 'Running…',                          'zh-CN': '运行中…' },
+  'collaboration.discussionCancel':     { en: 'Cancel discussion',                 'zh-CN': '取消讨论' },
+  'collaboration.discussionNoModel':    { en: 'No model-backed discussion ran. Check your model and provider settings.', 'zh-CN': '未运行由模型驱动的讨论，请检查模型和提供商设置。' },
   'collaboration.pipelineTitle':        { en: 'Team Pipeline',                     'zh-CN': '团队流水线' },
   'collaboration.pipelineSelectTeam':   { en: 'Select team…',                      'zh-CN': '选择团队…' },
   'collaboration.pipelineTopicPlaceholder': { en: 'Pipeline topic (plan → prd → exec → verify)', 'zh-CN': '流水线主题（plan → prd → exec → verify）' },

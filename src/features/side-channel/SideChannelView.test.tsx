@@ -12,7 +12,11 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SideChannelView } from './SideChannelView';
 import { createTestQueryClient, emitMockEvent, resetMockInvoke } from '@/test/setup';
-import { reflect_start_side_channel, reflect_cancel_side_channel } from '@/utils/commands';
+import {
+  reflect_cancel_side_channel,
+  reflect_list_side_channels,
+  reflect_start_side_channel,
+} from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 
 const calls: Array<{ cmd: string; args: unknown }> = [];
@@ -118,6 +122,44 @@ describe('SideChannelView', () => {
     // 给异步 invalidate 一个机会 —— 不应有新的列表调用。
     await new Promise((r) => setTimeout(r, 50));
     expect(listCalls()).toBe(before);
+  });
+
+  it('updates a running row to its terminal state from a live finished event', async () => {
+    let status: 'running' | 'done' = 'running';
+    const originalList = vi
+      .mocked(reflect_list_side_channels)
+      .getMockImplementation();
+    vi.mocked(reflect_list_side_channels).mockImplementation(async () => [
+      {
+        id: 'side-live0001',
+        agentName: 'reviewer',
+        prompt: 'audit PR',
+        startedAtMs: 1000,
+        status,
+        durationMs: status === 'running' ? null : 321,
+      },
+    ]);
+    try {
+      render(wrap(<SideChannelView />));
+      await waitFor(() => screen.getByTestId('side-channel-cancel-side-live0001'));
+      status = 'done';
+      await waitFor(() => {
+        emitMockEvent('reflect_event', {
+          id: '',
+          msg: {
+            type: 'side_channel_finished',
+            kind: 'done',
+            id: 'side-live0001',
+            finished_at_ms: 1321,
+          },
+        });
+        expect(screen.queryByTestId('side-channel-cancel-side-live0001')).toBeNull();
+      });
+      expect(await screen.findByText('done')).toBeDefined();
+      expect(screen.getByText('0.3s')).toBeDefined();
+    } finally {
+      vi.mocked(reflect_list_side_channels).mockImplementation(originalList!);
+    }
   });
 
   it('running row exposes Cancel; terminal rows do not', async () => {

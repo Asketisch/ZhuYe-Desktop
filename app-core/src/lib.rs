@@ -22,6 +22,7 @@
 
 pub mod activity;
 pub mod discussion;
+pub(crate) mod discussion_events;
 pub mod media;
 pub mod pipeline;
 pub mod sandbox;

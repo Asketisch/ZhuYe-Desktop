@@ -17,6 +17,7 @@ import { ApprovalModal } from './ApprovalModal';
 import { QuestionModal } from './QuestionModal';
 import { AskUserModal } from './AskUserModal';
 import { PlanReadyModal } from './PlanReadyModal';
+import { PlanRequestModal } from './PlanRequestModal';
 import { PromptLayersModal } from './PromptLayersModal';
 
 /** 聚合所有 modal。 */
@@ -37,7 +38,7 @@ export function ModalStack() {
       {askUsers.map((u) => (
         <AskUserModal key={`u-${u.id}`} askUser={u} />
       ))}
-      {plan && <PlanReadyModal plan={plan} />}
+      {plan && (plan.kind === 'request' ? <PlanRequestModal plan={plan} /> : <PlanReadyModal plan={plan} />)}
       {/* v1.6.1：提示词层面板(`/prompt` slash 打开)—— 进程级,常驻挂载,
           自身按 `promptPanelOpen` 决定是否渲染。 */}
       <PromptLayersModal />

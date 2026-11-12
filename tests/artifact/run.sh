@@ -31,6 +31,39 @@ suite_begin "artifact"
 
 PLATFORM="$(uname -s)"
 
+# 发布矩阵提供预期类型时，每个类型必须恰有一个当前目标产物。
+check_expected_artifacts() {
+    local item dir pattern kind count seen=","
+    local IFS=','
+    case "$ARTIFACT_EXPECTED" in ,*|*,|*,,*) echo "预期产物清单格式无效"; return 1 ;; esac
+    for item in $ARTIFACT_EXPECTED; do
+        case "$seen" in *",$item,"*) echo "重复产物类型:$item"; return 1 ;; esac
+        seen="$seen$item,"
+        case "$PLATFORM:$item" in
+            Darwin:app) dir=macos; pattern='*.app'; kind=d ;;
+            Darwin:dmg) dir=dmg; pattern='*.dmg'; kind=f ;;
+            Linux:deb) dir=deb; pattern='*.deb'; kind=f ;;
+            Linux:appimage) dir=appimage; pattern='*.AppImage'; kind=f ;;
+            MINGW*:msi|MSYS*:msi|CYGWIN*:msi) dir=msi; pattern='*.msi'; kind=f ;;
+            *) echo "不支持的平台或产物类型:$PLATFORM/$item"; return 1 ;;
+        esac
+        count=$(find "$DIST_DIR/$dir" -maxdepth 1 -type "$kind" -name "$pattern" 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$count" != 1 ]; then
+            echo "$item 预期恰好一个，实际 $count 个($DIST_DIR/$dir)"
+            return 1
+        fi
+    done
+    [ "$seen" != ',' ] || { echo "预期产物清单为空"; return 1; }
+    echo "预期产物齐全且唯一:$ARTIFACT_EXPECTED"
+}
+
+if [ -n "${ARTIFACT_EXPECTED:-}" ]; then
+    if ! tcase "预期发布产物齐全且唯一" check_expected_artifacts; then
+        tfinish
+        exit 1
+    fi
+fi
+
 # ── 0. 定位产物 ───────────────────────────────────────────────────────────
 APP_BUNDLE=""
 DEB_FILE=""
@@ -38,14 +71,14 @@ APPIMAGE_FILE=""
 MSI_FILE=""
 case "$PLATFORM" in
     Darwin)
-        APP_BUNDLE=$(find "$DIST_DIR/macos" -maxdepth 1 -name '*.app' 2>/dev/null | head -1)
+        APP_BUNDLE=$(find "$DIST_DIR/macos" -maxdepth 1 -type d -name '*.app' 2>/dev/null | head -1)
         ;;
     Linux)
-        DEB_FILE=$(find "$DIST_DIR/deb" -maxdepth 1 -name '*.deb' 2>/dev/null | head -1)
-        APPIMAGE_FILE=$(find "$DIST_DIR/appimage" -maxdepth 1 -name '*.AppImage' 2>/dev/null | head -1)
+        DEB_FILE=$(find "$DIST_DIR/deb" -maxdepth 1 -type f -name '*.deb' 2>/dev/null | head -1)
+        APPIMAGE_FILE=$(find "$DIST_DIR/appimage" -maxdepth 1 -type f -name '*.AppImage' 2>/dev/null | head -1)
         ;;
     MINGW* | MSYS* | CYGWIN*)
-        MSI_FILE=$(find "$DIST_DIR/msi" -maxdepth 1 -name '*.msi' 2>/dev/null | head -1)
+        MSI_FILE=$(find "$DIST_DIR/msi" -maxdepth 1 -type f -name '*.msi' 2>/dev/null | head -1)
         ;;
 esac
 
@@ -181,6 +214,38 @@ if [ -n "$APP_BUNDLE" ]; then
     }
     tcase "bundle 内无开发残留(.DS_Store / sourcemap / node_modules)" check_no_dev_leftovers
 
+    check_installer_upgrade() {
+        installer_upgrade_ok \
+            "$ROOT" "$ROOT/target/release/reflect-desktop" "$APP_BUNDLE"
+    }
+    tcase "安装脚本覆盖升级替换二进制与 .app" check_installer_upgrade
+
+    check_installed_binary_launch() {
+        local tmp home prefix
+        tmp=$(mktemp -d "${TMPDIR:-/tmp}/zhuye-installed-launch.XXXXXX") || return 1
+        home="$tmp/home"
+        prefix="$tmp/bin"
+        mkdir -p "$home"
+        if ! HOME="$home" bash "$ROOT/scripts/install.sh" \
+            --prefix="$prefix" --app-dir="$tmp/Applications" >/dev/null; then
+            rm -rf "$tmp"
+            return 1
+        fi
+        local log="$RESULT_DIR/installed-binary-launch.log"
+        local rc=0
+        HOME="$home" ZHUYE_HEADLESS=1 run_with_timeout 10 \
+            "$prefix/reflect-desktop" --help >"$log" 2>&1 || rc=$?
+        rm -rf "$tmp"
+        if [ "$rc" -eq 0 ] || [ "$rc" -eq 124 ]; then
+            echo "已安装二进制启动冒烟通过(退出码 $rc)"
+            return 0
+        fi
+        echo "已安装二进制启动失败(退出码 $rc):"
+        tail -8 "$log" 2>/dev/null | sed 's/^/         │ /'
+        return 1
+    }
+    tcase "已安装二进制启动冒烟(--help,隔离 HOME)" check_installed_binary_launch
+
     # 必须用 --verify --deep --strict 验**封印有效性**,不能只看 `codesign -dv`
     # 是否成功 —— -dv 是显示动词,主二进制上有链接器顺手落的 ad-hoc 内嵌签名
     # 就能过,而 bundle 封印(_CodeSignature/CodeResources)可能完全缺失;
@@ -215,7 +280,7 @@ if [ -n "$APP_BUNDLE" ]; then
     # DMG 是 macOS 真正发出去的形态 —— 散装 .app 封印了不代表 DMG 里的
     # 那份也封印了(签名发生在打包期才有效,后置封印救不了已打好的 DMG)。
     # 必须挂载 DMG 直接验里面那份 .app 的封印。
-    DMG_FILE=$(find "$DIST_DIR/dmg" -maxdepth 1 -name '*.dmg' 2>/dev/null | head -1)
+    DMG_FILE=$(find "$DIST_DIR/dmg" -maxdepth 1 -type f -name '*.dmg' 2>/dev/null | head -1)
     if [ -n "$DMG_FILE" ]; then
         if require_cmd hdiutil; then
             check_dmg_signature() {
@@ -333,13 +398,8 @@ fi
 
 # ── 4. Windows:.msi ───────────────────────────────────────────────────────
 if [ -n "$MSI_FILE" ]; then
+    if require_cmd msiexec powershell; then
     check_msi() {
-        if ! require_cmd msiexec; then
-            echo "本机无 msiexec —— 仅验非空"
-            [ -s "$MSI_FILE" ] || { echo ".msi 为空文件"; return 1; }
-            echo ".msi 就位($(wc -c < "$MSI_FILE" | tr -d ' ') 字节)"
-            return 0
-        fi
         local pkg_version
         pkg_version=$(node -p "require('./package.json').version" 2>/dev/null) || {
             echo "读不到 package.json 版本"; return 1
@@ -414,6 +474,9 @@ PSEOF
         return 0
     }
     tcase ".msi 深度校验(管理映像解包 + exe 版本)" check_msi
+    else
+        tskip ".msi 深度校验(管理映像解包 + exe 版本)" "缺 msiexec 或 powershell"
+    fi
 fi
 
 # ── 5. 启动冒烟:二进制真的能起来(退出码 124 = 被超时杀 = 正常运行) ──────

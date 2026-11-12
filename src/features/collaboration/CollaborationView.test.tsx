@@ -2,10 +2,11 @@
  * Vitest — CollaborationView 多智能体编排区(discussion / pipeline)测试。
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { CollaborationView } from '@/features/collaboration/CollaborationView';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
+import { reduceEvent, useAgentStore } from '@/stores/agentStore';
 
 function wrap(node: React.ReactNode) {
   return <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>;
@@ -17,6 +18,7 @@ describe('CollaborationView — orchestration', () => {
   });
   afterEach(() => {
     cleanup();
+    useAgentStore.getState().reset();
     vi.restoreAllMocks();
   });
 
@@ -44,7 +46,7 @@ describe('CollaborationView — orchestration', () => {
       participants: ['advocate', 'skeptic'],
       transcript: '=== Discussion Transcript ===\n[advocate] hello',
       result: { consensus: false, rounds: 1 },
-      llmBacked: false,
+      llmBacked: true,
     }));
     mockInvoke('reflect_run_discussion', runDiscussion);
 
@@ -56,6 +58,76 @@ describe('CollaborationView — orchestration', () => {
     fireEvent.click(screen.getByTestId('discussion-run'));
     expect(await screen.findByTestId('discussion-transcript')).toBeDefined();
     expect(runDiscussion).toHaveBeenCalledTimes(1);
+  });
+
+  it('explains when the discussion ran without a model', async () => {
+    mockInvoke('reflect_list_teams', async () => []);
+    mockInvoke('reflect_list_discussions', async () => []);
+    mockInvoke('reflect_pick_file', async () => '/tmp/discussion.toml');
+    mockInvoke('reflect_run_discussion', async () => ({
+      discussionId: 'fallback', participants: ['advocate'], transcript: '', result: {}, llmBacked: false,
+    }));
+    render(wrap(<CollaborationView />));
+    fireEvent.click(await screen.findByText(/Choose config/i));
+    await screen.findByText('/tmp/discussion.toml');
+    fireEvent.click(screen.getByTestId('discussion-run'));
+    expect(await screen.findByText(/No model-backed discussion ran/i)).toBeDefined();
+    expect(screen.queryByTestId('discussion-transcript')).toBeNull();
+  });
+
+  it('exposes and forwards cancellation while a discussion is running', async () => {
+    mockInvoke('reflect_list_teams', async () => []);
+    mockInvoke('reflect_list_discussions', async () => []);
+    mockInvoke('reflect_pick_file', async () => '/tmp/discussion.toml');
+    let resolveRun: ((value: unknown) => void) | undefined;
+    mockInvoke('reflect_run_discussion', async () => new Promise((resolve) => {
+      resolveRun = resolve;
+    }));
+    const cancelDiscussion = vi.fn(async () => 1);
+    mockInvoke('reflect_cancel_discussions', cancelDiscussion);
+
+    render(wrap(<CollaborationView />));
+    fireEvent.click(await screen.findByText(/Choose config/i));
+    await screen.findByText('/tmp/discussion.toml');
+    fireEvent.click(screen.getByTestId('discussion-run'));
+    fireEvent.click(await screen.findByTestId('discussion-cancel'));
+
+    await waitFor(() => expect(cancelDiscussion).toHaveBeenCalledTimes(1));
+    resolveRun?.({
+      discussionId: 'cancelled',
+      participants: ['participant'],
+      transcript: '',
+      result: {},
+      llmBacked: true,
+    });
+    await screen.findByText(/Run discussion/i);
+  });
+
+  it('shows a failed discussion as failed', () => {
+    useAgentStore.setState({ collabSessions: [{
+      id: 'failure', participants: ['advocate'], mode: 'sequential', startedAt: 0,
+      status: 'failed', outcome: 'failed', rounds: 0, messages: [],
+    }] });
+    render(wrap(<CollaborationView />));
+    expect(screen.getByText('failed')).toBeDefined();
+    expect(screen.queryByText('running')).toBeNull();
+  });
+
+  it('shows an LSP disconnect and clears its error when the server restarts', () => {
+    render(wrap(<CollaborationView />));
+    const dispatch = (msg: Parameters<typeof reduceEvent>[1]['msg']) => {
+      act(() => useAgentStore.setState((state) => reduceEvent(state, { id: '', msg })));
+    };
+    dispatch({ type: 'lsp_server_started', server: 'fixture', methods: ['textDocument/hover'], language_ids: ['rust'] });
+    expect(screen.getByText('fixture')).toBeDefined();
+    expect(screen.getByText('started')).toBeDefined();
+    dispatch({ type: 'lsp_server_failed', server: 'fixture', error: 'LSP server disconnected', will_retry: false });
+    expect(screen.getByText('failed')).toBeDefined();
+    expect(screen.getByText('LSP server disconnected')).toBeDefined();
+    dispatch({ type: 'lsp_server_started', server: 'fixture', methods: ['textDocument/hover'], language_ids: ['rust'] });
+    expect(screen.getByText('started')).toBeDefined();
+    expect(screen.queryByText('LSP server disconnected')).toBeNull();
+    expect(screen.getAllByText('fixture')).toHaveLength(1);
   });
 
   it('runs a team pipeline and renders the node report', async () => {

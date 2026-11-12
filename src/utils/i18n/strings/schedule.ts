@@ -24,7 +24,7 @@ const schedule: Record<string, StringEntry> = {
   'schedule.disable':              { en: 'Disable',              'zh-CN': '禁用' },
   'schedule.enable':               { en: 'Enable',               'zh-CN': '启用' },
   'schedule.active':               { en: 'active',               'zh-CN': '活跃' },
-  'schedule.runtimeNotice':        { en: 'Cron expressions use UTC. Jobs are kept in memory and are lost when the app exits.', 'zh-CN': 'Cron 表达式使用 UTC。任务仅保存在内存中，应用退出后会丢失。' },
+  'schedule.runtimeNotice':        { en: 'Cron expressions use UTC. Jobs are saved atomically and survive app restarts; enabled next-fire times are recalculated on startup.', 'zh-CN': 'Cron 表达式使用 UTC。任务原子保存并在应用重启后保留；启用任务的下次触发时间会在启动时重算。' },
   'schedule.errorCronRequired':    { en: 'Schedule (cron expression) is required.', 'zh-CN': '请填写 cron 表达式。' },
   'schedule.errorPromptRequired':  { en: 'Prompt is required.', 'zh-CN': '请填写提示。' },
   'schedule.created':              { en: 'Scheduled “{schedule}”', 'zh-CN': '已创建定时任务“{schedule}”' },

@@ -6,7 +6,7 @@
  * 起来。路由表与行为/axe 三处同源(`helpers/routeMatrix.ts`)。
  *
  * 基线策略(与门禁其他棘轮一致):
- *   - 无基线目录时 = 首跑,落盘基线并直接通过(报告写明 "written");
+ *   - 本地缺基线时可生成；严格环境缺基线时失败；
  *   - 有基线时逐像素比对,不一致即 FAIL(布局/主题回归零容忍);
  *   - 重生成基线:删除 `tests/visual/__baselines__/` 后重跑,人工审查
  *     diff 后入库。
@@ -19,14 +19,18 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type BrowserContext } from 'playwright-core';
+import { canWriteBaseline } from './baseline-policy';
 import { ROUTES } from '../helpers/routeMatrix';
+import { comparePng } from './png-compare';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(HERE, '../../dist-visual');
-const BASELINES = path.join(HERE, '__baselines__');
+const BASELINES = process.env.VISUAL_BASELINES_DIR
+  ? path.resolve(process.env.VISUAL_BASELINES_DIR)
+  : path.join(HERE, '__baselines__');
 
 //
-// 确定性锚点 —— 视觉基线是逐字节比对,任何像素漂移即 FAIL,因此:
+// 确定性锚点 —— 视觉基线按解码像素零容差比对,因此:
 //   1. 冻结时钟:fakeBackend 的会话/activity 时间戳相对 Date.now 播种,
 //      相对时间文案("5 分钟前")会随真实时钟跨跑漂移 → 固定为常量;
 //   2. 关闭动画/过渡/光标闪烁(在 init 阶段注入,早于应用脚本)。
@@ -91,7 +95,10 @@ function hasBaselines(): boolean {
  * 发布流水线(run_all.sh e2e)通过 env `VISUAL_UPDATE` 显式声明写基线。
  */
 const BASELINE_WRITE_MODE =
-  process.env.VISUAL_UPDATE === '1' || process.env.VISUAL_WRITE === '1' || !hasBaselines();
+  canWriteBaseline(
+    process.env.VISUAL_UPDATE === '1' || process.env.VISUAL_WRITE === '1',
+    Boolean(process.env.CI) || process.env.E2E_REQUIRED === '1',
+  );
 
 let server: Server;
 let port: number;
@@ -168,13 +175,14 @@ describe.each(ROUTES)('visual $route', ({ route }) => {
       return;
     }
     const baselinePng = readFileSync(baseline);
-    if (!shot.equals(baselinePng)) {
+    const comparison = comparePng(shot, baselinePng);
+    if (!comparison.equal) {
       // 失败留存:当前截图写入 .test-results/visual-fail/,与基线逐像素定位回归。
       const failDir = path.resolve(HERE, '../../.test-results/visual-fail');
       mkdirSync(failDir, { recursive: true });
       writeFileSync(path.join(failDir, name), shot);
     }
-    expect(shot.equals(baselinePng), `${name} 与基线不一致 —— 布局/主题回归;失败截图在 .test-results/visual-fail/${name};审查后删除 __baselines__/${name} 重跑可重生成`).toBe(true);
+    expect(comparison.equal, `${name} 与基线不一致（${comparison.detail}）;失败截图在 .test-results/visual-fail/${name}`).toBe(true);
   }, 30_000);
 });
 

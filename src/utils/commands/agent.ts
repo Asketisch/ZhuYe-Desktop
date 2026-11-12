@@ -21,8 +21,10 @@ export async function reflect_submit(s: ReflectSubmission): Promise<string> {
  *
  * 返回 submission id。
  */
-export async function reflect_interrupt(): Promise<string> {
-  return invoke<string>('reflect_interrupt');
+export async function reflect_interrupt(child_id?: string): Promise<string> {
+  return child_id
+    ? invoke<string>('reflect_interrupt', { childId: child_id })
+    : invoke<string>('reflect_interrupt');
 }
 
 /**

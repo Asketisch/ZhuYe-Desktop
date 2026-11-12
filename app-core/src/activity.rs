@@ -18,12 +18,14 @@ use std::sync::Arc;
 /// 共享的 activity logger 句柄（可原地换新，支持清空内存缓冲）。
 pub struct ActivityLog {
     current: RwLock<Arc<ActivityLogger>>,
+    persist: bool,
 }
 
 impl Default for ActivityLog {
     fn default() -> Self {
         Self {
             current: RwLock::new(Arc::new(ActivityLogger::in_memory())),
+            persist: false,
         }
     }
 }
@@ -40,13 +42,22 @@ impl ActivityLog {
     /// 默认构造：落盘 `<data_dir>/activity/activity.jsonl`
     /// （HOME 缺失时上游退化为纯内存，审计不阻断启动）。
     pub fn with_default_home() -> Arc<Self> {
-        Self::wrap(ActivityLogger::with_default_home())
+        Arc::new(Self {
+            current: RwLock::new(ActivityLogger::with_default_home()),
+            persist: true,
+        })
+    }
+
+    /// 纯内存构造：清空或重建时都不会创建审计文件。
+    pub fn in_memory() -> Arc<Self> {
+        Self::wrap(Arc::new(ActivityLogger::in_memory()))
     }
 
     /// 包一个已有 logger（测试注入）。
     pub fn wrap(logger: Arc<ActivityLogger>) -> Arc<Self> {
         Arc::new(Self {
             current: RwLock::new(logger),
+            persist: false,
         })
     }
 
@@ -57,7 +68,11 @@ impl ActivityLog {
 
     /// 清空内存缓冲（磁盘审计文件不动）。
     pub fn clear_memory(&self) {
-        *self.current.write() = ActivityLogger::with_default_home();
+        *self.current.write() = if self.persist {
+            ActivityLogger::with_default_home()
+        } else {
+            Arc::new(ActivityLogger::in_memory())
+        };
     }
 
     /// 记录一条（代理到当前 logger）。
@@ -83,7 +98,7 @@ mod tests {
 
     #[test]
     fn clear_memory_swaps_to_a_fresh_buffer() {
-        let log = ActivityLog::wrap(Arc::new(ActivityLogger::in_memory()));
+        let log = ActivityLog::in_memory();
         let event = ActivityEvent::new(
             ActivityKind::AgentMessage,
             Actor::user(),

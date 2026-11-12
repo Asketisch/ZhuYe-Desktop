@@ -313,6 +313,84 @@ fn image_base64_is_readable() {
     assert_eq!(v["mime_type"], "image/png", "mime 类型不符: {v}");
 }
 
+#[test]
+fn search_and_media_reflect_workspace_changes() {
+    let _guard = workspace_lock();
+    let ws = temp_workspace("search-media-change");
+    set_workspace(&ws);
+    let note = std::path::Path::new(&ws).join("runtime-note.md");
+    let png_path = std::path::Path::new(&ws).join("runtime-asset.png");
+    let jpg_path = std::path::Path::new(&ws).join("runtime-asset.jpg");
+    std::fs::write(&note, "runtime-change-marker\n").unwrap();
+    image::RgbaImage::from_pixel(3, 3, image::Rgba([7, 8, 9, 255]))
+        .save(&png_path)
+        .unwrap();
+
+    let hits = invoke_ok(
+        "reflect_search_files",
+        json!({ "query": "runtime-change-marker", "path": ws, "maxResults": 10 }),
+    );
+    assert!(
+        hits["hits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|hit| hit["path"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("runtime-note.md")),
+        "new file did not enter search: {hits}"
+    );
+    let media = invoke_ok("reflect_list_media", json!({ "dir": ws }));
+    assert!(
+        media.as_array().unwrap().iter().any(|asset| asset["path"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("runtime-asset.png")),
+        "new image did not enter media list: {media}"
+    );
+
+    invoke_ok(
+        "reflect_image_process",
+        json!({ "spec": { "inputPath": png_path, "outputPath": jpg_path, "format": "jpeg" } }),
+    );
+    let processed = invoke_ok("reflect_list_media", json!({ "dir": ws }));
+    assert!(
+        processed
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|asset| asset["path"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("runtime-asset.jpg")),
+        "processed image did not enter media list: {processed}"
+    );
+
+    std::fs::remove_file(&note).unwrap();
+    std::fs::remove_file(&jpg_path).unwrap();
+    let after_search = invoke_ok(
+        "reflect_search_files",
+        json!({ "query": "runtime-change-marker", "path": ws, "maxResults": 10 }),
+    );
+    assert!(
+        after_search["hits"].as_array().unwrap().is_empty(),
+        "deleted file remained in search: {after_search}"
+    );
+    let after_media = invoke_ok("reflect_list_media", json!({ "dir": ws }));
+    assert!(
+        !after_media
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|asset| asset["path"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("runtime-asset.jpg")),
+        "deleted processed image remained in media list: {after_media}"
+    );
+}
+
 // ============================================================================
 // Dock 徽标
 // ============================================================================
@@ -360,6 +438,29 @@ fn git_full_flow_in_temp_repo() {
             .current_dir(&ws)
             .output();
     }
+    let add_baseline = std::process::Command::new("git")
+        .args(["add", "probe.txt"])
+        .current_dir(&ws)
+        .output()
+        .expect("stage baseline file");
+    assert!(
+        add_baseline.status.success(),
+        "baseline add failed: {add_baseline:?}"
+    );
+    let baseline = std::process::Command::new("git")
+        .args(["commit", "-qm", "baseline"])
+        .current_dir(&ws)
+        .output()
+        .expect("create baseline commit");
+    assert!(
+        baseline.status.success(),
+        "baseline commit failed: {baseline:?}"
+    );
+    std::fs::write(
+        std::path::Path::new(&ws).join("probe.txt"),
+        "modified capability probe\n",
+    )
+    .unwrap();
     set_workspace(&ws);
 
     // status —— 有一个未跟踪文件
@@ -376,10 +477,29 @@ fn git_full_flow_in_temp_repo() {
 
     // diff(staged)
     let diff = invoke_ok("reflect_git_diff", json!({ "staged": true }));
-    assert!(diff.is_string(), "git diff 应为字符串: {diff}");
+    assert!(
+        diff.as_str()
+            .unwrap_or_default()
+            .contains("+modified capability probe"),
+        "暂存差异未包含真实文件内容: {diff}"
+    );
 
     // unstage
     invoke_ok("reflect_git_unstage", json!({ "paths": ["probe.txt"] }));
+    let unstaged = invoke_ok("reflect_git_diff", json!({ "staged": false }));
+    assert!(
+        unstaged
+            .as_str()
+            .unwrap_or_default()
+            .contains("+modified capability probe"),
+        "撤销暂存后未回到工作区差异: {unstaged}"
+    );
+    let staged_after_unstage = invoke_ok("reflect_git_diff", json!({ "staged": true }));
+    assert_eq!(
+        staged_after_unstage.as_str().unwrap_or_default().trim(),
+        "",
+        "撤销暂存后暂存差异应为空: {staged_after_unstage}"
+    );
 
     // 重新暂存再提交 —— `git commit` 没有暂存内容时会以非零码退出
     // ("nothing to commit"),那不是后端 bug,是 git 语义。
@@ -404,6 +524,19 @@ fn git_full_flow_in_temp_repo() {
                 .unwrap_or_default()
                 .contains("capability probe")),
         "提交未出现在 log 里: {log}"
+    );
+    let clean = invoke_ok("reflect_git_status", json!({}));
+    assert!(
+        !clean.to_string().contains("probe.txt"),
+        "提交后工作区仍有 probe.txt 变更: {clean}"
+    );
+    let empty_commit = invoke(
+        "reflect_git_commit",
+        json!({ "message": "nothing to commit" }),
+    );
+    assert!(
+        empty_commit.is_err(),
+        "无变更提交应以结构化错误返回: {empty_commit:?}"
     );
 
     // worktrees

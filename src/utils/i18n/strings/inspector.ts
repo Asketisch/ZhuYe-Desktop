@@ -21,6 +21,7 @@ const inspector: Record<string, StringEntry> = {
   // ===== 子代理可观测（v1.4 C1:progress 推送 + 状态查询）=====
   'inspector.subagents':             { en: 'Subagents',                'zh-CN': '子代理' },
   'inspector.subagents.refresh':     { en: 'Refresh subagent status',  'zh-CN': '刷新子代理状态' },
+  'inspector.subagents.cancel':      { en: 'Cancel running subagent',   'zh-CN': '取消运行中的子代理' },
   'inspector.subagents.none':        { en: 'No matching subagents.',   'zh-CN': '没有匹配的子代理。' },
   'inspector.subagents.kindMessage': { en: 'message',                  'zh-CN': '消息' },
   'inspector.subagents.kindToolBegin': { en: 'tool start',             'zh-CN': '工具开始' },

@@ -1,6 +1,6 @@
 //! Autopilot 命令。
 //!
-//! Autopilot 配置和历史存储；尚未接入自动调度。
+//! Autopilot 配置和历史存储；后台驱动负责调度执行。
 //! `reflect_stream::autopilot::AutopilotManager` 的薄包装,
 //! 把配置和运行历史暴露给前端。
 //!

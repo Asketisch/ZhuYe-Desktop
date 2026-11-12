@@ -33,10 +33,25 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       return { turns: [...state.turns, { id: turnId, items: [], status: 'streaming' }] };
 
     case 'turn_complete':
-      return { turns: markTurn(state.turns, turnId, 'done') };
+      return {
+        turns: markTurn(state.turns, turnId, 'done'),
+        ...(isSessionEvent ? {} : {
+          pendingApprovals: state.pendingApprovals.filter((item) => item.turnId !== turnId),
+          pendingQuestions: state.pendingQuestions.filter((item) => item.turnId !== turnId),
+          pendingAskUser: state.pendingAskUser.filter((item) => item.turnId !== turnId),
+        }),
+      };
 
     case 'turn_aborted':
-      return { turns: markTurn(state.turns, turnId, 'aborted') };
+      return {
+        turns: markTurn(state.turns, turnId, 'aborted'),
+        ...(isSessionEvent ? {} : {
+          pendingApprovals: state.pendingApprovals.filter((item) => item.turnId !== turnId),
+          pendingQuestions: state.pendingQuestions.filter((item) => item.turnId !== turnId),
+          pendingAskUser: state.pendingAskUser.filter((item) => item.turnId !== turnId),
+          ...(state.pendingPlan?.turnId === turnId ? { pendingPlan: null } : {}),
+        }),
+      };
 
     case 'turn_rewound': {
       const cutoff = msg.to_turn_id;
@@ -164,6 +179,12 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         (i): i is Extract<typeof i, { kind: 'tool_call' }> =>
           i.kind === 'tool_call' && i.callId === msg.call_id,
       );
+      // 外部文件回复或取消也会结束工具，不一定经过本地弹窗的提交动作。
+      if (toolCall?.toolName === 'ask_user' || toolCall?.toolName === 'request_human_input') {
+        patch.pendingAskUser = state.pendingAskUser.filter((item) => item.turnId !== turnId);
+      } else if (toolCall?.toolName === 'ask_user_question') {
+        patch.pendingQuestions = state.pendingQuestions.filter((item) => item.turnId !== turnId);
+      }
       if (toolCall?.toolName === 'TodoWrite') {
         const todos = extractTodos(msg.output.metadata);
         if (todos) patch.todos = todos;
@@ -195,14 +216,6 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       // v1.4 A3:工具输出流式增量(预览;最终完整输出仍以 tool_call_end
       // 为准,该 case 已按 end 全量重写)。GUI 暂不做实时流式追加,先
       // 保穷尽 no-op,避免长命令期间高频重渲染。
-      return {};
-
-    case 'tool_call_args_delta':
-      // v1.5:工具参数流式增量(模型生成 tool_use 参数期间的逐段预览)。
-      // GUI 不做参数实时回显 —— 最终参数以 tool_call_begin 的完整 args
-      // 为准。显式 no-op 保穷尽:漏写会落进 default 逃过穷尽性守卫
-      // (事件契约 ipc.event-contract 以非空 patch 断言抓这种漂移,
-      // 实测曾抓到本 case 缺失)。
       return {};
 
     case 'subagent_progress': {
@@ -438,7 +451,8 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
           session.id === msg.id
             ? {
                 ...session,
-                status: 'done' as const,
+                status: msg.outcome === 'failed' ? 'failed' as const
+                  : msg.outcome === 'cancelled' ? 'cancelled' as const : 'done' as const,
                 outcome: msg.outcome,
                 rounds: msg.rounds,
               }
@@ -485,15 +499,15 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       };
 
     case 'plan_request':
-      return { pendingPlan: { id: msg.task, payload: msg, turnId } };
+      return { pendingPlan: { id: msg.plan_id, kind: 'request', payload: msg, turnId } };
 
     case 'plan_ready':
       // 新 plan → 上一份执行进度作废(step 进度按 plan_id 归属)。
-      return { pendingPlan: { id: msg.plan_id, payload: msg, turnId }, planSteps: [] };
+      return { pendingPlan: { id: msg.plan_id, kind: 'ready', payload: msg, turnId }, planSteps: [] };
 
     case 'plan_approved':
     case 'plan_rejected':
-      return { pendingPlan: null };
+      return state.pendingPlan?.id === msg.plan_id ? { pendingPlan: null } : {};
 
     case 'plan_draft_updated':
       // plan 草稿覆盖式更新(TUI 用于刷新草稿预览)。GUI 决策路径走

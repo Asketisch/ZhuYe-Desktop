@@ -93,7 +93,11 @@ describe('event contract · sample table', () => {
   it('every sample produces a non-empty reducer patch (no unknown-branch fallback)', () => {
     const empties: string[] = [];
     for (const [ty, sample] of SAMPLES) {
-      const patch = reduceEvent(st(), {
+      // 计划结果只清除匹配的待审批项；为结果事件提供真实的前置状态。
+      const state = ty === 'plan_approved' || ty === 'plan_rejected'
+        ? { ...st(), pendingPlan: { id: (sample as { plan_id: string }).plan_id, turnId: 'sub-contract', payload: {} } }
+        : st();
+      const patch = reduceEvent(state, {
         id: ty === 'session_configured' || ty === 'shutdown_complete' ? '' : 'sub-contract',
         msg: sample as ReflectEventMsg,
       });

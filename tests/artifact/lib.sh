@@ -17,3 +17,42 @@ codesign_entitlements_ok() {
     codesign -d --entitlements :- "$bundle" 2>/dev/null > "$log" || return 1
     [ -s "$log" ]
 }
+
+# installer_upgrade_ok <repo-root> <binary> <app-bundle>:
+# 在隔离 HOME / prefix 中执行两次生产安装脚本，验证二进制与 .app 替换，
+# 且第二次安装不会保留旧 bundle 中的陈旧文件。
+installer_upgrade_ok() {
+    local root="$1" bin_src="$2" app_src="$3"
+    local tmp prefix app_dir
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/zhuye-installer.XXXXXX") || return 1
+    prefix="$tmp/bin"
+    app_dir="$tmp/Applications"
+    HOME="$tmp/home" bash "$root/scripts/install.sh" \
+        --prefix="$prefix" --app-dir="$app_dir" >/dev/null || {
+        rm -rf "$tmp"
+        return 1
+    }
+    if ! cmp -s "$bin_src" "$prefix/reflect-desktop"; then
+        echo "已安装二进制与构建产物不一致"
+        rm -rf "$tmp"
+        return 1
+    fi
+    if ! cmp -s "$app_src/Contents/Info.plist" "$app_dir/ZhuYe.app/Contents/Info.plist"; then
+        echo "已安装 .app 与构建产物不一致"
+        rm -rf "$tmp"
+        return 1
+    fi
+    printf 'stale\n' > "$app_dir/ZhuYe.app/stale-upgrade-marker"
+    HOME="$tmp/home" bash "$root/scripts/install.sh" \
+        --prefix="$prefix" --app-dir="$app_dir" >/dev/null || {
+        rm -rf "$tmp"
+        return 1
+    }
+    if [ -e "$app_dir/ZhuYe.app/stale-upgrade-marker" ]; then
+        echo "重复安装保留了旧 bundle 文件"
+        rm -rf "$tmp"
+        return 1
+    fi
+    rm -rf "$tmp"
+    echo "安装与覆盖升级往返通过"
+}

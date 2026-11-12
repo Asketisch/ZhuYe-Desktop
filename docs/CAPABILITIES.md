@@ -8,31 +8,17 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 当前子模块 `d063a5f`：上游 `main`（`4deeeea3`，workspace 版本 0.1.8）之上
-> rebase 入 14 个本地路径安全修复（原 `53d62c1f` 批次，基于 `ff2c51e` / 0.1.7；
-> 该批次此前只存在于本地分支，CI 拉不到 → 本轮推到上游 `main` 后重新钉住）。
-> 0.1.7 → 0.1.8 的上游增量只有一项能力变化：`[active] bundled_skills`
-> （内置 15 项编码向 skill **默认关闭**，显式 `true` 才合入 catalog）——
-> 桌面侧 `reflect_list_skills` 同按此开关决定是否列出内置技能（否则 GUI
-> 会列出 agent 根本没加载的 skill），设置页 `[active]` 节已补对应开关
-> （`src/features/settings/config/schema.ts`）。
-> 本轮复核协议面、数据目录口径与核心文件工具：
-> 协议信封 / `Op` / `EventMsg` 与上次审计一致；数据目录与环境变量改按上游口径
-> （`$ZHUYE_HOME` > `$HOME/.zhuye`，`ZHUYE_SANDBOX_OS_LEVEL`，见 `reflect_config::paths`）；
-> 上游删掉的 API（`IncompletePermissionResolver`、`ToolRegistry::{register_if_absent_owned,
-> unregister_if_same}`、`zhuye-paths`/`reflect-compat`）在桌面侧的替代实现已接线。
-> 其余能力域沿用上轮结论，尚待逐项复审；在复审完成前本矩阵不能作为
-> 当前版本的发布覆盖结论。
+> 最近审计：submodule `5f45f0a`（v0.1.12；完整 SHA `5f45f0ac`）。本轮复审 `d063a5f → 5f45f0ac`
+> 全部 538 个文件，按协议、运行时、工具、LLM/配置、编排、插件/导入、CLI/SDK
+> 七个能力族逐项对照桌面命令与前端消费面（详见 §3.30）。命令面由静态门禁
+> 验证 189 个注册命令全部有前端消费面；事件面由三方奇偶门禁验证 50 个
+> `EventMsg` 变体；提交面由 Rust/TS/样本奇偶验证 26 个 `Op` 变体；运行态
+> 证据按域登记在 `tests/RUNTIME_COVERAGE.md`。
 >
-> 最近审计：submodule `d063a5f`（0.1.8 + 路径安全批次）。上一轮针对 `e4560bc`（含上游 7 周归并；
-> 闭合 §4.1 Goal 快照读口与 §3.18 todo 回灌，§3.19 os_level schema 对齐，
-> 新增 `tool_call_args_delta` / `spec_fallback` 事件接线）的结论仍然适用，
-> 除本节列出的命名与 API 变化。
->
-> `e4560bc` 同时包含此前审计的 `c0377609` 批次：免 Key 端点可配置
-> （`122fc3e0`）/ Goal 状态读口前身（`2dc8ac3e`）/ `os_level` 语义
-> （`1a781b6d`）/ 清单回灌（`d6213972`）/ 工具参数整包形态（`b025f4c2`）/
-> 审批门观察回合级取消令牌（`c0377609`）。
+> 历史审计记录：`d063a5f`（0.1.8 + 路径安全批次）复核过协议面、数据目录口径
+> 与核心文件工具；`e4560bc` / `c0377609` 批次闭合了 Goal 快照、todo 回灌、
+> `os_level` schema、免 Key 端点、清单回灌、工具参数整包形态和审批门取消
+> 令牌观察。
 
 ## 阅读约定
 
@@ -49,18 +35,18 @@
 
 | 能力族 | 核心 crate | 关键 API | GUI 状态 |
 |---|---|---|---|
-| 协议 Op / EventMsg | `reflect-protocol` | `Op`(**25** 变体) / `EventMsg`(**49** 变体) | ✅ **23/25** Op 有命令（另 2 个是 SDK 专用：`RegisterTools` / `ToolExecutionResponse`，见 §2）；**49/49** EventMsg 有 TS 类型 + reducer（side-channel 三事件 v1.x 接线,2026-11-03） |
-| 线程运行时 | `reflect-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 `AgentConfig` 缺权限解析器（已修，见 §3.1） |
-| LLM / Provider | `reflect-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` | 🟡 有 plans / quota + **凭证池健康度**（§3.15，冷却原因在核心内不公开） |
+| 协议 Op / EventMsg | `reflect-protocol` | `Op`（26 变体）/ `EventMsg`（50 变体） | 🟡 24 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证 |
+| 线程运行时 | `reflect-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 权限解析器已接线（§3.1）；运行态覆盖缺口见 `tests/RUNTIME_COVERAGE.md` |
+| LLM / Provider | `reflect-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` / `output_budget` / `reasoning_effort` | 🟡 plans / quota、凭证池健康度、自适应输出预算、`max` / `ultra` 档位与按模型钳制已接线；冷却原因在核心内不公开 |
 | 计价 | `reflect-llm::providers` | `pricing_table` / `pricing_for` / `RateCard` | ✅ 费率卡直接读核心公开费率表（develop 收编;桌面反解 shim 已删） |
-| Autopilot | `reflect-stream::autopilot` | 配置/历史持久化 + `should_run`(真实 cron 到期判定) + `fire_if_due` 闭环 | 🟡 配置和历史读写已收编上游单一事实源；`fire_if_due` 调度闭环已在上游可用,桌面后台 driver 接线见「有意不接线」节 |
+| Autopilot | `reflect-stream::autopilot` | 配置/历史持久化 + 到期判定 + `fire_if_due` 闭环 | 🟡 桌面后台驱动已接线，指定 agent 经 side-channel 执行；历史终态关联存在并发错配风险，见 `tests/RUNTIME_COVERAGE.md` |
 | 侧通道 | `reflect-core::side_channel` | `SideChannelDriver` / `SideChannelRegistry` / `Op::Start\|Cancel\|QuerySideChannels` | ✅ **引擎原生执行**(develop WP9 收编):driver 经线程工厂注入,命令走协议三 Op,事件三变体全接线(reducer + 视图订阅);registry 进程级共享,跨会话 rebind 存活 |
 | 权限 | `reflect-permissions` | `FilePermissionStore` / `StorePermissionResolver` | ✅ 三层 store 已挂载（CLI 同构）+ Settings 可见生效规则 |
-| 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；`mcp_servers` / `lsp_servers` / `permissions` 仅 raw TOML |
+| 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` / `[context_windows]` / `[prompt_guard]` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；上下文窗口、思考强度和 prompt guard 随配置生效，但 guard/窗口明细没有专属配置面 |
 | 模型清单发现 | `reflect-config::discovery` / `reflect-llm::model_catalog` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24） |
 | MCP | `reflect-mcp` | `McpConnectionManager` / registry | ✅ 观测 + **增删 + 精选 catalog + 资源/prompt 浏览**（§3.12 / §3.16） |
 | LSP | `reflect-lsp` | `LspConnectionManager` / `DiagnosticRegistry` | ✅ 启停 + 预热 + **诊断可见**（§3.10） |
-| 工具注册表 | `reflect-tools` | `ToolRegistry` / `Sanitizer` / `WorktreeCoordinator` | ✅ 工具列表 + **worktree 状态可见**（§3.16） |
+| 工具注册表 | `reflect-tools` | `register_builtin_tools` / `ToolRegistry` / `Sanitizer` / `WorktreeCoordinator` / `LoopGuard` / `checkpoint_tool` | ✅ 与上游共用 27 个内置工具清单，桌面注入 AST；工具列表、worktree 状态、checkpoint 与循环失控守卫随运行时生效（§3.16） |
 | Hooks | `reflect-hooks` | `HookEngine` / `HookEventKind`(12) | ✅ 当前引擎注册表与启停 + **事件类型与可用决策**（§3.16）；未注册的内置项需先在配置中启用 |
 | Skills | `reflect-skills` | `SkillsCatalog` / `scan_skills_dirs` / `merge_bundled` | ✅ 已改为与运行时同源（消除列表分叉，见 §3.2） |
 | 记忆 | `reflect-memory` | `MemoryStore` / `retrieve_relevant` | 🟡 CRUD + 路径对齐（§3.9）+ **分段视图 + 注入预算**（§3.15）；相关性排序仍不可见 |
@@ -70,17 +56,17 @@
 | 压缩 | `reflect-compact` | `Compactor` / `CompactReport` | ✅ 次数 / 节省 token + **逐次明细**（§3.7） |
 | Rollout / 会话 | `reflect-rollout` | `replay` / `to_markdown` / `session_stats` / `all_model_usage` | ✅ |
 | Telemetry | `reflect-telemetry` | model-io + **span 日志** | ✅ 两面都已接线（§3.4） |
-| 子代理 | `reflect-subagent` | `SubAgentSpec` / `SubAgentFactory` | ✅ 运行态可见 + **agent 侧 `call_*` 已注册**（§3.14）+ **spec 可编辑**（§3.16） |
+| 子代理 | `reflect-subagent` | `SubAgentSpec` / `SubAgentFactory` / `Op::Interrupt.child_id` | ✅ 运行态可见与取消、**agent 侧 `call_*` 已注册**（§3.14）+ **spec 可编辑**（§3.16） |
 | Agent 定义 | `reflect-agent-def` | `AgentDefinition` / `source` | ✅ 含 v1.6 `source` 字段语义 + **活跃 agent 可切换**（§3.9） |
 | 目标模式 | `reflect-goal` | `GoalController` / `GoalState` | ✅ enter/exit + **状态快照读口**（v1.7 上游 `GoalController::snapshot()`，`reflect_goal_snapshot` 命令 + 徽标 tooltip + 投影校准，§4.1） |
 | 任务 / 团队 | `reflect-task` | `TaskManager` / `TodoWriteTool` | ✅ CRUD + claim + **产出 / 停止 / 释放**（§3.11）+ **agent 侧任务工具**（§3.14）；**todo 清单已展示**（§3.18），清单回灌已由上游闭合（§3.18） |
-| 讨论 | `reflect-discussion` | `DiscussionOrchestrator` | ✅ |
-| 流水线 | `reflect-pipeline` | `Pipeline::from_toml` / `PipelineReport` | ✅ |
-| 插件 | `reflect-plugin` | `PluginManager` / `PluginManifest` | ✅ 列表 / 启停 / 卸载 / 本地安装 + marketplace（§3.13） |
+| 讨论 | `reflect-discussion` | `DiscussionOrchestrator` | ✅ 顺序和并发讨论可运行，实时事件、失败与取消终态、历史筛选、取消入口和 transcript 持久化已接线 |
+| 流水线 | `reflect-pipeline` | `Pipeline::from_toml` / `PipelineReport` | ✅ shell 节点可执行；桌面适配层透传自定义模板输入并保留失败传播 |
+| 插件 | `reflect-plugin` / `zhuye-wasm` | `PluginManager` / `PluginManifest` / Wasm Hook + Tool | ✅ 列表 / 启停 / 卸载 / 本地安装 + marketplace；WASM hook/tool 随插件运行时加载，但详情面仅到文件与启停状态（§3.13） |
 | 沙箱 | `reflect-sandbox` | `OsSandbox` / `detect_backend` | ✅ 有效状态在状态栏可见（§3.5）+ **开关真正生效**（§3.19，每轮协议策略） |
 | BM25 | `reflect-bm25` | `rank_lines` / `tokenize` | ✅ GUI 搜索可选 **BM25 相关性**（§3.16，与 agent 的 grep 同款） |
 | AST | `reflect-ast` | `LanguageGrid` / `list_languages` | ❌ 语言网格不可见 |
-| 配置分析 | `reflect-config::analytics` | `status_line` / `Health` | ❌ 配置文件路径 / watcher 健康度不可见 |
+| 配置分析 | `reflect-config::analytics` | `status_line` / `Health` | 🟡 设置页显示配置路径与分析状态；watcher 健康度不可见 |
 
 ---
 
@@ -748,12 +734,36 @@ crate 依赖——根清单镜像键无增删(parity 门禁 93 键全镜像),
 (非流式 provider 的整段消息形态,引擎发协议 `agent_message`),
 `e2e_chat.rs` 的穷举 match 补分支。前端协议面零变更。
 
+### 3.30 完整复审 `d063a5f → 5f45f0ac`（v0.1.12）
+
+审计范围 538 个文件（+61,823 / -6,341）。协议面逐项核对：`Op` 为 26 个
+变体，24 个有桌面命令；`RegisterTools` / `ToolExecutionResponse` 归为远程
+SDK 专用。`EventMsg` 为 50 个变体，三方奇偶与 reducer/视图消费面已覆盖。
+`ThinkingDelta.kind`、Plan request/ready 的 `plan_id` 配对和
+`RolloutError` 已在前端或 recorder 适配层登记。以下是新增能力族结论。
+
+| 能力 | 上游变化 | 桌面状态 |
+|---|---|---|
+| 运行时安全 | PromptGuard、不可信来源隔离、审批 TTL / fail-closed、循环失控守卫、会话中毒判定 | 🟡 自动随引擎/工具生效；guard 与中毒退役没有专属 UI，审批门保持现有桌面弹窗 |
+| Provider / 配置 | 自适应输出预算、`max` / `ultra` 思考档位、模型钳制、`[context_windows]`、免 Key 端点 | ✅ Composer / Models / plans 消费档位；上下文窗口随配置生效，配置面仍走 TOML |
+| 工具 | 内置清单单一事实源、checkpoint 工具、循环守卫、Bash 参数面补齐、插件工具按 ID 卸载 | ✅ 工具与运行态由桌面共享清单；`bash` 输入变体和结果语义已纳入 IPC 回归 |
+| 运行时编排 | side-channel registry/driver、steering 双级队列、后台任务、queue scheduler、cron / autopilot 闭环 | ✅ side-channel、cron 与 autopilot 已接线；queue scheduler 不接，桌面有自己的会话队列（见 §2） |
+| 导入 / 插件 | `zhuye-import` 配置与会话导入、WASM hook/tool、用户级 slash commands、插件身份卸载 | 🟡 插件与用户级 slash 命令可用；WASM 随插件运行；外部 Agent 配置/会话导入尚无桌面入口 |
+| Rollout / KMS / 费率 | 完整转写导出、标题精化、DiscussionTranscript 索引、KMS wiki/page/dream、费率表 | ✅ KMS、费率卡和会话导出/历史已有桌面面；讨论索引在本轮补齐 |
+| 编排 | task/squad/actor 下沉、subagent role tools、pipeline retries/shell runner、讨论 MAX_DEPTH 修正 | ✅ Squad、任务、子代理 spec/取消、讨论取消与本地 shell 流水线已接线 |
+| CLI / SDK | secrets、doctor、session/task/pipeline CLI、Python/TS 协议全集 | ⛔ CLI/SDK 形态不强制映射 GUI；桌面命令面以上述能力为准 |
+
+复审证据：静态门禁 24/25 通过（提交操作与事件奇偶通过，唯一失败已因本节
+完成复审解除）；真后端 L3 全量 3,407 条测试通过；前端全量 1,529 条测试通过；
+真实窗口覆盖与逐域限制见 `tests/RUNTIME_COVERAGE.md`。
+
 ---
 
 ## 4. 剩余缺口与后续
 
-**GUI 接线面当前没有待接缺口。** 此前列表中的各项已分别闭合。
-唯一遗留的是 §4.2 —— 它不在 GUI 侧，而在核心文件工具里。
+当前子模块的能力矩阵已按 `5f45f0ac` 复审；接线不等于全链路运行态验证。
+已确认的运行态覆盖与待验证项见 `tests/RUNTIME_COVERAGE.md`；
+以下记录此前已处理的项目。
 
 - 「todo 清单只出不进」→ **上游已闭合**（zhuye-agent v1.7 `d621397`：
   `AgentConfig.todos_slot` 共享槽 + `tool_exec` 渲染清单 + `pre_loop`

@@ -8,7 +8,7 @@
  *
  * 行为契约:
  *   - title 为 i18n `modal.planReady.title`。
- *   - 显示 plan 文本(summary 优先,否则 plan,再否则 raw JSON)。
+ *   - 显示协议中的 plan markdown。
  *   - 按钮层级：tertiary Revise / secondary Manual Approve / primary Auto Mode。
  *   - onClose 走 store `approvePlan(id, 'revise')`(等价 dismiss)。
  */
@@ -20,8 +20,8 @@ import s from './index.module.css';
 export function PlanReadyModal({ plan }: { plan: PendingPlan }) {
   const { t } = useI18n();
   const approvePlan = useAgentStore((st) => st.approvePlan);
-  const payload = plan.payload as { plan?: string; summary?: string; steps?: unknown[] };
-  const planText = payload?.summary ?? payload?.plan ?? JSON.stringify(plan.payload, null, 2);
+  const payload = plan.payload as { markdown?: string; plan?: string; summary?: string };
+  const planText = payload?.markdown ?? payload?.summary ?? payload?.plan ?? JSON.stringify(plan.payload, null, 2);
   return (
     <ModalShell
       title={t('modal.planReady.title')}

@@ -4,11 +4,13 @@
 #
 # 输入:cargo test 输出(混合行中抓 `LIVE_CASE\t<名>\t<状态>\t<原因>`);
 # 输出:suite_absorb 兼容的 PASS/FAIL/SKIP 表。
-# 除 PASS/FAIL 外一律折为 SKIP —— 「模型不配合 / 上游限流」不是产品缺陷
-# (live/run.sh 的纪律:断言只到协议形状)。
-/^LIVE_CASE\t/ {
-    status = $3; name = $2; reason = $4;
-    if (status == "PASS")      printf "PASS\t%s\t%s\n", name, reason;
-    else if (status == "FAIL") printf "FAIL\t%s\t%s\n", name, reason;
-    else                       printf "SKIP\t%s\t%s\n", name, reason;
+# libtest 的 `test ...` 前缀可能与第一条输出出现在同一行。
+index($0, "LIVE_CASE\t") {
+    line = substr($0, index($0, "LIVE_CASE\t"));
+    count = split(line, fields, "\t");
+    name = fields[2]; status = fields[3]; reason = fields[4];
+    if (count < 4 || name == "" || (status != "PASS" && status != "FAIL" && status != "SKIP"))
+        printf "FAIL\t实模型结果格式错误\t%s\n", line;
+    else
+        printf "%s\t%s\t%s\n", status, name, reason;
 }

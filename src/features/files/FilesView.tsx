@@ -45,6 +45,7 @@ function writeLspPref(workspace: string | null, enabled: boolean): void {
   }
 }
 import { useEditorStore } from '@/stores/editorStore';
+import { useAgentStore } from '@/stores/agentStore';
 import { FileTree } from './FileTree';
 import { CodeMirrorEditor } from './CodeMirrorEditor';
 import { useFileDraftController } from './useFileDraftController';
@@ -102,6 +103,7 @@ export function FilesView() {
         let status = await reflect_lsp_status();
         if (generation !== lspGeneration.current) return;
         if (status.enabled !== pref) status = await reflect_lsp_set_enabled(pref);
+        if (!status.enabled) useAgentStore.setState({ lspServers: [] });
         if (generation !== lspGeneration.current) return;
         setLsp(status);
         if (status.enabled !== pref) setLspError(translateRef.current('files.lspUnavailable'));
@@ -126,6 +128,7 @@ export function FilesView() {
       if (generation !== lspGeneration.current) return;
       try {
         const status = await reflect_lsp_set_enabled(next);
+        if (!status.enabled) useAgentStore.setState({ lspServers: [] });
         if (generation !== lspGeneration.current) return;
         setLsp(status);
         if (status.enabled === next) writeLspPref(workspace, next);

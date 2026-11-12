@@ -311,11 +311,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
     }
   },
 
-  querySubagents: async (childId) => {
-    // 应答经 subagent_status 事件异步到达,reducer 写 subagents.lastStatus。
-    await reflect_query_subagents(childId);
-  },
-
+  // 应答经 subagent_status 事件异步到达,reducer 写 subagents.lastStatus。
+  querySubagents: async (childId) => { await reflect_query_subagents(childId); },
+  interruptSubagent: async (childId) => { await reflect_interrupt(childId); },
   /**
    * v1.6.1:查询提示词层。应答经 `prompt_list` 事件异步到达,
    * reducer 写入 `prompt`(进程级状态,不随会话切换重置)。
@@ -421,6 +419,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
   // tool/hook 的 ReviewDecision 不同,故单独方法。
   approvePlan: async (id, choice) => {
     await reflect_plan_approval(id, choice);
+    set((state) => state.pendingPlan?.id === id && state.pendingPlan.kind === 'request'
+      ? { pendingPlan: null }
+      : {});
   },
 
   enterPlanMode: async (task) => {

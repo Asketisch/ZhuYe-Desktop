@@ -126,6 +126,9 @@
   line-height: var(--lh-normal);
   outline: none;
 }
+.otherInput {
+  margin-top: var(--space-2);
+}
 .textarea:focus {
   border-color: var(--accent-border);
   box-shadow: var(--shadow-focus);

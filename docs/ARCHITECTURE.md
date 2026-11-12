@@ -166,7 +166,7 @@ ReflectDesktop/
 │     └─ MinimalAgentInner                                            │
 │                                                                       │
 │      ↔ reflect_core::AgentThread                                     │
-│     + 16 个内置工具（Bash/Read/Write/Edit/...）                        │
+│     + 上游共享内置工具表（Bash/Read/Write/问答/AST/...）               │
 │     + ModelRegistry                                                  │
 │     + ConfigWatcher                                                  │
 │     + reflect-rollout::JsonlRolloutWriter                            │

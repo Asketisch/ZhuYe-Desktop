@@ -220,6 +220,8 @@ pub(crate) async fn bootstrap_lsp(
     let (internal_tx, mut internal_rx) = tokio::sync::mpsc::channel::<LspLifecycleEvent>(32);
     let manager = Arc::new(LspConnectionManager::new(internal_tx));
 
+    let inner_for_events = Arc::downgrade(&agent.inner);
+    let manager_for_events = Arc::downgrade(&manager);
     tokio::spawn(async move {
         while let Some(evt) = internal_rx.recv().await {
             let msg = match evt {
@@ -243,7 +245,16 @@ pub(crate) async fn bootstrap_lsp(
                 }),
                 LspLifecycleEvent::Stopped { server: _ } => continue,
             };
-            let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
+            let (Some(inner), Some(owner)) =
+                (inner_for_events.upgrade(), manager_for_events.upgrade())
+            else {
+                break;
+            };
+            // 持锁到广播完成：关闭或替换管理器后，旧实例的事件不能污染界面。
+            let current = inner.lsp_manager.lock();
+            if current.as_ref().is_some_and(|m| Arc::ptr_eq(m, &owner)) {
+                let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
+            }
         }
     });
 
@@ -262,9 +273,49 @@ pub(crate) async fn bootstrap_lsp(
             }
         };
         let mgr = manager.clone();
+        let inner = Arc::downgrade(&agent.inner);
         tokio::spawn(async move {
-            if let Err(e) = mgr.start_server(lsp_cfg).await {
-                tracing::warn!(error = %e, "LSP server failed to start");
+            let name = lsp_cfg.name.clone();
+            let result = mgr.start_server(lsp_cfg).await;
+            let still_current = inner.upgrade().is_some_and(|inner| {
+                inner
+                    .lsp_manager
+                    .lock()
+                    .as_ref()
+                    .is_some_and(|m| Arc::ptr_eq(m, &mgr))
+            });
+            if !still_current {
+                // 握手期间已关闭或重开：成功启动的旧子进程必须关闭。
+                if result.is_ok() {
+                    mgr.stop_server(&name).await;
+                }
+            } else {
+                match result {
+                    Err(e) => tracing::warn!(error = %e, "LSP server failed to start"),
+                    Ok(handle) => {
+                        handle.client.peer.cancel.cancelled().await;
+                        // A normal shutdown removes the handle before cancelling the peer.
+                        // Only an unexpected disconnect leaves it in the manager.
+                        if mgr.server_names().await.contains(&name) {
+                            mgr.stop_server(&name).await;
+                            if let Some(inner) = inner.upgrade() {
+                                let current = inner.lsp_manager.lock();
+                                if current.as_ref().is_some_and(|m| Arc::ptr_eq(m, &mgr)) {
+                                    let _ = inner.session_tx.send(Event::new(
+                                        EVENT_ID_NONE,
+                                        EventMsg::LspServerFailed(
+                                            reflect_protocol::LspServerFailedEvent {
+                                                server: name,
+                                                error: "LSP server disconnected".into(),
+                                                will_retry: false,
+                                            },
+                                        ),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
             }
         });
     }

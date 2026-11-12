@@ -72,7 +72,7 @@ describe('ScheduleView', () => {
   it('renders the page title and seeded job', async () => {
     render(wrap(<ScheduleView />));
     expect(screen.getByText('Schedule')).toBeDefined();
-    expect(screen.getByText('Cron expressions use UTC. Jobs are kept in memory and are lost when the app exits.')).toBeDefined();
+    expect(screen.getByText(/Jobs are saved atomically and survive app restarts/)).toBeDefined();
     await waitFor(() => {
       expect(screen.getByText('standup')).toBeDefined();
     });

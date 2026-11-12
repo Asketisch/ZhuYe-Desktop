@@ -22,7 +22,8 @@
 //!
 //! - `run_now`(立即触发):核心 crate `CronScheduler::tick` 需访问私有 jobs Arc,
 //!   命令层无法复用;待 核心 crate 加公开 `pub async fn run_now(&self)` 后补。
-//! - 持久化(核心 crate CronScheduler 当前是内存态;进程重启丢 jobs)。
+//! - 持久化由 `state.rs` 接到 `<data>/cron/schedules.json`;重启后保留
+//!   job,并为启用任务从当前时间重算下次触发。
 //! - 后台 driver tick 间隔配置。
 //! - 一次性 schedule(`run_at` 时间点)。
 

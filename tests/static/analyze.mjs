@@ -16,6 +16,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { countLines } from './line-count.mjs';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..');
 const BASELINE_PATH = join(ROOT, 'tests', 'static', 'baseline.json');
@@ -218,7 +219,7 @@ const prodFiles = [
 
 const oversized = [];
 for (const f of prodFiles) {
-  const lines = read(f).split('\n').length;
+  const lines = countLines(read(f));
   if (lines > MAX_LINES) oversized.push(`${f}(${lines})`);
 }
 const knownOversized = new Set(baseline['file-size-budget'] ?? []);
@@ -297,9 +298,8 @@ if (secretHits.length === 0) {
   fail('no-hardcoded-secret', `疑似硬编码密钥:${[...new Set(secretHits)].join(', ')}`);
 }
 
-// ── 9. 真后端能力覆盖层的命令覆盖(棘轮)──────────────────────────────────
-// 能力覆盖层(`src-tauri/tests/ipc_*.rs`)驱动了多少条真后端命令 ——
-// 这个数字只增不减。掉下来说明有人删了用例却没改文档。
+// ── 9. 真后端测试源码引用的命令数(棘轮)──────────────────────────────────
+// 只统计字符串引用，不证明用例执行、命令成功或行为语义覆盖。
 const capDir = join(ROOT, 'src-tauri', 'tests');
 let capInvoked = new Set();
 if (existsSync(capDir)) {
@@ -308,7 +308,7 @@ if (existsSync(capDir)) {
     for (const m of src.matchAll(/"(reflect_\w+)"/g)) capInvoked.add(m[1]);
   };
   for (const f of readdirSync(capDir)) {
-    // `ipc_*.rs` 是四个能力覆盖文件。
+    // `ipc_*.rs` 包含能力层、契约和实模型测试。
     if (f.startsWith('ipc_') && f.endsWith('.rs')) {
       scan(join(capDir, f));
     }
@@ -322,7 +322,7 @@ const capFloor = baseline['capability-command-coverage'] ?? 0;
 if (capCovered.length >= capFloor) {
   pass(
     'capability-command-coverage',
-    `能力覆盖层驱动 ${capCovered.length}/${backendCommands.size} 条真后端命令(下限 ${capFloor})`,
+    `后端测试源码引用 ${capCovered.length}/${backendCommands.size} 条命令(下限 ${capFloor};非执行覆盖)`,
   );
 } else {
   fail(

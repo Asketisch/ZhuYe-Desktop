@@ -11,7 +11,7 @@
  *
  * 参考 `useMemoryController` 的结构（2026-07-25 重构先例）。
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   reflect_claim_task,
@@ -29,6 +29,7 @@ import {
   type ReflectTeam,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
+import { SESSIONS_QUERY_KEY, useSessions } from '@/features/sessions/hooks/useSessions';
 
 export const TASKS_QUERY_KEY_BASE = ['tasks'] as const;
 const TASKS_STALE_MS = 15_000;
@@ -65,6 +66,8 @@ export interface TasksBoardController {
 
   // Team 查询(驱动列表选择器)
   teamNames: string[];
+  /** 会话任务默认使用会话 ID 作为列表名。 */
+  sessions: { session_id: string; title?: string }[];
   /** 团队全量数据(团队编辑器用)。 */
   teams: ReflectTeam[];
   /** 保存团队(核心 `upsert_team`)。失败时抛错,由编辑器展示。 */
@@ -115,6 +118,9 @@ function tasksQueryKey(listId: string): readonly unknown[] {
 export function useTasksBoardController(): TasksBoardController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
+  const { all: sessions } = useSessions();
+  // 首条消息写入会话元数据是异步的；进入任务板时刷新，避免复用写入前的空缓存。
+  useEffect(() => { void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY }); }, [qc]);
 
   const [view, setView] = useState<BoardView>('list');
   const [listId, setListId] = useState<string>(DEFAULT_LIST_ID);
@@ -127,6 +133,7 @@ export function useTasksBoardController(): TasksBoardController {
     queryKey: tasksQueryKey(listId),
     queryFn: () => reflect_list_tasks(listId),
     staleTime: TASKS_STALE_MS,
+    refetchInterval: TASKS_STALE_MS,
   });
 
   const teamsQ = useQuery({
@@ -396,6 +403,7 @@ export function useTasksBoardController(): TasksBoardController {
     refetch: tasksQ.refetch,
 
     teamNames,
+    sessions,
     teams,
     upsertTeam,
     deleteTeam,

@@ -344,27 +344,53 @@ run_with_timeout() {
 }
 
 # ── 隔离环境 ────────────────────────────────────────────────────────────────
-# make_isolated_env:创建并进入隔离环境,设置:
+# make_isolated_env [HOME 父目录]:创建并进入隔离环境,设置:
 #   ISO_HOME / ISO_CWD(导出 HOME、cd 进去)
 #   预写 ~/.zhuye/config.toml —— 空配置,关掉全部内置 hook。
 #   真实后端命令读写 `~/.zhuye/*`;不隔离就会污染开发者真实会话与记忆。
 make_isolated_env() {
-    ISO_HOME="$(mktemp -d "${TMPDIR:-/tmp}/reflect-desktop-test-home.XXXXXX")"
-    ISO_CWD="$(mktemp -d "${TMPDIR:-/tmp}/reflect-desktop-test-cwd.XXXXXX")"
-    mkdir -p "$ISO_HOME/.zhuye"
-    cat > "$ISO_HOME/.zhuye/config.toml" <<'EOF'
+    local temp_parent="${TMPDIR:-/tmp}"
+    local home_parent="${1:-$temp_parent}"
+    ISO_HOME=""
+    ISO_CWD=""
+    ISO_HOME="$(mktemp -d "${home_parent%/}/reflect-desktop-test-home.XXXXXX")" || return 1
+    ISO_CWD="$(mktemp -d "${temp_parent%/}/reflect-desktop-test-cwd.XXXXXX")" || {
+        cleanup_isolated_env
+        return 1
+    }
+    mkdir -p "$ISO_HOME/.zhuye" || {
+        cleanup_isolated_env
+        return 1
+    }
+    if ! cat > "$ISO_HOME/.zhuye/config.toml" <<'EOF'
 # 测试用最小配置:关闭全部内置 hook(能力覆盖层只验行为语义,不验 hook 计时)
 [hooks]
 enabled = []
 EOF
+    then
+        cleanup_isolated_env
+        return 1
+    fi
+    if ! cd "$ISO_CWD"; then
+        cleanup_isolated_env
+        return 1
+    fi
     export HOME="$ISO_HOME"
-    cd "$ISO_CWD" || exit 1
+    # 这些覆盖项优先于 HOME 或会改变沙箱、provider；测试不继承宿主配置。
+    unset ZHUYE_HOME ZHUYE_HUMAN_INPUT_DIR ZHUYE_ROLLOUT_BASE ZHUYE_QUOTA_STATE ZHUYE_SESSION_ID
+    unset ZHUYE_SANDBOX_WRITABLE ZHUYE_UNTRUSTED_ALLOW_BARE ZHUYE_SANDBOX_OS_LEVEL ZHUYE_SANDBOX_STRICT
+    unset REFLECT_TEST_HOME ZHUYE_AUDIT_TEST_DIR ZHUYE_TASK_TEST_DIR ZHUYE_TASK_TEST_PHASE ZHUYE_TASK_TEST_WORKER
+    unset ZHUYE_TEST_INPUT_CHILD ZHUYE_TEST_PLAN_EXIT_CHILD ZHUYE_TEST_QUOTA_CHILD ZHUYE_TEST_SANDBOX_DEFAULT_CHILD
+    unset ZHUYE_MODEL ZHUYE_PROVIDER ZHUYE_APPROVALS
+    unset OPENAI_API_KEY ANTHROPIC_API_KEY OLLAMA_API_KEY OLLAMA_HOST BRAVE_API_KEY
 }
 
 # cleanup_isolated_env:清掉隔离目录(脚本 trap 里调用)。
 cleanup_isolated_env() {
     [ -n "${ISO_HOME:-}" ] && rm -rf "$ISO_HOME"
     [ -n "${ISO_CWD:-}" ] && rm -rf "$ISO_CWD"
+    ISO_HOME=""
+    ISO_CWD=""
     return 0
 }
 

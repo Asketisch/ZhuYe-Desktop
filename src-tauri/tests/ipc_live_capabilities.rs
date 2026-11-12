@@ -1367,8 +1367,20 @@ fn live_capability_matrix() {
         &Verdict::Passed(format!("model spec = {spec}(清单实时发现)")),
     );
 
+    let mut quota_reason: Option<String> = None;
     for (name, f) in SCENARIOS {
         if !scenario_selected(name) {
+            report(
+                name,
+                &Verdict::Skipped("未被 REFLECT_LIVE_SCENARIOS 选择".into()),
+            );
+            continue;
+        }
+        if let Some(reason) = &quota_reason {
+            report(
+                name,
+                &Verdict::Skipped(format!("上游配额耗尽，未执行: {reason}")),
+            );
             continue;
         }
         // 场景隔离:权限模式统一复位到 bubble(自动批准)。上一个场景
@@ -1380,8 +1392,7 @@ fn live_capability_matrix() {
         // 上游配额被打满 → 后面的场景只会继续撞墙,提前收场。
         if let Verdict::Skipped(reason) = &v {
             if is_quota_skip(reason) {
-                println!("LIVE_CASE\t(remaining)\tSKIP\t上游配额耗尽,剩余场景不再执行:{reason}");
-                break;
+                quota_reason = Some(reason.clone());
             }
         }
     }

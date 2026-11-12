@@ -1,14 +1,15 @@
 /**
- * Autopilot 配置和历史视图；调度执行尚未接入。
+ * Autopilot 配置和历史视图；后台驱动按 cron 提交任务并回填历史。
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Zap, Clock, History } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
-import { Card, Badge, Icon, Button, EmptyState, Spinner, Input } from '@/features/design-system';
+import { Card, Badge, Icon, Button, EmptyState, Spinner, Input, Select } from '@/features/design-system';
 import {
   reflect_get_autopilot_config,
   reflect_update_autopilot_config,
   reflect_autopilot_history,
+  reflect_list_agent_defs,
   type ReflectAutopilotConfig,
 } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
@@ -36,6 +37,13 @@ export function AutopilotView() {
   const historyQuery = useQuery({
     queryKey: ['autopilot', 'history'],
     queryFn: reflect_autopilot_history,
+    refetchInterval: 5_000,
+  });
+
+  const agentsQuery = useQuery({
+    queryKey: ['agents', 'list'],
+    queryFn: reflect_list_agent_defs,
+    staleTime: 30_000,
   });
 
   const updateMutation = useMutation({
@@ -61,7 +69,7 @@ export function AutopilotView() {
       width="md"
     >
       <Card level="outlined" padding="md">
-        <p role="status">{t('autopilot.unavailable')}</p>
+        <p role="status">{t('autopilot.executionStatus')}</p>
       </Card>
       {configQuery.isLoading ? (
         <Spinner size={20} />
@@ -117,12 +125,17 @@ export function AutopilotView() {
 
             <div className={s.formRow}>
               <label className={s.fieldLabel}>{t('autopilot.agent')}</label>
-              <Input
-                placeholder={t('autopilot.agentPlaceholder')}
+              <Select
+                aria-label={t('autopilot.agent')}
                 value={config.agent ?? ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update('agent', e.target.value || null)}
+                onChange={(e) => update('agent', e.target.value || null)}
                 disabled={!isEditing}
-              />
+              >
+                <option value="">{t('autopilot.agentDefault')}</option>
+                {(agentsQuery.data ?? []).map((agent) => (
+                  <option key={agent.name} value={agent.name}>{agent.name}</option>
+                ))}
+              </Select>
             </div>
 
             <div className={s.formRow}>

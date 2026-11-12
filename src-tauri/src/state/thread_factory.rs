@@ -18,20 +18,69 @@ use std::sync::Arc;
 use reflect_core::{AgentConfig, AgentThread};
 use reflect_llm::{ChatMessage, ModelRegistry, SharedModelRegistry};
 use reflect_protocol::{PermissionMode, ThreadId};
-use reflect_tools::{Sanitizer, ToolRegistry, builtins::EchoTool};
+use reflect_tools::Sanitizer;
 use tracing::warn;
 
 use super::MinimalAgent;
 
-/// 构造共享 `ModelRegistry`。逻辑原 `install.rs:47-70` 整体搬过来:
-/// provider 配置齐 → `cfg.to_registry()`;否则降级到空 registry + EchoTool,
-/// 让命令层不依赖 API key 也能启动(但实际 chat 跑不动)。
+/// 按配置构造当前会话的本地 telemetry sink。
 ///
-/// `tools` 在降级分支里会被注册 EchoTool;调用方**之前**已注册内置工具。
-pub(crate) fn build_registry(
-    cfg_snapshot: &reflect_config::ReflectConfig,
-    tools: Arc<ToolRegistry>,
-) -> SharedModelRegistry {
+/// 与上游 `ZhuyeBuilder` 的默认语义一致：未配置时默认开启；显式
+/// `enabled = false` 才关闭。model-io 文件名绑定会话 ID，便于 Traces 视图
+/// 与会话列表关联。
+fn build_telemetry_sink(
+    cfg: &reflect_config::ReflectConfig,
+    sid: Option<ThreadId>,
+) -> Option<Arc<reflect_telemetry::TelemetrySink>> {
+    let default_section = reflect_config::TelemetrySection::default();
+    let section = cfg.telemetry.as_ref().unwrap_or(&default_section);
+    if !section.is_enabled() {
+        return None;
+    }
+    let base_dir = section
+        .dir
+        .clone()
+        .unwrap_or_else(|| reflect_telemetry::resolve_traces_dir(None));
+    let session_id = sid.unwrap_or_default().to_string();
+    let write_cfg = reflect_telemetry::TelemetryWriteConfig {
+        redact: section.should_redact(),
+        max_bytes: section
+            .max_bytes
+            .map_or(reflect_telemetry::model::MAX_FIELD_CHARS, |n| n as usize),
+    };
+    let sink = reflect_telemetry::TelemetrySink::new_with_config(
+        base_dir,
+        session_id,
+        write_cfg,
+        section.should_record_tool_schemas(),
+    );
+    if let Some(langfuse) = cfg.hooks.langfuse_tracker.as_ref()
+        && langfuse.enabled.unwrap_or(false)
+        && let (Some(endpoint), Some(public_key), Some(secret_key)) = (
+            langfuse.endpoint.as_ref(),
+            langfuse.public_key.as_ref(),
+            langfuse.secret_key.as_ref(),
+        )
+        && !endpoint.is_empty()
+        && !public_key.is_empty()
+        && !secret_key.is_empty()
+    {
+        let exporter =
+            reflect_telemetry::LangfuseExporter::start(Some(reflect_telemetry::LangfuseConfig {
+                endpoint: endpoint.clone(),
+                public_key: public_key.clone(),
+                secret_key: secret_key.clone(),
+                batch_size: 64,
+            }));
+        sink.set_langfuse(exporter);
+    }
+    Some(sink)
+}
+
+/// 构造共享 `ModelRegistry`。逻辑原 `install.rs:47-70` 整体搬过来:
+/// provider 配置齐 → `cfg.to_registry()`;否则降级到空 registry,
+/// 让命令层不依赖 API key 也能启动(但实际 chat 跑不动)。
+pub(crate) fn build_registry(cfg_snapshot: &reflect_config::ReflectConfig) -> SharedModelRegistry {
     let has_provider = cfg_snapshot.active_provider().is_some();
     if has_provider {
         match cfg_snapshot.to_registry() {
@@ -49,7 +98,6 @@ pub(crate) fn build_registry(
             "[reflect-gui] no provider configured (set OPENAI_API_KEY / ANTHROPIC_API_KEY \
              or edit ~/.zhuye/config.toml); running in degraded mode"
         );
-        tools.register(Arc::new(EchoTool));
         Arc::new(ModelRegistry::new())
     }
 }
@@ -104,6 +152,15 @@ pub(crate) fn construct_thread(
     // 避免随机 id 产生空文件污染 `~/.zhuye/sessions/`。
     let mut cfg = AgentConfig::new(model_spec, agent.workspace())
         .with_approvals(true)
+        .with_max_iterations(reflect_core::config::max_iterations_from_env(
+            cfg_snapshot.active.max_iterations,
+        ))
+        .with_token_budget(reflect_core::config::token_budget_from_env(
+            cfg_snapshot
+                .token_budget
+                .as_ref()
+                .and_then(|section| section.session_total_tokens),
+        ))
         // coding plan 配额追踪:config 声明了 `[[<provider>.credentials]].quota`
         // 时为 Some;model_call 节点据此在调用后记录用量,窗口耗尽 → 冷却 +
         // `QuotaExhausted` 事件 + 池内 failover(与 TUI/headless 行为对齐)。
@@ -111,6 +168,7 @@ pub(crate) fn construct_thread(
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
+    cfg = cfg.with_telemetry(build_telemetry_sink(&cfg_snapshot, sid));
     let mut mounted_m4: Option<(ThreadId, reflect_core::config::M4Deps)> = None;
     if let Some(sid) = sid {
         // 活跃 agent 名:桌面端偏好(缺省 "default",与 CLI 一致)——
@@ -127,17 +185,29 @@ pub(crate) fn construct_thread(
             &registry,
             sid,
         );
+        // Skill 目录与按需加载工具必须来自同一份 catalog。CLI bootstrap
+        // 已注册这两项；桌面此前只展示目录，模型却拿不到 load_skill。
+        agent
+            .inner
+            .tools
+            .register_runtime_tool(Arc::new(reflect_skills::LoadSkillTool::new(
+                m4.skills.clone(),
+            )));
+        agent.inner.tools.register_runtime_tool(Arc::new(
+            reflect_skills::ReadSkillResourceTool::new(m4.skills.clone()),
+        ));
         m4.recorder = Some(Arc::new(super::recorder_guard::GuardedRecorder::new(
             reflect_rollout::JsonlRolloutWriter::new(reflect_rollout::path::default_base(), sid),
             super::recorder_guard::gate_for(agent, sid),
         )));
+        super::subagents::expose_task_tools(&m4, agent.task_manager());
         cfg = cfg.with_m4(m4.clone()).with_session_id(sid);
         // 会话笔记工具 + 子代理 `call_<role>` 工具 —— 此前桌面端**都没注册**:
         // agent 既写不了会话笔记(GUI 的笔记面板因此永远是空的),也委派不了
         // 子任务(Inspector 的子代理区块因此永远是空的)。口径与 CLI 的
         // `bootstrap_m5` 同款(见 `state/subagents.rs`)。
         super::subagents::register_note_tool(&agent.inner.tools, &m4);
-        let _subagent_factory = super::subagents::bootstrap_subagents(
+        let subagent_factory = super::subagents::bootstrap_subagents(
             &agent.workspace(),
             &cfg.current_model(),
             &registry,
@@ -147,6 +217,9 @@ pub(crate) fn construct_thread(
             &agent.inner.tools,
             &cfg_snapshot,
         );
+        let subagent_runtime = Arc::new(reflect_core::SubagentRuntimeRegistry::new());
+        subagent_factory.set_runtime_registry(subagent_runtime.clone());
+        cfg = cfg.with_subagent_runtime(subagent_runtime);
         mounted_m4 = Some((sid, m4));
     }
     if !preload.is_empty() {

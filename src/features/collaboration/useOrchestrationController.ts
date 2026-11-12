@@ -4,7 +4,7 @@
  * - 历史讨论列表:`reflect_list_discussions`(只读);
  * - 运行讨论:TOML 配置(`reflect_pick_file` 原生文件选择)→
  *   `reflect_run_discussion`。运行期间的 Collab* 事件经事件通道进入
- *   agent store 的 `collabSessions`(视图侧直接订阅渲染实时进度);
+ *   agent store 的 `collabSessions`(视图侧订阅事件状态);
  * - team pipeline:已注册 team + topic → `reflect_run_team_pipeline`,
  *   返回结构化 `PipelineReport`。
  */
@@ -14,6 +14,7 @@ import { useAgentStore } from '@/stores/agentStore';
 import {
   reflect_list_discussions,
   reflect_run_discussion,
+  reflect_cancel_discussions,
   type DiscussionRunOutcome,
   type DiscussionSessionInfo,
 } from '@/utils/commands/discussion';
@@ -37,7 +38,9 @@ export interface OrchestrationController {
   pickConfig: () => Promise<void>;
   /** 讨论运行 mutation(进行中 / 结果 / 错误)。 */
   runDiscussion: ReturnType<typeof useMutation<DiscussionRunOutcome, Error, void>>;
-  /** agent store 中正在运行 / 刚结束的讨论实时状态(Collab* 事件驱动)。 */
+  /** 取消运行中讨论 mutation。 */
+  cancelDiscussion: ReturnType<typeof useMutation<number, Error, void>>;
+  /** agent store 中正在运行 / 刚结束的讨论状态(Collab* 事件驱动)。 */
   liveCollab: ReturnType<typeof useAgentStore.getState>['collabSessions'];
 
   // —— team pipeline ——
@@ -79,6 +82,10 @@ export function useOrchestrationController(): OrchestrationController {
     },
   });
 
+  const cancelDiscussion = useMutation({
+    mutationFn: reflect_cancel_discussions,
+  });
+
   const runPipeline = useMutation({
     mutationFn: async () => {
       if (!pipelineTeam) throw new Error('select a team first');
@@ -101,6 +108,7 @@ export function useOrchestrationController(): OrchestrationController {
     configPath,
     pickConfig,
     runDiscussion,
+    cancelDiscussion,
     liveCollab,
     teams: teamsQ.data ?? [],
     pipelineTeam,

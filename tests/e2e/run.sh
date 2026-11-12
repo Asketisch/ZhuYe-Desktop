@@ -31,9 +31,36 @@ source "$HERE/../lib.sh"
 cd "$ROOT"
 
 suite_begin "e2e"
+RESULT_DIR="$(cd "$RESULT_DIR" && pwd)"
+# 每轮都清除旧窗口输出，启动失败时不能上传上次截图或显示旧日志。
+rm -f "$RESULT_DIR/e2e-window.log" "$RESULT_DIR/e2e-window.png"
 
 PLATFORM="$(uname -s)"
-MISSING_REQUIRED=0
+
+cleanup_e2e() {
+    if [ -n "${DRIVER_PID:-}" ]; then
+        kill -- -"$DRIVER_PID" 2>/dev/null || true
+        kill "$DRIVER_PID" 2>/dev/null || true
+        wait "$DRIVER_PID" 2>/dev/null || true
+        DRIVER_PID=""
+    fi
+    if [ -n "${MOCK_PID:-}" ]; then
+        kill "$MOCK_PID" 2>/dev/null || true
+        wait "$MOCK_PID" 2>/dev/null || true
+        MOCK_PID=""
+    fi
+    if [ -n "${VITE_PID:-}" ]; then
+        kill -- -"$VITE_PID" 2>/dev/null || true
+        kill "$VITE_PID" 2>/dev/null || true
+        wait "$VITE_PID" 2>/dev/null || true
+        VITE_PID=""
+    fi
+    cd "$ROOT" || return 1
+    cleanup_isolated_env
+}
+trap cleanup_e2e EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # require_or_fail <名> <依赖检测命令...>:依赖缺失时按 E2E_REQUIRED 决定
 # tskip 还是记失败(发布流水线不允许「没真正审过」静默通过)。
@@ -44,7 +71,6 @@ require_or_fail() {
         return 0
     fi
     if [ "${E2E_REQUIRED:-0}" = "1" ]; then
-        MISSING_REQUIRED=1
         tcase "$name(依赖齐备)" false
         echo "         │ 缺:$*(E2E_REQUIRED=1 时不允许跳过)"
     else
@@ -55,9 +81,13 @@ require_or_fail() {
 
 # ── 前置:node_modules(pnpm 安装面)────────────────────────────────────
 if ! require_cmd pnpm || ! require_node_deps; then
-    tskip "e2e" "缺 pnpm / node_modules(先 pnpm install)"
+    if [ "${E2E_REQUIRED:-0}" = "1" ]; then
+        tcase "e2e 依赖齐备(pnpm / node_modules)" false
+    else
+        tskip "e2e" "缺 pnpm / node_modules(先 pnpm install)"
+    fi
     tfinish
-    exit 0
+    exit $?
 fi
 
 # ── A. 视觉回归(全平台可跑,Chromium headless)───────────────────────────
@@ -93,9 +123,14 @@ run_visual() {
     fi
     # 4) 用 vitest 跑视觉 spec(复用仓库的 vitest 基建;--config 指向
     #    视觉专用 vitest 配置,与常规测试隔离)。
-    tcase_log "视觉回归(全路由 × dark/light 基线比对)" \
+    if ! tcase_log "视觉回归(全路由 × dark/light 基线比对)" \
         "$RESULT_DIR/e2e-visual.log" \
-        pnpm exec vitest run --config tests/visual/vitest.config.ts tests/visual/visual.spec.ts
+        pnpm exec vitest run --config tests/visual/vitest.config.ts tests/visual; then
+        return 1
+    fi
+    if [ "${VISUAL_UPDATE:-0}" = "1" ] || grep -qF '[visual] 首跑:写入 ' "$RESULT_DIR/e2e-visual.log"; then
+        tskip "视觉基线比对" "本次生成了基线，须审查后重新运行比对"
+    fi
 }
 
 if [ "${E2E_SKIP_VISUAL:-0}" != "1" ]; then
@@ -106,38 +141,48 @@ if [ "${E2E_SKIP_VISUAL:-0}" != "1" ]; then
         printf 'FAIL\t视觉回归(编排失败)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
     fi
 else
-    tskip "视觉回归" "E2E_SKIP_VISUAL=1"
+    if [ "${E2E_REQUIRED:-0}" = "1" ]; then
+        tcase "视觉回归不能跳过(E2E_REQUIRED=1)" false
+    else
+        tskip "视觉回归" "E2E_SKIP_VISUAL=1"
+    fi
 fi
 
 # ── B. WebDriver 冒烟(仅 Linux;mac/Windows 跳过)────────────────────────
 if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
     if command -v tauri-driver >/dev/null 2>&1 && command -v WebKitWebDriver >/dev/null 2>&1; then
+        tcase_log "窗口本地模型替身协议" \
+            "$RESULT_DIR/e2e-mock-provider-test.log" \
+            node --test "$HERE/mock-provider.test.mjs"
         # 1) 调试二进制(无 bundle,tauri:options.application 指向它)。
-        if [ ! -x "$ROOT/target/debug/reflect-desktop" ]; then
-            tcase_log "构建调试二进制(cargo build -p reflect-desktop)" \
-                "$RESULT_DIR/e2e-window-build.log" \
-                cargo build -p reflect-desktop
-        fi
+        # 每次让 Cargo 检查源码是否更新，不能复用上次运行的旧二进制。
+        build_ok=1
+        tcase_log "构建调试二进制(cargo build -p reflect-desktop)" \
+            "$RESULT_DIR/e2e-window-build.log" \
+            cargo build -p reflect-desktop || build_ok=0
         APP_BIN="$ROOT/target/debug/reflect-desktop"
         # 调试二进制按 devUrl(http://localhost:5173)加载前端,没有内嵌
         # 资源 —— 必须先起 vite dev server 并等就绪,否则 webview 显示的是
         # WebKit 的 "Could not connect to localhost" 错误页(实拍见
         # .test-results/e2e-window.png)。app_served 由收尾分支读取。
         start_dev_server() {
-            (
-                cd "$ROOT"
-                pnpm dev > "$RESULT_DIR/e2e-vite.log" 2>&1
-            ) &
+            # 不复用已经占用 devUrl 的未知服务。
+            if (exec 3<>/dev/tcp/127.0.0.1/5173) 2>/dev/null; then
+                echo "端口 5173 已被占用" > "$RESULT_DIR/e2e-vite.log"
+                return 1
+            fi
+            setsid pnpm exec vite --strictPort > "$RESULT_DIR/e2e-vite.log" 2>&1 &
             VITE_PID=$!
             local i
             for i in $(seq 1 60); do
+                kill -0 "$VITE_PID" 2>/dev/null || return 1
                 curl -fsS http://localhost:5173/ >/dev/null 2>&1 && return 0
                 sleep 0.5
             done
             return 1
         }
         app_served=0
-        if [ ! -x "$APP_BIN" ]; then
+        if [ "$build_ok" -ne 1 ] || [ ! -x "$APP_BIN" ]; then
             tcase "调试二进制存在" false
         elif ! start_dev_server; then
             tcase "vite dev server 就绪(30s)" false
@@ -145,7 +190,40 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
         else
             app_served=1
             # 2) 隔离环境(不碰开发者的 ~/.zhuye)。
-            make_isolated_env
+            if ! make_isolated_env; then
+                tcase "窗口冒烟隔离环境" false
+                tfinish
+                exit 1
+            fi
+            # 确定性本地模型，供真窗口从输入到回复走完整 Agent 链路。
+            port_file="$RESULT_DIR/e2e-mock-port"
+            rm -f "$port_file"
+            node "$HERE/mock-provider.mjs" "$port_file" > "$RESULT_DIR/e2e-mock-provider.log" 2>&1 &
+            MOCK_PID=$!
+            mock_ready=0
+            for _ in $(seq 1 60); do
+                if [ -s "$port_file" ]; then
+                    mock_port=$(cat "$port_file")
+                    if [[ "$mock_port" =~ ^[0-9]+$ ]]; then
+                        mock_ready=1
+                        break
+                    fi
+                fi
+                kill -0 "$MOCK_PID" 2>/dev/null || break
+                sleep 0.5
+            done
+            if [ "$mock_ready" -eq 1 ]; then
+                cat > "$HOME/.zhuye/config.toml" <<EOF
+[active]
+provider = "anthropic"
+[anthropic]
+api_key = "test-key"
+base_url = "http://127.0.0.1:$mock_port"
+model = "claude-mock"
+[hooks]
+enabled = []
+EOF
+            fi
             # 3) 起 tauri-driver(默认端口 4444)。**必须自己跑在 xvfb 下**:
             #    WebKitWebDriver 会派生被测应用,应用开窗口需要 DISPLAY ——
             #    旧实现只把 vitest(HTTP 客户端,无需显示)包进 xvfb,应用侧
@@ -154,9 +232,15 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
             #    首帧可能卡死(WebView 官方 CI 同款环境变量)。setsid 让
             #    driver 树自成进程组,收尾时可整组击杀(xvfb-run 不转发
             #    信号给子命令,只 kill 它会留下孤儿 driver 占着 4444)。
-            setsid env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a \
-                tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &
-            DRIVER_PID=$!
+            driver_port_busy=0
+            if (exec 3<>/dev/tcp/127.0.0.1/4444) 2>/dev/null; then
+                driver_port_busy=1
+                echo "端口 4444 已被占用" > "$RESULT_DIR/e2e-tauri-driver.log"
+            else
+                setsid env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a \
+                    tauri-driver > "$RESULT_DIR/e2e-tauri-driver.log" 2>&1 &
+                DRIVER_PID=$!
+            fi
             # 3.5) 等驱动就绪:tauri-driver 后台启动,绑定 4444 需要一点
             #      时间 —— 旧实现起完就跑客户端,首连撞上绑定窗口就是
             #      ECONNREFUSED(v0.0.1 tag 门禁实测翻车,前几轮全靠运气)。
@@ -164,42 +248,29 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
             #      死掉立即短路,不空等 30s。
             driver_ready=0
             for _ in $(seq 1 60); do
+                [ "$driver_port_busy" -eq 0 ] || break
+                kill -0 "$DRIVER_PID" 2>/dev/null || break
                 if (exec 3<>/dev/tcp/127.0.0.1/4444) 2>/dev/null; then
                     driver_ready=1
                     break
                 fi
-                kill -0 "$DRIVER_PID" 2>/dev/null || break
                 sleep 0.5
             done
-            # 4) webdriver 客户端(vitest)只与 tauri-driver 走 HTTP,无需显示;
-            #    显示由驱动侧的 xvfb 提供。
-            run_window_smoke() {
-                TAURI_APP_BIN="$APP_BIN" pnpm exec vitest run \
-                    --config tests/e2e/vitest.config.ts tests/e2e/window.smoke.test.ts
-            }
+            # 4) webdriver 客户端通过 tauri-driver 连接真窗口。
             rc=0
-            if [ "$driver_ready" -ne 1 ]; then
+            if [ "$mock_ready" -ne 1 ]; then
+                rc=1
+                echo "         │ 本地模型替身未就绪:"
+                tail -15 "$RESULT_DIR/e2e-mock-provider.log" 2>/dev/null | sed 's/^/         │ /'
+            elif [ "$driver_ready" -ne 1 ]; then
                 rc=1
                 echo "         │ tauri-driver 30s 未监听 4444 —— 驱动日志:"
                 tail -15 "$RESULT_DIR/e2e-tauri-driver.log" 2>/dev/null | sed 's/^/         │ /'
-            elif command -v xvfb-run >/dev/null 2>&1; then
-                (
-                    cd "$ROOT"
-                    TAURI_APP_BIN="$APP_BIN" xvfb-run -a pnpm exec vitest run \
-                        --config tests/e2e/vitest.config.ts tests/e2e/window.smoke.test.ts
-                ) > "$RESULT_DIR/e2e-window.log" 2>&1 && rc=0 || rc=$?
             else
-                (
-                    cd "$ROOT"
-                    TAURI_APP_BIN="$APP_BIN" pnpm exec vitest run \
-                        --config tests/e2e/vitest.config.ts tests/e2e/window.smoke.test.ts
-                ) > "$RESULT_DIR/e2e-window.log" 2>&1 && rc=0 || rc=$?
+                bash "$HERE/window-client.sh" "$APP_BIN" "$RESULT_DIR" "$ISO_CWD" \
+                    > "$RESULT_DIR/e2e-window.log" 2>&1 && rc=0 || rc=$?
             fi
-            kill "$DRIVER_PID" 2>/dev/null || true
-            # 整组击杀 driver 树(tauri-driver / WebKitWebDriver / 被测应用)。
-            kill -- -"$DRIVER_PID" 2>/dev/null || true
-            wait "$DRIVER_PID" 2>/dev/null || true
-            cleanup_isolated_env
+            cleanup_e2e
             if [ "$rc" -eq 0 ]; then
                 PASS_COUNT+=1
                 echo "  [ok]   窗口冒烟(tauri-driver + WebKitWebDriver,截图落 .test-results/e2e-window.png)"
@@ -213,18 +284,14 @@ if [ "$PLATFORM" = "Linux" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
             fi
         fi
         # vite dev server 无论冒烟成败都要收(随套件退出,不留给下一个套件)。
-        if [ "${app_served:-0}" -eq 1 ] && [ -n "${VITE_PID:-}" ]; then
-            kill "$VITE_PID" 2>/dev/null || true
-            wait "$VITE_PID" 2>/dev/null || true
-        fi
+        cleanup_e2e
     else
         require_or_fail "窗口冒烟(tauri-driver + WebKitWebDriver)" tauri-driver WebKitWebDriver || true
-        if [ "$MISSING_REQUIRED" -eq 0 ] && [ "${E2E_REQUIRED:-0}" != "1" ]; then
-            tskip "窗口冒烟" "缺 tauri-driver / WebKitWebDriver(cargo install tauri-driver; apt install webkit2gtk-driver)"
-        fi
     fi
 else
-    if [ "$PLATFORM" != "Linux" ]; then
+    if [ "${E2E_REQUIRED:-0}" = "1" ]; then
+        tcase "窗口冒烟不能跳过(E2E_REQUIRED=1)" false
+    elif [ "$PLATFORM" != "Linux" ]; then
         tskip "窗口冒烟" "tauri-driver 直连仅 Linux/Windows 有原生桥;macOS 无 WKWebView WebDriver(Tauri 官方口径)—— 视觉回归覆盖 UI 面"
     else
         tskip "窗口冒烟" "E2E_SKIP_WINDOW=1"

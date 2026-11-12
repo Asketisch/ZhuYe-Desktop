@@ -45,6 +45,13 @@ pub(crate) fn register_task_tools(
     reflect_task::register_task_tools(tools, task_manager);
 }
 
+/// 将上游任务工具注册结果加入会话可见集，避免复制工具名称清单。
+pub(crate) fn expose_task_tools(m4: &M4Deps, task_manager: Arc<reflect_task::TaskManager>) {
+    let catalog = ToolRegistry::new();
+    reflect_task::register_task_tools(&catalog, task_manager);
+    m4.skills.add_always_on_tools(catalog.list());
+}
+
 /// 注册会话笔记工具。
 ///
 /// 笔记落盘到 `<notes_home>/session-notes/<thread_id>.jsonl` —— 与

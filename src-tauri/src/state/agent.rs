@@ -1,5 +1,4 @@
 //! `MinimalAgentInner` —— 共享内部状态,以及 `new_empty` 与 `AgentStatus`。
-//!
 //! `state.rs` 只保留 facade;实际的内层结构、构造期常量、诊断快照
 //! 全部由本模块提供。
 
@@ -15,7 +14,7 @@ use reflect_tools::ToolRegistry;
 use serde::Serialize;
 use tokio::sync::broadcast;
 
-use super::remote_config::RemoteConfig;
+use super::{discussion::DiscussionCancellations, remote_config::RemoteConfig};
 
 /// Session-level broadcast 通道容量。覆盖 1024 个 event 后最旧事件被丢;
 /// 桌面端 UI 通常只关心最近 50-100 个事件,这个容量远超实际需要。
@@ -112,6 +111,7 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) memory_write_lock: tokio::sync::Mutex<()>,
     /// 会话事件广播 — 多个 Tauri command / webview 可各自订阅。
     pub(crate) session_tx: broadcast::Sender<Event>,
+    pub(crate) discussion_cancellations: DiscussionCancellations,
     /// 共享 config —— 热重载 / settings 读写命令共用。
     pub(crate) cfg: Arc<RwLock<ReflectConfig>>,
     /// 共享 ToolRegistry —— MCP/LSP 后续 register_plugin_tool 用。
@@ -155,9 +155,9 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) kms_manager: reflect_kms::KnowledgeManager,
     /// Autopilot 管理器:自动任务调度。
     pub(crate) autopilot_manager: reflect_stream::autopilot::AutopilotManager,
-    /// Activity 日志管理器:本地事件审计 timeline。
-    /// 由 `install_agent_thread` 订阅 session broadcast 把 `Event` 映射成
-    /// `ActivityEvent` 后写入。
+    /// 跨桌面进程的 Autopilot 独占租约，跨会话重绑定保留。
+    pub(crate) autopilot_lease: ParkingMutex<Option<std::fs::File>>,
+    /// Activity 日志管理器：会话事件审计 timeline。
     pub(crate) activity_log: Arc<reflect_app_core::activity::ActivityLog>,
     /// Squad 管理器:复用 `task_manager` 的 TeamFile 存储,
     /// 提供 leader 委派语义层。
@@ -172,16 +172,16 @@ pub(crate) struct MinimalAgentInner {
     /// 声明构建(见 `state/quota.rs`)。`None` = 未声明任何配额(向后兼容)。
     /// 与 `model_registry` 同生命周期:install 时构建,provider 段变更时重建。
     pub(crate) quota_tracker: ParkingMutex<Option<reflect_llm::SharedQuotaTracker>>,
-    /// v1.x 会话持久化:当前绑定的 session id(`None` = install 后的占位
-    /// thread,首条消息时会重建并写入首个真正 id)。
+    /// 当前绑定 session id;`None` 表示 install 后的占位 thread。
     /// rebind_session 比较短路;命令层通过 `bound_session_id()` 读取。
     pub(crate) bound_session_id: ParkingMutex<Option<ThreadId>>,
-    /// v1.x cron 修复:`install_agent_thread` 启动 driver 后保留句柄,
-    /// 否则 driver 任务被 `CronDriverHandle::drop` 立即 abort(cron 永远
-    /// 不触发)。rebind_session 时 `stop` 旧 driver + 用新 sender 重启。
+    /// cron driver 句柄;drop 会 abort 任务,rebind 时 stop 后用新 sender 重启。
     pub(crate) cron_driver: ParkingMutex<Option<reflect_stream::cron::CronDriverHandle>>,
+    pub(crate) autopilot_driver: ParkingMutex<Option<super::AutopilotDriverHandle>>,
     /// LSP 连接管理器(按工作区由用户手动开启;None = 未启用)。
     pub(crate) lsp_manager: ParkingMutex<Option<std::sync::Arc<reflect_lsp::LspConnectionManager>>>,
+    /// 启停命令须串行，避免并发创建多个管理器或关错实例。
+    pub(crate) lsp_lifecycle_lock: tokio::sync::Mutex<()>,
     /// MCP 连接管理器句柄；安装期间创建，即使没有配置服务也保留空管理器。
     pub(crate) mcp_manager: ParkingMutex<Option<std::sync::Arc<reflect_mcp::McpConnectionManager>>>,
     pub(crate) mcp_tools: crate::mcp::McpTools,
@@ -225,9 +225,7 @@ pub struct AgentStatus {
     pub degraded_reason: Option<String>,
 }
 
-/// 第一阶段:构造空的 MinimalAgent,只能 hold 状态(无 thread)。
-///
-/// `tauri::Builder::manage(MinimalAgent::new_empty())` 时调用。
+/// 构造仅包含状态、尚无 thread 的 MinimalAgent，供 `manage` 调用。
 pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let (session_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -247,13 +245,12 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let task_manager = Arc::new(
         reflect_task::TaskManager::new(task_store, team_store).with_hook_engine(task_hook_engine),
     );
-    // Cron scheduler 初始为 None;install_agent_thread 注入真 sender 后重建。
     let cron_scheduler = parking_lot::RwLock::new(None);
     let side_channels = reflect_core::side_channel::SideChannelRegistry::new();
     let remote_config = parking_lot::RwLock::new(RemoteConfig::default());
     let kms_manager = reflect_kms::KnowledgeManager::with_default_home();
     let autopilot_manager = reflect_stream::autopilot::AutopilotManager::new();
-    let activity_log = reflect_app_core::activity::ActivityLog::with_default_home();
+    let activity_log = super::activity::build_activity_log();
     // SquadManager 复用 task_manager(team 存储),必须在 task_manager 之后构造。
     let squad_manager = Arc::new(reflect_task::SquadManager::new(Arc::clone(&task_manager)));
     MinimalAgentInner {
@@ -264,6 +261,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         recorder_gates: ParkingMutex::new(std::collections::HashMap::new()),
         memory_write_lock: tokio::sync::Mutex::new(()),
         session_tx,
+        discussion_cancellations: DiscussionCancellations::default(),
         cfg: Arc::new(RwLock::new(cfg)),
         tools: Arc::new(ToolRegistry::new()),
         model_spec: RwLock::new("stub/test".to_string()),
@@ -285,13 +283,16 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         remote_config,
         kms_manager,
         autopilot_manager,
+        autopilot_lease: ParkingMutex::new(None),
         activity_log,
         squad_manager,
         model_registry: ParkingMutex::new(None),
         quota_tracker: ParkingMutex::new(None),
         bound_session_id: ParkingMutex::new(None),
         cron_driver: ParkingMutex::new(None),
+        autopilot_driver: ParkingMutex::new(None),
         lsp_manager: ParkingMutex::new(None),
+        lsp_lifecycle_lock: tokio::sync::Mutex::new(()),
         mcp_manager: ParkingMutex::new(None),
         mcp_tools: crate::mcp::McpTools::default(),
         mcp_invoked_tx: ParkingMutex::new(None),

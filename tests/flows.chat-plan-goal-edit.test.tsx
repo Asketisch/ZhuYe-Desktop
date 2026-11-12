@@ -133,8 +133,7 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     // 2. plan 就绪弹窗出现;agent 在 gate 暂停,尚未收到任何决策。
     const planTitle = await screen.findByText('Plan Ready');
     const dialog = planTitle.closest('[role="dialog"]') as HTMLDivElement;
-    // plan_ready payload 无 summary/plan 字段 → 模态展示 JSON(含 plan_id 与正文)。
-    expect(dialog.textContent).toContain('plan-1');
+    // 模态展示协议中的计划正文，审批命令仍使用 plan_id。
     expect(dialog.textContent).toContain('# Migration plan');
     expect(backend.agent.planChoices.length).toBe(0);
 
@@ -205,7 +204,7 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     await waitFor(() => expect(backend.agent.finished).toBe(true));
   }, 20_000);
 
-  it('Reject sends revise; the agent re-plans and the modal is event-driven closed', async () => {
+  it('Revise asks the agent to re-plan and the modal is event-driven closed', async () => {
     backend.agent.script = [
       {
         emit: { type: 'plan_ready', plan_id: 'plan-3', markdown: '# First attempt' },
@@ -229,7 +228,7 @@ describe('chat → plan → edit full loop (real app mount)', () => {
 
     const planTitle = await screen.findByText('Plan Ready');
     const dialog = planTitle.closest('[role="dialog"]') as HTMLDivElement;
-    fireEvent.click(within(dialog).getByText('Reject'));
+    fireEvent.click(within(dialog).getByText('Revise'));
 
     await waitFor(() => expect(backend.agent.planChoices.length).toBe(1));
     expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-3', choice: 'revise' });

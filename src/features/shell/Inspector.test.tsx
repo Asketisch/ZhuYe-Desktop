@@ -110,6 +110,32 @@ describe('Inspector tabs', () => {
     resetMockInvoke();
     useAgentStore.getState().reset();
   });
+
+  it('cancels a running subagent with its child id', async () => {
+    const interrupts: unknown[] = [];
+    mockInvoke('reflect_interrupt', async (_command, args) => {
+      interrupts.push(args);
+      return 'child-interrupted';
+    });
+    useAgentStore.setState({
+      subagents: {
+        feed: [],
+        lastStatus: [{
+          child_id: 'child-1',
+          role: 'explorer',
+          state: 'running',
+          started_at: '2026-11-12T00:00:00Z',
+          iteration: 2,
+          total_tokens: 128,
+        }],
+      },
+    });
+    render(wrap(<Inspector />));
+    fireEvent.click(screen.getByTestId('inspector-subagent-cancel-child-1'));
+
+    await waitFor(() => expect(interrupts).toEqual([{ childId: 'child-1' }]));
+    expect(screen.getByRole('button', { name: 'Cancel running subagent' }).getAttribute('aria-disabled')).toBeNull();
+  });
   afterEach(() => cleanup());
 
   it('defaults to overview with context gauge, composition and session metrics', () => {

@@ -8,8 +8,8 @@
 //!    `SessionConfigured` lifecycle event。
 //! 2. `real_agent_thread_emits_error_for_stub_model` — 没注册 model client 时,
 //!    提交应 emit `EventMsg::Error("...stub/test...")` 而不是 panic。
-//! 3. `interrupt_token_cancels_in_flight_turn` — 调 `agent.interrupt()` 后 cancel
-//!    token 已 cancelled。
+//! 3. `interrupt_does_not_cancel_the_session_token` — 中断只取消在飞回合，
+//!    不损坏同一会话后续提交。
 //! 4. `broadcast_supports_multiple_subscribers` — 两个独立 subscriber 都收到同一 event。
 //! 5. `model_spec_and_workspace_accessors` — 诊断接口返回正确值。
 //!
@@ -18,12 +18,19 @@
 //! `MinimalAgent::new_empty()` 不需要 tokio runtime,可以直接 `agent.install_agent_thread()`
 //! 在 `#[tokio::test]` runtime 内调用,这是真实 runtime 上下文的等价物。
 
+mod common;
+
 use std::time::Duration;
 
 use reflect_desktop_lib::state::MinimalAgent;
 use reflect_protocol::{Event, EventMsg, Op, Submission, UserInputItem};
 use tokio::sync::broadcast;
 use tokio::time::timeout;
+
+fn isolated_agent() -> MinimalAgent {
+    common::init_isolated_env();
+    MinimalAgent::new_empty()
+}
 
 /// 收集最多 `max` 个 event 直到 timeout。
 async fn collect_events(
@@ -46,7 +53,7 @@ async fn collect_events(
 
 #[tokio::test]
 async fn real_agent_thread_emits_session_configured() {
-    let agent = MinimalAgent::new_empty();
+    let agent = isolated_agent();
     agent.install_agent_thread().await;
     let mut rx = agent.subscribe_session();
 
@@ -70,20 +77,8 @@ async fn real_agent_thread_emits_session_configured() {
 
 #[tokio::test]
 async fn real_agent_thread_emits_error_for_stub_model() {
-    // 这个测试只覆盖「无 provider」降级路径(stub model → Error event)。
-    // 本机若配了 ~/.zhuye/config.toml + API key,会走真实 provider 路径,
-    // 事件流变成 SessionConfigured/TurnStarted/真实 LLM 响应 —— 不是 stub 路径,
-    // 此时跳过(降级路径是 CI / 无 key 环境的回归保护)。
-    let probe = MinimalAgent::new_empty();
-    let cfg_handle = probe.cfg();
-    let has_provider = cfg_handle.read().active_provider().is_some();
-    if has_provider {
-        eprintln!("SKIP: provider configured; stub-model test only covers degraded path");
-        return;
-    }
-
     // 没注册 model client → 提交 UserInput 后应 emit Error event（不应 panic）。
-    let agent = MinimalAgent::new_empty();
+    let agent = isolated_agent();
     agent.install_agent_thread().await;
     let mut rx = agent.subscribe_session();
 
@@ -135,7 +130,7 @@ async fn real_agent_thread_emits_error_for_stub_model() {
 /// (`active_turns` 表),会话本身不受影响。
 #[tokio::test]
 async fn interrupt_does_not_cancel_the_session_token() {
-    let agent = MinimalAgent::new_empty();
+    let agent = isolated_agent();
     agent.install_agent_thread().await;
     let _ = agent.subscribe_session();
     // 通过 MinimalAgent::cancel_token() 公开 getter 访问(替代私有 inner.thread)。
@@ -157,7 +152,7 @@ async fn interrupt_does_not_cancel_the_session_token() {
 
 #[tokio::test]
 async fn broadcast_supports_multiple_subscribers() {
-    let agent = MinimalAgent::new_empty();
+    let agent = isolated_agent();
     agent.install_agent_thread().await;
     let mut rx1 = agent.subscribe_session();
     let mut rx2 = agent.subscribe_session();
@@ -181,7 +176,7 @@ async fn broadcast_supports_multiple_subscribers() {
 
 #[tokio::test]
 async fn model_spec_and_workspace_accessors() {
-    let agent = MinimalAgent::new_empty();
+    let agent = isolated_agent();
     assert_eq!(
         agent.model_spec(),
         "stub/test",

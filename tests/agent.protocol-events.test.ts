@@ -398,6 +398,12 @@ describe('collab / MCP / LSP events', () => {
     expect(col.messages.map((m) => m.from)).toEqual(['a', 'b']);
   });
 
+  it.each(['failed', 'cancelled'] as const)('collab %s ends without a success status', (outcome) => {
+    emitEvent('', { type: 'collab_started', id: 'col-error', participants: ['a'], mode: 'sequential' });
+    emitEvent('', { type: 'collab_finished', id: 'col-error', outcome, rounds: 0 });
+    expect(st().collabSessions.find((session) => session.id === 'col-error')).toMatchObject({ status: outcome, outcome });
+  });
+
   it('mcp server start/fail upserts server registry', () => {
     emitEvent('', { type: 'mcp_server_started', server: 'search', tool_count: 3, transport: 'stdio' });
     expect(st().mcpServers[0]).toMatchObject({ name: 'search', status: 'started' });
@@ -424,8 +430,8 @@ describe('collab / MCP / LSP events', () => {
 
 describe('plan mode events', () => {
   it('plan_request then plan_ready both stage pendingPlan; approval clears it', () => {
-    emitEvent(TURN, { type: 'plan_request', task: 'migrate DB' });
-    expect(st().pendingPlan?.id).toBe('migrate DB');
+    emitEvent(TURN, { type: 'plan_request', plan_id: 'request-42', task: 'migrate DB' });
+    expect(st().pendingPlan?.id).toBe('request-42');
 
     emitEvent(TURN, { type: 'plan_ready', plan_id: 'plan-42', markdown: '# Steps\n1. x' });
     expect(st().pendingPlan?.id).toBe('plan-42');
@@ -438,6 +444,12 @@ describe('plan mode events', () => {
     emitEvent(TURN, { type: 'plan_ready', plan_id: 'p9', markdown: 'md' });
     emitEvent(TURN, { type: 'plan_rejected', plan_id: 'p9', reason: 'too risky' });
     expect(st().pendingPlan).toBeNull();
+  });
+
+  it('ignores approval for an older plan', () => {
+    emitEvent(TURN, { type: 'plan_ready', plan_id: 'current-plan', markdown: 'md' });
+    emitEvent(TURN, { type: 'plan_approved', plan_id: 'old-plan' });
+    expect(st().pendingPlan?.id).toBe('current-plan');
   });
 
   it('plan_draft_updated and plan_step are no-ops (TUI semantics, type-complete)', () => {

@@ -1,12 +1,10 @@
 //! 能力覆盖层 · 假模型全链路 —— 真后端 + 真 AgentThread + 本地 mock LLM。
 //!
-//! `e2e_chat.rs` 的真模型路径依赖 API key(没有就 SKIP);`ipc_events.rs`
-//! 只走无凭证失败路径。**「有模型的完整一轮」** —— submit →
-//! AgentThread → HTTP → SSE 解析 → 事件回传(delta / 工具调用 / 审批门 /
-//! token 统计 / turn 收尾)—— 在自动层此前从未确定性跑过。
+//! 确定性验证 submit → AgentThread → HTTP → SSE 解析 → 事件回传
+//! (delta / 工具调用 / 审批门 / token 统计 / turn 收尾)。
 //!
 //! 这里用 wiremock 在本机起一个假 Anthropic 网关(`[anthropic].base_url`
-//! 指向它,离线、确定性),四个场景覆盖:
+//! 指向它,离线、确定性),覆盖:
 //!
 //! 1. 纯文本回复:delta 累积 + token_count + turn_complete;
 //! 2. 工具调用:bash tool_use → 审批门(`prompt` 模式)→ approve →
@@ -14,8 +12,9 @@
 //!    并断言恰好两次 HTTP 请求、非官方 base_url 走 `Authorization: Bearer`;
 //! 3. HTTP 500:error 事件走同一 `reflect_event` 通道,turn 有终态;
 //! 4. 流中中断:服务端延迟响应,`reflect_interrupt` 后 turn 终止且无 delta。
+//! 5. 旁路代理:真实线程经本地模型返回摘要,另一个请求发出后取消并验证终态。
 //!
-//! 四个场景经互斥锁**串行**(共享一个 AgentThread,`interrupt` 是全局的,
+//! 各场景经互斥锁**串行**(共享一个 AgentThread,`interrupt` 是全局的,
 //! 并行会互相打断)。
 
 mod common;
@@ -209,6 +208,27 @@ fn world() -> std::sync::MutexGuard<'static, World> {
                         .respond_with(
                             sse_response(sse_text_reply(&["too late"]))
                                 .set_delay(Duration::from_secs(25)),
+                        ),
+                )
+                .await;
+
+            // Side-channel 使用同一真实模型注册表，但由独立 AgentThread 执行。
+            server
+                .register(
+                    Mock::given(method("POST"))
+                        .and(path("/v1/messages"))
+                        .and(body_string_contains("mock-side-channel-success"))
+                        .respond_with(sse_response(sse_text_reply(&["side channel result verified"]))),
+                )
+                .await;
+            server
+                .register(
+                    Mock::given(method("POST"))
+                        .and(path("/v1/messages"))
+                        .and(body_string_contains("mock-side-channel-cancel"))
+                        .respond_with(
+                            sse_response(sse_text_reply(&["cancelled result must not arrive"]))
+                                .set_delay(Duration::from_secs(20)),
                         ),
                 )
                 .await;
@@ -629,6 +649,69 @@ fn scene_four_interrupt() {
     });
 }
 
+/// 真实旁路线程经本地模型完成并回传摘要；另一次在请求发出后取消。
+fn scene_side_channel(w: &World) {
+    let rx = collect_events();
+    let started = common::invoke_ok(
+        "reflect_start_side_channel",
+        json!({ "agentName": "desktop-side-test", "prompt": "mock-side-channel-success" }),
+    );
+    let id = started["id"].as_str().unwrap();
+    let mut seen = Vec::new();
+    let finished = wait_until_seen(
+        &rx,
+        |e| {
+            msg_type(e) == Some("side_channel_finished")
+                && e["msg"]["id"] == id
+                && e["msg"]["kind"] == "done"
+        },
+        Duration::from_secs(60),
+        &mut seen,
+    )
+    .unwrap_or_else(|| panic!("旁路 agent 未完成: {}", event_summary(&seen)));
+    assert_eq!(event_id(&finished), "");
+    assert_eq!(finished["msg"]["summary"], "side channel result verified");
+    let status = common::invoke_ok("reflect_get_side_channel", json!({ "id": id }));
+    assert_eq!(status["status"], "done");
+    assert!(messages_requests(w).iter().any(|request| {
+        String::from_utf8_lossy(&request.body).contains("mock-side-channel-success")
+    }));
+
+    let cancelled = common::invoke_ok(
+        "reflect_start_side_channel",
+        json!({ "agentName": "desktop-side-test", "prompt": "mock-side-channel-cancel" }),
+    );
+    let cancelled_id = cancelled["id"].as_str().unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    while !messages_requests(w)
+        .iter()
+        .any(|request| String::from_utf8_lossy(&request.body).contains("mock-side-channel-cancel"))
+    {
+        assert!(std::time::Instant::now() < deadline, "旁路模型请求未发出");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert_eq!(
+        common::invoke_ok("reflect_cancel_side_channel", json!({ "id": cancelled_id })),
+        true
+    );
+    let mut seen_cancel = Vec::new();
+    let terminal = wait_until_seen(
+        &rx,
+        |e| msg_type(e) == Some("side_channel_finished") && e["msg"]["id"] == cancelled_id,
+        Duration::from_secs(30),
+        &mut seen_cancel,
+    )
+    .unwrap_or_else(|| panic!("旁路取消无终态: {}", event_summary(&seen_cancel)));
+    assert_eq!(terminal["msg"]["kind"], "cancelled", "{terminal}");
+    assert_eq!(event_id(&terminal), "");
+    let status = common::invoke_ok("reflect_get_side_channel", json!({ "id": cancelled_id }));
+    assert_eq!(status["status"], "cancelled");
+    assert_eq!(
+        common::invoke_ok("reflect_cancel_side_channel", json!({ "id": cancelled_id })),
+        false
+    );
+}
+
 fn event_summary(events: &[Value]) -> String {
     events
         .iter()
@@ -654,6 +737,7 @@ fn mock_provider_full_chain_scenarios() {
     let w = world();
     scene_one_plain_text();
     scene_two_tool_use(&w);
+    scene_side_channel(&w);
     // 顺序敏感:中断(Cancelled → GiveUp)不冷却凭证;而 500 会把唯一
     // 凭证放进冷却(Cap 1h),之后再发的场景只会拿到
     // ALL_CREDENTIALS_EXHAUSTED —— 所以 500 场景放最后。

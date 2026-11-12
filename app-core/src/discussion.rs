@@ -9,11 +9,15 @@
 //! [`list_discussions`] 对应 CLI `discussion ls`:扫 rollout JSONL 中含
 //! `DiscussionTranscript` 记录的 session。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
+use std::time::Duration;
 
+use crate::discussion_events::{emit_discussion_message, message_key};
+
+pub use crate::discussion_events::{DiscussionSessionInfo, list_discussions};
 use parking_lot::Mutex;
 use reflect_discussion::cli::DiscussionToml;
 use reflect_discussion::llm::{build_context, prompt_for_closure};
@@ -22,7 +26,9 @@ use reflect_discussion::models::{AgentId, DiscussionId};
 use reflect_discussion::orchestrator::DiscussionOrchestrator;
 use reflect_discussion::tool::DiscussionToolSet;
 use reflect_llm::{ModelRegistry, SharedModelRegistry};
-use reflect_protocol::{EventMsg, ThreadId, TokenUsage};
+use reflect_protocol::{
+    CollabFinishedEvent, CollabStartedEvent, EventMsg, RolloutRecorder, ThreadId, TokenUsage,
+};
 use reflect_subagent::SubAgentFactory;
 use reflect_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
@@ -30,6 +36,9 @@ use tokio_util::sync::CancellationToken;
 
 /// Collab 事件出口:调用方注入(Desktop 侧包成 `Event` 推 session broadcast)。
 pub type DiscussionEventSink = Arc<dyn Fn(EventMsg) + Send + Sync>;
+
+/// 讨论写入目标:桌面侧传入当前绑定会话的 recorder。
+pub type DiscussionRecorder = Arc<dyn RolloutRecorder>;
 
 /// 讨论运行错误。
 #[derive(Debug)]
@@ -42,6 +51,8 @@ pub enum DiscussionError {
     Llm(String),
     /// 结果序列化失败。
     Serialize(String),
+    /// 调用方主动取消。
+    Cancelled,
 }
 
 impl std::fmt::Display for DiscussionError {
@@ -51,6 +62,7 @@ impl std::fmt::Display for DiscussionError {
             DiscussionError::Orchestrator(m) => write!(f, "discussion orchestrator: {m}"),
             DiscussionError::Llm(m) => write!(f, "discussion llm context: {m}"),
             DiscussionError::Serialize(m) => write!(f, "discussion serialize: {m}"),
+            DiscussionError::Cancelled => write!(f, "discussion cancelled"),
         }
     }
 }
@@ -73,23 +85,7 @@ pub struct DiscussionRunOutcome {
     pub llm_backed: bool,
 }
 
-/// 历史讨论 session 条目(对应 CLI `discussion ls` 输出列)。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DiscussionSessionInfo {
-    /// session id(ThreadId uuid)。
-    pub session_id: String,
-    /// 可读标题(rollout 自定义名 / AI 标题,可能缺省)。
-    pub title: Option<String>,
-    /// 会话模型。
-    pub model: String,
-    /// 开始时间(RFC3339)。
-    pub started_at: chrono::DateTime<chrono::Utc>,
-    /// 消息数。
-    pub message_count: usize,
-}
-
-/// 运行一次多 agent 讨论(阻塞至结束;事件经 `event_sink` 实时流出)。
+/// 运行一次多 agent 讨论(阻塞至结束;事件经 `event_sink` 转发)。
 ///
 /// 与 CLI `reflect discussion run` 同语义:读 TOML 配置 → LLM 编排
 /// (provider 可用)或 `run_noop` 降级 → 返回 transcript + result。
@@ -97,7 +93,25 @@ pub struct DiscussionSessionInfo {
 pub async fn run_discussion(
     config_path: &Path,
     event_sink: Option<DiscussionEventSink>,
+    recorder: Option<DiscussionRecorder>,
 ) -> Result<DiscussionRunOutcome, DiscussionError> {
+    run_discussion_with_cancel(config_path, event_sink, recorder, CancellationToken::new()).await
+}
+
+/// 运行一次可由调用方取消的多 agent 讨论。
+///
+/// 取消令牌同时接入 `SubAgentFactory` 与 `DiscussionOrchestrator`:
+/// 前者让正在流式输出的参与者停止，后者让尚未开始的调度循环直接退出。
+/// 被取消时事件通道必须收到 `collab_finished { outcome: "cancelled" }`。
+pub async fn run_discussion_with_cancel(
+    config_path: &Path,
+    event_sink: Option<DiscussionEventSink>,
+    recorder: Option<DiscussionRecorder>,
+    cancel: CancellationToken,
+) -> Result<DiscussionRunOutcome, DiscussionError> {
+    if cancel.is_cancelled() {
+        return Err(DiscussionError::Cancelled);
+    }
     let toml_cfg =
         DiscussionToml::load(config_path).map_err(|e| DiscussionError::Config(e.to_string()))?;
     let config = toml_cfg.clone().into_config();
@@ -108,41 +122,152 @@ pub async fn run_discussion(
     );
     let participants: Vec<String> = config.participants.iter().map(|p| p.0.clone()).collect();
 
-    let (result, llm_backed) = match try_build_llm_orchestrator(&config, &bus, event_sink).await {
-        Some((orch, factory, toolset_usage)) => {
-            let ctx = build_context(
-                factory.clone(),
-                config.topic.clone(),
-                &config.participants,
-                &toml_cfg.agents,
-                toolset_usage,
-            )
-            .map_err(|e| DiscussionError::Llm(e.to_string()))?;
-            let out = orch
-                .run(prompt_for_closure(ctx, bus.clone()), |_| {})
-                .await
-                .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?;
-            (out, true)
-        }
-        None => {
-            tracing::warn!(
-                "no provider configured; discussion falls back to run_noop (empty transcript)"
-            );
-            let orch = DiscussionOrchestrator::new(
-                config,
-                bus.clone(),
-                None,
-                CancellationToken::new(),
-                None,
-            )
-            .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?;
-            let out = orch
-                .run_noop(|_| {})
-                .await
-                .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?;
-            (out, false)
-        }
-    };
+    let (result, llm_backed) =
+        match try_build_llm_orchestrator(&config, &bus, None, recorder, cancel.clone()).await {
+            Some((orch, factory, toolset_usage, round_counter)) => {
+                let discussion_id = bus.discussion_id();
+                if let Some(sink) = &event_sink {
+                    sink(EventMsg::CollabStarted(CollabStartedEvent {
+                        id: discussion_id.to_string(),
+                        participants: participants.clone(),
+                        mode: match config.mode {
+                            reflect_discussion::models::DiscussionMode::Sequential => "sequential",
+                            reflect_discussion::models::DiscussionMode::Concurrent => "concurrent",
+                        }
+                        .into(),
+                    }));
+                }
+                let emitted = Arc::new(Mutex::new(HashSet::new()));
+                let poll_bus = bus.clone();
+                let poll_sink = event_sink.clone();
+                let poll_cancel = CancellationToken::new();
+                let loop_cancel = poll_cancel.clone();
+                let poll_emitted = emitted.clone();
+                let poller = tokio::spawn(async move {
+                    while !loop_cancel.is_cancelled() {
+                        if let Some(sink) = &poll_sink {
+                            for message in poll_bus.transcript() {
+                                let key = message_key(&poll_bus.discussion_id(), &message);
+                                if poll_emitted.lock().insert(key) {
+                                    emit_discussion_message(
+                                        sink,
+                                        poll_bus.discussion_id(),
+                                        &message,
+                                    );
+                                }
+                            }
+                        }
+                        tokio::select! {
+                                _ = loop_cancel.cancelled() => break,
+                            _ = tokio::time::sleep(Duration::from_millis(20)) => {}
+                        }
+                    }
+                });
+                let ctx = match build_context(
+                    factory.clone(),
+                    config.topic.clone(),
+                    &config.participants,
+                    &toml_cfg.agents,
+                    toolset_usage,
+                ) {
+                    Ok(ctx) => ctx,
+                    Err(e) => {
+                        // 提前返回前必须停掉 poller,否则任务泄漏且前端永远收不到终态事件
+                        poll_cancel.cancel();
+                        let _ = poller.await;
+                        if let Some(sink) = &event_sink {
+                            sink(EventMsg::CollabFinished(CollabFinishedEvent {
+                                id: discussion_id.to_string(),
+                                outcome: "failed".into(),
+                                rounds: 0,
+                            }));
+                        }
+                        return Err(DiscussionError::Llm(e.to_string()));
+                    }
+                };
+                let result = orch.run(prompt_for_closure(ctx, bus.clone()), |_| {}).await;
+                poll_cancel.cancel();
+                let _ = poller.await;
+                if let Some(sink) = &event_sink {
+                    for message in bus.transcript() {
+                        let key = message_key(&discussion_id, &message);
+                        if emitted.lock().insert(key) {
+                            emit_discussion_message(sink, discussion_id, &message);
+                        }
+                    }
+                }
+                let out = match result {
+                    Ok(result) => {
+                        let (outcome, rounds) = match &result {
+                            reflect_discussion::models::DiscussionResult::Consensus {
+                                final_round,
+                                ..
+                            } => ("consensus", final_round + 1),
+                            reflect_discussion::models::DiscussionResult::NoConsensus {
+                                rounds_completed,
+                                ..
+                            } => ("no_consensus", *rounds_completed),
+                            reflect_discussion::models::DiscussionResult::Finished {
+                                final_round,
+                                ..
+                            } => ("finished", final_round + 1),
+                        };
+                        if let Some(sink) = &event_sink {
+                            sink(EventMsg::CollabFinished(CollabFinishedEvent {
+                                id: discussion_id.to_string(),
+                                outcome: outcome.into(),
+                                rounds,
+                            }));
+                        }
+                        result
+                    }
+                    Err(error) => {
+                        let cancelled = cancel.is_cancelled();
+                        if let Some(sink) = &event_sink {
+                            sink(EventMsg::CollabFinished(CollabFinishedEvent {
+                                id: discussion_id.to_string(),
+                                outcome: if cancelled { "cancelled" } else { "failed" }.into(),
+                                rounds: round_counter.load(std::sync::atomic::Ordering::SeqCst),
+                            }));
+                        }
+                        if cancelled {
+                            return Err(DiscussionError::Cancelled);
+                        }
+                        return Err(DiscussionError::Orchestrator(error.to_string()));
+                    }
+                };
+                (out, true)
+            }
+            None => {
+                tracing::warn!(
+                    "no provider configured; discussion falls back to run_noop (empty transcript)"
+                );
+                let mode = match config.mode {
+                    reflect_discussion::models::DiscussionMode::Sequential => "sequential",
+                    reflect_discussion::models::DiscussionMode::Concurrent => "concurrent",
+                };
+                let orch =
+                    DiscussionOrchestrator::new(config, bus.clone(), None, cancel.clone(), None)
+                        .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?;
+                let out = orch
+                    .run_noop(|_| {})
+                    .await
+                    .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?;
+                if let Some(sink) = &event_sink {
+                    sink(EventMsg::CollabStarted(CollabStartedEvent {
+                        id: bus.discussion_id().to_string(),
+                        participants: participants.clone(),
+                        mode: mode.into(),
+                    }));
+                    sink(EventMsg::CollabFinished(CollabFinishedEvent {
+                        id: bus.discussion_id().to_string(),
+                        outcome: "finished".into(),
+                        rounds: 0,
+                    }));
+                }
+                (out, false)
+            }
+        };
 
     let transcript = bus.format_transcript();
     let result_json =
@@ -156,37 +281,12 @@ pub async fn run_discussion(
     })
 }
 
-/// 列出含讨论记录的 session。
-///
-/// `discussion_id = Some(id)` 时仅列包含该讨论 id 的 session;`None` 列全部
-/// session(与 CLI v0.2.4 的 fallback 语义一致)。
-pub fn list_discussions(
-    discussion_id: Option<&str>,
-) -> Result<Vec<DiscussionSessionInfo>, DiscussionError> {
-    let base = reflect_rollout::path::default_base();
-    let sessions = match discussion_id {
-        Some(id) => reflect_rollout::index::list_sessions_with_discussion(&base, id)
-            .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?,
-        None => reflect_rollout::index::list_sessions(&base)
-            .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?,
-    };
-    Ok(sessions
-        .into_iter()
-        .map(|s| DiscussionSessionInfo {
-            session_id: s.session_id.to_string(),
-            title: s.title,
-            model: s.model,
-            started_at: s.started_at,
-            message_count: s.message_count,
-        })
-        .collect())
-}
-
 /// LLM 编排组装产物:orchestrator + 共享 factory + per-agent usage 槽。
 type LlmAssembly = (
     DiscussionOrchestrator,
     Arc<SubAgentFactory>,
     HashMap<AgentId, Arc<Mutex<Option<TokenUsage>>>>,
+    Arc<AtomicU32>,
 );
 
 /// LLM 编排组装 —— 镜像 `reflect_discussion::cli::try_build_llm_orchestrator`,
@@ -199,6 +299,8 @@ async fn try_build_llm_orchestrator(
     config: &reflect_discussion::models::DiscussionConfig,
     bus: &MessageBus,
     event_sink: Option<DiscussionEventSink>,
+    recorder: Option<DiscussionRecorder>,
+    cancel: CancellationToken,
 ) -> Option<LlmAssembly> {
     // 1. provider + model spec(全走 ReflectConfig,与 exec / GUI 线程一致)。
     //    registry 先建 —— `model = "free"` 的解析要用它当清单来源。
@@ -220,6 +322,7 @@ async fn try_build_llm_orchestrator(
         .map(|p| (p.clone(), Arc::new(Mutex::new(None))))
         .collect();
     let parent_tools = Arc::new(ToolRegistry::default());
+    let mut role_tools = Vec::with_capacity(config.participants.len());
     for p in &config.participants {
         let slot = toolset_usage
             .get(p)
@@ -235,11 +338,7 @@ async fn try_build_llm_orchestrator(
         if set.verify().is_err() {
             return None;
         }
-        for name in set.tool_names() {
-            if let Some(t) = set.registry.get(&name) {
-                parent_tools.register(t);
-            }
-        }
+        role_tools.push((p.0.clone(), set.registry));
     }
 
     // 3. SubAgentFactory + orchestrator(event_sink 桥 Collab* 事件)。
@@ -249,20 +348,23 @@ async fn try_build_llm_orchestrator(
         registry,
         None,
         parent_tools,
-        CancellationToken::new(),
+        cancel.clone(),
         None,
     ));
+    for (role, tools) in role_tools {
+        factory.set_role_tools(&role, tools);
+    }
     let orch = DiscussionOrchestrator::with_event_sink(
         config.clone(),
         bus.clone(),
         Some(factory.clone()),
-        CancellationToken::new(),
-        None,
-        round_counter,
+        cancel,
+        recorder,
+        round_counter.clone(),
         event_sink,
     )
     .ok()?;
-    Some((orch, factory, toolset_usage))
+    Some((orch, factory, toolset_usage, round_counter))
 }
 
 #[cfg(test)]
@@ -314,7 +416,7 @@ allowed_tools = ["send_message", "read_messages", "finish_discussion"]
             sink_events.lock().push(evt);
         });
 
-        let out = match run_discussion(&cfg, Some(sink)).await {
+        let out = match run_discussion(&cfg, Some(sink), None).await {
             Ok(out) => out,
             Err(e @ (DiscussionError::Orchestrator(_) | DiscussionError::Llm(_))) => {
                 eprintln!("环境态:provider 配置了但不可用,跳过 outcome 断言: {e}");
@@ -347,7 +449,7 @@ allowed_tools = ["send_message", "read_messages", "finish_discussion"]
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("bad.toml");
         std::fs::write(&path, "not [valid toml").unwrap();
-        let err = run_discussion(&path, None).await.unwrap_err();
+        let err = run_discussion(&path, None, None).await.unwrap_err();
         assert!(matches!(err, DiscussionError::Config(_)), "got: {err}");
     }
 

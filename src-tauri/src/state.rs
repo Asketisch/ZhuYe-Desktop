@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use reflect_config::ReflectConfig;
-use reflect_protocol::Event;
+use reflect_protocol::{Event, RolloutRecorder};
 use reflect_tools::ToolRegistry;
 use tokio::sync::broadcast;
 
@@ -24,6 +24,8 @@ pub use remote_config::{RemoteConfig, RemoteStatus};
 
 mod activity;
 mod agent;
+mod autopilot;
+mod discussion;
 mod install;
 pub(crate) mod permissions;
 pub(crate) mod plugin_hooks;
@@ -41,6 +43,8 @@ pub(crate) mod subagents;
 mod submit;
 mod task_hooks;
 mod thread_factory;
+
+pub(crate) use autopilot::AutopilotDriverHandle;
 
 pub use agent::AgentStatus;
 
@@ -104,6 +108,33 @@ impl MinimalAgent {
     /// 会话广播发送方句柄（MCP/LSP 生命周期事件反向推送用）。
     pub fn session_tx(&self) -> broadcast::Sender<Event> {
         session::session_tx(self)
+    }
+
+    /// 登记一个可取消讨论，返回命令层持有的注册 id 和取消令牌。
+    pub fn register_discussion_cancellation(&self) -> (u64, tokio_util::sync::CancellationToken) {
+        static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let token = tokio_util::sync::CancellationToken::new();
+        self.inner
+            .discussion_cancellations
+            .lock()
+            .insert(id, token.clone());
+        (id, token)
+    }
+
+    /// 讨论结束时移除登记；未登记的 id 幂等返回。
+    pub fn remove_discussion_cancellation(&self, id: u64) {
+        self.inner.discussion_cancellations.lock().remove(&id);
+    }
+
+    /// 取消所有仍在运行的讨论，返回已触发的数量。
+    pub fn cancel_discussions(&self) -> usize {
+        let tokens = self.inner.discussion_cancellations.lock();
+        let count = tokens.len();
+        for token in tokens.values() {
+            token.cancel();
+        }
+        count
     }
 
     /// 中断**当前回合** —— 提交 `Op::Interrupt`(回合粒度)。
@@ -212,6 +243,16 @@ impl MinimalAgent {
         &self.inner.autopilot_manager
     }
 
+    /// 当前绑定会话的 recorder；讨论 transcript 等外部编排结果复用它。
+    pub fn session_recorder(&self) -> Option<Arc<dyn RolloutRecorder>> {
+        self.inner
+            .thread
+            .lock()
+            .as_ref()
+            .and_then(|thread| thread.config().m4.as_ref())
+            .and_then(|m4| m4.recorder.clone())
+    }
+
     /// Activity 日志管理器。
     /// `install_agent_thread` 会 spawn 一个 task 订阅 session broadcast,
     /// 把 `Event` 映射成 `ActivityEvent` 写入。
@@ -251,7 +292,9 @@ impl MinimalAgent {
     ) {
         let existing = self.inner.cron_scheduler.read().clone();
         let mut scheduler = existing.unwrap_or_else(|| {
+            let store = reflect_config::paths::data_path_or_relative(&["cron", "schedules.json"]);
             reflect_stream::cron::CronScheduler::new(None, reflect_protocol::ThreadId::new())
+                .with_store(store)
         });
         scheduler.rebind_sender(Some(sender));
         let driver = scheduler.clone();

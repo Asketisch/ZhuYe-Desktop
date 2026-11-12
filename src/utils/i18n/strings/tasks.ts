@@ -37,6 +37,7 @@ const tasks: Record<string, StringEntry> = {
   'tasks.viewList':                { en: 'List view',          'zh-CN': '列表视图' },
   'tasks.viewBoard':               { en: 'Board view',         'zh-CN': '看板视图' },
   'tasks.activeList':              { en: 'Active list',        'zh-CN': '当前列表' },
+  'tasks.sessionLists':            { en: 'Session lists',       'zh-CN': '会话列表' },
   'tasks.listPlaceholder':         { en: 'list id (e.g. default, or a team name)', 'zh-CN': '列表 ID (如 default 或团队名)' },
   'tasks.teams':                   { en: 'Teams',              'zh-CN': '团队' },
   'tasks.teamManager':             { en: 'Manage teams',      'zh-CN': '管理团队' },

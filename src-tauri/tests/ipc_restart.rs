@@ -7,10 +7,7 @@
 //! 全新 app(阶段二),逐项断言读回。
 //!
 //! 覆盖的持久化面:配置 / 记忆 / 审批白名单 / agent 定义 / squad /
-//! 任务列表 / 工作区历史。
-//!
-//! 不含定时任务:`add_schedule` 当前是内存态(`src-tauri/Cargo.toml`
-//! 注释:后台 driver 与持久化留后续),重启后为空是已知口径。
+//! 任务列表 / 定时任务 / 工作区历史。
 //!
 //! 本文件**只有一个用例**是有意的:父进程在首次 `harness()` 前就要设置
 //! `REFLECT_TEST_HOME`,不能让同进程其它用例先以默认基目录初始化夹具。
@@ -66,6 +63,11 @@ fn phase_one_mutations() {
     invoke_ok(
         "reflect_create_task",
         json!({ "list": "restart-recovery-list", "subject": "restart recovery task subject", "description": "阶段一创建" }),
+    );
+    // 定时任务:上游 scheduler 支持原子落盘,重启后应恢复同一 job id。
+    invoke_ok(
+        "reflect_add_schedule",
+        json!({ "schedule": "0 3 * * *", "prompt": "restart recovery schedule", "name": "restart-schedule" }),
     );
     // 工作区历史:指向共享基目录下的 workspace(夹具已创建)。
     let home = std::env::var(HOME_ENV).expect("子进程应有共享 HOME");
@@ -132,6 +134,16 @@ fn phase_two_assertions() {
     assert!(
         tasks.to_string().contains("restart recovery task subject"),
         "任务未在重启后读回: {tasks}"
+    );
+
+    let schedules = invoke_ok("reflect_list_schedules", json!({}));
+    assert!(
+        schedules
+            .as_array()
+            .is_some_and(|jobs| jobs.iter().any(|job| {
+                job["prompt"] == "restart recovery schedule" && job["name"] == "restart-schedule"
+            })),
+        "定时任务未在重启后读回: {schedules}"
     );
 
     let ws = invoke_ok("reflect_current_workspace", json!({}));

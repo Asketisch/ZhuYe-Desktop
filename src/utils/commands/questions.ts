@@ -2,9 +2,10 @@
  * 询问用户封装 —— 响应 agent 通过 `reflect_event` 流提出的问题。
  */
 import { invoke } from '../bridge';
+import type { AskUserAnswer } from '@/types/protocol';
 
-/** 回答一道多选题。`answers` 的形态由每道题自行定义。 */
-export async function reflect_ask_user_question_response(id: string, answers: unknown): Promise<string> {
+/** 回答结构化问题。 */
+export async function reflect_ask_user_question_response(id: string, answers: AskUserAnswer): Promise<string> {
   return invoke<string>('reflect_ask_user_question_response', { id, answers });
 }
 

@@ -13,5 +13,5 @@
     "src/stores/agent/reducer.ts",
     "src/types/protocol/event.ts"
   ],
-  "capability-command-coverage": 179
+  "capability-command-coverage": 181
 }

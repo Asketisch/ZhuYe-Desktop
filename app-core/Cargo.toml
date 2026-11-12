@@ -31,6 +31,7 @@ reflect-subagent   = { workspace = true }
 reflect-config     = { workspace = true }
 # pipeline:DAG 流水线 + team 四阶段预设(CLI `reflect pipeline` 的 GUI 对应)
 reflect-pipeline   = { workspace = true }
+async-trait        = { workspace = true }
 
 # 通用
 dirs        = { workspace = true }

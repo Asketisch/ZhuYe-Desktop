@@ -98,11 +98,12 @@ jobs:
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
 
-      # 门禁入口:退出码 0 = 允许发布。E2E_REQUIRED=1:L5 依赖已装齐,
+      # 此阶段执行选定套件；产物层在各平台构建后另行强制执行。
+      # E2E_REQUIRED=1:L5 依赖已装齐,
       # 视觉回归 + 真窗口冒烟必须真跑,缺失依赖判失败(不允许静默跳过)。
       # VISUAL_UPDATE=1(经 workflow_dispatch 的 visual_update 输入)时
       # 视觉层改为重生成全部基线 —— 基线由 runner 渲染产生,跨平台
-      # 字节级一致才有意义(dev 机的字体栅化与 runner 不同)。
+      # 像素对比才有意义(dev 机的字体栅化与 runner 不同)。
       - name: Run release gate
         env:
           E2E_REQUIRED: '1'
@@ -151,6 +152,7 @@ jobs:
   build:
     name: build (${{ matrix.os }} / ${{ matrix.bundles }})
     needs: gate
+    if: ${{ !inputs.visual_update }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -227,7 +229,9 @@ jobs:
             libgbm-dev \
             libdrm-dev \
             libegl-dev \
-            libwayland-dev
+            libwayland-dev \
+            xvfb \
+            xauth
 
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
@@ -249,6 +253,8 @@ jobs:
         shell: bash
         env:
           ARTIFACT_REQUIRED: '1'
+          ARTIFACT_EXPECTED: ${{ matrix.bundles }}
+          GATE_STRICT: '1'
           # --target 交叉编译时 Tauri 输出在 target/<triple>/release/bundle;
           # tests/lib.sh 的 DIST_DIR 默认只认宿主路径 target/release/bundle,
           # 不传的话 macos-x86_64 会以「发布产物存在 FAIL」误判。
@@ -259,31 +265,12 @@ jobs:
       - name: Locate artifacts
         id: artifacts
         shell: bash
+        env:
+          BUNDLE_ROOT: ${{ matrix.target != '' && format('target/{0}/release/bundle', matrix.target) || 'target/release/bundle' }}
+          BUNDLE_TYPES: ${{ matrix.bundles }}
         run: |
           set -euo pipefail
-          mkdir -p artifacts
-          # 将 Tauri 产出的所有安装包文件收集到扁平暂存目录。
-          # 宿主目标在 target/release/bundle;--target 交叉编译在
-          # target/<triple>/release/bundle。只把**存在**的根交给 find:
-          # find 对缺失路径会以非零码退出,set -e 下整步失败 —— 宿主构建没有
-          # 后者,交叉构建没有前者,两种布局都会踩。
-          roots=()
-          for d in target/release/bundle target/*/release/bundle; do
-            [ -d "$d" ] && roots+=("$d")
-          done
-          if [ "${#roots[@]}" -eq 0 ]; then
-            echo "::error::未找到任何 bundle 目录(target/release/bundle 或 target/*/release/bundle)"
-            exit 1
-          fi
-          # .app 是目录不是文件,-type f 永远匹配不到;macOS 的交付物是 .dmg。
-          find "${roots[@]}" -type f \( \
-            -name '*.dmg' -o \
-            -name '*.deb' -o \
-            -name '*.AppImage' -o \
-            -name '*.msi' -o \
-            -name '*.exe' \) -print -exec cp {} artifacts/ \;
-          echo "暂存产物列表："
-          ls -la artifacts/
+          bash tests/artifact/stage.sh "$BUNDLE_ROOT" "$BUNDLE_TYPES" artifacts
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -301,7 +288,7 @@ jobs:
     name: attach to release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       # 只取**安装包** artifact(pattern 限定),不 dump 全部:不加 pattern
       # 时 merge-multiple 会把 release-review(.test-results 下的审查日志)

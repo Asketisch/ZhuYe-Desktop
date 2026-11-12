@@ -1,4 +1,5 @@
 import type {
+  AskUserAnswer,
   SubagentStatusSnapshot,
   UserInputItem,
 } from '@/types/protocol';
@@ -129,6 +130,7 @@ export interface PendingAskUser {
 
 export interface PendingPlan {
   id: string;
+  kind?: 'request' | 'ready';
   payload: unknown;
   turnId: string;
 }
@@ -198,7 +200,7 @@ export interface CollabSession {
   participants: string[];
   mode: string;
   startedAt: number;
-  status: 'running' | 'done';
+  status: 'running' | 'done' | 'failed' | 'cancelled';
   outcome?: string;
   rounds?: number;
   messages: CollabMessage[];
@@ -391,6 +393,8 @@ export interface AgentState {
    * reducer 写入 `subagents.lastStatus`。
    */
   querySubagents: (childId?: string) => Promise<void>;
+  /** 取消一个运行中的子代理；主会话 turn 不受影响。 */
+  interruptSubagent: (childId: string) => Promise<void>;
   /**
    * v1.6.1:查询提示词层。应答 `prompt_list` 事件异步到达,reducer
    * 写入 `prompt`(进程级,不随会话切换重置)。
@@ -433,7 +437,7 @@ export interface AgentState {
    * 让徽标/切换器反映该会话恢复出的模式。
    */
   syncPermissionMode: (mode: string) => void;
-  answerQuestion: (id: string, answers: unknown) => Promise<void>;
+  answerQuestion: (id: string, answers: AskUserAnswer) => Promise<void>;
   answerInput: (id: string, text: string) => Promise<void>;
   clearError: () => void;
   pushToast: (toast: { kind: ToastKind; message: string; ttlMs?: number }) => string;

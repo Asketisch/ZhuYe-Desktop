@@ -27,8 +27,25 @@ bash tests/run_all.sh e2e         # L5 视觉回归 + 真窗口冒烟（依赖�
 REFLECT_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认跳过）
 ```
 
-退出码 **0 = 允许发布**，非 0 = 存在阻断项。报告落在
-`.test-results/release-review.md`（含逐用例明细与分层结论）。
+退出码 **0 = 所选套件没有阻断项**，非 0 = 存在阻断项。部分运行或存在跳过
+不能证明完整门禁通过。发布流水线对静态、前端、后端和 E2E 启用
+`GATE_STRICT=1`，构建后分别强制审查各平台产物；L6 为可选演练。
+报告落在 `.test-results/release-review.md`（含实际范围、跳过项与逐用例明细）。
+报告同时记录运行前后的工作区状态和子模块状态；有本地变更时，提交号
+仅表示 HEAD，不能代表实际测试的全部代码。
+门禁总入口独占 `RESULT_DIR`；并行运行请为每次运行指定不同目录。
+若进程被强制终止而残留 `.release-gate.lock`，确认没有对应门禁运行后可移除空锁目录。
+后端的 `cargo-llvm-cov` 是可选报告，未安装或设置 `BACKEND_COVERAGE=0`
+时记录 INFO，不计作检查跳过；报告未生成不能视为已有覆盖率证据。
+发布流水线将矩阵的产物类型传给 `ARTIFACT_EXPECTED`，每种类型必须在当前
+目标目录恰有一份，审查无跳过后才暂存这些安装包。
+暂存由 `tests/artifact/stage.sh` 完成，只从指定目标目录取安装包；
+非空暂存目录、缺失或重复产物都会失败。
+后端层将 Rust 测试运行中的忽略项写入报告；除明确列出的实模型与上游外网
+演练入口外，其余忽略项按 SKIP 处理，严格模式会因此失败。例外按测试
+二进制和名称共同识别；忽略项的逐条记录与 libtest 汇总不一致时判失败。
+后端层还核对 `src-tauri/tests/*.rs` 与 Cargo 实际启动的集成测试目标；
+任一目标未被发现即判失败，避免测试文件因命名或编译配置问题静默漏跑。
 
 | 层 | 套件 | 测什么 | 后端真伪 |
 |---|---|---|---|
@@ -53,16 +70,22 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
   `@tauri-apps/api/{core,event}` 与 `@/test/setup` 指到 `tests/visual/shims/`
   （复刻 `setup.tsx` 的 mockInvoke 注册表语义，fakeBackend 在浏览器闭环，
   生产代码零改动）。Playwright 对 38 条路由 × dark/light 截图，与
-  `tests/visual/__baselines__/` 逐字节比对。确定性由三件套保证：
+  `tests/visual/__baselines__/` 的解码像素逐个比对，零容差。确定性由三件套保证：
   `addInitScript` 冻结 `Date`（fakeBackend 时间戳相对 `Date.now` 播种）、
   `reducedMotion: 'reduce'` + 注入 CSS 关闭动画/过渡/光标、
-  `document.fonts.ready` 等待字体。基线目录为空 = 首跑写盘直接通过。
+  `document.fonts.ready` 等待字体。本地缺基线时可生成，门禁标记为跳过；
+  严格环境缺基线判失败。显式重生成也不算完成基线比对。
 - **WebDriver 冒烟**（`window.smoke.test.ts`）：Linux 上 `tauri-driver` +
-  `webkit2gtk-driver`（`xvfb-run` 下）启动调试二进制真窗口，断言壳层挂载
-  （侧栏/导航/main）与状态条非空，截图留存
+  `webkit2gtk-driver`（`xvfb-run` 下）启动当前源码构建的真窗口，使用隔离
+  HOME 和本机 SSE 模型替身验证用户输入 → 真实 IPC → AgentThread → 事件 →
+  界面回复、问题单选/多选/自定义答案与密文输入回执，并断言状态栏显示配置的模型和 token 用量；同时覆盖工具审批、
+  批准后沙箱写盘、终端、文件编辑、Git、记忆、任务、会话切换、流中中断、
+  Goal 控制器和压缩请求回执。截图留存
   `.test-results/e2e-window.png`。macOS 无 WKWebView WebDriver、Windows
   需 MSDP——按 Tauri 官方口径平台门控，mac/Win 上 tskip（UI 面由视觉
   回归覆盖）。
+- 窗口测试由 `tests/e2e/window-client.sh` 固定连接本次启动的本机
+  `127.0.0.1:4444`，不会继承外部 `TAURI_DRIVER_URL`。
 - 本地首跑需 `pnpm install`（playwright-core）+ 系统内已有 Playwright
   chromium（`pnpm exec playwright-core install chromium-headless-shell`
   或已装 chromium）。
@@ -85,6 +108,10 @@ L6 由**两个**测试二进制组成：
 没提问 / 没进 plan，判**跳过**（附理由）而不是失败；这一层测的是
 **产品对模型输出的处理**，不是模型听不听话。上游限流 / 地区门 / 配额
 耗尽同样判跳过。
+使用 `REFLECT_LIVE_SCENARIOS` 筛选场景时，报告会记录未选择的场景，
+严格模式不会将筛选结果当作完整矩阵。
+配额耗尽时剩余场景也逐项记录为跳过；矩阵初始化成功后，每个场景必须
+恰好产生一条结果，缺失或重复都会使演练失败。
 
 **跑完整矩阵建议用本地模型**：匿名免费池（Kilo / dsh）的额度是**全局共享**
 的，跑满若干轮就 `429 PROMOTION_MODEL_LIMIT_REACHED`；本地模型零成本、无限次、
@@ -157,8 +184,12 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 - 没有前端 `invoke` 包装；
 - 没有 `fakeBackend`；
 - 没有 SDK 中间层；
-- `HOME` 与 cwd 指向进程专属临时目录（数据根随之为 `$HOME/.zhuye`）—— 不污染
-  开发者的 `~/.zhuye`，也不往仓库里写 `.zhuye/`。
+- `HOME` 与 cwd 指向独立的临时目录，数据根随之为 `$HOME/.zhuye`。macOS 的
+  后端门禁把临时 HOME 放在已忽略的 `.test-results/backend-homes/`，以便
+  沙箱测试区分它和系统临时目录；退出时清理，不使用开发者的数据目录。
+- 清除人工输入、回滚和配额路径覆盖，以及宿主模型凭证；独立子进程自测
+  确认这些覆盖不会让测试写入外部目录。
+- npm 使用隔离缓存和离线模式，阻止上游插件测试夹具通过 `npx` 拉取远程包。
 
 能力覆盖层文件：
 
@@ -169,14 +200,39 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 | `src-tauri/tests/ipc_domains.rs` | 任务 / 团队 / squad / 定时任务 / 插件 / 子代理 spec / MCP / LSP / 提示词 / KMS / side-channel / 讨论 / 流水线 |
 | `src-tauri/tests/ipc_agent_ops.rs` | 提交 / 中断 / 压缩 / 回退 / 关闭 / 工具与 Hook 审批 / plan 与 goal 模式 / effort / 权限模式 / 追问 / steer |
 | `src-tauri/tests/ipc_events.rs` | **事件回传通路**：信封形状 / `msg.type` 判别子 / `EVENT_ID_NONE` 生命周期 id / Submission↔Event id 配对 / 失败也走同一通道 / 转发器在 `Lagged` 后存活 |
-| `src-tauri/tests/ipc_payload_contract.rs` | **跨运行时线格式契约（真后端侧）**：`tests/contracts/payloads.json` 的 185 条参数样本逐条反序列化（业务错误可、`invalid args` 不可）+ 探测器自检 |
+| `src-tauri/tests/ipc_payload_contract.rs` | **跨运行时线格式契约（真后端侧）**：对样本表中非排除命令逐条检查反序列化（业务错误可、`invalid args` 不可）+ 探测器自检 |
+| `src-tauri/tests/ipc_extensions.rs` | 绑定会话后重扫新增和删除的技能，验证事件与提交 ID 配对 |
+| `src-tauri/tests/ipc_mcp_lifecycle.rs` | 本地 stdio MCP 服务的添加、工具调用、事件、重配和注销，以及启动失败事件；需要 PATH 中有 Node.js |
+| `src-tauri/tests/ipc_lsp_agent.rs` | 本地模型请求 LSP hover，经审批后执行真实 stdio 服务并将结果返回模型 |
+| `src-tauri/tests/ipc_lsp_disconnect.rs` | 本地 LSP 意外退出时发出失败事件、移除状态，关闭并重启后可继续预热 |
+| `src-tauri/tests/ipc_mcp_agent.rs` | 本地模型发起 MCP 工具调用，经真实 AgentThread 审批和服务执行后把结果送回模型；需要 PATH 中有 Node.js |
+| `src-tauri/tests/ipc_lsp_runtime.rs` | 本地 stdio LSP 服务启动、文件预热、诊断、hover 查询、关闭及重启；需要 PATH 中有 Node.js |
+| `src-tauri/tests/ipc_lsp_startup_cancel.rs` | LSP 握手期间关闭或重开，以及并发启用时的服务和事件一致性；需要 PATH 中有 Node.js |
+| `src-tauri/tests/ipc_schedule_runtime.rs` | 真定时 driver 在会话重绑定后触发本地模型，验证禁用任务不执行；等待下一个分钟边界 |
+| `src-tauri/tests/ipc_question_runtime.rs` | 本地模型发起结构化问题，验证非法回执拒绝、选择和自定义文本返回模型 |
+| `src-tauri/tests/ipc_input_runtime.rs` | 本地模型发起敏感自由文本询问及持久化人工输入，验证 IPC 回执、外部答案文件和结果返回模型 |
+| `src-tauri/tests/ipc_env_isolation.rs` | 子进程继承外部数据路径和凭证时，验证测试夹具清除覆盖项且不触碰哨兵目录 |
 | `src-tauri/tests/ipc_roundtrip_contract.rs` | **持久化往返契约（真后端侧）**：`tests/contracts/roundtrips.json` 的 21 对「写 → 读」在真后端全部成立 |
-| `src-tauri/tests/ipc_mock_provider.rs` | **假模型全链路**：wiremock 假 Anthropic 网关 + 真后端/真 AgentThread —— 纯文本流（delta 累积 / token_count）、bash 工具调用 + 审批门 + tool_result 第二跳、HTTP 500 错误路径、流中 interrupt（含恢复可用性） |
+| `src-tauri/tests/ipc_mock_provider.rs` | **假模型全链路**：wiremock 假 Anthropic 网关 + 真后端/真 AgentThread —— 纯文本流（delta 累积 / token_count）、bash 工具调用 + 审批门 + tool_result 第二跳、旁路代理完成与取消、HTTP 500 错误路径、流中 interrupt（含恢复可用性） |
 | `src-tauri/tests/ipc_concurrency.rs` | **并发不变量**：32 线程并行只读、16 并发 submit + 交错 interrupt、8 并发配置写（文件始终合法 TOML，不死锁；丢更新为已知口径不在此断言） |
-| `src-tauri/tests/ipc_restart.rs` | **重启恢复**：子进程两阶段（阶段一写 → 进程退出 → 阶段二以同一 `~/.zhuye` 全新 app 读回）—— 配置/记忆/白名单/agent 定义/squad/任务/工作区 |
+| `src-tauri/tests/ipc_restart.rs` | **重启恢复**：子进程两阶段（阶段一写 → 进程退出 → 阶段二以同一 `~/.zhuye` 全新 app 读回）—— 配置/记忆/白名单/agent 定义/squad/任务/定时任务/工作区 |
 | `src-tauri/tests/ipc_perf_budgets.rs` | **性能预算（后端侧）**：500 条 rollout 的会话索引 / 5k 行记录回放水合的墙钟上限（`PERF_STRICT=1` 收紧） |
 | `src-tauri/tests/ipc_config_compat.rs` | **配置兼容**：4 份夹具（最小/旧版全量/未知键/当前全量）分别以独立子进程全新启动 —— 已知键生效、未知键不致命、agent 存活（`tests/fixtures/config/`） |
 | `src-tauri/tests/ipc_goal.rs` | **目标模式状态快照（v1.7）**：stub provider 配置下断言 `reflect_goal_snapshot` 全周期 —— 未进入返回 null / 挂载后暴露 GoalState（goal 文本 / status / turn_count）/ 重进覆盖 verify_command 与 token_budget / 退出后回 null |
+| `src-tauri/tests/ipc_goal_runtime.rs` | Unix 上以本地模型验证真实 goal 回合：模型判定与验证命令同时成功才退出 |
+| `src-tauri/tests/ipc_plan_runtime.rs` | 本地模型验证进入计划、生成计划、读取计划文件和审批选择的真实状态流转 |
+| `src-tauri/tests/ipc_rewind_runtime.rs` | 本地模型完成两轮后回退第一轮，验证事件、截断数量与回放共同收缩；32 轮后手动压缩，验证下一条模型请求的上下文收缩 |
+| `src-tauri/tests/ipc_discussion_runtime.rs` / `ipc_discussion_no_model.rs` | 本地模型驱动顺序与并发讨论并验证角色身份、实时事件与会话 transcript 持久化；无 provider 时显式返回空跑结果 |
+| `src-tauri/tests/ipc_discussion_live.rs` / `ipc_discussion_failure.rs` / `ipc_discussion_cancel.rs` / `ipc_discussion_history.rs` | 分别锁定运行中消息、失败终态、运行中取消（cancelled 终态）与无筛选历史排除普通会话 |
+| `src-tauri/tests/ipc_pipeline_runtime.rs` / `ipc_pipeline_input_probe.rs` | shell 节点真实执行、失败传播与自定义输入模板 |
+| `src-tauri/tests/ipc_team_pipeline_runtime.rs` | 本地模型驱动团队流水线的四阶段节点，验证报告、节点顺序、产出和四次模型请求 |
+| `src-tauri/tests/ipc_subagent_runtime.rs` / `ipc_subagent_nested.rs` / `ipc_subagent_cancel.rs` | 本地模型委派子代理、嵌套父→子→孙代理及两次结果回传、状态查询、会话隔离与经 `reflect_interrupt` 的定向取消 |
+| `src-tauri/tests/ipc_task_note_runtime.rs` | 本地模型调用任务与会话笔记工具，验证可见性、持久化、错误处理、下一回合注入和会话隔离 |
+| `src-tauri/tests/ipc_autopilot_runtime.rs` / `ipc_autopilot_agent.rs` | 1 秒 tick 的 Autopilot 到期提交本地模型、成功回填历史，验证禁用后不再触发、重绑定会话继续触发，模型失败与用户中断分别回填 `failed`；指定 agent 经 side-channel 执行，验证普通回合及两个自动任务交错时各自回填 |
+| `src-tauri/tests/ipc_autopilot_limit.rs` | 本地模型循环调用工具，真实线程触达配置的迭代上限并回填失败历史 |
+| `src-tauri/tests/ipc_autopilot_budget.rs` | 绑定会话后热更新 token 预算，真实模型请求触发预算耗尽并回填失败历史；移除预算后同一会话可继续请求模型 |
+| `src-tauri/tests/ipc_autopilot_startup_budget.rs` | 安装线程前配置 token 预算，真实模型请求触发预算耗尽并回填失败历史 |
+| `src-tauri/tests/ipc_op_contract.rs` | 26 个提交操作样本经真实协议 serde 往返，并探测未知变体、缺失字段和被静默忽略的字段 |
 
 > **与既有两份集成测试的分工**：`src-tauri/tests/e2e_chat.rs` 与
 > `protocol_bridge_e2e.rs` 早于本轮就已存在 —— 它们**绕过 Tauri IPC**，
@@ -184,9 +240,12 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 > **AgentThread / 协议桥**这一层。能力覆盖层补上的是**再往上一层的
 > IPC 命令面**（GUI 真正的入口）：命令注册表、参数反序列化、返回体形状、
 > 错误传播。三者叠起来才覆盖从"UI 点一下"到"agent 跑起来"的完整链路。
+> 这两份集成测试使用隔离 HOME 与工作目录；真实模型演练统一由 L6 显式开启。
 
 **覆盖口径**（哪个能力域由哪层验、哪些能力显式排除及理由）见
 [`COVERAGE.md`](COVERAGE.md)。
+各功能的前端替身、真实后端和真窗口证据，以及尚未验证的运行态场景，见
+[`RUNTIME_COVERAGE.md`](RUNTIME_COVERAGE.md)。
 
 ### 公共设施：`tests/lib.sh`
 
@@ -219,11 +278,10 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 （React 应用完整挂载、真实 reducer、真实 React Query、真实路由）走完完整
 功能路径，并对线协议（wire shape）、UI 行为与失败韧性做断言。
 
-当前规模：`tests/` 下 16 个测试文件 / 1371 个测试（另有 `src/` 内 99 个
-组件/模块测试文件）—— 合计 115 文件全绿。另有**真后端**能力覆盖层
-`src-tauri/tests/ipc_*.rs`（12 文件 / 104 个测试：179/185 条命令 + 事件
-回传通路 + 跨运行时契约 + 假模型全链路 + 并发不变量 + 重启恢复 + 性能
-预算 + 配置兼容）与 `menu.rs` 内嵌单测（菜单 id ↔ 分支对齐 + 事件派发）。
+测试集包括前端组件、应用级行为及真后端能力覆盖层
+`src-tauri/tests/ipc_*.rs`，后者覆盖事件回传、跨运行时契约、假模型全链路、
+并发、重启恢复、性能预算和配置兼容；`menu.rs` 另有菜单事件单测。
+具体测试数量以本次运行结果为准。
 
 ### 运行
 
@@ -282,7 +340,7 @@ tests/
 │   ├── appHarness.tsx                      # 真实应用挂载（renderApp / renderView）
 │   └── routeMatrix.ts                      # 路由矩阵共享表（行为/zh-CN/axe 三处同源）
 ├── contracts/                              # ↓ 跨运行时线格式契约（L1/L2/L3 三层共享）
-│   ├── payloads.json                       # 185 条命令的参数样本（真后端可反序列化）
+│   ├── payloads.json                       # 命令参数样本及真后端排除清单
 │   └── roundtrips.json                     # 21 对「写 → 读」持久化往返
 ├── a11y.route-matrix.test.tsx             # 34 路由 axe 审计（serious/critical = 0）
 ├── a11y.keyboard.test.tsx                 # 模态 Tab 焦点陷阱 + Escape 线上回执
@@ -376,7 +434,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 | `a11y.keyboard.test.tsx` | 3 | 模态键盘可达性：Tab 焦点陷阱（连按不逃出 dialog）；Escape 的**线上回执**（审批 → `deny{dismissed}`、plan → `revise`）；堆叠模态只有栈顶响应。 |
 | `perf.budgets.test.tsx` | 3 | 性能预算（冒烟级，`PERF_STRICT=1` 收紧）：reduceEvent 1 万 delta / bucketSessions 5k 会话 / 2k 记录会话水合渲染。 |
 | `errors.resilience.test.tsx` | 7 | `stream_error` 追加错误项且 turn 仍完成、会话级错误只置 lastError、配额 toast、会话列表失败 + Refresh 恢复、`reflect_submit` 失败 toast、审批 IPC 失败模态仍乐观清除（不卡死 UI）、中断后新 turn。 |
-| `ipc.payload-contract.test.ts` | 186 | 跨运行时线格式契约（fakeBackend 侧）：`contracts/payloads.json` 全部 185 条参数样本被 fake handler 接受、调用参数完整回放、样本表 ↔ 注册表双向无差集。与 L3 `ipc_payload_contract.rs` 跑同一份样本 —— 模拟层与真后端的参数形状漂移（历史实例：allowlist `entries` vs `prefixes`）会同时被两端抓住。 |
+| `ipc.payload-contract.test.ts` | 随契约表变化 | 跨运行时线格式契约（fakeBackend 侧）：参数样本被 fake handler 接受、调用参数完整回放、样本表 ↔ 注册表双向无差集。真后端对非排除命令消费同一份样本。 |
 | `ipc.roundtrip-contract.test.ts` | 21 | 持久化往返契约（fakeBackend 侧）：`contracts/roundtrips.json` 的 21 对「写 → 读」与真后端（`ipc_roundtrip_contract.rs`）同表执行 —— 无状态桩（写不进 / 读固定值）会立刻露馅。 |
 
 ### 断言约定

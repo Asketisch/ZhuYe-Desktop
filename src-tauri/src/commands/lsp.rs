@@ -101,6 +101,7 @@ pub async fn reflect_lsp_set_enabled(
     agent: State<'_, MinimalAgent>,
     enabled: bool,
 ) -> CommandResult<LspStatus> {
+    let _lifecycle = agent.inner.lsp_lifecycle_lock.lock().await;
     if enabled {
         if agent.inner.lsp_manager.lock().is_none() {
             let cfg = agent.cfg().read().clone();

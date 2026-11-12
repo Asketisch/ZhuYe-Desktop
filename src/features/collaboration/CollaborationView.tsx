@@ -102,14 +102,29 @@ export function CollaborationView() {
             >
               {orch.runDiscussion.isPending ? t('collaboration.discussionRunning') : t('collaboration.discussionRun')}
             </Button>
+            {orch.runDiscussion.isPending && (
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={orch.cancelDiscussion.isPending}
+                data-testid="discussion-cancel"
+                onClick={() => void orch.cancelDiscussion.mutate()}
+              >
+                {t('collaboration.discussionCancel')}
+              </Button>
+            )}
           </div>
           {orch.runDiscussion.isError && (
             <p className={s.errorText}>{String(orch.runDiscussion.error.message || orch.runDiscussion.error)}</p>
           )}
           {orch.runDiscussion.isSuccess && (
-            <div className={s.reportBlock} data-testid="discussion-transcript">
-              {orch.runDiscussion.data.transcript}
-            </div>
+            orch.runDiscussion.data.llmBacked ? (
+              <div className={s.reportBlock} data-testid="discussion-transcript">
+                {orch.runDiscussion.data.transcript}
+              </div>
+            ) : (
+              <p className={s.errorText} role="status">{t('collaboration.discussionNoModel')}</p>
+            )
           )}
         </Card>
 
@@ -119,7 +134,7 @@ export function CollaborationView() {
               <div key={sess.id}>
                 <div className={s.liveHeader}>
                   <span className={s.liveFrom}>{sess.id.slice(0, 8)}</span>
-                  <Badge variant={sess.status === 'running' ? 'warning' : 'success'}>{sess.status}</Badge>
+                  <Badge variant={sess.status === 'running' ? 'warning' : sess.status === 'failed' ? 'danger' : sess.status === 'cancelled' ? 'neutral' : 'success'}>{sess.status}</Badge>
                   <span>{sess.mode}</span>
                   <span>{sess.participants.join(', ')}</span>
                   {sess.rounds != null && <span>· {sess.rounds} rounds</span>}

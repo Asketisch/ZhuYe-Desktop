@@ -40,9 +40,11 @@ async-trait                 = { workspace = true }
 tracing                     = { workspace = true }
 tracing-subscriber          = { workspace = true }
 parking_lot                 = { workspace = true }
+fs2                         = "0.4"
 reflect-protocol            = { workspace = true }
 reflect-core                = { workspace = true }
 reflect-app-core            = { workspace = true }
+reflect-telemetry           = { workspace = true }
 reflect-config              = { workspace = true }
 reflect-rollout             = { workspace = true }
 reflect-skills              = { workspace = true }
@@ -59,6 +61,7 @@ reflect-kms                 = { workspace = true }
 reflect-shell               = { workspace = true }
 reflect-permissions         = { workspace = true }
 reflect-tools               = { workspace = true }
+reflect-ast                 = { workspace = true }
 reflect-llm                 = { workspace = true }
 reflect-hooks               = { workspace = true }
 # 阶段 3d:MCP / LSP 运行时接入。
@@ -79,7 +82,7 @@ reflect                     = { workspace = true }
 # Phase 1 暴露命令面;UI 与 hook/event_sink 注入留后续阶段。
 reflect-task                = { workspace = true }
 # Schedule(cron):zhuye-agent/crates/integrations/reflect-stream 的 CronScheduler(create/update/delete/tick)。
-# Phase 1 第 2 项暴露命令面;后台 driver 与持久化留后续。
+# Phase 1 第 2 项暴露命令面;后台 driver 与全局 schedules.json 持久化已接线。
 reflect-stream              = { workspace = true }
 # Agent definitions:zhuye-agent/crates/abilities/zhuye-agent-def 的 Markdown + frontmatter 解析/加载。
 # Phase 1 第 3 项:agent profile 管理页(列表/创建/编辑/删除)。
@@ -103,6 +106,7 @@ reflect-goal                = { workspace = true }
 uuid                        = { workspace = true }
 futures                     = { workspace = true }
 dirs                        = "5"
+chrono                      = { workspace = true }
 # 阶段 2:config 读写命令(to_string_pretty / load_from_str 校验)。
 toml                        = { workspace = true }
 tempfile                    = "3"

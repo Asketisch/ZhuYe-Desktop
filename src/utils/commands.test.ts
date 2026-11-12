@@ -271,9 +271,9 @@ describe('commands forwarding (mapping)', () => {
 
   it('reflect_ask_user_question_response forwards { id, answers }', async () => {
     const args = await captureCmd('reflect_ask_user_question_response', () =>
-      reflect_ask_user_question_response('q-1', { q1: 'a' }),
+      reflect_ask_user_question_response('q-1', { answers: [{ selected: [1] }] }),
     );
-    expectArgs(args, { id: 'q-1', answers: { q1: 'a' } });
+    expectArgs(args, { id: 'q-1', answers: { answers: [{ selected: [1] }] } });
   });
 
   it('reflect_ask_user_input_response forwards { id, text }', async () => {

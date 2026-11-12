@@ -49,6 +49,7 @@ if [ ! -f "$BIN_SRC" ]; then
   exit 1
 fi
 
+run "mkdir -p '$PREFIX'"
 run "install -m 0755 '$BIN_SRC' '$PREFIX/reflect-desktop'"
 
 if [ "$(uname)" = "Darwin" ] && [ -d "$APP_SRC" ]; then

@@ -16,6 +16,19 @@ use reflect_app_core::activity::map_event;
 
 use super::MinimalAgent;
 
+/// 按配置构造共享 Activity 日志；关闭 telemetry 时退化为纯内存。
+pub(crate) fn build_activity_log() -> std::sync::Arc<reflect_app_core::activity::ActivityLog> {
+    let enabled = reflect_config::load_default()
+        .telemetry
+        .as_ref()
+        .is_none_or(|section| section.activity_enabled());
+    if enabled {
+        reflect_app_core::activity::ActivityLog::with_default_home()
+    } else {
+        reflect_app_core::activity::ActivityLog::in_memory()
+    }
+}
+
 /// spawn activity logger 订阅 task(幂等:可多次调,每次多一个 receiver)。
 pub(crate) fn subscribe_activity_logger(agent: &MinimalAgent) {
     let log = agent.activity_log();

@@ -24,13 +24,14 @@ export function PlanView() {
   const { t } = useI18n();
 
   const payload = pendingPlan?.payload as {
+    markdown?: string;
     plan?: string;
     summary?: string;
     steps?: string[] | unknown[];
     task?: string;
   } | null;
 
-  const planText = payload?.summary ?? payload?.plan ?? '';
+  const planText = payload?.markdown ?? payload?.summary ?? payload?.plan ?? '';
   const taskLabel = payload?.task ?? t('plan.title');
   const steps = Array.isArray(payload?.steps)
     ? payload.steps.map((s: unknown) => String(s))
@@ -88,30 +89,52 @@ export function PlanView() {
               <pre className={s.planText}>{planText}</pre>
             )}
             <div className={s.actions}>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => void approvePlan(pendingPlan.id, 'auto_mode')}
-                leftIcon={<Icon icon={Zap} size={14} />}
-              >
-                {t('plan.autoMode')}
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => void approvePlan(pendingPlan.id, 'manual_approve')}
-                leftIcon={<Icon icon={Check} size={14} />}
-              >
-                {t('plan.manualApprove')}
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => void approvePlan(pendingPlan.id, 'revise')}
-                leftIcon={<Icon icon={Pencil} size={14} />}
-              >
-                {t('plan.revise')}
-              </Button>
+              {pendingPlan.kind === 'request' ? (
+                <>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => void approvePlan(pendingPlan.id, 'manual_approve')}
+                    leftIcon={<Icon icon={Check} size={14} />}
+                  >
+                    {t('modal.planRequest.approve')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void approvePlan(pendingPlan.id, 'revise')}
+                  >
+                    {t('modal.planRequest.decline')}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => void approvePlan(pendingPlan.id, 'auto_mode')}
+                    leftIcon={<Icon icon={Zap} size={14} />}
+                  >
+                    {t('plan.autoMode')}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => void approvePlan(pendingPlan.id, 'manual_approve')}
+                    leftIcon={<Icon icon={Check} size={14} />}
+                  >
+                    {t('plan.manualApprove')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => void approvePlan(pendingPlan.id, 'revise')}
+                    leftIcon={<Icon icon={Pencil} size={14} />}
+                  >
+                    {t('plan.revise')}
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         </div>

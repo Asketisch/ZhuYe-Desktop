@@ -42,7 +42,7 @@
       "answers": {
         "answers": [
           {
-            "indices": [
+            "selected": [
               0
             ]
           }
@@ -58,6 +58,7 @@
     "reflect_bind_session": {
       "id": "00000000-0000-0000-0000-000000000001"
     },
+    "reflect_cancel_discussions": {},
     "reflect_cancel_side_channel": {
       "id": "contract-probe-side-channel"
     },

@@ -108,46 +108,63 @@ describe('QuestionModal', () => {
       request_id: 'q-modal',
       questions: [
         {
+          header: 'Database',
           question: 'Which database?',
-          multiSelect: false,
+          multi_select: false,
           options: [{ label: 'Postgres', description: 'relational' }, { label: 'Mongo', description: 'document' }],
         },
         {
+          header: 'Features',
           question: 'Which features?',
-          multiSelect: true,
-          options: [{ label: 'Auth' }, { label: 'Audit' }, { label: 'Cache' }],
+          multi_select: true,
+          options: [{ label: 'Auth', description: '' }, { label: 'Audit', description: '' }, { label: 'Cache', description: '' }],
         },
       ],
     });
   }
 
-  it('radio single-select + checkbox multi-select submit combined indices', async () => {
+  it('renders protocol selection modes and submits selected indices and custom text', async () => {
     askQuestion();
     await screen.findByText('Which database?');
+    expect(screen.getByRole('radio', { name: /Postgres/ })).toBeDefined();
+    expect(screen.getByRole('checkbox', { name: /Auth/ })).toBeDefined();
 
     // 第一题：单选 Postgres（radio）。
     fireEvent.click(screen.getByLabelText(/Postgres/));
     // 第二题：多选 Auth + Cache（checkbox）。
     fireEvent.click(screen.getByLabelText(/Auth/));
     fireEvent.click(screen.getByLabelText(/Cache/));
+    fireEvent.change(screen.getByLabelText(/Other.*Which features/), { target: { value: '  Metrics  ' } });
 
     fireEvent.click(screen.getByText('Submit'));
     await waitFor(() =>
       expect(backend.agent.questionResponses).toEqual([
-        { id: 'q-modal', answers: { answers: [{ indices: [0] }, { indices: [0, 2] }] } },
+        { id: 'q-modal', answers: { answers: [{ selected: [0] }, { selected: [0, 2], custom: 'Metrics' }] } },
       ]),
     );
     await waitFor(() => expect(screen.queryByText('Which database?')).toBeNull());
   });
 
-  it('submitting without selection sends empty indices', async () => {
+  it('submitting without selection sends an empty answer for each question', async () => {
     askQuestion();
     await screen.findByText('Which database?');
     fireEvent.click(screen.getByText('Submit'));
     await waitFor(() =>
       expect(backend.agent.questionResponses[0]).toEqual({
         id: 'q-modal',
-        answers: { answers: [{ indices: [] }, { indices: [] }] },
+        answers: { answers: [{ selected: [] }, { selected: [] }] },
+      }),
+    );
+  });
+
+  it('closing sends a cancelled answer for each question', async () => {
+    askQuestion();
+    await screen.findByText('Which database?');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() =>
+      expect(backend.agent.questionResponses[0]).toEqual({
+        id: 'q-modal',
+        answers: { answers: [{ selected: [] }, { selected: [] }] },
       }),
     );
   });
@@ -186,6 +203,60 @@ describe('AskUserModal', () => {
       expect(backend.agent.inputResponses).toEqual([{ id: 'in-modal', text: '' }]),
     );
   });
+
+  it('masks secret input and sends the entered value', async () => {
+    emitEvent(TURN, {
+      type: 'ask_user_input',
+      request_id: 'secret-modal',
+      prompt: 'Enter the secret:',
+      secret: true,
+      placeholder: 'Secret value',
+    });
+    const input = await screen.findByLabelText('Enter the secret:') as HTMLInputElement;
+    expect(input.type).toBe('password');
+    fireEvent.change(input, { target: { value: 'private-value' } });
+    fireEvent.click(screen.getByText('Submit'));
+    await waitFor(() =>
+      expect(backend.agent.inputResponses).toEqual([{ id: 'secret-modal', text: 'private-value' }]),
+    );
+  });
+
+  it('closes an input modal when its tool completes via an external answer', async () => {
+    emitEvent(TURN, {
+      type: 'tool_call_begin',
+      call_id: 'human-tool',
+      tool_name: 'request_human_input',
+      args: { prompt: 'External answer?' },
+    });
+    emitEvent(TURN, {
+      type: 'ask_user_input',
+      request_id: 'external-answer',
+      prompt: 'External answer?',
+    });
+    await screen.findByText('External answer?');
+    emitEvent(TURN, {
+      type: 'tool_call_end',
+      call_id: 'human-tool',
+      output: { content: [{ type: 'text', text: 'file-answer' }], is_error: false, metadata: {}, elapsed_ms: 1 },
+      is_error: false,
+      elapsed_ms: 1,
+    });
+    await waitFor(() => expect(screen.queryByText('External answer?')).toBeNull());
+    expect(backend.agent.inputResponses).toEqual([]);
+  });
+
+  it('closes only the interrupted turn’s pending input', async () => {
+    askInput();
+    emitEvent('other-turn', {
+      type: 'ask_user_input',
+      request_id: 'other-input',
+      prompt: 'Other turn input',
+    });
+    await screen.findByText('Name the release branch:');
+    emitEvent(TURN, { type: 'turn_aborted', turn_id: TURN, reason: { type: 'user_interrupt' } });
+    await waitFor(() => expect(screen.queryByText('Name the release branch:')).toBeNull());
+    expect(screen.getByText('Other turn input')).toBeDefined();
+  });
 });
 
 describe('PlanReadyModal', () => {
@@ -200,8 +271,9 @@ describe('PlanReadyModal', () => {
   it('Approve plan sends auto_mode choice', async () => {
     stagePlan();
     await screen.findByText('Plan Ready');
-    // 无 summary 字段时 modal 回退渲染整包 payload（JSON），正文仍可见。
-    expect(document.body.textContent).toContain('# Migration');
+    expect(screen.getByText((_, element) =>
+      element?.tagName === 'PRE' && element.textContent === '# Migration\n1. backup\n2. switch',
+    )).toBeDefined();
 
     fireEvent.click(screen.getByText('Approve plan'));
     await waitFor(() =>
@@ -210,6 +282,26 @@ describe('PlanReadyModal', () => {
     // 关闭是事件驱动：后端确认 plan_approved 后 modal 才消失。
     emitEvent(TURN, { type: 'plan_approved', plan_id: 'plan-modal' });
     await waitFor(() => expect(screen.queryByText('Plan Ready')).toBeNull());
+  });
+
+  it('approves a plan-mode request using its plan id and closes the request', async () => {
+    emitEvent(TURN, { type: 'plan_request', plan_id: 'request-plan-id', task: 'Investigate the migration' });
+    await screen.findByText('Investigate the migration');
+    fireEvent.click(screen.getByText('Enter plan mode'));
+    await waitFor(() => expect(backend.agent.planChoices).toEqual([
+      { id: 'request-plan-id', choice: 'manual_approve' },
+    ]));
+    await waitFor(() => expect(screen.queryByText('Investigate the migration')).toBeNull());
+  });
+
+  it('declines a plan-mode request using revise and closes it', async () => {
+    emitEvent(TURN, { type: 'plan_request', plan_id: 'request-plan-id', task: 'Investigate the migration' });
+    await screen.findByText('Investigate the migration');
+    fireEvent.click(screen.getByText('Not now'));
+    await waitFor(() => expect(backend.agent.planChoices).toEqual([
+      { id: 'request-plan-id', choice: 'revise' },
+    ]));
+    await waitFor(() => expect(screen.queryByText('Investigate the migration')).toBeNull());
   });
 
   it('Manual Approve sends manual_approve', async () => {
@@ -221,10 +313,10 @@ describe('PlanReadyModal', () => {
     );
   });
 
-  it('Reject sends revise', async () => {
+  it('Revise sends revise', async () => {
     stagePlan();
     await screen.findByText('Plan Ready');
-    fireEvent.click(screen.getByText('Reject'));
+    fireEvent.click(screen.getByText('Revise'));
     await waitFor(() =>
       expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-modal', choice: 'revise' }),
     );

@@ -118,12 +118,12 @@ KMS 列表和搜索在目录或页面读取失败时返回命令错误；不可�
 Fork 期间持有父会话文件操作闸门；删除或归档会等待 fork 完成，避免旧操作重新创建父会话记录。
 异步生成的标题写入前重新确认会话与输入内容；手动名称始终优先，非强制生成时保留已有标题，删除或归档后的迟到结果不会落盘。
 手动重命名与会话删除、归档、恢复及生成标题落盘共用会话操作锁。
-| `reflect_get_autopilot_config` / `reflect_update_autopilot_config` / `reflect_autopilot_history` | `null` / `{ config }` / `null` | `AutopilotConfig` / `null` / `AutopilotRun[]` | `commands/autopilot.rs` (Phase 3 item 10) / `commands/autopilot.ts` |
+| `reflect_get_autopilot_config` / `reflect_update_autopilot_config` / `reflect_autopilot_history` | `null` / `{ config }` / `null` | `AutopilotConfig` / `null` / `AutopilotRun[]` | `commands/autopilot.rs` / `commands/autopilot.ts`。桌面后台驱动按 cron 将到期任务提交到当前 `AgentThread`，并按回合终态回填历史；`config.agent` 非空时经引擎 side-channel 用指定 agent 定义隔离执行 |
 | `reflect_list_activity` / `reflect_search_activity` / `reflect_clear_activity` / `reflect_activity_count` | `{ filter? }` / `{ query }` / `null` / `null` | `ActivityEvent[]` (camelCase; `id`, `tsMs`, `kind`, `actor`, `summary`, `taskId?`, `teamName?`, `level`) / `ActivityEvent[]` / `null` / `number` | `commands/activity.rs` (Phase 3 item 9) / `commands/activity.ts` |
 | `reflect_list_squads` / `reflect_create_squad` / `reflect_get_squad` / `reflect_delete_squad` / `reflect_delegate_next` / `reflect_assign_squad_task` | `null` / `{ spec }` / `{ name }` / `{ name }` / `{ name, leaderActorId }` / `{ name, taskId, assignee? }` | `SquadSpec[]` / `null` / `SquadSpec` / `null` / `Task?` / `Task` | `commands/squad.rs` (Phase 3 item 11) / `commands/squad.ts` |
 | `reflect_list_media` / `reflect_image_process` / `reflect_screenshot` / `reflect_computer_use` / `reflect_media_capabilities` | `{ dir }` / `{ spec }` / `null` / `{ action }` / `null` | `MediaAsset[]` / `ImageProcessResult` / `string` (base64 PNG) / `null` / `MediaCapabilities` | `commands/media.rs` (Phase 3 item 13) / `commands/media.ts` |
 | `reflect_list_traces` / `reflect_get_trace` | `{ limit? }` / `{ id }` | `TraceSessionSummary[]`（camelCase） / `TraceCall[]`（camelCase） | `commands/traces.rs` / `commands/traces.ts`。CLI `reflect traces ls / show` 的 GUI 对应：只读查询 `~/.zhuye/traces/model-io/` 的脱敏 JSONL（`reflect-telemetry`）。列表按最近降序带 rollout 标题 fallback；`id` 支持完整 UUID 或唯一前 8 字符前缀。Traces 视图（`/traces`）消费 |
-| `reflect_list_discussions` / `reflect_run_discussion` | `{ discussionId? }` / `{ configPath }` | `DiscussionSessionInfo[]`（camelCase） / `DiscussionRunOutcome`（camelCase） | `commands/discussion.rs` / `commands/discussion.ts`。CLI `reflect discussion ls / run` 的 GUI 对应：逻辑在 `app-core/src/discussion.rs`（重组 `reflect-discussion` 的 LLM 组装，provider 不可用降级 `run_noop`）。运行期间 Collab* 事件经 `event_sink` 桥进 MinimalAgent session broadcast（信封 `id = EVENT_ID_NONE`），前端 collab_* reducer 实时渲染；`ls` 扫 rollout JSONL 的 `DiscussionTranscript` 记录。Collaboration 视图消费 |
+| `reflect_list_discussions` / `reflect_run_discussion` / `reflect_cancel_discussions` | `{ discussionId? }` / `{ configPath }` / `null` | `DiscussionSessionInfo[]`（camelCase） / `DiscussionRunOutcome`（camelCase） / `number` | `commands/discussion.rs` / `commands/discussion.ts`。CLI `reflect discussion ls / run` 的 GUI 对应：逻辑在 `app-core/src/discussion.rs`（重组 `reflect-discussion` 的 LLM 组装，provider 不可用降级 `run_noop`）。运行期间 Collab* 事件经 `event_sink` 桥进 MinimalAgent session broadcast（信封 `id = EVENT_ID_NONE`），前端 collab_* reducer 实时渲染；取消命令触发运行中参与者的级联取消并产生 `collab_finished { outcome: "cancelled" }`；`ls` 扫 rollout JSONL 的 `DiscussionTranscript` 记录。Collaboration 视图消费 |
 | `reflect_run_team_pipeline` / `reflect_run_pipeline` | `{ teamName, topic }` / `{ configPath, topic, failurePolicy?, inputs? }` | `PipelineReport`（snake_case 直传 submodule 类型） | `commands/pipeline.rs` / `commands/pipeline.ts`。CLI `reflect pipeline team / run -c` 的 GUI 对应：逻辑在 `app-core/src/pipeline.rs`（registry 从配置引导、`REFLECT_MODEL=mock` 可离线跑通）。team 预设 = plan → prd → exec → verify 四阶段；TOML 路径跑任意 DAG。共享 `~/.zhuye/tasks\|teams/` 存储（与 Squad 视图同源）。Collaboration 视图消费 |
 | `reflect_validate_pipeline` / `reflect_list_pipeline_configs` / `reflect_save_pipeline_config` | `{ tomlSrc }` / `null` / `{ name, tomlSrc }` | `PipelineConfigSummary`（camelCase：`name` / `failurePolicy` / `nodes` / `nodeCount` / `missingTeams` / `valid` / `error?`）/ `PipelineConfigFile[]` / `PipelineConfigFile` | `commands/pipeline.rs` / `commands/pipeline.ts`。**Pipeline 配置编辑** —— 此前 GUI 只能跑一个已有的 TOML 文件（还得手写）。`validate` 走核心的 `Pipeline::from_toml`（与**实际运行同一条校验路径**，配置级 + wiring 级错误都如实返回），结构摘要只读顶层 `nodes` 表（不复刻核心 schema）；`save` 落盘 `~/.zhuye/pipelines/<name>.toml`，**写前先校验，非法不落盘**。Collaboration 视图 Pipeline 编辑器消费 |
 | `reflect_run_security_scan` | `null` | `SecurityScanResult`（camelCase：`ran` / `exitCode?` / `output` / `summary`） | `commands/security.rs` / `commands/security.ts`。在当前工作区跑一次 `cargo audit` —— 核心 `reflect_integration::security_scan::run_cargo_audit` 的**真实实现**（30s 超时、管道排空、IO 错误落结构化报告而非 panic）。阻塞调用放 `spawn_blocking`（可能跑 30s，不占住 async worker）。Settings → Advanced「安全扫描」卡片消费 |
@@ -258,8 +258,8 @@ pub struct Submission {
 | 变体 | 前端响应 | 配对 Op |
 |---|---|---|
 | `approval_request` (Tool/Hook/Plan) | Open `ApprovalModal` | `tool_approval` / `hook_approval` |
-| `ask_user_question` | Open `QuestionModal` (multi-Q) | `ask_user_question_response` (id = sub_id) |
-| `ask_user_input` | Open `AskUserModal` (free text) | `ask_user_input_response` |
+| `ask_user_question` | Open `QuestionModal` (multi-Q) | `ask_user_question_response` (id = request_id) |
+| `ask_user_input` | Open `AskUserModal` (free text; `secret` 时掩码显示) | `ask_user_input_response` |
 | `permission_bubble` | Non-blocking toast (Bubble mode) | none |
 
 ### 3.5 Compaction / Errors (3)
@@ -276,7 +276,7 @@ pub struct Submission {
 |---|---|
 | `config_reloaded` | Toast "Config reloaded" |
 | `routing` | Status bar provider switch indicator。`kind` 枚举：`switched`（同池换 credential）/ `failed_over` / `cooldown_started` / `cooldown_cleared` / `spec_fallback`（v1.7 R3,跨模型降级 —— 当前 spec 的 credential 池全部不可用,切到 fallback spec;`from_credential` / `to_credential` 此时装的是 `"provider/model"` 形式的 spec） |
-| `collab_started` / `collab_message` / `collab_finished` | Collab sidebar / timeline |
+| `collab_started` / `collab_message` / `collab_finished` | Collab sidebar / timeline；`collab_finished.outcome` 也支持 `failed` / `cancelled`，上游修复尚未纳入当前子模块 |
 
 **`routing.kind` 取值**（镜像 Rust `RoutingEventKind`，snake_case）：
 `switched`（同池内换 credential）/ `failed_over`（全部 candidate 失败）/
@@ -315,7 +315,7 @@ fallback spec，**跨模型降级**）。
 | Variant | UI |
 |---|---|
 | `plan_request` | "Enter plan mode?" confirm modal |
-| `plan_ready` | Plan markdown modal (Accept / Submit Changes) |
+| `plan_ready` | Plan markdown modal (auto mode / manual approval / revise) |
 | `plan_approved` | Status bar plan badge |
 | `plan_rejected` | Status hint |
 | `plan_draft_updated` | none —— 草稿正文覆盖式刷新(TUI 用于预览);GUI 决策路径走 `plan_ready` → PlanReadyModal,reducer no-op 保穷尽 |
@@ -364,9 +364,9 @@ fallback spec，**跨模型降级**）。
 | `approval_request` (工具) | `tool_approval` | `id = request_id` | |
 | `approval_request` (钩子) | `hook_approval` | `id = request_id` | |
 | `approval_request` (计划) | `plan_approval` | `id = request_id` | |
-| `ask_user_question` | `ask_user_question_response` | `id = sub_id` | 每个问题有独立的 sub_id（每问题等待器） |
-| `ask_user_input` | `ask_user_input_response` | `id = sub_id` | |
-| `plan_request` | `enter_plan_mode` | `task` 回显 | 客户端发送前确认 |
+| `ask_user_question` | `ask_user_question_response` | `id = request_id` | 一次请求可包含多题；每题答案使用 `selected` 下标和可选 `custom` |
+| `ask_user_input` | `ask_user_input_response` | `id = request_id` | |
+| `plan_request` | `plan_approval` | `id = plan_id` | `enter_plan_mode` 发起；进入使用 `manual_approve`，暂不进入使用 `revise` |
 | `plan_ready` | `plan_approval` | `id = plan_id` | |
 | `*_delta` / `*_complete` | （任何用户操作） | `id = submission.id` | 流式块共享提交 id |
 
@@ -392,7 +392,7 @@ fallback spec，**跨模型降级**）。
 
 ## 6. 前端 TypeScript 接口
 
-`src/types/protocol.ts` 是规范的镜像。分为两部分：
+`src/types/protocol/` 是规范的镜像；以下列出协议轮廓，完整字段以对应类型文件为准。
 
 ```ts
 // Submission side (UI → backend)
@@ -401,12 +401,13 @@ export type ReflectSubmission = {
   op: ReflectOp;
   client_user_message_id?: string;
   trace?: TraceContext;
+  workspace?: string;
 };
 
 export type ReflectOp =
   | { type: 'user_input'; items: ReflectItem[]; thread_settings?: ThreadSettingsOverrides }
   | { type: 'compact' }
-  | { type: 'interrupt' }
+  | { type: 'interrupt'; child_id?: string | null }
   | { type: 'shutdown' }
   | { type: 'rewind'; to_turn_id?: string }
   | { type: 'steer'; priority?: 'attachment' | 'now'; items: ReflectItem[] }   // v1.4 A2 → reflect_steer
@@ -420,7 +421,11 @@ export type ReflectOp =
   | { type: 'exit_plan_mode' }
   | { type: 'enter_goal_mode'; goal: string; verify_command?: string; token_budget?: number }
   | { type: 'exit_goal_mode' }
-  | { type: 'plan_approval'; id: string; decision: ReviewDecision }
+  | { type: 'plan_approval'; id: string; choice: PlanApprovalChoice }
+  | { type: 'prompt_command'; action: { type: 'list' } | { type: 'switch'; layer?: string | null } }
+  | { type: 'rescan_extensions'; skills: boolean; commands: boolean }
+  | { type: 'register_tools'; tools: RemoteToolSpec[] }
+  | { type: 'tool_execution_response'; call_id: string; output: ToolOutput }
   | { type: 'set_effort'; effort: ReasoningEffort }
   | { type: 'ask_user_question_response'; id: string; answers: AskUserAnswer }
   | { type: 'ask_user_input_response'; id: string; text: string }

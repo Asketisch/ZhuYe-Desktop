@@ -156,10 +156,10 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
   });
 
   it('questions: responses carry id + payload', async () => {
-    await commands.reflect_ask_user_question_response('q-1', { answers: [{ indices: [0] }] });
+    await commands.reflect_ask_user_question_response('q-1', { answers: [{ selected: [0] }] });
     expect(backend.lastArgsOf('reflect_ask_user_question_response')).toEqual({
       id: 'q-1',
-      answers: { answers: [{ indices: [0] }] },
+      answers: { answers: [{ selected: [0] }] },
     });
 
     await commands.reflect_ask_user_input_response('q-2', 'my text');
