@@ -8,7 +8,7 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `8abd4ed`（v0.1.12；完整 SHA `8abd4ed1`）。本轮增量复审 `0cca4c6a → 8abd4ed1` 为 safe_write 原子改名切到 FileRenameInformationEx：非 Ex 类拒绝非 NULL RootDirectory（code 87），write/edit/plan_write 落盘与 GUI 文件保存在 Windows 上恒红的根因；plan_write 绝对路径改按分量判定（Windows `is_absolute()` 对无盘符根路径漏网）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
+> 最近审计：submodule `d836fea`（v0.1.12；完整 SHA `d836feae`，含 `8abd4ed1` 的 fmt 归位）。本轮增量复审 `0cca4c6a → d836feae` 为 safe_write 原子改名切到 FileRenameInformationEx：非 Ex 类拒绝非 NULL RootDirectory（code 87），write/edit/plan_write 落盘与 GUI 文件保存在 Windows 上恒红的根因；plan_write 绝对路径改按分量判定（Windows `is_absolute()` 对无盘符根路径漏网）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
 > 上一轮 `8e72bc4c → 0cca4c6a`
 > 为 Windows 文件锁句柄口径补漏：zhuye-telemetry 的 `activity.lock` 与 zhuye-audit 的
 > FileSink 公共 open 路径此前仍以纯 append 句柄加锁，`LockFileEx` 在 Windows 上直接

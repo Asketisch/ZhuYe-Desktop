@@ -22,7 +22,7 @@ EOF
 chmod +x "$TMP/bin/git"
 export PATH="$TMP/bin:$PATH" RESULT_DIR="$TMP/results" RUN_SELFTESTS=0
 for mode in clean changed staged uninitialized stale; do
-    TEST_SHA=8abd4ed12d78eb121fb02c9fe79cac2317c43c81
+    TEST_SHA=d836feae16b19aa3e775ff53ff31e15a0ae23399
     case "$mode" in
         clean) TEST_MARKER=' '; TEST_DIFF_STATUS=0 ;;
         changed) TEST_MARKER='+'; TEST_DIFF_STATUS=1 ;;
