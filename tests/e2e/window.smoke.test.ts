@@ -53,6 +53,31 @@ async function openMorePage(label: string) {
   await menu.findElement(By.xpath(`.//*[@role="menuitem" and normalize-space(.)="${label}"]`)).click();
 }
 
+/** 等待弹窗出现;超时时先截图并转储 body 文本再抛出原错误。
+ *  Windows 上"弹窗不出现"类失败(60s 超时)此前没有任何现场,排障全靠猜;
+ *  截图落 E2E_SCREENSHOT_DIR,文本头走 stderr 进 e2e-window.log,
+ *  run.sh 的失败转储会带出 dialog-miss 标记行。 */
+async function waitDialog(selector: string, timeout = 60_000) {
+  try {
+    return await driver!.wait(until.elementLocated(By.css(selector)), timeout);
+  } catch (error) {
+    const resultDir = process.env.E2E_SCREENSHOT_DIR ?? '.test-results';
+    const tag = selector.replace(/[^a-zA-Z-]/g, '').slice(-40) || 'dialog';
+    try {
+      mkdirSync(resultDir, { recursive: true });
+      writeFileSync(
+        join(resultDir, `e2e-dialog-miss-${tag}.png`),
+        Buffer.from(await driver!.takeScreenshot(), 'base64'),
+      );
+      const text = await driver!.findElement(By.css('body')).getText();
+      console.error(`[dialog-miss] ${selector} 未出现;body 文本头:\n${text.slice(0, 800)}`);
+    } catch {
+      // 取证失败不掩盖原始超时错误。
+    }
+    throw error;
+  }
+}
+
 beforeAll(async () => {
   if (!APP_BIN) throw new Error('TAURI_APP_BIN 未设置(应由 tests/e2e/run.sh 注入)');
   const caps = new Capabilities();
@@ -129,7 +154,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     await composer.sendKeys('window-tool-chain-test');
     const send = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-send"]')), 30_000);
     await send.click();
-    const dialog = await driver!.wait(until.elementLocated(By.css('[role="dialog"][aria-label="Tool Approval"]')), 60_000);
+    const dialog = await waitDialog('[role="dialog"][aria-label="Tool Approval"]');
     expect(readFileSync(providerLog, 'utf8')).not.toContain('window tool result:');
     await dialog.findElement(By.xpath('.//button[normalize-space(.)="Approve"]')).click();
     const log = await driver!.findElement(By.css('[role="log"]'));
@@ -144,7 +169,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-tool-deny-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await driver!.wait(until.elementLocated(By.css('[role="dialog"][aria-label="Tool Approval"]')), 60_000);
+    const dialog = await waitDialog('[role="dialog"][aria-label="Tool Approval"]');
     expect(existsSync(marker)).toBe(false);
     await dialog.findElement(By.xpath('.//button[normalize-space(.)="Deny"]')).click();
     const log = await driver!.findElement(By.css('[role="log"]'));
@@ -160,7 +185,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-tool-write-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await driver!.wait(until.elementLocated(By.css('[role="dialog"][aria-label="Tool Approval"]')), 60_000);
+    const dialog = await waitDialog('[role="dialog"][aria-label="Tool Approval"]');
     expect(existsSync(marker)).toBe(false);
     await dialog.findElement(By.xpath('.//button[normalize-space(.)="Approve"]')).click();
     await driver!.wait(() => readFileSync(providerLog, 'utf8').includes('window write tool result:'), 30_000);
@@ -369,7 +394,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-question-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await driver!.wait(until.elementLocated(By.css('[role="dialog"][aria-label="Question"]')), 60_000);
+    const dialog = await waitDialog('[role="dialog"][aria-label="Question"]');
     expect(await dialog.getText()).toContain('Choose a fruit?');
     await dialog.findElement(By.xpath('.//label[.//span[normalize-space(.)="Pear"]]//input')).click();
     await dialog.findElement(By.xpath('.//label[.//span[normalize-space(.)="Auth"]]//input')).click();
@@ -387,7 +412,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-card"] textarea')), 30_000);
     await composer.sendKeys('window-input-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await driver!.wait(until.elementLocated(By.css('[role="dialog"][aria-label="Input requested"]')), 60_000);
+    const dialog = await waitDialog('[role="dialog"][aria-label="Input requested"]');
     const input = await dialog.findElement(By.css('input[type="password"]'));
     expect(await input.getAttribute('aria-label')).toBe('Enter a test value:');
     await input.sendKeys('window-synthetic-secret');
