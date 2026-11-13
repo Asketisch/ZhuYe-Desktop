@@ -8,7 +8,7 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `e383206`（v0.1.12；完整 SHA `e383206c7`）。本轮增量复审 `1c09f6a4 → e383206c7`
+> 最近审计：submodule `c728da8`（v0.1.12；完整 SHA `c728da8e`）。本轮增量复审 `1c09f6a4 → c728da8e`
 > 为修正 Windows 文件锁句柄权限（`LockFileEx` 要求可读句柄，原先的
 > `append(true)` 打开方式在 Windows 上直接返回 ACCESS_DENIED），
 > 产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
