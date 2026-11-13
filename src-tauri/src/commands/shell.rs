@@ -109,13 +109,15 @@ pub async fn reflect_run_shell(
     let cwd = agent.workspace().display().to_string();
     let workdir = agent.workspace();
 
-    // 借助 shell 以支持管道/重定向(macOS 上是 zsh,其他平台是 sh)。
-    let shell = if cfg!(target_os = "macos") {
-        "/bin/zsh"
+    // 借助 shell 以支持管道/重定向(macOS 是 zsh,Linux 是 sh;Windows 见
+    // windows_shell_argv)。原实现在 Windows 上落 `/bin/sh` —— 该路径不存在,
+    // 终端整条链路(运行/kill/文件回读/git 面板)全部 spawn 失败。
+    let argv = if cfg!(windows) {
+        windows_shell_argv(&cmd)
     } else {
-        "/bin/sh"
+        let shell = if cfg!(target_os = "macos") { "/bin/zsh" } else { "/bin/sh" };
+        vec![shell.to_string(), "-lc".into(), cmd.clone()]
     };
-    let argv = vec![shell.to_string(), "-lc".into(), cmd.clone()];
 
     // env_clear = false:终端要继承用户环境(PATH / HOME / 凭据)。
     let session = agent
@@ -175,6 +177,50 @@ pub async fn reflect_run_shell(
         command: cmd,
         cwd,
     })
+}
+
+/// Windows 终端 shell 的 argv 构造。
+///
+/// 优先级:Git Bash(POSIX 语义与 macOS/Linux 一致,能力覆盖层与冒烟
+/// 用例可复用同一组探针命令)→ PowerShell(`-NoProfile -Command`)→
+/// `%COMSPEC%`(cmd,`/C`)。查找顺序:固定安装路径 → PATH 逐目录,
+/// 全部落空时用 `cmd.exe` 兜底(COMSPEC 在任意 Windows 会话里都存在)。
+///
+/// 函数体在三个平台一律编译(由 `cfg!(windows)` 运行时选择),
+/// 保证非 Windows 的 check/clippy 同样覆盖这里的 PATH 遍历逻辑。
+fn windows_shell_argv(cmd: &str) -> Vec<String> {
+    // Git Bash 的标准安装位置。
+    for candidate in [
+        r"C:\Program Files\Git\bin\bash.exe",
+        r"C:\Program Files (x86)\Git\bin\bash.exe",
+        r"C:\Program Files\Git\usr\bin\bash.exe",
+    ] {
+        if std::path::Path::new(candidate).is_file() {
+            return vec![candidate.to_string(), "-lc".into(), cmd.to_string()];
+        }
+    }
+    let find_exe = |name: &str| -> Option<std::path::PathBuf> {
+        std::env::var_os("PATH").and_then(|paths| {
+            std::env::split_paths(&paths)
+                .map(|dir| dir.join(name))
+                .find(|p| p.is_file())
+        })
+    };
+    if let Some(bash) = find_exe("bash.exe") {
+        return vec![bash.to_string_lossy().into_owned(), "-lc".into(), cmd.to_string()];
+    }
+    for ps in ["pwsh.exe", "powershell.exe"] {
+        if let Some(exe) = find_exe(ps) {
+            return vec![
+                exe.to_string_lossy().into_owned(),
+                "-NoProfile".into(),
+                "-Command".into(),
+                cmd.to_string(),
+            ];
+        }
+    }
+    let comspec = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+    vec![comspec, "/C".into(), cmd.to_string()]
 }
 
 /// 按 id 终止运行中的 shell 会话。幂等:会话缺失不视为错误。
