@@ -238,7 +238,17 @@ if [ "$PLATFORM" = "macos" ] && command -v codesign >/dev/null 2>&1; then
   for dir in $BUNDLE_DIR; do
     for app in "$dir"/*.app; do
       [ -d "$app" ] || continue   # glob didn't match
-      run "codesign --force --deep --sign - '$app'"
+      # 常规路径下 tauri 已按 conf( signingIdentity="-" + entitlements )封印;
+      # 此处再 --force 重签会把嵌入的授权剥掉(产物门禁断言
+      # codesign --entitlements 可读,v0.0.3 实测翻车)。已有效签名 → 跳过,
+      # 兜底只救真正未签名的散装 .app;兜底签名也带上 entitlements。
+      if codesign --verify "$app" 2>/dev/null; then
+        continue
+      fi
+      entitlements=""
+      [ -f "${REPO_ROOT}/src-tauri/Entitlements.plist" ] &&
+        entitlements="--entitlements ${REPO_ROOT}/src-tauri/Entitlements.plist"
+      run "codesign --force --deep --sign - $entitlements '$app'"
     done
   done
 fi
