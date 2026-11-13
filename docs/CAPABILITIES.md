@@ -8,7 +8,8 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `e3da254`（v0.1.12；完整 SHA `e3da2540`，后续仅排障标签 `e3da2540`，零行为变化）。本轮增量复审 `0cca4c6a → e3da2540` 为 safe_write 原子改名切到 FileRenameInformationEx：非 Ex 类拒绝非 NULL RootDirectory（code 87），write/edit/plan_write 落盘与 GUI 文件保存在 Windows 上恒红的根因；plan_write 绝对路径改按分量判定（Windows `is_absolute()` 对无盘符根路径漏网）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
+> 最近审计：submodule `58cebeb`（v0.1.12；完整 SHA `58cebeb6`）。本轮增量复审 `e3da2540 → 58cebeb6` 为两项 Windows 平台行为修复：其一是 zhuye-tools 的 safe_write 原子改名改走 NT 层 `NtSetInformationFile`（FileRenameInformation,类 10）—— Win32 的 `SetFileInformationByHandle` 封装层**整体拒绝非 NULL 的 `RootDirectory`**，带目录句柄一律 ERROR_INVALID_PARAMETER(code 87)，上一版归因到「Ex 类与非 Ex 类之别」是误判，差别在封装层本身；改走 NT 层保住「不重新解析路径」的安全不变量，并按 Windows「不能替换仍有打开句柄的文件」的约束在改名之前先释放旧目标句柄，目录目标读取补 BACKUP_SEMANTANTICS 以与 Unix 同口径报 InvalidArgs。其二是 pipeline shell 节点用例按平台断言（Windows 无 OS 沙箱后端，「命令真的跑起来」不是可达状态，改为断言 fail-closed 拒绝语义而非跳过用例）。均为能力内部实现与测试口径，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
+> 上一轮 `0cca4c6a → e3da2540` 为 safe_write 原子改名切到 FileRenameInformationEx：非 Ex 类拒绝非 NULL RootDirectory（code 87），write/edit/plan_write 落盘与 GUI 文件保存在 Windows 上恒红的根因；plan_write 绝对路径改按分量判定（Windows `is_absolute()` 对无盘符根路径漏网）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
 > 上一轮 `8e72bc4c → 0cca4c6a`
 > 为 Windows 文件锁句柄口径补漏：zhuye-telemetry 的 `activity.lock` 与 zhuye-audit 的
 > FileSink 公共 open 路径此前仍以纯 append 句柄加锁，`LockFileEx` 在 Windows 上直接

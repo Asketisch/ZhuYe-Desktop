@@ -248,6 +248,22 @@ model = "claude-mock"
 [hooks]
 enabled = []
 EOF
+                # Windows 没有 OS 沙箱后端(macOS 需 /usr/bin/sandbox-exec;Linux 需
+                # Landlock 内核支持),基座侧两道闸门都会挡住模型产出的命令:
+                # 不可信来源闸门按 fail-closed 规则拒绝裸执行,OS 沙箱在 strict
+                # 模式下同样拒绝裸执行。本层要验的是「审批 → 执行 → 落盘」这条
+                # 链,不是沙箱本身,故 Windows 上显式关掉 OS 沙箱,并打开基座
+                # 文档化的不可信豁免口(仅限本 e2e 进程,不落到产品默认)。
+                case "$PLATFORM" in
+                    MINGW*|MSYS*|CYGWIN*)
+                        cat >> "$HOME/.zhuye/config.toml" <<'EOF'
+
+[sandbox]
+os_level = false
+EOF
+                        export ZHUYE_UNTRUSTED_ALLOW_BARE=1
+                        ;;
+                esac
             fi
             # 3) 起 tauri-driver(默认端口 4444)。**必须自己跑在 xvfb 下**:
             #    WebKitWebDriver 会派生被测应用,应用开窗口需要 DISPLAY ——
