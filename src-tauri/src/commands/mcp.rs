@@ -247,10 +247,10 @@ pub async fn reflect_list_mcp_resources(
                 for r in resources {
                     out.push(McpResourceInfo {
                         server: server.clone(),
-                        name: r.raw.name.clone(),
-                        uri: r.raw.uri.clone(),
-                        description: r.raw.description.clone(),
-                        mime_type: r.raw.mime_type.clone(),
+                        name: r.name.clone(),
+                        uri: r.uri.clone(),
+                        description: r.description.clone(),
+                        mime_type: r.mime_type.clone(),
                     });
                 }
             }

@@ -59,7 +59,17 @@ beforeAll(async () => {
   // 官方 capabilities:tauri:options.application = 应用二进制(非 bundle)。
   caps.set('tauri:options', { application: APP_BIN });
   caps.setBrowserName('wry');
-  driver = await new Builder().usingServer(DRIVER_URL).withCapabilities(caps).build();
+  // Windows WebView2 偶发首帧 DevToolsActivePort 竞态;三次重试仍失败才判失败。
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      driver = await new Builder().usingServer(DRIVER_URL).withCapabilities(caps).build();
+      break;
+    } catch (error) {
+      await driver?.quit?.().catch(() => {});
+      if (attempt === 3) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+    }
+  }
   // 120s:冷启动 debug 二进制 + webkit 软件渲染首帧,CI 双核上偏慢。
 }, 120_000);
 

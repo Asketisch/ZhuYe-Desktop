@@ -203,7 +203,7 @@ htmd               = "0.5"
 minijinja          = "2"
 sled               = "0.34"
 # 会话导入(zhuye-import):ZCode 历史存于 SQLite;bundled 自带 C 源,免系统依赖。
-rusqlite           = { version = "0.37", features = ["bundled"] }
+rusqlite           = { version = "0.41", features = ["bundled"] }
 # zhuye-secrets:HKDF-SHA256 每条目派生(per-entry salt),getrandom 由 aes-gcm
 # 默认 feature 提供(Nonce/Key 生成用 OsRng)。
 sha2               = "0.10"
@@ -213,14 +213,14 @@ hkdf               = "0.12"
 # 组件模型 + Cranelift 编译器 + async(epoch 中断计时),控制二进制体积。
 # 版本锁定 30:与 guest 侧 wit-bindgen 0.40(产 wasi 0.2.3 组件)同代 ——
 # 宿主与社区组件的 wasi 小版本必须一致。
-wasmtime           = { version = "=30.0.1", default-features = false, features = [
+wasmtime           = { version = "=36.0.20", default-features = false, features = [
     "async", "cranelift", "component-model", "runtime",
 ] }
-wasmtime-wasi      = { version = "=30.0.1", default-features = false }
+wasmtime-wasi      = { version = "=36.0.20", default-features = false }
 filetime           = "0.2"
 pollster           = "0.4"
 lsp-types          = { version = "=0.97", default-features = false }
-rmcp               = { version = "=1.7.0", features = [
+rmcp               = { version = "=3.10.0", features = [
     "client",
     "transport-child-process",
     "transport-streamable-http-client-reqwest",
