@@ -24,6 +24,15 @@ import { MessageSquare, GitBranch } from 'lucide-react';
 import { Button, Icon, Spinner } from '@/features/design-system';
 import { DiffViewer } from '@/features/git/DiffViewer';
 import s from './ChatView.module.css';
+import { WorkHead, useGitSummary } from '@/features/shell/zcode/WorkHead';
+import { ViewRing } from '@/features/shell/zcode/WorkHead';
+import { ZDock } from '@/features/shell/zcode/ZDock';
+import { ApprovalTakeover, QuestionTakeover, AskUserTakeover } from '@/features/shell/zcode/Takeovers';
+import { TrajView } from '@/features/shell/zcode/TrajView';
+import { BottomTabs } from '@/features/shell/zcode/BottomTabs';
+import { useZShell } from '@/features/shell/zcode/shellState';
+import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { reflect_export_session_markdown } from '@/utils/commands/sessions';
 
 export function ChatView() {
   const { sessionId } = useParams({ strict: false }) as { sessionId?: string };
@@ -137,6 +146,23 @@ export function ChatView() {
 
   const isLoaded = !sessionId || loadedSessionId === sessionId;
 
+  // v2 工作台:轨迹/对话 view-ring + 底部分屏 + 右栏(shellState)
+  const [viewMode, setViewMode] = useState<'chat' | 'traj'>('chat');
+  const bottomOpen = useZShell((st) => st.bottomOpen);
+  const setBottomOpen = useZShell((st) => st.setBottomOpen);
+  const rightOpen = useZShell((st) => st.rightOpen);
+  const gitSum = useGitSummary(Boolean(sessionId));
+
+  // 交互接管:审批 / 问题 / 输入(任一在场即接管 composer 座位)
+  const takeoverApproval = useAgentStore((st) => st.pendingApprovals[0] ?? null);
+  const takeoverQuestion = useAgentStore((st) => st.pendingQuestions[0] ?? null);
+  const takeoverAskUser = useAgentStore((st) => st.pendingAskUser[0] ?? null);
+  const takeover = takeoverApproval ?? takeoverQuestion ?? takeoverAskUser ?? null;
+  const goalActive = useAgentStore((st) => st.goalActive);
+  const goalText = useAgentStore((st) => st.goalSnapshot?.goal ?? '');
+  const turnRunning = useAgentStore((st) => st.turns.some((tn) => tn.status === 'streaming'));
+  const sessions = useSessions();
+
   // 首页工作台英雄态：全新对话（无 session、无历史、无加载错误）时，
   // 问候语 + 快捷模板 chips + 居中 Composer 取代常规消息流。
   // 首条消息发出后 turns > 0，同一 Composer 实例自然落回底部常规布局。
@@ -159,7 +185,29 @@ export function ChatView() {
   }, [prefs.chatDiffSplit]);
 
   return (
-    <div className={s.root} data-split={prefs.chatDiffSplit ? 'on' : 'off'} data-hero={hero ? 'on' : 'off'}>
+    <div className={s.zroot} data-split={prefs.chatDiffSplit ? 'on' : 'off'} data-hero={hero ? 'on' : 'off'}>
+      <WorkHead
+        title={sessionId ? (sessions.all.find((x) => x.session_id === sessionId)?.title ?? '' ?? sessionId.slice(0, 8)) : t('home.title')}
+        gitSum={gitSum}
+        onFork={() => void handleFork('manual')}
+        onExportMarkdown={() => {
+          if (!sessionId) return;
+          void reflect_export_session_markdown(sessionId)
+            .then((r) => pushToast({ kind: 'success', message: t('toast.exportedMarkdown', { path: r?.path ?? '' }) }))
+            .catch((e: unknown) => pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) }));
+        }}
+        terminalOn={bottomOpen}
+        onToggleTerminal={() => setBottomOpen(!bottomOpen)}
+        rightOn={rightOpen}
+        onToggleRight={() => useZShell.getState().toggleRight()}
+        onToggleTheme={() => useZShell.getState().toggleRight()}
+        onOpenSettings={() => { window.location.hash = '/settings'; }}
+      />
+      <ViewRing mode={viewMode} onChange={setViewMode} />
+      {viewMode === 'traj' ? (
+        <TrajView />
+      ) : (
+      <div className={s.chatpane} data-testid="zcode-chatpane">
       {sessionId && loading && (
         <div className={s.sessionBanner} role="status" aria-live="polite">
           <Spinner size={14} />
@@ -233,8 +281,15 @@ export function ChatView() {
           />
         </div>
       )}
-      {!loading && !error && <Composer />}
+      {!loading && !error && <ZDock goalActive={goalActive} goalText={goalText} turnRunning={turnRunning} />}
+      {!loading && !error && takeoverApproval && <ApprovalTakeover approval={takeoverApproval} />}
+      {!loading && !error && takeoverQuestion && <QuestionTakeover question={takeoverQuestion} />}
+      {!loading && !error && takeoverAskUser && <AskUserTakeover askUser={takeoverAskUser} />}
+      {!loading && !error && !takeover && <Composer />}
       {hero && <QuickPromptRow />}
+      </div>
+      )}
+      {sessionId && <BottomTabs open={bottomOpen} onClose={() => setBottomOpen(false)} />}
       {prefs.chatDiffSplit && !hero && (
         <aside className={s.diffPanel} aria-label={t('chat.diffPanel')}>
           <header className={s.diffHeader}>

@@ -20,8 +20,13 @@ import { PlanReadyModal } from './PlanReadyModal';
 import { PlanRequestModal } from './PlanRequestModal';
 import { PromptLayersModal } from './PromptLayersModal';
 
-/** 聚合所有 modal。 */
-export function ModalStack() {
+/**
+ * 聚合所有 modal。
+ * v2(redesign/zcode-shell):chat 路由在交互接管模式(审批/提问/输入以
+ * composer 座位卡片呈现)时,通过 `suppressInteractionModals` 抑制同源
+ * modal,避免双 UI。plan / prompt 层面板不受影响。
+ */
+export function ModalStack({ suppressInteractionModals = false }: { suppressInteractionModals?: boolean } = {}) {
   const approvals = useAgentStore((st) => st.pendingApprovals);
   const questions = useAgentStore((st) => st.pendingQuestions);
   const askUsers = useAgentStore((st) => st.pendingAskUser);
@@ -29,13 +34,13 @@ export function ModalStack() {
 
   return (
     <>
-      {approvals.map((a) => (
+      {!suppressInteractionModals && approvals.map((a) => (
         <ApprovalModal key={`ap-${a.id}`} approval={a} />
       ))}
-      {questions.map((q) => (
+      {!suppressInteractionModals && questions.map((q) => (
         <QuestionModal key={`q-${q.id}`} question={q} />
       ))}
-      {askUsers.map((u) => (
+      {!suppressInteractionModals && askUsers.map((u) => (
         <AskUserModal key={`u-${u.id}`} askUser={u} />
       ))}
       {plan && (plan.kind === 'request' ? <PlanRequestModal plan={plan} /> : <PlanReadyModal plan={plan} />)}

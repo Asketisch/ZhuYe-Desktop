@@ -52,6 +52,7 @@ import toast from './toast';
 import traces from './traces';
 import usage from './usage';
 import workspaces from './workspaces';
+import zcode from './zcode';
 
 export const STRINGS: Record<string, StringEntry> = {
   ...about,
@@ -99,6 +100,7 @@ export const STRINGS: Record<string, StringEntry> = {
   ...traces,
   ...usage,
   ...workspaces,
+  ...zcode,
 };
 
 export type LocaleKey = keyof typeof STRINGS;

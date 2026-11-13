@@ -3,6 +3,15 @@
  * 深色优先：`:root` 即深色主题（默认），`[data-theme="light"]` 覆盖为浅色。
  * `data-theme="system"`（或未设置）时，由 `prefers-color-scheme` 决定。
  *
+ * v2 重设计（redesign/zcode-shell）：色板整体对齐 ZCode Zai Dark / Zai Light
+ * （packages/ui/src/styles.css 实测值）——
+ *   深色：background/panel = neutral-900，sidebar/terminal = neutral-950，
+ *         card/input/popover = neutral-800，border = neutral-50 10%，
+ *         user 气泡 = 白 8%，brand = sky-500。
+ *   浅色：background = neutral-50，sidebar/panel = neutral-100，
+ *         card = white，border = neutral-950 10%，brand = sky-400。
+ * token 名保持不变 —— 组件层零改动换肤；新增 token 只增不改名。
+ *
  * 整个 src/** 唯一允许 import 的全局样式入口（配合 base.css）。
  * 组件样式请用 CSS Modules（*.module.css），消费这里的 token。
  */
@@ -62,6 +71,11 @@
   --radius-xl: 16px;
   --radius-pill: 9999px;
 
+  /* ===== 工作台框架（v2 重设计新增，对齐 WorkspaceShellLayout 实测）===== */
+  --workspace-sidebar-width: 264px;   /* 侧栏默认宽（= 最小值，可拖拽）*/
+  --workspace-panel-radius: 12px;     /* macOS 26+ 内层圆角（旧系统 6px）*/
+  --workspace-frame-border: 0.5px;    /* frame 半像素描边 */
+
   /* ===== 层级 ===== */
   --z-base: 0;
   --z-sticky: 100;
@@ -75,16 +89,16 @@
   --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 280ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ===== Dark theme (default) — IDE 深色优先 ===== */
-  --bg-app: #0b0e14;        /* 最底层（app body）*/
-  --bg-surface: #11151f;    /* 面板/卡片底色 */
-  --bg-elevated: #161b27;   /* 提升的面板（modal/popover/输入框聚焦）*/
-  --bg-input: #0d1119;      /* 输入控件底色 */
-  --bg-hover: #1c2333;      /* hover 态叠加色 */
-  --bg-active: #232b3d;     /* active/pressed 态叠加色 */
-  --bg-app-rgb: 11, 14, 20;
-  --bg-surface-rgb: 17, 21, 31;
-  --bg-elevated-rgb: 22, 27, 39;
+  /* ===== 深色主题（Zai Dark，默认）===== */
+  --bg-app: #171717;        /* neutral-900：应用工作区 / 对话 frame 背景 */
+  --bg-surface: #262626;    /* neutral-800：卡片 / 输入 / 弹层 */
+  --bg-elevated: #262626;   /* 同 card（Zai Dark 无更高层）*/
+  --bg-input: #262626;      /* 输入控件底色 */
+  --bg-hover: rgba(255, 255, 255, 0.10);   /* surface-hover：白 10% */
+  --bg-active: rgba(255, 255, 255, 0.14);
+  --bg-app-rgb: 23, 23, 23;
+  --bg-surface-rgb: 38, 38, 38;
+  --bg-elevated-rgb: 38, 38, 38;
   --surface-opacity: 1;
   --background-image: none;
   --background-image-opacity: 0.35;
@@ -92,43 +106,62 @@
   --bg-surface-alpha: rgba(var(--bg-surface-rgb), var(--surface-opacity));
   --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
-  --text-primary: #e6e9ef;     /* 主文本 */
-  --text-secondary: #a4adbe;   /* 次要文本 */
-  --text-muted: #828c9f;       /* 弱化文本/占位（AA 对比度 ≥ 4.5:1 on bg-app）*/
-  --text-disabled: #3f4658;    /* 禁用文本 */
+  --bg-sidebar: #0a0a0a;    /* neutral-950：侧栏 / 终端底 */
+  --bg-panel: #171717;      /* panel = neutral-900 */
+  --bg-header: #171717;
+  --bg-user-bubble: rgba(255, 255, 255, 0.08);  /* 用户气泡：白 8% */
+  --bg-surface-faint: rgba(255, 255, 255, 0.05); /* 低凸surface */
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.18);
+  --text-primary: #fafafa;  /* neutral-50 */
+  --text-secondary: #a3a3a3; /* neutral-400 */
+  --text-muted: #737373;    /* neutral-500 */
+  --text-disabled: #525252; /* neutral-600 */
+  --text-subtle: rgba(250, 250, 250, 0.6);
+  --text-subtlest: rgba(250, 250, 250, 0.4);
 
-  /* Accent（品牌色：Reflect 青绿）*/
-  --accent: #5dd1c6;
-  --accent-hover: #79ddd4;
-  --accent-active: #4cb8ad;
-  --accent-subtle: rgba(93, 209, 198, 0.12);
-  --accent-border: rgba(93, 209, 198, 0.35);
-  --accent-fg: #07120f;     /* accent 背景上的文字 */
+  --border-subtle: rgba(250, 250, 250, 0.06);
+  --border-default: rgba(250, 250, 250, 0.10);  /* neutral-50 10% */
+  --border-strong: rgba(250, 250, 250, 0.30);   /* border-hover */
 
-  /* 语义色 —— 每个含 fg / bg / border 三态 */
-  --success: #4ade80;
+  /* Brand（Zai Dark：sky-500）*/
+  --accent: #0ea5e9;
+  --accent-hover: #38bdf8;
+  --accent-active: #0284c7;
+  --accent-subtle: rgba(14, 165, 233, 0.14);
+  --accent-border: rgba(14, 165, 233, 0.38);
+  --accent-fg: #ffffff;
+
+  /* 语义色 —— 每个含 fg / bg / border 三态（Zai Dark 值）*/
+  --success: #4ade80;       /* green-400 */
   --success-fg: #052e16;
   --success-bg: rgba(74, 222, 128, 0.12);
   --success-border: rgba(74, 222, 128, 0.3);
 
-  --warning: #fbbf24;
+  --warning: #fbbf24;       /* yellow-400 */
   --warning-fg: #451a03;
   --warning-bg: rgba(251, 191, 36, 0.12);
   --warning-border: rgba(251, 191, 36, 0.3);
 
-  --danger: #f87171;
+  --danger: #f87171;        /* red-400 */
   --danger-fg: #450a0a;
   --danger-bg: rgba(248, 113, 113, 0.12);
   --danger-border: rgba(248, 113, 113, 0.3);
 
-  --info: #60a5fa;
+  --info: #38bdf8;          /* sky-400 */
   --info-fg: #0c1f3d;
-  --info-bg: rgba(96, 165, 250, 0.12);
-  --info-border: rgba(96, 165, 250, 0.3);
+  --info-bg: rgba(56, 189, 248, 0.12);
+  --info-border: rgba(56, 189, 248, 0.3);
+
+  /* 轨迹角色色（styles.css trajectory-* 深色实测值）*/
+  --traj-user: #60a5fa;
+  --traj-assistant: #2dd4bf;
+  --traj-reasoning: #a78bfa;
+  --traj-tool-call: #f59e0b;
+  --traj-tool-result: #38bdf8;
+
+  /* diff（styles.css diff-added/removed）*/
+  --diff-added: #4ade80;
+  --diff-removed: #f87171;
 
   /* 阴影（深色用柔和发光式 elevation）*/
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -142,55 +175,79 @@
   --scrollbar-track: transparent;
 }
 
-/* ===== 亮色主题 ===== */
+/* ===== 亮色主题（Zai Light，值取自 styles.css 默认 :root 块）===== */
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-app: #f7f8fa;
-  --bg-surface: #ffffff;
+  --bg-app: #fafafa;        /* neutral-50 */
+  --bg-surface: #ffffff;    /* card = white */
   --bg-elevated: #ffffff;
   --bg-input: #ffffff;
-  --bg-hover: #f1f3f7;
-  --bg-active: #e6e9f0;
-  --bg-app-rgb: 247, 248, 250;
+  --bg-hover: #e5e5e5;      /* neutral-200 */
+  --bg-active: #d4d4d4;
+  --bg-app-rgb: 250, 250, 250;
   --bg-surface-rgb: 255, 255, 255;
   --bg-elevated-rgb: 255, 255, 255;
+  --surface-opacity: 1;
+  --background-image: none;
+  --background-image-opacity: 0.35;
+  --bg-app-alpha: rgba(var(--bg-app-rgb), var(--surface-opacity));
+  --bg-surface-alpha: rgba(var(--bg-surface-rgb), var(--surface-opacity));
+  --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
-  --text-primary: #1a1f2c;
-  --text-secondary: #4d5666;
-  --text-muted: #6b7488;
-  --text-disabled: #c2c8d3;
+  --bg-sidebar: #f5f5f5;    /* neutral-100 */
+  --bg-panel: #f5f5f5;
+  --bg-header: #f5f5f5;
+  --bg-user-bubble: rgba(10, 10, 10, 0.05);
+  --bg-surface-faint: rgba(10, 10, 10, 0.03);
 
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-default: rgba(0, 0, 0, 0.1);
-  --border-strong: rgba(0, 0, 0, 0.18);
+  --text-primary: #404040;  /* neutral-700 = foreground */
+  --text-secondary: #595959; /* remote-foreground-muted */
+  --text-muted: rgba(64, 64, 64, 0.6); /* foreground-subtle */
+  --text-disabled: rgba(64, 64, 64, 0.4); /* foreground-subtlest */
+  --text-subtle: rgba(64, 64, 64, 0.7);
+  --text-subtlest: rgba(64, 64, 64, 0.4);
 
-  --accent: #0d9488;
-  --accent-hover: #0f766e;
-  --accent-active: #115e54;
-  --accent-subtle: rgba(13, 148, 136, 0.1);
-  --accent-border: rgba(13, 148, 136, 0.35);
+  --border-subtle: rgba(10, 10, 10, 0.06);
+  --border-default: rgba(10, 10, 10, 0.10);  /* neutral-950 10% */
+  --border-strong: rgba(10, 10, 10, 0.20);
+
+  --accent: #38bdf8;        /* sky-400 */
+  --accent-hover: #0ea5e9;
+  --accent-active: #0284c7;
+  --accent-subtle: rgba(56, 189, 248, 0.14);
+  --accent-border: rgba(56, 189, 248, 0.38);
   --accent-fg: #ffffff;
 
-  --success: #16a34a;
+  --success: #16a34a;       /* green-600 */
   --success-fg: #ffffff;
   --success-bg: rgba(22, 163, 74, 0.1);
   --success-border: rgba(22, 163, 74, 0.3);
 
-  --warning: #d97706;
+  --warning: #ca8a04;       /* yellow-600 */
   --warning-fg: #ffffff;
-  --warning-bg: rgba(217, 119, 6, 0.1);
-  --warning-border: rgba(217, 119, 6, 0.3);
+  --warning-bg: rgba(202, 138, 4, 0.12);
+  --warning-border: rgba(202, 138, 4, 0.3);
 
-  --danger: #dc2626;
+  --danger: #dc2626;        /* red-600 */
   --danger-fg: #ffffff;
   --danger-bg: rgba(220, 38, 38, 0.1);
   --danger-border: rgba(220, 38, 38, 0.3);
 
-  --info: #2563eb;
+  --info: #0ea5e9;
   --info-fg: #ffffff;
-  --info-bg: rgba(37, 99, 235, 0.1);
-  --info-border: rgba(37, 99, 235, 0.3);
+  --info-bg: rgba(14, 165, 233, 0.1);
+  --info-border: rgba(14, 165, 233, 0.3);
+
+  /* 轨迹角色色（浅色实测值）*/
+  --traj-user: #2563eb;
+  --traj-assistant: #0f766e;
+  --traj-reasoning: #7c3aed;
+  --traj-tool-call: #d97706;
+  --traj-tool-result: #0284c7;
+
+  --diff-added: #16a34a;
+  --diff-removed: #dc2626;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -207,27 +264,44 @@
   :root:not([data-theme="dark"]) {
     color-scheme: light;
 
-    --bg-app: #f7f8fa;
+    --bg-app: #fafafa;
     --bg-surface: #ffffff;
     --bg-elevated: #ffffff;
     --bg-input: #ffffff;
-    --bg-hover: #f1f3f7;
-    --bg-active: #e6e9f0;
+    --bg-hover: #e5e5e5;
+    --bg-active: #d4d4d4;
+    --bg-app-rgb: 250, 250, 250;
+    --bg-surface-rgb: 255, 255, 255;
+    --bg-elevated-rgb: 255, 255, 255;
+    --surface-opacity: 1;
+    --background-image: none;
+    --background-image-opacity: 0.35;
+    --bg-app-alpha: rgba(var(--bg-app-rgb), var(--surface-opacity));
+    --bg-surface-alpha: rgba(var(--bg-surface-rgb), var(--surface-opacity));
+    --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
-    --text-primary: #1a1f2c;
-    --text-secondary: #4d5666;
-    --text-muted: #6b7488;
-    --text-disabled: #c2c8d3;
+    --bg-sidebar: #f5f5f5;
+    --bg-panel: #f5f5f5;
+    --bg-header: #f5f5f5;
+    --bg-user-bubble: rgba(10, 10, 10, 0.05);
+    --bg-surface-faint: rgba(10, 10, 10, 0.03);
 
-    --border-subtle: rgba(0, 0, 0, 0.06);
-    --border-default: rgba(0, 0, 0, 0.1);
-    --border-strong: rgba(0, 0, 0, 0.18);
+    --text-primary: #404040;
+    --text-secondary: #595959;
+    --text-muted: rgba(64, 64, 64, 0.6);
+    --text-disabled: rgba(64, 64, 64, 0.4);
+    --text-subtle: rgba(64, 64, 64, 0.7);
+    --text-subtlest: rgba(64, 64, 64, 0.4);
 
-    --accent: #0d9488;
-    --accent-hover: #0f766e;
-    --accent-active: #115e54;
-    --accent-subtle: rgba(13, 148, 136, 0.1);
-    --accent-border: rgba(13, 148, 136, 0.35);
+    --border-subtle: rgba(10, 10, 10, 0.06);
+    --border-default: rgba(10, 10, 10, 0.10);
+    --border-strong: rgba(10, 10, 10, 0.20);
+
+    --accent: #38bdf8;
+    --accent-hover: #0ea5e9;
+    --accent-active: #0284c7;
+    --accent-subtle: rgba(56, 189, 248, 0.14);
+    --accent-border: rgba(56, 189, 248, 0.38);
     --accent-fg: #ffffff;
 
     --success: #16a34a;
@@ -235,20 +309,29 @@
     --success-bg: rgba(22, 163, 74, 0.1);
     --success-border: rgba(22, 163, 74, 0.3);
 
-    --warning: #d97706;
+    --warning: #ca8a04;
     --warning-fg: #ffffff;
-    --warning-bg: rgba(217, 119, 6, 0.1);
-    --warning-border: rgba(217, 119, 6, 0.3);
+    --warning-bg: rgba(202, 138, 4, 0.12);
+    --warning-border: rgba(202, 138, 4, 0.3);
 
     --danger: #dc2626;
     --danger-fg: #ffffff;
     --danger-bg: rgba(220, 38, 38, 0.1);
     --danger-border: rgba(220, 38, 38, 0.3);
 
-    --info: #2563eb;
+    --info: #0ea5e9;
     --info-fg: #ffffff;
-    --info-bg: rgba(37, 99, 235, 0.1);
-    --info-border: rgba(37, 99, 235, 0.3);
+    --info-bg: rgba(14, 165, 233, 0.1);
+    --info-border: rgba(14, 165, 233, 0.3);
+
+    --traj-user: #2563eb;
+    --traj-assistant: #0f766e;
+    --traj-reasoning: #7c3aed;
+    --traj-tool-call: #d97706;
+    --traj-tool-result: #0284c7;
+
+    --diff-added: #16a34a;
+    --diff-removed: #dc2626;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);

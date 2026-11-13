@@ -6,7 +6,7 @@
  * 回放水合走真实 turnsFromRollout（rollout 记录 → turns）。
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderApp, resetAppAfterEach } from './helpers/appHarness';
 import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
 import { useAgentStore } from '@/stores/agentStore';
@@ -138,7 +138,8 @@ describe('session switch & replay hydration', () => {
     await waitFor(() => expect(app.pathname()).toBe('/chat/sess-alpha'));
     // 选中项带 aria-pressed 高亮。
     await waitFor(() => {
-      const item = screen.getByText('Fix login bug').closest('button');
+      const sidebar = screen.getByTestId('shell-sidebar');
+      const item = within(sidebar).getByText('Fix login bug').closest('button');
       expect(item?.getAttribute('aria-pressed')).toBe('true');
     });
   });
@@ -160,7 +161,7 @@ describe('session mutations through the real UI', () => {
       newName: 'My custom title',
     });
     // rename 成功 → invalidate → 自动重刷列表，侧边栏立即显示新标题。
-    await waitFor(() => expect(screen.getByText('My custom title')).toBeDefined());
+    await waitFor(() => expect(within(screen.getByTestId('shell-sidebar')).getByText('My custom title')).toBeDefined());
     // 后端状态同步更新。
     expect(backend.state.sessions.find((s) => s.session_id === 'sess-alpha')?.title).toBe('My custom title');
   });

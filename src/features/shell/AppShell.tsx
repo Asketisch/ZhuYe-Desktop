@@ -32,7 +32,7 @@
 import { useRef, useState } from 'react';
 import { useRouter, Outlet } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ActivityBar } from './ActivityBar';
+import { ZRail } from './zcode/ZRail';
 import { TitleBar } from './TitleBar';
 import { StatusBar } from './StatusBar';
 import { Inspector } from './Inspector';
@@ -40,6 +40,7 @@ import { Sidebar } from '@/features/sessions/components/Sidebar';
 import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { unpin, useSessionPins } from '@/features/sessions/utils/pins';
 import { ModalStack } from '@/features/modals';
+import { useAgentStore as useZAgentStore } from '@/stores/agentStore';
 import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
 import { CommandPalette } from '@/features/command-palette/CommandPalette';
 import { Toast } from '@/features/design-system';
@@ -92,6 +93,11 @@ export function AppShell() {
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const router = useRouter();
+  const pathname = router.state?.location?.pathname ?? '/';
+  const zApprovals = useZAgentStore((st) => st.pendingApprovals);
+  const zQuestions = useZAgentStore((st) => st.pendingQuestions);
+  const zAskUsers = useZAgentStore((st) => st.pendingAskUser);
+  const suppressInteraction = pathname.startsWith('/chat') && (zApprovals.length > 0 || zQuestions.length > 0 || zAskUsers.length > 0);
   const qc = useQueryClient();
   const { t, tp } = useI18n();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -267,9 +273,9 @@ export function AppShell() {
         onToggleInspector={() => setInspectorOpen((v) => !v)}
       />
       <div className={s.body}>
-        <ActivityBar />
+        <ZRail onOpenUpdates={() => void router.navigate({ to: '/usage' })} />
         {sidebarOpen && (
-          <aside className={s.sidebar} aria-label={t('sidebar.sessions')} data-testid="shell-sidebar">
+          <aside className={`${s.sidebar} ${s.sideHide}`.trim()} aria-label={t('sidebar.sessions')} data-testid="shell-sidebar">
               <Sidebar
               groups={sessions.groups}
               loading={sessions.loading}
@@ -305,14 +311,14 @@ export function AppShell() {
           </div>
         </main>
         {inspectorOpen && (
-          <aside className={s.inspector} aria-label={t('shell.inspector')} data-testid="shell-inspector">
+          <aside className={`${s.inspector} ${s.rightHide}`.trim()} aria-label={t('shell.inspector')} data-testid="shell-inspector">
             <Inspector />
           </aside>
         )}
       </div>
       <StatusBar />
       <ToastHost />
-      <ModalStack />
+      <ModalStack suppressInteractionModals={suppressInteraction} />
       <ConfirmDialogHost />
       <CommandPalette
         open={paletteOpen}

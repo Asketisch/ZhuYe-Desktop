@@ -321,3 +321,36 @@
 .subToggle:hover {
   color: var(--text-primary);
 }
+
+/* ===== v2 补充(redesign/zcode-shell):计划 / Git tab ===== */
+.gitBranchRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 8px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.gitBranchName { font-family: var(--font-mono); font-weight: 500; }
+.gitUpstream { margin-left: auto; color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; }
+.gitEmpty { color: var(--text-muted); font-size: 11px; padding: 2px 0; }
+.gitFile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.gitFile:hover { background: var(--bg-hover); }
+.gitPath { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+.gitStatusChip {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border-radius: 4px;
+  padding: 1px 5px;
+}

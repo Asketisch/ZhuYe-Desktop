@@ -100,3 +100,15 @@
 .toastHost > * {
   pointer-events: auto;
 }
+
+/* ===== v2 重设计响应式(redesign/zcode-shell)===== */
+@media (max-width: 1180px) {
+  .rightHide { display: none !important; }
+}
+@media (max-width: 920px) {
+  .sideHide { display: none !important; }
+}
+@media (max-width: 640px) {
+  /* rail 由 ZRail 自身媒体类处理;此处收窄 body 间距 */
+  .body { min-width: 0; }
+}

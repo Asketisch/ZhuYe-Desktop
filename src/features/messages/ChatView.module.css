@@ -113,3 +113,18 @@
   color: var(--text-primary);
   background: transparent;
 }
+
+/* ===== v2 工作台(redesign/zcode-shell)===== */
+.zroot {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.chatpane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

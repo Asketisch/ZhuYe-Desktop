@@ -107,14 +107,13 @@ describe('chat full conversation flow (real app mount)', () => {
     // 4. 工具调用渲染为 running 状态。
     await waitFor(() => expect(log.textContent).toContain('bash'));
 
-    // 5. 审批弹窗出现，agent 在 gate 处暂停（未收到决策）。
-    const modalTitle = await screen.findByText('Tool Approval');
-    const dialog = modalTitle.closest('[role="dialog"]') ?? document.body;
-    expect(within(dialog).getByText('bash')).toBeDefined();
+    // 5. 审批以 composer 接管卡出现(v2),agent 在 gate 处暂停(未收到决策)。
+    const card = await screen.findByTestId('zcode-approval');
+    expect(within(card).getByText(/bash/)).toBeDefined();
     expect(backend.agent.toolApprovals.length).toBe(0);
 
-    // 6. 用户点 Approve —— 决策以 'approve' 线格式发往后端。
-    fireEvent.click(within(dialog).getByText('Approve'));
+    // 6. 用户点 允许一次 —— 决策以 'approve' 线格式发往后端。
+    fireEvent.click(within(card).getByTestId('zcode-approval-allow'));
     await waitFor(() => expect(backend.agent.toolApprovals.length).toBe(1));
     expect(backend.agent.toolApprovals[0]).toEqual({ id: 'apr-run', decision: 'approve' });
 

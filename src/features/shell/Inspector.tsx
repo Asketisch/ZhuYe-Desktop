@@ -16,6 +16,7 @@ import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBr
 import { Icon, Badge, IconButton, Tooltip } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import type { SubagentProgressEntry } from '@/stores/agentStore';
+import { ListTodo, GitCommitHorizontal } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import { reflect_list_dir, type ReflectDirEntry } from '@/utils/commands/files';
 import { reflect_git_diff } from '@/utils/commands/git';
@@ -26,7 +27,7 @@ import { CredentialPoolSection, SubagentCallsSection } from './RuntimeStatusSect
 import { TodoPanel } from './TodoPanel';
 import s from './Inspector.module.css';
 
-type InspectorTab = 'overview' | 'files' | 'changes';
+type InspectorTab = 'overview' | 'files' | 'changes' | 'plan' | 'git';
 
 export function Inspector() {
   const { t } = useI18n();
@@ -44,10 +45,18 @@ export function Inspector() {
         <button type="button" role="tab" aria-selected={tab === 'changes'} className={s.tab} data-active={tab === 'changes' || undefined} onClick={() => setTab('changes')} data-testid="inspector-tab-changes">
           <Icon icon={GitBranch} size={12} /> {t('inspector.tab.changes')}
         </button>
+        <button type="button" role="tab" aria-selected={tab === 'plan'} className={s.tab} data-active={tab === 'plan'} data-testid="inspector-tab-plan">
+          <Icon icon={ListTodo} size={12} /> {t('zcode.inspector.tab.plan')}
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'git'} className={s.tab} data-active={tab === 'git'} data-testid="inspector-tab-git">
+          <Icon icon={GitCommitHorizontal} size={12} /> {t('zcode.inspector.tab.git')}
+        </button>
       </div>
       {tab === 'overview' && <OverviewTab />}
       {tab === 'files' && <FilesTab />}
       {tab === 'changes' && <ChangesTab />}
+      {tab === 'plan' && <PlanTab />}
+      {tab === 'git' && <GitTab />}
     </div>
   );
 }
@@ -542,6 +551,86 @@ function ChangesTab() {
       <pre className={s.changesPre}>
         <DiffViewer diff={diff ?? ''} emptyMessage={t('chat.diffEmpty')} />
       </pre>
+    </div>
+  );
+}
+
+
+// ====== 计划 tab(v2:redesign/zcode-shell)======
+
+function PlanTab() {
+  const { t } = useI18n();
+  const todos = useAgentStore((st) => st.todos);
+  const queued = useAgentStore((st) => st.queuedMessages);
+  return (
+    <div data-testid="inspector-plan">
+      {todos.length === 0 && <p className={s.gitEmpty}>{t('zcode.inspector.plan.empty')}</p>}
+      {todos.map((td, i) => (
+        <div key={i} className={s.gitFile} data-status={td.status}>
+          <span className={s.gitPath} style={td.status === 'completed' ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>
+            {td.status === 'completed' ? '✓ ' : td.status === 'in_progress' ? '▶ ' : '○ '}
+            {td.active_form ?? td.content}
+          </span>
+        </div>
+      ))}
+      {queued.length > 0 && (
+        <>
+          <p className={s.gitEmpty} style={{ marginTop: 12 }}>{t('zcode.inspector.plan.queued')}({queued.length})</p>
+          {queued.map((qm) => (
+            <div key={qm.id} className={s.gitFile}>
+              <span className={s.gitPath} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{qm.text}</span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ====== Git tab(v2:redesign/zcode-shell)======
+
+function GitTab() {
+  const { t } = useI18n();
+  type ReflectGitStatusT = import('@/utils/commands/git').ReflectGitStatus;
+  const [status, setStatus] = useState<ReflectGitStatusT | null>(null);
+  const [log, setLog] = useState<import('@/utils/commands/git').ReflectGitLogEntry[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void import('@/utils/commands/git').then((m) => {
+      void m.reflect_git_status().then((r) => { if (alive) setStatus(r); }).catch(() => undefined);
+      void m.reflect_git_log(8).then((r) => { if (alive) setLog(r); }).catch(() => undefined);
+    });
+    return () => { alive = false; };
+  }, []);
+  const empty = (key: string) => <p className={s.gitEmpty}>{key}</p>;
+  if (!status) return <div data-testid="inspector-git">{empty('…')}</div>;
+  if (!status.is_repo) return <div data-testid="inspector-git">{empty('—')}</div>;
+  return (
+    <div data-testid="inspector-git">
+      <div className={s.gitBranchRow}>
+        <GitBranch size={12} />
+        <span className={s.gitBranchName}>{status.branch ?? '—'}</span>
+        {status.upstream && (
+          <span className={s.gitUpstream}>
+            ↑{status.ahead} ↓{status.behind}
+          </span>
+        )}
+      </div>
+      <p className={s.gitEmpty}>{t('zcode.inspector.git.changes', { count: status.entries.length })}</p>
+      {status.entries.length === 0 && <p className={s.gitEmpty}>{t('zcode.inspector.git.clean')}</p>}
+      {status.entries.map((e) => (
+        <div key={e.path + e.staged} className={s.gitFile}>
+          <span className={s.gitPath}>{e.path}</span>
+          <span className={s.gitStatusChip}>{e.status}</span>
+        </div>
+      ))}
+      <p className={s.gitEmpty}>{t('zcode.inspector.git.commits')}</p>
+      {log.map((c) => (
+        <div key={c.hash} className={s.gitFile}>
+          <span className={s.gitPath} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.subject}</span>
+          <span className={s.gitStatusChip}>{c.short_hash}</span>
+        </div>
+      ))}
     </div>
   );
 }
