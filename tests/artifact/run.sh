@@ -27,6 +27,12 @@ source "$HERE/lib.sh"
 
 cd "$ROOT"
 
+# 交叉编译(macos-x86_64 在 arm64 runner 上 --target)时 DIST_DIR 指向
+# target/<triple>/release/bundle,其上一级就是该目标的 release 目录 ——
+# 安装链测试(二进制 + .app 来源)必须与产物同源,不能写死宿主
+# target/release(否则 x86_64 job 上 install.sh 直接「binary not found」)。
+RELEASE_DIR="$(dirname "$DIST_DIR")"
+
 suite_begin "artifact"
 
 PLATFORM="$(uname -s)"
@@ -215,8 +221,9 @@ if [ -n "$APP_BUNDLE" ]; then
     tcase "bundle 内无开发残留(.DS_Store / sourcemap / node_modules)" check_no_dev_leftovers
 
     check_installer_upgrade() {
-        installer_upgrade_ok \
-            "$ROOT" "$ROOT/target/release/reflect-desktop" "$APP_BUNDLE"
+        ZHUYE_INSTALL_BIN="$RELEASE_DIR/reflect-desktop" \
+            ZHUYE_INSTALL_APP="$APP_BUNDLE" installer_upgrade_ok \
+            "$ROOT" "$RELEASE_DIR/reflect-desktop" "$APP_BUNDLE"
     }
     tcase "安装脚本覆盖升级替换二进制与 .app" check_installer_upgrade
 
@@ -226,7 +233,8 @@ if [ -n "$APP_BUNDLE" ]; then
         home="$tmp/home"
         prefix="$tmp/bin"
         mkdir -p "$home"
-        if ! HOME="$home" bash "$ROOT/scripts/install.sh" \
+        if ! HOME="$home" ZHUYE_INSTALL_BIN="$RELEASE_DIR/reflect-desktop" \
+            ZHUYE_INSTALL_APP="$APP_BUNDLE" bash "$ROOT/scripts/install.sh" \
             --prefix="$prefix" --app-dir="$tmp/Applications" >/dev/null; then
             rm -rf "$tmp"
             return 1

@@ -35,8 +35,11 @@ done
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-BIN_SRC="$REPO_ROOT/target/release/reflect-desktop"
-APP_SRC="$REPO_ROOT/target/release/bundle/macos/ZhuYe.app"
+# 默认取宿主目标产物;交叉编译(如 macos-x86_64 在 arm64 runner 上
+# --target)时产物在 target/<triple>/release/ 下,产物门禁经
+# ZHUYE_INSTALL_BIN / ZHUYE_INSTALL_APP 传入与构建同源的路径。
+BIN_SRC="${ZHUYE_INSTALL_BIN:-$REPO_ROOT/target/release/reflect-desktop}"
+APP_SRC="${ZHUYE_INSTALL_APP:-$REPO_ROOT/target/release/bundle/macos/ZhuYe.app}"
 
 run() {
   echo "+ $*"
