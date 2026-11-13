@@ -273,13 +273,43 @@ fn atomic_write(path: &Path, content: &[u8]) -> std::io::Result<()> {
         if let Some(permissions) = preserve {
             std::fs::set_permissions(&temp, permissions)?;
         }
-        std::fs::rename(&temp, path)?;
+        rename_replace(&temp, path)?;
         Ok(())
     })();
     if write.is_err() {
         let _ = std::fs::remove_file(&temp);
     }
     write
+}
+
+/// Windows 上替换已存在目标时,`std::fs::rename`(MoveFileExW +
+/// MOVEFILE_REPLACE_EXISTING)要求目标当时没有任何句柄打开 —— 杀毒
+/// 实时扫描(Windows Defender)/搜索索引器短暂持有刚被读过的目标会直接
+/// 报 os error 5(Access is denied),保存动作整个失败。这与 Unix 可边
+/// 持有边 rename 的语义不同,是平台事实;对 AccessDenied 做短窗口重试,
+/// 等扫描器放手。其余错误(只读目标等)不重试,保持语义精确。
+#[cfg(windows)]
+fn rename_replace(temp: &Path, path: &Path) -> std::io::Result<()> {
+    let mut last = None;
+    for attempt in 0..10 {
+        match std::fs::rename(temp, path) {
+            Ok(()) => return Ok(()),
+            Err(error) if error.raw_os_error() == Some(5) => {
+                // error 5 = ERROR_ACCESS_DENIED。100ms × 10 ≈ 1s 上限。
+                last = Some(error);
+                if attempt < 9 {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Err(last.unwrap_or_else(|| std::io::Error::other("rename failed without error")))
+}
+
+#[cfg(not(windows))]
+fn rename_replace(temp: &Path, path: &Path) -> std::io::Result<()> {
+    std::fs::rename(temp, path)
 }
 
 /// 确保 `path` 解析后位于已配置的工作区之下,

@@ -266,7 +266,27 @@ describe('window smoke (real process, real backend, local model stub)', () => {
       throw error;
     }
     await save.click();
-    await driver!.wait(async () => !(await save.isEnabled()), 30_000);
+    // 保存是否真的落盘以磁盘为准(UI 按钮态在报错时会回到 enabled,且
+    // Windows 上「Tool Approval 不出现」类零现场问题曾全靠猜)。超时时
+    // 截图 + 转储 body 文本,抓保存失败的 toast(saveFailed / conflict)。
+    const workspaceDir = process.env.E2E_WORKSPACE_DIR;
+    if (!workspaceDir) throw new Error('E2E_WORKSPACE_DIR 未设置');
+    const probePath = join(workspaceDir, 'runtime-probe.txt');
+    try {
+      await driver!.wait(
+        async () => {
+          try { return readFileSync(probePath, 'utf8') === 'fixture-after'; } catch { return false; }
+        },
+        30_000,
+      );
+    } catch (error) {
+      const resultDir = process.env.E2E_SCREENSHOT_DIR ?? '.test-results';
+      mkdirSync(resultDir, { recursive: true });
+      writeFileSync(join(resultDir, 'e2e-file-save-failure.png'), Buffer.from(await driver!.takeScreenshot(), 'base64'));
+      const body = await driver!.findElement(By.css('body')).getText();
+      console.error(`[file-save-miss] 磁盘内容未变成 fixture-after;body 文本头:\n${body.slice(0, 800)}`);
+      throw error;
+    }
     await openMorePage('Terminal');
     const input = await driver!.wait(until.elementLocated(By.css('[data-testid="terminal-input"]')), 30_000);
     await input.sendKeys('cat runtime-probe.txt', Key.ENTER);
