@@ -308,6 +308,12 @@ EOF
                 FAIL_COUNT+=1
                 FAIL_NAMES+=("窗口冒烟")
                 echo "  [FAIL] 窗口冒烟"
+                # vitest 失败时 tail 窗口只剩最后一条断言,其余失败项全部隐形
+                # (windows 实测 5 failed 只露出 [4/5][5/5])。先把每条失败清单
+                # 打出来(github reporter 的 ::error 行与 FAIL 块头都带用例名),
+                # 再保留 tail 尾巴看上下文。行首带 │ 前缀,不会被 runner 当
+                # workflow command 解析。
+                grep -E "::error | FAIL |✕|×" "$RESULT_DIR/e2e-window.log" 2>/dev/null | head -40 | sed 's/^/         │ /'
                 tail -30 "$RESULT_DIR/e2e-window.log" 2>/dev/null | sed 's/^/         │ /'
                 printf 'FAIL\t窗口冒烟(真进程/真后端/真窗口)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
             fi
