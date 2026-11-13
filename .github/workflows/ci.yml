@@ -296,7 +296,16 @@ jobs:
         run: |
           cargo install --git https://github.com/chippers/msedgedriver-tool
           & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
-          Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.cargo\bin"
+          # msedgedriver-tool 把匹配 WebView2 版本的 driver 解压到**当前工作目录**,
+          # 不在 PATH 上;而 runner 镜像预装的是最新版 driver(与 WebView2 版本
+          # 不匹配时会被 msedgedriver 拒绝:"only supports Microsoft Edge version X")。
+          # 因此把解压出的匹配版本移到独立目录并置于 PATH 最前。
+          $driverDir = Join-Path $env:RUNNER_TEMP "msedgedriver-bin"
+          New-Item -ItemType Directory -Force -Path $driverDir | Out-Null
+          Move-Item -Force (Join-Path $env:GITHUB_WORKSPACE "msedgedriver.exe") (Join-Path $driverDir "msedgedriver.exe")
+          Add-Content $env:GITHUB_PATH $driverDir
+          Write-Host "msedgedriver 装于 $driverDir"
+          & (Join-Path $driverDir "msedgedriver.exe") --version
 
       - name: Run native e2e
         env:

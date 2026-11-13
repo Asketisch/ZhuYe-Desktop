@@ -266,14 +266,24 @@ mod tests {
     fn search_walk_skips_target() {
         let dir = tempdir();
         std::fs::create_dir_all(dir.join("target")).unwrap();
-        std::fs::write(dir.join("target/ignored.rs"), "println!();").unwrap();
+        std::fs::write(dir.join("target").join("ignored.rs"), "println!();").unwrap();
         std::fs::create_dir_all(dir.join("src")).unwrap();
-        std::fs::write(dir.join("src/main.rs"), "fn main() { }").unwrap();
+        std::fs::write(dir.join("src").join("main.rs"), "fn main() { }").unwrap();
         let mut hits = Vec::new();
         let mut truncated = false;
         search_walk(&dir, "main", 10, &mut hits, &mut truncated);
         assert_eq!(hits.len(), 1);
-        assert!(hits[0].path.ends_with("src/main.rs"));
+        // 路径分隔符随平台变化(Windows 是 "\"),按路径分量比较而非字符串后缀。
+        assert_eq!(
+            std::path::Path::new(&hits[0].path).file_name(),
+            Some(std::ffi::OsStr::new("main.rs"))
+        );
+        assert_eq!(
+            std::path::Path::new(&hits[0].path)
+                .parent()
+                .and_then(std::path::Path::file_name),
+            Some(std::ffi::OsStr::new("src"))
+        );
     }
 
     fn tempdir() -> std::path::PathBuf {

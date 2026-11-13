@@ -253,11 +253,15 @@ mod tests {
 
     #[test]
     fn file_uri_roundtrip() {
-        let uri = file_uri(std::path::Path::new("/tmp/x/a b.rs")).unwrap();
-        assert!(
-            uri.as_str().starts_with("file:///tmp/x/a%20b.rs")
-                || uri.as_str().starts_with("file:///tmp/x/a b.rs")
-        );
+        // 用平台无关的绝对路径:Windows 上 "/tmp/..." 不是绝对路径,
+        // 硬编码 POSIX 路径会让该用例在 Windows 上必然失败。
+        let absolute = std::env::temp_dir().join("x").join("a b.rs");
+        let uri = file_uri(&absolute).unwrap();
+        // 期望值由 url 自己算出,避免断言里再写一遍平台相关的字面量。
+        let expected = url::Url::from_file_path(&absolute).unwrap();
+        assert!(uri.as_str().starts_with(expected.as_str()));
+        // 空格必须被编码(URI 规范要求)。
+        assert!(!uri.as_str().contains(' '));
         // 相对路径必须报错,不允许静默发出错误 URI。
         assert!(file_uri(std::path::Path::new("relative/x.py")).is_err());
     }
