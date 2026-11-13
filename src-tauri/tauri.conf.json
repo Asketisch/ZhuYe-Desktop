@@ -1,6 +1,6 @@
 {
   "productName": "ZhuYe",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "identifier": "com.asketisch.reflectdesktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -31,7 +31,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "msi", "deb", "appimage"],
+    "targets": [
+      "app",
+      "dmg",
+      "msi",
+      "deb",
+      "appimage"
+    ],
     "category": "DeveloperTool",
     "shortDescription": "ZhuYe AI coding agent GUI",
     "longDescription": "烛夜（ZhuYe）—— Standalone desktop GUI for the ZhuYe agent engine.",

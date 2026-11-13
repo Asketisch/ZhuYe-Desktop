@@ -4,6 +4,10 @@
 
 ## 未发布
 
+（无）
+
+## 0.0.3 — 2026-11-14
+
 ### 修复 — 审查修正：命令重复注册、讨论失败路径泄漏、autopilot 停机不收口
 
 - `reflect_cancel_discussions` 此前在 `generate_handler` 中重复注册两次，删除
@@ -511,7 +515,22 @@ discussion 为预记录上游缺陷(Cohere 400);tool-approval 本轮出现
 批准后不收敛变体,按 tool-call 同教义补分类:至少一条批准-执行链
 已验证 → 中断收摊 + Skipped,零批准超时仍 Fail。
 
-（其余下一批变更从这里开始。）
+### 修复 — Windows 平台批次（编辑器/终端/Git 面板首次全链路可用）
+
+- **引擎 submodule 接线 v0.1.13 正式版**：上游 safe_write 原子改名改走 NT 层
+  `NtSetInformationFile`（Win32 封装层整体拒绝非 NULL RootDirectory，code 87
+  真根因），并按 Windows「不能替换仍有打开句柄的文件」约束在改名前释放旧
+  目标句柄 —— 写入/编辑/plan 落盘与 GUI 文件保存在 Windows 上自此修通。
+- **文件树路径分隔符**：FileTree 的 basename/parentDir 只按 `/` 切分，Windows
+  上 `\` 分隔路径导致目录树整体退化成平铺、data-testid 带盘符全路径；改为双
+  分隔符取最右。FilesView 同名 basename（加载态文件名）一并修。
+- **e2e（Windows）**：显式关闭 OS 沙箱并打开基座文档化的不可信豁免口
+  （仅 e2e 进程）—— e2e 验「审批 → 执行 → 落盘」链而非沙箱本身；编辑器保存
+  断言改为轮询磁盘内容 + 失败取证（截图 + body 转储）。Windows 真窗口 e2e
+  自引入起首次全绿。
+- **依赖**：quinn-udp 0.5.15 → 0.5.16（RUSTSEC-2026-0538）。
+- **保存链路加固**：atomic_write 的替换改名在 Windows 上对 ERROR_ACCESS_DENIED
+  做短窗口重试（杀毒实时扫描/索引器短暂持有目标的竞态）。
 
 ## 0.0.2 — 2026-11-03
 
