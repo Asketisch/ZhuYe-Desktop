@@ -95,7 +95,7 @@ const server = createServer((req, res) => {
         }
         events = textEvents('window tool write verified');
       } else {
-        events = toolEvents('toolu_window_write', 'printf tool-write-marker > approved-tool.txt && printf ignored > /dev/null && cat approved-tool.txt');
+      events = toolEvents('toolu_window_write', 'printf tool-write-marker > approved-tool.txt && cat approved-tool.txt');
       }
     } else if (latestUserText.includes('window-tool-deny-test')) {
       const result = toolResult('toolu_window_deny');

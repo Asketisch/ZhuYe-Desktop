@@ -1,0 +1,57 @@
+name: visual-baselines
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: generate (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+          - os: windows
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright-core install --with-deps chromium
+
+      - name: Build visual bundle
+        run: pnpm exec vite build --config vite.config.visual.ts
+
+      - name: Generate platform baseline
+        env:
+          VISUAL_BASELINES_DIR: ${{ github.workspace }}/tests/visual/__baselines__/${{ matrix.os }}
+          VISUAL_UPDATE: '1'
+        run: pnpm exec vitest run --config tests/visual/vitest.config.ts tests/visual/visual.spec.ts
+
+      - name: Upload baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines-${{ matrix.os }}
+          path: tests/visual/__baselines__/${{ matrix.os }}
+          if-no-files-found: error

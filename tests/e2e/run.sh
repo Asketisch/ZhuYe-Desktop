@@ -104,10 +104,16 @@ run_visual() {
         echo "         │ dist-visual/ 未产出,视觉回归无法继续"
         return 1
     fi
-    # 2) 基线策略:VISUAL_UPDATE=1 → 清空基线目录(重生成);否则比对。
-    #    基线在视觉 spec 旁的 tests/visual/__baselines__/(不是本目录)。
+    # 2) 基线策略:VISUAL_UPDATE=1 → 清空当前平台基线目录(重生成);否则比对。
+    #    基线在视觉 spec 旁的 tests/visual/__baselines__/<platform>/(不是本目录)。
+    case "$PLATFORM" in
+        Darwin) VISUAL_PLATFORM="macos" ;;
+        MINGW*|MSYS*|CYGWIN*) VISUAL_PLATFORM="windows" ;;
+        *) VISUAL_PLATFORM="linux" ;;
+    esac
+    export VISUAL_BASELINES_DIR="$ROOT/tests/visual/__baselines__/$VISUAL_PLATFORM"
     if [ "${VISUAL_UPDATE:-0}" = "1" ]; then
-        rm -rf "$ROOT/tests/visual/__baselines__"
+        rm -rf "$VISUAL_BASELINES_DIR"
         echo "  ↳ VISUAL_UPDATE=1 —— 基线将全部重生成(人工审查后入库)"
     fi
     # 3) Playwright(仅下载 Chromium;core 包免 postinstall 浏览器全家桶)。

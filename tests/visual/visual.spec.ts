@@ -8,8 +8,10 @@
  * 基线策略(与门禁其他棘轮一致):
  *   - 本地缺基线时可生成；严格环境缺基线时失败；
  *   - 有基线时逐像素比对,不一致即 FAIL(布局/主题回归零容忍);
- *   - 重生成基线:删除 `tests/visual/__baselines__/` 后重跑,人工审查
- *     diff 后入库。
+ *     基线按操作系统分目录,避免各平台字体/合成差异被误判为产品回归;
+ *   - 重生成基线:删除 `tests/visual/__baselines__/<platform>/` 后重跑,
+ *     人工审查 diff 后入库;CI 基线用 visual-baselines workflow 在对应
+ *     runner 上生成,避免本机字体与 CI 字体混用。
  *
  * 由 `tests/e2e/run.sh` 调用(Playwright 由该脚本按需 `pnpm dlx` 安装)。
  */
@@ -25,9 +27,10 @@ import { comparePng } from './png-compare';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(HERE, '../../dist-visual');
+const PLATFORM_BASELINE = process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux';
 const BASELINES = process.env.VISUAL_BASELINES_DIR
   ? path.resolve(process.env.VISUAL_BASELINES_DIR)
-  : path.join(HERE, '__baselines__');
+  : path.join(HERE, '__baselines__', PLATFORM_BASELINE);
 
 //
 // 确定性锚点 —— 视觉基线按解码像素零容差比对,因此:

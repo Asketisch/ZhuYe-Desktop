@@ -75,7 +75,7 @@ TASKS: dict[str, dict] = {
     "desktop.visual": {
         # D-P10/D-P11:路由 × 主题截图归视觉回归(L5 内含)
         "command": ["tests/run_all.sh", "e2e"],
-        "note": "D-P10/D-P11:视觉回归随 L5;独立平台基线待补",
+        "note": "D-P10/D-P11:视觉回归随 L5;Linux/macOS/Windows 独立基线已接入",
         "timeout_s": 5400,
     },
     "desktop.accessibility": {

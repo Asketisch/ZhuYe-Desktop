@@ -61,7 +61,7 @@ REFLECT_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认�
 ```bash
 bash tests/run_all.sh e2e
 E2E_REQUIRED=1 bash tests/run_all.sh e2e     # 依赖缺失判失败（CI release 用）
-VISUAL_UPDATE=1 bash tests/run_all.sh e2e    # 视觉基线全部重生成（人工审查 diff 后入库）
+VISUAL_UPDATE=1 bash tests/run_all.sh e2e    # 当前平台视觉基线重生成（人工审查 diff 后入库）
 E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
 ```
 
@@ -70,7 +70,7 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
   `@tauri-apps/api/{core,event}` 与 `@/test/setup` 指到 `tests/visual/shims/`
   （复刻 `setup.tsx` 的 mockInvoke 注册表语义，fakeBackend 在浏览器闭环，
   生产代码零改动）。Playwright 对 38 条路由 × dark/light 截图，与
-  `tests/visual/__baselines__/` 的解码像素逐个比对，零容差。确定性由三件套保证：
+  `tests/visual/__baselines__/<platform>/` 的解码像素逐个比对，零容差。确定性由三件套保证：
   `addInitScript` 冻结 `Date`（fakeBackend 时间戳相对 `Date.now` 播种）、
   `reducedMotion: 'reduce'` + 注入 CSS 关闭动画/过渡/光标、
   `document.fonts.ready` 等待字体。本地缺基线时可生成，门禁标记为跳过；
