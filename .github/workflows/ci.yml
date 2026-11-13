@@ -125,10 +125,11 @@ jobs:
             runner: ubuntu-latest
           - os: macos
             runner: macos-latest
-          # Windows 同时跑 clippy 与后端能力层;测试夹具已隔离
-          # USERPROFILE / APPDATA,不再污染真实用户目录。
+          # windows-2025-vs2026 的 WebView2 Runtime 150+ 在管理员进程上
+          # 会忽略 WebDriver 注入的远程调试端口(actions/runner-images#14738)。
+          # 先钉 windows-2022 保持真实窗口矩阵;上游修复后再恢复 latest。
           - os: windows
-            runner: windows-latest
+            runner: windows-2022
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
@@ -181,8 +182,10 @@ jobs:
             runner: ubuntu-latest
           - os: macos
             runner: macos-latest
+          # 与 clippy 相同,Windows E2E 暂钉 windows-2022 避开 WebView2
+          # Runtime 150+ 的管理员调试端口硬化回归。
           - os: windows
-            runner: windows-latest
+            runner: windows-2022
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4

@@ -70,8 +70,8 @@ beforeAll(async () => {
       await new Promise((resolve) => setTimeout(resolve, 5_000));
     }
   }
-  // 120s:冷启动 debug 二进制 + webkit 软件渲染首帧,CI 双核上偏慢。
-}, 120_000);
+  // 3 次 WebView2 会话重试最长约 3 分钟;hook 上限必须覆盖完整重试链。
+}, 240_000);
 
 afterAll(async () => {
   await driver?.quit?.().catch(() => {});
