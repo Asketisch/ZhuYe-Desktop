@@ -8,10 +8,15 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `c728da8`（v0.1.12；完整 SHA `c728da8e`）。本轮增量复审 `1c09f6a4 → c728da8e`
-> 为修正 Windows 文件锁句柄权限（`LockFileEx` 要求可读句柄，原先的
-> `append(true)` 打开方式在 Windows 上直接返回 ACCESS_DENIED），
-> 产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
+> 最近审计：submodule `8e72bc4`（v0.1.12；完整 SHA `8e72bc4c`）。本轮增量复审 `c728da8e → 8e72bc4c`
+> 为三项 Windows 平台行为修复：zhuye-git 命令超时用 Job Object 整树终止（孙进程
+> 不再逃逸，与 Unix 进程组对等）、zhuye-lsp / zhuye-mcp / zhuye-shell 的 stdio
+> 子进程 `env_clear` 后透传运行时候选变量（缺 SystemRoot 会让 node.exe 等 CRT
+> 程序在输出前即崩溃）、zhuye-shell 会话 kill 整树终止（GUI 终端 kill 按钮在
+> Windows 上自此清场）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面
+> 零变更，桌面无适配。上一轮 `1c09f6a4 → c728da8e` 为修正 Windows 文件锁句柄
+> 权限（`LockFileEx` 要求可读句柄），产品命令、事件、配置与 SDK 公开面零变更，
+> 桌面无适配。
 > 上一轮完整审计覆盖 `f4bb7057 → 57907d5b` 全部 538 个文件，按协议、运行时、工具、LLM/配置、编排、插件/导入、CLI/SDK
 > 七个能力族逐项对照桌面命令与前端消费面（详见 §3.30）。命令面由静态门禁
 > 验证 189 个注册命令全部有前端消费面；事件面由三方奇偶门禁验证 50 个
