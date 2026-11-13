@@ -152,8 +152,7 @@ fn model_turn_writes_activity_trace_and_span_records() {
         activity.iter().any(|event| event["kind"] == "turn_started"),
         "{activity:?}"
     );
-    let audit = common::isolated_home()
-        .join(".zhuye/activity/activity.jsonl");
+    let audit = common::isolated_home().join(".zhuye/activity/activity.jsonl");
     assert!(audit.exists(), "activity audit file missing: {audit:?}");
     let disk = std::fs::read_to_string(audit).unwrap();
     assert!(

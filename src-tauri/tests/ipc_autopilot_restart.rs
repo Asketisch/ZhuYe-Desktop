@@ -62,8 +62,7 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
                 "enabled":true,"schedule":"* * * * *","taskTemplate":PROMPT,"maxConcurrent":1
             }}),
         );
-        let config = common::isolated_home()
-            .join(".zhuye/autopilot/config.json");
+        let config = common::isolated_home().join(".zhuye/autopilot/config.json");
         std::fs::OpenOptions::new()
             .write(true)
             .open(config)

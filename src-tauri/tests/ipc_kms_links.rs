@@ -14,8 +14,7 @@ fn linked_page_is_not_read_or_overwritten() {
     let external = tempfile::tempdir().unwrap();
     let secret = external.path().join("private.md");
     std::fs::write(&secret, "private sentinel").unwrap();
-    let link = common::isolated_home()
-        .join(".zhuye/kms/wiki/pages/linked.md");
+    let link = common::isolated_home().join(".zhuye/kms/wiki/pages/linked.md");
     symlink(&secret, link).unwrap();
     common::invoke_err(
         "reflect_kms_get_page",

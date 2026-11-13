@@ -115,7 +115,11 @@ pub async fn reflect_run_shell(
     let argv = if cfg!(windows) {
         windows_shell_argv(&cmd)
     } else {
-        let shell = if cfg!(target_os = "macos") { "/bin/zsh" } else { "/bin/sh" };
+        let shell = if cfg!(target_os = "macos") {
+            "/bin/zsh"
+        } else {
+            "/bin/sh"
+        };
         vec![shell.to_string(), "-lc".into(), cmd.clone()]
     };
 
@@ -207,7 +211,11 @@ fn windows_shell_argv(cmd: &str) -> Vec<String> {
         })
     };
     if let Some(bash) = find_exe("bash.exe") {
-        return vec![bash.to_string_lossy().into_owned(), "-lc".into(), cmd.to_string()];
+        return vec![
+            bash.to_string_lossy().into_owned(),
+            "-lc".into(),
+            cmd.to_string(),
+        ];
     }
     for ps in ["pwsh.exe", "powershell.exe"] {
         if let Some(exe) = find_exe(ps) {

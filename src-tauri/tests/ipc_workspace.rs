@@ -656,8 +656,7 @@ fn failed_archive_restores_the_active_session() {
     let id = invoke_ok("reflect_create_session", json!({}));
     let name = format!("{}.name", id.as_str().unwrap());
     let base_names = reflect_rollout::path::default_base().join("_names");
-    let archive_names = common::isolated_home()
-        .join(".zhuye/sessions-archive/_names");
+    let archive_names = common::isolated_home().join(".zhuye/sessions-archive/_names");
     std::fs::create_dir_all(&base_names).unwrap();
     std::fs::create_dir_all(&archive_names).unwrap();
     std::fs::write(base_names.join(&name), "active").unwrap();
@@ -684,8 +683,7 @@ fn unarchive_rejects_the_active_session_until_it_is_switched() {
     let _guard = common::state_lock();
     let id = invoke_ok("reflect_create_session", json!({}));
     let name = format!("{}.name", id.as_str().unwrap());
-    let archive = common::isolated_home()
-        .join(".zhuye/sessions-archive/_names");
+    let archive = common::isolated_home().join(".zhuye/sessions-archive/_names");
     let active = reflect_rollout::path::default_base().join("_names");
     std::fs::create_dir_all(&archive).unwrap();
     std::fs::write(archive.join(&name), "archived title").unwrap();
