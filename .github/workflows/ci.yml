@@ -182,7 +182,7 @@ jobs:
             runner: ubuntu-latest
           - os: macos
             runner: macos-latest
-          # 与 clippy 相同,Windows E2E 暂钉 windows-2022 避开 WebView2
+          # 与 clippy 相同,Windows 暂钉 windows-2022 避开 WebView2
           # Runtime 150+ 的管理员调试端口硬化回归。
           - os: windows
             runner: windows-2022
@@ -231,8 +231,11 @@ jobs:
             runner: ubuntu-24.04
           - os: macos
             runner: macos-latest
+          # 与 clippy/test 相同,Windows E2E 钉 windows-2022:windows-2025-vs2026
+          # 的 WebView2 Runtime 150+ 在管理员进程上忽略 WebDriver 注入的远程
+          # 调试端口,会话建立即报 DevToolsActivePort(actions/runner-images#14738)。
           - os: windows
-            runner: windows-latest
+            runner: windows-2022
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
