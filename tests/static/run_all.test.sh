@@ -7,6 +7,11 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+# 发布流水线把 GATE_STRICT=1 导出给整个 step;本自测用逐条内联的
+# GATE_STRICT 控制 runner 模式(普通/严格断言各半),必须先把继承值
+# 归零,否则「普通模式」断言在严格环境下全部失真。
+export GATE_STRICT=0
+
 # 用隔离仓库布置可控 runner，实际执行生产 run_all.sh 和 lib.sh。
 FIXTURE="$TMP/repo"
 mkdir -p "$FIXTURE/tests"

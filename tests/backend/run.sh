@@ -104,6 +104,14 @@ tcase_log "cargo test --workspace --all-targets(含能力覆盖层)" \
     "$RESULT_DIR/backend-test.log" \
     run_isolated_cargo test --manifest-path "$ROOT/Cargo.toml" --workspace --all-targets --no-fail-fast
 
+# cargo 在部分 CI 环境下强制带色输出(CARGO_TERM_COLOR / TTY 探测),下游
+# 纯文本解析器都会被 ANSI 序列打断:ignored.awk 的 `/^Running /` 行首锚定
+# 匹配不到带色行(→ 忽略项 binary 判空、可选演练被误记 SKIP),集成目标
+# 检查的 `Running tests/<t>.rs` grep 同理(→ 77 个目标全判漏跑)。统一剥掉
+# ANSI,产物与解析用同一份日志,不影响审查。
+sed 's/\x1b\[[0-9;]*m//g' "$RESULT_DIR/backend-test.log" > "$RESULT_DIR/backend-test.log.clean" &&
+    mv "$RESULT_DIR/backend-test.log.clean" "$RESULT_DIR/backend-test.log"
+
 # libtest 的 ignored 不影响 cargo 退出码，必须写入门禁结果。
 # 两个 L6 入口及上游明确的外网演练由各自的可选路径负责；其他忽略项
 # 是未执行的后端检查，严格门禁必须拒绝。

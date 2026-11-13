@@ -144,6 +144,13 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 > `llmBacked === true` —— 证明真的走了模型而不是 noop 回落；流水线需要
 > 一个**与节点标签同名**的 team，这是上游的硬约束）。
 
+**TaskList 模型可见明细的缺口**（v0.0.3 登记）：上游 `TaskList` 工具的
+模型可见输出只有「N tasks in list」汇总，任务明细（subject/status/owner）
+只在 metadata 里，模型拿不到 —— 模型无法据此认领具体任务。曾以
+`#[ignore]` 用例占位（`model_can_read_task_list_details`），与发布门禁
+「忽略项 = 未审过」原则冲突，已移除；待上游把明细补进文本输出后在
+`ipc_task_tools_runtime.rs` 随实现补用例。
+
 **`reflect_generate_session_title` 的特例**：它**已覆盖**，但只覆盖到前置
 守卫（空会话 → 「session has no user message to summarize」）。真正生成
 标题需要模型，不在自动层。

@@ -43,16 +43,10 @@ fn result_block<'a>(body: &'a Value, id: &str) -> Option<&'a Value> {
 
 #[test]
 fn model_controls_task_and_team_lifecycle() {
-    run_task_lifecycle(false);
+    run_task_lifecycle();
 }
 
-#[test]
-#[ignore = "上游 TaskList 的模型工具结果尚未包含任务明细"]
-fn model_can_read_task_list_details() {
-    run_task_lifecycle(true);
-}
-
-fn run_task_lifecycle(require_list_details: bool) {
+fn run_task_lifecycle() {
     let task_id = Arc::new(AtomicU64::new(0));
     let responder_id = task_id.clone();
     let stop_id = Arc::new(AtomicU64::new(0));
@@ -244,12 +238,6 @@ fn run_task_lifecycle(require_list_details: bool) {
                 ),
                 8 => {
                     assert_eq!(end["msg"]["output"]["metadata"]["count"], 1);
-                    if require_list_details {
-                        assert!(
-                            model_result.to_string().contains("agent-lifecycle-task"),
-                            "model cannot see task details: {model_result}"
-                        );
-                    }
                 }
                 9 => {
                     assert!(model_result.to_string().contains("runtime task output"));

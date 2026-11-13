@@ -6,6 +6,11 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+# 发布流水线把 GATE_STRICT=1 导出给整个 step;本自测用逐条内联的
+# GATE_STRICT 控制 runner 模式(普通/严格断言各半),必须先把继承值
+# 归零,否则「普通模式」断言在严格环境下全部失真。
+export GATE_STRICT=0
 FIXTURE="$TMP/repo"
 mkdir -p "$FIXTURE/tests" "$FIXTURE/src-tauri/tests" "$TMP/bin"
 cp "$ROOT/src-tauri/tests/ipc_live_capabilities.rs" "$ROOT/src-tauri/tests/ipc_extensions.rs" "$FIXTURE/src-tauri/tests/"
