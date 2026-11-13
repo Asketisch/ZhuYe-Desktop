@@ -329,8 +329,8 @@ EOF
                 # 打出来(github reporter 的 ::error 行与 FAIL 块头都带用例名),
                 # 再保留 tail 尾巴看上下文。行首带 │ 前缀,不会被 runner 当
                 # workflow command 解析。
-                grep -E "::error | FAIL |✕|×|dialog-miss" "$RESULT_DIR/e2e-window.log" 2>/dev/null | head -40 | sed 's/^/         │ /'
-                tail -30 "$RESULT_DIR/e2e-window.log" 2>/dev/null | sed 's/^/         │ /'
+                grep -E "::error | FAIL |✕|×|dialog-miss|file-save-miss" "$RESULT_DIR/e2e-window.log" 2>/dev/null | head -40 | sed 's/^/         │ /'
+                tail -40 "$RESULT_DIR/e2e-window.log" 2>/dev/null | sed 's/^/         │ /'
                 printf 'FAIL\t窗口冒烟(真进程/真后端/真窗口)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"
             fi
         fi
