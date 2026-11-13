@@ -103,6 +103,15 @@ const BASELINE_WRITE_MODE =
     Boolean(process.env.CI) || process.env.E2E_REQUIRED === '1',
   );
 
+/**
+ * 显式重生成模式:覆盖已有基线(而不是仅在基线缺失时写盘)。
+ * 与 `BASELINE_WRITE_MODE` 的区别:后者回答「能不能写」,前者回答
+ * 「是否用当前渲染替换基线」。基线生成 workflow 必须走这个模式 ——
+ * 否则旧基线仍在,逐像素比对必然失败,重生成流程无法推进。
+ */
+const BASELINE_REGENERATE_MODE =
+  process.env.VISUAL_UPDATE === '1' || process.env.VISUAL_WRITE === '1';
+
 let server: Server;
 let port: number;
 let browser: Browser;
@@ -162,6 +171,15 @@ describe.each(ROUTES)('visual $route', ({ route }) => {
 
     mkdirSync(BASELINES, { recursive: true });
     const baseline = path.join(BASELINES, name);
+    // 显式重生成模式(VISUAL_UPDATE=1 / VISUAL_WRITE=1):无条件用当前
+    // 渲染结果覆盖基线,不做逐像素比对 —— 否则「重新生成基线」在旧基线
+    // 仍存在时永远失败,基线生成 workflow 形同虚设。
+    if (BASELINE_REGENERATE_MODE) {
+      const { writeFileSync } = await import('node:fs');
+      writeFileSync(baseline, shot);
+      written.push(name);
+      return;
+    }
     if (!existsSync(baseline)) {
       if (!BASELINE_WRITE_MODE) {
         // 只缺个别基线(如新增路由忘提交)而目录里已有其他基线:CI 上
