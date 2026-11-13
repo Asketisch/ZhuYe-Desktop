@@ -8,7 +8,12 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `8e72bc4`（v0.1.12；完整 SHA `8e72bc4c`）。本轮增量复审 `c728da8e → 8e72bc4c`
+> 最近审计：submodule `0cca4c6`（v0.1.12；完整 SHA `0cca4c6a`）。本轮增量复审 `8e72bc4c → 0cca4c6a`
+> 为 Windows 文件锁句柄口径补漏：zhuye-telemetry 的 `activity.lock` 与 zhuye-audit 的
+> FileSink 公共 open 路径此前仍以纯 append 句柄加锁，`LockFileEx` 在 Windows 上直接
+> ACCESS_DENIED（code 5）——即上一轮 `1c09f6a4 → c728da8e`（zhuye-task 等三处）同一
+> 根因的剩余两处。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
+> 上一轮 `c728da8e → 8e72bc4c`
 > 为三项 Windows 平台行为修复：zhuye-git 命令超时用 Job Object 整树终止（孙进程
 > 不再逃逸，与 Unix 进程组对等）、zhuye-lsp / zhuye-mcp / zhuye-shell 的 stdio
 > 子进程 `env_clear` 后透传运行时候选变量（缺 SystemRoot 会让 node.exe 等 CRT
