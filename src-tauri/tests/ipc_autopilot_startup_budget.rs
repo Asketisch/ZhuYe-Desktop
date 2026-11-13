@@ -50,8 +50,7 @@ fn startup_budget_marks_autopilot_run_failed() {
         "reflect_update_autopilot_config",
         json!({"config":{"enabled":true,"schedule":"* * * * *","taskTemplate":"limit-marker","maxConcurrent":1}}),
     );
-    let config = dirs::home_dir()
-        .unwrap()
+    let config = common::isolated_home()
         .join(".zhuye/autopilot/config.json");
     std::fs::OpenOptions::new()
         .write(true)

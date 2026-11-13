@@ -86,7 +86,7 @@ fn wait_history_success_count(minimum: usize) -> Value {
 }
 
 fn force_next_due() {
-    let root = dirs::home_dir().unwrap().join(".zhuye/autopilot");
+    let root = common::isolated_home().join(".zhuye/autopilot");
     let config_path = root.join("config.json");
     let history_path = root.join("history.json");
     let old = std::time::SystemTime::now() - Duration::from_secs(120);

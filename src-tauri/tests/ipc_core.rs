@@ -292,7 +292,7 @@ fn memory_sections_preserve_core_titles_indices_and_bodies() {
     let path = reflect_memory::resolve_path(
         reflect_memory::MemoryScope::Project,
         &workspace,
-        &dirs::home_dir().unwrap(),
+        &common::isolated_home(),
         &name,
     )
     .unwrap();
@@ -336,7 +336,7 @@ fn legacy_memory_document_can_be_edited_and_removed_over_ipc() {
     let path = reflect_memory::resolve_path(
         reflect_memory::MemoryScope::Project,
         &agent.workspace(),
-        &dirs::home_dir().unwrap(),
+        &common::isolated_home(),
         &name,
     )
     .unwrap();

@@ -89,8 +89,7 @@ fn disabled_telemetry_does_not_start_activity_audit() {
         json!([])
     );
     assert!(
-        !dirs::home_dir()
-            .unwrap()
+        !common::isolated_home()
             .join(".zhuye/activity/activity.jsonl")
             .exists(),
         "disabled activity audit wrote a disk file"

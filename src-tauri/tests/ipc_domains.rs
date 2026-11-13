@@ -423,8 +423,7 @@ fn kms_wiki_page_lifecycle() {
     let pages = invoke_ok("reflect_kms_list_pages", json!({ "wiki": wiki }));
     assert!(pages.is_array(), "页面列表应为数组: {pages}");
 
-    let broken = dirs::home_dir()
-        .unwrap()
+    let broken = common::isolated_home()
         .join(".zhuye/kms")
         .join(&wiki)
         .join("pages/broken.md");

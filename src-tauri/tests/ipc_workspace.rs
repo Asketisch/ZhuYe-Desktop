@@ -595,7 +595,7 @@ fn session_exports_replace_links_without_changing_their_targets() {
         format!("{record}\n"),
     )
     .unwrap();
-    let export_dir = dirs::home_dir().unwrap().join(".zhuye/exports");
+    let export_dir = common::isolated_home().join(".zhuye/exports");
     std::fs::create_dir_all(&export_dir).unwrap();
     let external = tempfile::tempdir().unwrap();
     let target = external.path().join("original");
@@ -656,8 +656,7 @@ fn failed_archive_restores_the_active_session() {
     let id = invoke_ok("reflect_create_session", json!({}));
     let name = format!("{}.name", id.as_str().unwrap());
     let base_names = reflect_rollout::path::default_base().join("_names");
-    let archive_names = dirs::home_dir()
-        .unwrap()
+    let archive_names = common::isolated_home()
         .join(".zhuye/sessions-archive/_names");
     std::fs::create_dir_all(&base_names).unwrap();
     std::fs::create_dir_all(&archive_names).unwrap();
@@ -685,8 +684,7 @@ fn unarchive_rejects_the_active_session_until_it_is_switched() {
     let _guard = common::state_lock();
     let id = invoke_ok("reflect_create_session", json!({}));
     let name = format!("{}.name", id.as_str().unwrap());
-    let archive = dirs::home_dir()
-        .unwrap()
+    let archive = common::isolated_home()
         .join(".zhuye/sessions-archive/_names");
     let active = reflect_rollout::path::default_base().join("_names");
     std::fs::create_dir_all(&archive).unwrap();

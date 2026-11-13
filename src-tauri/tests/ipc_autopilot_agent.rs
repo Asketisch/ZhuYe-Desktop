@@ -90,8 +90,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
             "maxConcurrent": 1
         }}),
     );
-    let config_path = dirs::home_dir()
-        .unwrap()
+    let config_path = common::isolated_home()
         .join(".zhuye/autopilot/config.json");
     let old = std::time::SystemTime::now() - Duration::from_secs(120);
     std::fs::OpenOptions::new()
@@ -136,8 +135,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
     );
 
     let first_id = pending[0]["id"].as_str().unwrap().to_owned();
-    let history_path = dirs::home_dir()
-        .unwrap()
+    let history_path = common::isolated_home()
         .join(".zhuye/autopilot/history.json");
     let mut seeded = pending;
     seeded[0]["executedAtMs"] = json!(

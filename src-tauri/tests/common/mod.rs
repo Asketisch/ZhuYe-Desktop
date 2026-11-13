@@ -86,6 +86,24 @@ pub fn set_config_before_install(toml: &str) {
     let _ = CONFIG_OVERRIDE.set(toml.to_string());
 }
 
+/// 本进程隔离后的 home(= `HOME` env)。
+///
+/// **测试里解析产品磁盘路径必须用它,不能用 `dirs::home_dir()`**:
+/// dirs 5.x 在 Windows 调 `SHGetKnownFolderPath(FOLDERID_Profile)`,
+/// 忽略 USERPROFILE / HOMEDRIVE / HOMEPATH 全部 env —— 返回 runner 的
+/// 真实用户目录。而产品端(`zhuye_fs::data_dir`:`$ZHUYE_HOME` >
+/// `$HOME/.zhuye`)写在本用例的隔离目录里;真实目录还会被同 job 的其它
+/// 测试二进制(它们可能短暂 remove/set HOME)污染。macOS/Linux 上两者
+/// 等价(HOME env 优先),仅 Windows 行为不同。
+pub fn isolated_home() -> std::path::PathBuf {
+    // 先确保隔离已初始化(幂等),再读 HOME —— 避免调用点在 harness/listen
+    // 之前取到未隔离的环境变量。
+    init_isolated_env();
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .expect("init_isolated_env 必须设置 HOME")
+}
+
 /// 把 HOME 指向进程专属临时目录,并把 **cwd** 也挪进去。
 ///
 /// cwd 也要挪:agent 的初始工作区取自 `current_dir()` —— `cargo test` 的
@@ -153,8 +171,10 @@ pub fn init_isolated_env() {
                 std::env::remove_var(key);
             }
             std::env::set_var("HOME", &home);
-            // `dirs::home_dir()` 在 Windows 读取 USERPROFILE / HOMEDRIVE+HOMEPATH,
-            // 不读取 HOME;只隔离 HOME 会让测试写入真实用户目录。
+            // 兜底 std::env::home_dir / 部分 crate 的 Windows 口径;
+            // 注意 dirs 5.x 在 Windows 走 Known Folder API,这些 env 都
+            // 不生效 —— 测试磁盘断言一律用 isolated_home(),别用
+            // dirs::home_dir()(Windows 上它会指到 runner 的真实账户目录)。
             std::env::set_var("USERPROFILE", &home);
             std::env::set_var("HOMEDRIVE", "");
             std::env::set_var("HOMEPATH", &home);
