@@ -72,13 +72,17 @@ function buildTree(entries: ReflectDirEntry[]): TreeNode[] {
 }
 
 function parentDir(p: string): string {
-  const i = p.lastIndexOf('/');
+  // Windows 后端路径是 '\' 分隔,Unix 是 '/';两种都取最右的,
+  // 否则 Windows 上整棵树会退化成平铺(所有条目的父目录都算成 '/')。
+  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
   if (i <= 0) return '/';
   return p.slice(0, i);
 }
 
 function basename(p: string): string {
-  const i = p.lastIndexOf('/');
+  // 同上:分隔符两种都认,否则 Windows 上 testid 会带上整条路径,
+  // e2e 的 file-row-<name> 选择器永远匹配不到。
+  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
   if (i < 0) return p;
   return p.slice(i + 1);
 }

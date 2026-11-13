@@ -374,7 +374,8 @@ export function FilesView() {
 }
 
 function basename(p: string): string {
-  const i = p.lastIndexOf('/');
+  // Windows 后端路径是 '\' 分隔,Unix 是 '/';两种都取最右的。
+  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
   if (i < 0) return p;
   return p.slice(i + 1);
 }
