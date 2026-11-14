@@ -427,7 +427,13 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     await clickOpt('Cache');
     await dialog.findElement(By.css('input[aria-label="Other (optional) — Choose features?"]')).sendKeys('window-custom-answer');
     await dialog.findElement(By.xpath('.//button[contains(normalize-space(.), "Submit") or contains(normalize-space(.), "提交")]')).click();
-    await driver!.wait(async () => (await driver!.findElements(By.css('[data-testid="zcode-question"]'))).length === 0, 30_000);
+    await driver!.wait(async () => {
+      try {
+        return (await driver!.findElements(By.css('[data-testid="zcode-question"]'))).length === 0;
+      } catch {
+        return false;
+      }
+    }, 30_000);
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window question answer verified'), 60_000);
   }, 150_000);
@@ -440,7 +446,13 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const input = await dialog.findElement(By.css('textarea'));
     await input.sendKeys('window-synthetic-secret');
     await dialog.findElement(By.xpath('.//button[contains(normalize-space(.), "Submit") or contains(normalize-space(.), "提交")]')).click();
-    await driver!.wait(async () => (await driver!.findElements(By.css('[data-testid="zcode-askuser"]'))).length === 0, 30_000);
+    await driver!.wait(async () => {
+      try {
+        return (await driver!.findElements(By.css('[data-testid="zcode-askuser"]'))).length === 0;
+      } catch {
+        return false;
+      }
+    }, 30_000);
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window input answer verified'), 60_000);
   }, 150_000);
