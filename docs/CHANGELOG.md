@@ -4,7 +4,42 @@
 
 ## 未发布
 
-（无）
+## 0.0.4 — 2026-11-14
+
+### 重设计 — v2 工作台(redesign/zcode-shell)
+
+界面框架整体对齐 ZCode 设计语言(布局照抄 WorkspaceShellLayout 实测口径):
+
+- **主题**:设计 token 全量重写为 Zai Dark / Zai Light 实测色板
+  (neutral-900/950/800 + sky 品牌色),token 名不变,组件零改动换肤;
+  深浅双主题 + 跟随系统。
+- **框架**:48px 窄 rail(高频入口平铺 + 「更多」三组浮层,全部视图可达)
+  + 264px 侧栏 + 对话 frame(12px 圆角 / 0.5px 描边)+ 底部三分屏
+  (终端 / 浏览器 / 预览)+ 状态栏;响应式断点 ≤1180 收右栏、
+  ≤920 收侧栏、≤640 收 rail,四档宽度实测零横向溢出。
+- **轨迹主视图**(view-ring:对话 | 轨迹):三泳道 Timing 总览
+  (输入 / 模型 / 工具)+ 密排事件账本(轮次边界打点、工具行
+  args → 输出摘要、思考紫 / 工具琥珀 / 助手青角色色,取自 ZCode
+  trajectory-role 实测值)+ 记录检查器(层级 / 状态 / 参数 / 结果 /
+  计时);数据源为既有 store turns + compactions 推导,零新增 IPC。
+- **交互接管**:工具 / Hook 审批、agent 提问、自由输入以 composer
+  座位接管卡呈现(DeepSeek ui-approval / ui-user-questions 口径),
+  处理完成交还 composer;全局 ModalStack 支持 suppress 避免双 UI。
+- **dock 状态行**:计划(agent TodoWrite 三态清单 + 进度条)、目标
+  (goal 快照)、排队消息(移除 / 立即发送)三个 chip,各带 popover。
+- **检查器**:右栏在 概览 / 文件 / 改动 基础上新增 计划 与 Git
+  (分支 / 变更 / 最近提交)两 tab。
+- **会话头**:标题 + git 变更摘要(+N −N)+ 分叉 / 导出 Markdown /
+  终端 / 右栏 / 主题 / 设置快捷入口。
+
+### 测试
+
+- 新增 `tests/zcode-shell.test.tsx`(10 用例:dock chips、审批接管卡
+  决策链、轨迹账本推导与折叠、检查器联动)。
+- 既有套件同步:AppShell testid 断言、审批断言切接管卡、侧栏标题
+  断言范围化、view-ring tablist a11y(aria-required-children)。
+- 门禁:vitest 128 文件 / 1546 用例全绿;tsc 零错误;cargo
+  fmt/clippy/check/test 全绿;static 26 用例全绿。
 
 ## 0.0.3 — 2026-11-14
 
