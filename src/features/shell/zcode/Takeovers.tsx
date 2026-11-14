@@ -8,7 +8,7 @@
  * 全局 ModalStack 会因 `suppressInteractionModals` 跳过同源 modal,避免双 UI。
  */
 import { useState } from 'react';
-import { Shield, X, Check, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Shield, X, Check, Loader2 } from 'lucide-react';
 import { useAgentStore, type PendingApproval, type PendingQuestion, type PendingAskUser } from '@/stores/agentStore';
 import type { Question } from '@/types/protocol';
 import { useI18n } from '@/utils/i18n';
@@ -79,22 +79,19 @@ export function ApprovalTakeover({ approval }: { approval: PendingApproval }) {
   );
 }
 
-/* ===== 多选/单选问题(协议 questions[])===== */
+/* ===== 多选/单选问题(协议 questions[])=====
+ * 全部问题堆叠一次呈现(与被替代的 QuestionModal 同语义):逐题选项 +
+ * 自定义答案,e2e 与键盘流都无需分页器;提交一次性回传 answers[]。 */
 export function QuestionTakeover({ question }: { question: PendingQuestion }) {
   const { t } = useI18n();
   const answerQuestion = useAgentStore((st) => st.answerQuestion);
   const payload = question.payload as { questions?: Question[] };
   const items = payload?.questions ?? [];
-  const [idx, setIdx] = useState(0);
   const [selections, setSelections] = useState<Record<number, number[]>>({});
   const [custom, setCustom] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false);
 
-  const qIdx = Math.min(idx, Math.max(0, items.length - 1));
-  const item = items[qIdx];
-  const multi = item?.multi_select ?? false;
-
-  const toggle = (optIdx: number) => {
+  const toggle = (qIdx: number, optIdx: number, multi: boolean) => {
     setSelections((prev) => {
       const cur = prev[qIdx] ?? [];
       if (multi) {
@@ -118,38 +115,31 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
   return (
     <div className={s.takeover} data-kind="question" data-testid="zcode-question">
       <div className={s.tkHead} style={{ color: 'var(--info)' }}>
-        {items.length > 1 && (
-          <span style={{ display: 'inline-flex', gap: 2 }}>
-            <button type="button" className={s.popRow} style={{ width: 'auto', padding: '2px 4px' }} aria-label={t('modal.prev')} disabled={qIdx === 0} onClick={() => setIdx((v) => Math.max(0, v - 1))}>
-              <ChevronLeft size={12} />
-            </button>
-            <span style={{ fontVariantNumeric: 'tabular-nums', alignSelf: 'center', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-              {qIdx + 1} / {items.length}
-            </span>
-            <button type="button" className={s.popRow} style={{ width: 'auto', padding: '2px 4px' }} aria-label={t('modal.next')} disabled={qIdx >= items.length - 1} onClick={() => setIdx((v) => Math.min(items.length - 1, v + 1))}>
-              <ChevronRight size={12} />
-            </button>
-          </span>
-        )}
+        {t('modal.question.title')}
       </div>
-      {item ? (
-        <>
-          <div className={s.tkQtext}>{item.question ?? item.header ?? `#${qIdx + 1}`}</div>
-          <div>
+      {items.length === 0 && <div className={s.tkQtext}>{t('modal.question.empty')}</div>}
+      {items.map((item, qIdx) => {
+        const multi = item.multi_select ?? false;
+        const qText = item.question ?? item.header ?? `#${qIdx + 1}`;
+        return (
+          <div key={qIdx} style={{ marginBottom: 'var(--space-3)' }}>
+            <div className={s.tkQtext}>{qText}</div>
             {(item.options ?? []).map((opt, optIdx) => {
               const sel = (selections[qIdx] ?? []).includes(optIdx);
+              const label = opt.label ?? String(opt);
               return (
                 <button
                   key={optIdx}
                   type="button"
                   className={s.tkOpt}
                   data-sel={sel}
-                  onClick={() => toggle(optIdx)}
+                  onClick={() => toggle(qIdx, optIdx, multi)}
                 >
                   <span className={s.zyTbox ?? ''} style={{ borderRadius: '50%', marginTop: 2 }} data-sel={sel}>
                     {sel ? <Check size={10} /> : ''}
                   </span>
-                  {opt.label ?? String(opt)}
+                  {label}
+                  {opt.description ? <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>— {opt.description}</span> : null}
                 </button>
               );
             })}
@@ -157,36 +147,34 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
               value={custom[qIdx] ?? ''}
               onChange={(e) => setCustom((prev) => ({ ...prev, [qIdx]: e.target.value }))}
               placeholder={t('modal.question.custom')}
+              aria-label={`Other (optional) — ${qText}`}
               className={s.urlInput}
               style={{ width: '100%', height: 30, marginBottom: 4 }}
-              aria-label={t('modal.question.custom')}
             />
           </div>
-          <div className={s.tkRow}>
-            <button
-              type="button"
-              className={s.popRow}
-              style={{ width: 'auto' }}
-              disabled={busy}
-              onClick={() => { setBusy(true); answerQuestion(question.id, { answers: items.map(() => ({ selected: [] })) }).catch(() => undefined).finally(() => setBusy(false)); }}
-            >
-              {t('modal.skip')}
-            </button>
-            <button
-              type="button"
-              className={s.popRow}
-              style={{ width: 'auto', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 500 }}
-              disabled={busy}
-              autoFocus
-              onClick={submit}
-            >
-              {busy ? <Loader2 size={13} /> : <Check size={13} />} {t('modal.submit')}
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className={s.tkQtext}>{t('modal.question.empty')}</div>
-      )}
+        );
+      })}
+      <div className={s.tkRow}>
+        <button
+          type="button"
+          className={s.popRow}
+          style={{ width: 'auto' }}
+          disabled={busy}
+          onClick={() => { setBusy(true); answerQuestion(question.id, { answers: items.map(() => ({ selected: [] })) }).catch(() => undefined).finally(() => setBusy(false)); }}
+        >
+          {t('modal.skip')}
+        </button>
+        <button
+          type="button"
+          className={s.popRow}
+          style={{ width: 'auto', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 500 }}
+          disabled={busy}
+          autoFocus
+          onClick={submit}
+        >
+          {busy ? <Loader2 size={13} /> : <Check size={13} />} {t('modal.submit')}
+        </button>
+      </div>
     </div>
   );
 }

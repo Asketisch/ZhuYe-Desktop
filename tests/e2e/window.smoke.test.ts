@@ -147,7 +147,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
 
   it('waits for tool approval, executes the tool and renders the second model response', async () => {
     const providerLog = join(process.env.E2E_SCREENSHOT_DIR ?? '.test-results', 'e2e-mock-provider.log');
-    const promptMode = await driver!.findElement(By.css('[data-testid="composer-perm-plan"]'));
+    const promptMode = await driver!.findElement(By.css('[data-testid="composer-perm-prompt"]'));
     await promptMode.click();
     await driver!.wait(async () => (await promptMode.getAttribute('aria-checked')) === 'true', 30_000);
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
@@ -425,7 +425,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     await clickOpt('Auth');
     await clickOpt('Audit', 2);
     await clickOpt('Cache');
-    await dialog.findElement(By.css('input')).sendKeys('window-custom-answer');
+    await dialog.findElement(By.css('input[aria-label="Other (optional) — Choose features?"]')).sendKeys('window-custom-answer');
     await dialog.findElement(By.xpath('.//button[contains(normalize-space(.), "Submit") or contains(normalize-space(.), "提交")]')).click();
     await driver!.wait(async () => (await driver!.findElements(By.css('[data-testid="zcode-question"]'))).length === 0, 30_000);
     const log = await driver!.findElement(By.css('[role="log"]'));

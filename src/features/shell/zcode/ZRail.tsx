@@ -123,7 +123,7 @@ export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
           </button>
         );
       })}
-      <div ref={moreRef} style={{ position: 'relative', display: 'contents' }}>
+      <div ref={moreRef} className={s.railAnchor}>
         <button
           type="button"
           className={s.railBtn}
@@ -142,7 +142,7 @@ export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
             role="menu"
             aria-label={t('zcode.rail.more')}
             data-testid="activitybar-more-flyout"
-            style={{ maxHeight: 480, overflowY: 'auto', top: 0, left: '100%' }}
+            style={{ maxHeight: '45vh', overflowY: 'auto' }}
           >
             {MORE_GROUPS.map((group) => (
               <div key={group.titleKey}>
