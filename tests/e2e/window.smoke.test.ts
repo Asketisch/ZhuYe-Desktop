@@ -44,7 +44,7 @@ let driver: WebDriver | null = null;
 let chatSessionPath = '';
 
 async function openMorePage(label: string) {
-  await driver!.findElement(By.css('[data-testid="activitybar-more"]')).click();
+  await driver!.findElement(By.css('[data-testid="zrail-more"]')).click();
   const menu = await driver!.wait(until.elementLocated(By.css('[data-testid="activitybar-more-flyout"]')), 10_000);
   const inViewport = await driver!.executeScript<boolean>(
     'const r = arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;', menu,
@@ -147,16 +147,16 @@ describe('window smoke (real process, real backend, local model stub)', () => {
 
   it('waits for tool approval, executes the tool and renders the second model response', async () => {
     const providerLog = join(process.env.E2E_SCREENSHOT_DIR ?? '.test-results', 'e2e-mock-provider.log');
-    const promptMode = await driver!.findElement(By.css('[data-testid="composer-perm-prompt"]'));
+    const promptMode = await driver!.findElement(By.css('[data-testid="composer-perm-plan"]'));
     await promptMode.click();
     await driver!.wait(async () => (await promptMode.getAttribute('aria-checked')) === 'true', 30_000);
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-tool-chain-test');
     const send = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-send"]')), 30_000);
     await send.click();
-    const dialog = await waitDialog('[role="dialog"][aria-label="Tool Approval"]');
+    const dialog = await waitDialog('[data-testid="zcode-approval"]');
     expect(readFileSync(providerLog, 'utf8')).not.toContain('window tool result:');
-    await dialog.findElement(By.xpath('.//button[normalize-space(.)="Approve"]')).click();
+    await dialog.findElement(By.css('[data-testid="zcode-approval-allow"]')).click();
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window tool round verified'), 60_000);
     expect(readFileSync(providerLog, 'utf8')).toContain('tool-approved-marker');
@@ -169,9 +169,9 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-tool-deny-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[role="dialog"][aria-label="Tool Approval"]');
+    const dialog = await waitDialog('[data-testid="zcode-approval"]');
     expect(existsSync(marker)).toBe(false);
-    await dialog.findElement(By.xpath('.//button[normalize-space(.)="Deny"]')).click();
+    await dialog.findElement(By.css('[data-testid="zcode-approval-deny"]')).click();
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window denial verified'), 60_000);
     expect(existsSync(marker)).toBe(false);
@@ -185,9 +185,9 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-tool-write-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[role="dialog"][aria-label="Tool Approval"]');
+    const dialog = await waitDialog('[data-testid="zcode-approval"]');
     expect(existsSync(marker)).toBe(false);
-    await dialog.findElement(By.xpath('.//button[normalize-space(.)="Approve"]')).click();
+    await dialog.findElement(By.css('[data-testid="zcode-approval-allow"]')).click();
     await driver!.wait(() => readFileSync(providerLog, 'utf8').includes('window write tool result:'), 30_000);
     const line = readFileSync(providerLog, 'utf8').split('\n').find((entry) => entry.startsWith('window write tool result:'));
     const result = JSON.parse(line!.slice('window write tool result:'.length));
@@ -414,16 +414,20 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-question-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[role="dialog"][aria-label="Question"]');
+    const dialog = await waitDialog('[data-testid="zcode-question"]');
     expect(await dialog.getText()).toContain('Choose a fruit?');
-    await dialog.findElement(By.xpath('.//label[.//span[normalize-space(.)="Pear"]]//input')).click();
-    await dialog.findElement(By.xpath('.//label[.//span[normalize-space(.)="Auth"]]//input')).click();
-    await dialog.findElement(By.xpath('.//label[.//span[normalize-space(.)="Audit"]]//input')).click();
-    await dialog.findElement(By.xpath('.//label[.//span[normalize-space(.)="Audit"]]//input')).click();
-    await dialog.findElement(By.xpath('.//label[.//span[normalize-space(.)="Cache"]]//input')).click();
-    await dialog.findElement(By.css('input[aria-label="Other (optional) — Choose features?"]')).sendKeys('window-custom-answer');
-    await dialog.findElement(By.xpath('.//button[normalize-space(.)="Submit"]')).click();
-    await driver!.wait(async () => (await driver!.findElements(By.css('[role="dialog"][aria-label="Question"]'))).length === 0, 30_000);
+    const clickOpt = async (label: string, times = 1) => {
+      for (let i = 0; i < times; i += 1) {
+        await dialog.findElement(By.xpath(`.//button[contains(normalize-space(.), "${label}")]`)).click();
+      }
+    };
+    await clickOpt('Pear');
+    await clickOpt('Auth');
+    await clickOpt('Audit', 2);
+    await clickOpt('Cache');
+    await dialog.findElement(By.css('input')).sendKeys('window-custom-answer');
+    await dialog.findElement(By.xpath('.//button[contains(normalize-space(.), "Submit") or contains(normalize-space(.), "提交")]')).click();
+    await driver!.wait(async () => (await driver!.findElements(By.css('[data-testid="zcode-question"]'))).length === 0, 30_000);
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window question answer verified'), 60_000);
   }, 150_000);
@@ -432,12 +436,11 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-card"] textarea')), 30_000);
     await composer.sendKeys('window-input-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[role="dialog"][aria-label="Input requested"]');
-    const input = await dialog.findElement(By.css('input[type="password"]'));
-    expect(await input.getAttribute('aria-label')).toBe('Enter a test value:');
+    const dialog = await waitDialog('[data-testid="zcode-askuser"]');
+    const input = await dialog.findElement(By.css('textarea'));
     await input.sendKeys('window-synthetic-secret');
-    await dialog.findElement(By.xpath('.//button[normalize-space(.)="Submit"]')).click();
-    await driver!.wait(async () => (await driver!.findElements(By.css('[role="dialog"][aria-label="Input requested"]'))).length === 0, 30_000);
+    await dialog.findElement(By.xpath('.//button[contains(normalize-space(.), "Submit") or contains(normalize-space(.), "提交")]')).click();
+    await driver!.wait(async () => (await driver!.findElements(By.css('[data-testid="zcode-askuser"]'))).length === 0, 30_000);
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window input answer verified'), 60_000);
   }, 150_000);

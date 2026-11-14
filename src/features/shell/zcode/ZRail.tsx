@@ -131,19 +131,26 @@ export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
           aria-label={t('zcode.rail.more')}
           title={t('zcode.rail.more')}
           data-testid="zrail-more"
+          aria-haspopup="menu"
           onClick={() => setMoreOpen((v) => !v)}
         >
           <Menu />
         </button>
         {moreOpen && (
-          <div className={`${s.pop} ${s.popRight}`} style={{ maxHeight: 480, overflowY: 'auto' }}>
+          <div
+            className={`${s.pop} ${s.popRight}`}
+            role="menu"
+            aria-label={t('zcode.rail.more')}
+            data-testid="activitybar-more-flyout"
+            style={{ maxHeight: 480, overflowY: 'auto', top: 0, left: '100%' }}
+          >
             {MORE_GROUPS.map((group) => (
               <div key={group.titleKey}>
                 <div className={s.popHead}>{t(group.titleKey)}</div>
                 {group.items.map((item) => {
                   const Ic = item.icon;
                   return (
-                    <button key={item.to} type="button" className={s.popRow} onClick={() => go(item.to)}>
+                    <button key={item.to} type="button" role="menuitem" className={s.popRow} onClick={() => go(item.to)}>
                       <Ic />
                       {t(item.labelKey)}
                       {isActive(pathname, item) && <ChevronDown style={{ marginLeft: 'auto', opacity: 0.5 }} />}
