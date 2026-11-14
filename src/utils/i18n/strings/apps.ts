@@ -14,6 +14,9 @@ const apps: Record<string, StringEntry> = {
   'apps.notConnected': { en: 'Not connected',                    'zh-CN': '未连接' },
   'apps.connect':      { en: 'Connect',                          'zh-CN': '连接' },
   'apps.disconnect':   { en: 'Disconnect',                       'zh-CN': '断开' },
+  // v1.11 D10:stub 收口 —— 假 sample 数据改为 coming soon 占位。
+  'apps.comingSoonTitle': { en: 'App integrations coming soon',   'zh-CN': '应用集成即将上线' },
+  'apps.comingSoonDesc':  { en: 'IDE and external-tool integrations will ship as plugins once the app-plugin runtime lands. Existing plugins keep working via the Plugins view.', 'zh-CN': '应用插件运行时落地后，IDE 与外部工具集成将以插件形式提供。既有插件仍可在「插件」视图使用。' },
 };
 
 export default apps;

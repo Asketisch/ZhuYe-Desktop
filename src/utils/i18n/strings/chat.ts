@@ -19,6 +19,12 @@ const chat: Record<string, StringEntry> = {
   'chat.forkFailed':               { en: 'Fork failed: {msg}',                                                'zh-CN': 'Fork 失败：{msg}' },
   'chat.forkFromHere':             { en: 'Fork a branch from this turn (inclusive)',                          'zh-CN': '从此轮 Fork 新分支（含此轮）' },
   'chat.rewindToHere':             { en: 'Rewind conversation to before this turn',                           'zh-CN': '回退对话到此轮之前' },
+  // v1.11 F7+D6:编辑历史消息(组合 Rewind + composer 预填)。
+  'chat.editToHere':               { en: 'Edit this turn — truncate from here and reload the text into the composer', 'zh-CN': '编辑此轮 —— 从这里截断，并把原文装回输入框' },
+  'chat.editConfirmTitle':         { en: 'Edit this turn?',                                                   'zh-CN': '编辑此轮？' },
+  'chat.editConfirmMessage':       { en: 'The conversation from this turn onward will be discarded, and the original text will be reloaded into the composer for editing. Send to regenerate.', 'zh-CN': '此轮（含）之后的对话将被丢弃，原文会装回输入框供编辑；发送后从该点重新生成。' },
+  'chat.editPrefilled':            { en: 'Text reloaded into the composer — edit and send to regenerate',     'zh-CN': '原文已装回输入框 —— 编辑后发送即重新生成' },
+  'chat.editNoUserText':           { en: 'This turn has no user text to edit',                                'zh-CN': '该轮没有可编辑的用户文本' },
   'chat.rewindConfirmTitle':       { en: 'Rewind conversation',                                               'zh-CN': '回退对话' },
   'chat.rewindConfirmMessage':     { en: 'Drop this turn and everything after it from the conversation? A .bak backup of the session file is kept. Workspace files are not touched.', 'zh-CN': '将从对话中丢弃此轮及其后的全部记录？会话文件会保留 .bak 备份，工作区文件不受影响。' },
   'chat.rewound':                  { en: 'Conversation rewound — continue with a new prompt',                 'zh-CN': '对话已回退 —— 输入新指令继续' },

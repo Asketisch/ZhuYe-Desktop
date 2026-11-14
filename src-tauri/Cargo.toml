@@ -47,6 +47,8 @@ reflect-app-core            = { workspace = true }
 reflect-telemetry           = { workspace = true }
 reflect-config              = { workspace = true }
 reflect-rollout             = { workspace = true }
+# v1.11 D9:外部 Agent 导入入口(Claude Code / Codex / ZCode 会话 → 烛夜 rollout)。
+reflect-import              = { workspace = true }
 reflect-skills              = { workspace = true }
 # 会话笔记只读查询(agent 经 AddSessionNoteTool 写入,这里只读展示)
 reflect-notes               = { workspace = true }

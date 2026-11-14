@@ -69,6 +69,8 @@ export const ROUTES: RouteSpec[] = [
   },
   { route: '/debug' },
   { route: '/apps' },
+  { route: '/import' },
+  { route: '/preview' },
   {
     route: '/collaboration',
     commands: ['reflect_list_tools'],

@@ -30,6 +30,8 @@ import { NotificationsView } from '@/features/notifications/NotificationsView';
 import { TerminalView } from '@/features/terminal/TerminalView';
 import { AboutView } from '@/features/about/AboutView';
 import { AppsView } from '@/features/apps/AppsView';
+import { ImportView } from '@/features/import/ImportView';
+import { HtmlPreviewView } from '@/features/preview/HtmlPreviewView';
 import { CollaborationView } from '@/features/collaboration/CollaborationView';
 import { DebugView } from '@/features/debug/DebugView';
 import { DesignSystemView } from '@/features/design-system/DesignSystemView';
@@ -76,6 +78,8 @@ const aboutRoute = new Route({ getParentRoute: () => rootRoute, path: 'about', c
 const notificationsRoute = new Route({ getParentRoute: () => rootRoute, path: 'notifications', component: NotificationsView });
 const debugRoute = new Route({ getParentRoute: () => rootRoute, path: 'debug', component: DebugView });
 const appsRoute = new Route({ getParentRoute: () => rootRoute, path: 'apps', component: AppsView });
+const importRoute = new Route({ getParentRoute: () => rootRoute, path: 'import', component: ImportView });
+const previewRoute = new Route({ getParentRoute: () => rootRoute, path: 'preview', component: HtmlPreviewView });
 const collaborationRoute = new Route({ getParentRoute: () => rootRoute, path: 'collaboration', component: CollaborationView });
 const mobileRoute = new Route({ getParentRoute: () => rootRoute, path: 'mobile', component: MobileView });
 const dictationRoute = new Route({ getParentRoute: () => rootRoute, path: 'dictation', component: DictationView });
@@ -114,6 +118,8 @@ const routeTree = rootRoute.addChildren([
   notificationsRoute,
   debugRoute,
   appsRoute,
+  importRoute,
+  previewRoute,
   collaborationRoute,
   mobileRoute,
   dictationRoute,

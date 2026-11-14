@@ -9,6 +9,7 @@ import { useParams } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
+import { emitComposerPrefill } from '@/features/composer/useComposerDraft';
 import { useAgentStore } from '@/stores/agentStore';
 import { reflect_replay_session, reflect_git_diff } from '@/utils/commands';
 import { reflect_bind_session, reflect_fork_session } from '@/utils/commands/sessions';
@@ -91,6 +92,38 @@ export function ChatView() {
     try {
       await rewind(turnId);
       pushToast({ kind: 'success', message: t('chat.rewound') });
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.rewindFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
+  };
+
+  // v1.11 F7+D6:编辑历史消息 —— 组合既有 Op::Rewind 与 composer 预填:
+  // 截断「目标轮(含)之后」的全部记录(目标轮为第 0 轮时即清空重发),
+  // 再把该轮用户文本填回 composer,用户改完直接发送 = 从该点重新生成。
+  // 零协议改动(Rewind 语义已覆盖「截断 + 短历史回放」)。
+  const handleEditTurn = async (turnId: string) => {
+    const epoch = sessionEpoch.current.value;
+    const index = turns.findIndex((tr) => tr.id === turnId);
+    if (index === -1) return;
+    const userItem = turns[index].items.find((it) => it.kind === 'user_text');
+    if (!userItem || userItem.kind !== 'user_text') {
+      pushToast({ kind: 'info', message: t('chat.editNoUserText') });
+      return;
+    }
+    const ok = await confirmDialog({
+      title: t('chat.editConfirmTitle'),
+      message: t('chat.editConfirmMessage'),
+    });
+    if (!ok || !sessionId || epoch !== sessionEpoch.current.value ||
+        useAgentStore.getState().loadedSessionId !== sessionId) return;
+    try {
+      // index === 0 → 截断含自身(清空重发);否则截到前一轮为止。
+      await rewind(index === 0 ? turnId : turns[index - 1].id);
+      emitComposerPrefill(userItem.text);
+      pushToast({ kind: 'success', message: t('chat.editPrefilled') });
     } catch (e: unknown) {
       pushToast({
         kind: 'error',
@@ -278,6 +311,7 @@ export function ChatView() {
           <MessageList
             onForkTurn={(turnId, branch) => handleFork(branch, turnId)}
             onRewindTurn={(turnId) => void handleRewind(turnId)}
+            onEditTurn={(turnId) => void handleEditTurn(turnId)}
           />
         </div>
       )}

@@ -162,21 +162,17 @@ describe('about view', () => {
 });
 
 describe('apps view', () => {
-  it('connect/disconnect toggles an app card locally without backend calls', async () => {
+  // v1.11 D10:stub 收口 —— 假 sample 数据(带 toggle 按钮)删除,改为
+  // coming soon 占位。原「connect/disconnect 本地翻转」测试随假数据一起
+  // 移除;新口径:不渲染 toggle,渲染 coming soon 空态。
+  it('renders the coming-soon empty state without fake app cards', async () => {
     const app = renderApp();
     await app.navigate('/apps');
-    const callsBefore = backend.calls.length;
-    // 多张 app 卡各带一个 Connect/Disconnect 按钮 —— 取第一张点击。
-    const toggle = (await screen.findAllByRole('button', { name: /connect|disconnect/i }))[0];
-    fireEvent.click(toggle);
-    // 本地翻转:点击后同一张卡片的按钮文案在 Connect ↔ Disconnect 之间
-    // 切换(总数不变,第一个按钮的文案翻转)。
-    await waitFor(() => {
-      const after = screen.getAllByRole('button', { name: /connect|disconnect/i });
-      expect(after.length).toBeGreaterThan(0);
-    });
-    // 有本地状态翻转的视图不依赖后端。
-    expect(backend.calls.length).toBe(callsBefore);
+    expect(
+      screen.getByText(/App integrations coming soon|应用集成即将上线/),
+    ).toBeDefined();
+    // 假数据的 Connect/Disconnect toggle 不再存在。
+    expect(screen.queryAllByRole('button', { name: /^connect$|^disconnect$/i })).toHaveLength(0);
   });
 });
 

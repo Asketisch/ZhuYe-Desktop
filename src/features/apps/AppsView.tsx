@@ -1,76 +1,38 @@
 /**
- * Apps —— App 集成（stub，EmptyState 美化）。
+ * Apps —— App 集成视图。
+ *
+ * v1.11 D10 收口：此前是硬编码的 sample 数据（假 VS Code / JetBrains 条目,
+ * 假 connect/disconnect 开关），用户会误以为可用功能。现改为与 MobileView
+ * 同口径的 coming soon 占位 —— 真实语义是「插件运行时里的应用集成」
+ * （对标 MiniMax 的 Mini App：agent 可创建/发布自定义小应用），等插件
+ * 运行时打通后接线（见 gap-report D10）。
  */
-import { useState } from 'react';
-import { AppWindow, Plug, Plug2 } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { AppWindow } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
-import { Card, Badge, Button, Icon } from '@/features/design-system';
+import { Card, Badge, Icon, EmptyState } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import s from './AppsView.module.css';
-
-interface App {
-  id: string;
-  name: string;
-  icon: ComponentType;
-  connected: boolean;
-  permissions: string[];
-}
-
-const STUB_APPS: App[] = [
-  { id: 'vscode', name: 'VS Code', icon: AppWindow, connected: true, permissions: ['read_files', 'exec_command'] },
-  { id: 'jetbrains', name: 'JetBrains', icon: AppWindow, connected: false, permissions: [] },
-];
 
 export function AppsView() {
   const { t } = useI18n();
-  const [apps, setApps] = useState<App[]>(STUB_APPS);
-
-  const toggle = (id: string) => {
-    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, connected: !a.connected } : a)));
-  };
-
   return (
     <PageShell
       icon={AppWindow}
       title={t('apps.title')}
-      subtitle={<>
-        {t('apps.subtitle')} <Badge variant="warning">sample data</Badge>
-      </>}
+      subtitle={
+        <>
+          {t('apps.subtitle')} <Badge variant="info">coming soon</Badge>
+        </>
+      }
       width="md"
     >
-      <div className={s.list}>
-        {apps.map((a) => (
-          <Card key={a.id} level="outlined" padding="md" className={s.appRow}>
-            <div className={s.appIcon}>
-              <Icon icon={a.icon} size={20} />
-            </div>
-            <div className={s.appBody}>
-              <div className={s.appNameRow}>
-                <span className={s.appName}>{a.name}</span>
-                {a.connected && <Badge variant="success" dot>{t('apps.connected')}</Badge>}
-              </div>
-              {a.permissions.length > 0 ? (
-                <div className={s.permList}>
-                  {a.permissions.map((p) => (
-                    <code key={p} className={s.perm}>{p}</code>
-                  ))}
-                </div>
-              ) : (
-                <div className={s.appDesc}>{t('apps.notConnected')}</div>
-              )}
-            </div>
-            <Button
-              variant={a.connected ? 'danger' : 'primary'}
-              size="sm"
-              onClick={() => toggle(a.id)}
-              leftIcon={<Icon icon={a.connected ? Plug2 : Plug} size={13} />}
-            >
-              {a.connected ? t('apps.disconnect') : t('apps.connect')}
-            </Button>
-          </Card>
-        ))}
-      </div>
+      <Card level="flat" padding="none">
+        <EmptyState
+          size="lg"
+          icon={<Icon icon={AppWindow} size={32} />}
+          title={t('apps.comingSoonTitle')}
+          description={t('apps.comingSoonDesc')}
+        />
+      </Card>
     </PageShell>
   );
 }

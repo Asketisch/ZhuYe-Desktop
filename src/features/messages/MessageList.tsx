@@ -26,6 +26,7 @@ import {
   FileDiff,
   GitBranch,
   RotateCcw,
+  Pencil,
 } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
 import { Markdown } from '@/components/Markdown';
@@ -72,11 +73,14 @@ function groupToolNodes(items: TurnItem[]): RenderNode[] {
 export function MessageList({
   onForkTurn,
   onRewindTurn,
+  onEditTurn,
 }: {
   /** 可选：按轮 fork —— 传入后在每个已结束 turn 上提供「从此轮分叉」入口。 */
   onForkTurn?: (turnId: string, branch: string) => void;
   /** 可选：按轮回退 —— 传入后在每个已结束 turn 上提供「回退到此轮之前」入口。 */
   onRewindTurn?: (turnId: string) => void;
+  /** 可选：按轮编辑(v1.11 F7+D6)—— 截断后把该轮用户文本填回 composer。 */
+  onEditTurn?: (turnId: string) => void;
 } = {}) {
   const turns = useAgentStore((st) => st.turns);
   const ref = useRef<HTMLDivElement>(null);
@@ -108,6 +112,7 @@ export function MessageList({
             index={i}
             onForkTurn={onForkTurn}
             onRewindTurn={onRewindTurn}
+          onEditTurn={onEditTurn}
           />
         ))}
         <QueuedMessages />
@@ -121,11 +126,13 @@ function TurnView({
   index,
   onForkTurn,
   onRewindTurn,
+  onEditTurn,
 }: {
   turn: Turn;
   index: number;
   onForkTurn?: (turnId: string, branch: string) => void;
   onRewindTurn?: (turnId: string) => void;
+  onEditTurn?: (turnId: string) => void;
 }) {
   const nodes = groupToolNodes(turn.items);
   const { t } = useI18n();
@@ -135,6 +142,12 @@ function TurnView({
   // rewind 丢弃「此轮(含)之后」的对话记录(引擎 Op::Rewind),同样只对
   // 已落全的 turn 开放;与 fork 并列在 hover 动作行。
   const canRewind = Boolean(onRewindTurn) && turn.status !== 'streaming';
+  // v1.11 F7+D6:编辑历史 —— 只对含用户文本、已落全的 turn 开放
+  // (组合 Rewind + composer 预填,见 ChatView.handleEditTurn)。
+  const canEdit =
+    Boolean(onEditTurn) &&
+    turn.status !== 'streaming' &&
+    turn.items.some((it) => it.kind === 'user_text');
   return (
     <div className={s.turn}>
       {nodes.map((node, i) => (
@@ -156,6 +169,16 @@ function TurnView({
               data-testid={`turn-rewind-${turn.id}`}
             >
               <Icon icon={RotateCcw} size={12} />
+            </IconButton>
+          )}
+          {canEdit && (
+            <IconButton
+              size="sm"
+              label={t('chat.editToHere')}
+              onClick={() => onEditTurn?.(turn.id)}
+              data-testid={`turn-edit-${turn.id}`}
+            >
+              <Icon icon={Pencil} size={12} />
             </IconButton>
           )}
           {canFork && (

@@ -55,6 +55,8 @@ const shell: Record<string, StringEntry> = {
   'shell.title.about':            { en: 'About',                                                  'zh-CN': '关于' },
   'shell.title.debug':            { en: 'Debug',                                                  'zh-CN': '调试' },
   'shell.title.apps':             { en: 'Apps',                                                   'zh-CN': '应用' },
+  'shell.title.import':           { en: 'Import',                                                 'zh-CN': '导入' },
+  'shell.title.preview':          { en: 'HTML preview',                                           'zh-CN': 'HTML 预览' },
   'shell.title.collaboration':    { en: 'Collaboration',                                          'zh-CN': '协作' },
   'shell.title.mobile':           { en: 'Mobile',                                                 'zh-CN': '移动' },
   'shell.title.dictation':        { en: 'Dictation',                                              'zh-CN': '语音输入' },

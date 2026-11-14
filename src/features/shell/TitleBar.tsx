@@ -45,6 +45,8 @@ const TITLES: Record<string, LocaleKey> = {
   '/about': 'shell.title.about',
   '/debug': 'shell.title.debug',
   '/apps': 'shell.title.apps',
+  '/import': 'shell.title.import',
+  '/preview': 'shell.title.preview',
   '/collaboration': 'shell.title.collaboration',
   '/mobile': 'shell.title.mobile',
   '/dictation': 'shell.title.dictation',

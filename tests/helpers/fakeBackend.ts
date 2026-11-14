@@ -1581,6 +1581,27 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_status_server_stop', handler(() => undefined));
   // v1.11 基建#1(桌面#1):Skill 市场。
   handle('reflect_install_skill', handler(() => 'sub-fake'));
+  // v1.11 D9:外部 Agent 会话导入。
+  handle('reflect_import_discover', handler((_cmd: string, args?: { kind?: string }) => {
+    const kind = args?.kind ?? 'claude_code';
+    return [
+      { display: `fake ${kind} session /fake/path/session.jsonl` },
+      { display: `fake ${kind} session /fake/path/other.jsonl` },
+    ];
+  }));
+  handle('reflect_import_sessions', handler(() => ({
+    imported: [
+      {
+        source: '/fake/path/session.jsonl',
+        threadId: 'thread-fake',
+        turns: 3,
+        records: 12,
+        path: '/fake/rollout/thread-fake.jsonl',
+        warnings: [],
+      },
+    ],
+    failed: [],
+  })));
 
   // —— 权限规则(核心三层 store 的生效规则)——
   handle('reflect_list_permission_rules', handler(() => wire(backend.state.permissionRules)));

@@ -63,6 +63,8 @@ const palette: Record<string, StringEntry> = {
   'palette.item.goNotifications':    { en: 'Open notifications',                  'zh-CN': '打开通知' },
   'palette.item.goDebug':            { en: 'Open debug',                          'zh-CN': '打开调试' },
   'palette.item.goApps':             { en: 'Open apps',                           'zh-CN': '打开应用' },
+  'palette.item.goImport':           { en: 'Import external agent sessions',      'zh-CN': '导入外部 Agent 会话' },
+  'palette.item.goPreview':          { en: 'Open HTML preview',                   'zh-CN': '打开 HTML 预览' },
   'palette.item.goCollab':           { en: 'Open collaboration',                  'zh-CN': '打开协作' },
   'palette.item.goDictation':        { en: 'Open dictation',                      'zh-CN': '打开语音输入' },
   'palette.item.goMobile':           { en: 'Open mobile',                         'zh-CN': '打开移动端' },

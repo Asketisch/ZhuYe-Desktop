@@ -179,3 +179,52 @@ fn status_server_start_state_stop_roundtrip() {
         "停止后状态应回到 null: {state}"
     );
 }
+
+// ============================================================================
+// 桌面#9:外部 Agent 会话导入
+// ============================================================================
+
+#[test]
+fn import_discover_rejects_unknown_kind() {
+    let _guard = common::state_lock();
+    let err = common::invoke_err(
+        "reflect_import_discover",
+        json!({ "kind": "not-a-harness" }),
+    );
+    let msg = err["msg"].as_str().expect("错误应带 msg");
+    assert!(
+        msg.contains("unknown harness kind"),
+        "非法 kind 应显式拒绝: {msg}"
+    );
+}
+
+#[test]
+fn import_sessions_unknown_kind_fails_fast() {
+    let _guard = common::state_lock();
+    let err = common::invoke_err(
+        "reflect_import_sessions",
+        json!({ "kind": "bogus", "dryRun": true }),
+    );
+    let msg = err["msg"].as_str().expect("错误应带 msg");
+    assert!(
+        msg.contains("unknown harness kind"),
+        "导入对非法 kind 应 fail-fast: {msg}"
+    );
+}
+
+#[test]
+fn import_discover_zcode_returns_list_or_clean_error() {
+    let _guard = common::state_lock();
+    // ZCode 来源依赖 `~/.zcode/cli/db/db.sqlite` 存在与否(沙箱 HOME 里
+    // 通常没有)→ 空清单或明确的发现错误都算合法;绝不允许 panic。
+    let result = common::invoke("reflect_import_discover", json!({ "kind": "zcode" }));
+    match result {
+        Ok(list) => {
+            assert!(list.is_array(), "发现结果应为数组: {list}");
+        }
+        Err(err) => {
+            let msg = err["msg"].as_str().unwrap_or_default();
+            assert!(!msg.is_empty(), "错误必须带原因: {err}");
+        }
+    }
+}

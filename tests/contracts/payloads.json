@@ -621,6 +621,16 @@
     "reflect_status_server_stop": {},
     "reflect_install_skill": {
       "repo": "owner/repo"
+    },
+    "reflect_import_discover": {
+      "kind": "claude_code"
+    },
+    "reflect_import_sessions": {
+      "kind": "claude_code",
+      "force": false,
+      "dryRun": true,
+      "includeThinking": false,
+      "keepInjected": false
     }
   }
 }
