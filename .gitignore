@@ -32,3 +32,4 @@ WixTools/
 .zcode/
 graphify-out/
 crates/graphify-out/
+tests/__pycache__/

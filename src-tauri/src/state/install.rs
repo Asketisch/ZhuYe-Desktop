@@ -331,6 +331,14 @@ mod tests {
     async fn restarting_cron_preserves_job_identity_and_disabled_state() {
         let agent = MinimalAgent::new_empty();
         agent.install_agent_thread().await;
+        // HOME 隔离:预置一个 store 指向临时目录的 scheduler,让下面的
+        // spawn 走 existing 分支 —— 否则会读真实 `~/.zhuye/cron/`,
+        // 机器上有历史任务时本断言(restarted 只含本用例 1 条)必假失败。
+        let tmp = tempfile::tempdir().unwrap();
+        let isolated =
+            reflect_stream::cron::CronScheduler::new(None, reflect_protocol::ThreadId::new())
+                .with_store(tmp.path().join("cron").join("schedules.json"));
+        *agent.inner.cron_scheduler.write() = Some(isolated);
         let old = agent.cron_scheduler().unwrap();
         let job = old
             .create("0 9 * * *", "test", Some("probe".into()))

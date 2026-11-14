@@ -185,7 +185,10 @@ pub async fn reflect_set_workspace_dirs(
         if crate::workspace_state::same_path(&p, &main_path) {
             continue; // 与主工作区相同 → 跳过(幂等,不报错)
         }
-        if extra.iter().any(|x| crate::workspace_state::same_path(x, &p)) {
+        if extra
+            .iter()
+            .any(|x| crate::workspace_state::same_path(x, &p))
+        {
             continue; // 重复项去重
         }
         extra.push(p);

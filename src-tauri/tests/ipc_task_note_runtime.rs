@@ -128,7 +128,7 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
             .await;
         Mock::given(method("POST"))
             .and(path("/v1/messages"))
-            .and(body_string_contains("other-session-marker"))
+            .and(body_string_contains("quartz-lantern-epsilon"))
             .respond_with(ResponseTemplate::new(200).set_body_raw(
                 response(None, "other-session-complete"),
                 "text/event-stream",
@@ -266,7 +266,7 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
     assert_eq!(other_notes, json!([]), "notes crossed session boundaries");
     common::invoke_ok(
         "reflect_submit",
-        json!({"submission":{"id":"other-session-turn","op":{"type":"user_input","items":[{"type":"text","text":"other-session-marker"}]}}}),
+        json!({"submission":{"id":"other-session-turn","op":{"type":"user_input","items":[{"type":"text","text":"quartz-lantern-epsilon"}]}}}),
     );
     wait_for(&rx, &mut seen, |event| {
         event["id"] == "other-session-turn" && event["msg"]["type"] == "turn_complete"
@@ -274,7 +274,7 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
     let requests = runtime.block_on(provider.received_requests()).unwrap();
     let other_request = requests
         .iter()
-        .find(|request| String::from_utf8_lossy(&request.body).contains("other-session-marker"))
+        .find(|request| String::from_utf8_lossy(&request.body).contains("quartz-lantern-epsilon"))
         .unwrap();
     assert!(
         !String::from_utf8_lossy(&other_request.body).contains("runtime-note-marker"),

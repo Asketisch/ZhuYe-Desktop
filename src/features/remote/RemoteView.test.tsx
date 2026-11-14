@@ -2,7 +2,7 @@
  * Vitest —— RemoteView（Phase 2 条目 2）。
  *
  * 基于模拟 IPC 的冒烟 + 行为测试：
- *   - 页面标题 + 4 张卡片渲染
+ *   - 页面标题 + 5 张卡片渲染
  *   - iOS 设置卡片：config.isReady 时显示就绪徽标，点击打开表单
  *   - 表单 Save 转发到 reflect_update_remote_config
  *   - Tailscale 卡片渲染检测到的状态字段
@@ -66,6 +66,16 @@ vi.mock('@/utils/commands', async () => {
     reflect_tailscale_daemon_start: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
     reflect_tailscale_daemon_stop: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
     reflect_tailscale_daemon_status: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
+    // v1.11 基建#12:远程网页访问状态服务器。
+    reflect_status_server_start: vi.fn(async (port?: number) => {
+      calls.push({ cmd: 'reflect_status_server_start', args: { port: port ?? null } });
+      return port ?? 4732;
+    }),
+    reflect_status_server_state: vi.fn(async () => null),
+    reflect_status_server_stop: vi.fn(async () => {
+      calls.push({ cmd: 'reflect_status_server_stop', args: undefined });
+      return undefined;
+    }),
   };
 });
 
@@ -80,12 +90,13 @@ describe('RemoteView', () => {
     resetMockInvoke();
   });
 
-  it('renders the page title and the four cards', async () => {
+  it('renders the page title and the five cards', async () => {
     render(wrap(<RemoteView />));
     expect(screen.getByText('Remote')).toBeDefined();
     await waitFor(() => {
       expect(screen.getByTestId('remote-config-card')).toBeDefined();
       expect(screen.getByTestId('remote-tailscale-card')).toBeDefined();
+      expect(screen.getByTestId('remote-status-server-card')).toBeDefined();
       expect(screen.getByTestId('remote-daemon-card')).toBeDefined();
       expect(screen.getByTestId('remote-status-card')).toBeDefined();
     });
@@ -135,6 +146,47 @@ describe('RemoteView', () => {
             (c.args as { host: string }).host === 'updated.tail.net',
         ),
       ).toBe(true);
+    });
+  });
+
+  // ── v1.11 基建#12:远程网页访问状态服务器 ──────────────────────────
+
+  it('status server card shows the off badge; Start forwards the port', async () => {
+    render(wrap(<RemoteView />));
+    await waitFor(() => {
+      expect(screen.getByTestId('remote-status-server-card')).toBeDefined();
+    });
+    // 未启动 → off 徽标;Start 可点,Stop 禁用。
+    expect(screen.getByText('off')).toBeDefined();
+    const startBtn = screen.getByTestId('remote-status-server-start') as HTMLButtonElement;
+    const stopBtn = screen.getByTestId('remote-status-server-stop') as HTMLButtonElement;
+    expect(stopBtn.disabled).toBe(true);
+    expect(startBtn.disabled).toBe(false);
+    fireEvent.click(startBtn);
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (c) => c.cmd === 'reflect_status_server_start' && (c.args as { port: number }).port === 4732,
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it('status server badge shows the running port when state reports one', async () => {
+    // state 返回端口 → running 徽标;Start 禁用,Stop 可点并转发。
+    const { reflect_status_server_state } = await import('@/utils/commands');
+    (reflect_status_server_state as ReturnType<typeof vi.fn>).mockResolvedValue(4732);
+    render(wrap(<RemoteView />));
+    await waitFor(() => {
+      expect(screen.getByText(/running on :4732/)).toBeDefined();
+    });
+    const startBtn = screen.getByTestId('remote-status-server-start') as HTMLButtonElement;
+    const stopBtn = screen.getByTestId('remote-status-server-stop') as HTMLButtonElement;
+    expect(startBtn.disabled).toBe(true);
+    expect(stopBtn.disabled).toBe(false);
+    fireEvent.click(stopBtn);
+    await waitFor(() => {
+      expect(calls.some((c) => c.cmd === 'reflect_status_server_stop')).toBe(true);
     });
   });
 });

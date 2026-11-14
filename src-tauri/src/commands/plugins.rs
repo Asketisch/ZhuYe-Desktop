@@ -326,9 +326,7 @@ fn load_known_marketplaces() -> CommandResult<reflect_plugin::KnownMarketplacesF
 /// 市场未注册 / 缓存未物化 → 显性报错(提示先 `marketplace add` /
 /// CLI refresh)。
 #[tauri::command]
-pub async fn reflect_browse_marketplace(
-    name: String,
-) -> CommandResult<Vec<MarketplacePluginInfo>> {
+pub async fn reflect_browse_marketplace(name: String) -> CommandResult<Vec<MarketplacePluginInfo>> {
     let mkt = MarketplaceName::parse(&name).map_err(|e| CommandError {
         msg: format!("invalid marketplace name: {e}"),
     })?;
@@ -345,9 +343,11 @@ pub async fn reflect_browse_marketplace(
                 entry.install_location.display()
             ),
         })?;
-    let manifest = reflect_plugin::MarketplaceManifest::from_json_path(&manifest_path)
-        .map_err(|e| CommandError {
-            msg: format!("parse marketplace manifest failed: {e}"),
+    let manifest =
+        reflect_plugin::MarketplaceManifest::from_json_path(&manifest_path).map_err(|e| {
+            CommandError {
+                msg: format!("parse marketplace manifest failed: {e}"),
+            }
         })?;
     Ok(manifest
         .plugins

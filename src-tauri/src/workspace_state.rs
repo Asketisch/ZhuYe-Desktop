@@ -70,7 +70,10 @@ mod tests {
         );
         // 全量覆盖。
         WorkspaceState::set_additional_dirs(vec![PathBuf::from("/tmp/extra-c")]);
-        assert_eq!(WorkspaceState::additional_dirs(), vec![PathBuf::from("/tmp/extra-c")]);
+        assert_eq!(
+            WorkspaceState::additional_dirs(),
+            vec![PathBuf::from("/tmp/extra-c")]
+        );
         // 清空(切换主工作区时)。
         WorkspaceState::set_additional_dirs(Vec::new());
         assert!(WorkspaceState::additional_dirs().is_empty());

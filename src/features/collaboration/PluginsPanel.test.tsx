@@ -42,6 +42,18 @@ describe('PluginsPanel', () => {
     mockInvoke('reflect_toggle_plugin', async () => undefined);
     mockInvoke('reflect_uninstall_plugin', async () => undefined);
     mockInvoke('reflect_install_plugin', async () => undefined);
+    // v1.11 桌面#2:插件市场(浏览 + 一键安装)。
+    mockInvoke('reflect_browse_marketplace', async () => [
+      {
+        name: 'demo',
+        description: 'Demo plugin from fake marketplace',
+        version: '0.1.0',
+        category: null,
+        tags: ['demo'],
+        source: '{"type":"directory","path":"/tmp/marketplaces/demo"}',
+      },
+    ]);
+    mockInvoke('reflect_install_from_marketplace', async () => undefined);
   });
 
   afterEach(() => {
@@ -126,5 +138,75 @@ describe('PluginsPanel', () => {
     expect((await screen.findByTestId('plugin-loaded-list')).textContent).toContain('2 cmds');
     fireEvent.click(screen.getByTestId('plugin-toggle-demo'));
     await waitFor(() => expect(screen.queryByTestId('plugin-loaded-list')).toBeNull());
+  });
+});
+
+
+// ── v1.11 桌面#2:插件市场(浏览 + 一键安装) ────────────────────────────
+
+describe('PluginsPanel — marketplace browse & install', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    mockInvoke('reflect_list_plugins', async () => PLUGINS);
+    mockInvoke('reflect_list_marketplaces', async () => MARKETS);
+    mockInvoke('reflect_browse_marketplace', async () => [
+      {
+        name: 'demo',
+        description: 'Demo plugin from fake marketplace',
+        version: '0.1.0',
+        category: null,
+        tags: ['demo'],
+        source: '{}',
+      },
+    ]);
+    mockInvoke('reflect_install_from_marketplace', async () => undefined);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('expands a marketplace and lists its installable plugins', async () => {
+    render(wrap(<PluginsPanel />));
+    fireEvent.click(await screen.findByTestId('marketplace-browse-local'));
+    // 行随 browse query resolve 异步出现 —— 等行元素而非容器。
+    const row = await screen.findByTestId('market-plugin-demo');
+    expect(row.textContent).toContain('demo');
+    expect(row.textContent).toContain('0.1.0');
+  });
+
+  it('installs a plugin from the marketplace listing', async () => {
+    const installCalls: Array<{ marketplace: string; plugin: string }> = [];
+    mockInvoke('reflect_install_from_marketplace', async (_cmd: string, args: { marketplace: string; plugin: string }) => {
+      installCalls.push(args);
+      return undefined;
+    });
+    render(wrap(<PluginsPanel />));
+    fireEvent.click(await screen.findByTestId('marketplace-browse-local'));
+    fireEvent.click(await screen.findByTestId('market-install-demo'));
+    await vi.waitFor(() => {
+      expect(installCalls).toEqual([{ marketplace: 'local', plugin: 'demo' }]);
+    });
+  });
+
+  it('surfaces install failures inline', async () => {
+    mockInvoke('reflect_install_from_marketplace', async () => {
+      throw new Error('dep resolution failed');
+    });
+    render(wrap(<PluginsPanel />));
+    fireEvent.click(await screen.findByTestId('marketplace-browse-local'));
+    fireEvent.click(await screen.findByTestId('market-install-demo'));
+    expect(await screen.findByTestId('market-install-error')).toBeDefined();
+    expect(screen.getByTestId('market-install-error').textContent).toContain('dep resolution failed');
+  });
+
+  it('shows an inline error when the marketplace cache is missing', async () => {
+    mockInvoke('reflect_browse_marketplace', async () => {
+      throw new Error('marketplace manifest not found');
+    });
+    render(wrap(<PluginsPanel />));
+    fireEvent.click(await screen.findByTestId('marketplace-browse-local'));
+    expect(await screen.findByText(/manifest not found/)).toBeDefined();
   });
 });
