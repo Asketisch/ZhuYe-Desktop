@@ -52,12 +52,13 @@ const noopUnlisten = () => {};
 const pendingResolvers: Array<() => void> = [];
 
 function makeRun(sessions: ReflectShellSession[] = [], failWith?: Error) {
-  return async (cmd: string): Promise<ReflectShellSession> => {
+  // vi.fn 包装:SSH 路由用例需要断言调用参数(cmd + 可选 host)。
+  return vi.fn(async (cmd: string, sshHost?: string): Promise<ReflectShellSession> => {
     if (failWith) throw failWith;
     const next = sessions.shift();
     if (next) return next;
-    return { id: `s-${cmd}`, command: cmd, cwd: '/tmp' };
-  };
+    return { id: `s-${cmd}`, command: cmd, cwd: sshHost ? `ssh:${sshHost}` : '/tmp' };
+  });
 }
 
 function makeKill() {
@@ -337,5 +338,67 @@ describe('useTerminalController — safe listener cleanup', () => {
 
     unmount();
     expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── v1.11 基建#7:SSH 远端应用(输入前缀路由) ─────────────────────────
+
+describe('useTerminalController — ssh prefix routing', () => {
+  it('routes `ssh <host> <cmd>` to runShell with stripped cmd + host', async () => {
+    resetSubscribeMock();
+    const run = makeRun([{ id: 's-ssh', command: 'uptime', cwd: 'ssh:mac-mini' }]);
+    const { result } = renderHook(() =>
+      useTerminalController({
+        runShell: run,
+        killShell: makeKill(),
+        subscribe: makeSubscribe(false),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.run('ssh mac-mini uptime');
+    });
+
+    expect(run).toHaveBeenCalledWith('uptime', 'mac-mini');
+    const sess = result.current.state.sessions.find((s) => s.id === 's-ssh');
+    expect(sess?.cwd).toBe('ssh:mac-mini');
+    expect(sess?.status).toBe('running');
+  });
+
+  it('passes plain commands through without ssh host', async () => {
+    resetSubscribeMock();
+    const run = makeRun([{ id: 's-loc', command: 'echo hi', cwd: '/tmp' }]);
+    const { result } = renderHook(() =>
+      useTerminalController({
+        runShell: run,
+        killShell: makeKill(),
+        subscribe: makeSubscribe(false),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.run('echo hi');
+    });
+
+    expect(run).toHaveBeenCalledWith('echo hi', undefined);
+  });
+
+  it('treats bare `ssh <host>` (no command) as a local shell call', async () => {
+    resetSubscribeMock();
+    const run = makeRun([{ id: 's-bare', command: 'ssh mac-mini', cwd: '/tmp' }]);
+    const { result } = renderHook(() =>
+      useTerminalController({
+        runShell: run,
+        killShell: makeKill(),
+        subscribe: makeSubscribe(false),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.run('ssh mac-mini');
+    });
+
+    // 无命令部分 → 不剥前缀,整条交给本地 shell(交互 ssh 由用户自理)。
+    expect(run).toHaveBeenCalledWith('ssh mac-mini', undefined);
   });
 });

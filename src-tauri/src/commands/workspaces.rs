@@ -28,6 +28,16 @@ pub struct WorkspaceInfo {
     pub session_count: usize,
 }
 
+/// v1.11 桌面#5:多目录综合工作区状态(camelCase 出线)。
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceDirsInfo {
+    /// 主工作区(规范根:memory / skills / rollout 相对它)。
+    pub main: String,
+    /// 附加目录(拼进 sandbox_writable,文件工具边界放行)。
+    pub additional: Vec<String>,
+}
+
 fn workspaces_file() -> Option<PathBuf> {
     reflect_config::paths::data_path(&["workspaces.json"])
 }
@@ -129,6 +139,75 @@ pub async fn reflect_set_workspace(
 #[tauri::command]
 pub async fn reflect_current_workspace(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.workspace().display().to_string())
+}
+
+// ── v1.11 桌面#5:多目录综合工作区 ─────────────────────────────────────
+
+/// 设置主工作区之外的**附加目录**集(全量覆盖)。
+///
+/// 语义:多个目录合成一个项目 —— 主工作区仍是规范根(memory / skills /
+/// rollout 相对它),附加目录拼进 `AgentConfig.sandbox_writable`
+/// (`[sandbox].writable_dirs` 同源),文件类工具的沙箱边界对其放行。
+/// 传空数组 = 清空(回到单目录)。新绑定的会话生效(既有会话不受影响,
+/// 与 workspace 切换的 bind 语义一致)。
+#[tauri::command]
+pub async fn reflect_set_workspace_dirs(
+    agent: State<'_, MinimalAgent>,
+    main: String,
+    additional: Vec<String>,
+) -> CommandResult<()> {
+    let _transition = agent.inner.session_transition_lock.lock().await;
+    let main_path = PathBuf::from(&main);
+    if !main_path.exists() {
+        return Err(CommandError {
+            msg: format!("workspace path does not exist: {main}"),
+        });
+    }
+    if !main_path.is_dir() {
+        return Err(CommandError {
+            msg: format!("workspace path is not a directory: {main}"),
+        });
+    }
+    // 附加目录逐个校验存在 + 是目录 + 不等于主工作区(重复无意义)。
+    let mut extra: Vec<PathBuf> = Vec::new();
+    for dir in &additional {
+        let p = PathBuf::from(dir);
+        if !p.exists() {
+            return Err(CommandError {
+                msg: format!("additional dir does not exist: {dir}"),
+            });
+        }
+        if !p.is_dir() {
+            return Err(CommandError {
+                msg: format!("additional path is not a directory: {dir}"),
+            });
+        }
+        if crate::workspace_state::same_path(&p, &main_path) {
+            continue; // 与主工作区相同 → 跳过(幂等,不报错)
+        }
+        if extra.iter().any(|x| crate::workspace_state::same_path(x, &p)) {
+            continue; // 重复项去重
+        }
+        extra.push(p);
+    }
+    // 切换主工作区 + 重置附加目录(合成项目整体更新)。
+    agent.set_workspace(main_path);
+    crate::workspace_state::WorkspaceState::set_additional_dirs(extra);
+    Ok(())
+}
+
+/// 读取当前多目录综合工作区状态(主 + 附加)。
+#[tauri::command]
+pub async fn reflect_current_workspace_dirs(
+    agent: State<'_, MinimalAgent>,
+) -> CommandResult<WorkspaceDirsInfo> {
+    Ok(WorkspaceDirsInfo {
+        main: agent.workspace().display().to_string(),
+        additional: crate::workspace_state::WorkspaceState::additional_dirs()
+            .into_iter()
+            .map(|p| p.display().to_string())
+            .collect(),
+    })
 }
 
 /// 弹出原生目录选择框，返回用户选择的项目目录；取消 → `None`。

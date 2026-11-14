@@ -178,6 +178,21 @@ export function DisplaySection() {
       </Card>
 
       <Card level="flat" padding="lg">
+        <h3 className={s.cardTitle}><Icon icon={Type} size={16} /> {t('settings.display.editor')}</h3>
+        <p className={s.cardDesc}>{t('settings.display.sendOnEnterHelp')}</p>
+        <label className={s.row}>
+          <input
+            type="checkbox"
+            checked={prefs.sendOnEnter}
+            onChange={(event) => update({ sendOnEnter: event.target.checked })}
+            data-testid="settings-send-on-enter"
+          />
+          <span>{t('settings.display.sendOnEnter')}</span>
+          {!prefs.sendOnEnter && <Badge variant="info">lock</Badge>}
+        </label>
+      </Card>
+
+      <Card level="flat" padding="lg">
         <h3 className={s.cardTitle}><Icon icon={Type} size={16} /> {t('settings.display.fontScale')}</h3>
         <p className={s.cardDesc}>{t('settings.display.fontScaleHelp')}</p>
         <label className={s.row}>

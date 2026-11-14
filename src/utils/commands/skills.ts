@@ -45,3 +45,13 @@ export async function reflect_rescan_extensions(
 ): Promise<string> {
   return invoke<string>('reflect_rescan_extensions', { skills, commands });
 }
+
+/**
+ * v1.11 桌面#1:Skill 市场 —— 从 GitHub 仓库安装技能到用户级
+ * `~/.zhuye/skills/`(装完触发运行时重扫,新技能不重启即生效)。
+ * repo 形态:`owner/repo` 或 GitHub URL(仓库根含 SKILL.md)。
+ * 返回重扫 submission id。
+ */
+export async function reflect_install_skill(repo: string): Promise<string> {
+  return invoke<string>('reflect_install_skill', { repo });
+}

@@ -7,11 +7,13 @@
  * skills 组（含触发词与允许的工具），空组提示安装路径。
  */
 import { useQuery } from '@tanstack/react-query';
-import { Wrench, Wrench as ToolIcon, Sparkles } from 'lucide-react';
-import { reflect_list_tools, reflect_list_skills } from '@/utils/commands';
+import { useState } from 'react';
+import { Wrench, Wrench as ToolIcon, Sparkles, Store } from 'lucide-react';
+import { reflect_list_tools, reflect_list_skills, reflect_install_skill } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
-import { Card, Badge, Icon, EmptyState, Spinner } from '@/features/design-system';
+import { Card, Badge, Icon, EmptyState, Spinner, Button, Input } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
+import { useAgentStore } from '@/stores/agentStore';
 import s from './SkillsView.module.css';
 
 export function SkillsView() {
@@ -44,6 +46,8 @@ export function SkillsView() {
         </Card>
       ) : (
         <>
+          {/* v1.11 桌面#1:Skill 市场 —— GitHub 仓库一键安装。 */}
+          <SkillMarketplace />
           {/* v1.x P3：真 skills 列表（此前从未展示）。 */}
           <section className={s.group}>
             <div className={s.groupHeader}>
@@ -94,6 +98,64 @@ export function SkillsView() {
         </>
       )}
     </PageShell>
+  );
+}
+
+/**
+ * v1.11 桌面#1:Skill 市场 —— 输入 `owner/repo`(仓库根含 SKILL.md)
+ * 一键安装到用户级 `~/.zhuye/skills/`;装完触发运行时重扫,列表即时
+ * 刷新。安装失败(仓库无 SKILL.md / 网络错误)以 toast 显性化。
+ */
+function SkillMarketplace() {
+  const { t } = useI18n();
+  const pushToast = useAgentStore((st) => st.pushToast);
+  const [repo, setRepo] = useState('');
+  const [installing, setInstalling] = useState(false);
+  const skillsQ = useQuery({ queryKey: ['skills'], queryFn: reflect_list_skills, staleTime: 30_000 });
+
+  const install = async () => {
+    const trimmed = repo.trim();
+    if (!trimmed || installing) return;
+    setInstalling(true);
+    try {
+      await reflect_install_skill(trimmed);
+      pushToast({ kind: 'success', message: t('skills.market.installed', { repo: trimmed }) });
+      setRepo('');
+      await skillsQ.refetch();
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        message: t('skills.market.installFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  return (
+    <section className={s.group}>
+      <div className={s.groupHeader}>
+        <h3 className={s.groupTitle}>
+          <Icon icon={Store} size={14} /> {t('skills.market.title')}
+        </h3>
+      </div>
+      <p className={s.empty}>{t('skills.market.desc')}</p>
+      <div className={s.marketRow} data-testid="skill-market-row">
+        <Input
+          value={repo}
+          onChange={(e) => setRepo(e.target.value)}
+          placeholder={t('skills.market.placeholder')}
+          aria-label={t('skills.market.title')}
+          disabled={installing}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void install();
+          }}
+        />
+        <Button variant="primary" size="sm" disabled={!repo.trim() || installing} onClick={() => void install()} data-testid="skill-install-btn">
+          {installing ? t('skills.market.installing') : t('skills.market.install')}
+        </Button>
+      </div>
+    </section>
   );
 }
 

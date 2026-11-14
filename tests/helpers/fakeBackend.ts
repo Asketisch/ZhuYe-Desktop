@@ -970,7 +970,10 @@ export function installFakeBackend(): FakeBackend {
     handler((args) => {
       const sid = `shell-${backend.state.shellSessions.length + 1}`;
       backend.state.shellSessions.push(sid);
-      return { session_id: sid, cmd: String(args?.cmd ?? ''), status: 'running' };
+      // v1.11 基建#7:sshHost 非空 = SSH 远端会话,cwd 以 ssh:<host> 标注。
+      const sshHost = args?.sshHost as string | null | undefined;
+      const cwd = sshHost ? `ssh:${sshHost}` : '';
+      return { session_id: sid, cmd: String(args?.cmd ?? ''), cwd, status: 'running' };
     }),
   );
   handle(
@@ -1557,6 +1560,27 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_toggle_plugin', handler(() => undefined));
   handle('reflect_uninstall_plugin', handler(() => undefined));
   handle('reflect_install_plugin', handler(() => undefined));
+  // v1.11 桌面#2:插件市场(浏览 + 一键安装)。
+  handle('reflect_browse_marketplace', handler(() => [
+    {
+      name: 'demo',
+      description: 'Demo plugin from fake marketplace',
+      version: '0.1.0',
+      category: null,
+      tags: ['demo'],
+      source: '{"type":"directory","path":"/tmp/marketplaces/demo"}',
+    },
+  ]));
+  handle('reflect_install_from_marketplace', handler(() => undefined));
+  // v1.11 桌面#5:多目录综合工作区。
+  handle('reflect_current_workspace_dirs', handler(() => ({ main: '/tmp/ws', additional: [] })));
+  handle('reflect_set_workspace_dirs', handler(() => undefined));
+  // v1.11 基建#12:远程网页访问状态服务器。
+  handle('reflect_status_server_start', handler(() => 4732));
+  handle('reflect_status_server_state', handler(() => null));
+  handle('reflect_status_server_stop', handler(() => undefined));
+  // v1.11 基建#1(桌面#1):Skill 市场。
+  handle('reflect_install_skill', handler(() => 'sub-fake'));
 
   // —— 权限规则(核心三层 store 的生效规则)——
   handle('reflect_list_permission_rules', handler(() => wire(backend.state.permissionRules)));

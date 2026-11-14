@@ -15,7 +15,7 @@ use reflect_app_core::tailscale::{self, TailscaleStatus};
 use serde::Serialize;
 use tauri::State;
 
-use crate::commands::error::CommandResult;
+use crate::commands::error::{CommandError, CommandResult};
 use crate::state::{MinimalAgent, RemoteConfig, RemoteStatus};
 
 /// `reflect_get_tailscale_status` 返回值(直接用 app-core 类型)。
@@ -115,6 +115,37 @@ pub async fn reflect_tailscale_daemon_stop() -> CommandResult<String> {
 #[tauri::command]
 pub async fn reflect_tailscale_daemon_status() -> CommandResult<String> {
     Ok("not implemented yet (Phase 2 follow-up)".into())
+}
+
+// ── v1.11 基建#12:远程网页访问状态 ─────────────────────────────────────
+
+/// v1.11 基建#12:启动远程网页状态服务器(`GET /status` 只读诊断 JSON)。
+/// 已在跑时幂等替换。`auth_token` 非空时端点强制校验。
+/// 返回实际绑定端口。
+#[tauri::command]
+pub async fn reflect_status_server_start(
+    agent: State<'_, MinimalAgent>,
+    port: Option<u16>,
+) -> CommandResult<u16> {
+    let token = agent.remote_config().auth_token;
+    crate::status_server::start((*agent).clone(), port.unwrap_or(4732), token)
+        .await
+        .map_err(|e| CommandError {
+            msg: format!("bind status server failed: {e}"),
+        })
+}
+
+/// 停止状态服务器(未运行时 no-op)。
+#[tauri::command]
+pub async fn reflect_status_server_stop() -> CommandResult<()> {
+    crate::status_server::stop().await;
+    Ok(())
+}
+
+/// 当前服务器状态(运行端口;未启动 → `None`)。
+#[tauri::command]
+pub async fn reflect_status_server_state() -> CommandResult<Option<u16>> {
+    Ok(crate::status_server::running_port())
 }
 
 #[cfg(test)]

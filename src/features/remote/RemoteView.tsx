@@ -14,7 +14,7 @@
 import { useState } from 'react';
 import { Wifi, Save, X, RefreshCw, Loader2, Info } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
-import { Badge, Card, EmptyState, Icon, Spinner } from '@/features/design-system';
+import { Badge, Button, Card, EmptyState, Icon, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
   useRemoteController,
@@ -227,6 +227,44 @@ export function RemoteView() {
             )}
           </dl>
         )}
+      </Card>
+
+      {/* v1.11 基建#12:远程网页访问状态服务器。 */}
+      <Card level="outlined" padding="md" className={s.section} data-testid="remote-status-server-card">
+        <header className={s.sectionHeader}>
+          <div>
+            <strong>{t('remote.statusServerTitle')}</strong>
+            <div className={s.sectionHint}>
+              {t('remote.statusServerDesc')}
+            </div>
+          </div>
+          <Badge variant={ctrl.statusServerPort != null ? 'success' : 'neutral'} data-testid="remote-status-server-badge">
+            {ctrl.statusServerPort != null
+              ? t('remote.statusServerRunning', { port: ctrl.statusServerPort })
+              : t('remote.statusServerOff')}
+          </Badge>
+        </header>
+        <div className={s.sectionHeader}>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={ctrl.serverBusy || ctrl.statusServerPort != null}
+            onClick={() => void ctrl.startServer(4732)}
+            data-testid="remote-status-server-start"
+          >
+            {t('remote.statusServerStart')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={ctrl.serverBusy || ctrl.statusServerPort == null}
+            onClick={() => void ctrl.stopServer()}
+            data-testid="remote-status-server-stop"
+          >
+            {t('remote.statusServerStop')}
+          </Button>
+        </div>
+        <p className={s.statusMsg}>{t('remote.statusServerHint')}</p>
       </Card>
 
       {/* Daemon hint */}

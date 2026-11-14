@@ -116,3 +116,29 @@ pub async fn reflect_rescan_extensions(
         })
         .await?)
 }
+
+/// v1.11 桌面#1:Skill 市场 —— 从 GitHub 仓库安装技能。
+///
+/// 安装到**用户级** `~/.zhuye/skills/`(`ZHUYE_HOME` 可重定向),装完
+/// 触发一次 `Op::RescanExtensions` 让运行时无需重启即发现新技能,并
+/// 返回重扫 submission id。repo 形态:`owner/repo` 或 GitHub URL
+/// (仓库根含 `SKILL.md`;名字取 frontmatter `name:`,缺省用仓库名)。
+#[tauri::command]
+pub async fn reflect_install_skill(
+    agent: State<'_, MinimalAgent>,
+    repo: String,
+) -> CommandResult<String> {
+    // 语义校验前置(repo 形态非法直接拒,不发起网络请求)。
+    reflect_skills::normalize_repo(&repo).map_err(|e| e.to_string())?;
+    let out_dir = reflect_config::paths::data_path_or_relative(&["skills"]);
+    reflect_skills::install_from_github(&repo, &out_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+    // 重扫扩展目录:GUI 列表与运行时 catalog 同步刷新(不阻塞返回)。
+    Ok(agent
+        .submit_op(Op::RescanExtensions {
+            skills: true,
+            commands: false,
+        })
+        .await?)
+}

@@ -452,7 +452,8 @@ describe('commands forwarding (mapping)', () => {
 
   it('terminal spawn forwards { cmd }; kill forwards camelCase { sessionId }; list has no args', async () => {
     const run = await captureCmd('reflect_run_shell', () => reflect_run_shell('ls -la'));
-    expectArgs(run, { cmd: 'ls -la' });
+    // v1.11 基建#7:sshHost 可选参数未传时线上为 null(显式可选)。
+    expectArgs(run, { cmd: 'ls -la', sshHost: null });
 
     const kill = await captureCmd('reflect_kill_shell', () => reflect_kill_shell('sh-1'));
     // Tauri 2 平铺参数按 camelCase 匹配（Rust `session_id` → JS `sessionId`）。

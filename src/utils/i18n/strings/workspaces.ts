@@ -28,6 +28,14 @@ const workspaces: Record<string, StringEntry> = {
   'workspaces.reveal':        { en: 'Reveal in file manager',                                                                                                       'zh-CN': '在文件管理器中显示' },
   'workspaces.revealFailed':  { en: 'Failed to reveal path: {msg}',                                                                                                'zh-CN': '定位路径失败: {msg}' },
   'workspaces.lastUsed':      { en: 'Last used {time}',                                                                                                             'zh-CN': '最近使用 {time}' },
+  // v1.11 桌面#5:多目录综合工作区。
+  'workspaces.additionalDirs':     { en: 'Additional folders',                                   'zh-CN': '附加目录' },
+  'workspaces.additionalAdd':      { en: 'Add folder',                                           'zh-CN': '添加目录' },
+  'workspaces.additionalPicking':  { en: 'Choose a folder in the dialog…',                       'zh-CN': '在对话框中选择目录…' },
+  'workspaces.additionalEmpty':    { en: 'No additional folders. Added folders share one project with the main workspace (tools can read & write them).', 'zh-CN': '尚无附加目录。添加的目录与主工作区合成一个项目(工具可读写)。' },
+  'workspaces.additionalAdded':    { en: 'Additional folder added. New sessions pick it up.',    'zh-CN': '附加目录已添加,新会话生效。' },
+  'workspaces.additionalFailed':   { en: 'Update additional folders failed: {msg}',              'zh-CN': '更新附加目录失败:{msg}' },
+  'workspaces.additionalRemove':   { en: 'Remove additional folder',                             'zh-CN': '移除附加目录' },
 };
 
 export default workspaces;

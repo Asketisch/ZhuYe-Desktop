@@ -97,3 +97,34 @@ export function reflect_install_plugin(
 ): Promise<void> {
   return invoke('reflect_install_plugin', { path, marketplace, scope });
 }
+
+// ── v1.11 桌面#2:插件市场(浏览 + 一键安装) ─────────────────────────
+
+/** 市场内一个可安装插件的展示信息。 */
+export interface ReflectMarketplacePluginInfo {
+  name: string;
+  description: string;
+  version?: string | null;
+  category?: string | null;
+  tags: string[];
+  /** 分发源(JSON 字符串形态)。 */
+  source: string;
+}
+
+/**
+ * 浏览一个 marketplace 的可安装插件清单(读该市场的缓存 manifest)。
+ * 市场未注册 / 缓存未物化时 reject(提示先 marketplace add / refresh)。
+ */
+export function reflect_browse_marketplace(
+  name: string,
+): Promise<ReflectMarketplacePluginInfo[]> {
+  return invoke<ReflectMarketplacePluginInfo[]>('reflect_browse_marketplace', { name });
+}
+
+/** 从 marketplace 一键安装插件(含依赖解析;装完挂载进运行时)。 */
+export function reflect_install_from_marketplace(
+  marketplace: string,
+  plugin: string,
+): Promise<void> {
+  return invoke('reflect_install_from_marketplace', { marketplace, plugin });
+}

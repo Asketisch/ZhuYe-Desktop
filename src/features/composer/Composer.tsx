@@ -29,11 +29,15 @@ import { BangRunsPanel } from './BangRunsPanel';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { useI18n } from '@/utils/i18n';
+import { useUiPrefs } from '@/utils/uiPrefs';
 import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 import s from './Composer.module.css';
 
 export function Composer() {
   const { t } = useI18n();
+  // v1.11 桌面#4：锁定发送 —— uiPrefs.sendOnEnter=false 时 Enter 只换行,
+  // 发送走 ⌘/Ctrl+Enter / 按钮(防误发)。
+  const { sendOnEnter } = useUiPrefs()[0];
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // F：草稿按会话持久化 —— 切会话不丢输入；Hero 快捷模板经 prefill
   // 总线写入草稿后聚焦输入框。
@@ -78,6 +82,7 @@ export function Composer() {
     text,
     setText,
     textareaRef,
+    sendOnEnter,
     slashVisible,
     setSlashVisible,
     setSlashQuery,
@@ -247,7 +252,12 @@ export function Composer() {
 
   const canSend = !busy && (Boolean(text.trim()) || attachments.attachments.length > 0);
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
-  const sendHint = isMac ? t('composer.sendHintMac') : t('composer.sendHintOther');
+  // v1.11 桌面#4:锁定发送时提示键位改为 ⌘/Ctrl+Enter(与实际行为一致)。
+  const sendHint = !sendOnEnter
+    ? t('composer.sendHintLocked')
+    : isMac
+      ? t('composer.sendHintMac')
+      : t('composer.sendHintOther');
 
   // C：运行中发送按钮按模式变化（Queue → 入队 / Steer → 转向）。
   const SendIcon = isTurnRunning ? (sendMode === 'steer' ? CornerDownRight : ListPlus) : ArrowUp;

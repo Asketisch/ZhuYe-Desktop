@@ -17,10 +17,12 @@
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Package, FolderOpen, Trash2, Power } from 'lucide-react';
+import { Package, FolderOpen, Trash2, Power, Store } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, Icon, Input, Select, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
+  reflect_browse_marketplace,
+  reflect_install_from_marketplace,
   reflect_install_plugin,
   reflect_list_marketplaces,
   reflect_list_plugins,
@@ -250,16 +252,108 @@ export function PluginsPanel() {
       {markets.length > 0 && (
         <div className={s.mcpCatalog} data-testid="plugin-marketplaces">
           {markets.map((m) => (
-            <div key={m.name} className={s.mcpCatalogRow}>
-              <div className={s.serverBody}>
-                <div className={s.serverName}>{m.name}</div>
-                <div className={s.serverDetail}>
-                  {m.source} · {m.installLocation}
-                </div>
-              </div>
-              {m.autoUpdate && <Badge variant="neutral">{t('collaboration.pluginAutoUpdate')}</Badge>}
-            </div>
+            <MarketplaceRow key={m.name} name={m.name} source={m.source} location={m.installLocation} autoUpdate={m.autoUpdate} />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * v1.11 桌面#2:单个 marketplace 行 + 展开浏览其可安装插件清单。
+ *
+ * 展开时 `reflect_browse_marketplace` 拉取该市场 manifest 的插件列表;
+ * 每行「安装」走 `reflect_install_from_marketplace`(含依赖解析)。
+ * 安装成功后刷新已装列表;未注册 / 缓存缺失的错误在行内显性展示。
+ */
+function MarketplaceRow({
+  name,
+  source,
+  location,
+  autoUpdate,
+}: {
+  name: string;
+  source: string;
+  location: string;
+  autoUpdate: boolean;
+}) {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
+  const browseQ = useQuery({
+    queryKey: ['marketplace-plugins', name],
+    queryFn: () => reflect_browse_marketplace(name),
+    enabled: expanded,
+    staleTime: 30_000,
+  });
+  const installMut = useMutation({
+    mutationFn: (v: { marketplace: string; plugin: string }) =>
+      reflect_install_from_marketplace(v.marketplace, v.plugin),
+    onMutate: () => setInstallError(null),
+    onError: (error) => setInstallError(errorMessage(error)),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['plugins'] });
+      void qc.invalidateQueries({ queryKey: ['marketplace-plugins', name] });
+    },
+  });
+
+  return (
+    <div className={s.mcpCatalogRow} data-testid={`marketplace-row-${name}`}>
+      <div className={s.serverBody}>
+        <div className={s.serverName}>
+          <Icon icon={Store} size={12} /> {name}
+        </div>
+        <div className={s.serverDetail}>
+          {source} · {location}
+        </div>
+      </div>
+      {autoUpdate && <Badge variant="neutral">{t('collaboration.pluginAutoUpdate')}</Badge>}
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        data-testid={`marketplace-browse-${name}`}
+      >
+        {expanded ? t('collaboration.marketCollapse') : t('collaboration.marketBrowse')}
+      </Button>
+      {expanded && (
+        <div className={s.mcpCatalog} data-testid={`marketplace-plugins-${name}`}>
+          {browseQ.isLoading ? (
+            <div className={s.loading}><Spinner size={16} /></div>
+          ) : browseQ.isError ? (
+            <p className={s.errorText} role="alert">{errorMessage(browseQ.error)}</p>
+          ) : (browseQ.data ?? []).length === 0 ? (
+            <p className={s.serverDetail}>{t('collaboration.marketEmpty')}</p>
+          ) : (
+            (browseQ.data ?? []).map((p) => (
+              <div key={p.name} className={s.mcpCatalogRow} data-testid={`market-plugin-${p.name}`}>
+                <div className={s.serverBody}>
+                  <div className={s.serverName}>
+                    {p.name}
+                    {p.version && <span className={s.serverDetail}> · {p.version}</span>}
+                  </div>
+                  {p.description && <div className={s.serverDetail}>{p.description}</div>}
+                </div>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={installMut.isPending}
+                  onClick={() => installMut.mutate({ marketplace: name, plugin: p.name })}
+                  data-testid={`market-install-${p.name}`}
+                >
+                  {t('collaboration.marketInstall')}
+                </Button>
+              </div>
+            ))
+          )}
+          {installError && (
+            <p className={s.errorText} role="alert" data-testid="market-install-error">
+              {installError}
+            </p>
+          )}
         </div>
       )}
     </div>

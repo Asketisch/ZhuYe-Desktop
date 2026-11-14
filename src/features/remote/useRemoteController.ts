@@ -15,6 +15,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   reflect_get_remote_config,
   reflect_get_remote_status,
+  reflect_status_server_start,
+  reflect_status_server_state,
+  reflect_status_server_stop,
   reflect_tailscale_daemon_command_preview,
   reflect_tailscale_status,
   reflect_update_remote_config,
@@ -47,6 +50,10 @@ export interface RemoteController {
   // 突变操作
   save: () => Promise<void>;
   resetForm: () => void;
+  statusServerPort: number | null;
+  startServer: (port: number) => Promise<void>;
+  stopServer: () => Promise<void>;
+  serverBusy: boolean;
 
   isMutating: boolean;
 }
@@ -98,6 +105,48 @@ export function useRemoteController(): RemoteController {
     queryFn: () => reflect_tailscale_daemon_command_preview(),
     staleTime: Infinity,
   });
+
+  // v1.11 基建#12:远程网页访问状态服务器。
+  const serverQ = useQuery({
+    queryKey: [...REMOTE_QUERY_KEY, 'status-server'],
+    queryFn: () => reflect_status_server_state(),
+    staleTime: 5_000,
+  });
+  const startServerMut = useMutation({
+    mutationFn: (port: number) => reflect_status_server_start(port),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...REMOTE_QUERY_KEY, 'status-server'] }),
+    onError: () => undefined,
+  });
+  const stopServerMut = useMutation({
+    mutationFn: () => reflect_status_server_stop(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...REMOTE_QUERY_KEY, 'status-server'] }),
+    onError: () => undefined,
+  });
+  const startServer = useCallback(
+    async (port: number) => {
+      try {
+        const bound = await startServerMut.mutateAsync(port);
+        pushToast({ kind: 'success', message: t('remote.statusServerStarted', { port: bound }) });
+      } catch (e) {
+        pushToast({
+          kind: 'error',
+          message: t('remote.statusServerFailed', { message: (e as Error).message }),
+        });
+      }
+    },
+    [pushToast, startServerMut, t],
+  );
+  const stopServer = useCallback(async () => {
+    try {
+      await stopServerMut.mutateAsync();
+      pushToast({ kind: 'success', message: t('remote.statusServerStopped') });
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        message: t('remote.statusServerFailed', { message: (e as Error).message }),
+      });
+    }
+  }, [pushToast, stopServerMut, t]);
 
   const updateMut = useMutation({
     mutationFn: (d: RemoteConfigDraft) =>
@@ -167,5 +216,11 @@ export function useRemoteController(): RemoteController {
     resetForm,
 
     isMutating: updateMut.isPending,
+
+    // v1.11 基建#12:远程网页访问状态服务器。
+    statusServerPort: serverQ.data ?? null,
+    startServer,
+    stopServer,
+    serverBusy: startServerMut.isPending || stopServerMut.isPending,
   };
 }

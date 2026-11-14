@@ -21,6 +21,7 @@ pub mod menu;
 mod persistence;
 mod shell_sessions;
 pub mod shortcut;
+pub mod status_server;
 pub mod state;
 pub mod tray;
 mod workspace_state;
@@ -47,6 +48,7 @@ use commands::{
     reflect_get_trace, reflect_gh_pr_list, reflect_git_commit, reflect_git_diff, reflect_git_log,
     reflect_git_stage, reflect_git_status, reflect_git_unstage, reflect_goal_snapshot,
     reflect_hook_approval, reflect_image_process, reflect_install_plugin, reflect_interrupt,
+    reflect_browse_marketplace, reflect_install_from_marketplace,
     reflect_kill_shell, reflect_kms_create, reflect_kms_delete, reflect_kms_get_page,
     reflect_kms_list, reflect_kms_list_pages, reflect_kms_save_page, reflect_kms_search,
     reflect_list_activity, reflect_list_agent_defs, reflect_list_archived_sessions,
@@ -58,8 +60,8 @@ use commands::{
     reflect_list_session_notes, reflect_list_sessions, reflect_list_shell_sessions,
     reflect_list_side_channels, reflect_list_skills, reflect_list_span_logs, reflect_list_squads,
     reflect_list_subagent_specs, reflect_list_tasks, reflect_list_teams, reflect_list_tools,
-    reflect_list_traces, reflect_list_workspaces, reflect_list_worktrees, reflect_load_allowlist,
-    reflect_lsp_diagnostics, reflect_lsp_set_enabled, reflect_lsp_status, reflect_lsp_warmup,
+    reflect_install_skill, reflect_list_traces, reflect_list_workspaces, reflect_list_worktrees,
+    reflect_load_allowlist, reflect_lsp_diagnostics, reflect_lsp_set_enabled, reflect_lsp_status, reflect_lsp_warmup,
     reflect_mcp_catalog, reflect_media_capabilities, reflect_memory_sections,
     reflect_model_rate_cards, reflect_parse_agent_md, reflect_pick_file,
     reflect_pick_workspace_folder, reflect_plan_approval, reflect_prompt_command,
@@ -72,7 +74,9 @@ use commands::{
     reflect_save_pipeline_config, reflect_save_subagent_spec, reflect_screenshot,
     reflect_search_activity, reflect_search_files, reflect_search_sessions, reflect_session_stats,
     reflect_set_active_agent, reflect_set_dock_badge, reflect_set_effort, reflect_set_model,
-    reflect_set_permission_mode, reflect_set_workspace, reflect_shutdown,
+    reflect_current_workspace_dirs, reflect_set_permission_mode, reflect_set_workspace,
+    reflect_set_workspace_dirs, reflect_shutdown, reflect_status_server_start,
+    reflect_status_server_state, reflect_status_server_stop,
     reflect_start_side_channel, reflect_steer, reflect_stop_task, reflect_submit,
     reflect_tailscale_daemon_command_preview, reflect_tailscale_daemon_start,
     reflect_tailscale_daemon_status, reflect_tailscale_daemon_stop, reflect_tailscale_status,
@@ -171,19 +175,24 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             reflect_list_tools,
             // 各领域 domain 管理(workspace / skills / memory / hooks / git)
             reflect_list_workspaces,
+            reflect_current_workspace_dirs,
             reflect_set_workspace,
+            reflect_set_workspace_dirs,
             reflect_pick_workspace_folder,
             reflect_pick_file,
             reflect_reveal_path,
             reflect_current_workspace,
+            reflect_install_skill,
             reflect_list_skills,
             reflect_rescan_extensions,
             reflect_list_plugin_commands,
-            // 插件管理(列表 / 启停 / 卸载 / 本地安装)
+            // 插件管理(列表 / 启停 / 卸载 / 本地安装 / 市场浏览与安装)
             reflect_list_plugins,
             reflect_list_marketplaces,
             reflect_toggle_plugin,
             reflect_uninstall_plugin,
+            reflect_browse_marketplace,
+            reflect_install_from_marketplace,
             reflect_install_plugin,
             reflect_list_memory,
             reflect_add_memory,
@@ -255,6 +264,9 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             reflect_tailscale_daemon_command_preview,
             reflect_tailscale_daemon_start,
             reflect_tailscale_daemon_stop,
+            reflect_status_server_start,
+            reflect_status_server_state,
+            reflect_status_server_stop,
             reflect_tailscale_daemon_status,
             // KMS（基于 grep 的 wiki + /dream）
             reflect_kms_list,

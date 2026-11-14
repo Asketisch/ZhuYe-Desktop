@@ -25,6 +25,13 @@ const skills: Record<string, StringEntry> = {
   'skills.triggers':          { en: 'Triggers',                                                                 'zh-CN': '触发词' },
   'skills.allowedTools':      { en: 'Tools',                                                                    'zh-CN': '允许工具' },
   'skills.bundled':           { en: 'Built-in',                                                                'zh-CN': '内置' },
+  'skills.market.title':      { en: 'Skill marketplace',                                                       'zh-CN': '技能市场' },
+  'skills.market.desc':       { en: 'Install a skill from a GitHub repo (root contains SKILL.md). Lands in ~/.zhuye/skills/ and is picked up without restart.',  'zh-CN': '从 GitHub 仓库安装技能(仓库根含 SKILL.md)。落到 ~/.zhuye/skills/,无需重启即生效。' },
+  'skills.market.placeholder':{ en: 'owner/repo',                                                              'zh-CN': 'owner/repo' },
+  'skills.market.install':    { en: 'Install',                                                                 'zh-CN': '安装' },
+  'skills.market.installing': { en: 'Installing…',                                                             'zh-CN': '安装中…' },
+  'skills.market.installed':  { en: 'Skill installed from {repo}.',                                            'zh-CN': '已从 {repo} 安装技能。' },
+  'skills.market.installFailed': { en: 'Install failed: {msg}',                                                'zh-CN': '安装失败:{msg}' },
   'skills.whenPaths':         { en: 'Auto-activate on paths',                                                  'zh-CN': '路径自动激活' },
 };
 

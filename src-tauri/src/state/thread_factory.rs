@@ -164,7 +164,20 @@ pub(crate) fn construct_thread(
         // coding plan 配额追踪:config 声明了 `[[<provider>.credentials]].quota`
         // 时为 Some;model_call 节点据此在调用后记录用量,窗口耗尽 → 冷却 +
         // `QuotaExhausted` 事件 + 池内 failover(与 TUI/headless 行为对齐)。
-        .with_quota_tracker(agent.inner.quota_tracker.lock().clone());
+        .with_quota_tracker(agent.inner.quota_tracker.lock().clone())
+        // v1.11 桌面#5:多目录综合工作区 —— GUI 配置的附加目录拼进
+        // sandbox_writable(与 `[sandbox].writable_dirs` 同源),文件类
+        // 工具的沙箱边界对附加目录放行(主工作区仍是规范根)。bind 时
+        // 快照,会话生命周期内不变(与 workspace 语义一致)。
+        .with_sandbox_writable({
+            let mut dirs = cfg_snapshot.sandbox.writable_dirs.clone();
+            for extra in crate::workspace_state::WorkspaceState::additional_dirs() {
+                if !dirs.contains(&extra) {
+                    dirs.push(extra);
+                }
+            }
+            dirs
+        });
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());

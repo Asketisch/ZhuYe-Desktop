@@ -18,6 +18,11 @@ export interface UiPrefs {
   backgroundImageOpacity: number;
   /** 左侧导航栏模式：simple = 大众默认（少量高频入口 + 「更多」浮层），full = 全部视图平铺。 */
   activityBarMode: 'simple' | 'full';
+  /**
+   * v1.11 桌面#4：锁定发送 —— `true`（默认）= Enter 发送（旧行为）；
+   * `false` = Enter 只换行，发送需 ⌘/Ctrl+Enter 或点按钮（防误发）。
+   */
+  sendOnEnter: boolean;
 }
 
 const DEFAULTS: UiPrefs = {
@@ -30,6 +35,7 @@ const DEFAULTS: UiPrefs = {
   backgroundImage: '',
   backgroundImageOpacity: 0.35,
   activityBarMode: 'simple',
+  sendOnEnter: true,
 };
 
 const KEY = 'reflect.uiprefs.v1';
@@ -74,6 +80,9 @@ function normalize(value: Partial<UiPrefs>): UiPrefs {
       DEFAULTS.backgroundImageOpacity,
     ),
     activityBarMode: value.activityBarMode === 'full' ? 'full' : DEFAULTS.activityBarMode,
+    sendOnEnter: typeof value.sendOnEnter === 'boolean'
+      ? value.sendOnEnter
+      : DEFAULTS.sendOnEnter,
   };
 }
 

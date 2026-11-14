@@ -136,3 +136,26 @@
   gap: var(--space-1);
   flex-shrink: 0;
 }
+
+/* v1.11 桌面#5:多目录综合 —— 附加目录编辑器。 */
+.additionalDirs {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.additionalList {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.additionalRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}

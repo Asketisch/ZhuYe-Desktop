@@ -252,6 +252,12 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
     async (command: string) => {
       const cmd = command.trim();
       if (!cmd) return;
+      // v1.11 基建#7:SSH 远端应用 —— 输入前缀 `ssh <host> <cmd...>` 自动
+      // 路由为远端执行(经 `ssh <host> <cmd>`,BatchMode + ConnectTimeout);
+      // host 通常来自 Tailscale MagicDNS 名。会话 cwd 标注 `ssh:<host>`。
+      const sshMatch = /^ssh\s+(\S+)\s+(.+)$/.exec(cmd);
+      const sshHost = sshMatch?.[1];
+      const effectiveCmd = sshMatch?.[2] ?? cmd;
       dispatch({ type: 'busy/set', value: true });
       dispatch({ type: 'input/set', value: '' });
       try {
@@ -262,7 +268,7 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
         starting.current += 1;
         let sess: ReflectShellSession;
         try {
-          sess = await runShell(cmd);
+          sess = await runShell(effectiveCmd, sshHost);
           if (!mountedRef.current) return;
           knownSessions.current.add(sess.id);
           dispatch({

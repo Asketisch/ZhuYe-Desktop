@@ -228,4 +228,54 @@ describe('useComposerInput Enter / IME guard', () => {
     result.current.onKeyDown(ev);
     expect(submit).not.toHaveBeenCalled();
   });
+
+  // v1.11 桌面#4:锁定发送(sendOnEnter=false)。
+  it('lock send: plain Enter falls through (newline), no submit', () => {
+    const { submit } = setup();
+    const { result } = renderHook(() =>
+      useComposerInput({
+        text: 'hi',
+        setText: vi.fn(),
+        textareaRef: { current: null },
+        slashVisible: false,
+        setSlashVisible: vi.fn(),
+        setSlashQuery: vi.fn(),
+        mentionVisible: false,
+        setMentionVisible: vi.fn(),
+        setMentionQuery: vi.fn(),
+        history,
+        submit,
+        sendOnEnter: false,
+      }),
+    );
+    const ev = keyEvent('Enter');
+    result.current.onKeyDown(ev);
+    expect(submit).not.toHaveBeenCalled();
+    // 放行浏览器默认插入换行:不 preventDefault。
+    expect(ev.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('lock send: Cmd/Ctrl+Enter still submits', () => {
+    const { submit } = setup();
+    const { result } = renderHook(() =>
+      useComposerInput({
+        text: 'hi',
+        setText: vi.fn(),
+        textareaRef: { current: null },
+        slashVisible: false,
+        setSlashVisible: vi.fn(),
+        setSlashQuery: vi.fn(),
+        mentionVisible: false,
+        setMentionVisible: vi.fn(),
+        setMentionQuery: vi.fn(),
+        history,
+        submit,
+        sendOnEnter: false,
+      }),
+    );
+    const ev = keyEvent('Enter', { metaKey: true });
+    result.current.onKeyDown(ev);
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(ev.preventDefault).toHaveBeenCalled();
+  });
 });

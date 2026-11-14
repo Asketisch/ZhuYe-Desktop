@@ -97,3 +97,19 @@ export async function reflect_tailscale_daemon_stop(): Promise<string> {
 export async function reflect_tailscale_daemon_status(): Promise<string> {
   return invoke<string>('reflect_tailscale_daemon_status');
 }
+// ── v1.11 基建#12:远程网页访问状态服务器 ─────────────────────────────
+
+/** 启动状态服务器(GET /status 只读诊断 JSON;auth_token 非空时强制校验)。返回实际端口。 */
+export async function reflect_status_server_start(port?: number): Promise<number> {
+  return invoke<number>('reflect_status_server_start', { port: port ?? null });
+}
+
+/** 停止状态服务器(未运行时 no-op)。 */
+export async function reflect_status_server_stop(): Promise<void> {
+  await invoke<void>('reflect_status_server_stop');
+}
+
+/** 当前状态服务器运行端口;未启动为 null。 */
+export async function reflect_status_server_state(): Promise<number | null> {
+  return invoke<number | null>('reflect_status_server_state');
+}

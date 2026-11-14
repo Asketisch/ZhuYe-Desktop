@@ -21,8 +21,8 @@ export interface ReflectShellOutputChunk {
 }
 
 /** 启动 shell 命令；输出以 `reflect_terminal_output` 事件流式返回。 */
-export async function reflect_run_shell(cmd: string): Promise<ReflectShellSession> {
-  return invoke<ReflectShellSession>('reflect_run_shell', { cmd });
+export async function reflect_run_shell(cmd: string, sshHost?: string): Promise<ReflectShellSession> {
+  return invoke<ReflectShellSession>('reflect_run_shell', { cmd, sshHost: sshHost ?? null });
 }
 
 /** 按 id 终止运行中的 shell 会话。幂等。 */

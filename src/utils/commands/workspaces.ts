@@ -38,6 +38,29 @@ export async function reflect_current_workspace(): Promise<string> {
   return invoke<string>('reflect_current_workspace');
 }
 
+// ── v1.11 桌面#5:多目录综合工作区 ─────────────────────────────────────
+
+/** 多目录综合工作区状态。 */
+export interface ReflectWorkspaceDirsInfo {
+  /** 主工作区(规范根:memory / skills / rollout 相对它)。 */
+  main: string;
+  /** 附加目录(沙箱边界放行,与主工作区合成一个项目)。 */
+  additional: string[];
+}
+
+/** 设置多目录综合工作区(主 + 附加全量覆盖;附加可为空数组 = 单目录)。 */
+export async function reflect_set_workspace_dirs(
+  main: string,
+  additional: string[],
+): Promise<void> {
+  await invoke<void>('reflect_set_workspace_dirs', { main, additional });
+}
+
+/** 读取当前多目录综合工作区状态。 */
+export async function reflect_current_workspace_dirs(): Promise<ReflectWorkspaceDirsInfo> {
+  return invoke<ReflectWorkspaceDirsInfo>('reflect_current_workspace_dirs');
+}
+
 /** 弹出原生目录选择框；用户取消时返回 `null`。 */
 export async function reflect_pick_workspace_folder(): Promise<string | null> {
   return invoke<string | null>('reflect_pick_workspace_folder');

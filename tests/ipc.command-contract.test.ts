@@ -286,7 +286,8 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
 
   it('terminal: run/kill shell sessions', async () => {
     const session = await commands.reflect_run_shell('cargo test');
-    expect(backend.lastArgsOf('reflect_run_shell')).toEqual({ cmd: 'cargo test' });
+    // v1.11 基建#7:sshHost 是可选参数,未传时线上为 null(显式可选)。
+    expect(backend.lastArgsOf('reflect_run_shell')).toEqual({ cmd: 'cargo test', sshHost: null });
     expect(session.session_id).toMatch(/^shell-/);
 
     await commands.reflect_kill_shell(session.session_id);

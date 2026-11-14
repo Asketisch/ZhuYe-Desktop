@@ -57,6 +57,11 @@ const collaboration: Record<string, StringEntry> = {
   'collaboration.pluginMarketplace': { en: 'Marketplace name',                        'zh-CN': 'marketplace 名' },
   'collaboration.pluginScope': { en: 'Scope',                                         'zh-CN': '作用域' },
   'collaboration.pluginAutoUpdate': { en: 'auto-update',                              'zh-CN': '自动更新' },
+  // v1.11 桌面#2:插件市场(浏览 + 一键安装)。
+  'collaboration.marketBrowse':   { en: 'Browse',      'zh-CN': '浏览插件' },
+  'collaboration.marketCollapse': { en: 'Collapse',    'zh-CN': '收起' },
+  'collaboration.marketEmpty':    { en: 'No plugins in this marketplace.', 'zh-CN': '该市场暂无插件。' },
+  'collaboration.marketInstall':  { en: 'Install',     'zh-CN': '安装' },
   // Pipeline 编辑器
   'collaboration.pipelineEditorTitle': { en: 'Pipeline configuration',               'zh-CN': 'Pipeline 配置' },
   'collaboration.pipelineToml':        { en: 'Pipeline TOML',                        'zh-CN': 'Pipeline TOML' },

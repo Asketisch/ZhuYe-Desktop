@@ -27,6 +27,13 @@ export interface UseComposerInputOptions {
   history: PromptHistoryApi;
   /** `reverseMode`：单次反转 Queue/Steer 模式发送（Shift+Cmd/Ctrl+Enter）。 */
   submit: (options?: { reverseMode?: boolean }) => void;
+  /**
+   * v1.11 桌面#4：锁定发送（uiPrefs.sendOnEnter）。
+   * - `true`（默认 / 未传）：Enter 发送，Shift+Enter 换行（旧行为）；
+   * - `false`：Enter 走浏览器默认插入换行（**不** preventDefault），
+   *   发送改走 ⌘/Ctrl+Enter（或点发送按钮）。防误发。
+   */
+  sendOnEnter?: boolean;
   /** P3：slash 弹层键盘导航 —— 焦点保持在 textarea，由这里路由按键。 */
   onSlashNav?: (direction: 'up' | 'down') => void;
   /** P3：Enter/Tab 选中当前弹层项（返回 true 表示已消费，不再发送）。 */
@@ -49,6 +56,7 @@ export function useComposerInput({
   setMentionQuery,
   history,
   submit,
+  sendOnEnter = true,
   onSlashNav,
   onSlashPick,
 }: UseComposerInputOptions) {
@@ -100,12 +108,20 @@ export function useComposerInput({
       }
     }
 
-    // Enter 默认发送(meta/ctrl+Enter 同路径兼容旧习惯);
-    // Shift+Enter 走浏览器默认行为插入换行。
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      submit();
-      return;
+    // v1.11 桌面#4：Enter 行为按 uiPrefs.sendOnEnter 分派。
+    // - sendOnEnter=true：Enter 发送（meta/ctrl+Enter 同路径兼容旧习惯），
+    //   Shift+Enter 走浏览器默认行为插入换行；
+    // - sendOnEnter=false（锁定发送）：Enter **放行**浏览器默认（换行），
+    //   ⌘/Ctrl+Enter 才发送。锁定时 Shift+Enter 与 Enter 等价（都换行）。
+    if (event.key === 'Enter') {
+      const wantSend = sendOnEnter ? !event.shiftKey : event.metaKey || event.ctrlKey;
+      if (wantSend) {
+        event.preventDefault();
+        submit();
+        return;
+      }
+      // 不发送：锁定模式下 Enter/Shift+Enter 都交给浏览器默认插入换行。
+      if (!sendOnEnter) return;
     }
 
     if (event.key === 'Escape') {
@@ -133,7 +149,7 @@ export function useComposerInput({
     } else if (event.key === 'ArrowDown' && onLastLine && history.isBrowsing()) {
       if (history.recallNext(setText)) event.preventDefault();
     }
-  }, [history, mentionVisible, onSlashNav, onSlashPick, setMentionVisible, setSlashVisible, setText, slashVisible, submit, text, textareaRef]);
+  }, [history, mentionVisible, onSlashNav, onSlashPick, sendOnEnter, setMentionVisible, setSlashVisible, setText, slashVisible, submit, text, textareaRef]);
 
   return { onChange, onKeyDown };
 }

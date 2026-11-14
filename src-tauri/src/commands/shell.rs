@@ -97,6 +97,12 @@ fn strip_exit_marker(buffer: &str) -> &str {
 /// `tokio::process` 管道化 stdout/stderr,按行输出 chunk,由前端负责
 /// ANSI 安全转义后渲染。macOS 用登录 shell(zsh -lc),其余平台 sh -lc。
 ///
+/// v1.11 基建#7:`ssh_host` 非空时命令经 `ssh <host> <cmd>` 在远端执行
+/// (SSH 远端应用)—— 终端输入 `ssh <host> <cmd...>` 由前端剥离前缀后
+/// 传入。远端主机通常来自 Tailscale MagicDNS 名。`BatchMode` 禁交互
+/// 提示(密钥免密场景),`ConnectTimeout=10` 防挂死;会话的 `cwd` 标注
+/// `ssh:<host>` 供前端区分本地/远端。
+///
 /// 应用句柄从托管状态取(而非直接当参数)—— 命令签名不与 runtime 绑死,
 /// 能力覆盖层才能用 mock runtime 驱动真实命令体。句柄缺失时命令**照常
 /// 执行**(shell 真的跑起来),只是没有事件推给前端。
@@ -104,10 +110,38 @@ fn strip_exit_marker(buffer: &str) -> &str {
 pub async fn reflect_run_shell(
     agent: State<'_, MinimalAgent>,
     cmd: String,
+    ssh_host: Option<String>,
 ) -> CommandResult<ShellSession> {
     let app = agent.app_handle();
-    let cwd = agent.workspace().display().to_string();
     let workdir = agent.workspace();
+    // SSH 远端执行:cwd 不适用(远端家目录),会话元数据以 `ssh:<host>` 标注。
+    if let Some(host) = ssh_host.as_deref().filter(|h| !h.trim().is_empty()) {
+        let host = host.trim();
+        let argv = vec![
+            "ssh".to_string(),
+            "-o".to_string(),
+            "BatchMode=yes".to_string(),
+            "-o".to_string(),
+            "ConnectTimeout=10".to_string(),
+            host.to_string(),
+            cmd.clone(),
+        ];
+        let session = agent
+            .inner
+            .shell_sessions
+            .run(argv, &workdir, false)
+            .map_err(|e| CommandError {
+                msg: format!("ssh spawn failed: {e}"),
+            })?;
+        let id = session.id.clone();
+        spawn_output_pump(&app, &agent, &session, id.clone());
+        return Ok(ShellSession {
+            id,
+            command: cmd,
+            cwd: format!("ssh:{host}"),
+        });
+    }
+    let cwd = workdir.display().to_string();
 
     // 借助 shell 以支持管道/重定向(macOS 是 zsh,Linux 是 sh;Windows 见
     // windows_shell_argv)。原实现在 Windows 上落 `/bin/sh` —— 该路径不存在,
@@ -132,55 +166,63 @@ pub async fn reflect_run_shell(
             msg: format!("spawn failed: {e}"),
         })?;
     let id = session.id.clone();
-
-    // 适配 task:上游拉模型(缓冲 + 游标)→ 桌面推模型(逐行事件)。
-    // 30ms 轮询;read_delta 消费游标,增量不丢不重。
-    {
-        let id = id.clone();
-        let sequence = Arc::new(parking_lot::Mutex::new(0u64));
-        let pool = agent.inner.clone();
-        tauri::async_runtime::spawn(async move {
-            loop {
-                tokio::time::sleep(Duration::from_millis(30)).await;
-                let (delta, exited) = session.read_delta();
-                let stdout = if exited {
-                    strip_exit_marker(&delta.stdout)
-                } else {
-                    delta.stdout.as_str()
-                };
-                emit_lines(&app, &sequence, &id, "stdout", stdout);
-                emit_lines(&app, &sequence, &id, "stderr", &delta.stderr);
-                if exited {
-                    // 上游把信号终止映射为 -1(ExitStatus::code() 为 None);
-                    // 桌面端沿用旧的 "killed" 表达,数值退出码原样透传。
-                    let data = match delta.exit_code {
-                        Some(code) if code >= 0 => code.to_string(),
-                        _ => "killed".into(),
-                    };
-                    emit_chunk(
-                        &app,
-                        &sequence,
-                        ShellOutputChunk {
-                            session_id: id.clone(),
-                            stream: "exit".into(),
-                            data,
-                            seq: 0,
-                        },
-                    );
-                    // 进程已终结:把池条目回收掉,自然退出的会话不再留在
-                    // list 里(kill 先行时 remove 为幂等 no-op)。
-                    let _ = pool.shell_sessions.remove(&id).await;
-                    break;
-                }
-            }
-        });
-    }
+    spawn_output_pump(&app, &agent, &session, id.clone());
 
     Ok(ShellSession {
         id,
         command: cmd,
         cwd,
     })
+}
+
+/// 启动会话输出泵(本地与 SSH 远端会话共用)。
+///
+/// 适配 task:上游拉模型(缓冲 + 游标)→ 桌面推模型(逐行事件)。
+/// 30ms 轮询;read_delta 消费游标,增量不丢不重。进程终结后回收池条目
+/// (自然退出的会话不再留在 list 里;kill 先行时 remove 为幂等 no-op)。
+fn spawn_output_pump(
+    app: &Option<tauri::AppHandle>,
+    agent: &MinimalAgent,
+    session: &std::sync::Arc<reflect_shell::ShellSession>,
+    id: String,
+) {
+    let app = app.clone();
+    let sequence = Arc::new(parking_lot::Mutex::new(0u64));
+    let pool = agent.inner.clone();
+    let session = session.clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            let (delta, exited) = session.read_delta();
+            let stdout = if exited {
+                strip_exit_marker(&delta.stdout)
+            } else {
+                delta.stdout.as_str()
+            };
+            emit_lines(&app, &sequence, &id, "stdout", stdout);
+            emit_lines(&app, &sequence, &id, "stderr", &delta.stderr);
+            if exited {
+                // 上游把信号终止映射为 -1(ExitStatus::code() 为 None);
+                // 桌面端沿用旧的 "killed" 表达,数值退出码原样透传。
+                let data = match delta.exit_code {
+                    Some(code) if code >= 0 => code.to_string(),
+                    _ => "killed".into(),
+                };
+                emit_chunk(
+                    &app,
+                    &sequence,
+                    ShellOutputChunk {
+                        session_id: id.clone(),
+                        stream: "exit".into(),
+                        data,
+                        seq: 0,
+                    },
+                );
+                let _ = pool.shell_sessions.remove(&id).await;
+                break;
+            }
+        }
+    });
 }
 
 /// Windows 终端 shell 的 argv 构造。

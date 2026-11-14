@@ -16,6 +16,7 @@ const composer: Record<string, StringEntry> = {
   'composer.toolbar.mentionFile':            { en: 'Mention file',                                  'zh-CN': '提及文件' },
   'composer.sendHintMac':                    { en: 'Send (Enter) · New line (Shift+Enter)',        'zh-CN': '发送 (Enter) · 换行 (Shift+Enter)' },
   'composer.sendHintOther':                  { en: 'Send (Enter) · New line (Shift+Enter)',        'zh-CN': '发送 (Enter) · 换行 (Shift+Enter)' },
+  'composer.sendHintLocked':                 { en: 'Send (⌘/Ctrl+Enter) · New line (Enter)',       'zh-CN': '发送 (⌘/Ctrl+Enter) · 换行 (Enter)' },
   'composer.stop':                           { en: 'Stop',                                          'zh-CN': '停止' },
   'composer.stopHint':                       { en: 'Interrupt the running turn',                    'zh-CN': '中断当前运行' },
   'composer.contextTooltip':                 { en: 'Context {pct}% · in {input} · out {output} · cached {cached}', 'zh-CN': '上下文 {pct}% · 输入 {input} · 输出 {output} · 缓存 {cached}' },

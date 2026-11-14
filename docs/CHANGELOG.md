@@ -4,6 +4,17 @@
 
 ## 未发布
 
+### 新增 — v1.11 功能对齐(feature-gap-report)
+
+- **锁定发送**(桌面#4):设置 > 显示 > 编辑器新增「Enter 发送」开关
+  (默认开启 = 旧行为)。关闭后 Enter 只换行,发送需 ⌘/Ctrl+Enter 或
+  点发送按钮;composer 键位提示随开关切换(`composer.sendHintLocked`)。
+  持久化在 `reflect.uiprefs.v1`。
+- **复杂度路由说明**(桌面#3):设置 > 模型路由组描述文案新增
+  `[routing.main.complexity]` 复杂度分级路由说明(effort 档位映射模型)
+  与「切换模型使 provider prompt cache 失效」的缓存提示;上游引擎侧
+  `model_call` 已按映射自动选模型(submodule 同步后生效)。
+
 ## 0.0.4 — 2026-11-14
 
 ### 重设计 — v2 工作台(redesign/zcode-shell)

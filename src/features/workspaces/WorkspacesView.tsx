@@ -7,13 +7,16 @@
  * - 每张卡可「在文件管理器中显示」（Finder / 资源管理器 / xdg-open）。
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderOpen, CheckCircle2, ArrowRight, FolderSearch, FileSearch } from 'lucide-react';
+import { useState } from 'react';
+import { FolderOpen, CheckCircle2, ArrowRight, FolderSearch, FileSearch, FolderPlus, X } from 'lucide-react';
 import {
   reflect_agent_status,
+  reflect_current_workspace_dirs,
   reflect_list_workspaces,
-  reflect_set_workspace,
   reflect_pick_workspace_folder,
   reflect_reveal_path,
+  reflect_set_workspace,
+  reflect_set_workspace_dirs,
 } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, Spinner, EmptyState, Button } from '@/features/design-system';
@@ -126,6 +129,8 @@ export function WorkspacesView() {
             </Button>
           )}
         </div>
+        {/* v1.11 桌面#5:多目录综合 —— 附加目录编辑(合成一个项目)。 */}
+        <AdditionalDirsEditor />
         <p className={s.note}>
           {t('workspaces.note')}
         </p>
@@ -220,4 +225,106 @@ function basename(p: string): string {
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * v1.11 桌面#5:附加目录编辑器 —— 把多个目录合成一个项目。
+ *
+ * 主工作区仍是规范根(memory / skills / rollout 相对它);附加目录拼进
+ * 引擎的 sandbox_writable,文件类工具对其放行读写。保存走
+ * `reflect_set_workspace_dirs`(主 + 附加全量覆盖;新绑定会话生效)。
+ */
+function AdditionalDirsEditor() {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const pushToast = useAgentStore((st) => st.pushToast);
+  const [adding, setAdding] = useState(false);
+  const dirsQ = useQuery({
+    queryKey: ['workspace-dirs'],
+    queryFn: reflect_current_workspace_dirs,
+    staleTime: 10_000,
+  });
+
+  const pickAndAdd = async () => {
+    let picked: string | null = null;
+    try {
+      picked = await reflect_pick_workspace_folder();
+    } catch (e) {
+      pushToast({ kind: 'error', message: t('workspaces.pickFailed', { msg: errMsg(e) }) });
+      return;
+    }
+    if (!picked) return;
+    const current = dirsQ.data ?? { main: '', additional: [] };
+    if (current.additional.includes(picked) || picked === current.main) return;
+    try {
+      await reflect_set_workspace_dirs(current.main, [...current.additional, picked]);
+      pushToast({ kind: 'success', message: t('workspaces.additionalAdded') });
+      void qc.invalidateQueries({ queryKey: ['workspace-dirs'] });
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        message: t('workspaces.additionalFailed', { msg: errMsg(e) }),
+      });
+    }
+    setAdding(false);
+  };
+
+  const removeDir = async (dir: string) => {
+    const current = dirsQ.data ?? { main: '', additional: [] };
+    try {
+      await reflect_set_workspace_dirs(
+        current.main,
+        current.additional.filter((d) => d !== dir),
+      );
+      void qc.invalidateQueries({ queryKey: ['workspace-dirs'] });
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        message: t('workspaces.additionalFailed', { msg: errMsg(e) }),
+      });
+    }
+  };
+
+  const additional = dirsQ.data?.additional ?? [];
+
+  return (
+    <div className={s.additionalDirs} data-testid="workspace-additional-dirs">
+      <div className={s.currentRow}>
+        <Icon icon={FolderPlus} size={14} />
+        <span className={s.currentLabel}>{t('workspaces.additionalDirs')}</span>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setAdding(true);
+            void pickAndAdd();
+          }}
+          data-testid="workspaces-additional-add"
+        >
+          {t('workspaces.additionalAdd')}
+        </Button>
+      </div>
+      {adding && <p className={s.note}>{t('workspaces.additionalPicking')}</p>}
+      {additional.length > 0 ? (
+        <ul className={s.additionalList}>
+          {additional.map((dir) => (
+            <li key={dir} className={s.additionalRow} data-testid={`workspace-additional-${basename(dir)}`}>
+              <code className={s.wsPath}>{dir}</code>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => void removeDir(dir)}
+                aria-label={t('workspaces.additionalRemove')}
+                data-testid={`workspace-additional-remove-${basename(dir)}`}
+              >
+                <Icon icon={X} size={12} />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className={s.note}>{t('workspaces.additionalEmpty')}</p>
+      )}
+    </div>
+  );
 }

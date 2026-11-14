@@ -601,6 +601,26 @@
     "reflect_rescan_extensions": {
       "skills": true,
       "commands": false
+    },
+    "reflect_browse_marketplace": {
+      "name": "fake-mkt"
+    },
+    "reflect_install_from_marketplace": {
+      "marketplace": "fake-mkt",
+      "plugin": "demo"
+    },
+    "reflect_current_workspace_dirs": {},
+    "reflect_set_workspace_dirs": {
+      "main": "${TMP}",
+      "additional": []
+    },
+    "reflect_status_server_start": {
+      "port": 4732
+    },
+    "reflect_status_server_state": {},
+    "reflect_status_server_stop": {},
+    "reflect_install_skill": {
+      "repo": "owner/repo"
     }
   }
 }

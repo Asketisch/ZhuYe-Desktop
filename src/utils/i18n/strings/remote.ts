@@ -44,6 +44,17 @@ const remote: Record<string, StringEntry> = {
   'remote.unknown':            { en: 'unknown', 'zh-CN': '未知' },
   'remote.toastSaved':         { en: 'Remote config saved.', 'zh-CN': '远程配置已保存。' },
   'remote.toastSaveFailed':    { en: 'Save failed: {message}', 'zh-CN': '保存失败：{message}' },
+  // v1.11 基建#12:远程网页访问状态服务器。
+  'remote.statusServerTitle':   { en: 'Web status page',                                    'zh-CN': '远程网页状态页' },
+  'remote.statusServerDesc':   { en: 'Serve a read-only GET /status diagnostic JSON on the tailnet. Devices on the same tailnet can open http://<this-host>:<port>/status.', 'zh-CN': '在 tailnet 上提供只读的 GET /status 诊断 JSON。同一 tailnet 的设备可打开 http://<本机>:<端口>/status 查看。' },
+  'remote.statusServerRunning':{ en: 'running on :{port}',                                   'zh-CN': '运行中 :{port}' },
+  'remote.statusServerOff':    { en: 'off',                                                  'zh-CN': '未启动' },
+  'remote.statusServerStart':  { en: 'Start status page',                                    'zh-CN': '启动状态页' },
+  'remote.statusServerStop':   { en: 'Stop',                                                 'zh-CN': '停止' },
+  'remote.statusServerHint':   { en: 'Auth token from Remote config (if set) is enforced. Tailscale MagicDNS name is shown by the tailscale card above.', 'zh-CN': '远程配置中设置的 auth token(若有)会被强制校验。Tailscale MagicDNS 名见上方 Tailscale 卡片。' },
+  'remote.statusServerStarted':{ en: 'Status page serving on :{port}',                       'zh-CN': '状态页已启动 :{port}' },
+  'remote.statusServerStopped':{ en: 'Status page stopped',                                   'zh-CN': '状态页已停止' },
+  'remote.statusServerFailed': { en: 'Status page error: {message}',                         'zh-CN': '状态页错误:{message}' },
 } as const;
 
 export default remote;
