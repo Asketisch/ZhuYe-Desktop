@@ -197,21 +197,16 @@ pub async fn reflect_save_agent_def(
     let md = serialize_agent_md(&def)?;
     // 写盘前校验，避免无效内容覆盖已有定义。
     let back = parse_agent_str(&md).map_err(CommandError::from)?;
-    if create_only.unwrap_or(false) {
-        use std::io::Write;
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-            .map_err(CommandError::from)?;
-        if let Err(error) = file.write_all(md.as_bytes()) {
-            drop(file);
-            let _ = std::fs::remove_file(&path);
-            return Err(error.into());
-        }
-    } else {
-        crate::persistence::write_atomic(&path, md.as_bytes()).map_err(CommandError::from)?;
+    if create_only.unwrap_or(false) && path.exists() {
+        // 不用 OpenOptions::create_new:Windows 上 Defender 刚扫完同目录文件
+        // 时,CREATE_NEW 会报 os error 5(Access denied),和「已存在」分不清,
+        // 首次创建也会失败。先查存在再走原子写;并发双创建由原子替换兜底,
+        // 不在这里承诺跨进程互斥。
+        return Err(CommandError {
+            msg: format!("agent definition already exists: {}", def.name),
+        });
     }
+    crate::persistence::write_atomic(&path, md.as_bytes()).map_err(CommandError::from)?;
     Ok(back)
 }
 

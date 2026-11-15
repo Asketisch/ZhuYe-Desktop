@@ -44,8 +44,42 @@ pub(crate) fn write_atomic_with(
     }
     write(temp.as_file_mut())?;
     temp.as_file().sync_all()?;
-    temp.persist(&target).map_err(|error| error.error)?;
+    persist_replace(temp, &target)?;
     Ok(())
+}
+
+/// 把临时文件换成目标。
+///
+/// Windows 的 `MoveFileExW(MOVEFILE_REPLACE_EXISTING)` 要求目标当时没有
+/// 打开的句柄。Defender / 索引器会在文件刚落盘后短暂持有它,直接报
+/// os error 5。只对这一错误做短窗口重试;只读、磁盘满等不重试。
+fn persist_replace(temp: tempfile::NamedTempFile, target: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        let mut pending = Some(temp);
+        let mut last = None;
+        for attempt in 0..10 {
+            let file = pending.take().expect("retry holds the temp file");
+            match file.persist(target) {
+                Ok(_) => return Ok(()),
+                Err(error) if error.error.raw_os_error() == Some(5) => {
+                    pending = Some(error.file);
+                    last = Some(error.error);
+                    if attempt < 9 {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                }
+                Err(error) => return Err(error.error),
+            }
+        }
+        return Err(last.unwrap_or_else(|| io::Error::other("persist failed without error")));
+    }
+    #[cfg(not(windows))]
+    {
+        temp.persist(target)
+            .map(|_| ())
+            .map_err(|error| error.error)
+    }
 }
 
 #[cfg(test)]
