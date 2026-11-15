@@ -8,7 +8,7 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `571870c`（v1.11 本地差距项落地 + 核心层瘦身：组合透明性 dump-config / spill 读回修复 / CI 跨平台 / 记忆整理与跨会话召回、AGENTS.md 注入外移为 UserPromptSubmit hook；完整 SHA `571870c9`，由 `3b94a407` amend 而来 —— 仅并入 test_dump_config 门禁环境隔离修复，Rust 内容逐字节一致。上一轮：`2091202`（五项基建）→ `1f79e27`（中间修订）。本轮桌面侧增量：外部 Agent 导入入口 / apps stub 收口 / 编辑历史消息 / HTML 预览面板 / 上述外移 hooks 的桌面接线。）
+> 最近审计：submodule `6b82afc`（CI 修复：Windows spill 路径按分量断言、memory redundant_clone、resume 测试隔离 ZHUYE_HOME。完整 SHA `6b82afc8`。上一轮 `e8017429` 为 Claude Code 格式插件可启用，以及桌面列表并入插件能力。）
 > 上一轮 `e3da2540 → 58cebeb6` 为两项 Windows 平台行为修复：safe_write 原子改名改走 NT 层 `NtSetInformationFile`（Win32 封装层整体拒绝非 NULL RootDirectory，code 87 的真根因；并按 Windows「不能替换仍有打开句柄的文件」约束在改名前释放旧目标句柄）；pipeline shell 节点用例按平台断言（Windows 无沙箱后端，fail-closed 拒绝是可达语义）。
 > 上一轮 `0cca4c6a → e3da2540` 为 safe_write 原子改名切到 FileRenameInformationEx：非 Ex 类拒绝非 NULL RootDirectory（code 87），write/edit/plan_write 落盘与 GUI 文件保存在 Windows 上恒红的根因；plan_write 绝对路径改按分量判定（Windows `is_absolute()` 对无盘符根路径漏网）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
 > 上一轮 `8e72bc4c → 0cca4c6a`
