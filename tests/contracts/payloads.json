@@ -395,7 +395,8 @@
     },
     "reflect_run_security_scan": {},
     "reflect_run_shell": {
-      "cmd": "echo capability-probe"
+      "cmd": "echo capability-probe",
+      "sshHost": null
     },
     "reflect_run_team_pipeline": {
       "teamName": "no-such-team-xyz",

@@ -35,6 +35,28 @@ import { useZShell } from '@/features/shell/zcode/shellState';
 import { useSessions } from '@/features/sessions/hooks/useSessions';
 import { reflect_export_session_markdown } from '@/utils/commands/sessions';
 
+/**
+ * v1.11 F7+D6:编辑历史消息的 rewind 目标推算(纯函数,导出供行为测试
+ * 直接锁定**真实实现**,防测试内复刻逻辑漂移)。
+ *
+ * 语义:index 0 → 截断含自身(清空重发);否则截到前一轮为止(丢弃目标
+ * 轮及之后的记录,改完重发即从该点重新生成)。返回 `null` 表示该轮没有
+ * 用户文本,不可编辑。
+ */
+export function editRewindTargetFor(
+  turns: { id: string; items: { kind: string; text?: string }[] }[],
+  turnId: string,
+): { rewindTo: string; userText: string } | null {
+  const index = turns.findIndex((tr) => tr.id === turnId);
+  if (index === -1) return null;
+  const userItem = turns[index].items.find((it) => it.kind === 'user_text');
+  if (!userItem || userItem.kind !== 'user_text') return null;
+  return {
+    rewindTo: index === 0 ? turnId : turns[index - 1].id,
+    userText: userItem.text ?? '',
+  };
+}
+
 export function ChatView() {
   const { sessionId } = useParams({ strict: false }) as { sessionId?: string };
   // B：本会话首个 turn 完成后自动生成 AI 标题（后端幂等，失败静默）。
@@ -106,11 +128,12 @@ export function ChatView() {
   // 零协议改动(Rewind 语义已覆盖「截断 + 短历史回放」)。
   const handleEditTurn = async (turnId: string) => {
     const epoch = sessionEpoch.current.value;
-    const index = turns.findIndex((tr) => tr.id === turnId);
-    if (index === -1) return;
-    const userItem = turns[index].items.find((it) => it.kind === 'user_text');
-    if (!userItem || userItem.kind !== 'user_text') {
-      pushToast({ kind: 'info', message: t('chat.editNoUserText') });
+    const target = editRewindTargetFor(turns, turnId);
+    if (target === null) {
+      // 轮不存在(静默)或没有用户文本(info 提示)都不可编辑。
+      if (turns.some((tr) => tr.id === turnId)) {
+        pushToast({ kind: 'info', message: t('chat.editNoUserText') });
+      }
       return;
     }
     const ok = await confirmDialog({
@@ -120,9 +143,8 @@ export function ChatView() {
     if (!ok || !sessionId || epoch !== sessionEpoch.current.value ||
         useAgentStore.getState().loadedSessionId !== sessionId) return;
     try {
-      // index === 0 → 截断含自身(清空重发);否则截到前一轮为止。
-      await rewind(index === 0 ? turnId : turns[index - 1].id);
-      emitComposerPrefill(userItem.text);
+      await rewind(target.rewindTo);
+      emitComposerPrefill(target.userText);
       pushToast({ kind: 'success', message: t('chat.editPrefilled') });
     } catch (e: unknown) {
       pushToast({

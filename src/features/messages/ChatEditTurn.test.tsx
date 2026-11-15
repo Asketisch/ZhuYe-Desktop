@@ -1,52 +1,40 @@
 /**
  * Vitest —— 编辑历史消息(v1.11 F7+D6)。
  *
- * 覆盖 handleEditTurn 的可组合语义(零协议改动:Rewind + composer 预填):
+ * 直接锁定 ChatView 导出的**真实实现** `editRewindTargetFor`(防测试内
+ * 复刻逻辑漂移)+ prefill 总线把原文装回挂载的 Composer 草稿(真实 hook 渲染):
  * - rewind 目标推算:index>0 → 前一轮;index 0 → 含自身(清空重发)
- * - prefill 总线把原文装回挂载的 Composer 草稿(真实 hook 渲染)
- * - 无用户文本的 turn 不可编辑
+ * - 同时返回该轮用户原文(供 prefill)
+ * - 无用户文本的 turn / 不存在的 turn → null(不可编辑)
  */
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useComposerDraft, emitComposerPrefill } from '@/features/composer/useComposerDraft';
-import { useAgentStore } from '@/stores/agentStore';
+import { editRewindTargetFor } from '@/features/messages/ChatView';
 
-function seedTurns() {
-  useAgentStore.setState({
-    turns: [
-      { id: 't0', items: [{ kind: 'user_text', text: '第一条' }], status: 'done' },
-      { id: 't1', items: [{ kind: 'assistant_text', text: '回答' }], status: 'done' },
-      { id: 't2', items: [{ kind: 'user_text', text: '第二条' }], status: 'done' },
-    ],
-    loadedSessionId: 'sess-1',
-  } as never);
-}
+const TURNS = [
+  { id: 't0', items: [{ kind: 'user_text', text: '第一条' }] },
+  { id: 't1', items: [{ kind: 'assistant_text', text: '回答' }] },
+  { id: 't2', items: [{ kind: 'user_text', text: '第二条' }] },
+];
 
-/** handleEditTurn 的 rewind 目标推算(与 ChatView.handleEditTurn 同逻辑)。 */
-function rewindTargetFor(turns: { id: string }[], turnId: string): string {
-  const idx = turns.findIndex((tr) => tr.id === turnId);
-  if (idx === -1) throw new Error('turn not found');
-  return idx === 0 ? turns[idx].id : turns[idx - 1].id;
-}
-
-describe('edit history turn — semantic building blocks', () => {
-  it('rewind target for editing turn t2 is the previous turn t1 (truncate t2+)', () => {
-    seedTurns();
-    const turns = useAgentStore.getState().turns;
-    expect(rewindTargetFor(turns, 't2')).toBe('t1');
+describe('edit history turn — semantic building blocks (real implementation)', () => {
+  it('editing t2 rewinds to previous turn t1 and returns original user text', () => {
+    const target = editRewindTargetFor(TURNS, 't2');
+    expect(target).toEqual({ rewindTo: 't1', userText: '第二条' });
   });
 
-  it('rewind target for editing turn t0 is itself (clear all, resend)', () => {
-    seedTurns();
-    const turns = useAgentStore.getState().turns;
-    expect(rewindTargetFor(turns, 't0')).toBe('t0');
+  it('editing t0 rewinds to itself (clear all, resend) with its own text', () => {
+    const target = editRewindTargetFor(TURNS, 't0');
+    expect(target).toEqual({ rewindTo: 't0', userText: '第一条' });
   });
 
-  it('turn without user text is not editable', () => {
-    seedTurns();
-    const t1 = useAgentStore.getState().turns.find((tr) => tr.id === 't1');
-    const editable = t1?.items.some((it) => it.kind === 'user_text') ?? false;
-    expect(editable).toBe(false);
+  it('turn without user text is not editable (assistant turn → null)', () => {
+    expect(editRewindTargetFor(TURNS, 't1')).toBeNull();
+  });
+
+  it('unknown turn id is not editable (null, no throw)', () => {
+    expect(editRewindTargetFor(TURNS, 'no-such-turn')).toBeNull();
   });
 
   it('prefill bus rewrites the mounted composer draft with the original text', () => {

@@ -71,4 +71,51 @@ describe('WorkspacesView — additional dirs editor', () => {
     });
     expect(setCalls[0].main).toBe('/tmp/ws-main');
   });
+
+  // ── 增目录输入流:目录选择器 → 追加到既有附加目录集合(全量覆盖) ──
+
+  it('adding a picked folder appends it via reflect_set_workspace_dirs', async () => {
+    mockInvoke('reflect_agent_status', async () => ({ ready: true, hasModel: true, model: 'm', workspace: CURRENT_DIRS.main, degradedReason: null }));
+    mockInvoke('reflect_list_workspaces', async () => []);
+    mockInvoke('reflect_current_workspace_dirs', async () => CURRENT_DIRS);
+    const setCalls: Array<{ main: string; additional: string[] }> = [];
+    mockInvoke('reflect_set_workspace_dirs', async (_cmd: string, args: { main: string; additional: string[] }) => {
+      setCalls.push(args);
+      return undefined;
+    });
+    // 目录选择器返回新目录。
+    mockInvoke('reflect_pick_workspace_folder', async () => '/tmp/ws-extra-c');
+    render(<QueryClientProvider client={createTestQueryClient()}><WorkspacesView /></QueryClientProvider>);
+    // 等附加目录行出现(query 已 resolve)再点添加,否则读到空快照。
+    await screen.findByTestId('workspace-additional-ws-extra-a');
+    fireEvent.click(screen.getByTestId('workspaces-additional-add'));
+    await vi.waitFor(() => {
+      expect(setCalls).toHaveLength(1);
+    });
+    // 追加语义:既有附加目录保留,新目录殿后。
+    expect(setCalls[0]).toEqual({
+      main: '/tmp/ws-main',
+      additional: ['/tmp/ws-extra-a', '/tmp/ws-extra-b', '/tmp/ws-extra-c'],
+    });
+  });
+
+  it('picking a duplicate fires no set call (idempotent no-op)', async () => {
+    mockInvoke('reflect_agent_status', async () => ({ ready: true, hasModel: true, model: 'm', workspace: CURRENT_DIRS.main, degradedReason: null }));
+    mockInvoke('reflect_list_workspaces', async () => []);
+    mockInvoke('reflect_current_workspace_dirs', async () => CURRENT_DIRS);
+    const setCalls: Array<{ main: string; additional: string[] }> = [];
+    mockInvoke('reflect_set_workspace_dirs', async (_cmd: string, args: { main: string; additional: string[] }) => {
+      setCalls.push(args);
+      return undefined;
+    });
+    // 已在附加集合里的目录。
+    mockInvoke('reflect_pick_workspace_folder', async () => '/tmp/ws-extra-a');
+    render(<QueryClientProvider client={createTestQueryClient()}><WorkspacesView /></QueryClientProvider>);
+    // 等附加目录行出现(query 已 resolve)再点添加,否则读到空快照。
+    await screen.findByTestId('workspace-additional-ws-extra-a');
+    fireEvent.click(screen.getByTestId('workspaces-additional-add'));
+    // 静默幂等:短暂窗口内不应产生覆盖调用。
+    await new Promise((r) => setTimeout(r, 60));
+    expect(setCalls).toHaveLength(0);
+  });
 });

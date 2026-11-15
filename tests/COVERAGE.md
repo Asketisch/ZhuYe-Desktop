@@ -52,7 +52,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | 会话统计 | `session_stats` `all_model_usage` `model_rate_cards` | L3 `ipc_core.rs` | `usage` |
 | 配置 | `get_config` `save_config` `config_info` `set_model` | L3 `ipc_core.rs` + `ipc_model_discovery.rs`（本地模拟清单失败及相同配置重试）+ `ipc_settings_restart.rs`（跨进程保存的预算约束新 Agent 回合）+ `ipc_settings_concurrency.rs`（并发模型切换不丢写） | `settings.config` |
 | 运行时状态 | `agent_status` `credential_pool_status` `recovery_state` `memory_sections` `sandbox_status` | L3 `ipc_core.rs` / `ipc_workspace.rs` | `StatusBar` / `AppShell` |
-| 工具 / 技能 / hooks | `list_tools` `list_skills` `rescan_extensions` `list_hooks` `toggle_hook` `list_hook_events` | L3 `ipc_core.rs`、`ipc_hooks.rs`；`ipc_extensions.rs` 验证绑定会话后新增、删除技能的重扫及事件配对；`ipc_skill_runtime.rs` 验证模型加载技能正文 | — |
+| 工具 / 技能 / hooks | `list_tools` `list_skills` `rescan_extensions` `list_hooks` `toggle_hook` `list_hook_events` `install_skill` | L3 `ipc_core.rs`、`ipc_hooks.rs`；`ipc_extensions.rs` 验证绑定会话后新增、删除技能的重扫及事件配对；`ipc_skill_runtime.rs` 验证模型加载技能正文；`ipc_v11_features.rs` 验证 `install_skill` repo 形态校验先于网络（成功路径走 GitHub 网络，按 §3 网络类口径豁免；L2 `SkillsView.test` 断言安装成功后自动重扫） | — |
 | 记忆 | `list/add/remove_memory` | L3 `ipc_core.rs` | `MemoryView` |
 | 会话笔记 | `list_session_notes` `list_note_sessions` | L3 `ipc_core.rs` | `MemoryView` |
 | 权限规则 / 白名单 | `list/add_permission_rule` `load/save/check_allowlist` | L3 `ipc_core.rs` + `ipc_permission_errors.rs`（权限文件损坏时报告错误）+ `ipc_permission_concurrency.rs`（并发追加不报错、store 保持可解析）+ `ipc_permission_read_only.rs`（Unix 只读文件报权限错误）；`state/permissions.rs` 单测验证用户目录不可用 | `PermissionRulesSection` |
@@ -60,16 +60,16 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | Agent 定义 | `list/get/save/delete_agent_def` `parse_agent_md` `get/set_active_agent` | L3 `ipc_core.rs` + `ipc_agent_preferences.rs`（损坏与其他偏好保留） | `AgentsView` |
 | Autopilot | `get/update_autopilot_config` `autopilot_history` | L3 `ipc_core.rs`、`ipc_autopilot_errors.rs`、`ipc_autopilot_runtime.rs`（到期、禁用、重绑定、模型失败与中断）、`ipc_autopilot_agent.rs`（指定 agent 与交错执行）、`ipc_autopilot_restart.rs`（跨桌面进程接管及异常退出恢复）、`ipc_autopilot_limit.rs`、`ipc_autopilot_budget.rs`、`ipc_autopilot_startup_budget.rs`（上限及预算运行态） | AutopilotView |
 | Traces / Span | `list_traces` `get_trace` `list_span_logs` `read_span_log` | L3 `ipc_core.rs`；`ipc_telemetry_runtime.rs`（真实模型 trace 与 span） | `TracesView` |
-| 工作区 | `list/set/current_workspace` | L3 `ipc_workspace.rs` + `ipc_workspace_history.rs`（损坏历史保留与报错） | `useCurrentWorkspace` / `WorkspacesView.test.tsx`（读取错误） |
+| 工作区 | `list/set/current_workspace` `set/current_workspace_dirs` | L3 `ipc_workspace.rs` + `ipc_workspace_history.rs`（损坏历史保留与报错）+ `ipc_v11_features.rs`（多目录：主/附加校验、去重、回读、清空）；附加目录 → `sandbox_writable` 并入语义由 `state/thread_factory.rs` 单测（保序/去重）；L2 `WorkspacesView.test`（增/删目录输入流、空态、后端拒绝） | `useCurrentWorkspace` / `WorkspacesView.test.tsx`（读取错误） |
 | 文件 | `list_dir` `read_file` `write_file` `search_files` | L3 `ipc_workspace.rs` | `FilesView` / `FileTree` |
 | Git | `git_status` `git_diff` `git_log` `git_stage` `git_unstage` `git_commit` | L3 `ipc_workspace.rs`（临时仓库内、差异内容、撤销暂存及空提交错误） | `GitView` / `DiffViewer` |
-| 终端 | `run_shell` `kill_shell` `list_shell_sessions` | L3 `ipc_workspace.rs`、`ipc_shell_runtime.rs`（会话隔离、生命周期回收与终止副作用） | `TerminalView` |
+| 终端 | `run_shell`（含 v1.11 `sshHost` 远端分支）`kill_shell` `list_shell_sessions` | L3 `ipc_workspace.rs`、`ipc_shell_runtime.rs`（会话隔离、生命周期回收与终止副作用）；SSH 参数拼装（`BatchMode` / `ConnectTimeout` / host trim / 命令单参数）由 `commands/shell.rs` 单测覆盖，前缀剥离与会话 `ssh:<host>` 标注由 L2 `useTerminalController.test` 覆盖 | `TerminalView` |
 | 媒体 | `list_media` `media_capabilities` `image_process` | L3 `ipc_workspace.rs`（真实 PNG/JPEG、base64、资产及处理产物随文件变更） | `MediaView` |
 | 任务 | `list/create/get/update/claim/stop/release/delete_task` `get_task_output` | L3 `ipc_domains.rs` | `TasksBoardView` |
 | 团队 | `list/upsert/get/delete_team` | L3 `ipc_domains.rs` | `TeamEditor` |
 | Squad | `list/create/get/delete_squad` `delegate_next` `assign_squad_task` | L3 `ipc_domains.rs` | `SquadView` |
 | 定时任务 | `list/add/update/remove_schedule` `get_schedule_status` | L3 `ipc_domains.rs` + `ipc_schedule_runtime.rs`（真实 driver、会话重绑定、启用/禁用及本地模型回合）+ `ipc_restart.rs`（跨进程恢复） | `ScheduleView` |
-| 插件 | `list_plugins` `list_marketplaces` `toggle_plugin` `list_plugin_commands` | L3 `ipc_domains.rs` | `PluginsPanel` |
+| 插件 | `list_plugins` `list_marketplaces` `toggle_plugin` `list_plugin_commands` `browse_marketplace` `install_from_marketplace` | L3 `ipc_domains.rs` + `ipc_v11_features.rs`（未注册市场 fail-fast ×2、非法市场名、本地 directory 市场成功路径：浏览字段级 + 一键安装落盘记账与 cache 物化）；依赖 DFS 解析在 submodule `zhuye-plugin/src/dependency.rs` 单测（后序安装 / 环检测 / 跨市场）；L2 `PluginsPanel.test`（展开列插件含版本、一键安装转发、失败 inline 错误、缓存缺失错误） | `PluginsPanel` |
 | 子代理 spec | `list/save/get/delete_subagent_spec` | L3 `ipc_domains.rs` | `CollaborationView` |
 | MCP | `list_mcp_servers` `mcp_catalog` `upsert/delete_mcp_server` `list_mcp_resources` `list_mcp_prompts` | L3 `ipc_domains.rs` + `ipc_mcp_lifecycle.rs`（服务重配与生命周期）+ `ipc_mcp_agent.rs`（本地模型请求 → 审批 → MCP 子进程 → 工具结果返回模型）；`mcp.rs` 单测覆盖工具冲突和替换后的所有权清理 | `McpManager` |
 | LSP | `lsp_status` `lsp_set_enabled` `lsp_warmup` `lsp_diagnostics` | L3 `ipc_domains.rs`、`ipc_lsp_runtime.rs`（预热、诊断、hover 与重启）、`ipc_lsp_agent.rs`（模型经审批调用）、`ipc_lsp_disconnect.rs`（断线和恢复）、`ipc_lsp_startup_cancel.rs`（握手期间关闭及并发启用） | `FilesView` / `CollaborationView` |
@@ -77,11 +77,11 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | KMS 知识库 | `kms_list/create/delete/save_page/get_page/list_pages/search` | L3 `ipc_domains.rs`（含独占创建）+ `ipc_kms_links.rs`（外部符号链接） | `KmsView` |
 | Side-channel | `start/cancel/list/get_side_channel` + `side_channel_started/finished/status` 事件信封 | L3 `ipc_domains.rs`（终态补发）及 `ipc_mock_provider.rs`（本地模型返回摘要与运行中取消） | `SideChannelView`（含 finished 事件驱动 running → done 的即时终态渲染） |
 | 讨论 / 流水线 | `list_discussions` `run_discussion` `cancel_discussions` `validate_pipeline` `list/save_pipeline_config` `run_pipeline` | L3 `ipc_domains.rs`、`ipc_discussion_runtime.rs`（本地模型、身份、实时事件与会话 transcript 持久化）、`ipc_discussion_cancel.rs`（运行中取消与 cancelled 终态）、`ipc_discussion_no_model.rs`、`ipc_discussion_history.rs`（筛选普通会话）、`ipc_discussion_live.rs`（运行中事件）、`ipc_discussion_failure.rs`（失败终态）、`ipc_pipeline_runtime.rs`（多节点与失败传播）、`ipc_pipeline_input_probe.rs`（自定义输入） | `CollaborationView` |
-| 远程 / tailscale | `get/update_remote_config` `get_remote_status` `tailscale_status` `tailscale_daemon_command_preview` `tailscale_daemon_status` | L3 `ipc_domains.rs` | `RemoteView` |
+| 远程 / tailscale | `get/update_remote_config` `get_remote_status` `tailscale_status` `tailscale_daemon_command_preview` `tailscale_daemon_status` `status_server_start/state/stop` | L3 `ipc_domains.rs` + `ipc_v11_features.rs`（状态服务器 start→端口→state→stop 幂等；token 经 `update_remote_config` → start 的 IPC 组合路径含真 HTTP 401/401/200 三态）；HTTP 路由守卫与 token 语义另由 `status_server.rs` 单测覆盖（reqwest 真 HTTP） | `RemoteView` |
 | 探针 | `ping` | L3 `ipc_core.rs` | `app.smoke` |
 | **事件回传通路** | `reflect_event` 通道(非命令):信封 `{ id, msg }`、`msg.type` 判别子、`EVENT_ID_NONE` 生命周期 id、Submission↔Event id 配对 | L3 `ipc_events.rs` | `agent.protocol-events` |
 | **事件转发器韧性** | 转发器在 `RecvError::Lagged` 之后必须存活(慢订阅者不杀死转发器) | L3 `ipc_events.rs` | — |
-| **线格式契约(参数形状)** | 全部 188 条命令的参数样本:fakeBackend 收得下；真后端对排除清单之外的样本验证反序列化 | L2 `ipc.payload-contract` + L3 `ipc_payload_contract.rs` + L1 `payload-sample-complete` | 同左(fakeBackend 侧) |
+| **线格式契约(参数形状)** | 全部 198 条命令的参数样本:fakeBackend 收得下；真后端对排除清单之外的样本验证反序列化 | L2 `ipc.payload-contract` + L3 `ipc_payload_contract.rs` + L1 `payload-sample-complete` | 同左(fakeBackend 侧) |
 | **持久化往返契约(语义)** | 21 对「写 → 读」(allowlist / config / memory / schedule / mcp / 权限规则 / agent def / 活跃 agent / 子代理 / squad / team / pipeline / KMS / 任务 / 工作区 / autopilot / remote / 文件 / LSP) | L2 `ipc.roundtrip-contract` + L3 `ipc_roundtrip_contract.rs` 双端同表 | 同左(fakeBackend 侧) |
 | **假模型全链路** | 有模型的完整一轮:submit → AgentThread → HTTP → SSE 解析 → 事件回传(文本流 / bash 工具 + 审批门 + tool_result 第二跳 / HTTP 500 / 流中 interrupt 及恢复);跨进程回放旧用户与助手消息后继续模型请求 | L3 `ipc_mock_provider.rs`、`ipc_chat_restart.rs`(wiremock 本地假网关,离线确定性) | `chat.full-flow`(ScriptedAgent 模拟层,与 L3 互补) |
 | **并发不变量** | 并行只读 / submit 风暴 + 交错 interrupt / 并发配置写(文件始终合法 TOML、不死锁);两个模型切换并发执行后两个 provider 段均保留 | L3 `ipc_concurrency.rs`、`ipc_settings_concurrency.rs` | — |
@@ -102,13 +102,17 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | **实模型能力域矩阵** | 15 个场景覆盖**其余依赖模型的命令面**:工具调用(bubble 自动批准)/ 工具审批(prompt→批准→真跑)/ 中断 / 压缩 / 回退 / plan 模式(plan_request→plan_ready→plan_approved)/ goal 模式 / 会话标题生成 / 任务工具 / 子代理 / 追问 / 讨论(llmBacked=true)/ 流水线 / 团队流水线。**模型不配合判跳过**(非失败) | L6 `ipc_live_capabilities.rs`(默认 SKIP) | — |
 
 | **事件面线格式契约(全变体)** | 协议 `EventMsg` **全部 50 个变体**的最小合法样本(`tests/contracts/events.json`):真协议 serde 反序列化 + wire roundtrip + 未知 type/缺必填字段探测器 | L2 `ipc.event-contract` + L3 `ipc_event_contract.rs` + L1 `event-parity`(Rust enum ↔ TS 联合 ↔ 样本表三方奇偶) | 同左(fakeBackend 侧) |
+| **外部 Agent 会话导入**(v1.11 D9) | `reflect_import_discover` / `reflect_import_sessions`(CC / Codex / ZCode 三 adapter):未知 kind fail-fast ×2、zcode 发现不 panic(空清单或明确错误皆合法);adapter 本体解析在 submodule `zhuye-import`(68 单测) | L3 `ipc_v11_features.rs` + L2 `ImportView.test`(kind 切换重发现、发现失败不炸、无来源禁用、dryRun/force 字段级转发、成功/失败行逐条渲染) | `ImportView` |
+| **编辑历史消息**(v1.11 F7+D6) | `Op::Rewind` 截断 + composer 预填的组合语义:rewind 目标推算(真实实现 `editRewindTargetFor` 导出直测:index 0 含自身 / 其余前一轮 / 无用户文本不可编辑)、prefill 总线装回草稿 | L2 `ChatEditTurn.test`(真实实现) + `MessageList.test`(turn-edit 入口:可编辑轮才有、点击回传 id、streaming/纯助手轮无入口) | `ChatView` / `MessageList` |
+| **HTML 产物预览**(v1.11 D1 轻) | workspace 内文件 srcDoc 静态预览:路径转发 `reflect_read_file`、iframe sandbox 禁脚本、非 HTML 原文兜底、读失败警告徽标 | L2 `HtmlPreviewView.test` | `HtmlPreviewView` |
+| **编辑器偏好:锁定发送**(v1.11 桌面#4) | 非命令面(localStorage `reflect.uiprefs.v1`):键位行为(hook 级)在 `useComposerInput.test`;键位提示随动 + 设置开关 + lock 徽标 + 持久化(默认开 / 回退 / 旧版无键容忍) | L2 `Composer.test` + `DisplaySection.behavior.test` + `uiPrefs.test` | `DisplaySection` |
 | **提交操作契约** | Rust `Op` 的 26 个变体、两个 TS 联合和 `ops.json` 样本逐项一致；样本经真实协议 serde 往返，检查字段未被静默忽略，并探测未知变体和缺失必填字段 | L1 `op-parity`、L3 `ipc_op_contract.rs`（不代替运行态测试） | TypeScript 联合 |
 | **子代理运行态** | 模型委派经审批运行真实子代理，检查结果回传、进度、终态查询与会话隔离；嵌套链路验证父→子→孙代理、两次结果回传和五次模型请求；定向中断后父回合继续 | L3 `ipc_subagent_runtime.rs`、`ipc_subagent_nested.rs`、`ipc_subagent_cancel.rs`（本地模型） | Inspector 运行态取消按钮 |
 | **任务工具与会话笔记运行态** | 本地模型可见全部已注册任务工具，创建任务与笔记后由真实命令读回；模型驱动任务认领、读取、释放、停止和完成，以及团队创建删除，验证审批、状态和工具结果；拒绝空笔记，验证下一回合注入、会话隔离和跨进程恢复后的记忆注入 | L3 `ipc_task_note_runtime.rs`、`ipc_task_tools_runtime.rs`、`ipc_note_restart.rs`；L2 任务板按会话选列表及自动刷新 | 实际文件及模型请求；TaskList 模型明细回归显式忽略，见 `RUNTIME_COVERAGE.md`；任务板为前端替身 |
-| **视图行为(九切片)** | home / models / skills / prompts / debug / dictation / about / apps / mobile 的交互与数据投影:会话导航、set_model/set_effort 线格式、`mcp__` 前缀分组、模板经 store.submit、ping 版本面、本地连接翻转 | — | `views.untested-slices`(路由矩阵之外的交互增量) |
+| **视图行为(九切片)** | home / models / skills / prompts / debug / dictation / about / apps / mobile 的交互与数据投影:会话导航、set_model/set_effort 线格式、`mcp__` 前缀分组、模板经 store.submit、ping 版本面;apps 已收口为 coming soon 占位(断言占位文案且无 connect/disconnect 按钮,mobile 同口径) | — | `views.untested-slices`(路由矩阵之外的交互增量) |
 | **门禁自测(测试测试的脚本)** | `lib.sh` 原语；总入口的退出码、状态与用例计数一致性、部分运行、严格跳过；backend/e2e/live runner 的依赖、隔离、结果缺失和异常退出；LIVE_CASE 折叠 | L1 `static/*.test.sh` 自动发现 | — |
-**口径**：188 条 `reflect_*` 命令均有参数样本，真后端契约测试驱动其中
-182 条检查参数反序列化；余下 6 条在 §3 说明排除理由。行为断言范围见上表，
+**口径**：198 条 `reflect_*` 命令均有参数样本，真后端契约测试驱动其中
+192 条检查参数反序列化；余下 6 条在 §3 说明排除理由。行为断言范围见上表，
 不能把参数可反序列化等同于功能成功。静态棘轮统计测试源码里的命令名引用，
 不证明对应测试已执行。
 
@@ -116,9 +120,12 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 
 ## 3. 显式排除项（自动跑不了 / 不该自动跑）
 
-**覆盖数字**：真后端参数契约覆盖 **182/188** 条命令。下面 6 条**有意排除**
+**覆盖数字**：真后端参数契约覆盖 **192/198** 条命令。下面 6 条**有意排除**
 —— 每条都写明原因。排除必须是**有理由
-的**，不能是「没顾上」。
+的**，不能是「没顾上」。v1.11 新增的 10 条命令（skill 安装 / 插件市场 ×2 /
+多目录工作区 ×2 / 状态服务器 ×3 / 导入 ×2）全部有真实 IPC 测试引用，不在排除之列；
+其中 `reflect_install_skill` 的**成功路径**依赖 GitHub 网络，L3 只验错误路径（§3
+网络类口径），成功链路由 L2 行为测试断言（安装后自动重扫）。
 
 | 命令 | 排除原因 | 替代覆盖 |
 |---|---|---|
@@ -166,7 +173,7 @@ CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 
 |---|---|---|
 | 生产文件 ≤ 500 行 | `src-tauri/src/commands/sessions.rs` 等 11 个文件超限 | 新增超限文件 → L1 失败 |
 | `PROTOCOL_BRIDGE.md` 命令覆盖率 | 91.9% | 覆盖率跌破基线 → L1 失败 |
-| 已完成命令的测试入口 | **188/188** 条命令均有 IPC/命令体单元测试引用或带原因的环境排除（当前 1 条:`reflect_run_security_scan` 依赖联网 RustSec 数据库） | 新增无证据命令、坏排除表、空原因或过期排除项 → L1 失败 |
+| 已完成命令的测试入口 | **198/198** 条命令均有 IPC/命令体单元测试引用或带原因的环境排除（当前 1 条:`reflect_run_security_scan` 依赖联网 RustSec 数据库；v1.11 新增 10 条已全部接入 `ipc_v11_features.rs` 或 crate 单测） | 新增无证据命令、坏排除表、空原因或过期排除项 → L1 失败 |
 
 另有**已知的真后端行为特征**（能力覆盖层照实记录，不算缺陷）：
 

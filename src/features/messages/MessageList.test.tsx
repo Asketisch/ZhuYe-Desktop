@@ -82,6 +82,37 @@ describe('MessageList', () => {
     expect(screen.queryByTestId('turn-rewind-t1')).toBeNull();
   });
 
+  // ── v1.11 F7+D6:编辑历史消息入口 ────────────────────────────────
+
+  it('edit button appears only on editable turns and fires onEditTurn with turn id', () => {
+    const onEdit = vi.fn();
+    useAgentStore.setState({
+      turns: [
+        // 有用户文本 → 可编辑。
+        { id: 't1', status: 'done', items: [{ kind: 'user_text', text: 'first' }] },
+        // 无用户文本(纯助手回复)→ 不可编辑。
+        { id: 't2', status: 'done', items: [{ kind: 'assistant_text', text: 'answer' }] },
+        // streaming 中 → 不给动作入口(rollout 未落全)。
+        { id: 't3', status: 'streaming', items: [{ kind: 'user_text', text: 'third' }] },
+      ],
+    });
+    render(wrap(<MessageList onRewindTurn={() => {}} onEditTurn={onEdit} />));
+    const btn = screen.getByTestId('turn-edit-t1');
+    expect(btn).toBeDefined();
+    expect(screen.queryByTestId('turn-edit-t2')).toBeNull();
+    expect(screen.queryByTestId('turn-edit-t3')).toBeNull();
+    fireEvent.click(btn);
+    expect(onEdit).toHaveBeenCalledWith('t1');
+  });
+
+  it('edit button hidden when onEditTurn not provided', () => {
+    useAgentStore.setState({
+      turns: [{ id: 't1', status: 'done', items: [{ kind: 'user_text', text: 'first' }] }],
+    });
+    render(wrap(<MessageList onRewindTurn={() => {}} />));
+    expect(screen.queryByTestId('turn-edit-t1')).toBeNull();
+  });
+
   it('renders tool_call row with status badge', () => {
     useAgentStore.setState({
       turns: [

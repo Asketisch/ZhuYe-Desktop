@@ -14,6 +14,35 @@
   `[routing.main.complexity]` 复杂度分级路由说明(effort 档位映射模型)
   与「切换模型使 provider prompt cache 失效」的缓存提示;上游引擎侧
   `model_call` 已按映射自动选模型(submodule 同步后生效)。
+- **Skill 市场**(桌面#1):技能面板市场行支持 `owner/repo` 输入一键安装
+  (`reflect_install_skill`),装完自动重扫,装好的技能立即可见;
+  空输入禁用、失败 toast 化可重试。
+- **插件市场 UI**(桌面#2):插件面板支持市场内浏览
+  (`reflect_browse_marketplace`,含版本/描述/标签)与一键安装
+  (`reflect_install_from_marketplace`,依赖 DFS 后序解析);未注册
+  市场 / 缓存缺失显性报错,兼容 Claude Code marketplace manifest 格式。
+- **多目录综合工作区**(桌面#5):`reflect_set_workspace_dirs` /
+  `reflect_current_workspace_dirs` 两命令 + 工作区页附加目录增删 UI;
+  附加目录拼进 `sandbox_writable`,文件类工具沙箱边界对其放行
+  (主工作区仍是规范根)。
+- **SSH 远端执行**(基建#7):终端输入 `ssh <host> <cmd>` 前缀路由到远端
+  (`BatchMode=yes` + `ConnectTimeout=10`,免交互防挂死),会话标注
+  `ssh:<host>` 区分本地/远端;命令整体作为单参数由远端 shell 分词。
+- **远程状态页**(基建#12):内建 `GET /status` 只读诊断 JSON 服务器
+  (`reflect_status_server_start/state/stop`),tailnet 设备浏览器可达;
+  `remote_config.auth_token` 非空时端点强制 token 校验(401/200)。
+- **外部 Agent 会话导入**(D9):`/import` 路由全链 —— Claude Code /
+  Codex / ZCode 三 adapter(`reflect_import_discover` /
+  `reflect_import_sessions`),支持 dry-run 预演、成功/失败逐条展示,
+  导入的会话在会话列表照常可开。
+- **编辑历史消息**(F7+D6):消息列表每轮 hover 编辑入口
+  (`Op::Rewind` 截断 + composer 预填原文的组合,零协议改动)—— 改完
+  重发即从该点重新生成;第 0 轮编辑即清空重发。
+- **HTML 产物预览**(D1 轻):`/preview` 路由,workspace 内 HTML 文件
+  srcDoc 静态预览(sandbox 禁脚本);非 HTML 文件原文兜底,越界路径
+  显性报错。
+- **apps 收口**(D10):移除 vscode/jetbrains 假数据,apps 视图改为
+  coming soon 占位(与 mobile 同口径),防止用户误读为可用功能。
 
 ## 0.0.4 — 2026-11-14
 

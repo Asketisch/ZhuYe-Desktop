@@ -169,15 +169,10 @@ pub(crate) fn construct_thread(
         // sandbox_writable(与 `[sandbox].writable_dirs` 同源),文件类
         // 工具的沙箱边界对附加目录放行(主工作区仍是规范根)。bind 时
         // 快照,会话生命周期内不变(与 workspace 语义一致)。
-        .with_sandbox_writable({
-            let mut dirs = cfg_snapshot.sandbox.writable_dirs.clone();
-            for extra in crate::workspace_state::WorkspaceState::additional_dirs() {
-                if !dirs.contains(&extra) {
-                    dirs.push(extra);
-                }
-            }
-            dirs
-        });
+        .with_sandbox_writable(merged_sandbox_writable(
+            cfg_snapshot.sandbox.writable_dirs.clone(),
+            crate::workspace_state::WorkspaceState::additional_dirs(),
+        ));
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
@@ -339,4 +334,67 @@ pub(crate) fn construct_thread(
     }
 
     Ok(thread)
+}
+
+/// v1.11 桌面#5:把 GUI 附加目录并入 `[sandbox].writable_dirs`(纯函数,
+/// 便于单测绑定语义)。配置序在前、附加目录殿后;已在配置里的附加项
+/// 去重(同一路径写两次在沙箱 profile 里是无意义重复)。
+pub(crate) fn merged_sandbox_writable(
+    configured: Vec<std::path::PathBuf>,
+    extra: Vec<std::path::PathBuf>,
+) -> Vec<std::path::PathBuf> {
+    let mut dirs = configured;
+    for dir in extra {
+        if !dirs.contains(&dir) {
+            dirs.push(dir);
+        }
+    }
+    dirs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    /// 附加目录并入且保序:配置序在前、附加序殿后。
+    #[test]
+    fn 附加目录并入且保序() {
+        let merged = merged_sandbox_writable(
+            vec![PathBuf::from("/cfg/a")],
+            vec![PathBuf::from("/extra/1"), PathBuf::from("/extra/2")],
+        );
+        assert_eq!(
+            merged,
+            vec![
+                PathBuf::from("/cfg/a"),
+                PathBuf::from("/extra/1"),
+                PathBuf::from("/extra/2"),
+            ],
+            "配置序在前,附加目录按设置顺序殿后"
+        );
+    }
+
+    /// 与配置重复的附加项去重;空附加 = 原样返回配置。
+    #[test]
+    fn 与配置重复的附加项去重() {
+        let merged = merged_sandbox_writable(
+            vec![PathBuf::from("/cfg/a"), PathBuf::from("/cfg/b")],
+            vec![PathBuf::from("/cfg/b"), PathBuf::from("/extra/1")],
+        );
+        assert_eq!(
+            merged,
+            vec![
+                PathBuf::from("/cfg/a"),
+                PathBuf::from("/cfg/b"),
+                PathBuf::from("/extra/1")
+            ],
+            "配置里已有的附加项不得重复出现"
+        );
+        assert_eq!(
+            merged_sandbox_writable(vec![PathBuf::from("/cfg/a")], Vec::new()),
+            vec![PathBuf::from("/cfg/a")],
+            "空附加目录 = 配置原样"
+        );
+    }
 }

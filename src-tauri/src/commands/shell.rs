@@ -106,6 +106,22 @@ fn strip_exit_marker(buffer: &str) -> &str {
 /// 应用句柄从托管状态取(而非直接当参数)—— 命令签名不与 runtime 绑死,
 /// 能力覆盖层才能用 mock runtime 驱动真实命令体。句柄缺失时命令**照常
 /// 执行**(shell 真的跑起来),只是没有事件推给前端。
+///
+/// v1.11 基建#7:SSH 远端执行的参数拼装(纯函数,便于单测)。
+/// `BatchMode=yes` 禁交互提示(密钥免密场景,卡在密码提示等于挂死),
+/// `ConnectTimeout=10` 防对不可达主机的长挂;host 前后空白容忍。
+fn ssh_argv(host: &str, cmd: &str) -> Vec<String> {
+    vec![
+        "ssh".to_string(),
+        "-o".to_string(),
+        "BatchMode=yes".to_string(),
+        "-o".to_string(),
+        "ConnectTimeout=10".to_string(),
+        host.trim().to_string(),
+        cmd.to_string(),
+    ]
+}
+
 #[tauri::command]
 pub async fn reflect_run_shell(
     agent: State<'_, MinimalAgent>,
@@ -117,15 +133,7 @@ pub async fn reflect_run_shell(
     // SSH 远端执行:cwd 不适用(远端家目录),会话元数据以 `ssh:<host>` 标注。
     if let Some(host) = ssh_host.as_deref().filter(|h| !h.trim().is_empty()) {
         let host = host.trim();
-        let argv = vec![
-            "ssh".to_string(),
-            "-o".to_string(),
-            "BatchMode=yes".to_string(),
-            "-o".to_string(),
-            "ConnectTimeout=10".to_string(),
-            host.to_string(),
-            cmd.clone(),
-        ];
+        let argv = ssh_argv(host, &cmd);
         let session = agent
             .inner
             .shell_sessions
@@ -313,6 +321,41 @@ mod tests {
     fn literal_exit_like_output_is_kept_unless_it_is_the_marker() {
         // 中间的 [exit N] 形似行不是监视标记,原样保留。
         assert_eq!(strip_exit_marker("[exit 0]\nmore\n"), "[exit 0]\nmore");
+    }
+
+    // ── v1.11 基建#7:SSH 远端执行参数拼装 ──────────────────────────
+
+    #[test]
+    fn ssh_argv_含免交互与超时选项且顺序稳定() {
+        let argv = ssh_argv("mac-mini", "uptime");
+        assert_eq!(
+            argv,
+            vec![
+                "ssh",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=10",
+                "mac-mini",
+                "uptime",
+            ],
+            "参数序列必须稳定:免交互 + 连接超时在前,host 与命令殿后"
+        );
+    }
+
+    #[test]
+    fn ssh_argv_容忍host前后空白() {
+        let argv = ssh_argv("  mac-mini\t", "uptime");
+        assert_eq!(argv[5], "mac-mini", "host 应 trim 后再拼装");
+    }
+
+    #[test]
+    fn ssh_argv_命令整体作为单参数() {
+        // `ssh <host> <cmd...>` 的命令是**单个参数**(远端 shell 自行分词),
+        // 不做本地拆分 —— 前端已剥掉 `ssh <host>` 前缀,这里原样透传。
+        let argv = ssh_argv("h", "git status --short");
+        assert_eq!(argv[6], "git status --short");
+        assert_eq!(argv.len(), 7);
     }
 
     // ====== 属性测试(rust-testing 技能采纳)======

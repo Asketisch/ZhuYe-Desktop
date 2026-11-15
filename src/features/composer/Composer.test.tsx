@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient, mockInvoke, emitMockEvent, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from '@/stores/agentStore';
+import { setUiPrefs, resetUiPrefsForTests } from '@/utils/uiPrefs';
 
 // 慢 CI(ubuntu runner)上异步 fetch/渲染链路偶发超过 DTL 默认 1s 窗口,
 // 本文件 waitFor 统一放宽到 5s。
@@ -868,5 +869,42 @@ describe('Composer /goal — 开目标会话', () => {
     expect(calls.arm).toHaveLength(0);
     expect(calls.submit).toHaveLength(0);
     await waitFor(() => expect(screen.queryByTestId('composer-goal-badge')).toBeNull());
+  });
+});
+
+// ── v1.11 桌面#4:锁定发送的键位提示随动 ──────────────────────────
+// 键位行为本体(关时 Enter 换行、⌘/Ctrl+Enter 发送)已在
+// useComposerInput.test 覆盖;这里断言**发送按钮提示文案**随开关切换,
+// 保证用户看到的键位说明与实际行为一致。
+describe('Composer — sendOnEnter hint follows the lock toggle', () => {
+  afterEach(() => {
+    resetUiPrefsForTests();
+  });
+
+  it('shows the locked ⌘/Ctrl+Enter hint when sendOnEnter is off', () => {
+    setUiPrefs({ sendOnEnter: false });
+    renderComposer();
+    const label = screen.getByTestId('composer-send').getAttribute('aria-label') ?? '';
+    expect(label).toContain('Ctrl+Enter');
+    expect(label).toContain('New line');
+  });
+
+  it('default hint is Send (Enter), and switches live when the pref toggles', async () => {
+    renderComposer();
+    const btn = () => screen.getByTestId('composer-send');
+    expect(btn().getAttribute('aria-label') ?? '').toContain('Send (Enter)');
+    // 运行中切换偏好(设置页开关的效果)→ 提示文案随动,无需重挂载。
+    act(() => {
+      setUiPrefs({ sendOnEnter: false });
+    });
+    await waitFor(() => {
+      expect(btn().getAttribute('aria-label') ?? '').toContain('Ctrl+Enter');
+    });
+    act(() => {
+      setUiPrefs({ sendOnEnter: true });
+    });
+    await waitFor(() => {
+      expect(btn().getAttribute('aria-label') ?? '').toContain('Send (Enter)');
+    });
   });
 });

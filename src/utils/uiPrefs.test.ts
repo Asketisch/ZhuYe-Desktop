@@ -28,6 +28,29 @@ describe('uiPrefs', () => {
     expect(prefs.backgroundImage).toBe('');
   });
 
+  // ── v1.11 桌面#4:锁定发送开关的持久化口径 ──────────────────────
+
+  it('sendOnEnter defaults to true, roundtrips false, and tolerates legacy/invalid values', () => {
+    // 缺省:Enter 发送(既有行为,老用户无感)。
+    expect(getUiPrefs().sendOnEnter).toBe(true);
+    // 关闭 → 落盘 + 回读保持。
+    setUiPrefs({ sendOnEnter: false });
+    expect(getUiPrefs().sendOnEnter).toBe(false);
+    expect(
+      JSON.parse(localStorage.getItem('reflect.uiprefs.v1') ?? '{}').sendOnEnter,
+    ).toBe(false);
+    // 旧版本持久化里没有该键 → 回退默认 true。
+    resetUiPrefsForTests();
+    localStorage.clear();
+    localStorage.setItem('reflect.uiprefs.v1', JSON.stringify({ chatDiffSplit: true }));
+    expect(getUiPrefs().sendOnEnter).toBe(true);
+    // 非法类型(手改 localStorage)→ 回退默认 true,不炸。
+    resetUiPrefsForTests();
+    localStorage.clear();
+    localStorage.setItem('reflect.uiprefs.v1', JSON.stringify({ sendOnEnter: 'yes' }));
+    expect(getUiPrefs().sendOnEnter).toBe(true);
+  });
+
   it('persists updates, clamps ranges, and notifies subscribers', () => {
     const listener = vi.fn();
     const unsubscribe = subscribeUiPrefs(listener);

@@ -75,6 +75,27 @@ describe('SkillsView — skill marketplace', () => {
     });
   });
 
+  it('re-lists skills after a successful install (auto rescan)', async () => {
+    // 「装完自动重扫」的 GUI 落点 = 安装成功后 skillsQ.refetch() →
+    // reflect_list_skills 被再次调用(装进来的技能立即可见)。
+    const listCalls: number[] = [];
+    mockInvoke('reflect_list_skills', async () => {
+      listCalls.push(Date.now());
+      return SKILLS;
+    });
+    mockInvoke('reflect_install_skill', async () => 'sub-fake');
+    render(wrap(<SkillsView />));
+    await screen.findByTestId('skill-market-row');
+    const before = listCalls.length;
+    fireEvent.change(screen.getByLabelText('Skill marketplace'), {
+      target: { value: 'owner/new-skill' },
+    });
+    fireEvent.click(screen.getByTestId('skill-install-btn'));
+    await vi.waitFor(() => {
+      expect(listCalls.length).toBeGreaterThan(before);
+    }, { timeout: 3000 });
+  });
+
   it('toastifies install failures and keeps the button usable', async () => {
     mockInvoke('reflect_install_skill', async () => {
       throw new Error('repo has no SKILL.md');
