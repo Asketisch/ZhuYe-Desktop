@@ -34,9 +34,11 @@ SUBMODULE="$ROOT/zhuye-agent"
 die() { echo "FAIL: $*" >&2; exit 1; }
 
 # ── 版本号读取(与 tests/static/run.sh 的 check_versions 同一口径)─────────
+# 根清单是虚 manifest:版本在 [workspace.package] 段,run.sh 取首个
+# `^version = ` 行恰为同一行。
 pkg_version()   { node -p "require('$PKG_JSON').version" 2>/dev/null; }
 cargo_version() {
-  awk '/^\[package\]$/{f=1;next} /^\[/{f=0} f && /^version = /{print; exit}' \
+  awk '/^\[workspace\.package\]/{f=1;next} /^\[/{f=0} f && /^version = /{print; exit}' \
     "$CARGO_TOML" | cut -d'"' -f2
 }
 tauri_version() { node -p "require('$TAURI_CONF').version" 2>/dev/null; }
@@ -151,16 +153,16 @@ for path, old_line, new_line in (
     assert text.count(old_line) == 1, f"{path} 中 {old_line!r} 不唯一或缺失"
     p.write_text(text.replace(old_line, new_line), encoding="utf-8")
 
-# ── Cargo.toml:仅 [package] 段内的版本行 ──
+# ── Cargo.toml:仅 [workspace.package] 段内的版本行(虚 manifest)──
 p = pathlib.Path(cargo)
 lines, inside, done, out = p.read_text(encoding="utf-8").splitlines(keepends=True), False, False, []
 for ln in lines:
     if ln.startswith("["):
-        inside = ln.rstrip("\n") == "[package]"
+        inside = ln.rstrip("\n") == "[workspace.package]"
     if inside and not done and ln.rstrip("\n") == f'version = "{old}"':
         ln, done = f'version = "{new}"\n', True
     out.append(ln)
-assert done, f"{cargo} 的 [package] 段中未找到 version = \"{old}\""
+assert done, f"{cargo} 的 [workspace.package] 段中未找到 version = \"{old}\""
 p.write_text("".join(out), encoding="utf-8")
 
 # ── CHANGELOG:「## 未发布」段改题为版本段,顶部补新空段 ──
