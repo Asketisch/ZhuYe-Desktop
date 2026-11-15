@@ -121,7 +121,9 @@ const written: string[] = [];
 // 基线集合完整性:与路由矩阵 × 双主题**恰好相等** —— 缺失(新增路由忘
 // 提交)或多余(路由已删基线未清)都点名。首跑(目录空)跳过。
 it('visual baseline set matches the route matrix × themes exactly', () => {
-  if (!hasBaselines()) return;
+  // 重生成模式下目录里还是旧基线(新路由尚未落盘),完整性检查会把
+  // 生成流程自己卡死。比对模式才要求集合与路由矩阵恰好相等。
+  if (!hasBaselines() || BASELINE_REGENERATE_MODE) return;
   const expected = new Set<string>();
   for (const { route } of ROUTES) {
     const name = route === '/' ? 'index' : route.replace(/^\//, '').replace(/\//g, '-');
