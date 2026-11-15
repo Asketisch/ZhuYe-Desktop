@@ -128,6 +128,9 @@ pub(crate) async fn refresh_installed_plugins(agent: &MinimalAgent) -> anyhow::R
         *shared.lock().await = None;
         return Err(error);
     }
+    // bootstrap 返回的是**新 Arc**。必须把内层 runtime 写回常驻句柄
+    // (`agent.plugin_runtime()`),slash / 技能 / MCP / agent 列表读的是它。
+    // 只 `take` 进局部变量会把刚挂好的 runtime 丢掉,列表继续是空的。
     *shared.lock().await = runtime.lock().await.take();
     Ok(())
 }

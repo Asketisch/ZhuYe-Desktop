@@ -31,6 +31,8 @@ import {
   reflect_uninstall_plugin,
   type ReflectPluginScope,
 } from '@/utils/commands';
+import { PLUGIN_COMMANDS_QUERY_KEY } from '@/features/composer/usePluginCommands';
+import { AGENTS_QUERY_KEY } from '@/features/agents/useAgentsController';
 import s from './CollaborationView.module.css';
 
 const SCOPES: ReflectPluginScope[] = ['user', 'project', 'local', 'managed'];
@@ -61,8 +63,15 @@ export function PluginsPanel() {
     staleTime: 60_000,
   });
 
+  // 插件挂载是热的:slash 命令 / 技能 / MCP server / agent 定义都随
+  // enabled 列表 diff 同步。只刷已装列表会让用户「装了却在其它面板
+  // 看不到」,所以四个消费面一起失效。
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['plugins'] });
+    void qc.invalidateQueries({ queryKey: PLUGIN_COMMANDS_QUERY_KEY });
+    void qc.invalidateQueries({ queryKey: ['skills'] });
+    void qc.invalidateQueries({ queryKey: ['mcp-servers'] });
+    void qc.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
   };
 
   const toggleMut = useMutation({
@@ -296,6 +305,11 @@ function MarketplaceRow({
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ['plugins'] });
       void qc.invalidateQueries({ queryKey: ['marketplace-plugins', name] });
+      // 市场一键安装后能力立刻挂载,slash / 技能 / MCP / agent 列表同步失效。
+      void qc.invalidateQueries({ queryKey: PLUGIN_COMMANDS_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: ['skills'] });
+      void qc.invalidateQueries({ queryKey: ['mcp-servers'] });
+      void qc.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
     },
   });
 

@@ -119,14 +119,43 @@ fn path_for(name: &str, dir: &Path) -> CommandResult<PathBuf> {
 }
 
 /// 列出所有 agent 定义(按 name 排序)。
+///
+/// v1.11:除 `~/.zhuye/agents/` 目录外,并入**插件带来的 agent 定义**
+/// —— 插件 agent 在运行时已注册进 SubAgentFactory(子代理可 spawn),
+/// 但列表此前只读目录,用户在 Agents 视图里看不到(「装了却看不到」)。
 #[tauri::command]
 pub async fn reflect_list_agent_defs(
-    _agent: State<'_, MinimalAgent>,
+    agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<AgentDefinition>> {
     let dir = agents_dir()?;
     let map: HashMap<String, AgentDefinition> =
         load_agents_dir(&dir).map_err(CommandError::from)?;
     let mut v: Vec<AgentDefinition> = map.into_values().collect();
+    // 插件 agent:按 agent 文件解析(与 loader::register 同款 frontmatter
+    // 语义);解析失败降级为最小定义(名称 + 描述),不阻断列表。
+    for (plugin_id, caps) in crate::commands::mcp::plugin_capabilities(&agent).await {
+        for a in &caps.agents {
+            if v.iter().any(|x| x.name == a.name) {
+                continue; // 同名不覆盖(用户目录优先)
+            }
+            let mut def = std::fs::read_to_string(&a.file_path)
+                .ok()
+                .and_then(|raw| reflect_agent_def::parse_agent_str(&raw).ok())
+                .unwrap_or_else(|| AgentDefinition {
+                    name: a.name.clone(),
+                    description: a.description.clone().unwrap_or_default(),
+                    ..Default::default()
+                });
+            if def.name.is_empty() {
+                def.name = a.name.clone();
+            }
+            if def.description.is_empty() {
+                def.description = a.description.clone().unwrap_or_default();
+            }
+            tracing::debug!(plugin = %plugin_id, agent = %def.name, "插件 agent 定义并入列表");
+            v.push(def);
+        }
+    }
     v.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(v)
 }

@@ -59,7 +59,12 @@ pub struct McpCatalogEntry {
     pub install_hint: String,
 }
 
-/// 列出配置中的全部 MCP server + 运行状态。
+/// 列出配置中的全部 MCP server + 运行状态 + **插件带来的 MCP server**。
+///
+/// v1.11:插件 manifest 的 `mcp_servers` 声明经 `bootstrap_plugins` 注册进
+/// 运行时 `McpConnectionManager`(`plugin:<id>:<name>` 命名空间),工具侧
+/// 立即可用;但此前列表只取自 `[mcp_servers]` 配置段 —— 插件 server
+/// 在 MCP 视图里**看不见**(用户「装了却看不到」)。此处并入插件快照。
 #[tauri::command]
 pub async fn reflect_list_mcp_servers(
     agent: State<'_, MinimalAgent>,
@@ -84,8 +89,46 @@ pub async fn reflect_list_mcp_servers(
             running: running.iter().any(|r| r == name),
         })
         .collect();
+    // 插件带来的 MCP server —— 名称为命名空间化的
+    // `plugin:<plugin_id>:<原名>`(与运行时的注册名一致)。
+    for (plugin_id, caps) in plugin_capabilities(&agent).await {
+        for srv in &caps.mcp_servers {
+            out.push(McpServerInfo {
+                name: srv.scoped_name.clone(),
+                transport: match srv.transport {
+                    reflect_plugin::capabilities::mcp::McpTransportKind::Stdio => "stdio",
+                    reflect_plugin::capabilities::mcp::McpTransportKind::Http => "http",
+                }
+                .to_string(),
+                command: srv.config.command.clone(),
+                args: srv.config.args.clone().unwrap_or_default(),
+                url: srv.config.url.clone(),
+                running: running.iter().any(|r| r == &srv.scoped_name),
+            });
+        }
+        let _ = plugin_id;
+    }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
+}
+
+/// 取当前会话已挂载插件的能力快照(v1.11:插件能力并入 GUI 列表视图的
+/// 统一入口 —— MCP server / 技能 / agent 定义三处共用)。
+pub(crate) async fn plugin_capabilities(
+    agent: &MinimalAgent,
+) -> Vec<(
+    reflect_plugin::PluginId,
+    reflect_plugin::capabilities::LoadedPlugin,
+)> {
+    let runtime = agent.plugin_runtime();
+    let guard = runtime.lock().await;
+    let Some(rt) = guard.as_ref() else {
+        return Vec::new();
+    };
+    rt.capabilities()
+        .iter()
+        .map(|(id, caps)| (id.clone(), caps.clone()))
+        .collect()
 }
 
 /// 列出内置精选 MCP catalog(离线清单 + 安装提示)。

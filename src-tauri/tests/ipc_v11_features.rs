@@ -348,6 +348,116 @@ fn install_from_local_marketplace_lands_on_disk() {
     assert!(cached.exists(), "缓存物化路径应存在: {}", cached.display());
 }
 
+/// 插件带的技能 / slash 命令 / MCP server / agent 定义,启用后必须出现在
+/// 各自的桌面列表里 —— 不只是运行时注册。此前列表只扫目录或配置段,
+/// 用户「装了却在面板里看不到」。
+#[test]
+fn enabled_plugin_capabilities_show_in_desktop_lists() {
+    let _guard = common::state_lock();
+    let home = common::isolated_home();
+    let plugin = home.join("plugin-full");
+    std::fs::create_dir_all(plugin.join("commands")).expect("commands");
+    std::fs::create_dir_all(plugin.join("skills/review")).expect("skills");
+    std::fs::create_dir_all(plugin.join("agents")).expect("agents");
+    std::fs::write(
+        plugin.join("plugin.toml"),
+        r#"
+name = "full"
+version = "1.0.0"
+description = "full capability plugin"
+commands = "./commands"
+skills = "./skills"
+agents = "./agents"
+"#,
+    )
+    .expect("plugin.toml");
+    std::fs::write(
+        plugin.join("commands/hello.md"),
+        "---\ndescription: greet\n---\n# hi\n",
+    )
+    .expect("command");
+    std::fs::write(
+        plugin.join("skills/review/SKILL.md"),
+        "---\nname: review\ndescription: review skill\n---\n# body\n",
+    )
+    .expect("skill");
+    std::fs::write(
+        plugin.join("agents/reviewer.md"),
+        "---\nname: reviewer\ndescription: review agent\n---\n# prompt\n",
+    )
+    .expect("agent");
+
+    common::invoke_ok(
+        "reflect_install_plugin",
+        json!({
+            "path": plugin.display().to_string(),
+            "marketplace": "local",
+            "scope": "user"
+        }),
+    );
+    // 插件 runtime 只在真实会话上挂载。先建会话,再启用,列表才读得到能力。
+    let session = common::invoke_ok("reflect_create_session", json!({}));
+    let session_id = session.as_str().expect("create session 返回 id");
+    common::invoke_ok("reflect_bind_session", json!({ "id": session_id }));
+    std::thread::sleep(std::time::Duration::from_millis(400));
+    common::invoke_ok(
+        "reflect_toggle_plugin",
+        json!({ "id": "full@local", "enabled": true }),
+    );
+    let commands = common::invoke_ok("reflect_list_plugin_commands", json!({}));
+    let names = commands
+        .as_array()
+        .expect("命令列表")
+        .iter()
+        .filter_map(|c| c["name"].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        names.iter().any(|n| n.contains("hello")),
+        "slash 命令应可见: {names:?}"
+    );
+
+    let skills = common::invoke_ok("reflect_list_skills", json!({}));
+    let skill_names = skills
+        .as_array()
+        .expect("技能列表")
+        .iter()
+        .filter_map(|s| s["name"].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        skill_names.contains(&"review"),
+        "插件技能应出现在 Skills 列表: {skill_names:?}"
+    );
+
+    let agents = common::invoke_ok("reflect_list_agent_defs", json!({}));
+    let agent_names = agents
+        .as_array()
+        .expect("agent 列表")
+        .iter()
+        .filter_map(|a| a["name"].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        agent_names.contains(&"reviewer"),
+        "插件 agent 应出现在 Agents 列表: {agent_names:?}"
+    );
+
+    // 停用后快照清除,列表不再残留插件能力。
+    common::invoke_ok(
+        "reflect_toggle_plugin",
+        json!({ "id": "full@local", "enabled": false }),
+    );
+    let skills_after = common::invoke_ok("reflect_list_skills", json!({}));
+    let names_after = skills_after
+        .as_array()
+        .expect("技能列表")
+        .iter()
+        .filter_map(|s| s["name"].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        !names_after.contains(&"review"),
+        "停用后插件技能应消失: {names_after:?}"
+    );
+}
+
 // ============================================================================
 // 基建#12 补:token 经 remote_config → status_server 的 IPC 组合路径
 // ============================================================================

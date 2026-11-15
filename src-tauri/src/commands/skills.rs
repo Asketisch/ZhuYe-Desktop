@@ -55,6 +55,10 @@ pub struct SkillInfo {
 }
 
 /// 列出 agent 当前可用的全部技能(与运行时 catalog 同集)。
+///
+/// v1.11:除目录扫描(工作区 / 用户级 / bundled)外,并入**插件带来的
+/// 技能** —— 插件技能在运行时已注册进 catalog(模型侧可用),但列表
+/// 此前只扫目录,用户在 Skills 视图里看不到(「装了却看不到」)。
 #[tauri::command]
 pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SkillInfo>> {
     let ws_skills: PathBuf =
@@ -74,6 +78,38 @@ pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResul
                 bundled.insert(b.name.clone());
                 metas.push(b);
             }
+        }
+    }
+
+    // 插件技能:与 loader::register 同款语义(解析 frontmatter 全字段,
+    // SKILL.md 不合规时降级为 manifest 元数据 —— 宽容作者,不阻断列表)。
+    for (plugin_id, caps) in crate::commands::mcp::plugin_capabilities(&agent).await {
+        for s in &caps.skills {
+            if !seen.insert(s.name.clone()) {
+                continue; // 同名不覆盖(工作区/用户级技能优先)
+            }
+            let mut meta = reflect_skills::parse_skill_file(&s.skill_md).unwrap_or_else(|e| {
+                tracing::warn!(
+                    plugin = %plugin_id,
+                    skill = %s.name,
+                    error = %e,
+                    "插件 SKILL.md 解析失败;降级为 manifest 元数据"
+                );
+                reflect_skills::SkillMeta {
+                    name: s.name.clone(),
+                    description: s.description.clone().unwrap_or_default(),
+                    triggers: Vec::new(),
+                    tools: Vec::new(),
+                    mcp_collections: Vec::new(),
+                    path: s.skill_md.clone(),
+                    body: String::new(),
+                    version: None,
+                    plugin_id: None,
+                    when_paths: Vec::new(),
+                }
+            });
+            meta.plugin_id = Some(plugin_id.to_string());
+            metas.push(meta);
         }
     }
 
