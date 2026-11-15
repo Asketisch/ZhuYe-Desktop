@@ -2,7 +2,7 @@
 
 烛夜 ZhuYe 桌面端（仓库原名 ReflectDesktop）的所有重要变更均记录于此。格式遵循 [Keep a Changelog](https://keepachangelog.com/)，版本号遵守[语义化版本](https://semver.org/)。
 
-## 未发布
+## 0.0.5 — 2026-11-15
 
 ### 新增 — v1.11 功能对齐(feature-gap-report)
 
