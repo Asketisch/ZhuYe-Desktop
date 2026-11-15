@@ -72,7 +72,7 @@ fn persist_replace(temp: tempfile::NamedTempFile, target: &Path) -> io::Result<(
                 Err(error) => return Err(error.error),
             }
         }
-        return Err(last.unwrap_or_else(|| io::Error::other("persist failed without error")));
+        Err(last.unwrap_or_else(|| io::Error::other("persist failed without error")))
     }
     #[cfg(not(windows))]
     {
