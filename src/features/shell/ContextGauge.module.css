@@ -1,0 +1,50 @@
+.gauge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.track {
+  stroke: var(--border-subtle, rgba(128, 128, 128, 0.25));
+}
+
+.arc {
+  transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+}
+
+.normal .arc {
+  stroke: var(--accent, #4a9eff);
+}
+
+.warning .arc {
+  stroke: #d97706;
+}
+
+.warning .label {
+  color: #b45309;
+}
+
+.critical .arc {
+  stroke: #dc2626;
+}
+
+.critical .label {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.label {
+  font-variant-numeric: tabular-nums;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

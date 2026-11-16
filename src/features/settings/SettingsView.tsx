@@ -33,6 +33,7 @@ import { PermissionRulesSection } from './sections/PermissionRulesSection';
 import { ConfigInfoLine } from './sections/ConfigInfoLine';
 import { SecurityScanCard } from './sections/SecurityScanCard';
 import { GuardStatsCard } from './sections/GuardStatsCard';
+import { ConfigHealthBanner } from './ConfigHealthBanner';
 import { UpdatesSection } from './sections/UpdatesSection';
 import s from './SettingsView.module.css';
 
@@ -276,6 +277,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             />
           </section>
         )}
+
+        {/* F50:配置健康横幅(provider 未配 / guard 关闭 / 沙箱未启)。 */}
+        <ConfigHealthBanner />
 
         {/* F01:注入防护裁决统计(prompt_guard 默认开启,拦了多少要看得见)。 */}
         <GuardStatsCard />

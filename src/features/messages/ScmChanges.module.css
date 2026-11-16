@@ -1,0 +1,50 @@
+.panel {
+  margin: var(--space-2) 0;
+  border: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.2));
+  border-radius: 8px;
+  font-size: var(--fs-xs);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.list {
+  margin: 0;
+  padding: 0 10px 8px 24px;
+  list-style: none;
+}
+
+.list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.turn {
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
+.list li li {
+  padding: 1px 0;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failed {
+  color: var(--danger, #dc2626);
+}

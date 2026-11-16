@@ -21,6 +21,7 @@ import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import { useAutoSessionTitle } from '@/features/sessions/hooks/useAutoSessionTitle';
 import { ChatHero, QuickPromptRow } from '@/features/home/ChatHero';
 import { ContextBanner } from './ContextBanner';
+import { ScmChanges } from './ScmChanges';
 import { MessageSquare, GitBranch } from 'lucide-react';
 import { Button, Icon, Spinner } from '@/features/design-system';
 import { DiffViewer } from '@/features/git/DiffViewer';
@@ -326,6 +327,7 @@ export function ChatView() {
       )}
       {hero && <ChatHero />}
       {!hero && <ContextBanner />}
+      {!hero && <ScmChanges />}
       {!loading && !error && (
         // 英雄态仅视觉隐藏（display:none），保持 MessageList 挂载 ——
         // 其 role="log" 区与滚动锚点被集成测试和自动滚动消费。

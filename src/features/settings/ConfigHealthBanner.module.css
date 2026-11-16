@@ -1,0 +1,43 @@
+.banner {
+  margin-bottom: var(--space-3);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: var(--fs-xs);
+}
+
+.critical {
+  color: var(--danger, #dc2626);
+}
+
+.warn {
+  color: #d97706;
+}
+
+.text {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  padding-top: var(--space-1);
+  border-top: 1px dashed var(--border-subtle, rgba(128, 128, 128, 0.2));
+}

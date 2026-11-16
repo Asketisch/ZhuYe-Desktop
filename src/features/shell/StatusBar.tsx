@@ -22,6 +22,7 @@ import { reflect_agent_status, reflect_list_sessions, reflect_sandbox_status } f
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/utils/theme';
 import { useI18n } from '@/utils/i18n';
 import { useContextRatio } from './useContextRatio';
+import { ContextGauge } from './ContextGauge';
 import { isUsableModelSpec } from './modelLabel';
 import s from './StatusBar.module.css';
 
@@ -114,8 +115,9 @@ export function StatusBar() {
             })}
             side="top"
           >
-            <span className={s.itemMuted} data-testid="statusbar-context" data-warn={ctx.warn || undefined}>
-              {ctx.pct}%
+            {/* F52:环形仪表取代纯文本 —— 档位着色(Normal/Warning/Critical)。 */}
+            <span data-testid="statusbar-context" data-warn={ctx.warn || undefined}>
+              <ContextGauge />
             </span>
           </Tooltip>
         )}
