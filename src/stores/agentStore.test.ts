@@ -40,6 +40,7 @@ const emptyState = (): AgentState => ({
   planSteps: [],
   loadedPlugins: [],
   prompt: null,
+  guardStats: null,
   promptPanelOpen: false,
   openPromptPanel: () => {},
   closePromptPanel: () => {},
@@ -54,6 +55,7 @@ const emptyState = (): AgentState => ({
   interruptSubagent: async () => {},
   promptList: async () => {},
   promptRescan: async () => {},
+  queryGuardStats: async () => {},
   subagents: { feed: [], lastStatus: null },
   enqueueMessage: () => {},
   removeQueued: () => {},
@@ -677,6 +679,43 @@ describe('reduceEvent — prompt layers', () => {
       ev('', { type: 'prompt_switched', action: 'reload', active_layers: [] }),
     );
     expect(patch.prompt).toMatchObject({ available: [], currentSpec: '', activeLayers: [] });
+  });
+
+  it('guard_stats writes the four counters into guardStats (F01)', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'guard_stats',
+        enabled: true,
+        definitions_blocked: 1,
+        definitions_reviewed: 2,
+        outputs_blocked: 3,
+        outputs_reviewed: 4,
+      }),
+    );
+    expect(patch.guardStats).toEqual({
+      enabled: true,
+      definitionsBlocked: 1,
+      definitionsReviewed: 2,
+      outputsBlocked: 3,
+      outputsReviewed: 4,
+    });
+  });
+
+  it('guard_stats with enabled=false keeps zero counters (F01)', () => {
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', {
+        type: 'guard_stats',
+        enabled: false,
+        definitions_blocked: 0,
+        definitions_reviewed: 0,
+        outputs_blocked: 0,
+        outputs_reviewed: 0,
+      }),
+    );
+    expect(patch.guardStats?.enabled).toBe(false);
+    expect(patch.guardStats?.outputsBlocked).toBe(0);
   });
 });
 

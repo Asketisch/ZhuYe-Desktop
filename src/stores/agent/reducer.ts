@@ -170,6 +170,9 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         diff: summary.diff,
         path: summary.path,
         isError: msg.is_error,
+        // F01:注入标注 —— guard 的 Review 裁决把 verdict 写进输出元数据,
+        // 消息流据此渲染 🛡 徽标(block 裁决正文已是拦截提示,同样标注)。
+        guardVerdict: extractGuardVerdict(msg.output?.metadata),
       });
       // TodoWrite 工具把 todo 清单放在 `output.metadata.todos` —— 事件流里
       // 就有。核心目前没有消费方(LLM 看不到清单),但清单本身可展示。
@@ -384,6 +387,19 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         toasts: [...state.toasts, toast],
       };
     }
+
+    // F01:prompt_guard 裁决统计应答 —— 进程级状态(guard 挂在引擎进程,
+    // 切会话不清零),设置页安全段据此展示「开了没 / 拦了多少」。
+    case 'guard_stats':
+      return {
+        guardStats: {
+          enabled: msg.enabled,
+          definitionsBlocked: msg.definitions_blocked,
+          definitionsReviewed: msg.definitions_reviewed,
+          outputsBlocked: msg.outputs_blocked,
+          outputsReviewed: msg.outputs_reviewed,
+        },
+      };
 
     // v1.x(submodule main):运行时扩展重扫完成 —— toast 提示「skills
     // 已刷新」并展示条目总数(协议约定由 UI 提示,与 prompt_switched 同款)。
@@ -609,4 +625,21 @@ function extractTodos(metadata: unknown): TodoItem[] | null {
     });
   }
   return out;
+}
+
+/**
+ * F01:从工具输出元数据里取 prompt_guard 裁决标注。
+ *
+ * 引擎的 prompt_guard 在 Review/Block 裁决时把
+ * `{ prompt_guard: { verdict: "review" | "block", ... } }` 写进
+ * `ToolOutput.metadata`;Allow / guard 关闭时不写。形状不对或无标注
+ * 返回 undefined(与「guard 放行」不可区分,都无需渲染徽标)。
+ */
+function extractGuardVerdict(metadata: unknown): 'review' | 'block' | undefined {
+  if (!metadata || typeof metadata !== 'object') return undefined;
+  const guard = (metadata as { prompt_guard?: unknown }).prompt_guard;
+  if (!guard || typeof guard !== 'object') return undefined;
+  const verdict = (guard as { verdict?: unknown }).verdict;
+  if (verdict === 'review' || verdict === 'block') return verdict;
+  return undefined;
 }

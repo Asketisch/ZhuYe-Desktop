@@ -109,6 +109,7 @@ zhuye-protocol = { path = "zhuye-agent/crates/protocol/zhuye-protocol" }
 zhuye-llm = { path = "zhuye-agent/crates/abilities/zhuye-llm" }
 zhuye-tools = { path = "zhuye-agent/crates/abilities/zhuye-tools" }
 zhuye-bm25 = { path = "zhuye-agent/crates/abilities/zhuye-bm25" }
+zhuye-eval = { path = "zhuye-agent/crates/abilities/zhuye-eval" }
 zhuye-hooks = { path = "zhuye-agent/crates/abilities/zhuye-hooks" }
 zhuye-skills = { path = "zhuye-agent/crates/abilities/zhuye-skills" }
 zhuye-memory = { path = "zhuye-agent/crates/abilities/zhuye-memory" }

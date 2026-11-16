@@ -47,6 +47,15 @@ export async function reflect_rescan_extensions(
 }
 
 /**
+ * F01:查询 prompt_guard 裁决统计(上游 `Op::QueryGuardStats`)。
+ * 不开 turn;结果经 `guard_stats` 事件回推(enabled + 定义/输出两侧
+ * block/review 四计数)。返回 submission id。
+ */
+export async function reflect_query_guard_stats(): Promise<string> {
+  return invoke<string>('reflect_query_guard_stats');
+}
+
+/**
  * v1.11 桌面#1:Skill 市场 —— 从 GitHub 仓库安装技能到用户级
  * `~/.zhuye/skills/`(装完触发运行时重扫,新技能不重启即生效)。
  * repo 形态:`owner/repo` 或 GitHub URL(仓库根含 SKILL.md)。

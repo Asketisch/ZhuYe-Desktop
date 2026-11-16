@@ -95,7 +95,9 @@ export type EventMsgType =
   | 'prompt_list'
   | 'prompt_switched'
   // 扩展重扫 (1;v1.x,submodule main)
-  | 'extensions_rescanned';
+  | 'extensions_rescanned'
+  // 注入防护统计 (1;F01)
+  | 'guard_stats';
 
 // ============================================================================
 // EventMsg payload 结构体
@@ -197,6 +199,23 @@ export interface ExtensionsRescannedPayload {
   skills: number;
   /** commands 重扫请求是否被处理。当前恒为 `false`(上游尚未接线)。 */
   commands: boolean;
+}
+
+/**
+ * `guard_stats` —— F01:`Op::QueryGuardStats` 的应答,prompt_guard
+ * 裁决统计快照(会话累计)。payload 镜像 Rust `GuardStatsEvent`。
+ */
+export interface GuardStatsPayload {
+  /** prompt_guard 是否启用(F01 起默认开启)。 */
+  enabled: boolean;
+  /** 工具定义扫描 Block、拒绝注册的累计次数。 */
+  definitions_blocked: number;
+  /** 工具定义扫描 Review、放行标注的累计次数。 */
+  definitions_reviewed: number;
+  /** 工具输出扫描 Block、内容被拦截替换的累计次数。 */
+  outputs_blocked: number;
+  /** 工具输出扫描 Review、metadata 标注的累计次数。 */
+  outputs_reviewed: number;
 }
 
 export interface ToolCallBeginPayload {
@@ -653,6 +672,8 @@ export interface EventMsgByType {
   prompt_switched: PromptSwitchedPayload;
   // 扩展重扫 (v1.x,submodule main)
   extensions_rescanned: ExtensionsRescannedPayload;
+  // 注入防护统计 (F01)
+  guard_stats: GuardStatsPayload;
 }
 
 /** ReflectEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */

@@ -603,6 +603,7 @@
       "skills": true,
       "commands": false
     },
+    "reflect_query_guard_stats": {},
     "reflect_browse_marketplace": {
       "name": "fake-mkt"
     },

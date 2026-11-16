@@ -34,6 +34,12 @@ export type TurnItem =
       diff?: string;
       /** 工具输出的目标文件路径（metadata.path），无则为空。 */
       path?: string;
+      /**
+       * F01:prompt_guard 裁决标注（`metadata.prompt_guard.verdict`）。
+       * `review` = 输出含可疑注入话术（正文保留、已标注）；
+       * `block` = 输出被整体拦截替换。无标注（guard 放行/未启用）为空。
+       */
+      guardVerdict?: 'review' | 'block';
     }
   | { kind: 'error'; text: string };
 
@@ -291,6 +297,10 @@ export const SUBAGENT_FEED_CAP = 200;
  * 进程级库上(按模型自动匹配),切会话不重置 —— 因此 hydrate/clear
  * 不清理此字段。
  */
+// F01:prompt_guard 统计类型拆到 `./guardStats`(单文件行数预算)。
+import type { GuardStatsState } from './guardStats';
+export type { GuardStatsState };
+
 export interface PromptState {
   /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 用户目录层,去重)。 */
   available: string[];
@@ -361,6 +371,11 @@ export interface AgentState {
    */
   prompt: PromptState | null;
   /**
+   * F01:prompt_guard 裁决统计(进程级,见 GuardStatsState)。
+   * 尚未查询过(`Op::QueryGuardStats` 未发出)时为 null。
+   */
+  guardStats: GuardStatsState | null;
+  /**
    * 提示词层面板是否展开(v1.6.1)—— `/prompt` slash 打开,
    * 展示可用层与当前生效层。
    */
@@ -405,6 +420,11 @@ export interface AgentState {
    * 应答 `prompt_switched` 事件异步到达,reducer 写入 `prompt` 并弹 toast。
    */
   promptRescan: (layer?: string | null) => Promise<void>;
+  /**
+   * F01:查询 prompt_guard 裁决统计。应答 `guard_stats` 事件异步到达,
+   * reducer 写入 `guardStats`。
+   */
+  queryGuardStats: () => Promise<void>;
   /** C：把一条跟进消息加入前端队列（turn 运行中不直发后端）。 */
   enqueueMessage: (items: UserInputItem[], workspace?: string | null) => void;
   /** C：移除队列中的一条待发送消息。 */

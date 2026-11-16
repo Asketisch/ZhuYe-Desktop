@@ -112,6 +112,10 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   { section: 'sanitize', key: 'marker', labelKey: 'settings.config.field.sanitize.marker', kind: 'text' },
   { section: 'sanitize', key: 'disable_default_patterns', labelKey: 'settings.config.field.sanitize.disable_default_patterns', kind: 'boolean' },
 
+  // F01:提示注入防护开关(默认开启;`false` 显式关闭)。与 sanitize 同属
+  // 安全/脱敏域,相邻渲染便于用户对照「输出脱敏」与「输入注入扫描」。
+  { section: 'prompt_guard', key: 'enabled', labelKey: 'settings.config.field.prompt_guard.enabled', kind: 'boolean' },
+
   { section: 'plugins', key: 'enabled_plugins', labelKey: 'settings.config.field.plugins.enabled_plugins', kind: 'textarea' },
 
   { section: 'config_version', key: 'version', labelKey: 'settings.config.field.config_version.version', kind: 'integer' },

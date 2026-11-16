@@ -214,6 +214,7 @@ function ItemView({ node, turnStatus }: { node: RenderNode; turnStatus: Turn['st
                 diff: node.output.diff,
                 path: node.output.path,
                 isError: node.output.isError,
+                guardVerdict: node.output.guardVerdict,
               }
             : undefined
         }

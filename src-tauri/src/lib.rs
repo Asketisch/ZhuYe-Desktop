@@ -69,7 +69,8 @@ use commands::{
     reflect_query_plan_quota, reflect_query_subagents, reflect_read_file,
     reflect_read_image_base64, reflect_read_span_log, reflect_recovery_state, reflect_release_task,
     reflect_remove_memory, reflect_remove_schedule, reflect_rename_session, reflect_replay_session,
-    reflect_rescan_extensions, reflect_reveal_path, reflect_rewind, reflect_run_discussion,
+    reflect_query_guard_stats, reflect_rescan_extensions, reflect_reveal_path, reflect_rewind,
+    reflect_run_discussion,
     reflect_run_pipeline, reflect_run_security_scan, reflect_run_shell, reflect_run_team_pipeline,
     reflect_sandbox_status, reflect_save_agent_def, reflect_save_allowlist, reflect_save_config,
     reflect_save_pipeline_config, reflect_save_subagent_spec, reflect_screenshot,
@@ -185,6 +186,7 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             reflect_install_skill,
             reflect_list_skills,
             reflect_rescan_extensions,
+            reflect_query_guard_stats,
             reflect_list_plugin_commands,
             // 插件管理(列表 / 启停 / 卸载 / 本地安装 / 市场浏览与安装)
             reflect_list_plugins,

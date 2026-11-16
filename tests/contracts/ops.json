@@ -19,6 +19,7 @@
     "exit_goal_mode": {"type":"exit_goal_mode"},
     "prompt_command": {"type":"prompt_command", "action":{"type":"switch","layer":null}},
     "rescan_extensions": {"type":"rescan_extensions", "skills":true, "commands":false},
+    "query_guard_stats": {"type":"query_guard_stats"},
     "register_tools": {"type":"register_tools", "tools":[{"name":"probe","description":"probe tool","parameters":{"type":"object"}}]},
     "tool_execution_response": {"type":"tool_execution_response", "call_id":"call-1", "output":{"content":[{"type":"text","text":"ok"}],"is_error":false,"metadata":{},"elapsed_ms":1}},
     "steer": {"type":"steer", "priority":"now", "items":[{"type":"text","text":"continue"}]},

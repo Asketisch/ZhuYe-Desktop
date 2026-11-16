@@ -13,6 +13,7 @@ import {
   reflect_interrupt,
   reflect_plan_approval,
   reflect_prompt_command,
+  reflect_query_guard_stats,
   reflect_query_subagents,
   reflect_rewind,
   reflect_save_config,
@@ -35,6 +36,7 @@ import {
 } from './planFailover';
 import { reduceEvent } from './reducer';
 import { appendItem, markTurn } from './turns';
+import { runQueryGuardStats } from './guardStats'; // F01
 import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
@@ -148,8 +150,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
   todos: [],
   planSteps: [],
   loadedPlugins: [],
-  // 提示词层状态(v1.6.1)—— 进程级,不随会话切换重置。
+  // 提示词层状态(v1.6.1)/ F01 guard 统计 —— 进程级,不随会话切换重置。
   prompt: null,
+  guardStats: null,
   promptPanelOpen: false,
   openPromptPanel: () => set({ promptPanelOpen: true }),
   closePromptPanel: () => set({ promptPanelOpen: false }),
@@ -330,7 +333,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   promptRescan: async (layer) => {
     await reflect_prompt_command({ type: 'switch', layer: layer ?? null });
   },
-
+  queryGuardStats: () => runQueryGuardStats(reflect_query_guard_stats), // F01
   enqueueMessage: (items, workspace) => {
     const firstText = items.find(
       (item): item is { type: 'text'; text: string } => item.type === 'text',

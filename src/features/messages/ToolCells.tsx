@@ -35,6 +35,8 @@ export interface ToolCellOutput {
   diff?: string;
   path?: string;
   isError: boolean;
+  /** F01:prompt_guard 裁决标注(review=可疑保留 / block=已拦截),无则不渲染徽标。 */
+  guardVerdict?: 'review' | 'block';
 }
 
 export interface ToolCellProps {
@@ -155,6 +157,19 @@ export function ToolCell({ toolName, argsSummary, argsStream, status, output, de
         <Icon icon={Icon2} size={13} className={s[`accent_${accent}`]} />
         <span className={s.name}>{toolName}</span>
         <span className={s.summary}>{streamingSummary}</span>
+        {output?.guardVerdict && (
+          <span
+            className={`${s.guardBadge} ${output.guardVerdict === 'block' ? s.guardBadgeBlock : ''}`}
+            data-testid={`tool-guard-${output.guardVerdict}`}
+            title={
+              output.guardVerdict === 'block'
+                ? t('chat.guardBadge.block')
+                : t('chat.guardBadge.review')
+            }
+          >
+            🛡 {output.guardVerdict === 'block' ? t('chat.guardBadge.block') : t('chat.guardBadge.review')}
+          </span>
+        )}
         <StatusIcon status={status} />
       </button>
       {open && (
