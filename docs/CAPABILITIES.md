@@ -8,7 +8,7 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `72d7d97`（TaskOutput block=true 只认非空内容，消除 Windows 上 writer create→write 窗口读到空串的竞态；发布批次 v0.1.14 同步。完整 SHA `72d7d972`。上一轮 `771d8efa` 为跨会话召回测试注入笔记根，不再改写进程级 ZHUYE_HOME。）
+> 最近审计：submodule `c61668d`（回合审批策略与 Plan 工作模式分离；桌面会话提供请求批准、帮我批准、完全访问三态）。上一轮 `72d7d972` 修复 Windows 上 TaskOutput 空内容竞态。
 > 上一轮 `e3da2540 → 58cebeb6` 为两项 Windows 平台行为修复：safe_write 原子改名改走 NT 层 `NtSetInformationFile`（Win32 封装层整体拒绝非 NULL RootDirectory，code 87 的真根因；并按 Windows「不能替换仍有打开句柄的文件」约束在改名前释放旧目标句柄）；pipeline shell 节点用例按平台断言（Windows 无沙箱后端，fail-closed 拒绝是可达语义）。
 > 上一轮 `0cca4c6a → e3da2540` 为 safe_write 原子改名切到 FileRenameInformationEx：非 Ex 类拒绝非 NULL RootDirectory（code 87），write/edit/plan_write 落盘与 GUI 文件保存在 Windows 上恒红的根因；plan_write 绝对路径改按分量判定（Windows `is_absolute()` 对无盘符根路径漏网）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
 > 上一轮 `8e72bc4c → 0cca4c6a`
@@ -57,7 +57,7 @@
 | 计价 | `reflect-llm::providers` | `pricing_table` / `pricing_for` / `RateCard` | ✅ 费率卡直接读核心公开费率表（develop 收编;桌面反解 shim 已删） |
 | Autopilot | `reflect-stream::autopilot` | 配置/历史持久化 + 到期判定 + `fire_if_due` 闭环 | 🟡 桌面后台驱动已接线，指定 agent 经 side-channel 执行；历史终态关联存在并发错配风险，见 `tests/RUNTIME_COVERAGE.md` |
 | 侧通道 | `reflect-core::side_channel` | `SideChannelDriver` / `SideChannelRegistry` / `Op::Start\|Cancel\|QuerySideChannels` | ✅ **引擎原生执行**(develop WP9 收编):driver 经线程工厂注入,命令走协议三 Op,事件三变体全接线(reducer + 视图订阅);registry 进程级共享,跨会话 rebind 存活 |
-| 权限 | `reflect-permissions` | `FilePermissionStore` / `StorePermissionResolver` | ✅ 三层 store 已挂载（CLI 同构）+ Settings 可见生效规则 |
+| 权限 | `reflect-permissions` | `FilePermissionStore` / `StorePermissionResolver` / 回合审批策略 | ✅ 三层 store 已挂载；Settings 可见规则，会话可独立选择审批策略及 Plan 工作模式 |
 | 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` / `[context_windows]` / `[prompt_guard]` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；上下文窗口、思考强度和 prompt guard 随配置生效，但 guard/窗口明细没有专属配置面 |
 | 模型清单发现 | `reflect-config::discovery` / `reflect-llm::model_catalog` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24） |
 | MCP | `reflect-mcp` | `McpConnectionManager` / registry | ✅ 观测 + **增删 + 精选 catalog + 资源/prompt 浏览**（§3.12 / §3.16） |

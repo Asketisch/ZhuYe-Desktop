@@ -36,9 +36,9 @@ import {
 import { reduceEvent } from './reducer';
 import { appendItem, markTurn } from './turns';
 import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
+import { readApprovalPolicy } from './approvalPolicy';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
-
 export const useAgentStore = create<AgentState>((set, get) => {
   // 会话作用域的子代理可观测投影的空态(复用引用,避免每处字面量)。
   const EMPTY_SUBAGENTS: SubagentsState = { feed: [], lastStatus: null };
@@ -61,7 +61,6 @@ export const useAgentStore = create<AgentState>((set, get) => {
     onSwitched: (from, to) => set({ planFailover: { from, to, at: Date.now() } }),
     currentProvider: () => get().session?.provider ?? null,
   });
-
   return {
   turns: [],
   session: null,
@@ -179,7 +178,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       if (Object.keys(patch).length > 0) set(patch);
       // C：turn 收尾后自动排空跟进队列（reduce 完成后再取最新状态判断）。
       if (event.msg.type === 'turn_complete' || event.msg.type === 'turn_aborted') {
-        void get().drainQueue();
+        if (event.msg.type === 'turn_complete') void get().drainQueue();
         // v1.4 C1:本会话出现过子代理活动 → turn 收尾自动拉一次状态
         // 快照,让 Inspector 的子代理区块反映终态(running → completed/
         // failed/cancelled),无需手动刷新。
@@ -199,7 +198,11 @@ export const useAgentStore = create<AgentState>((set, get) => {
       }
       // plan 最大上下文 ≥80% → 自动压缩（内部有开关/节流/触发闩）。
       if (event.msg.type === 'token_count') {
-        void autoCompact(event.msg.input_tokens ?? 0);
+        const state = get();
+        const eventModel = event.msg.model;
+        const sessionModel = state.session?.model;
+        const sameModel = !eventModel || !sessionModel || eventModel === sessionModel || sessionModel.endsWith(`/${eventModel}`) || eventModel.endsWith(`/${sessionModel}`);
+        void autoCompact(event.msg.input_tokens ?? 0, eventModel, sameModel ? state.contextWindowSize : null);
       }
     });
     return () => {
@@ -212,7 +215,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const id = uuid();
     const submission: ReflectSubmission = {
       id,
-      op: { type: 'user_input', items: [{ type: 'text', text }] },
+      op: { type: 'user_input', items: [{ type: 'text', text }], thread_settings: { approval_policy: readApprovalPolicy(get().loadedSessionId) } },
       ...(workspace ? { workspace } : {}),
     };
     set((state) => ({
@@ -238,7 +241,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const id = uuid();
     const submission: ReflectSubmission = {
       id,
-      op: { type: 'user_input', items },
+      op: { type: 'user_input', items, thread_settings: { approval_policy: readApprovalPolicy(get().loadedSessionId) } },
       ...(workspace ? { workspace } : {}),
     };
     const firstText = items.find(

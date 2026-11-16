@@ -383,6 +383,35 @@ mod tests {
         );
     }
 
+    #[test]
+    fn stamping_sandbox_preserves_independent_approval_policy() {
+        let sub = Submission::with_id(
+            "s1",
+            Op::UserInput {
+                items: vec![],
+                thread_settings: ThreadSettingsOverrides {
+                    approval_policy: Some(reflect_protocol::ApprovalPolicy::FullAccess),
+                    ..Default::default()
+                },
+            },
+        );
+        let stamped = super::stamp_sandbox_policy_with(true, sub);
+        let Op::UserInput {
+            thread_settings, ..
+        } = stamped.op
+        else {
+            panic!("expected user input")
+        };
+        assert_eq!(
+            thread_settings.approval_policy,
+            Some(reflect_protocol::ApprovalPolicy::FullAccess)
+        );
+        assert_eq!(
+            thread_settings.sandbox_policy,
+            Some(reflect_protocol::SandboxPolicy::OsSandbox)
+        );
+    }
+
     /// 非 UserInput 的 op 不带 thread_settings —— 原样透传。
     #[test]
     fn non_user_input_ops_are_untouched() {

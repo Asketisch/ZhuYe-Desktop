@@ -9,7 +9,7 @@
  * 仿 AppShell.test.tsx 模式：QueryClient 包裹 + resetMockInvoke + store.setState。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from '@/features/shell/StatusBar';
 import { useAgentStore } from '@/stores/agentStore';
@@ -31,6 +31,15 @@ describe('StatusBar — token indicator', () => {
     useAgentStore.getState().reset();
   });
   afterEach(() => cleanup());
+
+  it('toggles work mode without cycling through legacy permission modes', async () => {
+    const modes: string[] = [];
+    mockInvoke('reflect_set_permission_mode', async (_cmd, args) => { modes.push(String(args?.mode)); });
+    useAgentStore.setState({ permissionMode: 'plan' });
+    render(wrap(<StatusBar />));
+    fireEvent.click(screen.getByTitle('Switch work mode'));
+    await waitFor(() => expect(modes).toEqual(['auto']));
+  });
 
   it('does not render token indicator when tokens is null', () => {
     useAgentStore.setState({ tokens: null });

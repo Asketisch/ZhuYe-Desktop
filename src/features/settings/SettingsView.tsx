@@ -25,6 +25,8 @@ import {
 } from '@/utils/commands';
 import { Button, Textarea, Badge, Icon, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
+import { useAgentStore } from '@/stores/agentStore';
+import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import { ConfigForm } from './ConfigForm';
 import { DisplaySection } from './sections/DisplaySection';
 import { NotificationsSection } from './sections/NotificationsSection';
@@ -46,6 +48,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const { t, locale, setLocale } = useI18n();
+  const sessionId = useAgentStore((state) => state.loadedSessionId);
+  const [approvalPolicy, setApprovalPolicy] = useState<UserApprovalPolicy>(() => readApprovalPolicy(sessionId));
+  useEffect(() => setApprovalPolicy(readApprovalPolicy(sessionId)), [sessionId]);
 
   // 未保存编辑保护：configQuery staleTime=0 + 窗口聚焦 refetch，会让
   // useEffect 无条件 setRawToml(data) 把用户正在编辑的内容冲掉。
@@ -220,7 +225,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             <div className={s.quickPerm}>
               <span className={s.quickPermLabel}>{t('settings.permissionMode')}</span>
               <div className={s.quickPermBtns}>
-                {(['auto', 'prompt', 'deny', 'plan'] as PermissionMode[]).map((m) => (
+                {(['auto', 'plan'] as PermissionMode[]).map((m) => (
                   <button
                     key={m}
                     className={s.quickPermBtn}
@@ -236,19 +241,22 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             <p className={s.sectionDesc}>
               {t('settings.permissionsDescription')}
             </p>
+            <label>
+              {t('composer.controls.approval')}{' '}
+              <select value={approvalPolicy} title={t('composer.controls.approval.hint')} aria-label={t('composer.controls.approval')} onChange={(event) => {
+                const value = event.target.value as UserApprovalPolicy;
+                setApprovalPolicy(value);
+                writeApprovalPolicy(sessionId, value);
+              }}>
+                <option value="prompt">{t('composer.controls.approval.prompt')}</option>
+                <option value="auto_approve">{t('composer.controls.approval.auto')}</option>
+                <option value="full_access">{t('composer.controls.approval.full')}</option>
+              </select>
+            </label>
             <h4 className={s.sectionTitle}>{t('settings.commonModes')}</h4>
             <div className={s.permGrid}>
               <PermCard mode="auto" onClick={() => onPermission('auto')} />
-              <PermCard mode="prompt" onClick={() => onPermission('prompt')} />
-              <PermCard mode="deny" onClick={() => onPermission('deny')} />
               <PermCard mode="plan" onClick={() => onPermission('plan')} />
-            </div>
-            <h4 className={s.sectionTitle}>{t('settings.advancedModes')}</h4>
-            <div className={s.permGrid}>
-              <PermCard mode="accept_edits" onClick={() => onPermission('accept_edits')} />
-              <PermCard mode="bubble" onClick={() => onPermission('bubble')} />
-              {/* bypass 不再提供：core v1.3 安全基线把 SetPermissionMode(Bypass)
-                  一律降级 Prompt，UI 提供该选项只会造成「切了没生效」的错觉。 */}
             </div>
             {/* 生效的权限规则（核心三层 store）—— 权限「模式」之外的另一半：
                 哪些工具被 allow / deny / ask。 */}

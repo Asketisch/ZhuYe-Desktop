@@ -14,8 +14,7 @@
  *   以前会被兜底链挤回同一个选项，看起来「切换不生效」。
  * - 思考深度：`reflect_get_effort` 回读 + `reflect_set_effort` 设置
  *   （乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新）。
- * - 权限模式：agentStore 的 `permissionMode`（有 `permission_mode_changed`
- *   事件回读）+ `setPermissionMode`，提供 计划/询问/自动/Yolo 四个常用段。
+ * - 工作模式由 agentStore 回读；审批策略按会话单独保存并在发送时传入。
  *
  * 数据获取用 useEffect + useState（同 ChatView 的 git diff 模式），
  * 不引入 QueryClient 依赖，保证 Composer 在任意测试挂载环境可用。
@@ -28,26 +27,25 @@ import { reflect_get_effort, reflect_set_effort } from '@/utils/commands/permiss
 import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
+import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import s from './ComposerControls.module.css';
 
 // 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。
 const EFFORTS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
 type Effort = (typeof EFFORTS)[number];
 
-/** 常用权限模式子集（完整 7 段仍在 Settings → Permissions）。
- *  Yolo = `bubble`：core v1.3 安全基线已废除 blanket bypass
- *  （`SetPermissionMode(Bypass)` 一律降级 Prompt），bubble 是现存的
- *  "免打断"档 —— 自动批准非高危工具 + 非阻塞气泡通知，高危仍弹审批。 */
+/** 会话工作模式；工具审批策略由独立选择器控制。 */
 const PERMISSION_SEGMENTS = [
   { value: 'plan', labelKey: 'composer.controls.perm.plan', hintKey: 'composer.controls.planHint' },
-  { value: 'prompt', labelKey: 'composer.controls.perm.ask', hintKey: 'composer.controls.askHint' },
-  { value: 'accept_edits', labelKey: 'composer.controls.perm.auto', hintKey: 'composer.controls.autoHint' },
-  { value: 'bubble', labelKey: 'composer.controls.perm.yolo', hintKey: 'composer.controls.yoloHint' },
+  { value: 'auto', labelKey: 'composer.controls.perm.ask', hintKey: 'composer.controls.askHint' },
 ] as const;
 
 export function ComposerControls() {
   const { t } = useI18n();
   const permissionMode = useAgentStore((st) => st.permissionMode);
+  const sessionId = useAgentStore((st) => st.loadedSessionId);
+  const [approvalPolicy, setApprovalPolicy] = useState<UserApprovalPolicy>(() => readApprovalPolicy(sessionId));
+  useEffect(() => { setApprovalPolicy(readApprovalPolicy(sessionId)); }, [sessionId]);
   const goalActive = useAgentStore((st) => st.goalActive);
   // v1.7 后端快照:徽标 tooltip 从「只有固定文案」升级为实际进度
   // (轮次 / token / 状态),数据来自 reflect_goal_snapshot 读口。
@@ -273,6 +271,20 @@ export function ComposerControls() {
       </div>
 
       <div className={s.right}>
+        <label className={s.control}>
+          <span className={s.controlLabel}>{t('composer.controls.approval')}</span>
+          <select className={s.controlSelect} value={approvalPolicy} data-testid="composer-approval-policy" title={t('composer.controls.approval.hint')}
+            aria-label={t('composer.controls.approval')}
+            onChange={(event) => {
+              const value = event.target.value as UserApprovalPolicy;
+              setApprovalPolicy(value);
+              writeApprovalPolicy(sessionId, value);
+            }}>
+            <option value="prompt">{t('composer.controls.approval.prompt')}</option>
+            <option value="auto_approve">{t('composer.controls.approval.auto')}</option>
+            <option value="full_access">{t('composer.controls.approval.full')}</option>
+          </select>
+        </label>
         {goalActive && (
           <span
             className={s.goalBadge}
@@ -291,6 +303,9 @@ export function ComposerControls() {
           </span>
         )}
         <div className={s.permSwitch} role="radiogroup" aria-label={t('composer.controls.permissionAria')} data-testid="composer-permission-switch">
+          {!PERMISSION_SEGMENTS.some((segment) => segment.value === permissionMode) && (
+            <span aria-live="polite">{permissionMode}</span>
+          )}
           {PERMISSION_SEGMENTS.map((segment) => (
             <button
               key={segment.value}

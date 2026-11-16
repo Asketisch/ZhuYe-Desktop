@@ -97,6 +97,7 @@ describe('chat full conversation flow (real app mount)', () => {
     expect(submission.op).toEqual({
       type: 'user_input',
       items: [{ type: 'text', text: 'run the tests' }],
+      thread_settings: { approval_policy: 'prompt' },
     });
 
     // 3. 用户消息 + 助手流式文本出现在消息流。

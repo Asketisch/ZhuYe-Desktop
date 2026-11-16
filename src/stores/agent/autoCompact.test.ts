@@ -80,6 +80,20 @@ describe('autoCompact controller', () => {
     expect(compacts).toHaveLength(0);
   });
 
+  it('使用实际调用模型的窗口，而非默认模型窗口', async () => {
+    const { controller, compacts } = makeController({
+      toml: `${TOML}\n"other" = 20000\n`,
+    });
+    await controller(17_000, 'openai/other');
+    expect(compacts).toHaveLength(1);
+  });
+
+  it('无模型配置时使用会话上报的上下文窗口', async () => {
+    const { controller, compacts } = makeController({ toml: '[active]\nprovider = "openai"\n' });
+    await controller(8_000, 'unknown', 10_000);
+    expect(compacts).toHaveLength(1);
+  });
+
   it('关闭开关后不触发', async () => {
     localStorage.setItem(AUTO_COMPACT_PREF_KEY, 'off');
     const { controller, compacts } = makeController();
