@@ -20,6 +20,7 @@ export function useAutoSessionTitle(sessionId: string | null | undefined): void 
   useEffect(() => {
     return subscribeAgentEvent((event) => {
       if (event.msg.type !== 'turn_complete') return;
+      void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
       if (!sessionId || attemptedRef.current.has(sessionId)) return;
       attemptedRef.current.add(sessionId);
       void reflect_generate_session_title(sessionId)

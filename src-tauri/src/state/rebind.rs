@@ -268,6 +268,11 @@ mod tests {
     #[tokio::test]
     async fn rebind_preserves_cron_job_ids() {
         let agent = MinimalAgent::new_empty();
+        // 测试任务不得写入用户的持久化 cron 存储。
+        *agent.inner.cron_scheduler.write() = Some(reflect_stream::cron::CronScheduler::new(
+            None,
+            ThreadId::new(),
+        ));
         agent.install_agent_thread().await;
         // 创建一条 cron 任务。
         let job = agent

@@ -90,6 +90,7 @@ pub struct Event {
 | `reflect_gh_pr_list` | `{ limit? }` | `GhPullRequest[]` | `commands/git.rs` / `commands/git.ts`。shell out 到 `gh pr list --json`；gh 未安装 / 非 repo / 未登录 → Err 带原因（前端空态展示不打断） |
 | `reflect_search_sessions` | `{ query, limit? }` | `SessionSearchHit[]` | `commands/sessions.rs` / `commands/sessions.ts`。P1 跨会话内容搜索：ASCII 折叠大小写不敏感子串匹配，grep 会话 JSONL 的 user/assistant 文本；覆盖活跃树 + 归档树，按最近序扫描上限 120 个会话，命中 `limit`（默认 20）即止；返回首个命中片段（前后 ~60 字符，空白折叠） |
 | `reflect_run_shell` | `{ cmd, sshHost? }` | `ShellSession { id, command, cwd }` | `commands/shell.rs` / `commands/terminal.ts`; `reflect_terminal_output` event streams output。v1.11 基建#7：`sshHost` 非空时命令经 `ssh <host> <cmd>` 远端执行（`BatchMode=yes` + `ConnectTimeout=10`，免交互防挂死），会话 `cwd` 标注 `ssh:<host>` 供前端区分本地/远端；前端已剥离 `ssh <host>` 前缀后传入 |
+| `reflect_pty_start` / `reflect_pty_write` / `reflect_pty_resize` / `reflect_pty_close` | `{ id, cols, rows }` / `{ id, data }` / `{ id, cols, rows }` / `{ id }` | `()` | 系统 shell 的交互式伪终端；`reflect_pty_output` 发送 `{ id, data: number[] }` 字节，`reflect_pty_exit` 发送 id。 |
 | `reflect_kill_shell` | `{ session_id }` | `null` | `commands/shell.rs` / `commands/terminal.ts` |
 | `reflect_list_shell_sessions` | `null` | `string[]` | `commands/shell.rs` / `commands/terminal.ts` |
 | `reflect_list_dir` / `reflect_read_file` / `reflect_search_files` | `{ path?, maxDepth? }` / `{ path }` / `{ query, path?, maxResults?, rank? }` | `DirListing` / `FileReadResult` / search results | `commands/files.rs` / `commands/files.ts`; `commands/search.rs` / `commands/search.ts`。`rank` 缺省 `substring`（子串匹配）；`bm25` 走**相关性排序** —— 复用核心 `reflect_tools::bm25::{tokenize, rank_lines}`（`k1=1.2` / `b=0.75`，与核心 grep 工具逐字一致），GUI 搜索不再弱于 agent 自己的 grep |
@@ -97,7 +98,7 @@ pub struct Event {
 | `reflect_read_image_base64` | `{ path }` | `ImageBase64Result { path, mime_type, base64, size }` | `commands/files.rs` / `commands/files.ts`。Composer 拖拽图片附件管线：读任意路径的图片文件（**不做工作区沙盒**，拖拽来源任意）返回 base64，前端拼 data-URL 作 inline `Image` item 提交（core 的 `LocalImage` item 尚未接通）。扩展名白名单 png/jpg/jpeg/gif/webp/bmp，上限 20 MiB |
 | `reflect_lsp_set_enabled` / `reflect_lsp_status` / `reflect_lsp_warmup` | `{ enabled }` / `null` / `{ path }` | `LspStatus`（`{ enabled, servers }`）/ 同左 / `{ warmed, server }` | `commands/lsp.rs` / `commands/lsp.ts`。LSP 按工作区**手动开启**（默认关）：开启 = bootstrap `[lsp_servers]`（注册 `lsp` tool + 起 server，幂等），关闭 = 反注册 tool + 停全部 server；关闭时不注入 `lsp` tool。`warmup` 对命中的 server `ensure_open`（didOpen 建索引）——编辑器打开代码文件时触发；未开启 / 无匹配 server 时 `warmed = false` 不报错。开启偏好的持久化（localStorage，按 workspace 路径）在 GUI 层 |
 | `reflect_load_allowlist` / `reflect_save_allowlist` / `reflect_check_allowlist` | — | allowlist payload | `commands/allowlist.rs` / `commands/allowlist.ts` |
-| `reflect_list_workspaces` / `reflect_set_workspace` / `reflect_current_workspace` | — | workspace payloads（`WorkspaceInfo { path, label, last_used, session_count }`，历史持久化于 `~/.zhuye/workspaces.json`） | `commands/workspaces.rs` / `commands/workspaces.ts` |
+| `reflect_list_workspaces` / `reflect_set_workspace` / `reflect_current_workspace` / `reflect_remove_workspace` | — | workspace payloads（`WorkspaceInfo { path, label, last_used, session_count, hidden }`，历史持久化于 `~/.zhuye/workspaces.json`） | 移除只隐藏项目，保留文件与会话；重新打开可恢复。 |
 | `reflect_pick_workspace_folder` | `null` | `string?`（原生目录选择框，取消 → `null`；走 `tauri-plugin-dialog` Rust API，不经 JS IPC） | `commands/workspaces.rs` / `commands/workspaces.ts` |
 | `reflect_reveal_path` | `{ path }` | `null`（在 Finder / 资源管理器 / xdg-open 中定位） | `commands/workspaces.rs` / `commands/workspaces.ts` |
 | `reflect_list_skills` | `null` | `SkillEntry[]` | `commands/skills.rs` / `commands/skills.ts` |
@@ -213,7 +214,7 @@ pub struct Submission {
 | 字段 | 桌面端行为 |
 |---|---|
 | `sandbox_policy` | **无条件覆盖**为后端配置推导出的值（`OsSandbox` = 开 OS 沙箱，`WorkspaceOnly` = 关）。沙箱是安全设置，事实源只能是后端的配置快照。见 `docs/CAPABILITIES.md` §3.19。 |
-| `model` / `approval_policy` / `max_tool_concurrency` | 原样透传（前端目前不设；`max_tool_concurrency` 可用于每轮调工具并发上限） |
+| `model` / `approval_policy` / `max_tool_concurrency` | 原样透传。前端按会话发送 `prompt`、`auto_approve` 或 `full_access`，该审批策略独立于 Plan；显式拒绝规则和沙箱设置仍生效。`max_tool_concurrency` 可用于每轮调工具并发上限。 |
 
 核心把这三个字段映射成每轮的真实行为（`reflect-core/src/submission_loop.rs`）：
 `sandbox_policy` → `ToolContext.os_sandbox`（`OsSandbox` → `Some(true)`，

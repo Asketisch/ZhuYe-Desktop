@@ -41,7 +41,7 @@ import { useSessions, useActiveSession } from '@/features/sessions/hooks/useSess
 import { unpin, useSessionPins } from '@/features/sessions/utils/pins';
 import { ModalStack } from '@/features/modals';
 import { useAgentStore as useZAgentStore } from '@/stores/agentStore';
-import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
+import { ConfirmDialogHost, confirmDialog } from '@/features/modals/ConfirmDialog';
 import { CommandPalette } from '@/features/command-palette/CommandPalette';
 import { Toast } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
@@ -50,6 +50,7 @@ import {
   reflect_create_session,
   reflect_pick_workspace_folder,
   reflect_set_workspace,
+  reflect_remove_workspace,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { useThemeCycle } from './hooks/useThemeCycle';
@@ -123,6 +124,13 @@ export function AppShell() {
     useAgentStore.getState().pushToast({ kind: 'error', message });
   };
 
+  const showNewSession = (id: string, workspace: string | null) => {
+    qc.setQueryData<import('@/utils/commands').ReflectSessionInfo[]>(
+      ['sessions', { workspace: null }],
+      (previous = []) => [{ session_id: id, model: '', started_at: new Date().toISOString(), message_count: 0, workspace }, ...previous.filter((s) => s.session_id !== id)],
+    );
+  };
+
   /** 侧边栏「打开项目…」：系统目录选择器 → 切换工作区（复用 WorkspacesView 语义）。 */
   const handleOpenProject = async () => {
     const mySeq = ++selectSeqRef.current;
@@ -186,7 +194,10 @@ export function AppShell() {
     const pushToast = useAgentStore.getState().pushToast;
     void reflect_create_session()
       .then((id) => {
-        if (mySeq === selectSeqRef.current) setActiveId(id);
+        if (mySeq === selectSeqRef.current) {
+          showNewSession(id, currentWorkspace);
+          setActiveId(id);
+        }
       })
       .catch((e: unknown) => {
         pushToast({
@@ -211,11 +222,24 @@ export function AppShell() {
     void switchWorkspace(path)
       .then(() => mySeq === selectSeqRef.current ? reflect_create_session() : null)
       .then((id) => {
-        if (id && mySeq === selectSeqRef.current) setActiveId(id);
+        if (id && mySeq === selectSeqRef.current) {
+          showNewSession(id, path);
+          setActiveId(id);
+        }
       })
       .catch((e: unknown) => {
         toastError(t('toast.newSessionFailed', { msg: e instanceof Error ? e.message : String(e) }));
       });
+  };
+
+  const handleRemoveWorkspace = async (path: string) => {
+    if (!await confirmDialog({ title: t('sidebar.group.remove'), message: t('sidebar.group.removeConfirm') })) return;
+    try {
+      await reflect_remove_workspace(path);
+      await qc.invalidateQueries({ queryKey: ['workspaces'] });
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   // 删除 / 归档当前打开的会话后回到新对话视图，避免停留在已不存在的 session。
@@ -286,6 +310,7 @@ export function AppShell() {
               onRefresh={sessions.refresh}
               onNewChat={handleNewChat}
               onNewChatIn={handleNewChatIn}
+              onRemoveWorkspace={(path) => void handleRemoveWorkspace(path)}
               onRename={sessions.rename}
               onDelete={handleDeleteSession}
               onExport={sessions.export}

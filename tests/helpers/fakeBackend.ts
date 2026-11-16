@@ -220,7 +220,7 @@ export interface FakeBackend {
     schedules: Array<Record<string, unknown>>;
     sideChannels: Array<Record<string, unknown>>;
     /** workspaces 线格式对齐后端 `WorkspaceInfo`（unix 秒）。 */
-    workspaces: Array<{ path: string; label: string; last_used: number; session_count: number }>;
+    workspaces: Array<{ path: string; label: string; last_used: number; session_count: number; hidden?: boolean }>;
     /** `reflect_pick_workspace_folder` 的模拟返回值（null = 用户取消）。 */
     pickedFolder: string | null;
     /** `reflect_pick_file` 的模拟返回值（null = 用户取消）。 */
@@ -965,6 +965,10 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_git_log', handler(() => wire(backend.state.gitLog)));
 
   // —— 终端 ——
+  handle('reflect_pty_start', handler(() => undefined));
+  handle('reflect_pty_write', handler(() => undefined));
+  handle('reflect_pty_resize', handler(() => undefined));
+  handle('reflect_pty_close', handler(() => undefined));
   handle(
     'reflect_run_shell',
     handler((args) => {
@@ -1176,6 +1180,12 @@ export function installFakeBackend(): FakeBackend {
 
   // —— workspaces ——
   handle('reflect_list_workspaces', handler(() => wire(backend.state.workspaces)));
+  handle('reflect_remove_workspace', handler((args) => {
+    const path = String(args?.path ?? '');
+    const workspace = backend.state.workspaces.find((w) => w.path === path);
+    if (workspace) workspace.hidden = true;
+    else backend.state.workspaces.push({ path, label: path, last_used: 0, session_count: 0, hidden: true });
+  }));
   handle(
     'reflect_set_workspace',
     handler((args) => {

@@ -1,16 +1,16 @@
 /**
  * BottomTabs —— 底部分屏:终端 | 浏览器 | 预览(redesign/zcode-shell)。
  *
- * 终端 = 既有 TerminalView(真实 shell 会话,零新 IPC);
+ * 终端 = 系统 shell 的交互式伪终端;
  * 预览 = reflect_read_file 读取工作区文件做只读预览;
  * 浏览器 = 占位面板(内嵌浏览器尚未接线,给出诚实提示与替代入口)。
- * 仅 chat 路由渲染;头部终端开关控制显隐。
+ * chat 路由渲染;头部终端开关控制显隐。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Terminal as TerminalIcon, Globe, Eye, Plus, FileText } from 'lucide-react';
 import { reflect_read_file } from '@/utils/commands/files';
 import { useI18n } from '@/utils/i18n';
-import { TerminalView } from '@/features/terminal/TerminalView';
+import { InteractiveTerminal } from '@/features/terminal/InteractiveTerminal';
 import s from './zcode.module.css';
 
 type BottomTab = 'term' | 'browser' | 'preview';
@@ -18,6 +18,8 @@ type BottomTab = 'term' | 'browser' | 'preview';
 export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<BottomTab>('term');
+  const hasOpened = useRef(false);
+  if (open) hasOpened.current = true;
   const [previewPath, setPreviewPath] = useState('');
   const [previewText, setPreviewText] = useState<string | null>(null);
   const [previewErr, setPreviewErr] = useState<string | null>(null);
@@ -40,10 +42,8 @@ export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => vo
     return () => ctrl.abort();
   }, [tab, previewPath]);
 
-  if (!open) return null;
-
   return (
-    <div className={s.bottom} data-testid="zcode-bottom">
+    <div className={s.bottom} data-testid="zcode-bottom" hidden={!open}>
       <div className={s.bottomBar}>
         <div className={s.btabs} role="tablist" aria-label={t('zcode.bottom.terminal')}>
           <button type="button" role="tab" className={s.btab} data-active={tab === 'term'} aria-selected={tab === 'term'} data-testid="zcode-bottom-term" onClick={() => setTab('term')}>
@@ -63,7 +63,7 @@ export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => vo
       </div>
 
       <div className={s.bbody} data-active={tab === 'term'}>
-        <TerminalView />
+        {hasOpened.current && <InteractiveTerminal />}
       </div>
 
       <div className={s.bbody} data-active={tab === 'browser'}>

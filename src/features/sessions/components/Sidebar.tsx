@@ -62,6 +62,7 @@ interface Props {
   onNewChat?: () => void;
   /** 在指定项目目录下新建会话（组头「+」）。 */
   onNewChatIn?: (path: string) => void;
+  onRemoveWorkspace?: (path: string) => void;
   /** 行级操作（可选）；透传给 SessionItem 的 kebab 菜单。 */
   onRename?: (id: string, newName: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
@@ -90,6 +91,7 @@ export function Sidebar({
   onRefresh,
   onNewChat,
   onNewChatIn,
+  onRemoveWorkspace,
   onRename,
   onDelete,
   onExport,
@@ -275,6 +277,7 @@ export function Sidebar({
             isCurrentWorkspace={g.path !== null && g.path === currentWorkspace}
             onToggle={toggle}
             onNewChatIn={onNewChatIn}
+            onRemoveWorkspace={onRemoveWorkspace}
             onSelect={onSelect}
             onRename={onRename}
             onDelete={onDelete}

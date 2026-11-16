@@ -25,6 +25,8 @@ const sidebar: Record<string, StringEntry> = {
   'sidebar.group.newChatIn':    { en: 'New chat in this project',                            'zh-CN': '在此项目中新建对话' },
   'sidebar.group.collapseAria': { en: 'Toggle project section',                              'zh-CN': '展开或折叠项目' },
   'sidebar.group.current':      { en: 'Current workspace',                                   'zh-CN': '当前工作区' },
+  'sidebar.group.remove':       { en: 'Remove project',                                      'zh-CN': '移除项目' },
+  'sidebar.group.removeConfirm': { en: 'Remove this project from the list? Its files and sessions will be kept.', 'zh-CN': '从列表移除此项目？项目文件和会话会保留。' },
   'sidebar.untitled':           { en: 'Untitled session',                                    'zh-CN': '未命名会话' },
   'sidebar.deleteConfirm':      { en: 'Delete this session?',                                'zh-CN': '删除此会话?' },
   'sidebar.renamePrompt':       { en: 'New session name',                                    'zh-CN': '新会话名称' },

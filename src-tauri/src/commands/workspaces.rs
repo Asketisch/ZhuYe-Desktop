@@ -19,6 +19,7 @@ use crate::state::MinimalAgent;
 
 /// 「最近项目」历史的最大保留条数。
 const WORKSPACE_HISTORY_CAP: usize = 20;
+static HISTORY_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
@@ -26,6 +27,8 @@ pub struct WorkspaceInfo {
     pub label: String,
     pub last_used: u64,
     pub session_count: usize,
+    #[serde(default)]
+    pub hidden: bool,
 }
 
 /// v1.11 桌面#5:多目录综合工作区状态(camelCase 出线)。
@@ -67,7 +70,14 @@ fn upsert_history(path: &Path, entry: WorkspaceInfo) -> CommandResult<()> {
     list.retain(|w| w.path != entry.path);
     list.insert(0, entry);
     list.sort_by_key(|a| std::cmp::Reverse(a.last_used));
-    list.truncate(WORKSPACE_HISTORY_CAP);
+    let mut visible = 0;
+    list.retain(|entry| {
+        if entry.hidden {
+            return true;
+        }
+        visible += 1;
+        visible <= WORKSPACE_HISTORY_CAP
+    });
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -81,6 +91,7 @@ fn upsert_history(path: &Path, entry: WorkspaceInfo) -> CommandResult<()> {
 /// 列出已知 workspace（从 `~/.zhuye/workspaces.json` 读取）。
 #[tauri::command]
 pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
+    let _guard = HISTORY_LOCK.lock();
     let path = workspaces_file().ok_or_else(|| CommandError {
         msg: "no HOME dir".into(),
     })?;
@@ -94,6 +105,7 @@ pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
             label: "default".to_string(),
             last_used: 0,
             session_count: 0,
+            hidden: false,
         }]);
     }
     Ok(list)
@@ -118,6 +130,7 @@ pub async fn reflect_set_workspace(
     }
     // 切换即记录「最近项目」历史（label = 目录名）。
     if let Some(hist) = workspaces_file() {
+        let _guard = HISTORY_LOCK.lock();
         let label = p
             .file_name()
             .map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
@@ -126,6 +139,7 @@ pub async fn reflect_set_workspace(
             label,
             last_used: unix_now(),
             session_count: 0,
+            hidden: false,
         };
         if let Err(e) = upsert_history(&hist, entry) {
             // 历史写失败不阻断切换 —— workspace 本身已生效。
@@ -133,6 +147,33 @@ pub async fn reflect_set_workspace(
         }
     }
     agent.set_workspace(p);
+    Ok(())
+}
+
+/// 从项目列表移除目录，保留磁盘文件和会话；重新打开目录可恢复显示。
+#[tauri::command]
+pub async fn reflect_remove_workspace(path: String) -> CommandResult<()> {
+    let _guard = HISTORY_LOCK.lock();
+    let file = workspaces_file().ok_or_else(|| CommandError {
+        msg: "no HOME dir".into(),
+    })?;
+    let mut list = read_history(&file)?;
+    if let Some(entry) = list.iter_mut().find(|entry| entry.path == path) {
+        entry.hidden = true;
+    } else {
+        list.push(WorkspaceInfo {
+            label: path.clone(),
+            path,
+            last_used: 0,
+            session_count: 0,
+            hidden: true,
+        });
+    }
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let json = serde_json::to_vec_pretty(&list).map_err(|e| CommandError { msg: e.to_string() })?;
+    crate::persistence::write_atomic(&file, &json)?;
     Ok(())
 }
 
@@ -344,6 +385,7 @@ mod tests {
             label: path.rsplit('/').next().unwrap_or(path).into(),
             last_used,
             session_count: 0,
+            hidden: false,
         }
     }
 

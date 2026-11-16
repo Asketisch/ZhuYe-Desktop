@@ -7,7 +7,11 @@
     "reflect_reveal_path",
     "reflect_tailscale_daemon_start",
     "reflect_tailscale_daemon_stop",
-    "reflect_run_security_scan"
+    "reflect_run_security_scan",
+    "reflect_pty_start",
+    "reflect_pty_write",
+    "reflect_pty_resize",
+    "reflect_pty_close"
   ],
   "commands": {
     "reflect_activity_count": {},
@@ -632,6 +636,26 @@
       "dryRun": true,
       "includeThinking": false,
       "keepInjected": false
+    },
+    "reflect_pty_start": {
+      "id": "contract-pty",
+      "cols": 80,
+      "rows": 24
+    },
+    "reflect_pty_write": {
+      "id": "contract-pty",
+      "data": "exit\n"
+    },
+    "reflect_pty_resize": {
+      "id": "contract-pty",
+      "cols": 100,
+      "rows": 30
+    },
+    "reflect_pty_close": {
+      "id": "contract-pty"
+    },
+    "reflect_remove_workspace": {
+      "path": "${TMP}/project"
     }
   }
 }

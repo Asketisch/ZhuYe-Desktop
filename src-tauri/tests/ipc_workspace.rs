@@ -37,6 +37,60 @@ fn workspace_history_round_trips() {
 }
 
 #[test]
+fn removed_workspace_stays_hidden_until_reopened() {
+    let _guard = workspace_lock();
+    let probe = temp_workspace("ws-removed");
+    set_workspace(&probe);
+    invoke_ok("reflect_remove_workspace", json!({"path": probe}));
+    let list = invoke_ok("reflect_list_workspaces", json!({}));
+    let item = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["path"] == probe)
+        .unwrap();
+    assert_eq!(item["hidden"], true);
+    set_workspace(&probe);
+    let list = invoke_ok("reflect_list_workspaces", json!({}));
+    let item = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["path"] == probe)
+        .unwrap();
+    assert_eq!(item["hidden"], false);
+}
+
+#[test]
+#[cfg(unix)]
+fn interactive_pty_can_start_resize_write_and_close() {
+    let _guard = workspace_lock();
+    let workspace = temp_workspace("interactive-pty");
+    set_workspace(&workspace);
+    let marker = std::path::Path::new(&workspace).join("pty-marker");
+    let id = "ipc-interactive-pty";
+    invoke_ok(
+        "reflect_pty_start",
+        json!({"id": id, "cols": 80, "rows": 24}),
+    );
+    invoke_ok(
+        "reflect_pty_resize",
+        json!({"id": id, "cols": 100, "rows": 30}),
+    );
+    invoke_ok(
+        "reflect_pty_write",
+        json!({"id": id, "data": "printf pty-test > pty-marker\n"}),
+    );
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !marker.exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "pty-test");
+    invoke_ok("reflect_pty_close", json!({"id": id}));
+    assert!(invoke("reflect_pty_write", json!({"id": id, "data": "x"})).is_err());
+}
+
+#[test]
 fn switching_workspace_rejects_input_bound_to_the_previous_directory() {
     let _guard = workspace_lock();
     let first = temp_workspace("session-workspace-a");
