@@ -8,8 +8,8 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `390a88a`（F01 注入防护强化：`[prompt_guard]` 由 opt-in 转**默认开启**，工具输出 Block/Review 裁决 + 外部工具定义注册期扫描（Block 拒绝注册）+ SHA-256 指纹上报；新增 `Op::QueryGuardStats` / `EventMsg::GuardStats`（additive，GUI 已接设置开关 + 工具行注入徽标）。完整 SHA `390a88a`。）
-> 上一轮 `72d7d97`：TaskOutput block=true 只认非空内容，消除 Windows 上 writer create→write 窗口读到空串的竞态；发布批次 v0.1.14 同步。
+> 最近审计：submodule `506365e`（F01 注入防护强化：`[prompt_guard]` 由 opt-in 转**默认开启**，工具输出 Block/Review 裁决 + 外部工具定义注册期扫描（Block 拒绝注册）+ SHA-256 指纹上报；新增 `Op::QueryGuardStats` / `EventMsg::GuardStats`（additive，GUI 已接设置开关 + 工具行注入徽标）。完整 SHA `506365e`。）
+> 上一轮 `390a88a`(F01 注入防护强化)之前为 `72d7d97`：TaskOutput block=true 只认非空内容，消除 Windows 上 writer create→write 窗口读到空串的竞态；发布批次 v0.1.14 同步。
 > 上一轮 `e3da2540 → 58cebeb6` 为两项 Windows 平台行为修复：safe_write 原子改名改走 NT 层 `NtSetInformationFile`（Win32 封装层整体拒绝非 NULL RootDirectory，code 87 的真根因；并按 Windows「不能替换仍有打开句柄的文件」约束在改名前释放旧目标句柄）；pipeline shell 节点用例按平台断言（Windows 无沙箱后端，fail-closed 拒绝是可达语义）。
 > 上一轮 `0cca4c6a → e3da2540` 为 safe_write 原子改名切到 FileRenameInformationEx：非 Ex 类拒绝非 NULL RootDirectory（code 87），write/edit/plan_write 落盘与 GUI 文件保存在 Windows 上恒红的根因；plan_write 绝对路径改按分量判定（Windows `is_absolute()` 对无盘符根路径漏网）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
 > 上一轮 `8e72bc4c → 0cca4c6a`
