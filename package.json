@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "types:gen": "bash scripts/dump-ts-types.sh",
+    "icons": "bash scripts/gen-icons.sh",
+    "icons:check": "bash scripts/gen-icons.sh --check",
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",

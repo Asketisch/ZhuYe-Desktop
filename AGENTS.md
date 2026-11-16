@@ -199,6 +199,17 @@ pnpm tauri build --bundles app  # 仅 macOS .app
 bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
 ```
 
+换 logo 后重生成图标（源图 = 仓库根 `logo.png`，产物 = `src-tauri/icons/` + favicon）：
+
+```bash
+pnpm icons                    # 等价于 bash scripts/gen-icons.sh
+pnpm icons:check              # 只校验：齐全 / 尺寸 / 托盘透明底 / 是否比源图旧
+```
+
+脚本优先调用 `tauri icon`，缺 CLI 时退到 `python3 + Pillow`（macOS 上 `.icns` 走
+`iconutil`）；`icon32.png` 被 `src-tauri/src/tray.rs` 以 template 图片编进托盘，
+因此必须保留透明底，脚本会按源图亮度自动推导。
+
 子模块升级（当 ZhuYe 发布新版本时，详见 [`SUBMODULE.md`](SUBMODULE.md)）：
 
 ```bash

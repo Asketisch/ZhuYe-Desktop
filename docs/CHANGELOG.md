@@ -4,6 +4,23 @@
 
 ## 未发布
 
+### 新增 — 图标一键生成
+
+- `scripts/gen-icons.sh`（`pnpm icons`）：以仓库根 `logo.png` 为唯一源图，一次产出
+  `src-tauri/icons/` 全部 8 个文件（32x32 / 128x128 / 128x128@2x / 256x256 / icon.png /
+  icon.icns / icon.ico / icon32.png）与 `public/tauri-icon.png` favicon，并按
+  `tauri.conf.json` 的 `bundle.icon` 逐项核对。优先用 `tauri icon`，CLI 不可用时退到
+  `python3 + Pillow`（macOS 上 `.icns` 经 `iconutil`，其他平台内置 icns 写入器）；
+  非正方形源图自动按短边居中裁切，SVG 源图经 `rsvg-convert` 栅格化。
+  `tauri icon` 顺带产出的无消费方资产（UWP `Square*Logo.png`、`StoreLogo.png`、
+  `64x64.png`、`android/`、`ios/`）在落盘时清除。
+- `pnpm icons:check`（`--check`）：门禁式校验——文件齐全、PNG 尺寸正确、`.icns`/`.ico`
+  魔数有效、`icon32.png` 保留透明底（该文件被 `src-tauri/src/tray.rs` 以 template 图片
+  编进托盘，实心方块会在菜单栏糊成一块黑）、无白名单外残留、且不比源图旧。
+- 支持 `--dry-run`（只生成到临时目录并打印清单）、`--local`（强制本地工具链）、
+  `--tray-keep`（保留现有 `icon32.png`）、`--no-web`（不动 favicon）。
+- 采用更新后的 `logo.png`（金鸡望月 + 莲花火焰，1254×1254）重生成全部应用图标。
+
 ### 修复
 
 - 隔离 cron 重绑定测试，避免测试任务写入用户定时任务。
