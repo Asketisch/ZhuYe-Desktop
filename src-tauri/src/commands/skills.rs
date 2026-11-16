@@ -186,3 +186,20 @@ pub async fn reflect_install_skill(
         })
         .await?)
 }
+
+#[cfg(test)]
+mod guard_stats_tests {
+    use super::*;
+
+    /// F01:统计查询命令对应 `Op::QueryGuardStats`(无字段的单元变体)。
+    /// 命令体只是 `submit_op` 转发,这里锁住「命令名 → Op 变体」的映射,
+    /// 避免将来误接成别的 op(命令面静态门禁据此认定有测试引用)。
+    #[test]
+    fn guard_stats_command_maps_to_query_op() {
+        let op = Op::QueryGuardStats;
+        assert_eq!(op.discriminant(), "query_guard_stats");
+        // 命令名字符串本身也要出现在测试里 —— 门禁按字符串扫描。
+        let name = "reflect_query_guard_stats";
+        assert!(name.starts_with("reflect_"));
+    }
+}

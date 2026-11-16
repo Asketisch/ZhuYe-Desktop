@@ -36,6 +36,7 @@ import {
 } from './planFailover';
 import { reduceEvent } from './reducer';
 import { appendItem, markTurn } from './turns';
+import { runQueryGuardStats } from './guardStats'; // F01
 import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
@@ -149,9 +150,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
   todos: [],
   planSteps: [],
   loadedPlugins: [],
-  // 提示词层状态(v1.6.1)—— 进程级,不随会话切换重置。
+  // 提示词层状态(v1.6.1)/ F01 guard 统计 —— 进程级,不随会话切换重置。
   prompt: null,
-  // F01:prompt_guard 统计(进程级,同 prompt)。
   guardStats: null,
   promptPanelOpen: false,
   openPromptPanel: () => set({ promptPanelOpen: true }),
@@ -333,15 +333,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   promptRescan: async (layer) => {
     await reflect_prompt_command({ type: 'switch', layer: layer ?? null });
   },
-
-  /**
-   * F01:查询 prompt_guard 裁决统计。应答经 `guard_stats` 事件异步到达,
-   * reducer 写入 `guardStats`(进程级)。
-   */
-  queryGuardStats: async () => {
-    await reflect_query_guard_stats();
-  },
-
+  queryGuardStats: () => runQueryGuardStats(reflect_query_guard_stats), // F01
   enqueueMessage: (items, workspace) => {
     const firstText = items.find(
       (item): item is { type: 'text'; text: string } => item.type === 'text',

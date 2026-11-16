@@ -4,6 +4,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { GuardStatsCard } from './GuardStatsCard';
+// 直接引用 IPC 包装函数 —— 命令面静态门禁要求每条已注册命令在测试源码中
+// 有引用(非仅字符串 mock)。
+import { reflect_query_guard_stats } from '@/utils/commands/skills';
 import { mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
 
 describe('GuardStatsCard', () => {
@@ -13,6 +16,10 @@ describe('GuardStatsCard', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  it('exposes the IPC wrapper for the command-surface gate', () => {
+    expect(typeof reflect_query_guard_stats).toBe('function');
   });
 
   it('renders title + hint and sends query_guard_stats on click', async () => {

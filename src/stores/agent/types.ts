@@ -297,18 +297,9 @@ export const SUBAGENT_FEED_CAP = 200;
  * 进程级库上(按模型自动匹配),切会话不重置 —— 因此 hydrate/clear
  * 不清理此字段。
  */
-/**
- * F01:prompt_guard 裁决统计快照(`guard_stats` 事件的投影)。
- * 进程级(与 `PromptState` 同理):guard 挂在引擎进程的注册表/队列上,
- * 切会话不清零 —— 计数是会话累计值,由引擎侧维护。
- */
-export interface GuardStatsState {
-  enabled: boolean;
-  definitionsBlocked: number;
-  definitionsReviewed: number;
-  outputsBlocked: number;
-  outputsReviewed: number;
-}
+// F01:prompt_guard 统计类型拆到 `./guardStats`(单文件行数预算)。
+import type { GuardStatsState } from './guardStats';
+export type { GuardStatsState };
 
 export interface PromptState {
   /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 用户目录层,去重)。 */
