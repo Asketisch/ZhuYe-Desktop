@@ -656,6 +656,7 @@
     },
     "reflect_remove_workspace": {
       "path": "${TMP}/project"
-    }
+    },
+    "reflect_effort_capability": {}
   }
 }

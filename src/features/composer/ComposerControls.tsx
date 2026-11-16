@@ -19,7 +19,7 @@
  * 数据获取用 useEffect + useState（同 ChatView 的 git diff 模式），
  * 不引入 QueryClient 依赖，保证 Composer 在任意测试挂载环境可用。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { reflect_agent_status, reflect_get_config, reflect_set_model } from '@/utils/commands/config';
 import { reflect_list_provider_models, type ProviderModelInfo } from '@/utils/commands/models';
@@ -28,10 +28,11 @@ import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } f
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
+import { ALL_EFFORTS, useEffortCapability } from './useEffortCapability';
 import s from './ComposerControls.module.css';
 
 // 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。
-const EFFORTS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
+const EFFORTS = ALL_EFFORTS;
 type Effort = (typeof EFFORTS)[number];
 
 /** 会话工作模式；工具审批策略由独立选择器控制。 */
@@ -43,6 +44,9 @@ const PERMISSION_SEGMENTS = [
 export function ComposerControls() {
   const { t } = useI18n();
   const permissionMode = useAgentStore((st) => st.permissionMode);
+  // 思考强度能力(按当前模型):只提供模型支持的档位,并把「用户选择」与
+  // 「实际生效」分开显示 —— 偏好保留,换模型后自动重算。
+  const capability = useEffortCapability();
   const sessionId = useAgentStore((st) => st.loadedSessionId);
   const [approvalPolicy, setApprovalPolicy] = useState<UserApprovalPolicy>(() => readApprovalPolicy(sessionId));
   useEffect(() => { setApprovalPolicy(readApprovalPolicy(sessionId)); }, [sessionId]);
@@ -171,6 +175,13 @@ export function ComposerControls() {
     }
   };
 
+  // 可选档位 = 模型支持的档位 ∪ 用户当前选择(偏好保留,即使当前模型不支持)。
+  const effortOptions = useMemo(() => {
+    const options = new Set<Effort>(capability.options);
+    options.add(effort);
+    return EFFORTS.filter((level) => options.has(level));
+  }, [capability.options, effort]);
+
   const onSetEffort = (level: Effort) => {
     setEffort(level);
     void reflect_set_effort(level).catch(() => {
@@ -260,13 +271,22 @@ export function ComposerControls() {
             className={s.controlSelect}
             value={effort}
             onChange={(event) => onSetEffort(normalizeEffort(event.target.value))}
+            disabled={effortOptions.length === 0}
+            title={capability.known ? undefined : t('composer.controls.effort.unknownHint')}
             aria-label={t('composer.controls.effortAria')}
             data-testid="composer-effort-select"
           >
-            {EFFORTS.map((level) => (
+            {effortOptions.map((level) => (
               <option key={level} value={level}>{level}</option>
             ))}
           </select>
+          {capability.adjusted && (
+            <span className={s.effectiveNote} data-testid="composer-effort-effective">
+              {capability.effective
+                ? t('composer.controls.effort.effective', { level: capability.effective })
+                : t('composer.controls.effort.disabled')}
+            </span>
+          )}
         </label>
       </div>
 
