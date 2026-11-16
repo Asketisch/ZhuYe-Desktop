@@ -13,6 +13,7 @@ import {
   reflect_interrupt,
   reflect_plan_approval,
   reflect_prompt_command,
+  reflect_query_guard_stats,
   reflect_query_subagents,
   reflect_rewind,
   reflect_save_config,
@@ -150,6 +151,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
   loadedPlugins: [],
   // 提示词层状态(v1.6.1)—— 进程级,不随会话切换重置。
   prompt: null,
+  // F01:prompt_guard 统计(进程级,同 prompt)。
+  guardStats: null,
   promptPanelOpen: false,
   openPromptPanel: () => set({ promptPanelOpen: true }),
   closePromptPanel: () => set({ promptPanelOpen: false }),
@@ -329,6 +332,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
    */
   promptRescan: async (layer) => {
     await reflect_prompt_command({ type: 'switch', layer: layer ?? null });
+  },
+
+  /**
+   * F01:查询 prompt_guard 裁决统计。应答经 `guard_stats` 事件异步到达,
+   * reducer 写入 `guardStats`(进程级)。
+   */
+  queryGuardStats: async () => {
+    await reflect_query_guard_stats();
   },
 
   enqueueMessage: (items, workspace) => {

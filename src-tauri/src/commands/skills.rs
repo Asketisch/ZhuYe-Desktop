@@ -153,6 +153,14 @@ pub async fn reflect_rescan_extensions(
         .await?)
 }
 
+/// F01:查询 prompt_guard 裁决统计 —— `Op::QueryGuardStats`。
+/// 不开 turn;应答经 `guard_stats` 事件回推(enabled + 四计数),这里
+/// 投递并返回 submission id(与 `reflect_rescan_extensions` 同款)。
+#[tauri::command]
+pub async fn reflect_query_guard_stats(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+    Ok(agent.submit_op(Op::QueryGuardStats).await?)
+}
+
 /// v1.11 桌面#1:Skill 市场 —— 从 GitHub 仓库安装技能。
 ///
 /// 安装到**用户级** `~/.zhuye/skills/`(`ZHUYE_HOME` 可重定向),装完

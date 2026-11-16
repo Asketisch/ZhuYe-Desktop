@@ -33,6 +33,8 @@ const chat: Record<string, StringEntry> = {
   'chat.thinkingWith':             { en: 'thinking: {snippet}',                                               'zh-CN': '思考中: {snippet}' },
   'chat.output':                   { en: 'output',                                                            'zh-CN': '输出' },
   'chat.outputError':              { en: 'output (error)',                                                    'zh-CN': '输出 (错误)' },
+  'chat.guardBadge.review':        { en: 'injection flagged',                                                 'zh-CN': '注入可疑' },
+  'chat.guardBadge.block':         { en: 'injection blocked',                                                 'zh-CN': '注入已拦截' },
   'chat.tool.running':             { en: 'running',                                                           'zh-CN': '运行中' },
   'chat.tool.success':             { en: 'success',                                                           'zh-CN': '成功' },
   'chat.tool.error':               { en: 'error',                                                             'zh-CN': '失败' },

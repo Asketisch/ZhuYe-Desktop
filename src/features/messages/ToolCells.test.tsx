@@ -133,3 +133,43 @@ describe('ToolCell', () => {
     expect(cell.querySelector('[class*="summary"]')?.textContent).toBe('$ ls');
   });
 });
+describe('ToolCell guard badge (F01)', () => {
+  it('renders review badge when guardVerdict=review, absent otherwise', () => {
+    const { rerender } = render(
+      <ToolCell
+        toolName="web_fetch"
+        argsSummary='{"url":"https://x.example"}'
+        status="done"
+        output={{ text: 'ok', isError: false, guardVerdict: 'review' }}
+      />,
+    );
+    const cell = screen.getByTestId('tool-cell-web_fetch');
+    const badge = cell.querySelector('[data-testid="tool-guard-review"]');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toContain('🛡');
+
+    rerender(
+      <ToolCell
+        toolName="web_fetch"
+        argsSummary='{"url":"https://x.example"}'
+        status="done"
+        output={{ text: 'ok', isError: false }}
+      />,
+    );
+    expect(screen.getByTestId('tool-cell-web_fetch').querySelector('[data-testid^="tool-guard-"]')).toBeNull();
+  });
+
+  it('renders block badge with block testid for blocked outputs', () => {
+    render(
+      <ToolCell
+        toolName="echo"
+        argsSummary='{"text":"x"}'
+        status="error"
+        output={{ text: '[prompt injection guard] blocked', isError: true, guardVerdict: 'block' }}
+      />,
+    );
+    const badge = screen.getByTestId('tool-cell-echo').querySelector('[data-testid="tool-guard-block"]');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toContain('🛡');
+  });
+});

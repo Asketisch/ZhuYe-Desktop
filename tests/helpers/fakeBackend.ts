@@ -1034,6 +1034,12 @@ export function installFakeBackend(): FakeBackend {
     'reflect_rescan_extensions',
     handler(() => `rescan-fake-${Date.now()}`),
   );
+  // F01:prompt_guard 统计查询(Op::QueryGuardStats 的桥接)。fake 无引擎
+  // 计数源,回 submission 形状的占位 id;真实计数走 guard_stats 事件。
+  handle(
+    'reflect_query_guard_stats',
+    handler(() => `guard-stats-fake-${Date.now()}`),
+  );
   handle('reflect_list_hooks', handler(() => wire(backend.state.hooks)));
   // 插件 slash 命令列表(fakeBackend 无插件运行时,恒空列表)。
   handle('reflect_list_plugin_commands', handler(() => wire([])));

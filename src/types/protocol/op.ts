@@ -43,6 +43,7 @@ export type OpType =
   | 'exit_goal_mode'
   | 'prompt_command'
   | 'rescan_extensions'
+  | 'query_guard_stats'
   | 'register_tools'
   | 'tool_execution_response'
   | 'start_side_channel'
@@ -94,6 +95,8 @@ export type ReflectSubmissionOp =
   | { type: 'exit_goal_mode' }
   | { type: 'prompt_command'; action: { type: 'list' } | { type: 'switch'; layer?: string | null } }
   | { type: 'rescan_extensions'; skills: boolean; commands: boolean }
+  /** F01:查询 prompt_guard 裁决统计(应答 `guard_stats` 事件;不开 turn)。 */
+  | { type: 'query_guard_stats' }
   | { type: 'register_tools'; tools: { name: string; description: string; parameters: unknown }[] }
   | { type: 'tool_execution_response'; call_id: string; output: ToolOutput }
   | { type: 'start_side_channel'; agent: string; prompt: string }

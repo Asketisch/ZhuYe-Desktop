@@ -32,6 +32,7 @@ import { PlansSection } from './sections/PlansSection';
 import { PermissionRulesSection } from './sections/PermissionRulesSection';
 import { ConfigInfoLine } from './sections/ConfigInfoLine';
 import { SecurityScanCard } from './sections/SecurityScanCard';
+import { GuardStatsCard } from './sections/GuardStatsCard';
 import { UpdatesSection } from './sections/UpdatesSection';
 import s from './SettingsView.module.css';
 
@@ -275,6 +276,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             />
           </section>
         )}
+
+        {/* F01:注入防护裁决统计(prompt_guard 默认开启,拦了多少要看得见)。 */}
+        <GuardStatsCard />
 
         {/* 安全扫描(cargo audit)—— 核心真实实现,GUI 此前只能开终端跑。 */}
         <SecurityScanCard />
