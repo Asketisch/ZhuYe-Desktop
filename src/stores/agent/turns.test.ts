@@ -95,12 +95,16 @@ describe('upsertThinking segment interleaving', () => {
   it('appends to a trailing thinking item', () => {
     let turns = turnWith({ kind: 'thinking', text: 'a' });
     turns = upsertThinking(turns, 't1', 'b');
-    expect(turns[0].items).toEqual([{ kind: 'thinking', text: 'ab' }]);
+    // F50:upsertThinking 现在显式打 variant(默认 raw)。
+    expect(turns[0].items).toEqual([{ kind: 'thinking', text: 'ab', variant: 'raw' }]);
   });
 
   it('starts a new thinking segment after other items', () => {
     const turns = upsertThinking(turnWith(toolCallItem), 't1', 'a');
-    expect(turns[0].items).toEqual([toolCallItem, { kind: 'thinking', text: 'a' }]);
+    expect(turns[0].items).toEqual([
+      toolCallItem,
+      { kind: 'thinking', text: 'a', variant: 'raw' },
+    ]);
   });
 });
 

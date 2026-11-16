@@ -15,7 +15,16 @@ export type { LiveModelUsage, TokenSnapshot } from './tokenTypes';
 export type TurnItem =
   | { kind: 'user_text'; text: string }
   | { kind: 'assistant_text'; text: string; streaming?: boolean }
-  | { kind: 'thinking'; text: string }
+  | {
+      kind: 'thinking';
+      text: string;
+      /**
+       * F50:思考增量的语义类型(镜像引擎 `ThinkingDeltaKind`)。
+       * `raw` = token 级流式(默认);`summary` = 推理摘要 —— 语义不同的
+       * 两种内容,渲染与折叠策略分开(摘要带「推理摘要」标签)。
+       */
+      variant?: 'raw' | 'summary';
+    }
   | {
       kind: 'tool_call';
       toolName: string;

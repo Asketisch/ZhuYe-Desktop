@@ -223,6 +223,36 @@ describe('reduceEvent — LLM output', () => {
     expect(s.turns[0].items[0]).toMatchObject({ kind: 'thinking', text: 'Hmm...' });
   });
 
+  it('thinking_delta summary variant opens a new item after raw (F50)', () => {
+    let s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'thinking_delta', delta: 'raw stream' })) };
+    s = {
+      ...s,
+      ...reduceEvent(s, ev('t1', { type: 'thinking_delta', delta: 'summary text', kind: 'summary' })),
+    };
+    const items = s.turns[0].items;
+    // raw 与 summary 语义不同,应分条
+    expect(items.length).toBe(2);
+    expect(items[0]).toMatchObject({ kind: 'thinking', text: 'raw stream', variant: 'raw' });
+    expect(items[1]).toMatchObject({ kind: 'thinking', text: 'summary text', variant: 'summary' });
+  });
+
+  it('thinking_delta same-variant summary accumulates (F50)', () => {
+    let s: AgentState = { ...emptyState(), turns: [{ id: 't1', items: [], status: 'streaming' }] };
+    s = {
+      ...s,
+      ...reduceEvent(s, ev('t1', { type: 'thinking_delta', delta: 'A', kind: 'summary' })),
+    };
+    s = {
+      ...s,
+      ...reduceEvent(s, ev('t1', { type: 'thinking_delta', delta: 'B', kind: 'summary' })),
+    };
+    const items = s.turns[0].items;
+    // 同 variant 连续增量应追加
+    expect(items.length).toBe(1);
+    expect(items[0]).toMatchObject({ kind: 'thinking', text: 'AB', variant: 'summary' });
+  });
+
   it('token_count updates tokens snapshot', () => {
     const patch = reduceEvent(
       emptyState(),

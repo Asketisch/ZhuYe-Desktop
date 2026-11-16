@@ -31,6 +31,7 @@ const chat: Record<string, StringEntry> = {
   'chat.rewindFailed':             { en: 'Rewind failed: {msg}',                                              'zh-CN': '回退失败：{msg}' },
   'chat.thinking':                 { en: 'thinking',                                                          'zh-CN': '思考中' },
   'chat.thinkingWith':             { en: 'thinking: {snippet}',                                               'zh-CN': '思考中: {snippet}' },
+  'chat.thinkingSummary':          { en: 'reasoning summary',                                                 'zh-CN': '推理摘要' },
   'chat.output':                   { en: 'output',                                                            'zh-CN': '输出' },
   'chat.outputError':              { en: 'output (error)',                                                    'zh-CN': '输出 (错误)' },
   'chat.guardBadge.review':        { en: 'injection flagged',                                                 'zh-CN': '注入可疑' },

@@ -234,7 +234,14 @@ function ItemView({ node, turnStatus }: { node: RenderNode; turnStatus: Turn['st
     }
 
     case 'thinking':
-      return <ThinkingCollapsible text={item.text} />;
+      // F50:summary(推理摘要)与 raw(流式思考)区分渲染 —— 语义不同,
+      // 摘要带专属标签(与引擎 ThinkingDeltaKind::Summary →
+      // ReasoningSummary 的路由语义一致)。
+      return item.variant === 'summary' ? (
+        <ThinkingCollapsible text={item.text} summaryLabel />
+      ) : (
+        <ThinkingCollapsible text={item.text} />
+      );
 
     case 'tool_output': {
       // 孤儿输出（无配对 tool_call）—— 回放数据可能缺 tool_use 块。
@@ -284,15 +291,28 @@ function UserBubble({ text }: { text: string }) {
 
 /** 思考过程折叠块（ThinkingDelta 事件与正文 <think> 分段共用）。
  *  文字用弱化色 —— 思考与正式输出视觉分级。 */
-function ThinkingCollapsible({ text, defaultOpen = false }: { text: string; defaultOpen?: boolean }) {
+function ThinkingCollapsible({
+  text,
+  defaultOpen = false,
+  summaryLabel = false,
+}: {
+  text: string;
+  defaultOpen?: boolean;
+  summaryLabel?: boolean;
+}) {
   const { t } = useI18n();
   const snippet = text.slice(0, 60).replace(/\s+/g, ' ');
+  const label = summaryLabel
+    ? t('chat.thinkingSummary')
+    : text.length > 60
+      ? t('chat.thinkingWith', { snippet })
+      : t('chat.thinking');
   return (
     <Collapsible
       icon={<Icon icon={Brain} size={13} />}
-      accent="info"
+      accent={summaryLabel ? 'success' : 'info'}
       defaultOpen={defaultOpen}
-      label={text.length > 60 ? t('chat.thinkingWith', { snippet }) : t('chat.thinking')}
+      label={label}
     >
       <pre className={`${s.monoText} ${s.thinkingText}`}>{text}</pre>
     </Collapsible>

@@ -35,15 +35,22 @@ export function upsertDelta(turns: Turn[], turnId: string, delta: string): Turn[
   });
 }
 
-export function upsertThinking(turns: Turn[], turnId: string, delta: string): Turn[] {
+export function upsertThinking(
+  turns: Turn[],
+  turnId: string,
+  delta: string,
+  variant: 'raw' | 'summary' = 'raw',
+): Turn[] {
   return mapTurn(turns, turnId, (turn) => {
     const items = [...turn.items];
     const last = items[items.length - 1];
-    if (last?.kind === 'thinking') {
-      items[items.length - 1] = { ...last, text: last.text + delta };
+    // F50:同 variant 的连续增量追加;raw ↔ summary 切换时**新开一条**
+    // (两者语义不同,混在一条里会丢失边界)。
+    if (last?.kind === 'thinking' && (last.variant ?? 'raw') === variant) {
+      items[items.length - 1] = { ...last, text: last.text + delta, variant };
       return { ...turn, items };
     }
-    items.push({ kind: 'thinking', text: delta });
+    items.push({ kind: 'thinking', text: delta, variant });
     return { ...turn, items };
   });
 }

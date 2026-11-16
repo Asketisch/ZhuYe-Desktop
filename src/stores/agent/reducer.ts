@@ -80,7 +80,16 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       return { turns: finalizeAssistantText(state.turns, turnId, msg.text) };
 
     case 'thinking_delta':
-      return msg.delta ? { turns: upsertThinking(state.turns, turnId, msg.delta) } : {};
+      return msg.delta
+        ? {
+            turns: upsertThinking(
+              state.turns,
+              turnId,
+              msg.delta,
+              msg.kind === 'summary' ? 'summary' : 'raw',
+            ),
+          }
+        : {};
 
     case 'token_count': {
       // v1.x 模型级统计:按 model 分组累计,让 GUI 能回答「各模型花了多少」。
