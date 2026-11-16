@@ -2,7 +2,7 @@
 # gen-icons.sh —— 一键生成 ZhuYe 桌面端全平台应用图标
 #
 # 用法：
-#   bash scripts/gen-icons.sh                       用仓库根 logo.png 重生成全部图标
+#   bash scripts/gen-icons.sh                       用 ZhuYe-Desktop/logo.png 重生成全部图标
 #   bash scripts/gen-icons.sh path/to/logo.png      换源图（正方形 PNG，或 SVG）
 #   bash scripts/gen-icons.sh --check               只校验现有图标是否齐全、尺寸是否正确、是否过期
 #   bash scripts/gen-icons.sh --dry-run             生成到临时目录并打印结果，不写入仓库
@@ -11,22 +11,30 @@
 #   bash scripts/gen-icons.sh --no-web              不更新 public/tauri-icon.png（favicon）
 #
 # 约定（与 docs/CHANGELOG.md「采用 logo.png 作为跨平台统一应用 logo」一致）：
-#   唯一源图 = 仓库根 logo.png；产物 = src-tauri/icons/，文件名白名单见 EXPECTED。
+#   唯一源图 = 本脚本所在仓库（ZhuYe-Desktop）根目录的 logo.png —— 不带参数时始终用它，
+#   与当前工作目录无关；产物 = src-tauri/icons/，文件名白名单见 EXPECTED。
 #   tauri icon 顺带产出的无消费方资产（UWP Square*Logo.png、android/、ios/、64x64.png）
 #   会被清掉，保证目录内容与 tauri.conf.json 的 bundle.icon 一一对应。
 #   引擎优先级：tauri CLI（官方，.icns/.ico 最稳）→ 本地 python3 + Pillow（macOS 上
 #   .icns 走 iconutil，其他平台用内置 icns 写入器）。
 #
+# 环境变量覆盖（与 install.sh 的 ZHUYE_INSTALL_* 同风格，门禁自测靠它们跑在临时目录）：
+#   ZHUYE_ICON_SOURCE   默认源图（默认 <仓库根>/logo.png）
+#   ZHUYE_ICONS_DIR     产物目录（默认 <仓库根>/src-tauri/icons）
+#   ZHUYE_PUBLIC_ICON   favicon 路径（默认 <仓库根>/public/tauri-icon.png）
+#
 # icon32.png 特殊处理：src-tauri/src/tray.rs 用 include_bytes! 把它编进托盘，并按
 #   icon_as_template(true) 交给 macOS —— 系统只取 alpha 通道画单色剪影，所以它不能是
-#   整张方图标（否则菜单栏里是一个实心方块）。源图自带透明底时沿用其 alpha；源图不透明
-#   时（仓库当前 logo.png 就是黑场不透明白底）按亮度阈值推导剪影。
+#   整张方图标（否则菜单栏里是一个实心方块）。源图自带透明底时沿用其 alpha；源图不透明时
+#   （仓库当前 logo.png 就是黑底不透明方图）按亮度阈值推导剪影。
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ICONS_DIR="$REPO_ROOT/src-tauri/icons"
-PUBLIC_ICON="$REPO_ROOT/public/tauri-icon.png"
+# 仓库根 = 本脚本父目录的父目录；-P 解析软链接，保证无论从哪儿调用，
+# 默认源图都落在 ZhuYe-Desktop/logo.png 上。
+REPO_ROOT="$(cd -P "$(dirname "$0")/.." && pwd)"
+ICONS_DIR="${ZHUYE_ICONS_DIR:-$REPO_ROOT/src-tauri/icons}"
+PUBLIC_ICON="${ZHUYE_PUBLIC_ICON:-$REPO_ROOT/public/tauri-icon.png}"
 CONF="$REPO_ROOT/src-tauri/tauri.conf.json"
 
 # 产出文件名（= 现有仓库布局）与期望尺寸；icns/ico 只校验魔数。
@@ -79,10 +87,25 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-[ -n "$SRC" ] || SRC="$REPO_ROOT/logo.png"
+# 源图优先级：命令行参数 > ZHUYE_ICON_SOURCE > 仓库根 logo.png（默认）
+[ -n "$SRC" ] || SRC="${ZHUYE_ICON_SOURCE:-$REPO_ROOT/logo.png}"
 case "$SRC" in "~"*) SRC="$HOME${SRC#\~}" ;; esac
-[ -f "$SRC" ] || { echo "源图不存在：$SRC" >&2; usage >&2; exit 1; }
+if [ ! -f "$SRC" ]; then
+  echo "源图不存在：$SRC" >&2
+  if [ "$SRC" = "$REPO_ROOT/logo.png" ]; then
+    echo "默认源图是仓库根 logo.png（$REPO_ROOT/logo.png）；如要换图，把路径作为第一个参数传入。" >&2
+  fi
+  usage >&2
+  exit 1
+fi
 case "$SRC" in /*) ;; *) SRC="$PWD/$SRC" ;; esac
+SRC_IS_DEFAULT=false
+if [ "$SRC" = "$REPO_ROOT/logo.png" ]; then SRC_IS_DEFAULT=true; fi
+
+src_label() {
+  if $SRC_IS_DEFAULT; then printf '%s（仓库默认源图）' "$SRC"
+  else printf '%s（命令行指定）' "$SRC"; fi
+}
 
 # --------------------------------------------------------------- 工具函数
 png_size() {
@@ -141,7 +164,7 @@ report() {
 
 # --------------------------------------------------------- 校验模式 --check
 if $CHECK_ONLY; then
-  echo "校验 $ICONS_DIR"
+  echo "校验 ${ICONS_DIR}（源图 $(src_label)）"
   fail=0
   for i in "${!EXPECTED[@]}"; do
     f="${EXPECTED[$i]}"; p="$ICONS_DIR/$f"
@@ -168,7 +191,7 @@ if $CHECK_ONLY; then
   fi
   if [ "$fail" -ne 0 ]; then echo "校验未通过"; exit 1; fi
   report "$ICONS_DIR"
-  echo "校验通过（图标与 ${SRC} 一致）"
+  echo "校验通过：图标与 $(src_label) 一致"
   exit 0
 fi
 
@@ -266,7 +289,7 @@ PY
   fi
 }
 
-echo "源图：${SRC}（$(png_size "$SRC")）"
+echo "源图：$(src_label) · $(png_size "$SRC")"
 if ! gen_via_cli; then
   gen_via_local
 fi

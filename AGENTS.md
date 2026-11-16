@@ -199,16 +199,22 @@ pnpm tauri build --bundles app  # 仅 macOS .app
 bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
 ```
 
-换 logo 后重生成图标（源图 = 仓库根 `logo.png`，产物 = `src-tauri/icons/` + favicon）：
+换 logo 后重生成图标（默认源图恒为仓库根 `logo.png`，与调用目录无关；产物 =
+`src-tauri/icons/` + favicon）：
 
 ```bash
 pnpm icons                    # 等价于 bash scripts/gen-icons.sh
 pnpm icons:check              # 只校验：齐全 / 尺寸 / 托盘透明底 / 是否比源图旧
 ```
 
+`scripts/build.sh` 打包前会跑一次 `--check`，图标落后于 `logo.png` 时打 WARN
+（只提示，不改文件、不阻断）—— 0.0.5 就出过"换了 logo 忘记重生成、装出来还是旧图标"。
+
 脚本优先调用 `tauri icon`，缺 CLI 时退到 `python3 + Pillow`（macOS 上 `.icns` 走
-`iconutil`）；`icon32.png` 被 `src-tauri/src/tray.rs` 以 template 图片编进托盘，
-因此必须保留透明底，脚本会按源图亮度自动推导。
+`iconutil`）；`ZHUYE_ICON_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON` 可覆盖
+默认路径（门禁自测就靠这三个钩子跑在临时目录）。`icon32.png` 被
+`src-tauri/src/tray.rs` 以 template 图片编进托盘，因此必须保留透明底，
+脚本会按源图亮度自动推导。
 
 子模块升级（当 ZhuYe 发布新版本时，详见 [`SUBMODULE.md`](SUBMODULE.md)）：
 

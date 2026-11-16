@@ -19,6 +19,14 @@
   编进托盘，实心方块会在菜单栏糊成一块黑）、无白名单外残留、且不比源图旧。
 - 支持 `--dry-run`（只生成到临时目录并打印清单）、`--local`（强制本地工具链）、
   `--tray-keep`（保留现有 `icon32.png`）、`--no-web`（不动 favicon）。
+- 默认源图恒为 ZhuYe-Desktop 仓库根 `logo.png`（经 `cd -P` 解析脚本所在仓库，与调用
+  目录无关，运行时会打印"仓库默认源图"或"命令行指定"表明来源）；
+  `ZHUYE_ICON_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON` 可覆盖这三条默认路径。
+- `scripts/build.sh` 打包前跑一次 `--check`：`src-tauri/icons/` 落后于 `logo.png`
+  时打 WARN 提示先跑 `pnpm icons`，不改文件也不阻断构建。
+- `tests/static/gen-icons.test.sh` 自测（静态门禁自动纳管）：默认源图解析、产物缺项、
+  白名单外残留、源图更新未重生成、托盘图标失去透明底、`--dry-run` 只读，
+  以及 bash 3.2 下"变量名紧跟多字节字符"的展开陷阱。
 - 采用更新后的 `logo.png`（金鸡望月 + 莲花火焰，1254×1254）重生成全部应用图标。
 
 ### 修复
