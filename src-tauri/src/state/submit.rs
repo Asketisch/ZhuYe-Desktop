@@ -385,15 +385,15 @@ mod tests {
 
     #[test]
     fn stamping_sandbox_preserves_independent_approval_policy() {
-        // 用 Prompt 验证「stamping 只动 sandbox、不碰 approval」:
-        // FullAccess 变体在尚未推送的上游提交里(a32b62b),见
-        // docs/CAPABILITIES.md「最近审计」注记。
+        // 用 FullAccess 验证「stamping 只动 sandbox、不碰 approval」——
+        // 该变体随 submodule 7196d3c5(审批策略分离)入库,顺带锁定
+        // 新变体的 stamping 通路。
         let sub = Submission::with_id(
             "s1",
             Op::UserInput {
                 items: vec![],
                 thread_settings: ThreadSettingsOverrides {
-                    approval_policy: Some(reflect_protocol::ApprovalPolicy::Prompt),
+                    approval_policy: Some(reflect_protocol::ApprovalPolicy::FullAccess),
                     ..Default::default()
                 },
             },
@@ -407,7 +407,7 @@ mod tests {
         };
         assert_eq!(
             thread_settings.approval_policy,
-            Some(reflect_protocol::ApprovalPolicy::Prompt)
+            Some(reflect_protocol::ApprovalPolicy::FullAccess)
         );
         assert_eq!(
             thread_settings.sandbox_policy,

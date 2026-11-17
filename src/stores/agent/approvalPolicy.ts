@@ -20,11 +20,8 @@ export function writeApprovalPolicy(sessionId: string | null | undefined, value:
 
 /** 用户偏好 → wire 值(submission 的 thread_settings.approval_policy)。
  *
- * 当前核心协议的 ApprovalPolicy 仅接受 `prompt`(auto_approve /
- * full_access 变体在尚未推送的上游提交里,见 docs/CAPABILITIES.md
- * 「最近审计」注记)。未知 wire 值会被核心整体拒收 —— 连消息都发不出去
- * —— 故无论用户偏好为何,这里一律按 `prompt` 发送:**从紧降级**,
- * 宁可多弹审批,绝不静默放宽。上游补齐变体后在此按偏好分发。 */
-export function wireApprovalPolicy(_sessionId: string | null | undefined): 'prompt' {
-  return 'prompt';
+ * 核心协议(submodule ≥ 7196d3c5,含审批策略分离)已支持全部三档,
+ * 按用户偏好原样发送;未知值仍回落 `prompt`(从紧,绝不静默放宽)。 */
+export function wireApprovalPolicy(sessionId: string | null | undefined): UserApprovalPolicy {
+  return readApprovalPolicy(sessionId);
 }

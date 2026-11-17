@@ -9911,12 +9911,16 @@ dependencies = [
 name = "zhuye-memory"
 version = "0.0.5"
 dependencies = [
+ "chrono",
  "parking_lot",
+ "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
+ "uuid",
  "zhuye-bm25",
  "zhuye-fs",
  "zhuye-protocol",
