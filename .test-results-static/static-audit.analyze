@@ -1,0 +1,15 @@
+PASS	registry-no-orphan	207 个已注册命令全部有前端消费面
+PASS	backend-all-registered	206 个后端命令体全部已注册
+PASS	frontend-no-phantom	207 个前端包装全部有后端实现
+PASS	fakebackend-parity	fakeBackend 实现了全部 207 个已注册命令
+PASS	registry-size-floor	注册表 207 个命令(下限 105)
+PASS	payload-sample-complete	206 条命令全部有线格式契约样本
+PASS	protocol-doc-coverage	PROTOCOL_BRIDGE 覆盖 92.2%(下限 91.9%)
+PASS	route-view-exists	38 个路由组件全部有对应文件
+PASS	file-size-budget	无新增超 500 行文件(存量 8 个已登记基线)
+PASS	no-debug-leftover	461 个生产文件无调试残留
+PASS	i18n-namespace-merged	48 个命名空间全部并入 STRINGS
+PASS	commands-barrel-complete	48 个领域模块全部从 barrel 导出
+PASS	no-hardcoded-secret	生产源码未发现硬编码密钥
+PASS	capability-command-coverage	后端测试源码引用 202/206 条命令(下限 181;非执行覆盖)
+PASS	registered-command-has-test	206 条命令均有测试引用或显式环境排除
