@@ -4,7 +4,45 @@
 
 ## 未发布
 
-(无)
+### 新增 — 图标一键生成
+
+- `scripts/gen-icons.sh`（`pnpm icons`）：以仓库根 `logo.png` 为唯一源图，一次产出
+  `src-tauri/icons/` 全部 8 个文件（32x32 / 128x128 / 128x128@2x / 256x256 / icon.png /
+  icon.icns / icon.ico / icon32.png）与 `public/tauri-icon.png` favicon，并按
+  `tauri.conf.json` 的 `bundle.icon` 逐项核对。优先用 `tauri icon`，CLI 不可用时退到
+  `python3 + Pillow`（macOS 上 `.icns` 经 `iconutil`，其他平台内置 icns 写入器）；
+  非正方形源图自动按短边居中裁切，SVG 源图经 `rsvg-convert` 栅格化。
+  `tauri icon` 顺带产出的无消费方资产（UWP `Square*Logo.png`、`StoreLogo.png`、
+  `64x64.png`、`android/`、`ios/`）在落盘时清除。
+- `pnpm icons:check`（`--check`）：门禁式校验——文件齐全、PNG 尺寸正确、`.icns`/`.ico`
+  魔数有效、`icon32.png` 保留透明底（该文件被 `src-tauri/src/tray.rs` 以 template 图片
+  编进托盘，实心方块会在菜单栏糊成一块黑）、无白名单外残留、且不比源图旧。
+- 支持 `--dry-run`（只生成到临时目录并打印清单）、`--local`（强制本地工具链）、
+  `--tray-keep`（保留现有 `icon32.png`）、`--no-web`（不动 favicon）。
+- 默认源图恒为 ZhuYe-Desktop 仓库根 `logo.png`（经 `cd -P` 解析脚本所在仓库，与调用
+  目录无关，运行时会打印"仓库默认源图"或"命令行指定"表明来源）；
+  `ZHUYE_ICON_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON` 可覆盖这三条默认路径。
+- `scripts/build.sh` 打包前跑一次 `--check`：`src-tauri/icons/` 落后于 `logo.png`
+  时打 WARN 提示先跑 `pnpm icons`，不改文件也不阻断构建。
+- `tests/static/gen-icons.test.sh` 自测（静态门禁自动纳管）：默认源图解析、产物缺项、
+  白名单外残留、源图更新未重生成、托盘图标失去透明底、`--dry-run` 只读，
+  以及 bash 3.2 下"变量名紧跟多字节字符"的展开陷阱。
+- 采用更新后的 `logo.png`（金鸡望月 + 莲花火焰，1254×1254）重生成全部应用图标。
+
+### 修复
+
+- 隔离 cron 重绑定测试，避免测试任务写入用户定时任务。
+- 新会话立即显示在侧边栏；回合结束后刷新会话列表。
+- 显示控制条中未列出的实际权限模式，并在关闭底部面板时保留终端状态。
+- 自动压缩按实际调用模型和上下文窗口选择阈值；中断后不自动发送排队消息。
+- 支持从侧边栏移除项目并保留文件和会话；底部面板使用系统 shell 的交互式伪终端。
+- 将会话工作模式与审批策略分开，按会话提供请求批准、帮我批准和完全访问。
+- 思考强度按实际模型与端点自动适配：只展示可用档位，模型明确不支持的档位不发出；
+  能力未知时先按所选强度发送，被服务端拒绝后自动逐级降档并缓存结论。
+- 修复流式响应中途断开（如 `SSE_PARSE_ERROR`）后会话一直停在「运行中」：
+  异常结束现在必定补发回合终态事件，已输出的部分内容会保留。
+- 流式请求改为 `Accept-Encoding: identity`，避免本地网关压缩 SSE 导致
+  `error decoding response body`；仅在思考阶段断开时自动整轮重试。
 
 ## 0.0.5 — 2026-11-15
 

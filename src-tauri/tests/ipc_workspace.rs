@@ -37,6 +37,93 @@ fn workspace_history_round_trips() {
 }
 
 #[test]
+fn effort_capability_reports_supported_levels_and_effective_level() {
+    let _guard = workspace_lock();
+    // 当前测试配置里的模型决定能力集;无论具体模型是什么,快照字段形状与
+    // 「effective 不高于 requested」都必须成立。
+    let snapshot = invoke_ok("reflect_effort_capability", json!({}));
+    assert!(snapshot["model"].is_string(), "缺少 model: {snapshot}");
+    assert!(snapshot["known"].is_boolean(), "缺少 known: {snapshot}");
+    assert!(snapshot["supported"].is_array(), "缺少 supported: {snapshot}");
+    assert!(snapshot["requested"].is_string(), "缺少 requested: {snapshot}");
+    assert!(snapshot["adjusted"].is_boolean(), "缺少 adjusted: {snapshot}");
+    assert!(snapshot["effective"].is_null() || snapshot["effective"].is_string());
+
+    let ladder = ["low", "medium", "high", "max", "ultra"];
+    let rank = |name: &str| ladder.iter().position(|x| *x == name).unwrap_or(0);
+    let requested = snapshot["requested"].as_str().unwrap();
+    if let Some(effective) = snapshot["effective"].as_str() {
+        assert!(
+            rank(effective) <= rank(requested),
+            "生效档位不应高于用户选择: {snapshot}"
+        );
+        if snapshot["known"].as_bool() == Some(true) {
+            let supported: Vec<&str> = snapshot["supported"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|v| v.as_str())
+                .collect();
+            assert!(supported.contains(&effective), "生效档位应在支持集合内: {snapshot}");
+        }
+    }
+}
+
+#[test]
+fn removed_workspace_stays_hidden_until_reopened() {
+    let _guard = workspace_lock();
+    let probe = temp_workspace("ws-removed");
+    set_workspace(&probe);
+    invoke_ok("reflect_remove_workspace", json!({"path": probe}));
+    let list = invoke_ok("reflect_list_workspaces", json!({}));
+    let item = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["path"] == probe)
+        .unwrap();
+    assert_eq!(item["hidden"], true);
+    set_workspace(&probe);
+    let list = invoke_ok("reflect_list_workspaces", json!({}));
+    let item = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["path"] == probe)
+        .unwrap();
+    assert_eq!(item["hidden"], false);
+}
+
+#[test]
+#[cfg(unix)]
+fn interactive_pty_can_start_resize_write_and_close() {
+    let _guard = workspace_lock();
+    let workspace = temp_workspace("interactive-pty");
+    set_workspace(&workspace);
+    let marker = std::path::Path::new(&workspace).join("pty-marker");
+    let id = "ipc-interactive-pty";
+    invoke_ok(
+        "reflect_pty_start",
+        json!({"id": id, "cols": 80, "rows": 24}),
+    );
+    invoke_ok(
+        "reflect_pty_resize",
+        json!({"id": id, "cols": 100, "rows": 30}),
+    );
+    invoke_ok(
+        "reflect_pty_write",
+        json!({"id": id, "data": "printf pty-test > pty-marker\n"}),
+    );
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !marker.exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "pty-test");
+    invoke_ok("reflect_pty_close", json!({"id": id}));
+    assert!(invoke("reflect_pty_write", json!({"id": id, "data": "x"})).is_err());
+}
+
+#[test]
 fn switching_workspace_rejects_input_bound_to_the_previous_directory() {
     let _guard = workspace_lock();
     let first = temp_workspace("session-workspace-a");

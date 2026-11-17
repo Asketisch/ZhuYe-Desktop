@@ -65,8 +65,10 @@ export function groupSessionsByWorkspace(
   sessions: ReflectSessionInfo[],
   knownWorkspaces: ReflectWorkspaceInfo[] = [],
 ): WorkspaceSessionGroup[] {
+  const hidden = new Set(knownWorkspaces.filter((ws) => ws.hidden).map((ws) => ws.path));
   const byPath = new Map<string, ReflectSessionInfo[]>();
   for (const s of sessions) {
+    if (s.workspace && hidden.has(s.workspace)) continue;
     const key = groupKeyFor(s.workspace ?? null);
     const arr = byPath.get(key);
     if (arr) arr.push(s);
@@ -76,11 +78,13 @@ export function groupSessionsByWorkspace(
   const lastUsedByPath = new Map<string, number>();
   const labelByPath = new Map<string, string>();
   for (const ws of knownWorkspaces) {
+    if (ws.hidden) continue;
     if (isPlaceholderWorkspace(ws.path)) continue;
     lastUsedByPath.set(ws.path, ws.last_used);
     if (ws.label) labelByPath.set(ws.path, ws.label);
   }
   for (const s of sessions) {
+    if (s.workspace && hidden.has(s.workspace)) continue;
     if (!s.workspace) continue;
     if (!lastUsedByPath.has(s.workspace)) lastUsedByPath.set(s.workspace, 0);
     if (!labelByPath.has(s.workspace)) labelByPath.set(s.workspace, basename(s.workspace));

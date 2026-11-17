@@ -1,7 +1,7 @@
 /**
  * StatusBar —— IDE 风底部状态栏。
  *
- * 左：model @ provider · permission · 上下文占比。
+ * 左：model @ provider · 工作模式 · 上下文占比。
  *    （打开的目录 + git 分支已移至 Composer 下方上下文条 —— 它们是
  *    对话框侧的会话上下文而非全局状态，见 ComposerContextBar。）
  * 右：MCP/LSP 状态点 · 错误计数 · token · 主题切换。
@@ -29,7 +29,7 @@ import s from './StatusBar.module.css';
 export function StatusBar() {
   const session = useAgentStore((st) => st.session);
   const permissionMode = useAgentStore((st) => st.permissionMode);
-  const cyclePermission = useAgentStore((st) => st.cyclePermissionMode);
+  const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
   const mcpServers = useAgentStore((st) => st.mcpServers);
   const lspServers = useAgentStore((st) => st.lspServers);
   const lastError = useAgentStore((st) => st.lastError);
@@ -103,8 +103,8 @@ export function StatusBar() {
             </span>
           </Tooltip>
         )}
-        <button className={s.btn} onClick={() => cyclePermission()} title={t('shell.cyclePermission')}>
-          {permissionMode}
+        <button className={s.btn} onClick={() => void setPermissionMode(permissionMode === 'plan' ? 'auto' : 'plan')} title={t('shell.cyclePermission')}>
+          {permissionMode === 'auto' ? t('composer.controls.perm.ask') : permissionMode === 'plan' ? t('composer.controls.perm.plan') : permissionMode}
         </button>
         {ctx.pct !== null && (
           <Tooltip

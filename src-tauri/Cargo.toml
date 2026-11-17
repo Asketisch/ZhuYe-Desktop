@@ -119,6 +119,7 @@ once_cell                   = { workspace = true }
 image                       = { workspace = true }
 xcap                        = { workspace = true }
 enigo                       = { workspace = true }
+portable-pty = "0.9.0"
 
 # 仅 macOS 的 dock 徽标：通过 objc2 设置 NSApplication.dockTile.badgeLabel。
 [target.'cfg(target_os = "macos")'.dependencies]

@@ -142,3 +142,10 @@
     transform: rotate(360deg);
   }
 }
+
+/* 思考强度「实际生效」提示(被模型能力或已验证结论调整过时显示)。 */
+.effectiveNote {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}

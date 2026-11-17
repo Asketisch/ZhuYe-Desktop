@@ -220,7 +220,7 @@ export interface FakeBackend {
     schedules: Array<Record<string, unknown>>;
     sideChannels: Array<Record<string, unknown>>;
     /** workspaces 线格式对齐后端 `WorkspaceInfo`（unix 秒）。 */
-    workspaces: Array<{ path: string; label: string; last_used: number; session_count: number }>;
+    workspaces: Array<{ path: string; label: string; last_used: number; session_count: number; hidden?: boolean }>;
     /** `reflect_pick_workspace_folder` 的模拟返回值（null = 用户取消）。 */
     pickedFolder: string | null;
     /** `reflect_pick_file` 的模拟返回值（null = 用户取消）。 */
@@ -232,6 +232,15 @@ export interface FakeBackend {
     activeAgent: string;
     /** 推理强度（`reflect_set_effort` / `reflect_get_effort`）。 */
     effort: string;
+    /** 思考强度能力快照（`reflect_effort_capability`）。 */
+    effortCapability: {
+      model: string;
+      supported: string[];
+      known: boolean;
+      requested: string;
+      effective: string | null;
+      adjusted: boolean;
+    };
     /** MCP 服务器条目（`reflect_upsert_mcp_server` / `reflect_list_mcp_servers` / `reflect_delete_mcp_server`）。 */
     mcpServers: Array<Record<string, unknown>>;
     /** 权限规则（`reflect_add_permission_rule` / `reflect_list_permission_rules`）。 */
@@ -408,6 +417,14 @@ export function installFakeBackend(): FakeBackend {
       allowlist: { prefixes: ['ls', 'read_file'] },
       activeAgent: 'default',
       effort: 'low',
+      effortCapability: {
+        model: 'openai/gpt-5',
+        supported: ['low', 'medium', 'high', 'max', 'ultra'],
+        known: true,
+        requested: 'low',
+        effective: 'low',
+        adjusted: false,
+      },
       mcpServers: [
         {
           name: 'filesystem',
@@ -833,6 +850,19 @@ export function installFakeBackend(): FakeBackend {
     }),
   );
   handle('reflect_get_effort', handler(() => backend.state.effort));
+  handle(
+    'reflect_effort_capability',
+    handler(() => ({
+      ...backend.state.effortCapability,
+      requested: backend.state.effort,
+      effective: backend.state.effortCapability.known
+        && !backend.state.effortCapability.supported.includes(backend.state.effort)
+        ? backend.state.effortCapability.supported.at(-1) ?? null
+        : backend.state.effort,
+      adjusted: backend.state.effortCapability.known
+        && !backend.state.effortCapability.supported.includes(backend.state.effort),
+    })),
+  );
   // plan 余量查询：默认返回一个成功快照（真实厂商 HTTP 查询在后端）。
   handle(
     'reflect_query_plan_quota',
@@ -965,6 +995,10 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_git_log', handler(() => wire(backend.state.gitLog)));
 
   // —— 终端 ——
+  handle('reflect_pty_start', handler(() => undefined));
+  handle('reflect_pty_write', handler(() => undefined));
+  handle('reflect_pty_resize', handler(() => undefined));
+  handle('reflect_pty_close', handler(() => undefined));
   handle(
     'reflect_run_shell',
     handler((args) => {
@@ -1190,6 +1224,12 @@ export function installFakeBackend(): FakeBackend {
 
   // —— workspaces ——
   handle('reflect_list_workspaces', handler(() => wire(backend.state.workspaces)));
+  handle('reflect_remove_workspace', handler((args) => {
+    const path = String(args?.path ?? '');
+    const workspace = backend.state.workspaces.find((w) => w.path === path);
+    if (workspace) workspace.hidden = true;
+    else backend.state.workspaces.push({ path, label: path, last_used: 0, session_count: 0, hidden: true });
+  }));
   handle(
     'reflect_set_workspace',
     handler((args) => {

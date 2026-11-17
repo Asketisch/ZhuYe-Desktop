@@ -347,7 +347,7 @@ export function ChatView() {
       {hero && <QuickPromptRow />}
       </div>
       )}
-      {sessionId && <BottomTabs open={bottomOpen} onClose={() => setBottomOpen(false)} />}
+      <BottomTabs open={bottomOpen} onClose={() => setBottomOpen(false)} />
       {prefs.chatDiffSplit && !hero && (
         <aside className={s.diffPanel} aria-label={t('chat.diffPanel')}>
           <header className={s.diffHeader}>

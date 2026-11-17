@@ -6,6 +6,14 @@
  */
 import { invoke, listen } from '../bridge';
 
+export async function reflect_pty_start(id: string, cols: number, rows: number): Promise<void> { return invoke<void>('reflect_pty_start', { id, cols, rows }); }
+export async function reflect_pty_write(id: string, data: string): Promise<void> { return invoke<void>('reflect_pty_write', { id, data }); }
+export async function reflect_pty_resize(id: string, cols: number, rows: number): Promise<void> { return invoke<void>('reflect_pty_resize', { id, cols, rows }); }
+export async function reflect_pty_close(id: string): Promise<void> { return invoke<void>('reflect_pty_close', { id }); }
+export const onPtyOutput = (handler: (output: { id: string; data: number[] }) => void) =>
+  listen<{ id: string; data: number[] }>('reflect_pty_output', (e) => handler(e.payload));
+export const onPtyExit = (handler: (id: string) => void) => listen<string>('reflect_pty_exit', (e) => handler(e.payload));
+
 export interface ReflectShellSession {
   id: string;
   command: string;

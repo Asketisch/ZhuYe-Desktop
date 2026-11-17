@@ -6,7 +6,7 @@
  * 点击组头主体切换折叠（aria-expanded）；「+」是独立按钮，避免嵌套交互元素。
  * 未归属分组（path === null）标题用 i18n 文案，且不显示「+」（无目录可切）。
  */
-import { ChevronRight, Folder, FolderOpen, Plus } from 'lucide-react';
+import { ChevronRight, Folder, FolderOpen, Plus, X } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import type { WorkspaceSessionGroup } from '../utils/workspaceGroups';
@@ -22,6 +22,7 @@ export interface WorkspaceGroupProps {
   onToggle: (key: string) => void;
   /** 在该项目下新建会话；未提供或未归属分组时不显示「+」。 */
   onNewChatIn?: (path: string) => void;
+  onRemoveWorkspace?: (path: string) => void;
   onSelect: (id: string) => void;
   /** 行级操作（可选）；透传给 SessionItem 的 kebab 菜单。 */
   onRename?: (id: string, newName: string) => Promise<void>;
@@ -47,6 +48,7 @@ export function WorkspaceGroup({
   isCurrentWorkspace,
   onToggle,
   onNewChatIn,
+  onRemoveWorkspace,
   onSelect,
   onRename,
   onDelete,
@@ -92,6 +94,12 @@ export function WorkspaceGroup({
             onClick={() => onNewChatIn?.(group.path as string)}
           >
             <Icon icon={Plus} size={13} />
+          </IconButton>
+        )}
+        {group.path && onRemoveWorkspace && (
+          <IconButton label={t('sidebar.group.remove')} size="sm" className={s.newChatBtn}
+            onClick={() => onRemoveWorkspace(group.path as string)}>
+            <Icon icon={X} size={13} />
           </IconButton>
         )}
       </div>

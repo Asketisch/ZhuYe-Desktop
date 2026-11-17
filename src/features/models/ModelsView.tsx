@@ -9,7 +9,7 @@
  * provider 无法区分,且只切 provider 不写模型名的话,实际使用的模型
  * 根本不会变。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Cpu, Folder, AlertTriangle, CheckCircle2, Zap } from 'lucide-react';
 import {
@@ -19,6 +19,7 @@ import {
   reflect_set_model,
 } from '@/utils/commands';
 import { reflect_get_effort } from '@/utils/commands/permissions';
+import { ALL_EFFORTS, useEffortCapability } from '@/features/composer/useEffortCapability';
 import { Card, Badge, Button, Icon, SegmentedControl, EmptyState } from '@/features/design-system';
 import { useI18n, type LocaleKey } from '@/utils/i18n';
 import {
@@ -31,7 +32,7 @@ import {
 import s from './ModelsView.module.css';
 
 // 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。
-const REASONING_EFFORTS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
+const REASONING_EFFORTS = ALL_EFFORTS;
 type Effort = (typeof REASONING_EFFORTS)[number];
 
 const EFFORT_HINTS: Record<Effort, LocaleKey> = {
@@ -47,6 +48,8 @@ export function ModelsView() {
   const qc = useQueryClient();
   const [effort, setEffort] = useState<Effort>('medium');
   const [saved, setSaved] = useState(false);
+  // 思考强度能力(按当前模型):只提供模型支持的档位。
+  const capability = useEffortCapability();
 
   const statusQuery = useQuery({
     queryKey: ['agent-status'],
@@ -73,6 +76,13 @@ export function ModelsView() {
     queryFn: reflect_get_config,
     staleTime: 30_000,
   });
+
+  // 可选档位 = 模型支持的档位 ∪ 用户当前选择(偏好保留)。
+  const effortOptions = useMemo(() => {
+    const options = new Set<Effort>(capability.options);
+    options.add(effort);
+    return REASONING_EFFORTS.filter((level) => options.has(level));
+  }, [capability.options, effort]);
 
   const effortMutation = useMutation({
     mutationFn: async (level: Effort) => reflect_set_effort(level),
@@ -230,7 +240,7 @@ export function ModelsView() {
             <SegmentedControl<Effort>
               value={effort}
               onChange={(v) => setEffort(v)}
-              options={REASONING_EFFORTS.map((e) => ({ value: e, label: e, hint: t(EFFORT_HINTS[e]) }))}
+              options={effortOptions.map((e) => ({ value: e, label: e, hint: t(EFFORT_HINTS[e]) }))}
               stacked
             />
           </div>
@@ -244,6 +254,13 @@ export function ModelsView() {
               {saved ? t('models.applied') : t('models.applyEffort')}
             </Button>
             <span className={s.effortHint}>{t(EFFORT_HINTS[effort])}</span>
+            {capability.adjusted && (
+              <span className={s.effortHint} data-testid="models-effort-effective">
+                {capability.effective
+                  ? t('composer.controls.effort.effective', { level: capability.effective })
+                  : t('composer.controls.effort.disabled')}
+              </span>
+            )}
           </div>
           <p className={s.note}>
             {t('models.settingsHint', { path: t('settings.provider') })}

@@ -90,7 +90,7 @@ export function WorkspacesView() {
     }
   };
 
-  const workspaces = workspacesQ.data ?? [];
+  const workspaces = (workspacesQ.data ?? []).filter((workspace) => !workspace.hidden);
 
   return (
     <PageShell

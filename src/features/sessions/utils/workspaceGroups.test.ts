@@ -115,4 +115,11 @@ describe('groupSessionsByWorkspace', () => {
   it('空输入 + 无已知项目 → 空列表', () => {
     expect(groupSessionsByWorkspace([], [])).toEqual([]);
   });
+
+  it('已移除项目不会因历史会话重新出现', () => {
+    const groups = groupSessionsByWorkspace([sess('a1', '2026-08-27T10:00:00Z', WS_A)], [
+      { path: WS_A, label: 'alpha', last_used: 1, session_count: 1, hidden: true },
+    ]);
+    expect(groups).toEqual([]);
+  });
 });

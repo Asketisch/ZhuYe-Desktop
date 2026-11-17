@@ -1,0 +1,7 @@
+.terminal {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
+  overflow: hidden;
+  background: var(--bg-app);
+}

@@ -11,6 +11,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from './store';
+import { writeApprovalPolicy } from './approvalPolicy';
 import type { ReflectSubmission } from '@/types/protocol';
 
 describe('store.submit — Submission.workspace 线格式', () => {
@@ -50,6 +51,18 @@ describe('store.submit — Submission.workspace 线格式', () => {
 
     await useAgentStore.getState().submitItems([{ type: 'text', text: 'hi' }], null);
     expect(sent[1]).not.toHaveProperty('workspace');
+  });
+
+  it('发送当前会话的独立审批策略，不改变规划模式', async () => {
+    writeApprovalPolicy('session-a', 'full_access');
+    writeApprovalPolicy('session-b', 'auto_approve');
+    useAgentStore.setState({ loadedSessionId: 'session-a', permissionMode: 'plan' });
+    await useAgentStore.getState().submit('first');
+    useAgentStore.setState({ loadedSessionId: 'session-b', permissionMode: 'plan' });
+    await useAgentStore.getState().submitItems([{ type: 'text', text: 'second' }]);
+    expect(sent[0].op).toMatchObject({ thread_settings: { approval_policy: 'full_access' } });
+    expect(sent[1].op).toMatchObject({ thread_settings: { approval_policy: 'auto_approve' } });
+    expect(useAgentStore.getState().permissionMode).toBe('plan');
   });
 });
 

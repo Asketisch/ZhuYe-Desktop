@@ -15,7 +15,7 @@ export type PermissionMode =
   | 'bubble'
   | 'bypass';
 
-export type ApprovalPolicy = 'auto' | 'prompt' | 'deny';
+export type ApprovalPolicy = 'auto' | 'prompt' | 'deny' | 'auto_approve' | 'full_access';
 export type SandboxPolicy = 'workspace_only' | 'os_sandbox' | 'full_access';
 export type RiskLevel = 'low' | 'medium' | 'high';
 /** 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。 */

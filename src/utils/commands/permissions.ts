@@ -17,6 +17,27 @@ export async function reflect_get_effort(): Promise<string> {
   return invoke<string>('reflect_get_effort');
 }
 
+/** 思考强度能力快照 —— 「当前模型能选哪些档」「实际生效哪档」。 */
+export interface ReflectEffortCapability {
+  /** 当前模型 spec(`provider/model`);未配置模型时为空串。 */
+  model: string;
+  /** 已知支持的档位;`known = false` 时为空数组(能力未知)。 */
+  supported: string[];
+  /** 能力是否已知。`false` = 未知(不等于不支持)。 */
+  known: boolean;
+  /** 用户选择的档位(会话里的原始偏好)。 */
+  requested: string;
+  /** 按当前模型算出的生效档位;`null` = 完全不发思考参数。 */
+  effective: string | null;
+  /** 生效档位与用户选择不一致。 */
+  adjusted: boolean;
+}
+
+/** 读当前模型的思考强度能力(Composer / Models 两处共用同一口径)。 */
+export async function reflect_effort_capability(): Promise<ReflectEffortCapability> {
+  return invoke<ReflectEffortCapability>('reflect_effort_capability');
+}
+
 /** 直接设置 permission mode。 */
 export async function reflect_set_permission_mode(mode: string): Promise<string> {
   return invoke<string>('reflect_set_permission_mode', { mode });

@@ -8,6 +8,11 @@ export interface ReflectWorkspaceInfo {
   label: string;
   last_used: number;
   session_count: number;
+  hidden?: boolean;
+}
+
+export async function reflect_remove_workspace(path: string): Promise<void> {
+  await invoke<void>('reflect_remove_workspace', { path });
 }
 
 /** 列出已知 workspace。 */

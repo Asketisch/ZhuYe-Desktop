@@ -483,14 +483,16 @@ describe('Composer inline controls', () => {
       calls.push(args?.mode ?? '');
       return 'ok';
     });
-    useAgentStore.setState({ permissionMode: 'prompt' });
+    useAgentStore.setState({ permissionMode: 'auto' });
     renderComposer();
 
-    // Yolo 段 = bubble（core v1.3 安全基线已废除 blanket bypass）。
-    fireEvent.click(screen.getByTestId('composer-perm-bubble'));
-    await waitFor(() => expect(calls).toEqual(['bubble']));
+    fireEvent.change(screen.getByTestId('composer-approval-policy'), { target: { value: 'full_access' } });
+    expect(calls).toEqual([]);
+    fireEvent.click(screen.getByTestId('composer-perm-plan'));
+    await waitFor(() => expect(calls).toEqual(['plan']));
     // 当前段高亮来自 store 的 permissionMode（permission_mode_changed 事件回读）。
-    expect(screen.getByTestId('composer-perm-prompt').getAttribute('data-active')).toBeDefined();
+    expect(screen.getByTestId('composer-perm-auto').getAttribute('data-active')).toBeDefined();
+    expect((screen.getByTestId('composer-approval-policy') as HTMLSelectElement).value).toBe('full_access');
   });
 
   it('lists coding plans and switches model via reflect_set_model', async () => {

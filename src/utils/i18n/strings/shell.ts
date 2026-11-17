@@ -23,7 +23,7 @@ const shell: Record<string, StringEntry> = {
   'shell.themeLight':             { en: 'Light',                                                  'zh-CN': '浅色' },
   'shell.themeSystem':            { en: 'System',                                                 'zh-CN': '跟随系统' },
   'shell.themeCurrent':           { en: 'Theme: {mode}',                                          'zh-CN': '主题: {mode}' },
-  'shell.cyclePermission':        { en: 'Cycle permission mode',                                  'zh-CN': '切换权限模式' },
+  'shell.cyclePermission':        { en: 'Switch work mode',                                      'zh-CN': '切换工作模式' },
   'shell.noModel':                { en: 'no model',                                               'zh-CN': '未配置模型' },
   'shell.noModelTooltip':         { en: 'No model configured — open Settings to add an API key',  'zh-CN': '未配置模型——打开 Settings 添加 API 密钥' },
   'shell.errorButton':            { en: 'error',                                                  'zh-CN': '错误' },
