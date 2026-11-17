@@ -24,6 +24,7 @@ import {
 } from '@/features/design-system';
 import type { ReflectActivityEvent } from '@/utils/commands/activity';
 import { useActivityController } from './useActivityController';
+import { useOsNotifications } from './useOsNotifications';
 import s from './NotificationsView.module.css';
 
 interface NotifItem {
@@ -50,6 +51,7 @@ const LEVEL_FILTER_OPTIONS = [
 ];
 
 export function NotificationsView() {
+  const osNotify = useOsNotifications();
   const lastError = useAgentStore((st) => st.lastError);
   const clearError = useAgentStore((st) => st.clearError);
   const approvals = useAgentStore((st) => st.pendingApprovals);
@@ -125,6 +127,18 @@ export function NotificationsView() {
             {errorCount === 0 && pendingCount === 0 && <Badge variant="neutral">{items.length}</Badge>}
           </div>
         )}
+        {/* F64/F50:OS 通知开关 —— 回合完成(失焦)与审批请求推系统通知。 */}
+        <label
+          style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-xs)' }}
+        >
+          <input
+            type="checkbox"
+            checked={osNotify.enabled}
+            onChange={(e) => void osNotify.setEnabled(e.target.checked)}
+            data-testid="os-notify-toggle"
+          />
+          OS notifications
+        </label>
       </header>
 
       <div className={s.tabBar}>

@@ -104,7 +104,7 @@ fn sse_tool_use() -> String {
         ),
         (
             "content_block_delta",
-            json!({ "type": "content_block_delta", "index": 0, "delta": { "type": "input_json_delta", "partial_json": "\"echo mock-provider-tool-ok\"}" } }),
+            json!({ "type": "content_block_delta", "index": 0, "delta": { "type": "input_json_delta", "partial_json": "\"touch mock-provider-tool-ok\"}" } }),
         ),
         (
             "content_block_stop",
@@ -414,7 +414,7 @@ fn scene_two_tool_use(w: &World) {
         approval["msg"]["kind"]["args"]["cmd"]
             .as_str()
             .unwrap_or_default()
-            .contains("echo mock-provider-tool-ok"),
+            .contains("touch mock-provider-tool-ok"),
         "审批载荷里的 bash 参数与 tool_use 不符: {approval}"
     );
 
