@@ -1,7 +1,0 @@
-suite=static-audit
-passed=24
-failed=2
-skipped=0
-status=fail
-failed_case=能力矩阵与 submodule 版本一致
-failed_case=门禁自测脚本(*.test.sh 全量执行)

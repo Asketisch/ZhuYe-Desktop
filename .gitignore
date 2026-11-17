@@ -33,3 +33,7 @@ WixTools/
 graphify-out/
 crates/graphify-out/
 tests/__pycache__/
+
+# 本地试跑产物(任意 RESULT_DIR 命名)
+.test-results/
+.test-results-*/
