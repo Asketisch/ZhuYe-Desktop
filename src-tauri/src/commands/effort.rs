@@ -62,12 +62,9 @@ fn parse_effort(s: &str) -> CommandResult<ReasoningEffortMirror> {
 
 /// 思考强度能力快照 —— 「当前模型能选哪些档」「用户选的档实际生效为什么」。
 ///
-/// 能力来源按优先级:
-/// 1. **已验证结论**(引擎在运行时被服务端拒绝后记下的,按端点 + 模型隔离);
-/// 2. **能力表**(已知模型族: qwen→low/medium/high、deepseek→…/max、
-///    OpenAI 推理系→…/ultra、anthropic 端口→不支持);
-/// 3. **未知**(私有模型 / 兼容网关)—— 此时按用户选择原样发送,被拒后
-///    引擎会自动降档。
+/// 能力来源:静态能力表(上游 `reasoning_effort` 模块;已知模型族
+/// qwen→…/high、deepseek→…/max、OpenAI 推理系→…/ultra,未知模型保守
+/// 到 high)。「运行时已验证结论」层待上游合入后叠加。
 #[derive(Debug, Clone, Serialize)]
 pub struct EffortCapability {
     /// 当前模型 spec(`provider/model`);未配置模型时为空串。
@@ -80,7 +77,7 @@ pub struct EffortCapability {
     pub requested: String,
     /// 按当前模型算出的生效档位;`None` = 完全不发思考参数。
     pub effective: Option<String>,
-    /// 生效档位与用户选择不一致(被模型能力或已验证结论调整过)。
+    /// 生效档位与用户选择不一致(被模型能力钳制过)。
     pub adjusted: bool,
 }
 
@@ -88,19 +85,19 @@ pub struct EffortCapability {
 ///
 /// 前端据此决定**能选哪些档**,并把「用户选择」与「实际生效」分开显示 ——
 /// 用户偏好始终保留,换模型后自动按新模型重算。
+///
+/// 能力来源:静态能力表(`reflect_llm::reasoning_effort`,v1.10 功能4)——
+/// 与引擎发 wire 前的实际钳制**同一份函数**,UI 展示与引擎行为天然一致。
+/// 「运行时已验证结论」层(按端点 + 模型隔离的 effort_cache)依赖的上游
+/// 提交尚未合入 ZhuYe,待上游提供后在此叠加为第一优先级。
 #[tauri::command]
-pub async fn reflect_effort_capability(agent: State<'_, MinimalAgent>) -> CommandResult<EffortCapability> {
-    // 当前模型 spec + 端点(端点用于查「已验证结论」—— 同一个模型名在不同
-    // 兼容网关上的能力可以不同)。
+pub async fn reflect_effort_capability(
+    agent: State<'_, MinimalAgent>,
+) -> CommandResult<EffortCapability> {
+    // 当前模型 spec(钳制按完整 spec 归一化,引擎侧同口径)。
     let cfg_arc = agent.cfg();
-    let cfg_guard = cfg_arc.read();
-    let model = cfg_guard.resolved_model_spec().unwrap_or_default();
-    let endpoint = active_endpoint(&cfg_guard);
-    drop(cfg_guard);
-    let model_name = model
-        .split_once('/')
-        .map_or(model.as_str(), |(_, m)| m)
-        .to_string();
+    let model = cfg_arc.read().resolved_model_spec().unwrap_or_default();
+    drop(cfg_arc);
 
     // 用户选择的档位(线程未安装时回落 low)。
     let requested = {
@@ -112,53 +109,22 @@ pub async fn reflect_effort_capability(agent: State<'_, MinimalAgent>) -> Comman
     };
     let desired = reflect_llm::ReasoningEffort::from(requested);
 
-    // 能力优先级:运行时已验证结论(按端点 + 模型隔离)> 静态能力表。
-    let support = reflect_llm::effort_cache::lookup(&endpoint, &model_name)
-        .unwrap_or_else(|| reflect_llm::reasoning_effort::support_for_model(&model));
-    let effective = reflect_llm::reasoning_effort::pick_effort(&support, desired);
+    // 静态能力表:支持档位阶梯 + 与引擎一致的钳制结果。未知模型走上游
+    // 保守默认(Low..=High),与引擎实际会发出的档位严格一致。
+    let supported: Vec<String> = reflect_llm::reasoning_effort::supported_efforts_for_model(&model)
+        .iter()
+        .map(|level| reflect_llm::reasoning_effort::effort_wire_str(*level).to_string())
+        .collect();
+    let effective = reflect_llm::reasoning_effort::clamp_effort_for_model(desired, &model);
 
     Ok(EffortCapability {
-        supported: support
-            .supported()
-            .iter()
-            .map(|level| reflect_llm::reasoning_effort::effort_wire_str(*level).to_string())
-            .collect(),
-        known: support.is_known(),
+        supported,
+        known: true,
         requested: effort_name(requested).to_string(),
-        effective: effective.map(|level| reflect_llm::reasoning_effort::effort_wire_str(level).to_string()),
-        adjusted: effective != Some(desired),
+        effective: Some(reflect_llm::reasoning_effort::effort_wire_str(effective).to_string()),
+        adjusted: effective != desired,
         model,
     })
-}
-
-/// 当前生效端点(base_url)—— 能力缓存按它隔离。
-///
-/// 优先取被钉住凭证条目的 base_url,其次取 provider 段的 base_url;
-/// 都没有时回落到 provider 名(此时同 provider 的不同网关共享缓存)。
-fn active_endpoint(cfg: &reflect_config::ReflectConfig) -> String {
-    let Some(provider) = cfg.active_provider() else {
-        return String::new();
-    };
-    let credential = cfg.active_credential();
-    let section = match provider {
-        "openai" => cfg.openai.as_ref().map(|s| (s.credentials.as_slice(), s.base_url.clone())),
-        "anthropic" => cfg
-            .anthropic
-            .as_ref()
-            .map(|s| (s.credentials.as_slice(), s.base_url.clone())),
-        "ollama" => cfg.ollama.as_ref().map(|s| (s.credentials.as_slice(), s.base_url.clone())),
-        _ => None,
-    };
-    let Some((credentials, section_base_url)) = section else {
-        return provider.to_string();
-    };
-    let entry_base = credentials
-        .iter()
-        .find(|entry| credential.as_deref() == Some(entry.label.as_str()))
-        .and_then(|entry| entry.base_url.clone());
-    entry_base
-        .or(section_base_url)
-        .unwrap_or_else(|| provider.to_string())
 }
 
 /// 协议档位 → wire 字符串。

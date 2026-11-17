@@ -11,7 +11,8 @@ import { invoke } from '../bridge';
 export interface SandboxStatus {
   /** 配置里的 `[sandbox].os_level` 值(未表态时已归一为基线开启)。 */
   osLevel: boolean;
-  /** 有效状态:`disabled` / `seatbelt` / `landlock` / `no_backend`。 */
+  /** 有效状态:`disabled` / `seatbelt` / `landlock` / `no_backend` /
+   *  `windows_job_object`(F24 Windows Job Object 后端)。 */
   status: string;
   /** 沙箱是否真的在生效。 */
   active: boolean;

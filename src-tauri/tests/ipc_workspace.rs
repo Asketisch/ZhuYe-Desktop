@@ -44,9 +44,18 @@ fn effort_capability_reports_supported_levels_and_effective_level() {
     let snapshot = invoke_ok("reflect_effort_capability", json!({}));
     assert!(snapshot["model"].is_string(), "缺少 model: {snapshot}");
     assert!(snapshot["known"].is_boolean(), "缺少 known: {snapshot}");
-    assert!(snapshot["supported"].is_array(), "缺少 supported: {snapshot}");
-    assert!(snapshot["requested"].is_string(), "缺少 requested: {snapshot}");
-    assert!(snapshot["adjusted"].is_boolean(), "缺少 adjusted: {snapshot}");
+    assert!(
+        snapshot["supported"].is_array(),
+        "缺少 supported: {snapshot}"
+    );
+    assert!(
+        snapshot["requested"].is_string(),
+        "缺少 requested: {snapshot}"
+    );
+    assert!(
+        snapshot["adjusted"].is_boolean(),
+        "缺少 adjusted: {snapshot}"
+    );
     assert!(snapshot["effective"].is_null() || snapshot["effective"].is_string());
 
     let ladder = ["low", "medium", "high", "max", "ultra"];
@@ -64,7 +73,10 @@ fn effort_capability_reports_supported_levels_and_effective_level() {
                 .iter()
                 .filter_map(|v| v.as_str())
                 .collect();
-            assert!(supported.contains(&effective), "生效档位应在支持集合内: {snapshot}");
+            assert!(
+                supported.contains(&effective),
+                "生效档位应在支持集合内: {snapshot}"
+            );
         }
     }
 }

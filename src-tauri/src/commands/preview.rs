@@ -47,8 +47,7 @@ pub fn extract_ports_from_text(text: &str) -> Vec<u16> {
             let mut rest: &str = line;
             while let Some(idx) = rest.find(pat) {
                 let after = &rest[idx + pat.len()..];
-                let digits: String =
-                    after.chars().take_while(|c| c.is_ascii_digit()).collect();
+                let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
                 if let Ok(port) = digits.parse::<u16>()
                     && port > 0
                 {

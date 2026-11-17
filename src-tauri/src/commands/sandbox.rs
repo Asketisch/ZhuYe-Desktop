@@ -80,6 +80,9 @@ fn status_str(s: OsSandboxStatus) -> &'static str {
         OsSandboxStatus::Seatbelt => "seatbelt",
         OsSandboxStatus::Landlock => "landlock",
         OsSandboxStatus::NoBackend => "no_backend",
+        // F24:Windows Job Object(+ AppContainer)后端,submodule 升级
+        // 到含 F24 的核心后新增的变体。
+        OsSandboxStatus::WindowsJobObject => "windows_job_object",
     }
 }
 
