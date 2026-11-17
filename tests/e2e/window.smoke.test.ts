@@ -475,17 +475,9 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const providerLog = join(process.env.E2E_SCREENSHOT_DIR ?? '.test-results', 'e2e-mock-provider.log');
     await driver!.wait(() => readFileSync(providerLog, 'utf8').includes('window interrupt start received'), 30_000);
     const log = await driver!.findElement(By.css('[role="log"]'));
-    const resumed = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
-    await resumed.sendKeys('window-interrupt-resume-test');
-    await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    await driver!.wait(async () => {
-      try {
-        await stop.click();
-        return true;
-      } catch {
-        return false;
-      }
-    }, 30_000);
+    // 先打断慢流首回合(旧顺序是"发续作再点 stop",会把续作回合自己打断,
+    // ubuntu 慢机上验证文本永远等不到 —— 按用例本意重排:打断 → 续作)。
+    await stop.click();
     await driver!.wait(async () => {
       try {
         return (await driver!.findElements(By.css('[data-testid="composer-stop"]'))).length === 0;
@@ -493,6 +485,9 @@ describe('window smoke (real process, real backend, local model stub)', () => {
         return false;
       }
     }, 30_000);
+    const resumed = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
+    await resumed.sendKeys('window-interrupt-resume-test');
+    await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
     await driver!.wait(async () => (await log.getText()).includes('window interrupt turn verified'), 60_000);
   }, 150_000);
 
