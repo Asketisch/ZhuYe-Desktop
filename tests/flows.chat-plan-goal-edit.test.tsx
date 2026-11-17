@@ -128,7 +128,7 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     expect(backend.agent.submissions[0].op).toEqual({
       type: 'user_input',
       items: [{ type: 'text', text: 'migrate the database to v2' }],
-      thread_settings: { approval_policy: 'prompt' },
+      thread_settings: { approval_policy: 'auto' },
     });
 
     // 2. plan 就绪弹窗出现;agent 在 gate 暂停,尚未收到任何决策。
@@ -311,7 +311,7 @@ describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
     expect(backend.agent.submissions[0].op).toEqual({
       type: 'user_input',
       items: [{ type: 'text', text: 'make all tests pass' }],
-      thread_settings: { approval_policy: 'prompt' },
+      thread_settings: { approval_policy: 'auto' },
     });
     // 转录里能看到目标文本(乐观 user turn 已渲染)。
     await waitFor(() => expect(logText()).toContain('make all tests pass'));

@@ -8,9 +8,13 @@ import type { StringEntry } from '../types';
 
 const permissionMode: Record<string, StringEntry> = {
   'permissionMode.auto.name':     { en: 'auto',                                             'zh-CN': 'auto' },
-  'permissionMode.auto.desc':     { en: 'Run tools without asking. Fastest, least safe.',   'zh-CN': '运行工具时无需询问。速度最快,安全性最低。' },
+  'permissionMode.auto.desc':     { en: 'Default: auto-approve file edits; other tools follow rules, high-risk still asks.', 'zh-CN': '默认档:自动批准文件编辑;其他工具按规则放行,高危仍需确认。' },
   'permissionMode.prompt.name':   { en: 'prompt',                                           'zh-CN': 'prompt' },
   'permissionMode.prompt.desc':   { en: 'Ask before each tool call. Recommended.',          'zh-CN': '每次调用工具前询问。推荐设置。' },
+  // 以下三档已弃用(仅旧会话回显兼容,不再提供 UI 入口):
+  // deny → 拒绝走权限规则/回合级 ApprovalPolicy::deny;
+  // accept_edits → 语义并入默认档 auto;bubble → 免打扰走审批策略
+  // auto_approve/full_access。
   'permissionMode.deny.name':     { en: 'deny',                                             'zh-CN': 'deny' },
   'permissionMode.deny.desc':     { en: 'Block all tool execution. Read-only chat.',        'zh-CN': '禁止所有工具执行。只读对话。' },
   'permissionMode.plan.name':     { en: 'plan',                                             'zh-CN': 'plan' },

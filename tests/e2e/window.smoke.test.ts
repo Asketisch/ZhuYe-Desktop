@@ -408,9 +408,15 @@ describe('window smoke (real process, real backend, local model stub)', () => {
 
   it('sends single, multiple and custom answers through the real question dialog back to the model', async () => {
     await driver!.get(new URL('/chat', await driver!.getCurrentUrl()).toString());
-    const bubble = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-perm-bubble"]')), 30_000);
-    await bubble.click();
-    await driver!.wait(async () => (await bubble.getAttribute('aria-checked')) === 'true', 30_000);
+    // bubble 工作模式已弃用:问题链路要"免工具审批打断",等价做法是把
+    // 审批策略切到 full_access(回合级全放行)。React 受控 <select> 用
+    // 脚本改值并派发 change,确保 onChange 生效并持久化。
+    const approval = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-approval-policy"]')), 30_000);
+    await driver!.executeScript(
+      "arguments[0].value = 'full_access'; arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+      approval,
+    );
+    await driver!.wait(async () => (await approval.getAttribute('value')) === 'full_access', 30_000);
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-question-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();

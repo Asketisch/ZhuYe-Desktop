@@ -35,10 +35,13 @@ import s from './ComposerControls.module.css';
 const EFFORTS = ALL_EFFORTS;
 type Effort = (typeof EFFORTS)[number];
 
-/** 会话工作模式；工具审批策略由独立选择器控制。 */
+/** 会话工作模式三段(Plan/Ask/默认);工具审批策略由独立选择器控制。
+ *  与核心 PermissionMode 三段对齐(wire: plan/prompt/auto);
+ *  默认档自动批准文件编辑,其余按规则放行、高危仍确认。 */
 const PERMISSION_SEGMENTS = [
   { value: 'plan', labelKey: 'composer.controls.perm.plan', hintKey: 'composer.controls.planHint' },
-  { value: 'auto', labelKey: 'composer.controls.perm.ask', hintKey: 'composer.controls.askHint' },
+  { value: 'prompt', labelKey: 'composer.controls.perm.ask', hintKey: 'composer.controls.askHint' },
+  { value: 'auto', labelKey: 'composer.controls.perm.auto', hintKey: 'composer.controls.defaultHint' },
 ] as const;
 
 export function ComposerControls() {
@@ -300,6 +303,7 @@ export function ComposerControls() {
               setApprovalPolicy(value);
               writeApprovalPolicy(sessionId, value);
             }}>
+            <option value="auto">{t('composer.controls.approval.follow')}</option>
             <option value="prompt">{t('composer.controls.approval.prompt')}</option>
             <option value="auto_approve">{t('composer.controls.approval.auto')}</option>
             <option value="full_access">{t('composer.controls.approval.full')}</option>

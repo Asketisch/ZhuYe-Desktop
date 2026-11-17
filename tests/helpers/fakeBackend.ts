@@ -723,9 +723,13 @@ export function installFakeBackend(): FakeBackend {
   handle(
     'reflect_cycle_permission_mode',
     handler(() => {
-      const order = ['auto', 'prompt', 'deny', 'plan'];
+      // 与核心 next_in_ui_cycle 三段同构:默认→Ask→Plan(弃用档回落默认)。
+      const order = ['auto', 'prompt', 'plan'];
+      const fallback = 'auto';
       const idx = order.indexOf(backend.state.permissionMode);
-      backend.state.permissionMode = order[(idx + 1) % order.length];
+      backend.state.permissionMode = idx === -1
+        ? fallback
+        : order[(idx + 1) % order.length];
       return backend.state.permissionMode;
     }),
   );
@@ -2032,7 +2036,7 @@ export function emitSessionConfigured(backend: FakeBackend): void {
     session_id: 'sess-alpha',
     model: 'anthropic/claude-sonnet-4',
     provider: 'anthropic',
-    approval_policy: 'prompt',
+    approval_policy: 'auto',
     sandbox_policy: 'read_only',
     context_window_size: 200_000,
   });

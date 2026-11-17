@@ -188,7 +188,7 @@ describe('attachments', () => {
         { type: 'text', text: 'look at this' },
         { type: 'image', data: pngBase64, mime_type: 'image/png' },
       ],
-      thread_settings: { approval_policy: 'prompt' },
+      thread_settings: { approval_policy: 'auto' },
     });
     // 首 text item 成为 user turn 的显示文本。
     const turns = useAgentStore.getState().turns;

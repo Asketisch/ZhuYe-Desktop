@@ -8,6 +8,11 @@ describe('session approval policies', () => {
     writeApprovalPolicy('b', 'auto_approve');
     expect(readApprovalPolicy('a')).toBe('full_access');
     expect(readApprovalPolicy('b')).toBe('auto_approve');
-    expect(readApprovalPolicy('c')).toBe('prompt');
+    expect(readApprovalPolicy('c')).toBe('auto');
+  });
+
+  it('falls back to follow-mode for unknown stored values', () => {
+    localStorage.setItem('reflect.approvalPolicy.d', 'yolo-legacy');
+    expect(readApprovalPolicy('d')).toBe('auto');
   });
 });

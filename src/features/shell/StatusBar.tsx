@@ -26,6 +26,15 @@ import { ContextGauge } from './ContextGauge';
 import { isUsableModelSpec } from './modelLabel';
 import s from './StatusBar.module.css';
 
+/** 三段工作模式轮换:默认(auto)→ Ask(prompt)→ Plan → 默认。
+ *  弃用档(accept_edits/bubble/deny/bypass)回落默认。 */
+function nextWorkMode(mode: string): string {
+  if (mode === 'auto') return 'prompt';
+  if (mode === 'prompt') return 'plan';
+  if (mode === 'plan') return 'auto';
+  return 'auto';
+}
+
 export function StatusBar() {
   const session = useAgentStore((st) => st.session);
   const permissionMode = useAgentStore((st) => st.permissionMode);
@@ -103,8 +112,14 @@ export function StatusBar() {
             </span>
           </Tooltip>
         )}
-        <button className={s.btn} onClick={() => void setPermissionMode(permissionMode === 'plan' ? 'auto' : 'plan')} title={t('shell.cyclePermission')}>
-          {permissionMode === 'auto' ? t('composer.controls.perm.ask') : permissionMode === 'plan' ? t('composer.controls.perm.plan') : permissionMode}
+        <button className={s.btn} onClick={() => void setPermissionMode(nextWorkMode(permissionMode))} title={t('shell.cyclePermission')}>
+          {permissionMode === 'auto'
+            ? t('composer.controls.perm.auto')
+            : permissionMode === 'prompt'
+              ? t('composer.controls.perm.ask')
+              : permissionMode === 'plan'
+                ? t('composer.controls.perm.plan')
+                : permissionMode}
         </button>
         {ctx.pct !== null && (
           <Tooltip

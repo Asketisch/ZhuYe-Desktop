@@ -222,12 +222,12 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
 
         {section === 'permissions' && (
           <section>
-            {/* Permission mode 快捷控件（高频操作）—— 4 个常用模式，高级模式见 /mode 命令。
-                只在该页显示,避免每个设置页签都重复。 */}
+            {/* Permission mode 快捷控件(高频操作)—— 三段工作模式,弃用档
+                (accept_edits/bubble/deny/bypass)不再提供入口。 */}
             <div className={s.quickPerm}>
               <span className={s.quickPermLabel}>{t('settings.permissionMode')}</span>
               <div className={s.quickPermBtns}>
-                {(['auto', 'plan'] as PermissionMode[]).map((m) => (
+                {(['auto', 'prompt', 'plan'] as PermissionMode[]).map((m) => (
                   <button
                     key={m}
                     className={s.quickPermBtn}
@@ -250,6 +250,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
                 setApprovalPolicy(value);
                 writeApprovalPolicy(sessionId, value);
               }}>
+                <option value="auto">{t('composer.controls.approval.follow')}</option>
                 <option value="prompt">{t('composer.controls.approval.prompt')}</option>
                 <option value="auto_approve">{t('composer.controls.approval.auto')}</option>
                 <option value="full_access">{t('composer.controls.approval.full')}</option>
@@ -258,6 +259,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             <h4 className={s.sectionTitle}>{t('settings.commonModes')}</h4>
             <div className={s.permGrid}>
               <PermCard mode="auto" onClick={() => onPermission('auto')} />
+              <PermCard mode="prompt" onClick={() => onPermission('prompt')} />
               <PermCard mode="plan" onClick={() => onPermission('plan')} />
             </div>
             {/* 生效的权限规则（核心三层 store）—— 权限「模式」之外的另一半：

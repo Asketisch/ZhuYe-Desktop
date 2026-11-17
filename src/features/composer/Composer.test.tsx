@@ -486,11 +486,15 @@ describe('Composer inline controls', () => {
     useAgentStore.setState({ permissionMode: 'auto' });
     renderComposer();
 
+    // 默认审批策略为「跟随模式」(auto),由工作模式决定审批行为。
+    expect((screen.getByTestId('composer-approval-policy') as HTMLSelectElement).value).toBe('auto');
     fireEvent.change(screen.getByTestId('composer-approval-policy'), { target: { value: 'full_access' } });
     expect(calls).toEqual([]);
     fireEvent.click(screen.getByTestId('composer-perm-plan'));
     await waitFor(() => expect(calls).toEqual(['plan']));
-    // 当前段高亮来自 store 的 permissionMode（permission_mode_changed 事件回读）。
+    // 三段快捷含 Ask(prompt);当前段高亮来自 store 的 permissionMode
+    // (permission_mode_changed 事件回读)。
+    expect(screen.getByTestId('composer-perm-prompt')).toBeDefined();
     expect(screen.getByTestId('composer-perm-auto').getAttribute('data-active')).toBeDefined();
     expect((screen.getByTestId('composer-approval-policy') as HTMLSelectElement).value).toBe('full_access');
   });

@@ -87,7 +87,7 @@ describe('permission mode controls', () => {
     const app = await openSettings();
     fireEvent.click(screen.getByText('Permissions'));
     const select = screen.getByRole('combobox', { name: 'Approval' }) as HTMLSelectElement;
-    expect(Array.from(select.options).map((option) => option.value)).toEqual(['prompt', 'auto_approve', 'full_access']);
+    expect(Array.from(select.options).map((option) => option.value)).toEqual(['auto', 'prompt', 'auto_approve', 'full_access']);
     fireEvent.change(select, { target: { value: 'full_access' } });
     expect(select.value).toBe('full_access');
     expect(backend.lastArgsOf('reflect_set_permission_mode')).toBeUndefined();
