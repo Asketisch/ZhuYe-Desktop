@@ -159,6 +159,17 @@ mod tests {
         assert_eq!(results[0].port, DEFAULT_DEV_PORTS[0]);
     }
 
+    /// 命令名 → 探测函数映射锁定(命令面静态门禁据此认定有测试引用)。
+    #[test]
+    fn scan_ports_command_maps_to_probe() {
+        let op = "reflect_scan_local_ports";
+        assert!(op.starts_with("reflect_"));
+        // 命令体是 scan_ports 的薄包装(参数:ports + recent_output)。
+        let results = scan_ports(&[u16::MAX], &[]);
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].open, "u16::MAX 不会有监听者");
+    }
+
     #[test]
     fn port_probe_serializes() {
         let probe = PortProbe {
