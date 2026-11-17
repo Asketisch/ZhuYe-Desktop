@@ -100,3 +100,25 @@ describe('ConfigHealthBanner 组件', () => {
     expect(screen.getByTestId('config-issue-sandbox-off')).toBeDefined();
   });
 });
+
+describe('ConfigHealthBanner drill (F50 doctor --drill 等价)', () => {
+  it('drill probes backend ping and config fetch, shows structured results', async () => {
+    const calls: string[] = [];
+    mockInvoke('ping', async () => {
+      calls.push('ping');
+      return { msg: 'ok', version: '1' };
+    });
+    mockInvoke('reflect_get_config', async () => {
+      calls.push('config');
+      return HEALTHY_TOML;
+    });
+    render(wrap(<ConfigHealthBanner />));
+    // 等查询解析完成(banner 渲染)再点击 drill。
+    await screen.findByTestId('config-health-banner');
+    fireEvent.click(screen.getByText(/Run drill|运行探活/i));
+    await waitFor(() => expect(calls).toContain('ping'));
+    await waitFor(() =>
+      expect(screen.getByTestId('config-drill-results').textContent).toContain('backend: ok'),
+    );
+  });
+});

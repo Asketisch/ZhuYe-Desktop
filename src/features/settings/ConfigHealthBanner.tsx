@@ -17,6 +17,7 @@ import { TriangleAlert, ShieldOff, ShieldQuestion } from 'lucide-react';
 import { Badge, Card, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { reflect_get_config } from '@/utils/commands/config';
+import { ping } from '@/utils/commands/health';
 import { readField } from '@/features/settings/configSchema';
 import s from './ConfigHealthBanner.module.css';
 
@@ -71,6 +72,7 @@ export function deriveConfigIssues(toml: string): HealthIssue[] {
 export function ConfigHealthBanner() {
   const { t } = useI18n();
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [drill, setDrill] = useState<{ backend: boolean; config: boolean } | null>(null);
   const configQ = useQuery({
     queryKey: ['config-health'],
     queryFn: reflect_get_config,
@@ -79,11 +81,30 @@ export function ConfigHealthBanner() {
 
   const issues = configQ.data ? deriveConfigIssues(configQ.data) : [];
   const visible = issues.filter((i) => !dismissed.includes(i.key));
-  if (configQ.isLoading || visible.length === 0) return null;
+  // drill 行独立于 issues(healthy 时也可探活);仅 loading 时不渲染。
+  if (configQ.isLoading) return null;
+
+  // F50 --drill:逐项探活(后端 ping + config 读取),结构化结果展示。
+  const runDrill = async () => {
+    const results: { backend: boolean; config: boolean } = { backend: false, config: false };
+    try {
+      await ping();
+      results.backend = true;
+    } catch {
+      results.backend = false;
+    }
+    try {
+      await reflect_get_config();
+      results.config = true;
+    } catch {
+      results.config = false;
+    }
+    setDrill(results);
+  };
 
   return (
     <Card level="flat" padding="sm" className={s.banner} data-testid="config-health-banner">
-      {visible.map((issue) => (
+      {visible.length > 0 && visible.map((issue) => (
         <div key={issue.key} className={s.row} data-testid={`config-issue-${issue.key}`}>
           <Icon
             icon={issue.level === 'critical' ? TriangleAlert : ShieldOff}
@@ -112,6 +133,17 @@ export function ConfigHealthBanner() {
           {t('settings.configHealth.sandboxHint')}
         </div>
       )}
+      {/* F50 doctor --drill 等价:逐项探活,结果结构化展示。 */}
+      <div className={s.drillRow} data-testid="config-drill">
+        <button type="button" className={s.drillBtn} onClick={() => void runDrill()}>
+          {t('settings.configHealth.drill')}
+        </button>
+        {drill && (
+          <span className={s.drillResults} data-testid="config-drill-results">
+            backend: {drill.backend ? 'ok' : 'fail'} · config: {drill.config ? 'ok' : 'fail'}
+          </span>
+        )}
+      </div>
     </Card>
   );
 }
