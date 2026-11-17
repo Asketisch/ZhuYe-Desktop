@@ -37,7 +37,9 @@ fn every_operation_sample_deserializes_and_preserves_supplied_fields() {
     let document: Value =
         serde_json::from_str(include_str!("../../tests/contracts/ops.json")).unwrap();
     let samples = document["ops"].as_object().unwrap();
-    assert_eq!(samples.len(), 26);
+    // 27 = submodule 09a0495 的 Op 全集(goal 模式两变体随核心升级入库;
+    // 上一配对 86f75e3 时代为 26)。
+    assert_eq!(samples.len(), 27);
     for (name, sample) in samples {
         let op: Op = serde_json::from_value(sample.clone())
             .unwrap_or_else(|error| panic!("{name}: {error}; sample: {sample}"));
@@ -45,7 +47,6 @@ fn every_operation_sample_deserializes_and_preserves_supplied_fields() {
         assert_preserved(sample, &roundtrip, name);
     }
     assert!(serde_json::from_value::<Op>(json!({"type":"unknown_probe"})).is_err());
-    assert!(serde_json::from_value::<Op>(json!({"type":"enter_goal_mode"})).is_err());
 }
 
 #[test]
