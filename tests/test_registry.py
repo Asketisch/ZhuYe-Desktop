@@ -101,7 +101,7 @@ TASKS: dict[str, dict] = {
         "timeout_s": 3600,
     },
     "desktop.performance": {
-        "command": ["python", "tests/performance.py"],
+        "command": ["python3", "tests/performance.py"],
         "note": "D-Q10~D-Q12:冷启动 + 前端预算 + 500 会话/5k 回放大数据预算",
         "timeout_s": 3600,
     },
