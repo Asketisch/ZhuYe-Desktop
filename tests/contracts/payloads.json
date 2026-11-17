@@ -604,6 +604,10 @@
       "commands": false
     },
     "reflect_query_guard_stats": {},
+    "reflect_scan_local_ports": {
+      "ports": [5173, 8080],
+      "recent_output": "Local: http://localhost:5173/"
+    },
     "reflect_browse_marketplace": {
       "name": "fake-mkt"
     },

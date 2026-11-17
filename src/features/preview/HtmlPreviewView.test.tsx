@@ -96,3 +96,28 @@ describe('HtmlPreviewView — html artifact preview', () => {
     expect((screen.getByTestId('preview-open-btn') as HTMLButtonElement).disabled).toBe(false);
   });
 });
+
+describe('LivePorts (F50 live 端口自动发现)', () => {
+  it('renders open ports as clickable external links', async () => {
+    mockInvoke('reflect_scan_local_ports', async () => [
+      { port: 5173, open: true, url: 'http://127.0.0.1:5173' },
+      { port: 8080, open: false, url: 'http://127.0.0.1:8080' },
+    ]);
+    render(wrap(<HtmlPreviewView />));
+    const link = await screen.findByTestId('preview-live-5173');
+    expect(link).toBeDefined();
+    expect(link.getAttribute('href')).toBe('http://127.0.0.1:5173');
+    expect(screen.queryByTestId('preview-live-8080')).toBeNull();
+  });
+
+  it('shows none placeholder when all ports closed', async () => {
+    mockInvoke('reflect_scan_local_ports', async () => [
+      { port: 8080, open: false, url: 'http://127.0.0.1:8080' },
+    ]);
+    render(wrap(<HtmlPreviewView />));
+    // 全关闭:容器仍在(功能可发现),但不渲染端口链接。
+    await screen.findByTestId('preview-live-ports');
+    expect(screen.queryByTestId('preview-live-8080')).toBeNull();
+    expect(screen.getByText(/常用 dev 端口|common dev/)).toBeDefined();
+  });
+});

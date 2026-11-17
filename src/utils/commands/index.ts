@@ -13,6 +13,7 @@ export * from './goal';
 export * from './permissions';
 export * from './questions';
 export * from './config';
+export * from './preview';
 export * from './sessions';
 export * from './events';
 export * from './workspaces';

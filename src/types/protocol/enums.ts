@@ -22,7 +22,12 @@ export type RiskLevel = 'low' | 'medium' | 'high';
 export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max' | 'ultra';
 
 /** ReviewDecision 使用 snake_case 标记。Deny 携带 `{ reason: string }` payload。 */
-export type ReviewDecision = 'approve' | { deny: { reason: string } } | 'approve_for_session';
+export type ReviewDecision =
+  | 'approve'
+  | { deny: { reason: string } }
+  | 'approve_for_session'
+  /** F06:拒绝且本会话不再问([N]ever 键;引擎侧记入会话级拒绝表)。 */
+  | { reject_for_session: { reason: string } };
 
 /**
  * PlanApprovalChoice — plan 模式审批的三选一(对应后端

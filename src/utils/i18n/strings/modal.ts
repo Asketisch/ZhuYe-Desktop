@@ -34,6 +34,8 @@ const modal: Record<string, StringEntry> = {
   'modal.approval.toolTitle':     { en: 'Tool Approval',                                                                              'zh-CN': '工具审批' },
   'modal.approval.hookTitle':     { en: 'Hook Approval',                                                                              'zh-CN': '钩子审批' },
   'modal.approval.planTitle':     { en: 'Plan Approval',                                                                              'zh-CN': '计划审批' },
+  'modal.approval.risk':                                            { en: 'risk: {risk}',                                                                                                                                                      'zh-CN': '风险: {risk}' },
+  'modal.approval.neverAgain':                                      { en: 'Deny and never ask again this session',                                                                                                                              'zh-CN': '拒绝且本会话不再询问' },
   'modal.approval.hint':          { en: 'Approve runs this action once. Approve for session skips future prompts of the same kind.',  'zh-CN': '「批准」运行一次操作。「会话内始终允许」则会跳过同类型后续提示。' },
   'modal.planReady.title':        { en: 'Plan Ready',                                                                                 'zh-CN': '计划已就绪' },
   'modal.planReady.approve':      { en: 'Approve plan',                                                                               'zh-CN': '批准计划' },

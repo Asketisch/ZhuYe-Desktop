@@ -21,6 +21,7 @@ import { useRef, useState } from 'react';
 import { useAgentStore, type PendingApproval } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { reflect_add_permission_rule } from '@/utils/commands';
+import { Badge } from '@/features/design-system';
 import { ModalShell } from './ModalShell';
 import { deriveAllowRule, extractCommand } from './allowRule';
 import s from './index.module.css';
@@ -38,6 +39,28 @@ export function ApprovalModal({ approval }: { approval: PendingApproval }) {
 
   const allowRule =
     approval.kind === 'tool' ? deriveAllowRule(approval.toolName, approval.args) : null;
+
+  // F06:拒绝且本会话不再问(RejectForSession)——引擎把工具名记入
+  // 会话级拒绝表,后续同名调用直接拒绝不再弹窗。仅 tool 类提供
+  // (hook 审批无会话拒绝表语义)。
+  const neverAgain = async () => {
+    if (approval.kind !== 'tool' || allowBusyRef.current || shellBusyRef.current) return;
+    allowBusyRef.current = true;
+    setAllowBusy(true);
+    setAllowError(null);
+    try {
+      await approve(
+        approval.kind,
+        approval.id,
+        { reject_for_session: { reason: 'denied by user (never ask again this session)' } },
+      );
+    } catch (e) {
+      setAllowError(e instanceof Error ? e.message : String(e));
+    } finally {
+      allowBusyRef.current = false;
+      setAllowBusy(false);
+    }
+  };
 
   const allowAlways = async () => {
     if (!allowRule || allowBusyRef.current || shellBusyRef.current) return;
@@ -77,7 +100,18 @@ export function ApprovalModal({ approval }: { approval: PendingApproval }) {
       }}
     >
       {approval.toolName && (
-        <div className={s.codeBlock}>{approval.toolName}</div>
+        <div className={s.codeBlock}>
+          {approval.toolName}
+          {approval.risk && (
+            <Badge
+              variant={approval.risk === 'high' ? 'danger' : approval.risk === 'medium' ? 'warning' : 'neutral'}
+              data-testid={`approval-risk-${approval.risk}`}
+              className={s.riskBadge}
+            >
+              {t('modal.approval.risk', { risk: approval.risk })}
+            </Badge>
+          )}
+        </div>
       )}
       {approval.argsSummary && (
         <pre className={s.argsBlock}>{approval.argsSummary}</pre>
@@ -93,6 +127,17 @@ export function ApprovalModal({ approval }: { approval: PendingApproval }) {
           {allowRule.shellPattern
             ? t('modal.approval.allowAlwaysCmd', { cmd: extractCommand(approval.args) ?? '' })
             : t('modal.approval.allowAlwaysTool', { tool: allowRule.tool })}
+        </button>
+      )}
+      {approval.kind === 'tool' && (
+        <button
+          type="button"
+          className={s.neverAgainBtn}
+          disabled={allowBusy || shellBusy}
+          onClick={() => void neverAgain()}
+          data-testid="approval-never-again"
+        >
+          {t('modal.approval.neverAgain')}
         </button>
       )}
       {allowError && (

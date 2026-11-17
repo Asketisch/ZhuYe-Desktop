@@ -274,6 +274,9 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         argsSummary: msg.kind.type === 'tool' ? summarizeArgs(msg.kind.args) : undefined,
         // 原始参数:审批弹窗要据此推导「始终允许这条命令」的匹配模式。
         args: msg.kind.type === 'tool' ? msg.kind.args : undefined,
+        // F06:风险标签透传(引擎 approval_request 事件的 risk 字段),
+        // 审批卡据此渲染风险徽标。
+        risk: msg.risk,
         turnId,
       };
       return { pendingApprovals: [...state.pendingApprovals, approval] };

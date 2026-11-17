@@ -43,3 +43,25 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+.livePorts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--fs-xs);
+}
+
+.liveTitle {
+  color: var(--text-muted);
+}
+
+.liveLink {
+  color: var(--accent, #4a9eff);
+  text-decoration: underline;
+}
+
+.liveNone {
+  color: var(--text-muted);
+}

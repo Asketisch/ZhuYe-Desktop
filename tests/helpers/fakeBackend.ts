@@ -1040,6 +1040,14 @@ export function installFakeBackend(): FakeBackend {
     'reflect_query_guard_stats',
     handler(() => `guard-stats-fake-${Date.now()}`),
   );
+  // F50:live 预览端口扫描(fake 无真实网络探测,回固定两个 open)。
+  handle(
+    'reflect_scan_local_ports',
+    handler(() => [
+      { port: 5173, open: true, url: 'http://127.0.0.1:5173' },
+      { port: 8080, open: false, url: 'http://127.0.0.1:8080' },
+    ]),
+  );
   handle('reflect_list_hooks', handler(() => wire(backend.state.hooks)));
   // 插件 slash 命令列表(fakeBackend 无插件运行时,恒空列表)。
   handle('reflect_list_plugin_commands', handler(() => wire([])));

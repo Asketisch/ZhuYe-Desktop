@@ -59,11 +59,13 @@ export interface ReflectRolloutRecord {
  *   - "approve"
  *   - "approve_for_session"
  *   - { deny: { reason: "..." } }
+ *   - { reject_for_session: { reason: "..." } }  ← F06:拒绝且本会话不再问
  */
 export type ReviewDecision =
   | 'approve'
   | 'approve_for_session'
-  | { deny: { reason: string } };
+  | { deny: { reason: string } }
+  | { reject_for_session: { reason: string } };
 
 /**
  * PlanApprovalChoice —— 对齐 Rust `reflect_protocol::PlanApprovalChoice`。

@@ -12,9 +12,49 @@ import { FileCode2 } from 'lucide-react';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Button, Input } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import { reflect_read_file } from '@/utils/commands';
+import { reflect_read_file, reflect_scan_local_ports } from '@/utils/commands';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import s from './HtmlPreviewView.module.css';
+
+/**
+ * LivePorts —— F50:自动发现本地 dev server。
+ *
+ * 后端 TCP 探测常用 dev 端口 + agent 最近输出里提到的端口;发现开放
+ * 端口时渲染成可点击外链(iframe 跨源受沙箱限制,外链新开)。
+ * 探测间隔 15s;全部关闭时显示"未发现"占位(而非隐藏,让功能可发现)。
+ */
+function LivePorts() {
+  const { t } = useI18n();
+  const portsQ = useQuery({
+    queryKey: ['live-ports'],
+    queryFn: () => reflect_scan_local_ports(),
+    refetchInterval: 15_000,
+    staleTime: 10_000,
+  });
+  const open = (portsQ.data ?? []).filter((p) => p.open);
+
+  return (
+    <div className={s.livePorts} data-testid="preview-live-ports">
+      <span className={s.liveTitle}>{t('preview.livePorts.title')}</span>
+      {open.length > 0 ? (
+        open.map((p) => (
+          <a
+            key={p.port}
+            href={p.url}
+            target="_blank"
+            rel="noreferrer"
+            className={s.liveLink}
+            data-testid={`preview-live-${p.port}`}
+          >
+            {p.url}
+          </a>
+        ))
+      ) : (
+        <span className={s.liveNone}>{t('preview.livePorts.none')}</span>
+      )}
+    </div>
+  );
+}
 
 export function HtmlPreviewView() {
   const { t } = useI18n();
@@ -71,6 +111,8 @@ export function HtmlPreviewView() {
           </Badge>
         )}
         {fileQ.isLoading && <Badge variant="neutral">{t('common.loading')}</Badge>}
+        {/* F50:live 端口自动发现 —— agent 起完 dev server 后可点击直达。 */}
+        <LivePorts />
       </Card>
 
       {content && (

@@ -355,3 +355,38 @@ describe('modal coexistence', () => {
     expect(screen.getByText('Plan Ready')).toBeDefined();
   });
 });
+
+describe('ApprovalModal — F06/F50 增强', () => {
+  it('Never-again button sends { reject_for_session } wire form', async () => {
+    requestToolApproval('apr-f06');
+    const title = await screen.findByText('Tool Approval');
+    const dialog = title.closest('[role="dialog"]') ?? document.body;
+
+    fireEvent.click(within(dialog).getByTestId('approval-never-again'));
+    await waitFor(() =>
+      expect(backend.agent.toolApprovals[0]).toEqual({
+        id: 'apr-f06',
+        decision: {
+          reject_for_session: {
+            reason: 'denied by user (never ask again this session)',
+          },
+        },
+      }),
+    );
+    await waitFor(() => expect(screen.queryByText('Tool Approval')).toBeNull());
+  });
+
+  it('risk badge renders when risk level present', async () => {
+    emitEvent(TURN, {
+      type: 'approval_request',
+      request_id: 'apr-risk',
+      kind: { type: 'tool', tool_name: 'bash', args: { cmd: 'ls' } },
+      risk: 'high',
+    });
+    const title = await screen.findByText('Tool Approval');
+    const dialog = title.closest('[role="dialog"]') ?? document.body;
+    expect(
+      within(dialog).getByTestId('approval-risk-high').textContent,
+    ).toContain('high');
+  });
+});
