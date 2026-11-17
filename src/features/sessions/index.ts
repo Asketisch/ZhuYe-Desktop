@@ -28,3 +28,5 @@ export {
   UNASSIGNED_GROUP_KEY,
 } from './utils/workspaceGroups';
 export type { WorkspaceSessionGroup } from './utils/workspaceGroups';
+
+export { SessionsDashboard } from './SessionsDashboard';
