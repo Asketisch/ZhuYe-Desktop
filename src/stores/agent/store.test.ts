@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from './store';
-import { writeApprovalPolicy } from './approvalPolicy';
+import { readApprovalPolicy, writeApprovalPolicy } from './approvalPolicy';
 import type { ReflectSubmission } from '@/types/protocol';
 
 describe('store.submit — Submission.workspace 线格式', () => {
@@ -54,14 +54,19 @@ describe('store.submit — Submission.workspace 线格式', () => {
   });
 
   it('发送当前会话的独立审批策略，不改变规划模式', async () => {
+    // 当前核心协议仅支持 prompt(auto_approve / full_access 变体待上游,
+    // 见 docs/CAPABILITIES.md「最近审计」注记):偏好仍按会话存储,
+    // wire 侧一律从紧降级为 prompt —— 未知值会被核心整体拒收。
     writeApprovalPolicy('session-a', 'full_access');
     writeApprovalPolicy('session-b', 'auto_approve');
     useAgentStore.setState({ loadedSessionId: 'session-a', permissionMode: 'plan' });
     await useAgentStore.getState().submit('first');
     useAgentStore.setState({ loadedSessionId: 'session-b', permissionMode: 'plan' });
     await useAgentStore.getState().submitItems([{ type: 'text', text: 'second' }]);
-    expect(sent[0].op).toMatchObject({ thread_settings: { approval_policy: 'full_access' } });
-    expect(sent[1].op).toMatchObject({ thread_settings: { approval_policy: 'auto_approve' } });
+    expect(readApprovalPolicy('session-a')).toBe('full_access');
+    expect(readApprovalPolicy('session-b')).toBe('auto_approve');
+    expect(sent[0].op).toMatchObject({ thread_settings: { approval_policy: 'prompt' } });
+    expect(sent[1].op).toMatchObject({ thread_settings: { approval_policy: 'prompt' } });
     expect(useAgentStore.getState().permissionMode).toBe('plan');
   });
 });

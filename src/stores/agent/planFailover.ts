@@ -14,6 +14,7 @@
  */
 
 import { pickFailoverProvider, setActiveProvider } from '@/features/settings/config/plans';
+import { reflect_get_config, reflect_save_config } from '@/utils/commands';
 import type { ToastKind } from './types';
 
 /** 额度耗尽的文本特征（小写匹配）。涵盖上游 ALL_CREDENTIALS_EXHAUSTED、
@@ -176,4 +177,27 @@ export function createPlanFailoverController(deps: PlanFailoverDeps): PlanFailov
       deps.onSwitched(failed, target);
     },
   };
+}
+
+/** store 专用的接线工厂 —— 把 zustand 侧依赖(pushToast / set / session)
+ * 与 IPC 命令封装成上面的纯依赖注入,store 构造期一行接入。
+ * getConfig/saveConfig 用箭头包装延迟解引用 —— 测试环境部分 mock
+ * @/utils/commands 时不至于在 store 构造期就触碰未导出的名字。 */
+export function createWiredPlanFailoverController(
+  get: () => {
+    pushToast: PlanFailoverDeps['pushToast'];
+    session: { provider: string | null } | null;
+  },
+  set: (patch: { planFailover: { from: string; to: string; at: number } }) => void,
+): PlanFailoverController {
+  return createPlanFailoverController({
+    getConfig: () => reflect_get_config(),
+    saveConfig: (toml) => reflect_save_config(toml),
+    pushToast: (input) => {
+      get().pushToast(input);
+    },
+    isEnabled: isAutoFailoverEnabled,
+    onSwitched: (from, to) => set({ planFailover: { from, to, at: Date.now() } }),
+    currentProvider: () => get().session?.provider ?? null,
+  });
 }

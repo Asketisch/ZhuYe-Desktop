@@ -385,12 +385,15 @@ mod tests {
 
     #[test]
     fn stamping_sandbox_preserves_independent_approval_policy() {
+        // 用 Prompt 验证「stamping 只动 sandbox、不碰 approval」:
+        // FullAccess 变体在尚未推送的上游提交里(a32b62b),见
+        // docs/CAPABILITIES.md「最近审计」注记。
         let sub = Submission::with_id(
             "s1",
             Op::UserInput {
                 items: vec![],
                 thread_settings: ThreadSettingsOverrides {
-                    approval_policy: Some(reflect_protocol::ApprovalPolicy::FullAccess),
+                    approval_policy: Some(reflect_protocol::ApprovalPolicy::Prompt),
                     ..Default::default()
                 },
             },
@@ -404,7 +407,7 @@ mod tests {
         };
         assert_eq!(
             thread_settings.approval_policy,
-            Some(reflect_protocol::ApprovalPolicy::FullAccess)
+            Some(reflect_protocol::ApprovalPolicy::Prompt)
         );
         assert_eq!(
             thread_settings.sandbox_policy,

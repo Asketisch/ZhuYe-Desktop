@@ -16,7 +16,6 @@ import {
   reflect_query_guard_stats,
   reflect_query_subagents,
   reflect_rewind,
-  reflect_save_config,
   reflect_set_effort,
   reflect_set_permission_mode,
   reflect_shutdown,
@@ -30,15 +29,14 @@ import {
   createAutoCompactController,
 } from './autoCompact';
 import {
-  createPlanFailoverController,
+  createWiredPlanFailoverController,
   extractExhaustionSignal,
-  isAutoFailoverEnabled,
 } from './planFailover';
 import { reduceEvent } from './reducer';
 import { appendItem, markTurn } from './turns';
 import { runQueryGuardStats } from './guardStats'; // F01
 import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
-import { readApprovalPolicy } from './approvalPolicy';
+import { wireApprovalPolicy } from './approvalPolicy';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
 export const useAgentStore = create<AgentState>((set, get) => {
@@ -50,19 +48,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
     getConfig: () => reflect_get_config(),
     compact: () => reflect_compact(),
   });
-  // coding plan 耗尽自动切换控制器:闭包持有 get/set,防抖状态随 store 生命周期。
-  // getConfig/saveConfig 用箭头包装延迟解引用 —— 测试环境部分 mock
-  // @/utils/commands 时不至于在 store 构造期就触碰未导出的名字。
-  const planFailover = createPlanFailoverController({
-    getConfig: () => reflect_get_config(),
-    saveConfig: (toml) => reflect_save_config(toml),
-    pushToast: (input) => {
-      get().pushToast(input);
-    },
-    isEnabled: isAutoFailoverEnabled,
-    onSwitched: (from, to) => set({ planFailover: { from, to, at: Date.now() } }),
-    currentProvider: () => get().session?.provider ?? null,
-  });
+  // coding plan 耗尽自动切换控制器:闭包持有 get/set,防抖状态随 store 生命周期
+  // (接线细节收进 planFailover 模块,store 构造期一行接入)。
+  const planFailover = createWiredPlanFailoverController(get, set);
   return {
   turns: [],
   session: null,
@@ -218,7 +206,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const id = uuid();
     const submission: ReflectSubmission = {
       id,
-      op: { type: 'user_input', items: [{ type: 'text', text }], thread_settings: { approval_policy: readApprovalPolicy(get().loadedSessionId) } },
+      op: { type: 'user_input', items: [{ type: 'text', text }], thread_settings: { approval_policy: wireApprovalPolicy(get().loadedSessionId) } },
       ...(workspace ? { workspace } : {}),
     };
     set((state) => ({
@@ -244,7 +232,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const id = uuid();
     const submission: ReflectSubmission = {
       id,
-      op: { type: 'user_input', items, thread_settings: { approval_policy: readApprovalPolicy(get().loadedSessionId) } },
+      op: { type: 'user_input', items, thread_settings: { approval_policy: wireApprovalPolicy(get().loadedSessionId) } },
       ...(workspace ? { workspace } : {}),
     };
     const firstText = items.find(
