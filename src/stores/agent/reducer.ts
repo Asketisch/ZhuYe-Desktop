@@ -376,13 +376,16 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       return { configReloadedAt: Date.now() };
 
     // v1.6.1:提示词层查询应答 —— `Op::PromptCommand { action: List }`。
-    // 提示词库是**进程级**状态(按模型自动匹配),切会话不重置。
+    // 会话级提示词选择和当前生效方案。
     case 'prompt_list':
       return {
         prompt: {
           available: msg.available,
           currentSpec: msg.current_spec,
           activeLayers: msg.active_layers,
+          selection: msg.selection,
+          profile: msg.profile,
+          fallbackReason: msg.fallback_reason,
           switchedAt: state.prompt?.switchedAt ?? null,
         },
       };
@@ -405,6 +408,9 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
           available: state.prompt?.available ?? [],
           currentSpec: state.prompt?.currentSpec ?? '',
           activeLayers: msg.active_layers,
+          selection: msg.selection,
+          profile: msg.profile,
+          fallbackReason: msg.fallback_reason,
           switchedAt: Date.now(),
         },
         toasts: [...state.toasts, toast],

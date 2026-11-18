@@ -1,9 +1,4 @@
-//! 提示词层(per-model prompt library)命令面。
-//!
-//! v1.6.1:提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`,引擎侧
-//! 经 `Op::PromptCommand` 暴露查询与重扫。桌面端只负责把 Op 递进引擎,
-//! 应答事件(`PromptList` / `PromptSwitched`)经单一 `reflect_event`
-//! 通道回流给前端 reducer。
+//! 会话提示词选择、重扫和正文预览命令。
 
 use reflect_protocol::{Op, PromptAction};
 use serde::{Deserialize, Serialize};
@@ -11,13 +6,6 @@ use tauri::State;
 
 use super::CommandResult;
 use crate::state::MinimalAgent;
-
-/// 引擎实际引用的 prompt section key。
-///
-/// 核心的 `PromptSet` 不公开枚举 section key(只给 `get(key)`),因此
-/// 这里列出核心 builder / library 真正引用的那几个 —— 覆盖「主 prompt」
-/// 「facade prompt」与「plan mode 指引」三种生效形态。
-const PROMPT_SECTION_KEYS: &[&str] = &["system.main", "system.facade-main", "system.plan-mode"];
 
 /// 一段生效的 prompt(section key → 正文)。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,16 +39,56 @@ pub async fn reflect_get_effective_prompt(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<EffectivePrompt> {
     let model = agent.model_spec();
-    let set = reflect_prompt::library().resolve(&model);
-    let sections = PROMPT_SECTION_KEYS
-        .iter()
-        .filter_map(|key| {
-            set.get(key).map(|content| PromptSection {
-                key: (*key).to_string(),
-                content: content.to_string(),
-            })
+    let thread = agent.inner.thread.lock().clone();
+    let set = thread
+        .as_ref()
+        .map(|thread| thread.config().resolve_prompt(&model).set)
+        .unwrap_or_else(|| {
+            reflect_prompt::PromptLibrary::embedded()
+                .resolve_selection(&model, &reflect_protocol::PromptSelection::Default)
+                .set
+        });
+    let mut sections: Vec<_> = set
+        .sections()
+        .filter(|(key, _)| key.starts_with("system."))
+        .map(|(key, content)| PromptSection {
+            key: key.into(),
+            content: content.into(),
         })
         .collect();
+    if let Some(thread) = thread.as_ref() {
+        if let Some(m4) = &thread.config().m4
+            && matches!(
+                m4.active_agent_def.source,
+                reflect_agent_def::SystemPromptSource::Custom
+            )
+            && let Some(main) = sections
+                .iter_mut()
+                .find(|section| section.key == "system.main")
+        {
+            main.content = m4.active_agent_def.system_prompt.clone();
+        }
+        let sources = thread.tools().list_with_source();
+        for spec in thread.tools().list_specs() {
+            let reflect_tools::ToolSpec::Function {
+                name, description, ..
+            } = spec;
+            let builtin = sources.iter().any(|(source_name, source)| {
+                source_name == &name && *source == reflect_tools::ToolSource::Builtin
+            });
+            let key = format!("tool.{name}");
+            let content = if builtin {
+                set.get_or(&key, &description)
+            } else {
+                &description
+            };
+            sections.push(PromptSection {
+                key,
+                content: content.to_string(),
+            });
+        }
+    }
+    sections.sort_by(|a, b| a.key.cmp(&b.key));
     Ok(EffectivePrompt {
         model,
         layers: set.layers,
@@ -115,5 +143,25 @@ mod tests {
             PromptAction::Switch { layer } => assert_eq!(layer.as_deref(), Some("claude")),
             other => panic!("wrong variant: {other:?}"),
         }
+
+        let selection: PromptAction = serde_json::from_str(
+            r#"{"type":"select","selection":{"mode":"manual","profile":"gpt"}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            selection,
+            PromptAction::Select {
+                selection: Some(reflect_protocol::PromptSelection::Manual { profile })
+            } if profile == "gpt"
+        ));
+
+        let save: PromptAction =
+            serde_json::from_str(r#"{"type":"save_default","selection":{"mode":"auto"}}"#).unwrap();
+        assert!(matches!(
+            save,
+            PromptAction::SaveDefault {
+                selection: reflect_protocol::PromptSelection::Auto
+            }
+        ));
     }
 }

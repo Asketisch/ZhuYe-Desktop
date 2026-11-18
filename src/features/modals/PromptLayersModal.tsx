@@ -1,23 +1,10 @@
-/**
- * PromptLayersModal —— 提示词层列表(v1.6.1)。
- *
- * 提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`,引擎侧经
- * `Op::PromptCommand` 暴露查询与重扫:
- * - `list`   → `EventMsg::PromptList`(可用层 + 生效层 + 当前 spec)
- * - `switch` → `EventMsg::PromptSwitched`(重扫完成 + 新命中层)
- *
- * 本弹窗消费 store 的 `prompt` 投影(由 reducer 从事件写入):
- * - 「可用层」= 可被绑定的层文件名(内置厂商层 + 用户目录层);
- * - 「生效层」= 当前 spec 实际命中的用户层(内嵌厂商层不记录)。
- *
- * 当前协议只支持全量重扫(`PromptAction::Switch { layer: None }`),
- * 「聚焦某层」槽位尚未实装 —— 因此列表项不可点选,只作诊断展示。
- */
-import { useState } from 'react';
+/** 提示词方案选择、共享默认设置和正文预览。 */
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { reflect_get_effective_prompt } from '@/utils/commands/prompts';
+import { reflect_get_effective_prompt, reflect_prompt_command } from '@/utils/commands/prompts';
+import type { PromptSelection } from '@/utils/commands/prompts';
 import { ModalShell } from './ModalShell';
 import s from './PromptLayersModal.module.css';
 
@@ -27,12 +14,28 @@ export function PromptLayersModal() {
   const prompt = useAgentStore((st) => st.prompt);
   const close = useAgentStore((st) => st.closePromptPanel);
   const promptList = useAgentStore((st) => st.promptList);
+  const sessionModel = useAgentStore((st) => st.session?.model ?? '');
   const promptRescan = useAgentStore((st) => st.promptRescan);
   const [showBody, setShowBody] = useState(false);
+  const [selection, setSelection] = useState<PromptSelection>({ mode: 'default' });
+  const previousModel = useRef(sessionModel);
+  useEffect(() => {
+    if (prompt?.selection) setSelection(prompt.selection);
+  }, [prompt?.selection]);
+  useEffect(() => {
+    if (open && sessionModel && sessionModel !== previousModel.current) void promptList();
+    previousModel.current = sessionModel;
+  }, [open, promptList, sessionModel]);
 
   // 生效正文:层解析后的结果 —— 模型真正吃到的那段提示词。
   const effectiveQ = useQuery({
-    queryKey: ['effective-prompt'],
+    queryKey: [
+      'effective-prompt',
+      prompt?.currentSpec,
+      sessionModel,
+      prompt?.selection,
+      prompt?.switchedAt,
+    ],
     queryFn: () => reflect_get_effective_prompt(),
     enabled: open && showBody,
     staleTime: 30_000,
@@ -61,6 +64,47 @@ export function PromptLayersModal() {
         <dt>{t('promptLayers.currentSpec')}</dt>
         <dd className={s.spec}>{prompt?.currentSpec || '—'}</dd>
       </dl>
+
+      <section className={s.section}>
+        <label htmlFor="prompt-mode">{t('promptLayers.mode')}</label>{' '}
+        <select
+          id="prompt-mode"
+          value={selection.mode}
+          onChange={(event) => {
+            const mode = event.target.value;
+            const selection: PromptSelection = mode === 'manual'
+              ? { mode: 'manual', profile: prompt?.available.find((name) => name !== 'default') ?? 'default' }
+              : { mode: mode === 'auto' ? 'auto' : 'default' };
+            setSelection(selection);
+            void reflect_prompt_command({ type: 'select', selection });
+          }}
+        >
+          <option value="default">{t('promptLayers.default')}</option>
+          <option value="auto">{t('promptLayers.auto')}</option>
+          <option value="manual">{t('promptLayers.manual')}</option>
+        </select>
+        {selection.mode === 'manual' && (
+          <select
+            aria-label={t('promptLayers.manual')}
+            value={selection.profile}
+            onChange={(event) => {
+              const next: PromptSelection = { mode: 'manual', profile: event.target.value };
+              setSelection(next);
+              void reflect_prompt_command({ type: 'select', selection: next });
+            }}
+          >
+            {(prompt?.available ?? []).map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+        )}
+        <p>{t('promptLayers.effectiveProfile')}: {prompt?.profile ?? 'default'}</p>
+        {prompt?.fallbackReason && <p role="status">{prompt.fallbackReason}</p>}
+        <button type="button" onClick={() => void reflect_prompt_command({
+          type: 'save_default', selection,
+        })}>{t('promptLayers.saveDefault')}</button>{' '}
+        <button type="button" onClick={() => void reflect_prompt_command({ type: 'select', selection: null })}>
+          {t('promptLayers.followDefault')}
+        </button>
+      </section>
 
       <section className={s.section}>
         <h3 className={s.sectionTitle}>{t('promptLayers.activeLayers')}</h3>

@@ -2,19 +2,26 @@
  * 提示词层(prompt library)IPC 包装。
  *
  * 薄包装 `reflect_prompt_command` → `Op::PromptCommand`(v1.6.1)。
- * 提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`;引擎侧两个动作
- * 都不开 turn,应答经单一 `reflect_event` 通道回流:
+ * 引擎动作不开 turn，应答经单一 `reflect_event` 通道回流:
  * - `list`  → `EventMsg::PromptList`(可用层 + 生效层)
  * - `switch`→ `EventMsg::PromptSwitched`(重扫完成 + 新命中层)
+ * - `select` / `save_default` → 选择会话方案或保存共享默认
  *
  * 本文件只负责发起;应答由 store reducer 消费(`stores/agent/reducer.ts`)。
  */
 import { invoke } from '@/utils/bridge';
 
 /** `/prompt` 动作 —— 镜像协议 `PromptAction`(snake_case 内联 tag)。 */
+export type PromptSelection =
+  | { mode: 'default' }
+  | { mode: 'auto' }
+  | { mode: 'manual'; profile: string };
+
 export type PromptAction =
   | { type: 'list' }
-  | { type: 'switch'; layer: string | null };
+  | { type: 'switch'; layer: string | null }
+  | { type: 'select'; selection: PromptSelection | null }
+  | { type: 'save_default'; selection: PromptSelection };
 
 /**
  * 提示词层查询 / 重扫。

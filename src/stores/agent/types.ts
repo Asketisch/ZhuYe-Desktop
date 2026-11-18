@@ -311,6 +311,9 @@ import type { GuardStatsState } from './guardStats';
 export type { GuardStatsState };
 
 export interface PromptState {
+  selection?: import('@/utils/commands/prompts').PromptSelection;
+  profile?: string;
+  fallbackReason?: string;
   /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 用户目录层,去重)。 */
   available: string[];
   /** 当前 model spec(如 `"anthropic/claude-sonnet-5-5"`)。 */

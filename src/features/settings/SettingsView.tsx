@@ -51,6 +51,8 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const { t, locale, setLocale } = useI18n();
   const sessionId = useAgentStore((state) => state.loadedSessionId);
+  const openPromptPanel = useAgentStore((state) => state.openPromptPanel);
+  const promptList = useAgentStore((state) => state.promptList);
   const [approvalPolicy, setApprovalPolicy] = useState<UserApprovalPolicy>(() => readApprovalPolicy(sessionId));
   useEffect(() => setApprovalPolicy(readApprovalPolicy(sessionId)), [sessionId]);
 
@@ -179,6 +181,9 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
               </span>
             </div>
             <h3 className={s.sectionTitle}>{t('settings.provider')}</h3>
+            <Button onClick={() => { openPromptPanel(); void promptList(); }}>
+              {t('promptLayers.title')}
+            </Button>
             <p className={s.sectionDesc}>
               {t('settings.providerDescription', { path: t('settings.providerPath') })}{' '}
               <code className={s.codeInline}>{t('settings.providerPath')}</code>.

@@ -338,6 +338,17 @@ fn prompt_layers_are_readable() {
         json!({ "action": { "type": "list" } }),
     );
     assert!(id.is_string(), "prompt 命令应返回 submission id: {id}");
+
+    let id = invoke_ok(
+        "reflect_prompt_command",
+        json!({
+            "action": {
+                "type": "select",
+                "selection": { "mode": "default" }
+            }
+        }),
+    );
+    assert!(id.is_string(), "提示词选择应返回 submission id: {id}");
 }
 
 // ============================================================================

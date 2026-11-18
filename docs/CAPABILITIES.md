@@ -190,14 +190,11 @@ Seatbelt / Landlock 里跑。安全开关不可见 = 无法判断风险。
 **修复**：`CompactionStats` 增 `records`（逐次明细，封顶 50 条），
 Inspector 增可展开的「逐次压缩明细」列表（策略 / 前 → 后 token / 节省量）。
 
-### 3.8 提示词生效正文
+### 3.8 提示词选择与预览
 
-**问题**：`/prompt` 只报**层文件名**（哪些层命中了），看不到层解析后的
-**正文** —— 即模型真正吃到的那段提示词。
-
-**修复**：`reflect_get_effective_prompt`（用核心的
-`reflect_prompt::library().resolve(spec)`）返回当前模型实际生效的
-section 正文，PromptLayersModal 里按需展开。
+`/prompt` 与设置页可打开选择器，选择 ZhuYe 默认、智能选择或手动方案，
+也可保存共享默认和恢复跟随默认。面板展示引擎返回的生效方案、回落原因、
+系统文案和工具描述。会话覆盖随 rollout 恢复。
 
 ### 3.9 活跃 agent 接线（GUI 的 Agents 视图此前是死胡同）
 **问题**：核心的 `build_default_m4(workspace, agent_name, …)` 按**名字**

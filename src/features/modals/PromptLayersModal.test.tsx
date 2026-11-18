@@ -103,4 +103,24 @@ describe('PromptLayersModal', () => {
     });
     expect(screen.getByTestId('prompt-layers-body').textContent).toContain('你是一名编码助手。');
   });
+
+  it('sends session selection and saves the selected default', async () => {
+    const calls: unknown[] = [];
+    mockInvoke('reflect_prompt_command', async (_cmd, args) => {
+      calls.push(args);
+      return 'sub-1';
+    });
+    useAgentStore.setState({ promptPanelOpen: true, prompt: {
+      ...PROMPT, selection: { mode: 'manual', profile: 'claude' }, profile: 'claude',
+    } });
+    render(wrap(<PromptLayersModal />));
+    fireEvent.change(screen.getByLabelText('Manual profile'), { target: { value: 'gpt' } });
+    fireEvent.click(screen.getByText('Save as default'));
+    fireEvent.click(screen.getByText('Follow default'));
+    await waitFor(() => expect(calls).toEqual([
+      { action: { type: 'select', selection: { mode: 'manual', profile: 'gpt' } } },
+      { action: { type: 'save_default', selection: { mode: 'manual', profile: 'gpt' } } },
+      { action: { type: 'select', selection: null } },
+    ]));
+  });
 });
