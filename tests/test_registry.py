@@ -47,6 +47,12 @@ TASKS: dict[str, dict] = {
         "note": "D-I01~D-I06(核心):L3 真命令体;全能力矩阵(D-I07~D-I18)随主分支执行",
         "timeout_s": 3600,
     },
+    "desktop.contract.replay": {
+        # 协议回放与属性测试:核心仓 events.json 契约样本回放 + fast-check 不变量
+        "command": ["pnpm", "exec", "vitest", "run", "src/stores/agent/protocol-replay.test.ts"],
+        "note": "协议契约回放(51 变体不抛错)+ 未知变体容忍 + 流式等价/回放幂等属性",
+        "timeout_s": 1800,
+    },
     "desktop.integration.backend": {
         # 与 contract.ipc 同入口;保留独立任务便于 PLAN ID 定向
         "command": ["tests/run_all.sh", "backend"],
@@ -123,17 +129,17 @@ TASKS: dict[str, dict] = {
 }
 
 SUITES: dict[str, list[str]] = {
-    # PR:静态、前端组件、真命令体、核心 IPC、Linux 真窗口(按平台)
+    # PR:静态、前端组件、真命令体、核心 IPC、协议回放、Linux 真窗口(按平台)
     "pr": [
         "desktop.static", "desktop.component.frontend",
-        "desktop.unit.backend", "desktop.contract.ipc",
+        "desktop.unit.backend", "desktop.contract.ipc", "desktop.contract.replay",
     ],
     # 冒烟:D-E01/E02/E04/E05/E06/E07/E10 + D-Q07/D-Q13/D-Q14
     "smoke": ["desktop.component.frontend", "desktop.unit.backend", "desktop.e2e.native"],
     # 主分支:三系统核心真窗口与产物 smoke
     "main": [
         "desktop.static", "desktop.component.frontend", "desktop.unit.backend",
-        "desktop.contract.ipc", "desktop.integration.backend",
+        "desktop.contract.ipc", "desktop.contract.replay", "desktop.integration.backend",
         "desktop.accessibility", "desktop.performance", "desktop.e2e.native",
     ],
     # 夜间:WebView/系统集成、视觉、故障、性能、长稳

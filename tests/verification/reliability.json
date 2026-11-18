@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "description": "diff 触发的可靠性规则表(ZhuYe-Desktop)。规则只追加定向检查,不替代 pr/main/nightly/release 完整选集;变更本表需单独说明并人工审查。",
+  "rules": [
+    {
+      "id": "REL-DT-001",
+      "trigger_paths": ["src-tauri/src/commands/**", "src-tauri/src/lib.rs"],
+      "task_ids": ["desktop.contract.ipc", "desktop.static"],
+      "reason": "Tauri 命令表变更必须过真命令体契约与四方一致性静态审查",
+      "source": "Desktop AGENTS.md 命令面四方一致",
+      "owner": "desktop",
+      "status": "active"
+    },
+    {
+      "id": "REL-DT-002",
+      "trigger_paths": ["src/stores/**", "src/services/agent.ts", "src/services/agentEventBus.ts"],
+      "task_ids": ["desktop.contract.replay"],
+      "reason": "事件流/store 变更:协议回放与 fast-check 属性是第一道哨兵(P2)",
+      "source": "工作区验证增强计划 P2",
+      "owner": "desktop",
+      "status": "active"
+    },
+    {
+      "id": "REL-DT-003",
+      "trigger_paths": ["src/types/protocol.ts"],
+      "task_ids": ["desktop.contract.replay", "desktop.static"],
+      "reason": "TS 协议联合变更:回放兼容哨兵 + 三方奇偶静态门禁",
+      "source": "工作区验证增强计划 P2",
+      "owner": "desktop",
+      "status": "active"
+    },
+    {
+      "id": "REL-DT-004",
+      "trigger_paths": ["zhuye-agent"],
+      "task_ids": ["desktop.contract.replay", "desktop.unit.backend", "desktop.e2e.native"],
+      "reason": "submodule 指针变更:契约回放 + 真命令体 + 真窗口全套",
+      "source": "工作区验证增强计划 P2",
+      "owner": "desktop",
+      "status": "active"
+    },
+    {
+      "id": "REL-DT-005",
+      "trigger_paths": ["src/features/**", "src/styles/**"],
+      "task_ids": ["desktop.e2e.native"],
+      "reason": "视图/样式变更触发视觉回归(38 路由 × 双主题截图基线)",
+      "source": "Desktop AGENTS.md L5",
+      "owner": "desktop",
+      "status": "active"
+    }
+  ]
+}

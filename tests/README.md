@@ -31,6 +31,19 @@ REFLECT_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认�
 不能证明完整门禁通过。发布流水线对静态、前端、后端和 E2E 启用
 `GATE_STRICT=1`，构建后分别强制审查各平台产物；L6 为可选演练。
 报告落在 `.test-results/release-review.md`（含实际范围、跳过项与逐用例明细）。
+
+### 协议回放与属性测试(`desktop.contract.replay`)
+
+`src/stores/agent/protocol-replay.test.ts` 是 submodule 升级的**兼容性哨兵**:
+
+- **契约回放**:核心仓 `zhuye-agent/tests/contracts/events.json` 的全部
+  EventMsg 变体样本(随 submodule 只读引入)逐一喂给 `reduceEvent`,
+  不得抛错;submodule 升级带来新变体时样本自动增多,回放面自动扩大;
+- **合法新增变体容忍**:运行时未知 `msg.type` 必须返回空 patch
+  (reducer default 分支),且不吞掉后续已知事件 —— Protocol v0
+  「新增变体 non-breaking」承诺在前端侧的落点;
+- **fast-check 属性**:流式等价(N 个 delta 分片 ≡ 整段 agent_message)
+  与回放幂等(完整回合序列重放不重复、不变形)。
 报告同时记录运行前后的工作区状态和子模块状态；有本地变更时，提交号
 仅表示 HEAD，不能代表实际测试的全部代码。
 门禁总入口独占 `RESULT_DIR`；并行运行请为每次运行指定不同目录。
