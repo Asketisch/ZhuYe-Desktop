@@ -319,3 +319,47 @@ mod tests {
         );
     }
 }
+
+/// v1.x:GUI 主线程必须注册 PlanModeGate(与 CLI headless 的无条件注册
+/// 对齐)。此前 GUI 从不注册该 gate —— Plan 只读边界只剩 pre_loop 的
+/// write/edit 裁剪 + 审批层软约束,bash 写命令可被审批策略自动放行,
+/// `plan_safe_bash` 免审批短路还建立在「gate 已分级」的错误前提上。
+#[tokio::test]
+async fn installed_thread_registers_plan_mode_gate() {
+    let agent = MinimalAgent::new_empty();
+    agent.install_agent_thread().await;
+    let thread = agent
+        .inner
+        .thread
+        .lock()
+        .clone()
+        .expect("install 后 thread 必须非空");
+    let names = thread.hook_engine().hook_names();
+    assert!(
+        names.iter().any(|n| n == "plan_mode_gate"),
+        "GUI 主线程必须注册 plan_mode_gate,实得 {names:?}"
+    );
+}
+
+/// 同一断言在 rebind 路径上成立(rebind 恢复 Plan 模式的会话同样受保护)。
+#[tokio::test]
+async fn rebound_thread_registers_plan_mode_gate() {
+    let agent = MinimalAgent::new_empty();
+    agent.install_agent_thread().await;
+    let sid = ThreadId::new();
+    rebind_session(&agent, sid, vec![], None).expect("rebind 不应失败");
+    let thread = agent
+        .inner
+        .thread
+        .lock()
+        .clone()
+        .expect("rebind 后 thread 必须非空");
+    assert!(
+        thread
+            .hook_engine()
+            .hook_names()
+            .iter()
+            .any(|n| n == "plan_mode_gate"),
+        "rebind 构造的线程也必须注册 plan_mode_gate"
+    );
+}
