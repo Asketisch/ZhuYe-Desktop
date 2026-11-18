@@ -4,6 +4,20 @@
 
 ## 未发布
 
+### 变更 — 三段工作模式 + 审批策略跟随
+
+- 工作模式快捷段恢复三档:Plan(只读规划)/ Ask(每工具询问)/
+  默认(auto,自动批准文件编辑,其余按规则放行、高危仍确认)——
+  accept_edits / bubble / bypass / deny 旧档弃用,仅旧会话回显兼容。
+- 审批策略下拉新增「跟随模式」(auto)并设为默认:由当前工作模式
+  决定审批行为;请求批准 / 帮我批准 / 完全访问 三档保持可选。
+- 安全修复:Ask 与 Deny 模式压过只读 bash 自动放行(此前 `printf`
+  类纯读命令在询问/禁止模式下静默执行)。
+- submodule 指针升级到 `1239806`(ZhuYe develop):含上述核心语义、
+  M5a SQLite 记忆、Windows 侧编译债清零与 `os_sandbox` 测试修复。
+- 视觉基线:macOS / Linux / Windows 三平台同镜像基线入库
+  (visual-baselines 工作流生成);interrupt e2e 用例按本意重排。
+
 ### 新增 — 图标一键生成
 
 - `scripts/gen-icons.sh`（`pnpm icons`）：以仓库根 `logo.png` 为唯一源图，一次产出
