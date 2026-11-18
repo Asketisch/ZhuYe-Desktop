@@ -368,15 +368,34 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const originalPath = chatSessionPath;
     expect(originalPath).toMatch(/^\/chat\/.+/);
     await driver!.get(new URL(originalPath, await driver!.getCurrentUrl()).toString());
-    await driver!.wait(until.elementLocated(By.css('[role="log"]')), 30_000);
-    await driver!.wait(async () => (await driver!.findElement(By.css('[role="log"]')).getText()).includes('window-agent-chain-test'), 30_000);
+
+    // 消息区(role="log")只在 ChatView 的 loading/error 皆解除时挂载:切会话
+    // 期间它会整体卸载再挂载。用 findElements 读文本,元素缺席时返回 null
+    // 让 wait 继续轮询 —— findElement 抛错会让 wait 直接 reject,
+    // 断言「切换瞬间没有 log」就变成误报。
+    const logText = async (): Promise<string | null> => {
+      const found = await driver!.findElements(By.css('[role="log"]'));
+      return found.length === 0 ? null : found[0].getText();
+    };
+    const waitLog = async (predicate: (text: string) => boolean, timeout = 60_000) =>
+      driver!.wait(async () => {
+        const text = await logText();
+        return text !== null && predicate(text);
+      }, timeout);
+
+    await waitLog((text) => text.includes('window-agent-chain-test'));
+
     await driver!.findElement(By.xpath('//aside[@data-testid="shell-sidebar"]//button[normalize-space(.)="New chat" or normalize-space(.)="新建对话"]')).click();
-    await driver!.wait(async () => /^\/chat\/.+/.test(new URL(await driver!.getCurrentUrl()).pathname)
-      && new URL(await driver!.getCurrentUrl()).pathname !== originalPath, 30_000);
+    // 「新建对话」是异步的:先创建会话再导航到 /chat/<新 id>。导航落地前
+    // 侧栏点击可能命中旧会话的输入框,必须等路由真正切走再输入。
+    await driver!.wait(async () => {
+      const path = new URL(await driver!.getCurrentUrl()).pathname;
+      return /^\/chat\/.+/.test(path) && path !== originalPath;
+    }, 30_000);
     const composer = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-card"] textarea')), 30_000);
     await composer.sendKeys('window-session-b-marker');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    await driver!.wait(async () => (await driver!.findElement(By.css('[role="log"]')).getText()).includes('window session b reply'), 60_000);
+    await waitLog((text) => text.includes('window session b reply'));
     const secondPath = new URL(await driver!.getCurrentUrl()).pathname;
     expect(secondPath).toMatch(/^\/chat\/.+/);
     expect(secondPath).not.toBe(originalPath);
@@ -384,16 +403,15 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     await driver!.findElement(By.xpath('//aside[@data-testid="shell-sidebar"]//button[@aria-label="Refresh" or @aria-label="刷新"]')).click();
     const sessionButton = async (path: string) => {
       const id = path.slice('/chat/'.length);
-      const selector = `//button[@data-testid="session-kebab-${id}"]/../button[@aria-pressed]`;
+      // 列表行内 kebab 与会话按钮是兄弟节点,用 preceding-sibling 精确定位,
+      // 避免行内其它按钮被误选。
+      const selector = `//button[@data-testid="session-kebab-${id}"]/preceding-sibling::button[@aria-pressed]`;
       return driver!.wait(until.elementLocated(By.xpath(selector)), 30_000);
     };
     const assertSession = async (path: string, visible: string, absent: string) => {
       await driver!.wait(async () => new URL(await driver!.getCurrentUrl()).pathname === path, 30_000);
-      await driver!.wait(async () => {
-        const text = await driver!.findElement(By.css('[role="log"]')).getText();
-        return text.includes(visible) && !text.includes(absent);
-      }, 30_000);
-      const text = await driver!.findElement(By.css('[role="log"]')).getText();
+      await waitLog((text) => text.includes(visible) && !text.includes(absent));
+      const text = (await logText()) ?? '';
       expect(text.split(visible)).toHaveLength(2);
       expect(text).not.toContain(absent);
       expect(await (await sessionButton(path)).getAttribute('aria-pressed')).toBe('true');
