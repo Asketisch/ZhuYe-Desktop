@@ -147,6 +147,14 @@ pub(crate) fn construct_thread(
     }
     let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(hooks_cfg.build_engine());
     agent.inner.hook_store.apply_disabled(&hook_engine)?;
+    // v1.x 修复:无条件注册 PlanModeGate(GUI 的 Plan 只读边界)。
+    // 此前 GUI 从不注册该 gate,Plan 模式只读性只靠 pre_loop 的 write/edit
+    // 裁剪 + 审批层 —— bash 写命令 / ast replace / MCP 写类工具可被审批
+    // 策略(auto_approve / full_access / yolo)或用户一键放行,queue 的
+    // plan_safe_bash 免审批短路还建立在「gate 已分级」的错误前提上。
+    // 与 CLI headless(无条件注册)对齐;gate 按当前 mode 判定,非 Plan
+    // 会话零副作用。rebind 恢复 Plan 模式的会话由此同样受保护。
+    hook_engine.register(reflect_hooks::builtins::PlanModeGate::default_mode());
 
     // 持久化:仅在 sid = Some 时挂 recorder + 固定 id。bind 命令前不挂,
     // 避免随机 id 产生空文件污染 `~/.zhuye/sessions/`。
@@ -253,6 +261,12 @@ pub(crate) fn construct_thread(
         // lock + expect 重取)。
         let registry_for_side = Arc::clone(&registry);
         let tools_for_side = Arc::clone(&agent.inner.tools);
+        // v1.x 修复:主会话的模式句柄 —— 侧通道线程此前以默认 Auto + 零
+        // hook 运行,主会话处于 Plan 模式时侧通道可写全量工具(边界穿透)。
+        // 与 CLI 侧通道工厂(builder.rs build_side_channel_factory)对齐:
+        // 模式经 inherited_approval_mode 共享翻转,InheritedPlanGate 直接读
+        // 父级模式判定只读边界(不依赖侧线程自身模式)。
+        let parent_mode = cfg.permission_mode.clone();
         let factory: reflect_core::side_channel::SideThreadFactory = Arc::new(
             move |agent_name: &str, cancel: tokio_util::sync::CancellationToken| {
                 let workspace = crate::workspace_state::WorkspaceState::get()
@@ -267,16 +281,21 @@ pub(crate) fn construct_thread(
                 );
                 // 不写主历史:摘掉 recorder。
                 m4.recorder = None;
-                let side_cfg = AgentConfig::new(model, workspace)
+                let mut side_cfg = AgentConfig::new(model, workspace)
                     .with_m4(m4)
                     .with_cancel(cancel);
-                Ok(AgentThread::new(
+                side_cfg.inherited_approval_mode = Some(parent_mode.clone());
+                let side_thread = AgentThread::new(
                     side_cfg,
                     Arc::clone(&registry_for_side),
                     Arc::clone(&tools_for_side),
                     None,
                     None,
-                ))
+                );
+                side_thread.register_hook(
+                    reflect_core::side_channel::InheritedPlanGate::new(parent_mode.clone()),
+                );
+                Ok(side_thread)
             },
         );
         reflect_core::side_channel::SideChannelDriver::new(
