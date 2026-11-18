@@ -11,6 +11,9 @@
 #   生态传递依赖,上游整体未迁移
 # - RUSTSEC-2024-0429:glib 0.18 由 tauri 的 GTK 绑定锁定,修复版 0.20
 #   需 tauri 升级
+# - RUSTSEC-2026-0543:chrono 0.4.45(最新版)被标记 unmaintained(警告而非
+#   漏洞)。经 rmcp 3.10 / reflect-app-core 等路径传递,本仓库无从升级;
+#   rmcp 上游弃用 chrono 且桌面端整体更换时间库后移除此豁免。
 
 [advisories]
 ignore = [
@@ -23,4 +26,5 @@ ignore = [
     "RUSTSEC-2025-0100",
     "RUSTSEC-2025-0098",
     "RUSTSEC-2024-0429",
+    "RUSTSEC-2026-0543",
 ]
