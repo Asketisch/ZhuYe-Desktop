@@ -151,6 +151,25 @@ export interface PendingPlan {
 }
 
 /**
+ * plan 终稿文档(Inspector「计划」tab 正文)。来源:`plan_ready` 事件(live)
+ * 或会话重放的最后一条 `plan_ready` record;决策只改状态标注、正文保留。
+ */
+export interface PlanDocState {
+  planId: string;
+  markdown: string;
+  /** plan 落盘路径(`<workspace>/.zhuye/plan/<plan_id>.md`);写盘失败缺省。 */
+  path?: string | null;
+  /** ready = 待决策/未观测到决策;approved / rejected = 已决策。 */
+  status: 'ready' | 'approved' | 'rejected';
+}
+
+/** plan 草稿(plan 模式下 agent 写入 `.zhuye/plan/` 的实时快照)。 */
+export interface PlanDraftState {
+  markdown: string;
+  path?: string | null;
+}
+
+/**
  * agent 的 todo 清单条目。
  *
  * 来源:`TodoWrite` 工具的 `output.metadata.todos`(核心把清单放进工具
@@ -332,6 +351,9 @@ export interface AgentState {
   pendingQuestions: PendingQuestion[];
   pendingAskUser: PendingAskUser[];
   pendingPlan: PendingPlan | null;
+  /** plan 终稿 / 草稿 —— Inspector 计划 tab 正文(草稿不持久化,重载即丢)。 */
+  plan: PlanDocState | null;
+  planDraft: PlanDraftState | null;
   mcpServers: McpServerEntry[];
   lspServers: LspServerEntry[];
   lastError: string | null;

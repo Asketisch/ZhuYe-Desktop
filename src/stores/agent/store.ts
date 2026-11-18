@@ -24,7 +24,7 @@ import {
   reflect_submit,
   reflect_tool_approval,
 } from '@/utils/commands';
-import { turnsFromRollout } from '../replay';
+import { planFromRollout, turnsFromRollout } from '../replay';
 import {
   createAutoCompactController,
 } from './autoCompact';
@@ -59,6 +59,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
   pendingQuestions: [],
   pendingAskUser: [],
   pendingPlan: null,
+  plan: null,
+  planDraft: null,
   mcpServers: [],
   lspServers: [],
   lastError: null,
@@ -67,15 +69,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
   hydrateSession: (id, records) => {
     goalSnapshotGeneration += 1;
     const { turns, compactions } = turnsFromRollout(records);
+    // plan 终稿从最后一条 plan_ready record 恢复;草稿不持久化,重载即清空。
+    const plan = planFromRollout(records);
     const changedSession = get().loadedSessionId !== id;
     // goalActive/goalSnapshot 一并复位:goal 挂在后端线程上,rebind 造新
     // 线程即丢,换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
-    // 复位后立即向后端快照校准（reflect_goal_snapshot,v1.7 读口）——
-    // 线程确实还挂着 goal 时投影会被拉回 true,不再靠猜。
-    // subagents 同为会话作用域投影,replay 的历史不含子代理实时流。
-    // token 投影同理:live 的按模型累计(per-model)属于**上一个**会话,
-    // 换会话后必须清空 —— 否则 Inspector 的「按模型」会挂着旧会话的行。
-    // 落盘侧的累计由 `/usage` 视图按 session id 现查,不受影响。
+    // 复位后立即向后端快照校准（reflect_goal_snapshot,v1.7 读口）;subagents
+    // 同为会话作用域投影。token 投影同理:live 的按模型累计属于上一个会话,
+    // 换会话后必须清空(落盘侧累计由 `/usage` 按 session id 现查,不受影响)。
     set({
       turns,
       compactions,
@@ -91,6 +92,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
       subagents: EMPTY_SUBAGENTS,
       todos: [],
       planSteps: [],
+      plan,
+      planDraft: null,
       tokens: null,
       contextWindowSize: null,
     });
@@ -105,6 +108,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
       pendingQuestions: [],
       pendingAskUser: [],
       pendingPlan: null,
+      plan: null,
+      planDraft: null,
       queuedMessages: [],
       // 会话域的遥测/路由数据一并重置:回到首页(或新会话首事件到来前)
       // 不应展示上一个会话的 token/压缩/路由;planFailover 的
@@ -466,6 +471,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
       pendingQuestions: [],
       pendingAskUser: [],
       pendingPlan: null,
+      plan: null,
+      planDraft: null,
       mcpServers: [],
       lspServers: [],
       lastError: null,

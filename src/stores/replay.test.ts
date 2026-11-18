@@ -236,3 +236,35 @@ describe('turnsFromRollout', () => {
     });
   });
 });
+
+// ── v1.x:planFromRollout —— 会话重放恢复 plan 终稿(Inspector 计划 tab) ──
+
+import { planFromRollout } from './replay';
+
+describe('planFromRollout', () => {
+  it('extracts the last plan_ready record with markdown and path', () => {
+    const plan = planFromRollout([
+      rec({ type: 'session_meta', session_id: 'sess-1', model: 'm', started_at: '2026-08-13T03:01:00Z' }),
+      rec({ type: 'plan_ready', plan_id: 'p1', markdown: '## Plan v1', at: '2026-08-13T03:02:00Z' }),
+      rec({ type: 'plan_ready', plan_id: 'p2', markdown: '## Plan v2', path: '/w/.zhuye/plan/p2.md', at: '2026-08-13T03:03:00Z' }),
+    ]);
+    expect(plan).toEqual({
+      planId: 'p2',
+      markdown: '## Plan v2',
+      path: '/w/.zhuye/plan/p2.md',
+      status: 'ready',
+    });
+  });
+
+  it('returns null when no plan_ready record exists', () => {
+    expect(planFromRollout(BASE_RECORDS)).toBeNull();
+    expect(planFromRollout([])).toBeNull();
+  });
+
+  it('skips malformed plan_ready records (missing id or markdown)', () => {
+    expect(planFromRollout([
+      rec({ type: 'plan_ready', markdown: 'no id' }),
+      rec({ type: 'plan_ready', plan_id: 'p1', markdown: '' }),
+    ])).toBeNull();
+  });
+});

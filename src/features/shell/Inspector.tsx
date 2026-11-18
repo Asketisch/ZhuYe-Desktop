@@ -45,10 +45,10 @@ export function Inspector() {
         <button type="button" role="tab" aria-selected={tab === 'changes'} className={s.tab} data-active={tab === 'changes' || undefined} onClick={() => setTab('changes')} data-testid="inspector-tab-changes">
           <Icon icon={GitBranch} size={12} /> {t('inspector.tab.changes')}
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'plan'} className={s.tab} data-active={tab === 'plan'} data-testid="inspector-tab-plan">
+        <button type="button" role="tab" aria-selected={tab === 'plan'} className={s.tab} data-active={tab === 'plan' || undefined} onClick={() => setTab('plan')} data-testid="inspector-tab-plan">
           <Icon icon={ListTodo} size={12} /> {t('zcode.inspector.tab.plan')}
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'git'} className={s.tab} data-active={tab === 'git'} data-testid="inspector-tab-git">
+        <button type="button" role="tab" aria-selected={tab === 'git'} className={s.tab} data-active={tab === 'git' || undefined} onClick={() => setTab('git')} data-testid="inspector-tab-git">
           <Icon icon={GitCommitHorizontal} size={12} /> {t('zcode.inspector.tab.git')}
         </button>
       </div>
@@ -556,15 +556,43 @@ function ChangesTab() {
 }
 
 
-// ====== 计划 tab(v2:redesign/zcode-shell)======
+// ====== 计划 tab(v2:redesign/zcode-shell;v1.x 补 plan 正文渲染)======
 
 function PlanTab() {
   const { t } = useI18n();
   const todos = useAgentStore((st) => st.todos);
   const queued = useAgentStore((st) => st.queuedMessages);
+  const plan = useAgentStore((st) => st.plan);
+  const planDraft = useAgentStore((st) => st.planDraft);
   return (
     <div data-testid="inspector-plan">
-      {todos.length === 0 && <p className={s.gitEmpty}>{t('zcode.inspector.plan.empty')}</p>}
+      {/* plan 正文:终稿优先(live plan_ready / 重放 hydrate),否则实时草稿。
+          此前本 tab 只显示 TodoWrite 清单 —— plan 模式会话右侧永远空。 */}
+      {plan && (
+        <>
+          <p className={s.planMeta} data-testid="inspector-plan-final">
+            {plan.status === 'approved' && <span>{t('zcode.inspector.plan.approved')}</span>}
+            {plan.status === 'rejected' && <span>{t('zcode.inspector.plan.rejected')}</span>}
+            {plan.path && <code title={plan.path}>{plan.path}</code>}
+          </p>
+          <pre className={s.planDoc}>{plan.markdown}</pre>
+        </>
+      )}
+      {!plan && planDraft && (
+        <>
+          <p className={s.planMeta} data-testid="inspector-plan-draft">
+            <span>{t('zcode.inspector.plan.draft')}</span>
+            {planDraft.path && <code title={planDraft.path}>{planDraft.path}</code>}
+          </p>
+          <pre className={s.planDoc}>{planDraft.markdown}</pre>
+        </>
+      )}
+      {todos.length === 0 && !plan && !planDraft && (
+        <p className={s.gitEmpty}>{t('zcode.inspector.plan.empty')}</p>
+      )}
+      {todos.length > 0 && (
+        <p className={s.planMeta}>{t('zcode.inspector.plan.todos')}</p>
+      )}
       {todos.map((td, i) => (
         <div key={i} className={s.gitFile} data-status={td.status}>
           <span className={s.gitPath} style={td.status === 'completed' ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>

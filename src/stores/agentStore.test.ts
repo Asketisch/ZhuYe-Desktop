@@ -20,6 +20,8 @@ const emptyState = (): AgentState => ({
   pendingQuestions: [],
   pendingAskUser: [],
   pendingPlan: null,
+  plan: null,
+  planDraft: null,
   mcpServers: [],
   lspServers: [],
   lastError: null,
@@ -842,6 +844,55 @@ describe('reduceEvent — plan mode', () => {
     expect(patch.pendingPlan?.id).toBe('p1');
   });
 
+  // v1.x:plan 正文进 Inspector 计划 tab(state.plan),决策后保留并标注。
+
+  it('plan_ready stores plan doc with markdown and path', () => {
+    const patch = reduceEvent(emptyState(), ev('t1', {
+      type: 'plan_ready', plan_id: 'p1', markdown: '## Plan', path: '/w/.zhuye/plan/p1.md',
+    }));
+    expect(patch.plan).toEqual({
+      planId: 'p1',
+      markdown: '## Plan',
+      path: '/w/.zhuye/plan/p1.md',
+      status: 'ready',
+    });
+    expect(patch.planDraft).toBeNull();
+  });
+
+  it('plan_draft_updated stores draft doc (覆盖式,不再丢弃)', () => {
+    const patch = reduceEvent(emptyState(), ev('t1', {
+      type: 'plan_draft_updated', draft_id: 'refactor.md', markdown: 'draft v1',
+    }));
+    expect(patch.planDraft).toEqual({ markdown: 'draft v1', path: null });
+  });
+
+  it('plan_request starts a new cycle and clears previous draft', () => {
+    let s: AgentState = emptyState();
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_draft_updated', draft_id: 'd.md', markdown: 'draft' })) };
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_request', plan_id: 'p2', task: 'x' })) };
+    expect(s.planDraft).toBeNull();
+  });
+
+  it('plan_approved/rejected annotate plan doc but keep markdown', () => {
+    let s: AgentState = emptyState();
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_ready', plan_id: 'p1', markdown: '## Plan' })) };
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_approved', plan_id: 'p1' })) };
+    expect(s.plan?.status).toBe('approved');
+    expect(s.plan?.markdown).toBe('## Plan');
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_rejected', plan_id: 'p1', reason: 'no' })) };
+    expect(s.plan?.status).toBe('rejected');
+    expect(s.plan?.markdown).toBe('## Plan');
+  });
+
+  it('turn_aborted keeps plan doc and draft (打断后仍可查看)', () => {
+    let s: AgentState = emptyState();
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_ready', plan_id: 'p1', markdown: '## Plan' })) };
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_draft_updated', draft_id: 'd.md', markdown: 'draft' })) };
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'turn_aborted', turn_id: 't1', reason: { type: 'user_interrupt' } })) };
+    expect(s.plan?.markdown).toBe('## Plan');
+    expect(s.planDraft?.markdown).toBe('draft');
+  });
+
   it('plan_approved clears pendingPlan', () => {
     let s: AgentState = emptyState();
     s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_ready', plan_id: 'p1', markdown: '' })) };
@@ -1074,7 +1125,7 @@ describe('reduceEvent — 未知事件类型的前向兼容', () => {
     expect(patch).toEqual({});
   });
 
-  it('plan_draft_updated 是 no-op(GUI 决策路径走 plan_ready)', () => {
+  it('plan_draft_updated 存草稿(v1.x 起渲染进 Inspector 计划 tab;不再 no-op)', () => {
     const patch = reduceEvent(
       emptyState(),
       ev('', {
@@ -1084,6 +1135,6 @@ describe('reduceEvent — 未知事件类型的前向兼容', () => {
         path: '/ws/.zhuye/plan/refactor.md',
       }),
     );
-    expect(patch).toEqual({});
+    expect(patch.planDraft).toEqual({ markdown: '# 计划\n- 步骤', path: '/ws/.zhuye/plan/refactor.md' });
   });
 });

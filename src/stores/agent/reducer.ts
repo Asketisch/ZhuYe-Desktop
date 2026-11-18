@@ -544,20 +544,42 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       };
 
     case 'plan_request':
-      return { pendingPlan: { id: msg.plan_id, kind: 'request', payload: msg, turnId } };
+      // 新一轮 plan 编排开始 → 上一份草稿作废(终稿保留到新 plan_ready)。
+      return {
+        pendingPlan: { id: msg.plan_id, kind: 'request', payload: msg, turnId },
+        planDraft: null,
+      };
 
     case 'plan_ready':
       // 新 plan → 上一份执行进度作废(step 进度按 plan_id 归属)。
-      return { pendingPlan: { id: msg.plan_id, kind: 'ready', payload: msg, turnId }, planSteps: [] };
+      // 终稿同步写入 `plan`(Inspector 计划 tab 正文,含决策后查看)。
+      return {
+        pendingPlan: { id: msg.plan_id, kind: 'ready', payload: msg, turnId },
+        planSteps: [],
+        plan: {
+          planId: msg.plan_id,
+          markdown: msg.markdown,
+          path: msg.path ?? null,
+          status: 'ready',
+        },
+        planDraft: null,
+      };
 
     case 'plan_approved':
-    case 'plan_rejected':
-      return state.pendingPlan?.id === msg.plan_id ? { pendingPlan: null } : {};
+    case 'plan_rejected': {
+      const patch: Partial<AgentState> = {};
+      if (state.pendingPlan?.id === msg.plan_id) patch.pendingPlan = null;
+      // 决策只改状态标注,正文保留 —— 用户在批准/拒绝后仍需查看 plan。
+      if (state.plan?.planId === msg.plan_id) {
+        patch.plan = { ...state.plan, status: msg.type === 'plan_approved' ? 'approved' : 'rejected' };
+      }
+      return patch;
+    }
 
     case 'plan_draft_updated':
-      // plan 草稿覆盖式更新(TUI 用于刷新草稿预览)。GUI 决策路径走
-      // plan_ready → PlanReadyModal,草稿正文暂不渲染;先占位保穷尽。
-      return {};
+      // plan 草稿覆盖式更新 —— Inspector 计划 tab 实时预览 agent 正在写的
+      // plan 文件(此前 GUI 丢弃此事件,plan 模式下右栏永远空)。
+      return { planDraft: { markdown: msg.markdown, path: msg.path ?? null } };
 
     case 'plan_step': {
       // plan 执行进度 —— 核心语义「按 index 就地更新或追加」。

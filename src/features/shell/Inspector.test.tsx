@@ -246,3 +246,56 @@ describe('Inspector — todo 清单', () => {
     expect(panel.textContent).toContain('1 / 3');
   });
 });
+
+// ── v1.x:计划 tab 渲染 plan 正文(终稿优先,草稿兜底;此前只显示 TodoWrite) ──
+
+describe('Inspector — plan tab renders plan content', () => {
+  beforeEach(() => {
+    resetMockInvoke();
+    useAgentStore.getState().reset();
+  });
+  afterEach(() => cleanup());
+
+  const openPlanTab = async () => {
+    render(wrap(<Inspector />));
+    fireEvent.click(screen.getByTestId('inspector-tab-plan'));
+    await screen.findByTestId('inspector-plan');
+  };
+
+  it('shows the final plan markdown when plan doc present (approved badge)', async () => {
+    useAgentStore.setState({
+      plan: { planId: 'p1', markdown: '## 官网建设计划\n1. 初始化 Hexo', path: '/w/.zhuye/plan/p1.md', status: 'approved' },
+    });
+    await openPlanTab();
+    expect(screen.getByTestId('inspector-plan-final').textContent).toContain('/w/.zhuye/plan/p1.md');
+    expect(screen.getByTestId('inspector-plan').textContent).toContain('## 官网建设计划');
+  });
+
+  it('falls back to the live draft when no final plan exists', async () => {
+    useAgentStore.setState({
+      plan: null,
+      planDraft: { markdown: '草稿:搭建 Hexo 骨架', path: '/w/.zhuye/plan/draft.md' },
+    });
+    await openPlanTab();
+    expect(screen.getByTestId('inspector-plan-draft')).toBeDefined();
+    expect(screen.getByTestId('inspector-plan').textContent).toContain('草稿:搭建 Hexo 骨架');
+  });
+
+  it('final plan takes precedence over draft', async () => {
+    useAgentStore.setState({
+      plan: { planId: 'p1', markdown: 'FINAL', status: 'ready' },
+      planDraft: { markdown: 'DRAFT' },
+    });
+    await openPlanTab();
+    const text = screen.getByTestId('inspector-plan').textContent ?? '';
+    expect(text).toContain('FINAL');
+    expect(text).not.toContain('DRAFT');
+  });
+
+  it('keeps the todo empty hint only when no plan and no draft', async () => {
+    await openPlanTab();
+    expect(screen.queryByTestId('inspector-plan-final')).toBeNull();
+    expect(screen.queryByTestId('inspector-plan-draft')).toBeNull();
+    expect(screen.getByTestId('inspector-plan').textContent).toContain('TodoWrite');
+  });
+});

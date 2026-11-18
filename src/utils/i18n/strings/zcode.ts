@@ -83,6 +83,11 @@ const zh = {
   'zcode.inspector.git.clean': { en: 'Working tree clean', 'zh-CN': '工作区干净' },
   'zcode.inspector.plan.empty': { en: 'No todos yet — agent TodoWrite will show up here.', 'zh-CN': '还没有清单 —— agent 的 TodoWrite 会显示在这里。' },
   'zcode.inspector.plan.queued': { en: 'Queued messages', 'zh-CN': '排队消息' },
+  // v1.x:plan 正文渲染(终稿 + 草稿)。
+  'zcode.inspector.plan.draft': { en: 'Plan draft (live)', 'zh-CN': 'plan 草稿(实时)' },
+  'zcode.inspector.plan.approved': { en: 'Plan approved', 'zh-CN': '已批准的 plan' },
+  'zcode.inspector.plan.rejected': { en: 'Plan rejected', 'zh-CN': '已拒绝的 plan' },
+  'zcode.inspector.plan.todos': { en: 'Todos', 'zh-CN': '任务清单' },
   'zcode.status.model': { en: '{model} @ {provider}', 'zh-CN': '{model} @ {provider}' },
 };
 

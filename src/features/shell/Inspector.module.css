@@ -261,6 +261,36 @@
   overflow-wrap: anywhere;
 }
 
+/* ===== plan 文档(v1.x:终稿 + 草稿预览,样式对齐 modals 的 planBlock)===== */
+.planDoc {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  margin: 0 0 var(--space-2);
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+.planMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-1);
+}
+.planMeta code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .errorBox {
   display: flex;
   flex-direction: column;

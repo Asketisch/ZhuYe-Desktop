@@ -44,6 +44,8 @@ const emptyState = (): AgentState => ({
   pendingQuestions: [],
   pendingAskUser: [],
   pendingPlan: null,
+  plan: null,
+  planDraft: null,
   mcpServers: [],
   lspServers: [],
   lastError: null,

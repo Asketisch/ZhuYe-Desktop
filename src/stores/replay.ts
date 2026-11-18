@@ -1,6 +1,31 @@
 import type { ReflectRolloutRecord } from '@/utils/types';
-import type { CompactionStats, Turn, TurnItem } from './agent/types';
+import type { CompactionStats, PlanDocState, Turn, TurnItem } from './agent/types';
 import { summarizeArgs, summarizeToolOutput } from './agent/turns';
+
+/**
+ * 从 rollout record 流提取最后一份 plan 终稿(`plan_ready` record,markdown
+ * 全文入盘)—— 会话重放后 Inspector「计划」tab 据此恢复 plan 正文。
+ *
+ * `plan_draft_updated` 不持久化,草稿重载后不可恢复(终稿可)。
+ * 决策状态(approved/rejected)不在 jsonl 里(plan_approved/rejected 不落盘),
+ * 统一按 `ready` 恢复 —— 正文可见性优先,状态标注只在 live 会话内有效。
+ */
+export function planFromRollout(records: ReflectRolloutRecord[]): PlanDocState | null {
+  let plan: PlanDocState | null = null;
+  for (const record of records) {
+    if (record.type !== 'plan_ready') continue;
+    const planId = typeof record.plan_id === 'string' ? record.plan_id : '';
+    const markdown = typeof record.markdown === 'string' ? record.markdown : '';
+    if (!planId || !markdown) continue;
+    plan = {
+      planId,
+      markdown,
+      path: typeof record.path === 'string' ? record.path : null,
+      status: 'ready',
+    };
+  }
+  return plan;
+}
 
 /**
  * 把 `reflect_replay_session` 返回的 rollout record 流构建为转数列表 +
