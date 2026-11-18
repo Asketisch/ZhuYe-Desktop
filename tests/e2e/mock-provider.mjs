@@ -121,6 +121,8 @@ const server = createServer((req, res) => {
       } else {
         events = toolEvents('toolu_window', 'printf tool-approved-marker');
       }
+    } else if (latestUserText.includes('window-session-b-marker')) {
+      events = textEvents('window session b reply');
     } else if (latestUserText.includes('window-agent-chain-test')) {
       events = textEvents('window second reply verified');
     } else {

@@ -29,6 +29,9 @@ test('local provider serves only the synthetic prompt as Anthropic SSE', async (
     const text = await reply.text();
     assert.match(text, /window second reply verified/);
     assert.match(text, /event: message_stop/);
+    const sessionB = await fetch(endpoint, { method: 'POST', body: 'window-session-b-marker' });
+    assert.equal(sessionB.status, 200);
+    assert.match(await sessionB.text(), /window session b reply/);
     const tool = await fetch(endpoint, { method: 'POST', body: 'window-tool-chain-test' });
     assert.match(await tool.text(), /toolu_window/);
     const interruptPrompt = JSON.stringify({ messages: [{ role: 'user', content: 'window-interrupt-start-test' }] });

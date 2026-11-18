@@ -365,23 +365,53 @@ describe('window smoke (real process, real backend, local model stub)', () => {
   }, 30_000);
 
   it('switches between real sessions and restores the original chat route', async () => {
-    const originalPath = chatSessionPath || new URL(await driver!.getCurrentUrl()).pathname;
+    const originalPath = chatSessionPath;
+    expect(originalPath).toMatch(/^\/chat\/.+/);
     await driver!.get(new URL(originalPath, await driver!.getCurrentUrl()).toString());
-    const sessionButtons = await driver!.wait(
-      until.elementsLocated(By.css('[data-testid="shell-sidebar"] button[data-active]')),
-      30_000,
-    );
-    expect(sessionButtons.length).toBeGreaterThan(0);
-    const sidebarItems = await driver!.findElements(By.css('[data-testid="shell-sidebar"] button[aria-pressed]'));
-    const alternate = sidebarItems.find((_, index) => index > 0);
-    if (alternate) {
-      await alternate.click();
-      await driver!.wait(async () => (await new URL(await driver!.getCurrentUrl()).pathname) !== originalPath, 30_000);
-    }
-    await driver!.get(new URL(originalPath, await driver!.getCurrentUrl()).toString());
-    const log = await driver!.wait(until.elementLocated(By.css('[role="log"]')), 30_000);
-    await driver!.wait(async () => (await log.getText()).includes('window second reply verified'), 30_000);
-  }, 100_000);
+    await driver!.wait(until.elementLocated(By.css('[role="log"]')), 30_000);
+    await driver!.wait(async () => (await driver!.findElement(By.css('[role="log"]')).getText()).includes('window-agent-chain-test'), 30_000);
+    await driver!.findElement(By.xpath('//aside[@data-testid="shell-sidebar"]//button[normalize-space(.)="New chat" or normalize-space(.)="新建对话"]')).click();
+    await driver!.wait(async () => /^\/chat\/.+/.test(new URL(await driver!.getCurrentUrl()).pathname)
+      && new URL(await driver!.getCurrentUrl()).pathname !== originalPath, 30_000);
+    const composer = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-card"] textarea')), 30_000);
+    await composer.sendKeys('window-session-b-marker');
+    await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
+    await driver!.wait(async () => (await driver!.findElement(By.css('[role="log"]')).getText()).includes('window session b reply'), 60_000);
+    const secondPath = new URL(await driver!.getCurrentUrl()).pathname;
+    expect(secondPath).toMatch(/^\/chat\/.+/);
+    expect(secondPath).not.toBe(originalPath);
+
+    await driver!.findElement(By.xpath('//aside[@data-testid="shell-sidebar"]//button[@aria-label="Refresh" or @aria-label="刷新"]')).click();
+    const sessionButton = async (path: string) => {
+      const id = path.slice('/chat/'.length);
+      const selector = `//button[@data-testid="session-kebab-${id}"]/../button[@aria-pressed]`;
+      return driver!.wait(until.elementLocated(By.xpath(selector)), 30_000);
+    };
+    const assertSession = async (path: string, visible: string, absent: string) => {
+      await driver!.wait(async () => new URL(await driver!.getCurrentUrl()).pathname === path, 30_000);
+      await driver!.wait(async () => {
+        const text = await driver!.findElement(By.css('[role="log"]')).getText();
+        return text.includes(visible) && !text.includes(absent);
+      }, 30_000);
+      const text = await driver!.findElement(By.css('[role="log"]')).getText();
+      expect(text.split(visible)).toHaveLength(2);
+      expect(text).not.toContain(absent);
+      expect(await (await sessionButton(path)).getAttribute('aria-pressed')).toBe('true');
+    };
+    await assertSession(secondPath, 'window-session-b-marker', 'window-agent-chain-test');
+
+    const originalButton = await sessionButton(originalPath);
+    // 拦截一次点击,确认相同的路由等待条件能检测真实切换未发生。
+    await driver!.executeScript("arguments[0].addEventListener('click', e => e.stopImmediatePropagation(), { capture: true, once: true });", originalButton);
+    await originalButton.click();
+    await expect(driver!.wait(async () => new URL(await driver!.getCurrentUrl()).pathname === originalPath, 1_500)).rejects.toThrow();
+    await originalButton.click();
+    await assertSession(originalPath, 'window-agent-chain-test', 'window-session-b-marker');
+    await (await sessionButton(secondPath)).click();
+    await assertSession(secondPath, 'window-session-b-marker', 'window-agent-chain-test');
+    await (await sessionButton(originalPath)).click();
+    await assertSession(originalPath, 'window-agent-chain-test', 'window-session-b-marker');
+  }, 180_000);
 
   it('arms and clears a real goal controller from slash commands', async () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));

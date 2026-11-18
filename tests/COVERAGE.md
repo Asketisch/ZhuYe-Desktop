@@ -96,7 +96,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | **视图渲染错误边界** | 视图 render 抛错 → 回退 + 壳层存活 / Retry 恢复 / 切路由复位(此前整树白屏) | — | `errors.boundary` |
 | **产物深度(Linux/Windows)** | .deb 解包(usr/bin 可执行 + .desktop(Exec) + 图标 + control 版本) / .AppImage(AppRun + .desktop) / .msi 管理映像(exe + ProductVersion) / 启动冒烟(CI 门控) | L4 `artifact/run.sh` | — |
 | **视觉回归** | 路由矩阵 × dark/light 截图与基线解码后的像素零容差比对；比较器自测覆盖编码、尺寸和像素差异；真实前端 + `fakeBackend` 浏览器态构建 | L5 `visual/visual.spec.ts` + `visual/png-compare.spec.ts` | — |
-| **真窗口 E2E** | Linux ARM64 当前源码构建的真窗口 55 项通过：聊天和工具审批回路、批准后沙箱写盘、流中中断与后续消息恢复、侧栏会话切换与历史水合、Goal 控制器挂载/清除、压缩请求回执、终端 stdout/退出码/终止、文件编辑回读、任务创建推进与切页回读、导航浮层、路由矩阵和错误边界 | L5 `e2e/window.smoke.test.ts` + `e2e/mock-provider.mjs`（`tauri-driver` + WebKitWebDriver + Xvfb） | — |
+| **真窗口 E2E** | 聊天和工具审批回路、批准后沙箱写盘、流中中断与后续消息恢复、两条会话侧栏往返切换与历史隔离、Goal 控制器挂载/清除、压缩请求回执、终端 stdout/退出码/终止、文件编辑回读、任务创建推进与切页回读、导航浮层、路由矩阵和错误边界 | L5 `e2e/window.smoke.test.ts` + `e2e/mock-provider.mjs`（`tauri-driver` + WebKitWebDriver + Xvfb） | — |
 | **实模型全链路** | 有**真模型**的完整一轮:`reflect_submit` → AgentThread → 真 provider(免费模型池)→ 真 SSE → `reflect_event` 通道。断言:model spec 解析成真实 id(非占位串)、turn 有终态、usage 字段齐全、工具调用成对。**不断言回答文本** | L6 `ipc_live_free_model.rs`(默认 SKIP,`REFLECT_LIVE=1` 开启) | — |
 | **模型发现(清单实时拉取)** | `model = "free"` → 运行时查 provider 清单 → 按免费规则挑一个 → 写进运行时配置;失败**如实上报**(不回落占位串) | L6 `ipc_live_free_model.rs`(随实模型层跑) | — |
 | **实模型能力域矩阵** | 15 个场景覆盖**其余依赖模型的命令面**:工具调用(bubble 自动批准)/ 工具审批(prompt→批准→真跑)/ 中断 / 压缩 / 回退 / plan 模式(plan_request→plan_ready→plan_approved)/ goal 模式 / 会话标题生成 / 任务工具 / 子代理 / 追问 / 讨论(llmBacked=true)/ 流水线 / 团队流水线。**模型不配合判跳过**(非失败) | L6 `ipc_live_capabilities.rs`(默认 SKIP) | — |
