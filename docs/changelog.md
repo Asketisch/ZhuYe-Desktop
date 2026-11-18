@@ -4151,3 +4151,12 @@ ReflectDesktop 实例提供建设基础。
 GUI 跟随烛夜 agent 引擎（`zhuye-agent` submodule）的主版本节奏；minor 版本可独立发布（协议是增量稳定的）。
 
 > 时间线注记：0.1.0（2026-07）为版本号重启前的历史线，时间顺序在 0.0.x 各节之前；当前活跃线为 0.0.x。
+- 工具×模式×阻塞交互组合穷举审计（上游 `9aa360fa`）八修 + 桌面边界补齐：
+  ExitPlanMode 在非 Plan 模式乱调不再派发审批（此前批准后会静默翻转权限
+  模式——Prompt 降级为 AcceptEdits）；max_iterations 最后一轮保留
+  ExitPlanMode（plan 不再因迭代耗尽而无法提交）；结构化问答补 900s 死线
+  （headless 强开审批时不再无限挂起）；GUI 主线程与侧通道补齐
+  PlanModeGate/InheritedPlanGate（此前桌面 Plan 只读边界只有审批层软
+  约束，bash 写命令可被策略自动放行）；子代理与 headless resume 路径
+  对齐注册 gate；`--full-auto` 与 `--plan-mode` 互斥；Plan 调研白名单
+  补 web 检索等纯读工具。
