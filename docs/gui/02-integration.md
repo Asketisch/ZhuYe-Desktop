@@ -1,20 +1,20 @@
 # Reflect → GUI 接入方案（设计稿 · 已归档）
 
-> ⚠️ **本文档为 M1 设计稿快照**（918 行）。完整权威文档已迁移到 [`../../PROTOCOL_BRIDGE.md`](../../PROTOCOL_BRIDGE.md)（32 events + 15 ops + id pairing + version compat）。本文保留作为决策溯源 + TUI 复用思路参考。
+> ⚠️ **本文档为 M1 设计稿快照**（918 行）。完整权威文档已迁移到 [`../../protocol-bridge.md`](../../protocol-bridge.md)（32 events + 15 ops + id pairing + version compat）。本文保留作为决策溯源 + TUI 复用思路参考。
 >
-> **新增/修改请改 `../../PROTOCOL_BRIDGE.md`，本文不再维护。**
+> **新增/修改请改 `../../protocol-bridge.md`，本文不再维护。**
 
 ---
 
 ## 1. 设计原则（仍有效）
 
-`reflect-protocol` 的 `EventMsg`（32 variant）+ `Submission`（含 14 种 `Op`）已经是稳定、serde 友好、additive 演化的消息总线。直接拿来做 Tauri commands/events 的载荷，**零序列化成本、零侵入**。权威映射表见 [`../../PROTOCOL_BRIDGE.md`](../../PROTOCOL_BRIDGE.md)。
+`reflect-protocol` 的 `EventMsg`（32 variant）+ `Submission`（含 14 种 `Op`）已经是稳定、serde 友好、additive 演化的消息总线。直接拿来做 Tauri commands/events 的载荷，**零序列化成本、零侵入**。权威映射表见 [`../../protocol-bridge.md`](../../protocol-bridge.md)。
 
 ---
 
 ## 2. 设计稿期间讨论过的接入方案（保留）
 
-> 这些是 M1 设计时的方案考量，最终实施按 `PROTOCOL_BRIDGE.md`。保留供回溯。
+> 这些是 M1 设计时的方案考量，最终实施按 `protocol-bridge.md`。保留供回溯。
 
 ### 2.1 后端单例化（采用）
 
@@ -62,7 +62,7 @@ TUI 已有的 `Services { skills_catalog, task_manager, memory_store, permission
 详见：
 
 - 当前实施 → [`../../codebase-map.md`](../../codebase-map.md)
-- 协议面 → [`../../PROTOCOL_BRIDGE.md`](../../PROTOCOL_BRIDGE.md)
-- 架构 → [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- 协议面 → [`../../protocol-bridge.md`](../../protocol-bridge.md)
+- 架构 → [`../../architecture.md`](../../architecture.md)
 - 路线图 → [`04-roadmap.md`](04-roadmap.md)
 - 决策记录 → [`05-decision.md`](05-decision.md)

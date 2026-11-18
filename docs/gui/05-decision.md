@@ -1,7 +1,8 @@
 # GUI 实施决策摘要（Decision Record）
 
-> 本目录（`docs/gui/`）已沉淀 GUI 选型与蓝图（`00-index.md` ~ `99-references.md`）。
-> 为避免重复，本文件只承担「决策摘要 + 实施入口」角色，**任务规格**全部位于 [`../todo/21-gui/`](../todo/21-gui/)。
+> ⚠️ **归档快照**。本目录（`docs/gui/`）已沉淀 GUI 选型与蓝图（`00-index.md` ~ `99-references.md`）；现行实施状态见 [`../../changelog.md`](../../changelog.md) 与 [`../codebase-map.md`](../codebase-map.md)。
+>
+> 文中引用的 `docs/todo/21-gui/` 目录已不存在（任务规格并入 changelog 版本条目），相关链接视为历史标记不再有效。
 
 ---
 
@@ -57,7 +58,7 @@
 
 | 目录 | 是否修改 |
 |---|---|
-| `docs/USER_GUIDE.md` | M1.8 阶段追加 GUI 使用章节（不改原内容） |
+| `docs/user-guide.md` | M1.8 阶段追加 GUI 使用章节（不改原内容） |
 | `docs/TODO.md` | 功能规划 |
 | `docs/tui/` | 不改；TUI 保留 |
 | `docs/done/16-ui/` | 不改；GUI 工作流不进 done 管道 |

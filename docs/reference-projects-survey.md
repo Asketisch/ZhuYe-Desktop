@@ -1,6 +1,8 @@
-# 参考开源项目特性调研 —— ReflectDesktop 多 Agent 桌面端演进蓝本
+# 参考开源项目特性调研 —— 多 Agent 桌面端演进蓝本
 
-> **文档目的**:整理 6 个开源桌面 AI agent 项目的全部特性(含参考代码路径),作为 ReflectDesktop 走向「手动协调多 agent 工作台」的目标演进参考。
+> **名称注记**：本文撰写时仓库旧名 ReflectDesktop，现名 ZhuYe-Desktop（烛夜）；下文出现的 ReflectDesktop 均指本仓库，为历史原文不做全文替换。
+>
+> **文档目的**:整理 6 个开源桌面 AI agent 项目的全部特性(含参考代码路径),作为本仓库走向「手动协调多 agent 工作台」的目标演进参考。
 >
 > **目标产品形态**:类似 multica 的多 agent 协调平台,但合并 CodexMonitor / Reasonix / goose / Kun / thClaws 五个项目的桌面端能力。
 >
@@ -662,7 +664,7 @@
 
 | 缺口 | 现状 | 参考来源 |
 |---|---|---|
-| **Team/Task/Coordinator 命令** | ✅ **Phase 1 已落地**:`commands/tasks.rs` 暴露 10 个命令(Task×6 + Team×4),`TaskManager` 注入到 `MinimalAgentInner`,复用 vendor 默认 home。详见 `docs/CHANGELOG.md` Unreleased 段。剩余:Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,「启用+重启 agent」待后续)。 | thClaws `team.rs` / multica daemon / Reasonix fleet |
+| **Team/Task/Coordinator 命令** | ✅ **Phase 1 已落地**:`commands/tasks.rs` 暴露 10 个命令(Task×6 + Team×4),`TaskManager` 注入到 `MinimalAgentInner`,复用 vendor 默认 home。详见 `docs/changelog.md` Unreleased 段。剩余:Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,「启用+重启 agent」待后续)。 | thClaws `team.rs` / multica daemon / Reasonix fleet |
 | **前端 IPC wrapper** | ✅ **Phase 1 已落地**:`src/utils/commands/{tasks,teams}.ts` 封装全部 10 个命令 + 类型(Task/Team/TaskPatch/TaskUpdateResult 等),`index.ts` re-export 已补,8 个转发测试锁定 cmd-name + 参数 key 不变量。剩余:`schedule`/`coordinator`/`subagent` wrapper(Schedule 是 Phase 1 第 2 项,Coordinator 开关待后续)。 | ReflectDesktop 现有 `commands/{domain}.ts` 模式 |
 | **多 agent UI** | ✅ **Phase 1 已落地(双视图 + agent profile)**:`src/features/tasks-board/` 提供 List/Board 双视图任务看板(create/claim/advance/delete);`src/features/agents/` 提供 agent 定义管理(列表/创建/编辑/删除,带 frontmatter round-trip 校验)。剩余:多 team 切换面板、Inbox 通知中心 —— 属 Phase 3 协调平台化范围。 | multica `packages/views/{agents,my-issues,chat,inbox}/` |
 | **Schedule UI** | ✅ **Phase 1 第 2 项已落地**:`src/features/schedule/` 提供 cron job 列表(create/toggle/remove)+ 状态徽标,`/schedule` 路由 + ActivityBar 入口已接。剩余:`run_now` 命令(需 vendor 加公开 accessor)、持久化、tick 间隔配置、一次性 `run_at`。 | goose `ui/desktop/src/components/schedule/` / thClaws `/schedule` |
@@ -911,5 +913,5 @@ reflect_search_files / set_dock_badge
 
 - 本文档为**事实汇总**,不含过时评论。能力变化时直接更新对应表格 + Phase。
 - 新增参考项目时,复制 §2-§7 任一节结构,填实测路径。
-- 与 `docs/ARCHITECTURE.md`(ReflectDesktop 自身架构)、`docs/PROTOCOL_BRIDGE.md`(IPC 协议)、`docs/codebase-map.md`(任务导向文件地图)互补,不重复。
+- 与 `docs/architecture.md`(ReflectDesktop 自身架构)、`docs/protocol-bridge.md`(IPC 协议)、`docs/codebase-map.md`(任务导向文件地图)互补,不重复。
 - 后续开发每落地一个 Phase 项,在该行末尾补 `✅(commit <hash>)` 标记,并把对应能力从「缺口」移到「已具备」。

@@ -1,9 +1,11 @@
 # ZhuYe (烛夜)
 
-**English** | [简体中文](README.md)
+<p align="center">
+  <a href="README.md">中文</a> · <b>English</b>
+</p>
 
-[![CI](https://github.com/Asketisch/ReflectDesktop/actions/workflows/ci.yml/badge.svg)](https://github.com/Asketisch/ReflectDesktop/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Asketisch/ReflectDesktop)](https://github.com/Asketisch/ReflectDesktop/releases)
+[![CI](https://github.com/Asketisch/ZhuYe-Desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/Asketisch/ZhuYe-Desktop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Asketisch/ZhuYe-Desktop)](https://github.com/Asketisch/ZhuYe-Desktop/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-orange)]()
 [![React 19](https://img.shields.io/badge/React-19-149eca)]()
@@ -107,8 +109,8 @@ bash scripts/install.sh
 ### Build from source
 
 ```bash
-git clone --recursive https://github.com/Asketisch/ReflectDesktop.git
-cd ReflectDesktop
+git clone --recursive https://github.com/Asketisch/ZhuYe-Desktop.git
+cd ZhuYe-Desktop
 pnpm install
 git submodule update --init --recursive
 bash scripts/build.sh        # Detects the OS and produces native bundles
@@ -155,7 +157,7 @@ cd src-tauri && cargo check
 ## Repository layout
 
 ```
-ReflectDesktop/
+ZhuYe-Desktop/
 ├── zhuye-agent/   # git submodule of the ZhuYe repo (reflect-* core crates)
 │                    # read-only mirror; upgrade via git submodule update --remote
 ├── app-core/       # shared UI-agnostic reducer & state modules
@@ -189,7 +191,7 @@ Frontend wrappers live in `src/utils/commands/<domain>.ts` (canonical); `src/uti
 
 Push events: a single channel `reflect_event` carrying `reflect_protocol::Event` (snake_case JSON discriminators covering every `EventMsg` variant).
 
-Full specification: [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md).
+Full specification: [`docs/protocol-bridge.md`](docs/protocol-bridge.md).
 
 ---
 
@@ -203,7 +205,7 @@ Full specification: [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md).
 | **C1..C4** | Tray polish, global hotkeys, Dock + badge, dual-binary install                                                                              | ✅ Partially done |
 | **D1..D3** | Remote daemon + iOS app + IM bridge + workflow canvas                                                                                       | 📅 Planned |
 
-Full history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+Full history: [`docs/changelog.md`](docs/changelog.md).
 
 ---
 
@@ -228,10 +230,10 @@ Complete runbook: [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-run
 | Document | Purpose |
 |---|---|
 | [`docs/codebase-map.md`](docs/codebase-map.md) | Task-oriented "to change X, edit Y" map |
-| [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md) | Tauri ↔ reflect-protocol envelope spec |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Top-level layout + state flow |
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | End-user manual |
-| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Version changelog |
+| [`docs/protocol-bridge.md`](docs/protocol-bridge.md) | Tauri ↔ reflect-protocol envelope spec |
+| [`docs/architecture.md`](docs/architecture.md) | Top-level layout + state flow |
+| [`docs/user-guide.md`](docs/user-guide.md) | End-user manual |
+| [`docs/changelog.md`](docs/changelog.md) | Version changelog |
 | [`docs/gui/`](docs/gui/) | Historical design docs (M1 snapshot) |
 | [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md) | Core submodule upgrade checklist |
 | [`docs/mobile-ios-tailscale-blueprint.md`](docs/mobile-ios-tailscale-blueprint.md) | iOS + Tailscale setup (planned) |

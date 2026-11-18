@@ -1,6 +1,6 @@
-# Reflect GUI 用户指南
+# GUI 用户指南（归档）
 
-> ZhuYe 桌面 GUI（Tauri 2 + React 19）—— M1 MVP（2026-07+）
+> ⚠️ **归档快照（M1 MVP，2026-07）。** 现行用户指南见 [`../user-guide.md`](../user-guide.md)；本篇保留作为 M1 时期的使用参考。
 
 ## 1. 安装
 

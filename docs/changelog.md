@@ -23,6 +23,17 @@
   （`plan_ready`，含已批准/已拒绝徽标）与实时草稿都会渲染，会话重放经
   最后一条 `plan_ready` 记录恢复终稿；③ 「计划」与「Git」两个 tab 按钮
   缺 `onClick`，现版本根本点不开 —— 已补齐。
+- 修复 plan 审批可靠性四缺陷（上游 `56f88360`，审查「agent 卡死在
+  plan 模式无法写代码」的 Codex 式故障面后落地）：① plan 审批弹窗
+  待决时按停止/中断此前完全唤不醒等待（turn 悬挂、TurnAborted 不发）
+  —— blocking 审批等待改听回合级取消令牌；② 手动切换工作模式后，
+  迟到的审批决策会二次翻转模式覆盖用户设置 —— 手动切模式作废全部
+  在途 plan 审批，前端同步清掉悬挂弹窗；③ 审批批准的模式切换不落盘，
+  重开会话「幽灵复活」为 Plan 模式 —— 补持久化；④ headless
+  `zhuye exec --plan-mode` 无人应答审批会无限挂死 —— PlanReady 自动
+  「批准+中断收尾」、PlanRequest 自动 Revise。交互式 GUI 本就不存在
+  永久卡死（模式切换器永远可逃逸；工具定义走请求级 `tools` 参数、
+  plan 指引在 system 块，长会话压缩均不可触及）。
 - 提示词选择器支持默认、智能和手动方案，可保存共享默认并查看生效文案。
 
 ## 0.0.6 — 2026-11-18
@@ -398,7 +409,7 @@ zhuye-llm `ChatEvent` 新增 `AgentMessage` 变体(非流式 provider 整段
   banner）、CI 注释、`scripts/dump-ts-types.sh`、`docs/*` 与源码注释。
   `reflect-agent-def` 依赖别名与 `reflect-*` 包别名**不受影响**（对应上游包
   `zhuye-agent-def` 等，别名机制与目录名无关）。
-- `docs/CHANGELOG.md` 历史条目保持原样（历史记录不回写）。
+- `docs/changelog.md` 历史条目保持原样（历史记录不回写）。
 
 ### 变更 — submodule develop 重叠收敛（app-core 九模块切换上游单一事实源）
 
@@ -410,7 +421,7 @@ submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个�
 - **主仓 workspace 适配**：根 `Cargo.toml` 补齐 develop 新增的 workspace.dependencies 继承键（`zhuye-fs/git/kms/import/computer-use/shell/git-tools/exec/cli/py` + `rusqlite`），`pyo3` 0.23 → 0.30（与核心 workspace 对齐,pyo3-ffi 在 Python 3.14 下硬校验版本上限）。
 - **前端**：`side_channel_started/finished/status` 三个事件变体进类型联合 + reducer（`sideChannels` 进程级投影）；SideChannelView 订阅生命周期事件即时刷新（原来只能 5s 轮询）。
 - **桌面侧随 upstream 收编的两处行为差异**：markdown 导出标题从 `# Reflect session` 统一为上游 `# ZhuYe session`（渲染器切 `zhuye-rollout::export` 单一事实源,写盘仍保留桌面"替换 symlink"语义）；终端 shell 会话 id 从 UUID v4 改为上游池分配的 `sh-<8hex>`（执行与缓冲收编 `zhuye-shell`,Tauri 事件形状与逐行推送语义不变）。
-- **文档**：`docs/PROTOCOL_BRIDGE.md` 补 side-channel 三 Op + 三事件（§3.13）；`docs/CAPABILITIES.md` 增 §3.25/§3.26 并刷新矩阵。
+- **文档**：`docs/protocol-bridge.md` 补 side-channel 三 Op + 三事件（§3.13）；`docs/capabilities.md` 增 §3.25/§3.26 并刷新矩阵。
 
 ### 测试 — submodule 接线修复的配套测试面（含一处接线缺口修复）
 
@@ -517,9 +528,9 @@ submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
   Models 视图 / i18n;超出模型支持上限时由上游 `zhuye_llm` 能力表在发送
   前钳制,桌面只放宽档位面）;`ThinkingDelta.kind` additive 字段进前端
   payload 类型。
-- **文档**:`docs/PROTOCOL_BRIDGE.md` 补 `reflect_rescan_extensions` 行 +
+- **文档**:`docs/protocol-bridge.md` 补 `reflect_rescan_extensions` 行 +
   `extensions_rescanned` 事件（§3.11）+ `thinking_delta.kind`;
-  `docs/CAPABILITIES.md` 增 §3.27 审计（覆盖矩阵含 🟡 半接线项）。
+  `docs/capabilities.md` 增 §3.27 审计（覆盖矩阵含 🟡 半接线项）。
 
 ### 修复 — 接线 main 的三处门禁与视觉收尾
 
@@ -559,7 +570,7 @@ mattpocock code-review 862K、apollographql rust-best-practices 22K）并对
   `collect`（改 `any` 短路）。现在桌面代码在 `-D perf -D redundant_clone
   -D needless_collect -D map_unwrap_or` 下与上游同纪律零告警。
 - **code-review 双轴发现修复**（Standards 轴）：
-  `PROTOCOL_BRIDGE.md` 的 `reflect_get_effort` 行更新真实位置与档位;
+  `protocol-bridge.md` 的 `reflect_get_effort` 行更新真实位置与档位;
   `SUBMODULE.md` 过时的 `app-core/src/paths.rs` 表述改为
   `reflect_config::paths`;`thread_factory` side-driver 处重复的
   registry lock+expect 改复用同函数已取的 Arc;`strip_exit_marker`
@@ -737,7 +748,7 @@ L3 真后端 + L5 真窗口 e2e），产物审查通过才出包，审查报告�
 - **前端测试 worker 启动即崩**：npm audit 修复把 `jsdom` 升到 30，其依赖 `undici@8` 要求 Node ≥ 22.19（`decompress.js` 用到 zstd zlib API），CI 的 Node 20（2026-04 已 EOL）上 125 个 fork worker 全部启动失败。`ci.yml` / `release.yml` 统一升到 Node 24（与本地开发一致），`package.json` 补 `engines.node >= 22.19.0` 让需求显式化。
 - **static-audit 假失败**：该 job 配了 `cache: pnpm` 却从不 `pnpm install`，pnpm store 不存在时 `setup-node` 的 post 步骤以 "Path Validation Error" 判失败，把 21/21 通过的审查结果拖成红色。静态层只用 node 内置模块，去掉 pnpm 与缓存配置。
 - **升级适配 — `[active] bundled_skills`**：上游 0.1.8 把 15 个内置编码 skill 改为**默认关闭**（`m4_bootstrap` 只在开关为 true 时 `merge_bundled`）。`reflect_list_skills` 同按此开关决定是否列出内置技能，否则 GUI 会列出 agent 根本没加载、`load_skill` 也激活不了的技能；设置页 `[active]` 节补对应布尔开关（含 zh-CN / en 文案）。
-- `docs/CAPABILITIES.md` 审计基线更新为 `d063a5f`。
+- `docs/capabilities.md` 审计基线更新为 `d063a5f`。
 
 ### 修复 — release.yml 全平台打包从未跑通的两个潜在 bug
 
@@ -938,7 +949,7 @@ reflect-agent submodule `e4bc182 → e4560bc`(60 提交,含上游 7 周归并)�
 
 ### 修复 — 已知缺口全闭合：免 Key 端点可配 / Goal 状态可观测 / 清单回灌 / `os_level` 语义
 
-按 `docs/CAPABILITIES.md` §4 的清单逐条闭合（此前该节剩 4 项，其中 3 项
+按 `docs/capabilities.md` §4 的清单逐条闭合（此前该节剩 4 项，其中 3 项
 需上游变更）。上游改动按 `SUBMODULE.md` 走「改 Reflect-Agent 仓库 → 升级
 submodule」，桌面端**不直接改** submodule。
 
@@ -1056,7 +1067,7 @@ submodule」，桌面端**不直接改** submodule。
 
 **跑完整矩阵建议用本地模型**：匿名免费池的额度是**全局共享**的，跑满若干
 轮就会 `429 PROMOTION_MODEL_LIMIT_REACHED`；本地模型零成本、无限次、离线
-可重复 —— 详见 [`docs/FREE_MODEL_PRACTICE.md`](FREE_MODEL_PRACTICE.md)。
+可重复 —— 详见 [`docs/free-model-practice.md`](free-model-practice.md)。
 
 ### 新增 — L6 实模型演练层：用**免费模型池**跑桌面端的全链路实践测试
 
@@ -1100,7 +1111,7 @@ submodule」，桌面端**不直接改** submodule。
   - 修复前：`FAIL 没有任何正文/思考增量 / total_tokens = 0`
   - 修复后：`SKIP PROVIDER_ERROR: provider error: 200 server_error:
     This model is not available in your country`
-- **新增文档** `docs/FREE_MODEL_PRACTICE.md`：两条车道、配置模板、
+- **新增文档** `docs/free-model-practice.md`：两条车道、配置模板、
   GUI 配法、已知限制与排障。**含一个关键坑**：免 Key 端点必须用
   `[[openai.credentials]]` **数组形态** —— 顶层单值 `api_key = ""` 会让
   `build_openai_pool` 直接不注册该 provider（数组空 + key 空 → `None`）。
@@ -1171,8 +1182,8 @@ submodule」，桌面端**不直接改** submodule。
   - `src/stores/agent/types.ts` → 拆出 `stores/agent/tokenTypes.ts`
     （`TokenSnapshot` / `LiveModelUsage`）；`types.ts` 重新导出，
     既有导入路径（`@/stores/agent/types`）全部保持有效，调用方零改动。
-- 文档：`docs/PROTOCOL_BRIDGE.md`（§2.0 三条命令 + §3.6 routing kinds）、
-  `docs/CAPABILITIES.md`（§3.24 + 总览表新增「模型清单发现」行 + 审计
+- 文档：`docs/protocol-bridge.md`（§2.0 三条命令 + §3.6 routing kinds）、
+  `docs/capabilities.md`（§3.24 + 总览表新增「模型清单发现」行 + 审计
   基线更新到 submodule `8d65825`；顺带订正 Op 变体数：实为 **22**
   （此前写 24），其中 20 个有命令，另 2 个是 SDK 专用（§2 ⛔））。
 
@@ -1345,7 +1356,7 @@ submodule」，桌面端**不直接改** submodule。
   **静默丢弃**。`RemoteView.test.tsx` 自己的 mock 用了同样的错误形状,
   所以一直是绿的。前端(`src/utils/commands/remote.ts` /
   `useRemoteController.ts` / `RemoteView.tsx` 及其测试)与 fakeBackend
-  全部对齐 camelCase;`docs/PROTOCOL_BRIDGE.md` remote 行同步修正。
+  全部对齐 camelCase;`docs/protocol-bridge.md` remote 行同步修正。
 - fakeBackend 的 `reflect_get_autopilot_config` 返回 `{enabled, max_turns}`,
   而真后端(与前端 `autopilot.ts` 声明)是 camelCase 的
   `{enabled, schedule, taskTemplate, agent, maxConcurrent}` —— 同批修正。
@@ -1476,7 +1487,7 @@ submodule」，桌面端**不直接改** submodule。
 
 此前的工作止于**协议对齐**(Op/EventMsg 有对应命令与类型),但基座的
 能力面远大于此 —— 大量能力在 GUI 里既用不到也看不到。本轮以
-`docs/CAPABILITIES.md`(核心能力 → GUI 覆盖矩阵)为纲,闭合其中六块:
+`docs/capabilities.md`(核心能力 → GUI 覆盖矩阵)为纲,闭合其中六块:
 
 - **权限层接线(安全行为分叉修复)** —— CLI 装了三层权限 store
   (`config.toml [permissions]` > `<workspace>/.reflect/permissions.toml` >
@@ -1662,7 +1673,7 @@ submodule」，桌面端**不直接改** submodule。
   纯前端接线,零后端改动。
   > 注:核心 `TodoRow` 带 `rename_all = "camelCase"` → 线上字段是
   > **`activeForm`** 而非 `active_form`;reducer 同时接受两种写法。
-- **能力覆盖矩阵文档** —— 新增 `docs/CAPABILITIES.md`:基座 30+ 能力族
+- **能力覆盖矩阵文档** —— 新增 `docs/capabilities.md`:基座 30+ 能力族
   逐项标注 ✅ / 🟡 / ❌ / ⛔,含本轮闭合项的根因说明,以及剩余 1 项
   (**需上游变更**:todo 清单**只出不进** —— 基座无消费方,清单没回灌
   模型上下文,LLM 写完即忘)。
@@ -1675,7 +1686,7 @@ submodule」，桌面端**不直接改** submodule。
   (「命令存在 + 前端有消费面」两项都满足)去扫**全部** 182 个后端命令
   与 114 个前端包装,而不再只问「基座有什么没接」。
   - 扫描结论:**零死命令**;12 个前端包装无界面消费,逐个核实后分三类
-    (详见 `docs/CAPABILITIES.md` §3.20 的分类表)。
+    (详见 `docs/capabilities.md` §3.20 的分类表)。
   - **Markdown 转录导出有入口了** —— 命令面板新增「导出当前会话(Markdown)」
     (核心 `to_markdown` + 用量小节)。此前 GUI 只能导出 JSON 原始记录,
     核心的 `to_markdown` 能力**完全用不到**。
@@ -1694,7 +1705,7 @@ submodule」，桌面端**不直接改** submodule。
     - `plugin_loaded` → reducer 记 `store.loadedPlugins`(进程级),Plugins
       面板新增「运行时已挂载」列表。此前只能从**配置**反推「装了什么」,
       看不到**运行时真正挂载了什么**。
-  - **协议文档过期订正** —— `docs/PROTOCOL_BRIDGE.md` 的事件表此前漏登
+  - **协议文档过期订正** —— `docs/protocol-bridge.md` 的事件表此前漏登
     `plan_draft_updated` / `plan_step` / `plugin_loaded` 三个事件,段落
     计数停在升级前(Lifecycle 5→7、Plan 5→7,新增 §3.12 Plugin / Quota);
     能力矩阵的「43/43 EventMsg」也过期 —— 实际是 **45/45**(逐条核对)。
@@ -1765,7 +1776,7 @@ submodule」，桌面端**不直接改** submodule。
 - 测试:app-core 新增 traces / discussion / pipeline 单测(81 通过);
   前端新增 TracesView / CollaborationView 编排区测试 + fakeBackend
   新命令 handler + 路由矩阵条目(1009 通过);Rust 132 通过。
-- 文档:`PROTOCOL_BRIDGE.md` §2.0 命令表(七条新命令)+ §3 事件表
+- 文档:`protocol-bridge.md` §2.0 命令表(七条新命令)+ §3 事件表
   (`submission_closed`)同步。
 
 ### 新增 — submodule v1.6.1 接线:提示词层 + 模型级 token 统计
@@ -1814,7 +1825,7 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
   slash 用例(`/prompt` → `prompt_list`、`/usage` → `open_usage`)+
   UsageView / PromptLayersModal 视图测试 + fakeBackend 新命令 handler +
   路由矩阵 `/usage` 条目。Rust 149 通过,前端 1023 通过。
-- 文档:`PROTOCOL_BRIDGE.md` §2.0 命令表(三条新命令)+ §3.2
+- 文档:`protocol-bridge.md` §2.0 命令表(三条新命令)+ §3.2
   (`token_count.model`)+ 新增 §3.11 提示词层事件表同步。
 - 审计结论(本轮新增的有意不接线项):
   - `reflect_protocol::bash_command`(`BASH_COMMAND_KEYS` /
@@ -1864,7 +1875,7 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
   bash seatbelt/Landlock 修复、skills always-on 修复、goal 模式 spec
   回退修复。
 - 已知 v1 边界:插件管理 UI(marketplace 安装/启停)留后续批次。
-- 文档:`PROTOCOL_BRIDGE.md` §2 命令表 + §3 Submission 信封
+- 文档:`protocol-bridge.md` §2 命令表 + §3 Submission 信封
   (`source_command`)同步。
 
 ### 变更 — reflect-agent 子模块升级(v1.4 批次)+ steer / 子代理可观测全链路接线
@@ -1890,7 +1901,7 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
     滚动 feed(封顶 200 条)+ `subagent_status` 状态快照(角色/状态/
     迭代数/token);turn 收尾且出现过子代理活动时自动刷新快照,亦可
     手动刷新。会话切换(hydrate/clear/reset)复位。
-- 文档:`PROTOCOL_BRIDGE.md` §2 / §3.3 / §3.10 / §6 同步。
+- 文档:`protocol-bridge.md` §2 / §3.3 / §3.10 / §6 同步。
 
 ### 修复 — `/goal` 在首页输入后「什么都没发生」（未建会话、无反馈、goal 被静默丢弃）
 
@@ -2094,7 +2105,7 @@ model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model`
   `sections/PlansSection.tsx`、`src/features/models/ModelsView.tsx`、
   `src/stores/agent/planFailover.ts`、`src-tauri/src/state/{quota,reload,rebind}.rs`），
   用户可见能力并入 README「功能特性 → Coding Plan 与额度自动切换」；
-  `docs/PROTOCOL_BRIDGE.md` / `docs/codebase-map.md` 中的引用改为直接指向代码。
+  `docs/protocol-bridge.md` / `docs/codebase-map.md` 中的引用改为直接指向代码。
 - 删除 `docs/reflect-agent-token-persistence.md`：会话 token/cost 持久化 PR
   已在 Reflect-Agent 上游落地（`RolloutRecord::TokenCount` 变体 + `SessionInfo`
   聚合字段随 submodule 进入本仓库），PR 设计稿使命完成。
@@ -2113,7 +2124,7 @@ model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model`
   7 个未使用依赖（reflect-core / llm / hooks / skills / memory /
   permissions / tools）及 uuid / anyhow，更新 crate description。
 - 同步修订 AGENTS.md / SUBMODULE.md / docs/codebase-map.md /
-  docs/ARCHITECTURE.md 中对 app-core 旧定位（reducer/state 共享层）的描述。
+  docs/architecture.md 中对 app-core 旧定位（reducer/state 共享层）的描述。
 
 ### 变更 — GitHub 开源铺垫批次
 
@@ -2475,7 +2486,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   JSONL 审计轨迹末次 `PermissionModeChanged` 恢复初始模式
   （`with_initial_permission_mode`；`Bypass` 按 v1.3 安全基线降级
   `Prompt`），并把绑定后线程的实际模式随 bind 返回（返回 `null` →
-  `string`，线格式变更见 PROTOCOL_BRIDGE §2）；ChatView 用返回值
+  `string`，线格式变更见 protocol-bridge §2）；ChatView 用返回值
   `syncPermissionMode` 同步徽标/切换器；provider 热重载的强制重绑透传
   旧线程当前模式。多项目并行时各会话保留各自的 plan / auto 模式。
 - **删除 /theme /vim 斜杠命令**：纯 TUI 镜像 stub（GUI 无 vim 实装，
@@ -2544,7 +2555,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     修复 SlashPopup 键盘导航（此前 node 监听收不到按键 —— 改为受控组件，
     选中态由 Composer 持有，箭头/Enter/Tab 在 textarea 键盘路径路由；
     完整输入命令名时 Enter 仍直接执行）。
-- 文档：`docs/PROTOCOL_BRIDGE.md` §2.0 命令表补 6 个新命令；
+- 文档：`docs/protocol-bridge.md` §2.0 命令表补 6 个新命令；
   `docs/codebase-map.md` 视图清单同步。
 - 测试：Rust `search_tests`（片段窗口 4 例）；前端 pins / Sidebar 置顶与
   归档区 / Composer `!` 直通与 slash 键盘 / ContextBanner / Inspector 三 tab
@@ -2572,7 +2583,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   新增 模型选择器（选项与 Models 页的 coding plans 同源）+ 思考深度
   （low/medium/high）+ 权限模式分段（计划/询问/自动/Yolo，完整 7 段仍在
   Settings）；placeholder 提示补 `@ 文件` 语法。
-- **新命令**（见 `docs/PROTOCOL_BRIDGE.md` §2.0）：
+- **新命令**（见 `docs/protocol-bridge.md` §2.0）：
   - `reflect_set_model { provider, model }`：运行中切换模型 —— 协议
     `Op` 不变，改 `[active].provider` + `[<provider>].model` 后复用
     `reflect_save_config` 的写盘 + provider 栈热重载链路，下一个 turn 生效；
@@ -2662,7 +2673,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     `Shift+Cmd/Ctrl+Enter` 单次反转；Steer = `reflect_interrupt()` →
     等 `turn_aborted` → 立即提交（已完成工具调用保留在会话历史）。
   - 会话切换（hydrate/clear）清空队列，消息不串会话。
-- **会话标题自动生成**（回来看结果；新命令，见 PROTOCOL_BRIDGE §2）：
+- **会话标题自动生成**（回来看结果；新命令，见 protocol-bridge §2）：
   - `reflect_generate_session_title(id, force?)`：replay 取首条 User +
     Assistant 种子 → MinimalAgent 的 SharedModelRegistry one-shot 调用
     → `derive_title` 清洗 → 落盘 `~/.reflect/sessions/_titles/<id>.title`。
@@ -2780,7 +2791,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   cron rebind 用例；GUI 侧 rebind 4 用例 + install registry/cron 句柄用例；
   前端 ChatView bind→replay 顺序 / 切会话重绑 2 用例 + fakeBackend /
   mock / contract 同步。
-- **文档**：`docs/PROTOCOL_BRIDGE.md` 补 `reflect_bind_session` 行 +
+- **文档**：`docs/protocol-bridge.md` 补 `reflect_bind_session` 行 +
   `SessionConfigured.session_id` 语义。
 
 ### 功能 — 工作区 ↔ 会话归属 + Composer `@` 文件弹层（v1.x）
@@ -2817,7 +2828,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 - **测试**：前端 7 组新增/扩展（@ 触发检测 / MentionPicker / addFileMention
   线格式 / useSessions workspace 过滤 / Composer @ 弹层集成 / AppShell New
   Chat / useCurrentWorkspace）；Rust `list_sessions_in_workspace` 过滤断言。
-- **文档**：`docs/PROTOCOL_BRIDGE.md` 补 `File` / `FileRange` /
+- **文档**：`docs/protocol-bridge.md` 补 `File` / `FileRange` /
   `Submission.workspace` / `SessionInfo.workspace` schema 与
   `reflect_create_session` 命令行。
 
@@ -2877,7 +2888,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - 后端 `commands/{workspaces,sessions}.rs` 加 7 个 Rust 单元测试（去重 /
     持久化 / 容量上限 / archive+restore 整树搬移），`cargo test --lib
     commands::` 48 个测试全绿。
-  - `docs/PROTOCOL_BRIDGE.md` 新增 6 个命令条目 + 归档树 / workspaces.json
+  - `docs/protocol-bridge.md` 新增 6 个命令条目 + 归档树 / workspaces.json
     持久化约定。
 
 ### 修复 — v1.x diff 审查修复（前端）
@@ -2918,7 +2929,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 - **前端**：新域文件 `src/utils/commands/goal.ts`（barrel 导出）；Composer
   新增 `/goal <description>` 斜杠命令（`/goal clear` 退出，与 TUI 约定一致），
   无参数时 reject 并给出引导。
-- 文档：`docs/PROTOCOL_BRIDGE.md` §2 注记 + §6 Op 联合补两个变体。
+- 文档：`docs/protocol-bridge.md` §2 注记 + §6 Op 联合补两个变体。
 - 测试：`tests/flows.chat-plan-goal-edit.test.tsx` 覆盖 goal 多轮自动续作
   （零用户提交下多 turn 累积/状态流转/退出）；契约测试补 goal round-trip
   （可选字段缺省/完整两形态 + 状态清除）。
@@ -2931,7 +2942,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   复刻真实 agent 审批停顿与提交抢占）；`tests/helpers/appHarness.tsx`
   挂载完整真实应用（真实 reducer / React Query / 路由 / 事件总线订阅）。
 - **覆盖**：IPC 契约与四方对齐（后端函数 ↔ 前端包装 ↔ handler 注册 ↔
-  模拟实现 + `PROTOCOL_BRIDGE.md` 覆盖率下限）、全部 `EventMsg` 变体
+  模拟实现 + `protocol-bridge.md` 覆盖率下限）、全部 `EventMsg` 变体
   协议矩阵、聊天端到端主流程（含审批门）、**chat → plan → edit 全链路**
   （plan 草稿多次更新 → plan_ready → 三选择决策 → 编辑工具逐审批 →
   完成，含 IPC 时序断言）、**goal 模式多轮自动续作**、审批/提问/计划
@@ -2968,7 +2979,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   （线格式 snake_case tag），已补齐类型镜像 `ToolExecutionRequestPayload`
   （`call_id` / `tool` / `args`）+ `EventMsgByType` 条目；
   `reduceEvent` 加对应 no-op case，配合穷尽性守卫保持前后端事件表一致。
-- 文档：`docs/PROTOCOL_BRIDGE.md` §3.3 工具事件表补 `tool_execution_request`
+- 文档：`docs/protocol-bridge.md` §3.3 工具事件表补 `tool_execution_request`
   行（标注 serve 模式语义与 Desktop no-op 决策）。
 
 ### 修复 — 全量测试发现的问题（会话归属 / 事件层前向兼容 / 删除会话）
@@ -3526,7 +3537,7 @@ ReflectDesktop 实例提供建设基础。
   `src-tauri/src/commands/error.rs`（`CommandError` / `CommandResult`）。域
   模块涵盖 agent / allowlist / config / export / files / git / hooks /
   memory / search / sessions / shell / skills / update / workspaces。完整
-  命令清单枚举于 `docs/PROTOCOL_BRIDGE.md` §2.0 并注册在
+  命令清单枚举于 `docs/protocol-bridge.md` §2.0 并注册在
   `src-tauri/src/lib.rs::invoke_handler`。
 
 - **后端 `src-tauri/src/` 支撑模块**：从
@@ -3596,7 +3607,7 @@ ReflectDesktop 实例提供建设基础。
     承担 shell 层交互。
 
 - **文档更新**：`AGENTS.md`、`README.md`、`docs/codebase-map.md`、
-  `docs/ARCHITECTURE.md`、`docs/PROTOCOL_BRIDGE.md` 和 `docs/CHANGELOG.md`
+  `docs/architecture.md`、`docs/protocol-bridge.md` 和 `docs/changelog.md`
   重写为以重构后布局为规范的实时状态。changelog 之外无
   历史评注。所有引用路径均存在。
 
@@ -3658,7 +3669,7 @@ ReflectDesktop 实例提供建设基础。
   让 CommandPalette 更易被发现。
 - **StatusBar 会话计数**：来自 `reflect_list_sessions` 的 MessagesSquare 图标 + 会话数，
   tooltip 为 "N sessions on disk"。
-- **文档**：CHANGELOG.md + PROTOCOL_BRIDGE.md + codebase-map.md 更新覆盖
+- **文档**：changelog.md + protocol-bridge.md + codebase-map.md 更新覆盖
   全部 B1-B12 变更。342/342 测试全部通过；tsc 无错；cargo check 无错。
 
 ### 新增 — Batch 1 (协议层 + app-core 基础)
@@ -3793,8 +3804,8 @@ ReflectDesktop 实例提供建设基础。
   `(planned)` 标记;`shell/` 加入;`Composer` 路径纠正到 `features/messages/`。
 - **`AGENTS.md`**:移除 `AppLayout`、`@widgets/*`、`Composer` 旧路径;`tokens.css`
   标记为 live;Hotspots 更新指向 `shell/`/`messages/`/`tokens.css`/`agentStore.ts`。
-- **`docs/ARCHITECTURE.md`**:重写目录树(feature slice 枚举 `shell` 加入、`widgets/`
-  移除);PROTOCOL_BRIDGE 不再标 `(planned)`;State flow 图更新反映 Zustand
+- **`docs/architecture.md`**:重写目录树(feature slice 枚举 `shell` 加入、`widgets/`
+  移除);protocol-bridge 不再标 `(planned)`;State flow 图更新反映 Zustand
   single store。
 - **`src/features/sessions/README.md`**:入口说明更新为 `AppShell` 渲染 Sidebar。
 
@@ -4079,7 +4090,7 @@ ReflectDesktop 实例提供建设基础。
   Workspaces 从 sessions 聚合;Prompts/Files/Git/Terminal 改为"发送到对话"快捷面板;
   About/Update 用真实 `ping` + `agent_status`。
 - **Docs**: `docs/codebase-map.md` — 任务导向导航。
-- **Docs**: `docs/PROTOCOL_BRIDGE.md` — Tauri ↔ reflect-protocol 信封规范。
+- **Docs**: `docs/protocol-bridge.md` — Tauri ↔ reflect-protocol 信封规范。
 
 ### 变更
 - `ReviewDecision` TS 类型对齐 Rust `#[serde(rename_all = "snake_case")]`:
@@ -4104,6 +4115,8 @@ ReflectDesktop 实例提供建设基础。
 ---
 
 ## 0.1.0 — 2026-07-07（初始 MVP）
+
+> 版本号历史线：0.1.0 时间在先（2026-07），此后版本号**重启**为 0.0.x 线（2026-11 起）——上方 0.0.x 各节的时间顺序在 0.1.0 之后。
 
 首个可对外发布的里程碑。应用可启动，三栏布局正常渲染，会话列表可用，Tauri 命令桥往返打通。
 
@@ -4135,4 +4148,6 @@ ReflectDesktop 实例提供建设基础。
 - **Minor**: 新功能切片、新 Tauri 命令、新事件 variant（始终**增量**）。
 - **Patch**: bug 修复、文档更新、内部重构。
 
-GUI 跟随 Reflect-Agent 的主版本节奏；minor 版本可独立发布（协议是增量稳定的）。
+GUI 跟随烛夜 agent 引擎（`zhuye-agent` submodule）的主版本节奏；minor 版本可独立发布（协议是增量稳定的）。
+
+> 时间线注记：0.1.0（2026-07）为版本号重启前的历史线，时间顺序在 0.0.x 各节之前；当前活跃线为 0.0.x。

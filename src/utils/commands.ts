@@ -8,6 +8,6 @@
  * **新代码请直接 import 自 `@/utils/commands` 或 `@/utils/commands/{domain}`。
  * `src/utils/tauri` 仍保留旧 barrel 作兼容入口。**
  *
- * 设计蓝图：`docs/PROTOCOL_BRIDGE.md` §2 + §6。
+ * 设计蓝图：`docs/protocol-bridge.md` §2 + §6。
  */
 export * from './commands/index';

@@ -176,7 +176,7 @@ if (!handlerMatch) {
 }
 
 // ── 2. 协议文档覆盖率(棘轮)────────────────────────────────────────────────
-const bridgeDoc = read('docs/PROTOCOL_BRIDGE.md');
+const bridgeDoc = read('docs/protocol-bridge.md');
 const undocumented = [...backendCommands].filter((c) => !bridgeDoc.includes(c));
 const coverage = backendCommands.size === 0 ? 0 : 1 - undocumented.length / backendCommands.size;
 const coveragePct = (coverage * 100).toFixed(1);
@@ -185,11 +185,11 @@ const baseline = existsSync(BASELINE_PATH) ? JSON.parse(read('tests/static/basel
 const docFloor = baseline['protocol-doc-coverage'] ?? 0;
 
 if (coverage >= docFloor) {
-  pass('protocol-doc-coverage', `PROTOCOL_BRIDGE 覆盖 ${coveragePct}%(下限 ${(docFloor * 100).toFixed(1)}%)`);
+  pass('protocol-doc-coverage', `protocol-bridge 覆盖 ${coveragePct}%(下限 ${(docFloor * 100).toFixed(1)}%)`);
 } else {
   fail(
     'protocol-doc-coverage',
-    `PROTOCOL_BRIDGE 覆盖 ${coveragePct}% < 基线 ${(docFloor * 100).toFixed(1)}%;未记录:${undocumented.slice(0, 8).join(', ')}`,
+    `protocol-bridge 覆盖 ${coveragePct}% < 基线 ${(docFloor * 100).toFixed(1)}%;未记录:${undocumented.slice(0, 8).join(', ')}`,
   );
 }
 

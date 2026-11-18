@@ -2,27 +2,109 @@
 
 所有文档必须是规范化的，不包含过时评论，仅保留当前有效状态。
 
-## 范围
-
-本文档是仓库的 Agent 契约，规定在本仓库中的工作方式。
-详细的导航手册见：
-
-- `docs/codebase-map.md`（面向任务的代码映射："需要改 X，编辑 Y"）
-- `docs/CAPABILITIES.md`（核心能力 → GUI 覆盖矩阵：基座能力是否都能用、能看到）
-- `docs/PROTOCOL_BRIDGE.md`（Tauri ↔ reflect-protocol 协议信封规范）
-- `README.md`（环境设置、构建、发布和项目文档）
-- `docs/CHANGELOG.md`（版本更新日志）
-
-## 项目概况
+## 项目概览
 
 烛夜（ZhuYe）是烛夜 agent 引擎（上游更名自 Reflect Agent）的桌面 GUI 应用，基于 Tauri 2 + React 19 构建。
 
 - 前端：React 19 + Vite + TanStack Router/Query（`src/`）
 - 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
 - 子模块：`zhuye-*` 核心 crate（桌面端使用 `reflect-*` 依赖别名） 通过 git submodule 复用（见 `zhuye-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
-- 共享核心：`app-core/`（UI 无关的领域服务层：activity / media / tailscale / traces / discussion / pipeline / sandbox / stats，供 `src-tauri` 命令层复用。与 submodule 重叠的实现已收敛到上游：actor / squad → `reflect-task`，autopilot → `reflect-stream`，kms → `reflect-kms`，pricing → `reflect-llm`，activity 实体 → `reflect-telemetry`，side-channel → `reflect-core`，paths → `reflect-config::paths`）
+- 共享核心：`app-core/`（UI 无关的领域服务层：activity / media / tailscale / traces / discussion / pipeline / sandbox / stats，供 `src-tauri` 命令层复用）
 
-## 不可妥协的架构规则
+## AGENTS.md 体系导航
+
+本体系按**渐进式披露**组织：根篇常驻上下文，目录级篇按需展开，系统级说明放 `docs/`。
+**修改任何目录前，先读该目录（或其所在层）的 AGENTS.md。**
+
+| 想了解什么 | 读哪个 AGENTS.md |
+|---|---|
+| 前端组合根与基础设施（路由 / 协议类型 / 样式 / 测试挂载） | [src/AGENTS.md](src/AGENTS.md) |
+| 功能切片（切片布局惯例 / 新切片落点链） | [src/features/AGENTS.md](src/features/AGENTS.md) |
+| 代理状态存储（reducer / turns / 兼容层） | [src/stores/AGENTS.md](src/stores/AGENTS.md) |
+| IPC 封装与 i18n（领域命令文件 / bridge / 文案挂载） | [src/utils/AGENTS.md](src/utils/AGENTS.md) |
+| Tauri 应用外壳（configure / 事件转发 / 托盘 / 菜单） | [src-tauri/AGENTS.md](src-tauri/AGENTS.md) |
+| Tauri 命令表（领域命令文件 / 注册落点） | [src-tauri/src/commands/AGENTS.md](src-tauri/src/commands/AGENTS.md) |
+| AgentThread 宿主状态（MinimalAgent / state 子模块） | [src-tauri/src/state/AGENTS.md](src-tauri/src/state/AGENTS.md) |
+| UI 无关领域服务（app-core 模块 / 上游收敛） | [app-core/AGENTS.md](app-core/AGENTS.md) |
+| 构建发版 / 图标 / 版本同步脚本 | [scripts/AGENTS.md](scripts/AGENTS.md) |
+| 发布门禁分层与应用级测试 | [tests/AGENTS.md](tests/AGENTS.md) |
+| 上游核心 crate（submodule，只读镜像，不在本仓库建篇） | 下方「上游 submodule 体系索引」 · [SUBMODULE.md](SUBMODULE.md) |
+| 架构与系统文档（不建篇） | [docs/architecture.md](docs/architecture.md) · [docs/codebase-map.md](docs/codebase-map.md) · [docs/capabilities.md](docs/capabilities.md) · [docs/protocol-bridge.md](docs/protocol-bridge.md) · [docs/changelog.md](docs/changelog.md) · [docs/user-guide.md](docs/user-guide.md)（外链） |
+
+### 上游 submodule 体系索引（`zhuye-agent/`，只读）
+
+上游同样采用渐进式分层 AGENTS.md（18 篇 = 根篇 + 6 层篇 + 8 crate 篇 + 3 顶层篇）。本表只索引其**层篇与顶层篇**；crate 级篇目（zhuye-protocol / zhuye-tools / zhuye-llm / zhuye-hooks / zhuye-plugin / zhuye-core / zhuye-exec / zhuye-cli）不在此复录，完整导航见 [zhuye-agent/AGENTS.md](zhuye-agent/AGENTS.md) 的「AGENTS.md 体系导航」，升级流程见 [SUBMODULE.md](SUBMODULE.md)。
+
+| 上游想了解什么 | 读哪个 AGENTS.md |
+|---|---|
+| 协议契约：Op / EventMsg / Item / Submission | [crates/protocol/](zhuye-agent/crates/protocol/AGENTS.md) |
+| 能力原语：模型 / 工具 / hook / 提示词 / 检索 | [crates/abilities/](zhuye-agent/crates/abilities/AGENTS.md) |
+| 资源层：配置 / 权限 / 插件 / 持久化 / 文件 | [crates/resources/](zhuye-agent/crates/resources/AGENTS.md) |
+| 多 agent 编排：子代理 / 讨论 / 任务 / 流水线 / 目标 | [crates/orchestration/](zhuye-agent/crates/orchestration/AGENTS.md) |
+| 外部集成：MCP / LSP / 会话导入 / computer-use / shell / git | [crates/integrations/](zhuye-agent/crates/integrations/AGENTS.md) |
+| 运行时与入口：StateGraph / headless / CLI / facade / PyO3 | [crates/runtime/](zhuye-agent/crates/runtime/AGENTS.md) |
+| 上游构建 · 发布 · 冒烟 · 插件打包脚本 | [scripts/](zhuye-agent/scripts/AGENTS.md) |
+| 双 SDK：Python / TypeScript | [sdks/](zhuye-agent/sdks/AGENTS.md) |
+| 上游测试分层与覆盖矩阵 | [tests/](zhuye-agent/tests/AGENTS.md) |
+
+## 常用命令
+
+```bash
+# 开发与验证（日常）
+pnpm install
+pnpm tauri dev                # 开发模式（HMR）
+pnpm test                     # vitest
+pnpm typecheck                # tsc --noEmit
+cd src-tauri && cargo check   # Rust 类型检查
+
+# 发布门禁（分层，见下方「验证矩阵」）
+bash tests/run_all.sh         # 静态 + 前端 + 真后端 + 产物
+
+# 发布构建
+pnpm tauri build              # 全平台构建
+pnpm tauri build --bundles app  # 仅 macOS .app
+bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
+
+# 图标再生成（默认源图恒为仓库根 logo.png，与调用目录无关；产物 = src-tauri/icons/ + favicon）
+pnpm icons                    # 等价于 bash scripts/gen-icons.sh
+pnpm icons:check              # 只校验：齐全 / 尺寸 / 托盘透明底 / 是否比源图旧
+
+# submodule 升级（当烛夜发布新版本时，详见 SUBMODULE.md）
+git submodule update --remote zhuye-agent
+git diff --submodule zhuye-agent
+git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
+
+# 定向测试（迭代时用定向测试，而不是全量）
+pnpm test -- src/features/settings/SettingsView.test.tsx
+```
+
+脚本契约（打包前图标检查、版本四处同步等）见 [scripts/AGENTS.md](scripts/AGENTS.md)。
+
+> 历史：本仓库曾用 `vendor/` + `scripts/vendor-sync.sh`（rsync 手动同步）复用核心 crate，已迁移为 git submodule。旧的 vendor 运行手册不再适用。
+
+## 架构
+
+### 分层（依赖方向自上而下）
+
+| 层 | 位置 | 职责 |
+|---|---|---|
+| 前端 | `src/` | React 19 视图切片 + Zustand 状态 + IPC 包装（组合根 `main.tsx`、路由表 `router.tsx`） |
+| 命令层 | `src-tauri/` | Tauri 2 适配层：命令表（`commands/<domain>.rs`）+ AgentThread 宿主（`state.rs` + `state/` 子模块）+ OS 集成，不承载领域逻辑 |
+| 领域服务 | `app-core/` | UI 无关领域服务层，供命令层复用；渲染状态由前端 TS 负责 |
+| 引擎 | `zhuye-agent/` | submodule 只读镜像：烛夜 agent 引擎 zhuye-* crate（协议 / 能力 / 资源 / 编排 / 集成 / 运行时） |
+
+与 submodule 重叠的实现已收敛到上游：actor / squad → `reflect-task`，autopilot → `reflect-stream`，kms → `reflect-kms`，pricing → `reflect-llm`，activity 实体 → `reflect-telemetry`，side-channel → `reflect-core`，paths → `reflect-config::paths`（收敛判定见 [app-core/AGENTS.md](app-core/AGENTS.md)）。
+
+### 核心数据流
+
+- `AgentThread`（submodule）消费 `Submission`，事件经 `src-tauri/src/events.rs` 转发到单一 `reflect_event` 通道。
+- 前端唯一订阅点 `services/agentEventBus.ts` 扇出 → `stores/agent/reducer.ts` 的 `reduceEvent` 产出 patch → Zustand store 应用。
+- 发送意图经 `stores/agent/index.ts::useAgentStore` 构造 `Op` → `reflect_submit` 命令 → 宿主 `state/submit.rs` 提交。
+- 文件/会话路径一律经后端命令往返，前端不自拼数据目录路径。
+
+### 关键不变量
+
+**架构红线（不可妥协）**：
 
 1. 将共享/领域后端逻辑优先放在 `app-core/` 和 `zhuye-agent/crates/**/zhuye-*` 中。
 2. Tauri 应用是 `reflect_core::AgentThread` 的薄适配层。
@@ -31,127 +113,84 @@
 5. 保持前端 IPC 协议与后端命令表一致（`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`）。
 6. 数据目录以 submodule 为准（用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`）。路径只经 `reflect_config::paths` 取，不在功能代码里自拼目录名；与 sessions 树必须同级的目录（归档）从 `reflect_rollout::path::default_base()` 派生。
 
-## 后端路由规则
-
-后端行为变更遵循以下顺序：
-
-1. 核心 crate（`zhuye-agent/crates/**/zhuye-*`，通过 submodule）— 跨运行时逻辑的首选位置。如果变更应放在上游，修改 ZhuYe 仓库并升级 submodule（见 `SUBMODULE.md`）。
-2. 应用适配层和 Tauri 命令表（`src-tauri/src/lib.rs` + `commands/mod.rs`）。
-3. 前端 IPC 包装（`src/utils/commands/{domain}.ts`）。
-4. 如果新增后端命令，需同步更新所有相关层级 + 测试 + `docs/PROTOCOL_BRIDGE.md` + `docs/CHANGELOG.md`。
-5. 核心 crate 新增能力时，同步更新 `docs/CAPABILITIES.md`（基座能力 → GUI 覆盖矩阵）——「有命令但无 UI 消费面」视为半接线。
-
-## 前端路由规则
-
-- `src/main.tsx` 作为组合根。
-- `src/router.tsx` 作为路由表。
-- 有状态的编排逻辑放入 `src/features/<slice>/hooks/*` 或 `<slice>/use*Controller.ts`（与视图同目录）。
-- 表现层 UI 放在功能组件中（`src/features/<slice>/<View>.tsx`）。
-- Tauri 调用仅放在 `src/utils/commands/`（按领域分文件）；`src/utils/tauri.ts` 和 `src/utils/commands.ts` 为兼容桶，不要在其中新增包装。
-- 事件订阅广播保持在 `src/services/agent.ts` 和 `src/services/agentEventBus.ts`。
-
-## 导入别名
-
-前端导入使用项目别名（在 `tsconfig.json` + `vite.config.ts` 中定义）：
-
-- `@/*` → `src/*`
-
-## 核心文件锚点
-
-- 前端组合根：`src/main.tsx`
-- 前端路由表：`src/router.tsx`
-- IDE 应用外壳：`src/features/shell/AppShell.tsx`
-- 前端 IPC 兼容桶：`src/utils/tauri.ts` / `src/utils/commands.ts`
-- 前端底层桥接：`src/utils/bridge.ts`（`invoke` / `listen` 带降级）
-- 前端 IPC 包装（按领域）：`src/utils/commands/{domain}.ts`（如 `agent`、`sessions`、`memory`、`terminal`、`git`、`files`、`skills`、`hooks`、`workspaces`、`config`、`permissions`、`approvals`、`questions`、`plan`、`events`、`health`、`updates`、`allowlist`、`search`）
-- 前端代理存储：`src/stores/agentStore.ts`（兼容层）→ `src/stores/agent/`（实现：`store.ts`、`reducer.ts`、`turns.ts`、`toast.ts`、`servers.ts`、`types.ts`、`useAgent.ts`、`index.ts`）
-- 前端代理钩子（旧版重新导出）：`src/services/agent.ts`
-- 应用命令注册表：`src-tauri/src/lib.rs`
-- 应用状态（AgentThread 宿主）：`src-tauri/src/state.rs`
-- 应用状态支持模块（位于 `src-tauri/src/`）：`state.rs`、`dock.rs`、`events.rs`、`mcp.rs`、`menu.rs`、`tray.rs`、`shortcut.rs`，及辅助文件 `hook_store.rs`、`memory_store.rs`、`shell_sessions.rs`、`workspace_state.rs`
-- Tauri 命令表：`src-tauri/src/commands/mod.rs` — 薄桶模块，重新导出 `src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs` 中的命令体和 `error.rs`（定义 `CommandError` / `CommandResult`）
-- Cargo 工作区：`Cargo.toml`（根）+ `src-tauri/Cargo.toml`
-- 子模块核心：`zhuye-agent/crates/**/zhuye-*/`（只读镜像，不要直接修改——修改 ZhuYe 仓库并升级 submodule）
-- 发布门禁入口：`tests/run_all.sh`（分层）+ `tests/lib.sh`（公共助手）
-- 发布门禁分层套件：`tests/static/`（静态审查）、`tests/frontend/`（前端行为）、`tests/backend/`（真后端能力覆盖）、`tests/artifact/`（发布产物）、`tests/e2e/` + `tests/visual/`（视觉回归 + 真窗口冒烟，默认可跳过）、`tests/live/`（实模型演练，真免费模型，默认跳过）
-- 真后端能力覆盖层：`src-tauri/tests/ipc_{core,workspace,domains,agent_ops,goal}.rs` + 共享夹具 `src-tauri/tests/common/mod.rs`
-- 能力 → 套件映射（发布审查口径）：`tests/COVERAGE.md`
-
-更详细的路径映射见 `docs/codebase-map.md`。
-
-## 协议不变量
+**协议不变量**：
 
 - 线格式为 `reflect_protocol::Event` / `Submission`（snake_case JSON）
-- 所有 `Op` 变体 → Tauri 命令（见 `docs/PROTOCOL_BRIDGE.md` §2）
+- 所有 `Op` 变体 → Tauri 命令（见 `docs/protocol-bridge.md` §2）
 - 所有 `EventMsg` 变体 → 单一 `reflect_event` 通道，前端通过 `msg.type` 分发
 - Submission id ↔ Event id 配对用于流关联
 - `EVENT_ID_NONE = ""` 用于生命周期事件（无匹配提交）
 
-## AgentThread 宿主状态不变量
+**AgentThread 宿主状态不变量**：
 
-- `MinimalAgent`（M2.x）是封装器，持有 `Arc<AgentThread>` + `tokio::sync::broadcast` 用于会话事件广播
+- `MinimalAgent` 是封装器，持有 `Arc<AgentThread>` + `tokio::sync::broadcast` 用于会话事件广播
 - `install_agent_thread()` 在 Tauri `setup()` 中调用（运行时初始化后），不要在 `manage()` 中调用（同步阶段）
 - 慢订阅者触发 `RecvError::Lagged(n)` — 记录日志但任务继续运行
 - macOS 关闭按钮 → 隐藏到托盘（不退出），通过 `on_window_event`
 
-## 会话层级不变量
+**会话层级不变量**：
 
 - `useSessions`（`src/features/sessions/hooks/useSessions.ts`）是会话列表的规范 hook
 - 切换会话 → `reflect_replay_session(id)` 后水合本地状态
 - 时间分组（`Now/今天/昨天/本周/更早`）在 hook 中，不在侧边栏组件中
 
-## 后续行为映射
+## 开发流程检查表（改任何代码前必读）
 
-关于队列和导航后续行为，从这里开始：
+提交前逐条走完：
 
-- 设置模型与默认值：`src/features/settings/SettingsView.tsx`（使用 `ConfigForm` + 每节组件）
-- 编辑器运行时行为：`src/features/composer/Composer.tsx`（规范位置）；`src/features/messages/Composer.tsx` 是薄重新导出层
-- 发送意图路由：`src/stores/agent/index.ts::useAgentStore`（规范位置）— `src/stores/agentStore.ts` 为兼容层
-- 应用布局布线：`src/features/shell/AppShell.tsx`、`src/router.tsx`
+1. **AGENTS.md 分层索引同步（强制）** —— 修改或新增代码时，对应目录的 AGENTS.md 必须同步更新——契约 / 同步点 / 禁止事项变化即改对应篇，目录或篇目增删即改「体系导航」表。按下表定位：
 
-## 应用状态同步检查表
+   | 代码改动 | 同步更新 |
+   |---|---|
+   | 新增/移除切片或路由 | `src/features/` + `src/`（路由链）+ 根导航表 |
+   | 事件消化 / reducer / 兼容层变更 | `src/stores/` |
+   | IPC 领域包装增删 | `src/utils/`（+ 对侧 `src-tauri/src/commands/`） |
+   | Tauri 命令增删 | `src-tauri/src/commands/` + `src-tauri/`（注册表）+ 对侧 `src/utils/` |
+   | 宿主状态 / state 子模块增删 | `src-tauri/src/state/` |
+   | app-core 模块增删 | `app-core/` |
+   | 脚本新增/移除/行为变更 | `scripts/` 速览表 |
+   | 门禁分层 / 覆盖矩阵结构变更 | `tests/`（+ `tests/COVERAGE.md`） |
+   | 升级 zhuye-agent submodule | 校验「上游 submodule 体系索引」各链接仍存在；上游篇目增删即同步本表 |
+   | 新增/移除目录或篇目 | 根导航表 + 本映射表 |
 
-当修改同时影响后端和前端的设置/持久化时：
+   拿不准改哪篇时，至少更新改动所在层篇与根导航表，确保索引不失真。
 
-1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`）已更新
-2. 前端 IPC（`src/utils/commands/{domain}.ts`）已更新
-3. 功能设置 UI（`src/features/settings/SettingsView.tsx`、`ConfigForm.tsx`、`sections/DisplaySection.tsx`、`sections/NotificationsSection.tsx`、`sections/UpdatesSection.tsx`、`sections/PlansSection.tsx`、`sections/PermissionRulesSection.tsx`、`sections/SecurityScanCard.tsx`、`components/StructuredField.tsx`、`components/ComplexEditors.tsx`、`config/schema.ts`）已更新
-4. 测试覆盖率已补充
-5. `docs/PROTOCOL_BRIDGE.md` 已更新（如果线格式有变更）
-6. `docs/CHANGELOG.md` 已添加条目
+2. **后端行为变更** —— 遵循以下顺序：
+   1. 核心 crate（`zhuye-agent/crates/**/zhuye-*`，通过 submodule）— 跨运行时逻辑的首选位置。如果变更应放在上游，修改 ZhuYe 仓库并升级 submodule（见 `SUBMODULE.md`）。
+   2. 应用适配层和 Tauri 命令表（`src-tauri/src/lib.rs` + `commands/mod.rs`）。
+   3. 前端 IPC 包装（`src/utils/commands/{domain}.ts`）。
+   4. 如果新增后端命令，需同步更新所有相关层级 + 测试 + `docs/protocol-bridge.md` + `docs/changelog.md`。
+   5. 核心 crate 新增能力时，同步更新 `docs/capabilities.md`（基座能力 → GUI 覆盖矩阵）——「有命令但无 UI 消费面」视为半接线。
 
-## 设计系统规则（高层）
+3. **前端行为变更** —— `src/main.tsx` 作为组合根；`src/router.tsx` 作为路由表；有状态的编排逻辑放入 `src/features/<slice>/hooks/*` 或 `<slice>/use*Controller.ts`；表现层 UI 放在功能组件中；Tauri 调用仅放在 `src/utils/commands/`（按领域分文件），`src/utils/tauri.ts` 和 `src/utils/commands.ts` 为兼容桶，不要新增包装；事件订阅广播保持在 `src/services/agent.ts` 和 `src/services/agentEventBus.ts`。
 
-使用现有的设计标记（`src/styles/tokens.css`，暗色优先，支持亮色/系统主题）和基础组件（`src/features/design-system/primitives/*`）构建共享壳层。不要在功能 CSS 中重复定义已存在的弹窗/提示/面板/浮层样式。所有视图通过 CSS Modules 消费 `token`（内联样式不硬编码颜色值）。
+4. **应用状态同步检查表** —— 当修改同时影响后端和前端的设置/持久化时：
+   1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`）已更新
+   2. 前端 IPC（`src/utils/commands/{domain}.ts`）已更新
+   3. 功能设置 UI（`src/features/settings/` 下 `SettingsView.tsx`、`ConfigForm.tsx`、`sections/`、`components/`、`config/schema.ts`）已更新
+   4. 测试覆盖率已补充
+   5. `docs/protocol-bridge.md` 已更新（如果线格式有变更）
+   6. `docs/changelog.md` 已添加条目
 
-详见现有设计系统文件和 `DesignSystemView` 目录。
+5. **设计系统规则** —— 使用现有的设计标记（`src/styles/tokens.css`，暗色优先，支持亮色/系统主题）和基础组件（`src/features/design-system/primitives/*`）构建共享壳层；不要在功能 CSS 中重复定义已存在的弹窗/提示/面板/浮层样式；所有视图通过 CSS Modules 消费 token（内联样式不硬编码颜色值）。
 
-## 安全与 Git 行为
+6. **验证** —— 按下方「验证矩阵」跑对应命令，全绿再提交。
 
-- 优先使用安全的 git 操作（`status`、`diff`、`log`）
-- 不要重置或撤销无关的用户变更
-- 如果存在无关变更，继续专注自有文件，除非这些变更影响正确性
-- 如果冲突影响正确性，指出问题并选择最安全的路径
-- 修复根本原因，不要打补丁
-- **子模块核心**：不要直接修改 `zhuye-agent/crates/**/zhuye-*`；修改 ZhuYe 仓库后用 `git submodule update --remote` 升级（详见 `SUBMODULE.md`）
+7. **注释与提交信息** —— 注释一律中文；commit 用 `type(scope): 描述` conventional 风格。
 
-## 验证矩阵
+## 验证矩阵（按改动范围选跑）
 
-根据触碰的范围运行验证：
+| 改动范围 | 必跑命令 |
+|---|---|
+| 任何改动 | `pnpm typecheck` |
+| 前端行为 / 状态 / hooks / 组件 | `pnpm test`（迭代用定向测试，不全量） |
+| Rust 后端 | `cd src-tauri && cargo check`（后端行为变更加 `cargo test`） |
+| 文档 / 注释 | 无需跑测试，自查链接与命令是否仍有效 |
+| 发布前 | `bash tests/run_all.sh`（分层门禁） |
 
-- 始终运行：`pnpm typecheck`
-- 前端行为/状态/hooks/组件：`pnpm test`
-- Rust 后端变更：`cd src-tauri && cargo check`
-- 迭代时使用定向测试，而不是全量测试
-- **发布前**：`bash tests/run_all.sh`（分层发布门禁，见 `tests/README.md`）
+### 发布门禁（分层）
 
-## 发布门禁（分层）
-
-`tests/run_all.sh` 是发布阶段的**唯一**功能审查入口。退出码 0 表示所选套件没有阻断项；
-部分运行或存在跳过时，不能单凭退出码认定完整门禁通过。发布流水线在构建前
-严格执行静态、前端、后端和 E2E 层，并在各平台构建后强制审查产物；
-实模型层是单独开启的可选演练。
-六层各自独立可跑：
+`tests/run_all.sh` 是发布阶段的**唯一**功能审查入口。退出码 0 表示所选套件没有阻断项；部分运行或存在跳过时，不能单凭退出码认定完整门禁通过。
 
 | 层 | 命令 | 测什么 | 后端真伪 |
 |---|---|---|---|
@@ -159,112 +198,18 @@
 | L2 前端行为 | `bash tests/run_all.sh frontend` | `tsc --noEmit` + vitest 全量 | **模拟**（`fakeBackend`） |
 | L3 真后端能力覆盖 | `bash tests/run_all.sh backend` | `cargo fmt` / `clippy` / `cargo test`（含能力覆盖层） | **真**（模型是假的） |
 | L4 发布产物 | `bash tests/run_all.sh artifact` | `.app` 结构 / Info.plist / 资源已嵌入 / 签名 / 无开发残留 / .deb・.AppImage・.msi 解包深度校验 / 启动冒烟（CI 门控） | 真产物 |
-| L5 e2e | `bash tests/run_all.sh e2e` | 视觉回归（38 路由 × dark/light 截图基线，`tests/visual/`）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）。依赖缺失默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
+| L5 e2e | `bash tests/run_all.sh e2e` | 视觉回归（路由 × dark/light 截图基线，`tests/visual/`）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）。依赖缺失默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
 | L6 实模型演练 | `REFLECT_LIVE=1 bash tests/run_all.sh live` | 真 provider（免费模型池）+ 真 SSE 的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，不发起任何网络请求 | **真**（模型也是真的） |
 
-- **L2 与 L3 都要有**：L2 的后端是模拟的 —— 模拟后端的 bug 会把真后端的
-  bug 遮住。L3 用 `tauri::test` mock runtime 驱动**生产同一份**
-  `generate_handler!` 注册表（`reflect_desktop_lib::configure`）里的**真实
-  命令体**，不经前端 `invoke` 包装、不经 `fakeBackend`。
-- **L6 补的是 L3 补不了的那一格**：L3 的模型是假的（wiremock），测不到真实
-  SSE 帧、真实思考过程、真实 429、真实截断续作。L6 走同一条真链路
-  （`reflect_submit` → AgentThread → 真 provider → 真 SSE →
-  `reflect_event`），断言只到**协议形状**（不断言回答文本），上游限流 /
-  地区门判为**跳过**而非失败。接法见
-  [`docs/FREE_MODEL_PRACTICE.md`](docs/FREE_MODEL_PRACTICE.md)。
-- 能力覆盖层在 `src-tauri/tests/ipc_*.rs`，共享夹具
-  `src-tauri/tests/common/mod.rs`（HOME 与 cwd 全部沙箱化；数据根随之为 `$HOME/.zhuye`）。
-- 覆盖口径（哪个能力域由哪层验、哪些显式排除及理由）见
-  [`tests/COVERAGE.md`](tests/COVERAGE.md)。
-- 报告落在 `.test-results/release-review.md`。
+- **L2 与 L3 都要有**：L2 的后端是模拟的 —— 模拟后端的 bug 会把真后端的 bug 遮住。L3 用 `tauri::test` mock runtime 驱动**生产同一份** `generate_handler!` 注册表里的**真实命令体**，不经前端 `invoke` 包装、不经 `fakeBackend`。
+- 能力覆盖层在 `src-tauri/tests/ipc_*.rs`，共享夹具 `src-tauri/tests/common/mod.rs`（HOME 与 cwd 全部沙箱化）。各层职责与口径的权威说明见 [tests/AGENTS.md](tests/AGENTS.md)；能力 → 套件映射见 [`tests/COVERAGE.md`](tests/COVERAGE.md)；报告落在 `.test-results/release-review.md`。
+- L6 接法见 [`docs/free-model-practice.md`](docs/free-model-practice.md)。
 
-## 快速运行手册
+## 约定
 
-核心本地命令（日常使用）：
-
-```bash
-pnpm install
-pnpm tauri dev                # 开发模式（HMR）
-pnpm test                     # vitest
-pnpm typecheck                # tsc --noEmit
-cd src-tauri && cargo check   # Rust 类型检查
-bash tests/run_all.sh         # 发布门禁（静态 + 前端 + 真后端 + 产物）
-```
-
-发布构建：
-
-```bash
-pnpm tauri build              # 全平台构建
-pnpm tauri build --bundles app  # 仅 macOS .app
-bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
-```
-
-换 logo 后重生成图标（默认源图恒为仓库根 `logo.png`，与调用目录无关；产物 =
-`src-tauri/icons/` + favicon）：
-
-```bash
-pnpm icons                    # 等价于 bash scripts/gen-icons.sh
-pnpm icons:check              # 只校验：齐全 / 尺寸 / 托盘透明底 / 是否比源图旧
-```
-
-`scripts/build.sh` 打包前会跑一次 `--check`，图标落后于 `logo.png` 时打 WARN
-（只提示，不改文件、不阻断）—— 0.0.5 就出过"换了 logo 忘记重生成、装出来还是旧图标"。
-
-脚本优先调用 `tauri icon`，缺 CLI 时退到 `python3 + Pillow`（macOS 上 `.icns` 走
-`iconutil`）；`ZHUYE_ICON_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON` 可覆盖
-默认路径（门禁自测就靠这三个钩子跑在临时目录）。`icon32.png` 被
-`src-tauri/src/tray.rs` 以 template 图片编进托盘，因此必须保留透明底，
-脚本会按源图亮度自动推导。
-
-子模块升级（当 ZhuYe 发布新版本时，详见 [`SUBMODULE.md`](SUBMODULE.md)）：
-
-```bash
-git submodule update --remote zhuye-agent
-git diff --submodule zhuye-agent
-git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
-```
-
-> 历史：本仓库曾用 `vendor/` + `scripts/vendor-sync.sh`（rsync 手动同步）复用核心 crate，
-> 已迁移为 git submodule。旧的 vendor 运行手册不再适用。
-
-定向测试运行：
-
-```bash
-pnpm test -- src/features/settings/SettingsView.test.tsx
-```
-
-## 高频变更文件
-
-以下文件变更频繁或复杂度高，需格外注意：
-
-- `src-tauri/src/lib.rs` — Tauri 构建器 + 命令处理器注册（`invoke_handler` 列出 `src-tauri/src/commands/mod.rs` 导出的所有 `reflect_*` 命令）
-- `src-tauri/src/state.rs` — AgentThread 宿主；安装时机很重要
-
-## 大文件例外说明（≥500 行理由）
-
-结构重构目标是：自有生产文件 `≤ 500 行`。当前代码库中没有生产入口文件超过此阈值。
-
-结构拆分的子模块有意允许较小规模，此处不加例外条款；大小约束的主要单元是每领域的公共入口（`commands/<domain>.rs`、`stores/agent/index.ts` 等）。
-
-如果未来某个生产入口需要超过 500 行，需在此文档说明理由，并优先将领域逻辑拆到 `app-core/` 独立模块、宿主编排逻辑拆到 `src-tauri/src/state/` 子模块，而非在同一文件内进行机械切片。
-
-- `src-tauri/src/commands/mod.rs` — 薄桶模块，重新导出各领域命令体（`commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs`，实际命令体在这些文件中，子 `mod.rs` 仅保留模块布线）
-- `src-tauri/src/events.rs` — 事件转发器，单一通道
-- `src/stores/agent/store.ts` — 活跃的 Zustand 存储；`src/stores/agent/index.ts` 重新导出 `useAgentStore` / `reduceEvent` / `useAgent` 和类型联合；面向用户的兼容入口是 `src/stores/agentStore.ts`，从 `./agent` 重新导出
-- `src/features/shell/AppShell.tsx` — IDE 五窗格布局；侧边栏/检查器切换，会话路由。有状态的壳交互提取到 `src/features/shell/hooks/useCommandPaletteShortcut.ts`、`usePaletteActions.ts`、`useThemeCycle.ts`
-- `src/features/messages/MessageList.tsx` — 聊天渲染 + 可折叠项（Composer 现已移至 `src/features/composer/Composer.tsx`；`src/features/messages/Composer.tsx` 是薄重新导出层）
-- `src/utils/bridge.ts` — 底层 `invoke` / `listen` 带降级；`src/utils/tauri.ts` 和 `src/utils/commands.ts` 是兼容桶；新包装写入 `src/utils/commands/{domain}.ts`
-- `src/utils/i18n.ts` — 兼容桶；运行时拆分为 `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` 和 `src/utils/i18n/strings/index.ts`，合并领域目录下的字符串文件
-- `src/router.tsx` — TanStack Router 路由表
-- `src/styles/tokens.css` — 设计标记；暗色/亮色/系统主题——单一事实来源
-- `scripts/vendor-sync.sh` — **已移除**（vendor 模式已迁移为 submodule）。核心升级见 `SUBMODULE.md`
-- 视图/控制器拆分：`src/features/terminal/TerminalView.tsx` 读取 `src/features/terminal/useTerminalController.ts`；`src/features/memory/MemoryView.tsx` 读取 `src/features/memory/useMemoryController.ts`；`src/features/modals/index.tsx` 编排 `ApprovalModal` / `QuestionModal` / `AskUserModal` / `PlanReadyModal`，实现位于同目录
-
-## 规范引用
-
-- 面向任务的代码地图：`docs/codebase-map.md`
-- 协议信封：`docs/PROTOCOL_BRIDGE.md`
-- 架构文档：`docs/ARCHITECTURE.md`
-- 构建/发布/测试命令：`README.md`
-- 更新日志：`docs/CHANGELOG.md`
-- GUI 设计历史：`docs/gui/00-index.md`
+- **注释与提交一律中文** —— 行注释、doc-comment、测试说明等必须用中文书写；commit message 亦用中文，遵循 `type(scope): 描述` conventional 风格。
+- **导入别名** —— 前端导入使用项目别名 `@/*` → `src/*`（在 `tsconfig.json` + `vite.config.ts` 中定义）。
+- **文档双语** —— `docs/` 中文主篇命名用小写 kebab-case；英文对译以 `X.en.md` 同目录配对，顶部挂居中语言切换器（`<p align="center">` 换行缩进的 `<b>中文</b> · <a href="X.en.md">English</a>`，与上游 README 同款）；英文版不参与门禁，协议/能力变更后人工同步翻译；切换器仅在英文版产出后挂载。
+- **大文件预算** —— 自有生产文件 ≤ 500 行；入口文件需超限时优先将领域逻辑拆到 `app-core/` 独立模块、宿主编排逻辑拆到 `src-tauri/src/state/` 子模块，并在本节说明理由（当前无超限文件）。
+- **安全与 Git 行为** —— 优先使用安全的 git 操作（`status`、`diff`、`log`）；不要重置或撤销无关的用户变更；修复根本原因，不打补丁；冲突影响正确性时指出问题并选择最安全的路径。
+- **submodule 只读** —— 不要直接修改 `zhuye-agent/crates/**/zhuye-*`；修改 ZhuYe 仓库后用 `git submodule update --remote` 升级（详见 `SUBMODULE.md`）。

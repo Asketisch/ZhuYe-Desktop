@@ -5,10 +5,10 @@
 相关文档：
 
 - 设置 / 构建 / 发布：[`README.md`](../README.md)
-- 架构：[`ARCHITECTURE.md`](ARCHITECTURE.md)
+- 架构：[`architecture.md`](architecture.md)
 - GUI 设计历史：[`gui/00-index.md`](gui/00-index.md)
-- IPC 信封：[`PROTOCOL_BRIDGE.md`](PROTOCOL_BRIDGE.md)
-- 变更日志：[`CHANGELOG.md`](CHANGELOG.md)
+- IPC 信封：[`protocol-bridge.md`](protocol-bridge.md)
+- 变更日志：[`changelog.md`](changelog.md)
 - Agent 契约：[`AGENTS.md`](../AGENTS.md)
 
 ---
@@ -43,7 +43,7 @@
 | 更改会话列表（侧栏） | `src/features/sessions/components/{Sidebar,WorkspaceGroup}.tsx`、`src/features/sessions/utils/workspaceGroups.ts`、`src/features/sessions/hooks/{useSessions,useCollapsedGroups}.ts`（HomeView / ThreadsView 的时间分桶在 `src/features/sessions/utils/buckets.ts` + `BucketGroup.tsx`） |
 | 更改设置持久化 | `src/features/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml,plans}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection,PlansSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
 | 更改 coding plan / 供应商切换 / 额度 failover | `src/features/settings/config/plans.ts`（纯函数）、`src/features/settings/sections/PlansSection.tsx`（设置入口）、`src/features/models/ModelsView.tsx`(一键切换)、`src/stores/agent/planFailover.ts`（耗尽自动切换）、`src-tauri/src/state/{quota,reload}.rs`（tracker 构建 + 热重载） |
-| 更改 OS 沙箱开关的生效口径 | `app-core/src/sandbox.rs`（唯一事实源：配置 `Option<bool>` 表态 → 有效值 → 协议策略）、`src-tauri/src/state/sandbox.rs`（env 优先解析）、`src-tauri/src/state/submit.rs`（每轮盖章 `thread_settings.sandbox_policy`）、`src-tauri/src/commands/sandbox.rs`（状态口径）、`src/features/shell/StatusBar.tsx`（徽标）。见 `docs/CAPABILITIES.md` §3.19 |
+| 更改 OS 沙箱开关的生效口径 | `app-core/src/sandbox.rs`（唯一事实源：配置 `Option<bool>` 表态 → 有效值 → 协议策略）、`src-tauri/src/state/sandbox.rs`（env 优先解析）、`src-tauri/src/state/submit.rs`（每轮盖章 `thread_settings.sandbox_policy`）、`src-tauri/src/commands/sandbox.rs`（状态口径）、`src/features/shell/StatusBar.tsx`（徽标）。见 `docs/capabilities.md` §3.19 |
 | 增删命令面板条目 | `src/features/command-palette/registry.ts`（条目表）、`src/features/command-palette/CommandPalette.tsx`（props 透传）、`src/features/shell/hooks/usePaletteActions.ts`（动作实现）、`src/features/shell/AppShell.tsx`（接线） |
 | 渲染 plan 执行进度 / 插件挂载 | `src/stores/agent/reducer.ts`（`plan_step` / `plugin_loaded` 分支）、`src/stores/agent/types.ts`（`PlanStepState` / `PluginLoadedInfo`）、`src/features/plan/PlanView.tsx`、`src/features/collaboration/PluginsPanel.tsx` |
 | 改动任务板 / 团队管理 | `src/features/tasks-board/{TasksBoardView,useTasksBoardController,TeamEditor}.tsx/ts`、`src/utils/commands/teams.ts`（团队 CRUD 包装 + `SystemTime` 形态） |
@@ -227,7 +227,7 @@ REFLECT_LIVE=1 bash tests/run_all.sh live   # 实模型演练（真免费模型�
 [`tests/COVERAGE.md`](../tests/COVERAGE.md)。
 
 实模型演练层（真免费模型）的接法见
-[`docs/FREE_MODEL_PRACTICE.md`](FREE_MODEL_PRACTICE.md)。
+[`docs/free-model-practice.md`](free-model-practice.md)。
 
 子模块升级：
 

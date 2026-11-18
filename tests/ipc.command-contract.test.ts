@@ -104,8 +104,8 @@ describe('IPC command contract (exhaustive parity)', () => {
     expect(backend.callsOf('reflect_list_dir').length).toBe(1);
   });
 
-  it('PROTOCOL_BRIDGE documents every command (docs stay current)', () => {
-    const doc = readFileSync('docs/PROTOCOL_BRIDGE.md', 'utf8');
+  it('protocol-bridge.md documents every command (docs stay current)', () => {
+    const doc = readFileSync('docs/protocol-bridge.md', 'utf8');
     const src = backendSource();
     // 同步 `pub fn` 与异步 `pub async fn` 都是合法后端命令(如
     // dock::reflect_set_dock_badge 是同步命令)。只扫 `pub async fn` 会让

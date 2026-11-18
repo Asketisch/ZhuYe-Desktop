@@ -1,6 +1,6 @@
 # 无头守护进程管理
 
-> **状态：计划于 M3.x 实现**。ReflectDesktop 将提供一个可选的守护进程二进制文件，以无头方式运行 `reflect_core::AgentThread`，接受来自 Tauri 适配层（以及通过 Tailscale 连接的 iOS 客户端）的 JSON-RPC 连接。
+> **状态：计划于 M3.x 实现**。ZhuYe-Desktop 将提供一个可选的守护进程二进制文件，以无头方式运行 `reflect_core::AgentThread`，接受来自 Tauri 适配层（以及通过 Tailscale 连接的 iOS 客户端）的 JSON-RPC 连接。
 >
 > 本文档记录预期的接口，以便贡献者了解构建目标。
 
@@ -90,5 +90,5 @@ cargo build --bin reflect-desktop-daemonctl
 ## 参见
 
 - iOS + Tailscale 蓝图：[`mobile-ios-tailscale-blueprint.md`](mobile-ios-tailscale-blueprint.md)
-- 协议信封：[`PROTOCOL_BRIDGE.md`](PROTOCOL_BRIDGE.md)
-- 架构：[`ARCHITECTURE.md`](ARCHITECTURE.md)
+- 协议信封：[`protocol-bridge.md`](protocol-bridge.md)
+- 架构：[`architecture.md`](architecture.md)

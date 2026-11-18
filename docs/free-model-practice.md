@@ -3,7 +3,7 @@
 用**免费模型池**跑烛夜 ZhuYe 桌面端的完整 agent 链路 —— 不需要任何 API Key，
 也不产生费用。
 
-> 上游同源文档：`zhuye-agent/docs/FREE_MODEL_PRACTICE.md`（TUI / CLI 侧）。
+> 上游同源文档：`zhuye-agent/docs/free-model-practice.md`（TUI / CLI 侧）。
 > 两边同口径，本篇只讲**桌面端**特有的接法（GUI 入口、门禁层 L6、
 > Tauri IPC 链路）。
 

@@ -188,7 +188,7 @@ export function AppShell() {
 
   // 新建会话:后端预分配 session id → navigate 到 /chat/<id>。
   // workspace 归属不在这里落盘,由首条 submission 携带 `workspace`
-  // 触发后端写 `SessionMeta`(见 PROTOCOL_BRIDGE §2)。
+  // 触发后端写 `SessionMeta`(见 docs/protocol-bridge.md §2)。
   const handleNewChat = () => {
     const mySeq = ++selectSeqRef.current;
     const pushToast = useAgentStore.getState().pushToast;

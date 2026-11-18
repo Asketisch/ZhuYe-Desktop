@@ -2,10 +2,9 @@
 
 > ⚠️ **本文档为 M1 阶段设计稿快照。** 实施蓝图与决策已迁移：
 >
-> - 任务规格 → `docs/todo/21-gui/`（按里程碑组织）
-> - 当前实现 → [`../../codebase-map.md`](../../codebase-map.md) + [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md)
-> - 协议面 → [`../../PROTOCOL_BRIDGE.md`](../../PROTOCOL_BRIDGE.md)
-> - 实施进度 → [`../../CHANGELOG.md`](../../CHANGELOG.md)
+> - 当前实现 → [`../codebase-map.md`](../codebase-map.md) + [`../architecture.md`](../architecture.md)
+> - 协议面 → [`../protocol-bridge.md`](../protocol-bridge.md)
+> - 实施进度 → [`../changelog.md`](../changelog.md)（原任务规格目录 `docs/todo/21-gui/` 已并入版本条目）
 >
 > 此处文件保留作为「决策溯源 + TUI 复用思路」参考。新读者请从仓库根的 `README.md` + `docs/codebase-map.md` 进入。
 
@@ -47,7 +46,7 @@ M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC rata
 
 ## 3. 接入核心思想（4 个一句话总结）
 
-1. **协议即 IPC**：`reflect-protocol` 的 `EventMsg` + `Op` 已经是稳定、serde 友好、additive 演化的消息总线 —— 直接拿来做 Tauri commands/events 的载荷，零序列化成本、零侵入。详见 [`../../PROTOCOL_BRIDGE.md`](../../PROTOCOL_BRIDGE.md)。
+1. **协议即 IPC**：`reflect-protocol` 的 `EventMsg` + `Op` 已经是稳定、serde 友好、additive 演化的消息总线 —— 直接拿来做 Tauri commands/events 的载荷，零序列化成本、零侵入。详见 [`../../protocol-bridge.md`](../../protocol-bridge.md)。
 2. **后端单例化**：`reflect-core::AgentThread` 通过 `Arc` 共享，TUI 已经这么用 —— GUI 后端也是同一份（当前 M2.x stub，M3.x 真后端）。
 3. **Services bundle 共享**：TUI 已有的 `Services { skills_catalog, task_manager, memory_store, ... }` 可以原封不动注入到 GUI 的 `AgentThread`。
 4. **状态机直接复用**：`PendingApproval` / `PendingQuestion` / `PlanModeState` 等 TUI 内部 Rust 类型本身就是 UI-agnostic，**GUI 直接持有同一份类型**。
@@ -59,11 +58,11 @@ M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC rata
 | 文件 | 内容 | 状态 |
 |---|---|---|
 | [`00-index.md`](00-index.md) | 本文件 | 入口 + 决策溯源 |
-| [`02-integration.md`](02-integration.md) | 历史协议接入方案（918 行设计稿） | **归档参考** —— 实施以 [`../../PROTOCOL_BRIDGE.md`](../../PROTOCOL_BRIDGE.md) 为准 |
+| [`02-integration.md`](02-integration.md) | 历史协议接入方案（918 行设计稿） | **归档参考** —— 实施以 [`../../protocol-bridge.md`](../../protocol-bridge.md) 为准 |
 | [`03-architecture.md`](03-architecture.md) | 架构设计 + crate 划分 | 设计稿保留 |
 | [`04-roadmap.md`](04-roadmap.md) | 三阶段路线图 + ADR | 设计稿保留 |
 | [`05-decision.md`](05-decision.md) | 决策记录（活态） | 维护中 |
-| [`USER_GUIDE.md`](USER_GUIDE.md) | GUI 用户手册 | 维护中 |
+| [`user-guide.md`](user-guide.md) | GUI 用户手册 | 维护中 |
 
 ---
 
@@ -76,4 +75,4 @@ M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC rata
 3. 🔧 **M3.x**：接 22 builtin tools + 真 model registry + Streamdown 流式 + 多 session LRU + cost ring
 4. 📅 **C4 阶段**：独立 `reflect-agent-gui` binary + dual-binary install
 
-每阶段产物落地后，更新 [`../../CHANGELOG.md`](../../CHANGELOG.md)。
+每阶段产物落地后，更新 [`../../changelog.md`](../../changelog.md)。

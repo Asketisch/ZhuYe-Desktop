@@ -75,6 +75,6 @@ cd src-tauri && cargo check
 ## 相关文档
 
 - submodule 复用指南（克隆/初始化/本地联调）：[`../SUBMODULE.md`](../SUBMODULE.md)
-- 架构（submodule 原理）：[`ARCHITECTURE.md`](ARCHITECTURE.md)
+- 架构（submodule 原理）：[`architecture.md`](architecture.md)
 - 代码库地图（路径）：[`codebase-map.md`](codebase-map.md)
-- 协议信封：[`PROTOCOL_BRIDGE.md`](PROTOCOL_BRIDGE.md)
+- 协议信封：[`protocol-bridge.md`](protocol-bridge.md)

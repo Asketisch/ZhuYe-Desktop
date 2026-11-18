@@ -10,7 +10,7 @@
 #   bash scripts/gen-icons.sh --tray-keep           保留现有 icon32.png（托盘图标），不重新推导
 #   bash scripts/gen-icons.sh --no-web              不更新 public/tauri-icon.png（favicon）
 #
-# 约定（与 docs/CHANGELOG.md「采用 logo.png 作为跨平台统一应用 logo」一致）：
+# 约定（与 docs/changelog.md「采用 logo.png 作为跨平台统一应用 logo」一致）：
 #   唯一源图 = 本脚本所在仓库（ZhuYe-Desktop）根目录的 logo.png —— 不带参数时始终用它，
 #   与当前工作目录无关；产物 = src-tauri/icons/，文件名白名单见 EXPECTED。
 #   tauri icon 顺带产出的无消费方资产（UWP Square*Logo.png、android/、ios/、64x64.png）

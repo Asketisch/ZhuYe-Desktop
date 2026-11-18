@@ -28,7 +28,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CARGO_TOML="$ROOT/Cargo.toml"
 PKG_JSON="$ROOT/package.json"
 TAURI_CONF="$ROOT/src-tauri/tauri.conf.json"
-CHANGELOG="$ROOT/docs/CHANGELOG.md"
+CHANGELOG="$ROOT/docs/changelog.md"
 SUBMODULE="$ROOT/zhuye-agent"
 
 die() { echo "FAIL: $*" >&2; exit 1; }

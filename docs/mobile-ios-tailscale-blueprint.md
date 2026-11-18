@@ -1,15 +1,15 @@
-# iOS + Tailscale 设置（TCP）—— ReflectDesktop 远程后端
+# iOS + Tailscale 设置（TCP）—— ZhuYe-Desktop 远程后端
 
 > **状态：WIP / 占位**。iOS 构建计划于 M3.x 实现。本文档记录预期的设置流程，供评审参考。
 
 ## 目标
 
-将 iOS 版 ReflectDesktop 连接到通过 Tailscale tailnet 运行的桌面守护进程，使手机能在不本地启动 `AgentThread` 的情况下驱动会话。
+将 iOS 版 ZhuYe-Desktop 连接到通过 Tailscale tailnet 运行的桌面守护进程，使手机能在不本地启动 `AgentThread` 的情况下驱动会话。
 
 ## 前置条件
 
 1. 桌面和 iPhone 均安装并登录 Tailscale（同一 tailnet）。
-2. 桌面端 ReflectDesktop 以已知数据目录运行（`settings.json` + `workspaces.json`）。
+2. 桌面端 ZhuYe-Desktop 以已知数据目录运行（`settings.json` + `workspaces.json`）。
 3. iOS 端 Xcode + 命令行工具已安装；Rust iOS 目标已安装：
 
 ```bash
@@ -18,14 +18,14 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim
 
 ## 桌面端设置
 
-1. 打开 ReflectDesktop → 设置 → 服务器。
+1. 打开 ZhuYe-Desktop → 设置 → 服务器。
 2. 设置"远程后端令牌"（随机 32 字节十六进制）。
 3. 在"移动端守护进程"下点击**启动守护进程**。
 4. 在 **Tailscale 辅助** → **检测 Tailscale**，记录建议的主机，例如 `your-mac.your-tailnet.ts.net:4732`。
 
 ## iOS 端设置
 
-1. 打开 ReflectDesktop（iOS）→ 设置 → 服务器。
+1. 打开 ZhuYe-Desktop（iOS）→ 设置 → 服务器。
 2. 输入桌面 Tailscale 主机地址和相同令牌。
 3. 点击**连接并测试**；确认成功。
 

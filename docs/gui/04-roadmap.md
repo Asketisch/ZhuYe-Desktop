@@ -1,8 +1,8 @@
 # 三阶段路线图（设计稿）
 
-> 设计稿快照。**当前真实进度见 [`../../CHANGELOG.md`](../../CHANGELOG.md) + [`../../codebase-map.md`](../../codebase-map.md)`。**
+> ⚠️ **归档快照**。当前真实进度见 [`../../changelog.md`](../../changelog.md) + [`../codebase-map.md`](../codebase-map.md)。
 >
-> 任务规格已落地到 `docs/todo/21-gui/`（按里程碑组织）；决策记录在 [`05-decision.md`](05-decision.md)。
+> 任务规格与决策记录已并入 `../../changelog.md`（版本条目）；文中引用的 `docs/todo/21-gui/` 目录已不存在，相关链接视为历史标记不再有效。
 
 ---
 
@@ -18,7 +18,7 @@
 
 ## 第一批：MVP — ✅ 已完成
 
-详见 [`../../CHANGELOG.md#0.1.0`](../../CHANGELOG.md) 与 `git log`（commits `2c73335` … `76d7717`）。
+详见 [`../../changelog.md#0.1.0`](../../changelog.md) 与 `git log`（commits `2c73335` … `76d7717`）。
 
 - ✅ M1.1 基础设施（脚手架 + `ReflectAgentApp` 占位 + 5 icon）
 - ✅ M1.2 协议桥（19 Tauri command + Event 转发，4/4 E2E）
@@ -33,7 +33,7 @@
 - ✅ `cargo test --workspace` 全绿
 - ✅ `cargo clippy --workspace -- -D warnings` 通过
 - ✅ `pnpm tauri build` macOS + Linux + Windows 三平台成功
-- ✅ USER_GUIDE 发布（`docs/gui/USER_GUIDE.md`）
+- ✅ USER_GUIDE 发布（`docs/gui/user-guide.md`）
 - ✅ binary < 20MB（macOS arm64）
 
 ---
@@ -135,4 +135,4 @@
 | TUI 切换到 GUI 比例 | ≥ 30% |
 | GUI 切换回 TUI 比例 | < 10% |
 
-实时进度以 [`../../CHANGELOG.md`](../../CHANGELOG.md) 为准。
+实时进度以 [`../../changelog.md`](../../changelog.md) 为准。

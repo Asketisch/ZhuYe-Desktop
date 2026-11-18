@@ -1,6 +1,6 @@
 # Tauri 2 + React 19 架构设计（设计稿）
 
-> ⚠️ **设计稿快照（742 行）。** 当前真实架构以 [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) + [`../../codebase-map.md`](../../codebase-map.md) 为准。本文保留作为设计决策溯源 + 架构总览参考。
+> ⚠️ **设计稿快照（742 行）。** 当前真实架构以 [`../../architecture.md`](../../architecture.md) + [`../../codebase-map.md`](../../codebase-map.md) 为准。本文保留作为设计决策溯源 + 架构总览参考。
 >
 > 关键差异：设计稿中 `crates/reflect-gui/` 路径在 ReflectDesktop 项目中演化为 **根目录 `src-tauri/`** + **`app-core/`**；`reflect-*` crate 不再 fork 而是通过 `vendor/` mirror 同步。
 

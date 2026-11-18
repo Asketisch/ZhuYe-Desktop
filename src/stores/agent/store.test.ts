@@ -3,7 +3,7 @@
  *
  * v1.x:非空 workspace 注入 `Submission.workspace` 顶层;为 null/undefined 时
  * **省略字段**(线格式中不出现 `workspace: null`)—— 后端据此回退
- * `cfg.current_workspace()`(见 PROTOCOL_BRIDGE §2 `Submission.workspace`)。
+ * `cfg.current_workspace()`(见 docs/protocol-bridge.md §2 `Submission.workspace`)。
  *
  * reducer 覆盖在 `agentStore.test.ts`,本文件只演练 store action 的
  * 出站负载。
@@ -55,7 +55,7 @@ describe('store.submit — Submission.workspace 线格式', () => {
 
   it('发送当前会话的独立审批策略，不改变规划模式', async () => {
     // 核心协议(submodule ≥ 7196d3c5)已支持全部三档:偏好按会话存储,
-    // wire 侧原样发送(见 docs/CAPABILITIES.md「最近审计」注记)。
+    // wire 侧原样发送(见 docs/capabilities.md「最近审计」注记)。
     writeApprovalPolicy('session-a', 'full_access');
     writeApprovalPolicy('session-b', 'auto_approve');
     useAgentStore.setState({ loadedSessionId: 'session-a', permissionMode: 'plan' });

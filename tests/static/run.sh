@@ -73,11 +73,11 @@ tcase "版本号四处一致(package.json / Cargo.toml / src-tauri / tauri.conf.
 check_changelog() {
     local version
     version=$(node -p "require('./package.json').version" 2>/dev/null) || return 1
-    if grep -qE "^## +v?${version}\b" docs/CHANGELOG.md; then
+    if grep -qE "^## +v?${version}\b" docs/changelog.md; then
         echo "CHANGELOG 含 $version 条目"
         return 0
     fi
-    echo "CHANGELOG.md 缺少版本 $version 的条目(发布前需补 ## v$version)"
+    echo "changelog.md 缺少版本 $version 的条目(发布前需补 ## v$version)"
     return 1
 }
 tcase "CHANGELOG 覆盖当前版本" check_changelog
@@ -101,11 +101,11 @@ check_capabilities_fresh() {
         return 1
     fi
     sha=${full_sha:0:7}
-    if grep -Fq "> 最近审计：submodule \`$sha\`" docs/CAPABILITIES.md; then
-        echo "docs/CAPABILITIES.md 最近审计版本为 $sha"
+    if grep -Fq "> 最近审计：submodule \`$sha\`" docs/capabilities.md; then
+        echo "docs/capabilities.md 最近审计版本为 $sha"
         return 0
     fi
-    echo "docs/CAPABILITIES.md 的最近审计版本不是 $sha —— 能力矩阵尚未完整复审"
+    echo "docs/capabilities.md 的最近审计版本不是 $sha —— 能力矩阵尚未完整复审"
     return 1
 }
 tcase "能力矩阵与 submodule 版本一致" check_capabilities_fresh
@@ -163,7 +163,7 @@ tcase "无垃圾文件入库(node_modules / .DS_Store / dist / target)" check_no
 # ── 7. 协议文档与代码地图存在 ────────────────────────────────────────────
 check_docs_exist() {
     local missing=""
-    for f in docs/PROTOCOL_BRIDGE.md docs/CAPABILITIES.md docs/codebase-map.md docs/CHANGELOG.md; do
+    for f in docs/protocol-bridge.md docs/capabilities.md docs/codebase-map.md docs/changelog.md; do
         [ -s "$ROOT/$f" ] || missing="$missing $f"
     done
     if [ -z "$missing" ]; then

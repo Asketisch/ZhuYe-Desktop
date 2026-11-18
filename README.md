@@ -1,9 +1,11 @@
 # 烛夜 ZhuYe
 
-[简体中文](README.md) | [English](README.en.md)
+<p align="center">
+  <b>中文</b> · <a href="README.en.md">English</a>
+</p>
 
-[![CI](https://github.com/Asketisch/ReflectDesktop/actions/workflows/ci.yml/badge.svg)](https://github.com/Asketisch/ReflectDesktop/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Asketisch/ReflectDesktop)](https://github.com/Asketisch/ReflectDesktop/releases)
+[![CI](https://github.com/Asketisch/ZhuYe-Desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/Asketisch/ZhuYe-Desktop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Asketisch/ZhuYe-Desktop)](https://github.com/Asketisch/ZhuYe-Desktop/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-orange)]()
 [![React 19](https://img.shields.io/badge/React-19-149eca)]()
@@ -117,8 +119,8 @@ bash scripts/install.sh
 ### 从源码构建
 
 ```bash
-git clone --recursive https://github.com/Asketisch/ReflectDesktop.git
-cd ReflectDesktop
+git clone --recursive https://github.com/Asketisch/ZhuYe-Desktop.git
+cd ZhuYe-Desktop
 pnpm install
 git submodule update --init --recursive
 bash scripts/build.sh        # 自动检测操作系统，输出原生安装包
@@ -164,7 +166,7 @@ cd src-tauri && cargo check
 ## 目录结构
 
 ```
-ReflectDesktop/
+ZhuYe-Desktop/
 ├── zhuye-agent/   # ZhuYe 仓库的 git submodule（reflect-* 核心 crate）
 │                    # 只读镜像，通过 git submodule update --remote 升级
 ├── app-core/       # 共享的 UI 无关 reducer 与状态模块
@@ -198,7 +200,7 @@ ReflectDesktop/
 
 推送事件：单一通道 `reflect_event`，携带 `reflect_protocol::Event`（snake_case JSON 判别符覆盖 `EventMsg` 各变体）。
 
-完整规范：[`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md)。
+完整规范：[`docs/protocol-bridge.md`](docs/protocol-bridge.md)。
 
 ---
 
@@ -212,7 +214,7 @@ ReflectDesktop/
 | **C1..C4** | 托盘完善、全局热键、Dock + 徽标、双二进制安装 | ✅ 部分完成 |
 | **D1..D3** | 远程守护进程 + iOS 应用 + IM 桥 + 工作流画布 | 📅 已规划 |
 
-完整历史：[`docs/CHANGELOG.md`](docs/CHANGELOG.md)。
+完整历史：[`docs/changelog.md`](docs/changelog.md)。
 
 ---
 
@@ -237,10 +239,10 @@ git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 | 文档 | 用途 |
 |---|---|
 | [`docs/codebase-map.md`](docs/codebase-map.md) | 面向任务的"需要改 X，编辑 Y"映射 |
-| [`docs/PROTOCOL_BRIDGE.md`](docs/PROTOCOL_BRIDGE.md) | Tauri ↔ reflect-protocol 协议信封规范 |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 顶层布局 + 状态流转 |
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | 终端用户手册 |
-| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | 版本更新日志 |
+| [`docs/protocol-bridge.md`](docs/protocol-bridge.md) | Tauri ↔ reflect-protocol 协议信封规范 |
+| [`docs/architecture.md`](docs/architecture.md) | 顶层布局 + 状态流转 |
+| [`docs/user-guide.md`](docs/user-guide.md) | 终端用户手册 |
+| [`docs/changelog.md`](docs/changelog.md) | 版本更新日志 |
 | [`docs/gui/`](docs/gui/) | 历史设计文档（M1 快照） |
 | [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-runbook.md) | 核心子模块升级检查表 |
 | [`docs/mobile-ios-tailscale-blueprint.md`](docs/mobile-ios-tailscale-blueprint.md) | iOS + Tailscale 设置（已规划） |

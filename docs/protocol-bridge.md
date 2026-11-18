@@ -1,5 +1,9 @@
 # 协议桥（Tauri ↔ ZhuYe 协议）
 
+<p align="center">
+  <b>中文</b> · <a href="protocol-bridge.en.md">English</a>
+</p>
+
 > **线格式 = `reflect_protocol::Event` / `Submission` 直接传递（snake_case JSON）。** 桌面端的 `reflect_protocol` 是上游 `zhuye-protocol` 包的 Cargo 别名；同一信封与上游 TUI 和 `zhuye exec` 共享。
 >
 > 阅读顺序：§1 信封 → §2 提交（UI → 后端）→ §3 事件（后端 → UI）→ §4 ID 配对 → §5 版本兼容性 → §6 生成的 TS 类型。
@@ -215,7 +219,7 @@ pub struct Submission {
 
 | 字段 | 桌面端行为 |
 |---|---|
-| `sandbox_policy` | **无条件覆盖**为后端配置推导出的值（`OsSandbox` = 开 OS 沙箱，`WorkspaceOnly` = 关）。沙箱是安全设置，事实源只能是后端的配置快照。见 `docs/CAPABILITIES.md` §3.19。 |
+| `sandbox_policy` | **无条件覆盖**为后端配置推导出的值（`OsSandbox` = 开 OS 沙箱，`WorkspaceOnly` = 关）。沙箱是安全设置，事实源只能是后端的配置快照。见 `docs/capabilities.md` §3.19。 |
 | `model` / `approval_policy` / `max_tool_concurrency` | 原样透传。前端按会话发送 `prompt`、`auto_approve` 或 `full_access`，该审批策略独立于 Plan；显式拒绝规则和沙箱设置仍生效。`max_tool_concurrency` 可用于每轮调工具并发上限。 |
 
 核心把这三个字段映射成每轮的真实行为（`reflect-core/src/submission_loop.rs`）：

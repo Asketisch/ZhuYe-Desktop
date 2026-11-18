@@ -138,7 +138,7 @@ REFLECT_LIVE_MODELS=qwen2.5:7b \
 bash tests/run_all.sh live
 ```
 
-各车道与环境变量见 [`docs/FREE_MODEL_PRACTICE.md`](../docs/FREE_MODEL_PRACTICE.md)。
+各车道与环境变量见 [`docs/free-model-practice.md`](../docs/free-model-practice.md)。
 
 L3 的后端是真的，但**模型是假的**（wiremock / 本地 mock LLM）。假模型永远
 测不到：真实 HTTP 往返、真实 SSE 帧形状、真实模型的思考过程、真实限流
@@ -164,7 +164,7 @@ reflect_submit → AgentThread → HTTP → SSE 解析 → reflect_event 通道
 - 默认**不发任何网络请求**：测试带 `#[ignore]`，运行期还要 `REFLECT_LIVE=1`
   才放行（双保险）。
 
-可用车道见 [`docs/FREE_MODEL_PRACTICE.md`](../docs/FREE_MODEL_PRACTICE.md)
+可用车道见 [`docs/free-model-practice.md`](../docs/free-model-practice.md)
 （Kilo 免费池免 Key 直连 / dsh 本地网关转 OpenCode 车道）。
 
 ### 为什么 L2、L3 与 L6 都要有
@@ -277,7 +277,7 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 某些指标当前存量不达标（历史债），直接当门禁会永久变红。这类检查与
 `tests/static/baseline.json` 比对 —— **新增**违规立即失败，存量逐步偿还：
 
-- `PROTOCOL_BRIDGE.md` 命令覆盖率下限；
+- `protocol-bridge.md` 命令覆盖率下限；
 - 生产文件 ≤ 500 行的超限文件清单。
 
 基线重生成：`node tests/static/analyze.mjs --write-baseline`。
@@ -433,7 +433,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 
 | 文件 | 测试数 | 覆盖内容 |
 | --- | --- | --- |
-| `ipc.command-contract.test.ts` | 29 | 四方对齐：后端 `pub async fn reflect_*` ↔ 前端 `src/utils/commands/` 包装 ↔ `lib.rs` 注册表 ↔ fakeBackend 实现；逐域线格式参数往返（审批三种决定形态、会话改名、数字任务 id、计划、goal 模式可选字段两形态、定时、边车、工作区、白名单等）；失败传播。`PROTOCOL_BRIDGE.md` 覆盖率断言（≥0.85）。 |
+| `ipc.command-contract.test.ts` | 29 | 四方对齐：后端 `pub async fn reflect_*` ↔ 前端 `src/utils/commands/` 包装 ↔ `lib.rs` 注册表 ↔ fakeBackend 实现；逐域线格式参数往返（审批三种决定形态、会话改名、数字任务 id、计划、goal 模式可选字段两形态、定时、边车、工作区、白名单等）；失败传播。`protocol-bridge.md` 覆盖率断言（≥0.85）。 |
 | `agent.protocol-events.test.ts` | 38 | 全部 `EventMsg` 变体经真实 bus → store 的完整矩阵：生命周期、turn、delta、工具调用对、审批（含 plan 绕过）、协作/MCP/LSP、计划事件、配额耗尽 toast（含数字与时间窗）、未知类型运行安全。 |
 | `chat.full-flow.test.tsx` | 4 | 真实挂载 + 键入发送：thinking → delta → 工具调用 → 审批门 → 完成；提交信封、转录文本、模态标题、审批回执、token 统计、完成标志；中断；旧脚本抢占；turn 级错误项。 |
 | `flows.chat-plan-goal-edit.test.tsx` | 8 | **旗舰回路**：chat → plan 草稿多次更新 → `plan_ready` → 用户三选择（auto_mode / manual_approve / revise，含事件驱动关闭）→ 编辑工具（`write_file` 逐工具审批）→ 完成，断言完整 IPC 时序；`/plan` 斜杠 Op 入口 + `/exit-plan`；**goal 模式**：`/goal <text>` 线格式、agent 零提交自动多轮续作（多 turn 累积/done/转录）、`/goal clear` 退出、裸 `/goal` reject 引导。 |
@@ -465,7 +465,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 
 - 不修改任何 `src/` 生产代码来迁就测试；`src/test/setup.tsx` 的 Tauri mock 被
   fakeBackend 完整接管（`resetMockInvoke` 后重新注册）。
-- 线协议以 `docs/PROTOCOL_BRIDGE.md` 为契约，契约测试对文档覆盖率设下限，
+- 线协议以 `docs/protocol-bridge.md` 为契约，契约测试对文档覆盖率设下限，
   新增后端命令时若文档未更新会失败。
 
 ## 统一测试调度器(PLAN.md §1.4 接口)
