@@ -8,7 +8,9 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `893faa9`（ZhuYe develop tip，完整 SHA `893faa95`；含 `893faa9` 的 System 消息折叠修复：`ChatRequest::fold_system_messages` 把内联 `System`（压缩摘要 / PreCompact hook 注入 / resume 回放 summary）折叠进 `system` 块，消除严格 OpenAI 兼容网关的 `INVALID_REQUEST`（"System message must be at the beginning."），并修掉 Anthropic 静默丢弃内联 System 导致的内容丢失。本次仅在请求构造层修复，**产品命令、事件、配置与 SDK 公开面零变更，桌面无适配**。）
+> 最近审计：submodule `883a581`（ZhuYe develop tip，完整 SHA `883a581e`；`199a3d3b` 之上叠加两笔**纯文档**提交 —— `fc3fceee` 合入 AGENTS.md 分层体系、`883a581e` agent 导引更新。**产品命令、事件、配置与 SDK 公开面零变更，桌面无适配**；rollout 首行修复见下一行与 §3.32。）
+> 上一轮 `199a3d3`（rollout 首行修复：首条 UserInput 之前的 `PermissionModeChanged` / `PlanRequest` 等记录在 SessionMeta 未落盘时不再持久化（初始模式改由会话头落地时补记），`parse_first_session_meta` 在前 8 条非空行内扫描 SessionMeta 恢复存量坏文件 —— 修复「先切权限模式再发首条消息的会话被索引丢弃、workspace 归属丢失」。GUI 侧配套：`plan_draft_updated` 消费、Inspector 计划 tab 正文渲染、工作区移除不再被 incidental 切换复活（详见 §3.32）。）
+> 上一轮 `893faa9`（System 消息折叠修复：`ChatRequest::fold_system_messages` 把内联 `System`（压缩摘要 / PreCompact hook 注入 / resume 回放 summary）折叠进 `system` 块，消除严格 OpenAI 兼容网关的 `INVALID_REQUEST`（"System message must be at the beginning."），并修掉 Anthropic 静默丢弃内联 System 导致的内容丢失。本次仅在请求构造层修复，**产品命令、事件、配置与 SDK 公开面零变更，桌面无适配**。）
 > 上一轮 `1239806`（F01 注入防护强化：`[prompt_guard]` 由 opt-in 转**默认开启**，工具输出 Block/Review 裁决 + 外部工具定义注册期扫描（Block 拒绝注册）+ SHA-256 指纹上报；新增 `Op::QueryGuardStats` / `EventMsg::GuardStats`（additive，GUI 已接设置开关 + 工具行注入徽标），及 F24 Windows 沙箱 FFI 等 develop 线全部修复。）
 > **注意**：bug-fix 分支原先指向的 `a32b62b`（流式不压缩 / 思考阶段断开重试 / 流式错误必定收尾 / 思考强度按端点能力自动适配）**未推送至 ZhuYe 上游**，本仓库暂以 `7196d3c5`（develop，含审批策略分离 `auto_approve`·`full_access` 变体 + CI 债修复）兜底。当前状态：①审批策略三档已全量支持，按用户偏好原样发送（上游 `fix/desktop-runtime-modes` 已合入）；②思考强度能力走上游静态能力表（与引擎 wire 前钳制同源）——「运行时已验证结论」层（effort_cache）仍待上游合入后叠加。
 > 上一轮 `390a88a`(F01 注入防护强化)之前为 `72d7d97`：TaskOutput block=true 只认非空内容，消除 Windows 上 writer create→write 窗口读到空串的竞态；发布批次 v0.1.14 同步。
@@ -785,6 +787,25 @@ clone。协议、命令面、事件面、工具接口与配置 schema 均零变�
 复审证据：Runtime `cargo test --workspace` 全绿；`cargo clippy --workspace
 --all-targets -- -D warnings` 在 Rust 1.100 通过。桌面静态门禁 26/26、真后端
 3,443 条测试通过；前端全量 1,536 条测试通过；三平台 native e2e 矩阵由 CI 执行。
+
+### 3.32 submodule 跟随 develop（`893faa95` → `199a3d3b`，v1.x）
+
+上游 `199a3d3b`（fix(rollout)）修复「首条消息前切权限模式的会话被索引
+丢弃」：写路径加「SessionMeta 未落盘不持久化」守卫（mode / plan dispatch），
+读路径 `parse_first_session_meta` 在前 8 条非空行内扫描恢复存量坏文件
+（磁盘实测同一目录 ~1/4 会话文件首行是 `permission_mode_changed`，整目录
+从列表消失且 workspace 归属丢失）。桌面端消费面变化：
+
+| 能力 | 此前 | 现在 |
+|---|---|---|
+| 会话列表完整性 | 先切模式再发首条消息的会话从侧边栏消失（乐观缓存条目在列表重拉后也不见） | 写路径不再产生首行非 meta 的文件；存量坏文件免迁移恢复，workspace 归属随之找回（L3 回归：`ipc_workspace.rs::session_meta_stays_first_line_when_mode_changed_before_first_message`） |
+| `plan_draft_updated` 事件 | reducer no-op（§3.21 同类「有类型无渲染」事件，GUI 决策路径只走 plan_ready 弹窗） | reducer 存 `planDraft`；Inspector「计划」tab 实时渲染草稿；`plan_ready` 终稿 + 决策徽标（approved/rejected）优先展示，TodoWrite 清单降级为次级区块；会话重放经最后一条 `plan_ready` rollout record 恢复终稿（草稿不持久化，重载不可恢复） |
+| Inspector 计划/Git tab | 两个 tab 按钮**缺 `onClick`**（HEAD 实测点不开，aria-selected 永假） | 补齐点击切换，`data-active` 与其他 tab 同口径 |
+| 工作区移除语义 | 软删除后任何切换（点击该项目旧会话等）自动复活，表现为「删不掉」；remove 精确字符串匹配漏掉路径变体 | `reflect_set_workspace` 新增可选 `unhide`（缺省保留 hidden，显式恢复走管理页「已移除的工作区」分区）；remove 按规范化路径匹配所有变体并清理占位条目（`/`、`.`） |
+
+同批上游 `893faa95`（fix(llm) 折叠内联 System 消息）已随前一指针升级接入，
+修复严格 provider（Spark-2）对压缩摘要中置 System 的 400 拒绝 —— 该 bug
+曾使 plan 模式会话在压缩后整回合失败、plan 永远产不出。
 
 ---
 
