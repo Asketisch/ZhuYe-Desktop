@@ -8,7 +8,8 @@
 > 审计范围：`zhuye-agent/crates/**`（submodule 只读镜像）对照
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 >
-> 最近审计：submodule `1239806`（ZhuYe develop tip，完整 SHA `12398067`；含 `86f75e3` 的 F01 注入防护强化：`[prompt_guard]` 由 opt-in 转**默认开启**，工具输出 Block/Review 裁决 + 外部工具定义注册期扫描（Block 拒绝注册）+ SHA-256 指纹上报；新增 `Op::QueryGuardStats` / `EventMsg::GuardStats`（additive，GUI 已接设置开关 + 工具行注入徽标），及 F24 Windows 沙箱 FFI 等 develop 线全部修复。）
+> 最近审计：submodule `893faa9`（ZhuYe develop tip，完整 SHA `893faa95`；含 `893faa9` 的 System 消息折叠修复：`ChatRequest::fold_system_messages` 把内联 `System`（压缩摘要 / PreCompact hook 注入 / resume 回放 summary）折叠进 `system` 块，消除严格 OpenAI 兼容网关的 `INVALID_REQUEST`（"System message must be at the beginning."），并修掉 Anthropic 静默丢弃内联 System 导致的内容丢失。本次仅在请求构造层修复，**产品命令、事件、配置与 SDK 公开面零变更，桌面无适配**。）
+> 上一轮 `1239806`（F01 注入防护强化：`[prompt_guard]` 由 opt-in 转**默认开启**，工具输出 Block/Review 裁决 + 外部工具定义注册期扫描（Block 拒绝注册）+ SHA-256 指纹上报；新增 `Op::QueryGuardStats` / `EventMsg::GuardStats`（additive，GUI 已接设置开关 + 工具行注入徽标），及 F24 Windows 沙箱 FFI 等 develop 线全部修复。）
 > **注意**：bug-fix 分支原先指向的 `a32b62b`（流式不压缩 / 思考阶段断开重试 / 流式错误必定收尾 / 思考强度按端点能力自动适配）**未推送至 ZhuYe 上游**，本仓库暂以 `7196d3c5`（develop，含审批策略分离 `auto_approve`·`full_access` 变体 + CI 债修复）兜底。当前状态：①审批策略三档已全量支持，按用户偏好原样发送（上游 `fix/desktop-runtime-modes` 已合入）；②思考强度能力走上游静态能力表（与引擎 wire 前钳制同源）——「运行时已验证结论」层（effort_cache）仍待上游合入后叠加。
 > 上一轮 `390a88a`(F01 注入防护强化)之前为 `72d7d97`：TaskOutput block=true 只认非空内容，消除 Windows 上 writer create→write 窗口读到空串的竞态；发布批次 v0.1.14 同步。
 > 上一轮 `e3da2540 → 58cebeb6` 为两项 Windows 平台行为修复：safe_write 原子改名改走 NT 层 `NtSetInformationFile`（Win32 封装层整体拒绝非 NULL RootDirectory，code 87 的真根因；并按 Windows「不能替换仍有打开句柄的文件」约束在改名前释放旧目标句柄）；pipeline shell 节点用例按平台断言（Windows 无沙箱后端，fail-closed 拒绝是可达语义）。

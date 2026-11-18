@@ -1,5 +1,5 @@
 {
-  "comment": "EventMsg 跨运行时线格式契约样本表 —— 全部 50 个变体各一条最小合法样本。同一份样本被三层消费:L1 tests/static/event-parity.mjs(Rust enum ↔ TS 联合 ↔ 样本表三方奇偶)、L2 tests/ipc.event-contract.test.ts(样本经真实 bus → reducer,不落 unknown 分支)、L3 src-tauri/tests/ipc_event_contract.rs(真后端 serde 反序列化 + roundtrip)。字段口径:必填字段全、可选字段带代表值;样本非法时三层中至少一层会失败。",
+  "comment": "EventMsg 跨运行时线格式契约样本表 —— 全部 52 个变体各一条最小合法样本。同一份样本被三层消费:L1 tests/static/event-parity.mjs(Rust enum ↔ TS 联合 ↔ 样本表三方奇偶)、L2 tests/ipc.event-contract.test.ts(样本经真实 bus → reducer,不落 unknown 分支)、L3 src-tauri/tests/ipc_event_contract.rs(真后端 serde 反序列化 + roundtrip)。字段口径:必填字段全、可选字段带代表值;样本非法时三层中至少一层会失败。",
   "events": {
     "session_configured": {
       "type": "session_configured",
@@ -50,6 +50,11 @@
     "agent_message_delta": {
       "type": "agent_message_delta",
       "delta": "partial "
+    },
+    "agent_message_reset": {
+      "type": "agent_message_reset",
+      "reason_code": "SSE_PARSE_ERROR",
+      "retry_in_ms": 0
     },
     "thinking_delta": {
       "type": "thinking_delta",

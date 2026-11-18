@@ -50,7 +50,7 @@ TASKS: dict[str, dict] = {
     "desktop.contract.replay": {
         # 协议回放与属性测试:核心仓 events.json 契约样本回放 + fast-check 不变量
         "command": ["pnpm", "exec", "vitest", "run", "src/stores/agent/protocol-replay.test.ts"],
-        "note": "协议契约回放(51 变体不抛错)+ 未知变体容忍 + 流式等价/回放幂等属性",
+        "note": "协议契约回放(52 变体不抛错)+ 未知变体容忍 + 流式等价/回放幂等属性",
         "timeout_s": 1800,
     },
     "desktop.integration.backend": {
