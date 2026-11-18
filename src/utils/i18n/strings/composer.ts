@@ -19,6 +19,7 @@ const composer: Record<string, StringEntry> = {
   'composer.sendHintLocked':                 { en: 'Send (⌘/Ctrl+Enter) · New line (Enter)',       'zh-CN': '发送 (⌘/Ctrl+Enter) · 换行 (Enter)' },
   'composer.stop':                           { en: 'Stop',                                          'zh-CN': '停止' },
   'composer.stopHint':                       { en: 'Interrupt the running turn',                    'zh-CN': '中断当前运行' },
+  'composer.interruptFailed':                { en: 'Failed to interrupt: {message}',                'zh-CN': '中断失败：{message}' },
   'composer.contextTooltip':                 { en: 'Context {pct}% · in {input} · out {output} · cached {cached}', 'zh-CN': '上下文 {pct}% · 输入 {input} · 输出 {output} · 缓存 {cached}' },
   'composer.contextNearFull':                { en: 'Context {pct}% — nearly full, consider /compact', 'zh-CN': '上下文已用 {pct}%，接近上限，可执行 /compact' },
   'composer.mode.label':                     { en: 'Send mode',                                     'zh-CN': '发送模式' },

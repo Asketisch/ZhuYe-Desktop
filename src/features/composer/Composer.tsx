@@ -249,6 +249,19 @@ export function Composer() {
   // E：turn 运行中提供可见的停止入口（此前只有 /interrupt 斜杠命令）。
   const isTurnRunning = useAgentStore(selectIsTurnRunning);
   const interrupt = useAgentStore((st) => st.interrupt);
+  const pushToast = useAgentStore((st) => st.pushToast);
+  // v1.10：停止是用户的明确意图 —— IPC/引擎拒绝时不能静默吞掉，
+  // 否则表现为「点了没反应」。失败也给出可见反馈。
+  const handleInterrupt = useCallback(() => {
+    void interrupt().catch((error: unknown) => {
+      pushToast({
+        kind: 'error',
+        message: t('composer.interruptFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      });
+    });
+  }, [interrupt, pushToast, t]);
 
   const canSend = !busy && (Boolean(text.trim()) || attachments.attachments.length > 0);
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
@@ -425,7 +438,7 @@ export function Composer() {
                     label={t('composer.stop')}
                     variant="default"
                     size="md"
-                    onClick={() => void interrupt()}
+                    onClick={handleInterrupt}
                     data-testid="composer-stop"
                   >
                     <Icon icon={Square} size={12} />

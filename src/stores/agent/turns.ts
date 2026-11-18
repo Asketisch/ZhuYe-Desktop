@@ -72,6 +72,62 @@ export function finalizeAssistantText(
   });
 }
 
+/**
+ * v1.10:按 id 终结 turn;id 匹配不到时兜底把**最后一个 streaming turn**
+ * 标记为 aborted。
+ *
+ * 用途:`turn_aborted` 的 `event.id` 在极端时序下可能配不上任何本地
+ * turn —— 引擎在空闲期收到中断时会回一条「现编 turn_id」的回执
+ * (用户点停止时回合恰好已结束),前端按 id 查找落空 → 状态零变化,
+ * 表现为「停止按钮点了没反应」。兜底保证用户意图(停止)总能解卡。
+ */
+export function abortTurnOrLatestStreaming(turns: Turn[], turnId: string): Turn[] {
+  if (turnId !== EVENT_ID_NONE && turns.some((turn) => turn.id === turnId)) {
+    return markTurn(turns, turnId, 'aborted');
+  }
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    if (turns[i].status === 'streaming') {
+      const next = [...turns];
+      next[i] = { ...next[i], status: 'aborted' };
+      return next;
+    }
+  }
+  return turns;
+}
+
+/**
+ * v1.10:清空该 turn 末尾「仍在流式生成」的内容(模型调用失败将自动
+ * 重试,重试从头生成 —— 半成品必须丢弃,否则两次输出拼接)。
+ *
+ * 只从尾部向上剔除「未完成」条目:
+ * - `assistant_text` 且 `streaming: true`;
+ * - `thinking`(思考增量没有 streaming 标记,但已完成步骤后必然跟着
+ *   工具结束/输出,尾部的 thinking 只可能来自本次失败尝试);
+ * - `tool_call` 且 `status: 'running'`(参数半途中断,未执行)。
+ *
+ * 已完成的工具调用与输出保留 —— 它们在上游引擎里已落盘、可能已有副作用,
+ * 重试不会重放它们。
+ */
+export function resetStreamingOutput(turns: Turn[], turnId: string): Turn[] {
+  if (turnId === EVENT_ID_NONE) return turns;
+  const index = turns.findIndex((turn) => turn.id === turnId);
+  if (index === -1) return turns;
+  return turns.map((turn, i) => {
+    if (i !== index) return turn;
+    const items = [...turn.items];
+    while (items.length > 0) {
+      const last = items[items.length - 1];
+      const inFlight =
+        (last.kind === 'assistant_text' && last.streaming === true) ||
+        last.kind === 'thinking' ||
+        (last.kind === 'tool_call' && last.status === 'running');
+      if (!inFlight) break;
+      items.pop();
+    }
+    return { ...turn, items };
+  });
+}
+
 function mapTurn(turns: Turn[], turnId: string, map: (turn: Turn) => Turn): Turn[] {
   if (turnId === EVENT_ID_NONE) return turns;
   const index = turns.findIndex((turn) => turn.id === turnId);

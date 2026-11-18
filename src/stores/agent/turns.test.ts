@@ -5,7 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  abortTurnOrLatestStreaming,
   finalizeAssistantText,
+  resetStreamingOutput,
   summarizeToolOutput,
   upsertDelta,
   upsertThinking,
@@ -124,5 +126,80 @@ describe('finalizeAssistantText', () => {
       toolCallItem,
       { kind: 'assistant_text', text: 'final', streaming: false },
     ]);
+  });
+});
+
+// ── v1.10:agent_message_reset / 中断兜底 ────────────────────────────
+
+describe('resetStreamingOutput', () => {
+  it('drops trailing streaming text, thinking and running tool calls', () => {
+    const doneCall: TurnItem = {
+      kind: 'tool_call',
+      toolName: 'bash',
+      callId: 'c0',
+      argsSummary: 'ls',
+      status: 'done',
+    };
+    const runningCall: TurnItem = {
+      kind: 'tool_call',
+      toolName: 'write',
+      callId: 'c1',
+      argsSummary: '{"path"',
+      status: 'running',
+      argsStream: '{"path"',
+    };
+    const turns: Turn[] = [
+      {
+        id: 't1',
+        status: 'streaming',
+        items: [
+          { kind: 'assistant_text', text: '先看目录' },
+          doneCall,
+          { kind: 'tool_output', callId: 'c0', text: 'a.rs', isError: false },
+          { kind: 'thinking', text: '再写文件' },
+          runningCall,
+        ],
+      },
+    ];
+    const next = resetStreamingOutput(turns, 't1');
+    // 已完成步骤(文本 + 工具调用 + 输出)保留;半成品全部丢弃。
+    expect(next[0].items).toEqual([
+      { kind: 'assistant_text', text: '先看目录' },
+      doneCall,
+      { kind: 'tool_output', callId: 'c0', text: 'a.rs', isError: false },
+    ]);
+  });
+
+  it('clears a trailing streaming text segment only', () => {
+    const turns = turnWith({ kind: 'assistant_text', text: 'partial', streaming: true });
+    expect(resetStreamingOutput(turns, 't1')[0].items).toEqual([]);
+  });
+
+  it('leaves unknown turns untouched (does not materialize a new one)', () => {
+    const turns = turnWith({ kind: 'assistant_text', text: 'partial', streaming: true });
+    expect(resetStreamingOutput(turns, 'other')).toBe(turns);
+  });
+});
+
+describe('abortTurnOrLatestStreaming', () => {
+  it('marks the matching turn aborted', () => {
+    const turns = abortTurnOrLatestStreaming(turnWith(), 't1');
+    expect(turns[0].status).toBe('aborted');
+  });
+
+  it('falls back to the last streaming turn when the id is unknown', () => {
+    // 引擎空闲期中断回执的 turn_id 是现编的 —— 前端按 id 配不到时必须
+    // 兜底解卡,否则表现为「停止按钮点了没反应」。
+    const turns: Turn[] = [
+      { id: 't1', items: [], status: 'done' },
+      { id: 't2', items: [], status: 'streaming' },
+    ];
+    const next = abortTurnOrLatestStreaming(turns, 'unknown-id');
+    expect(next.map((turn) => turn.status)).toEqual(['done', 'aborted']);
+  });
+
+  it('is a no-op when nothing is streaming', () => {
+    const turns: Turn[] = [{ id: 't1', items: [], status: 'done' }];
+    expect(abortTurnOrLatestStreaming(turns, 'unknown-id')).toBe(turns);
   });
 });

@@ -36,9 +36,10 @@ export type EventMsgType =
   | 'turn_rewound'
   | 'submission_closed'
   | 'shutdown_complete'
-  // LLM 输出 (4)
+  // LLM 输出 (5)
   | 'agent_message'
   | 'agent_message_delta'
+  | 'agent_message_reset'
   | 'thinking_delta'
   | 'token_count'
   // 工具 (5)
@@ -144,6 +145,18 @@ export interface AgentMessagePayload {
 
 export interface AgentMessageDeltaPayload {
   delta: string;
+}
+
+/**
+ * v1.10:本 turn 流式 assistant 输出被重置 —— 模型调用失败将自动重试,
+ * 客户端应清空该 turn 正在流式生成的消息缓冲(文本 / thinking / 未完成
+ * 的工具调用),等待重试的全新输出,防止两次输出拼接。
+ */
+export interface AgentMessageResetPayload {
+  /** 触发重置的错误码(如 `"SSE_PARSE_ERROR"`)。 */
+  reason_code: string;
+  /** 重试退避等待(ms)。 */
+  retry_in_ms: number;
 }
 
 export interface ThinkingDeltaPayload {
@@ -617,6 +630,8 @@ export interface EventMsgByType {
   // LLM 输出
   agent_message: AgentMessagePayload;
   agent_message_delta: AgentMessageDeltaPayload;
+  /** v1.10:模型调用失败将自动重试,清空本 turn 半成品输出缓冲。 */
+  agent_message_reset: AgentMessageResetPayload;
   thinking_delta: ThinkingDeltaPayload;
   token_count: TokenCountPayload;
   // 工具

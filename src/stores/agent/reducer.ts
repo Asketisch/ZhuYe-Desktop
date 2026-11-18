@@ -3,10 +3,12 @@ import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, Plug
 import { COMPACTION_RECORD_CAP, SUBAGENT_FEED_CAP } from './types';
 import { upsertServer } from './servers';
 import {
+  abortTurnOrLatestStreaming,
   appendItem,
   EVENT_ID_NONE,
   finalizeAssistantText,
   markTurn,
+  resetStreamingOutput,
   summarizeArgs,
   summarizeToolOutput,
   upsertDelta,
@@ -44,7 +46,10 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
 
     case 'turn_aborted':
       return {
-        turns: markTurn(state.turns, turnId, 'aborted'),
+        // id 匹配不到时兜底终结最后一个 streaming turn —— 引擎空闲期
+        // 中断回执的 turn_id 是现编的,按 id 配对会落空,表现为停止
+        // 按钮点了没反应(v1.10)。
+        turns: abortTurnOrLatestStreaming(state.turns, turnId),
         ...(isSessionEvent ? {} : {
           pendingApprovals: state.pendingApprovals.filter((item) => item.turnId !== turnId),
           pendingQuestions: state.pendingQuestions.filter((item) => item.turnId !== turnId),
@@ -75,6 +80,12 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
 
     case 'agent_message_delta':
       return msg.delta ? { turns: upsertDelta(state.turns, turnId, msg.delta) } : {};
+
+    // v1.10:模型流式调用失败将自动重试 —— 清掉本 turn 的半成品输出
+    // (文本 / thinking / 未完成工具调用),等待重试的全新输出,防止
+    // 两次输出拼接。已完成步骤(工具结果)保留。
+    case 'agent_message_reset':
+      return { turns: resetStreamingOutput(state.turns, turnId) };
 
     case 'agent_message':
       return { turns: finalizeAssistantText(state.turns, turnId, msg.text) };

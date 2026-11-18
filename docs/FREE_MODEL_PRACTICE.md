@@ -134,7 +134,7 @@ provider = "openai"
 
 [openai]
 base_url = "https://api.kilo.ai/api/gateway"
-timeout_secs = 300                # ⚠️ 见「已知限制」
+timeout_secs = 300                # 建连+读空闲双层超时（默认 300s）
 model = "free"                    # 运行时从清单里挑
 
 [[openai.credentials]]
@@ -155,7 +155,7 @@ provider = "openai"
 
 [openai]
 base_url = "http://127.0.0.1:18900"
-timeout_secs = 300
+timeout_secs = 300                # 建连+读空闲双层（默认值）
 model = "free"
 
 [[openai.credentials]]
@@ -288,7 +288,7 @@ REFLECT_LIVE=1 REFLECT_LIVE_MODELS="cohere/north-mini-code:free" bash tests/run_
 | **凭据冷却是进程内的** | 429 会把凭据打进 60s 冷却，冷却表在进程内 → 同进程重试必然拿到 `ALL_CREDENTIALS_EXHAUSTED(0 tried)` | 默认**不重试**（判跳过）；要重试得 `REFLECT_LIVE_RETRIES>0` **且** `REFLECT_LIVE_RETRY_DELAY ≥ 65` |
 | **地区门 403** | 免费车道按出口 IP 判地区 | 换出口后重跑 |
 | **模型集合随时变** | 上游随时下架某个 id | 清单每次实时拉取 |
-| **慢首字 / 思考静默** | 实测首字 >30s、思考阶段可静默 60~70s | `timeout_secs` **必须放大到 300** —— reqwest 的 timeout 是「建连→body 读完」的**总**时长，默认 60s 会把流式响应腰斩 |
+| **慢首字 / 思考静默** | 实测首字 >30s、思考阶段可静默 60~70s | v1.10 起超时语义是「建连 + **读空闲**」双层（默认 300s）：流只要还在吐字节就不会超时，合法长流不再被总时长腰斩；仅无字节静默超过 300s 才需调大 |
 | **思考过程字段名不一** | 多数端点用 `delta.reasoning_content`，免费池用 `delta.reasoning` | 桌面端两个都认（`reasoning_content` 优先） |
 | **部分模型不支持 tools** | provider 直接 400 | L6 识别并**跳过**而不是失败 |
 | **prompt 可能被上游记录** | Kilo 模型卡明示 | **只用合成数据**，不要喂真实仓库内容 / 凭据 |
@@ -314,8 +314,10 @@ REFLECT_LIVE=1 REFLECT_LIVE_MODELS="cohere/north-mini-code:free" bash tests/run_
 **思考过程看不到**
 → 端点用了第三种字段名（`delta.reasoning_details[]`），当前不解析。
 
-**流式响应被腰斩**
-→ `timeout_secs` 太小。放大到 300。
+**流式响应被腰斩 / `SSE_PARSE_ERROR: Transport error: error decoding response body`**
+→ v1.10 起 provider 超时是「建连 + 读空闲」双层语义（默认 300s），且 mid-stream
+可重试错误会自动重试至 `[routing] max_attempts`（默认 10）耗尽。若仍出现，
+说明连接真的挂死超过 300s（期间零字节）—— 调大该 provider 段的 `timeout_secs`。
 
 **`no model configured for the active provider`**
 → 配置里没写 model。写具体 id，或写 `model = "free"`（需

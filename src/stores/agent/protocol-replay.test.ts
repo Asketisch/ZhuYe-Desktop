@@ -232,3 +232,78 @@ describe('属性:流式等价与回放幂等', () => {
     );
   });
 });
+
+// ====== v1.10:agent_message_reset 与中断兜底语义 ======
+
+describe('v1.10 流式重试与中断兜底', () => {
+  it('agent_message_reset clears the in-flight assistant text before retry', () => {
+    const state = applyAll(emptyState(), [
+      ev('t1', { type: 'turn_started', turn_id: 't1' }),
+      ev('t1', { type: 'agent_message_delta', delta: '半截回答' }),
+      ev('t1', {
+        type: 'agent_message_reset',
+        reason_code: 'SSE_PARSE_ERROR',
+        retry_in_ms: 500,
+      }),
+      ev('t1', { type: 'agent_message_delta', delta: '完整回答' }),
+    ]);
+    expect(assistantText(state, 't1')).toBe('完整回答');
+  });
+
+  it('agent_message_reset keeps completed steps and drops a running tool call', () => {
+    const state = applyAll(emptyState(), [
+      ev('t1', { type: 'turn_started', turn_id: 't1' }),
+      ev('t1', {
+        type: 'tool_call_begin',
+        call_id: 'c0',
+        tool_name: 'bash',
+        args: { cmd: 'ls' },
+      }),
+      ev('t1', {
+        type: 'tool_call_end',
+        call_id: 'c0',
+        tool_name: 'bash',
+        output: { content: [{ type: 'text', text: 'a.rs' }], is_error: false },
+        is_error: false,
+      }),
+      ev('t1', {
+        type: 'tool_call_begin',
+        call_id: 'c1',
+        tool_name: 'write',
+        args: null,
+      }),
+      ev('t1', { type: 'agent_message_reset', reason_code: 'SSE_PARSE_ERROR', retry_in_ms: 0 }),
+    ]);
+    const items = state.turns[0].items;
+    // 已完成的工具调用链保留;半成品的 running 工具调用被清掉。
+    expect(items.some((item) => item.kind === 'tool_call' && item.callId === 'c0')).toBe(true);
+    expect(items.some((item) => item.kind === 'tool_call' && item.callId === 'c1')).toBe(false);
+  });
+
+  it('turn_aborted with an unmatched id still releases the streaming turn', () => {
+    // 引擎空闲期中断回执的 turn_id 是现编的;前端必须兜底解卡,
+    // 否则失败/结束后点停止「没有反应」。
+    const state = applyAll(emptyState(), [
+      ev('t1', { type: 'turn_started', turn_id: 't1' }),
+      ev('some-other-id', {
+        type: 'turn_aborted',
+        turn_id: 'freshly-minted',
+        reason: { type: 'user_interrupt' },
+      }),
+    ]);
+    expect(state.turns[0].status).toBe('aborted');
+  });
+
+  it('engine turn_aborted(Error) terminal ends the failed turn (no stuck streaming)', () => {
+    const state = applyAll(emptyState(), [
+      ev('t1', { type: 'turn_started', turn_id: 't1' }),
+      ev('t1', { type: 'error', code: 'SSE_PARSE_ERROR', message: 'boom' }),
+      ev('t1', {
+        type: 'turn_aborted',
+        turn_id: 't1',
+        reason: { type: 'error', code: 'SSE_PARSE_ERROR', message: 'boom' },
+      }),
+    ]);
+    expect(state.turns[0].status).toBe('aborted');
+  });
+});
