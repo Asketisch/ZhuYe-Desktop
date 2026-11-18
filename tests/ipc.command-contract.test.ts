@@ -346,7 +346,10 @@ describe('IPC round-trip: wrapper args → wire payload', () => {
 
   it('workspaces: set_workspace path round-trip', async () => {
     await commands.reflect_set_workspace('/Users/dev/other');
-    expect(backend.lastArgsOf('reflect_set_workspace')).toEqual({ path: '/Users/dev/other' });
+    // v1.x:可选 unhide —— 缺省显式 null(serde Option ↔ null)。
+    expect(backend.lastArgsOf('reflect_set_workspace')).toEqual({ path: '/Users/dev/other', unhide: null });
+    await commands.reflect_set_workspace('/Users/dev/other', true);
+    expect(backend.lastArgsOf('reflect_set_workspace')).toEqual({ path: '/Users/dev/other', unhide: true });
     expect(await commands.reflect_current_workspace()).toBe('/Users/dev/other');
   });
 

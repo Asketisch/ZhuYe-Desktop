@@ -366,7 +366,13 @@ describe('commands forwarding (mapping)', () => {
     const set = await captureCmd('reflect_set_workspace', () =>
       reflect_set_workspace('/tmp/proj'),
     );
-    expectArgs(set, { path: '/tmp/proj' });
+    // v1.x:可选 unhide —— 缺省显式传 null(serde Option ↔ null),
+    // unhide: true 用于管理页「恢复」已移除的工作区。
+    expectArgs(set, { path: '/tmp/proj', unhide: null });
+    const unhide = await captureCmd('reflect_set_workspace', () =>
+      reflect_set_workspace('/tmp/proj', true),
+    );
+    expectArgs(unhide, { path: '/tmp/proj', unhide: true });
 
     const seenArgs: Array<{ cmd: string; args: unknown }> = [];
     for (const cmd of ['reflect_list_workspaces', 'reflect_current_workspace']) {

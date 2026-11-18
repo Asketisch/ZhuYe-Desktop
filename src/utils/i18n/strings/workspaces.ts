@@ -36,6 +36,11 @@ const workspaces: Record<string, StringEntry> = {
   'workspaces.additionalAdded':    { en: 'Additional folder added. New sessions pick it up.',    'zh-CN': '附加目录已添加,新会话生效。' },
   'workspaces.additionalFailed':   { en: 'Update additional folders failed: {msg}',              'zh-CN': '更新附加目录失败:{msg}' },
   'workspaces.additionalRemove':   { en: 'Remove additional folder',                             'zh-CN': '移除附加目录' },
+  // v1.x 修复:工作区软删除不再被 incidental 切换复活,恢复入口集中在管理页。
+  'workspaces.removedTitle':    { en: 'Removed workspaces',                    'zh-CN': '已移除的工作区' },
+  'workspaces.restore':         { en: 'Restore',                              'zh-CN': '恢复' },
+  'workspaces.removedToast':    { en: 'Removed {name} (files and sessions kept)', 'zh-CN': '已移除 {name}(文件和会话保留)' },
+  'workspaces.removeFailed':    { en: 'Failed to remove workspace: {msg}',     'zh-CN': '移除工作区失败: {msg}' },
 };
 
 export default workspaces;

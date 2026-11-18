@@ -8,18 +8,20 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { FolderOpen, CheckCircle2, ArrowRight, FolderSearch, FileSearch, FolderPlus, X } from 'lucide-react';
+import { FolderOpen, CheckCircle2, ArrowRight, FolderSearch, FileSearch, FolderPlus, RotateCcw, Trash2, X } from 'lucide-react';
 import {
   reflect_agent_status,
   reflect_current_workspace_dirs,
   reflect_list_workspaces,
   reflect_pick_workspace_folder,
+  reflect_remove_workspace,
   reflect_reveal_path,
   reflect_set_workspace,
   reflect_set_workspace_dirs,
 } from '@/utils/commands';
 import { PageShell } from '@/features/shell/PageShell';
 import { Card, Badge, Icon, Spinner, EmptyState, Button } from '@/features/design-system';
+import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import { useI18n } from '@/utils/i18n';
 import { relativeTime } from '@/utils/time';
 import { useAgentStore } from '@/stores/agentStore';
@@ -58,9 +60,10 @@ export function WorkspacesView() {
     void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
   };
 
+  // 管理页的「使用 / 恢复」都是显式动作 → unhide,已移除的条目随之恢复显示。
   const onUse = async (path: string) => {
     try {
-      await reflect_set_workspace(path);
+      await reflect_set_workspace(path, true);
       pushToast({ kind: 'success', message: t('workspaces.setTo', { name: basename(path) }) });
       refreshAll();
     } catch (e) {
@@ -68,6 +71,22 @@ export function WorkspacesView() {
         kind: 'error',
         message: t('workspaces.switchFailed', { msg: errMsg(e) }),
       });
+    }
+  };
+
+  // v1.x 修复:移除(软删除)入口补到管理页 —— 此前只有侧边栏组头有;
+  // 且后端按规范化路径匹配所有变体,不会再出现「删了又回来」。
+  const onRemove = async (path: string) => {
+    if (!await confirmDialog({
+      title: t('sidebar.group.remove'),
+      message: t('sidebar.group.removeConfirm'),
+    })) return;
+    try {
+      await reflect_remove_workspace(path);
+      pushToast({ kind: 'success', message: t('workspaces.removedToast', { name: basename(path) }) });
+      refreshAll();
+    } catch (e) {
+      pushToast({ kind: 'error', message: t('workspaces.removeFailed', { msg: errMsg(e) }) });
     }
   };
 
@@ -91,6 +110,7 @@ export function WorkspacesView() {
   };
 
   const workspaces = (workspacesQ.data ?? []).filter((workspace) => !workspace.hidden);
+  const removed = (workspacesQ.data ?? []).filter((workspace) => workspace.hidden);
 
   return (
     <PageShell
@@ -208,11 +228,63 @@ export function WorkspacesView() {
                       {t('workspaces.use')} <Icon icon={ArrowRight} size={12} />
                     </Button>
                   )}
+                  {!isActive && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void onRemove(w.path)}
+                      aria-label={t('workspaces.remove')}
+                      data-testid={`workspace-remove-${basename(w.path)}`}
+                    >
+                      <Icon icon={Trash2} size={12} />
+                    </Button>
+                  )}
                 </div>
               </Card>
             );
           })}
         </div>
+      )}
+
+      {/* v1.x 修复:已移除(软删除)工作区在此集中恢复 —— 常规切换不再
+          自动复活它们,唯一的恢复入口是这里的「恢复」按钮。 */}
+      {removed.length > 0 && (
+        <>
+          <h3 className={s.sectionTitle}>{t('workspaces.removedTitle')}</h3>
+          <div className={s.list} data-testid="workspaces-removed-list">
+            {removed.map((w) => (
+              <Card
+                key={w.path}
+                level="outlined"
+                padding="sm"
+                className={s.wsCard}
+                data-testid={`workspace-removed-${basename(w.path)}`}
+              >
+                <div className={s.wsIcon}>
+                  <Icon icon={FolderOpen} size={16} />
+                </div>
+                <div className={s.wsBody}>
+                  <div className={s.wsNameRow}>
+                    <span className={s.wsName}>{w.label || basename(w.path)}</span>
+                  </div>
+                  <div className={s.wsMeta}>
+                    <code className={s.wsPath}>{w.path}</code>
+                  </div>
+                </div>
+                <div className={s.wsActions}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void onUse(w.path)}
+                    data-testid={`workspace-restore-${basename(w.path)}`}
+                  >
+                    <Icon icon={RotateCcw} size={12} /> {t('workspaces.restore')}
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
     </PageShell>
   );

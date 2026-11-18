@@ -81,29 +81,106 @@ fn effort_capability_reports_supported_levels_and_effective_level() {
     }
 }
 
+/// v1.x 语义更新:已移除的工作区在**常规切换**(如点击该项目旧会话跟随
+/// 工作区)下保持隐藏 —— 此前 upsert 恒写 hidden:false,incidental 复活
+/// 表现为「删不掉」。唯一的恢复入口是显式 `unhide = true`(管理页「恢复」)。
 #[test]
-fn removed_workspace_stays_hidden_until_reopened() {
+fn removed_workspace_stays_hidden_until_explicit_unhide() {
     let _guard = workspace_lock();
     let probe = temp_workspace("ws-removed");
     set_workspace(&probe);
     invoke_ok("reflect_remove_workspace", json!({"path": probe}));
-    let list = invoke_ok("reflect_list_workspaces", json!({}));
-    let item = list
+    let item = invoke_ok("reflect_list_workspaces", json!({}))
         .as_array()
         .unwrap()
         .iter()
         .find(|item| item["path"] == probe)
-        .unwrap();
+        .unwrap()
+        .clone();
     assert_eq!(item["hidden"], true);
+
+    // 常规切换(无 unhide):保持隐藏。
     set_workspace(&probe);
-    let list = invoke_ok("reflect_list_workspaces", json!({}));
-    let item = list
+    let item = invoke_ok("reflect_list_workspaces", json!({}))
         .as_array()
         .unwrap()
         .iter()
         .find(|item| item["path"] == probe)
+        .unwrap()
+        .clone();
+    assert_eq!(item["hidden"], true, "incidental switch must not revive");
+
+    // 显式恢复(unhide = true):取消隐藏。
+    invoke_ok(
+        "reflect_set_workspace",
+        json!({"path": probe, "unhide": true}),
+    );
+    let item = invoke_ok("reflect_list_workspaces", json!({}))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["path"] == probe)
+        .unwrap()
+        .clone();
+    assert_eq!(item["hidden"], false, "explicit unhide restores");
+}
+
+/// v1.x 修复:同目录的路径变体(macOS `/var` ↔ `/private/var` 符号链接,
+/// 或相对/绝对混存)必须被 remove 一并隐藏 —— 精确字符串匹配只命中其一,
+/// 可见组来自另一变体,表现为「删了又回来」。
+#[test]
+#[cfg(unix)]
+fn removing_workspace_hides_all_path_variants() {
+    let _guard = workspace_lock();
+    let probe = temp_workspace("ws-variants");
+    let canonical = std::fs::canonicalize(&probe)
+        .expect("canonicalize probe")
+        .display()
+        .to_string();
+    set_workspace(&probe);
+    if canonical != probe {
+        set_workspace(&canonical);
+    }
+    invoke_ok("reflect_remove_workspace", json!({"path": probe}));
+    let list = invoke_ok("reflect_list_workspaces", json!({}))
+        .as_array()
+        .expect("工作区列表应为数组")
+        .clone();
+    for variant in [probe.as_str(), canonical.as_str()] {
+        if let Some(item) = list.iter().find(|item| item["path"].as_str() == Some(variant)) {
+            assert_eq!(item["hidden"], true, "变体 {variant} 未被一并隐藏");
+        }
+    }
+}
+
+/// v1.x 修复:占位路径条目("/", ".")在 remove 重写历史时被顺手清理,
+/// 不再长期留在 workspaces.json 里。
+#[test]
+fn removing_workspace_prunes_placeholder_entries() {
+    let _guard = workspace_lock();
+    let probe = temp_workspace("ws-prune");
+    set_workspace(&probe);
+    let file = common::isolated_home()
+        .join(".zhuye")
+        .join("workspaces.json");
+    let list = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(&file).unwrap())
         .unwrap();
-    assert_eq!(item["hidden"], false);
+    let mut list = list.as_array().unwrap().clone();
+    list.push(json!({"path": "/", "label": "/", "last_used": 0, "session_count": 0, "hidden": false}));
+    list.push(json!({"path": ".", "label": ".", "last_used": 0, "session_count": 0, "hidden": false}));
+    std::fs::write(&file, serde_json::to_string(&list).unwrap()).unwrap();
+
+    invoke_ok("reflect_remove_workspace", json!({"path": probe}));
+    let after = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(&file).unwrap())
+        .unwrap();
+    let paths: Vec<&str> = after
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|w| w["path"].as_str())
+        .collect();
+    assert!(!paths.contains(&"/"), "占位 / 应被清理: {after}");
+    assert!(!paths.contains(&"."), "占位 . 应被清理: {after}");
 }
 
 #[test]
@@ -892,4 +969,91 @@ fn workspace_is_restored_after_workspace_scoped_tests() {
     // 兜底:确认工作区仍可读(前面的用例切换过工作区)。
     let ws = current_workspace();
     assert!(!ws.is_empty(), "当前工作区不应为空");
+}
+
+// ============================================================================
+// v1.x 回归:先切权限模式再发首条消息的会话(workspace 归属不丢)
+// ============================================================================
+
+/// 上游 fix(rollout 199a3d3b)的桌面端验收:首条 UserInput 之前经
+/// `Op::SetPermissionMode` 切 Plan 模式,`PermissionModeChanged` 不得抢占
+/// jsonl 物理首行 —— 否则 rollout 索引只认首行 SessionMeta,整个会话从
+/// `reflect_list_sessions` 消失,workspace 归属随之丢失(磁盘实测同一
+/// 目录 ~1/4 文件受影响)。写路径守卫 + 首行断言 + 列表归属三连。
+#[test]
+fn session_meta_stays_first_line_when_mode_changed_before_first_message() {
+    let _workspace = workspace_lock();
+    let _guard = common::state_lock();
+    let ws = temp_workspace("ws-mode-first");
+    set_workspace(&ws);
+    let id = invoke_ok("reflect_create_session", json!({}));
+    invoke_ok("reflect_bind_session", json!({ "id": id }));
+    // 首条消息之前切 Plan 模式(旧 bug:PermissionModeChanged 抢占物理首行)。
+    let mode_sub = invoke_ok("reflect_set_permission_mode", json!({ "mode": "plan" }));
+    assert!(
+        mode_sub.as_str().is_some_and(|s| !s.is_empty()),
+        "应返回 submission id: {mode_sub}"
+    );
+    let submission = json!({
+        "id": "mode-first-probe",
+        "workspace": ws,
+        "op": { "type": "user_input", "items": [{ "type": "text", "text": "先切模式再说话" }] },
+    });
+    let submit_sub = invoke_ok("reflect_submit", json!({ "submission": submission }));
+    assert!(
+        submit_sub.as_str().is_some_and(|s| !s.is_empty()),
+        "应返回 submission id: {submit_sub}"
+    );
+
+    // 真引擎异步落盘:等 SessionMeta 出现(模型是假的,但 meta 写在
+    // model_call 之前,失败也会落)。writer 按 `<base>/YYYY/MM/DD/<id>.jsonl`
+    // 布局,递归找会话文件。
+    fn find_session_file(name: &str) -> Option<std::path::PathBuf> {
+        fn walk(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+            for entry in std::fs::read_dir(dir).ok()?.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(hit) = walk(&path, name) {
+                        return Some(hit);
+                    }
+                } else if path.file_name().and_then(|n| n.to_str()) == Some(name) {
+                    return Some(path);
+                }
+            }
+            None
+        }
+        walk(&reflect_rollout::path::default_base(), name)
+    }
+    let file_name = format!("{}.jsonl", id.as_str().unwrap());
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let file = loop {
+        if let Some(path) = find_session_file(&file_name)
+            && let Ok(body) = std::fs::read_to_string(&path)
+            && body.contains("\"session_meta\"")
+        {
+            break path;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "SessionMeta 未落盘: {file_name}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    };
+    // 写路径守卫:首行必须是 session_meta,不是 permission_mode_changed。
+    let body = std::fs::read_to_string(&file).unwrap();
+    let first = body.lines().next().unwrap_or_default();
+    assert!(
+        first.contains("\"session_meta\""),
+        "首行应为 session_meta,实得: {first}"
+    );
+
+    // 读路径:索引能在列表中找到该会话,并归属到正确的工作区。
+    let list = invoke_ok("reflect_list_sessions", json!({}));
+    let hit = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["session_id"] == id)
+        .unwrap_or_else(|| panic!("会话未出现在列表: {list}"));
+    assert_eq!(hit["workspace"].as_str(), Some(ws.as_str()));
 }

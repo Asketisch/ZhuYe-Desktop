@@ -23,8 +23,15 @@ export async function reflect_list_workspaces(): Promise<ReflectWorkspaceInfo[]>
 /** 按请求顺序切换工作区；一次失败不阻塞后续切换。 */
 let workspaceQueue: Promise<void> = Promise.resolve();
 
-export function reflect_set_workspace(path: string): Promise<void> {
-  const result = workspaceQueue.then(() => invoke<void>('reflect_set_workspace', { path }));
+/**
+ * 切换工作区。`unhide = true` 显式恢复已移除的工作区（管理页「恢复」）；
+ * 缺省保留既有 hidden 状态 —— 点击已移除项目的旧会话只跟随 cwd，
+ * 不再把项目组复活到侧边栏。
+ */
+export function reflect_set_workspace(path: string, unhide?: boolean): Promise<void> {
+  const result = workspaceQueue.then(() =>
+    invoke<void>('reflect_set_workspace', { path, unhide: unhide ?? null }),
+  );
   workspaceQueue = result.then(() => {}, () => {});
   return result;
 }

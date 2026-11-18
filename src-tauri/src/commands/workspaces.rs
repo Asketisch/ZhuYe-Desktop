@@ -59,14 +59,19 @@ fn read_history(path: &Path) -> CommandResult<Vec<WorkspaceInfo>> {
 
 /// upsert 一条 workspace 记录（同 path 去重、last_used 刷新、按最近使用
 /// 倒序、截断到 [`WORKSPACE_HISTORY_CAP`]）并写回。
-fn upsert_history(path: &Path, entry: WorkspaceInfo) -> CommandResult<()> {
+///
+/// v1.x 修复:`unhide = false`(常规切换,含「点击旧会话跟随工作区」)时
+/// **保留**既有条目的 `hidden` —— 已移除的工作区不再因 incidental 切换
+/// 复活;显式恢复走 `unhide = true`(工作区管理页「恢复」)。
+fn upsert_history(path: &Path, entry: WorkspaceInfo, unhide: bool) -> CommandResult<()> {
     let mut list = read_history(path)?;
-    let prev_count = list
-        .iter()
-        .find(|w| w.path == entry.path)
-        .map_or(0, |w| w.session_count);
+    let prev = list.iter().find(|w| w.path == entry.path);
+    let prev_count = prev.map_or(0, |w| w.session_count);
     let mut entry = entry;
     entry.session_count = prev_count;
+    if !unhide && let Some(prev) = prev {
+        entry.hidden = prev.hidden;
+    }
     list.retain(|w| w.path != entry.path);
     list.insert(0, entry);
     list.sort_by_key(|a| std::cmp::Reverse(a.last_used));
@@ -115,6 +120,7 @@ pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
 pub async fn reflect_set_workspace(
     agent: State<'_, MinimalAgent>,
     path: String,
+    unhide: Option<bool>,
 ) -> CommandResult<()> {
     let _transition = agent.inner.session_transition_lock.lock().await;
     let p = PathBuf::from(&path);
@@ -129,6 +135,8 @@ pub async fn reflect_set_workspace(
         });
     }
     // 切换即记录「最近项目」历史（label = 目录名）。
+    // `unhide = Some(true)`:显式恢复已移除的工作区(管理页「恢复」);
+    // 缺省/Some(false):保留既有 hidden 状态(incidental 切换不复活)。
     if let Some(hist) = workspaces_file() {
         let _guard = HISTORY_LOCK.lock();
         let label = p
@@ -141,7 +149,7 @@ pub async fn reflect_set_workspace(
             session_count: 0,
             hidden: false,
         };
-        if let Err(e) = upsert_history(&hist, entry) {
+        if let Err(e) = upsert_history(&hist, entry, unhide.unwrap_or(false)) {
             // 历史写失败不阻断切换 —— workspace 本身已生效。
             tracing::warn!("[reflect-gui] persist workspace history failed: {}", e.msg);
         }
@@ -150,7 +158,33 @@ pub async fn reflect_set_workspace(
     Ok(())
 }
 
-/// 从项目列表移除目录，保留磁盘文件和会话；重新打开目录可恢复显示。
+/// v1.x 修复:占位路径条目("/", "//", ".", "/.", 空串)不进历史长期留存。
+/// 与前端 `isPlaceholderWorkspace` 同口径(尾斜杠剥离后判空 / "." / 任意 "/.")。
+fn is_placeholder_workspace_path(path: &str) -> bool {
+    let stripped = path.trim().trim_end_matches(['/', '\\']);
+    stripped.is_empty() || stripped == "." || stripped.ends_with("/.") || stripped.ends_with("\\.")
+}
+
+/// v1.x 修复:按规范化路径匹配把所有变体(相对/绝对、尾斜杠、符号链接)
+/// 一并标记 hidden。返回是否有命中 —— 无命中时调用方补一条 hidden 记录
+/// (维持幂等:对不在历史里的路径 remove 依然静默成功)。
+fn hide_workspace_variants(list: &mut [WorkspaceInfo], path: &str) -> bool {
+    let target = PathBuf::from(path);
+    let mut matched = false;
+    for entry in list.iter_mut() {
+        if crate::workspace_state::same_path(Path::new(&entry.path), &target) {
+            entry.hidden = true;
+            matched = true;
+        }
+    }
+    matched
+}
+
+/// 从项目列表移除目录，保留磁盘文件和会话；工作区管理页「恢复」可重新显示。
+///
+/// v1.x 修复:① 规范化路径匹配 —— 历史 json 里混有相对/绝对/尾斜杠等
+/// 变体时精确字符串匹配只命中其一,可见组来自另一变体,表现为「删不掉」;
+/// ② 顺手清理占位条目("/", ".", 空串)。
 #[tauri::command]
 pub async fn reflect_remove_workspace(path: String) -> CommandResult<()> {
     let _guard = HISTORY_LOCK.lock();
@@ -158,9 +192,7 @@ pub async fn reflect_remove_workspace(path: String) -> CommandResult<()> {
         msg: "no HOME dir".into(),
     })?;
     let mut list = read_history(&file)?;
-    if let Some(entry) = list.iter_mut().find(|entry| entry.path == path) {
-        entry.hidden = true;
-    } else {
+    if !hide_workspace_variants(&mut list, &path) {
         list.push(WorkspaceInfo {
             label: path.clone(),
             path,
@@ -169,6 +201,7 @@ pub async fn reflect_remove_workspace(path: String) -> CommandResult<()> {
             hidden: true,
         });
     }
+    list.retain(|entry| !is_placeholder_workspace_path(&entry.path));
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -376,94 +409,4 @@ fn unix_now() -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn entry(path: &str, last_used: u64) -> WorkspaceInfo {
-        WorkspaceInfo {
-            path: path.into(),
-            label: path.rsplit('/').next().unwrap_or(path).into(),
-            last_used,
-            session_count: 0,
-            hidden: false,
-        }
-    }
-
-    #[test]
-    fn upsert_dedupes_refreshes_and_orders() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("workspaces.json");
-        upsert_history(&file, entry("/tmp/a", 10)).unwrap();
-        upsert_history(&file, entry("/tmp/b", 20)).unwrap();
-        // 再次切换 a：去重 + last_used 提到最大。
-        upsert_history(&file, entry("/tmp/a", 30)).unwrap();
-
-        let list = read_history(&file).unwrap();
-        assert_eq!(list.len(), 2);
-        assert_eq!(list[0].path, "/tmp/a");
-        assert_eq!(list[0].last_used, 30);
-        assert_eq!(list[1].path, "/tmp/b");
-    }
-
-    #[test]
-    fn upsert_preserves_session_count_of_known_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("workspaces.json");
-        upsert_history(&file, entry("/tmp/a", 10)).unwrap();
-        let mut list = read_history(&file).unwrap();
-        list[0].session_count = 7;
-        std::fs::write(&file, serde_json::to_string(&list).unwrap()).unwrap();
-
-        upsert_history(&file, entry("/tmp/a", 20)).unwrap();
-        let list = read_history(&file).unwrap();
-        assert_eq!(list[0].session_count, 7, "known path keeps its count");
-    }
-
-    #[test]
-    fn upsert_caps_history_length() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("workspaces.json");
-        for i in 0..(WORKSPACE_HISTORY_CAP + 5) {
-            upsert_history(&file, entry(&format!("/tmp/w{i}"), i as u64)).unwrap();
-        }
-        assert_eq!(read_history(&file).unwrap().len(), WORKSPACE_HISTORY_CAP);
-    }
-
-    #[test]
-    fn corrupt_history_is_reported_and_not_overwritten() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(
-            read_history(&dir.path().join("none.json"))
-                .unwrap()
-                .is_empty()
-        );
-        let file = dir.path().join("workspaces.json");
-        std::fs::write(&file, "not json").unwrap();
-        assert!(read_history(&file).is_err());
-        assert!(upsert_history(&file, entry("/tmp/a", 10)).is_err());
-        assert_eq!(std::fs::read_to_string(&file).unwrap(), "not json");
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn history_update_preserves_symlink_and_respects_read_only_file() {
-        use std::os::unix::fs::{PermissionsExt, symlink};
-
-        let dir = tempfile::tempdir().unwrap();
-        let target = dir.path().join("history.json");
-        let link = dir.path().join("workspaces.json");
-        std::fs::write(&target, "[]").unwrap();
-        symlink(&target, &link).unwrap();
-        upsert_history(&link, entry("/tmp/a", 10)).unwrap();
-        assert!(
-            std::fs::symlink_metadata(&link)
-                .unwrap()
-                .file_type()
-                .is_symlink()
-        );
-        assert_eq!(read_history(&target).unwrap()[0].path, "/tmp/a");
-        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o444)).unwrap();
-        assert!(upsert_history(&link, entry("/tmp/b", 20)).is_err());
-        assert_eq!(read_history(&target).unwrap().len(), 1);
-    }
-}
+mod tests;

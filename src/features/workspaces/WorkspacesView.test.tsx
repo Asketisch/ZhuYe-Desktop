@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup';
 import { WorkspacesView } from './WorkspacesView';
+import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
 
 afterEach(() => { cleanup(); resetMockInvoke(); });
 
@@ -117,5 +118,50 @@ describe('WorkspacesView — additional dirs editor', () => {
     // 静默幂等:短暂窗口内不应产生覆盖调用。
     await new Promise((r) => setTimeout(r, 60));
     expect(setCalls).toHaveLength(0);
+  });
+});
+
+// ── v1.x:移除(软删除)入口 + 已移除分区恢复 ──────────────────────────
+
+describe('WorkspacesView — remove & restore', () => {
+  const WS = { path: '/tmp/proj-a', label: 'proj-a', last_used: 10, session_count: 0, hidden: false };
+  const REMOVED = { path: '/tmp/proj-b', label: 'proj-b', last_used: 5, session_count: 0, hidden: true };
+
+  const setup = () => {
+    // 当前工作区设为第三个路径,保证 proj-a 卡片非激活(移除按钮仅在非激活卡上)。
+    mockInvoke('reflect_agent_status', async () => ({ ready: true, hasModel: true, model: 'm', workspace: '/tmp/elsewhere', degradedReason: null }));
+    mockInvoke('reflect_list_workspaces', async () => [WS, REMOVED]);
+    const setCalls: Array<{ path: string; unhide: boolean | null }> = [];
+    const removeCalls: Array<{ path: string }> = [];
+    mockInvoke('reflect_set_workspace', async (_c: string, args: { path: string; unhide?: boolean | null }) => {
+      setCalls.push({ path: args.path, unhide: args.unhide ?? null });
+      return undefined;
+    });
+    mockInvoke('reflect_remove_workspace', async (_c: string, args: { path: string }) => {
+      removeCalls.push(args);
+      return undefined;
+    });
+    return { setCalls, removeCalls };
+  };
+
+  it('lists removed workspaces in a dedicated section and restores with unhide', async () => {
+    const { setCalls } = setup();
+    render(<QueryClientProvider client={createTestQueryClient()}><WorkspacesView /></QueryClientProvider>);
+    // 已移除分区出现,恢复按钮走 set_workspace + unhide:true。
+    fireEvent.click(await screen.findByTestId('workspace-restore-proj-b'));
+    await vi.waitFor(() => {
+      expect(setCalls).toContainEqual({ path: '/tmp/proj-b', unhide: true });
+    });
+  });
+
+  it('visible card remove button asks for confirmation then fires reflect_remove_workspace', async () => {
+    const { removeCalls } = setup();
+    render(<QueryClientProvider client={createTestQueryClient()}><WorkspacesView /><ConfirmDialogHost /></QueryClientProvider>);
+    fireEvent.click(await screen.findByTestId('workspace-remove-proj-a'));
+    // 确认弹窗出现,点确认后才真正移除。
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
+    await vi.waitFor(() => {
+      expect(removeCalls).toEqual([{ path: '/tmp/proj-a' }]);
+    });
   });
 });

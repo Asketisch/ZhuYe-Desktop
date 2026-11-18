@@ -36,10 +36,11 @@ export function basename(p: string): string {
 /**
  * 后端 `reflect_list_workspaces` 空历史的兜底占位（`$HOME/.`，label "default"）。
  * 不是真实项目目录，不进侧边栏。
+ * v1.x 修复:根目录 "/" 同样是占位（历史 json 里出现过的无效条目），一并过滤。
  */
 export function isPlaceholderWorkspace(path: string): boolean {
   const trimmed = path.replace(/[\\/]+$/, '');
-  return trimmed.endsWith('/.') || trimmed.endsWith('\\.') || trimmed === '.';
+  return trimmed.endsWith('/.') || trimmed.endsWith('\\.') || trimmed === '.' || trimmed === '';
 }
 
 function startedAtMs(session: ReflectSessionInfo): number {
