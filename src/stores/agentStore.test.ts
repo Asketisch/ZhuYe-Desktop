@@ -1138,3 +1138,21 @@ describe('reduceEvent — 未知事件类型的前向兼容', () => {
     expect(patch.planDraft).toEqual({ markdown: '# 计划\n- 步骤', path: '/ws/.zhuye/plan/refactor.md' });
   });
 });
+
+// ── v1.x:模式切换清悬挂 plan 弹窗(迟到审批不覆盖手动模式) ──────────────
+
+describe('reduceEvent — permission_mode_changed clears pendingPlan', () => {
+  it('clears a pending plan modal when the mode is switched away', () => {
+    let s: AgentState = emptyState();
+    s = { ...s, ...reduceEvent(s, ev('t1', { type: 'plan_request', plan_id: 'p1', task: 'x' })) };
+    expect(s.pendingPlan?.id).toBe('p1');
+    s = { ...s, ...reduceEvent(s, ev('', { type: 'permission_mode_changed', from: 'plan', to: 'auto' })) };
+    expect(s.pendingPlan).toBeNull();
+    expect(s.permissionMode).toBe('auto');
+  });
+
+  it('keeps state untouched when no plan is pending', () => {
+    const patch = reduceEvent(emptyState(), ev('', { type: 'permission_mode_changed', from: 'auto', to: 'plan' }));
+    expect(patch).toEqual({ permissionMode: 'plan' });
+  });
+});

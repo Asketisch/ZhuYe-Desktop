@@ -601,7 +601,13 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     }
 
     case 'permission_mode_changed':
-      return { permissionMode: msg.to };
+      // v1.x 修复:模式被切换(用户手动接管或审批自身翻转)时清掉悬挂的
+      // plan 弹窗 —— 配合上游「手动切模式 cancel_all 在途审批 waiter」,
+      // 迟到的审批决策不再二次翻转模式覆盖用户设置。
+      return {
+        permissionMode: msg.to,
+        ...(state.pendingPlan ? { pendingPlan: null } : {}),
+      };
 
     case 'plugin_loaded': {
       // 保留观察到的加载事件；当前状态由插件列表命令提供。
