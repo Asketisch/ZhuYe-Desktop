@@ -196,12 +196,12 @@ pub async fn reflect_remote_test(
     // 复用传输 argv 组装(替换远端命令为 --version)。
     let mut argv = crate::state::remote::ssh_argv_for_probe(&entry);
     let bin = argv.remove(0);
-    let out = tokio::process::Command::new(bin)
+    let out = tokio::process::Command::new(&bin)
         .args(&argv)
         .output()
         .await
         .map_err(|e| CommandError {
-            msg: format!("ssh 进程启动失败: {e}"),
+            msg: crate::state::remote::spawn_error_message(&bin, e),
         })?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);

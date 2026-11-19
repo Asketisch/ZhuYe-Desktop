@@ -158,6 +158,23 @@ fn ssh_argv_with_remote_cmd(host: &RemoteHost, remote_cmd: &[String]) -> Vec<Str
     argv
 }
 
+/// ssh 进程 spawn 失败的错误文案:缺二进制NotFound 时给平台感知的
+/// 安装引导(Windows OpenSSH 客户端是可选功能,常未启用;macOS/Linux
+/// 系统自带;也可经 ZHUYE_REMOTE_SSH_BIN 显式指定)。
+pub fn spawn_error_message(bin: &str, e: std::io::Error) -> String {
+    if e.kind() == std::io::ErrorKind::NotFound {
+        return format!(
+            "未找到 ssh 可执行文件({bin}):{};可设 {SSH_BIN_ENV} 指向 ssh 路径",
+            if cfg!(target_os = "windows") {
+                "Windows 需在「设置 → 应用 → 可选功能」安装 OpenSSH 客户端,或使用 Git 自带的 ssh"
+            } else {
+                "macOS/Linux 系统自带 ssh,PATH 可能异常"
+            }
+        );
+    }
+    format!("ssh 进程启动失败({bin}): {e}")
+}
+
 /// 连接远程会话:spawn serve 子进程 → 等 `session_configured` 握手 →
 /// 登记句柄 + 启动事件泵。返回会话 sid(uuid 字符串)。
 pub async fn connect(agent: &MinimalAgent, host: &RemoteHost, cwd: &str) -> Result<String, String> {
@@ -169,9 +186,7 @@ pub async fn connect(agent: &MinimalAgent, host: &RemoteHost, cwd: &str) -> Resu
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|e| format!("ssh 进程启动失败({bin}): {e}"))?;
+    let mut child = command.spawn().map_err(|e| spawn_error_message(&bin, e))?;
     let stdin = child
         .stdin
         .take()
