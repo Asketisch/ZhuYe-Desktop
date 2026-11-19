@@ -128,7 +128,7 @@ pnpm test -- src/features/settings/SettingsView.test.tsx
 - `MinimalAgent` 是封装器，持有 `Arc<AgentThread>` + `tokio::sync::broadcast` 用于会话事件广播
 - `install_agent_thread()` 在 Tauri `setup()` 中调用（运行时初始化后），不要在 `manage()` 中调用（同步阶段）
 - 慢订阅者触发 `RecvError::Lagged(n)` — 记录日志但任务继续运行
-- macOS 关闭按钮 → 隐藏到托盘（不退出），通过 `on_window_event`
+- macOS 关闭按钮 → 隐藏到托盘（不退出），通过 `on_window_event`；点击 Dock 图标 → `RunEvent::Reopen` 唤回主窗口（无可见窗口时），在 `run()` 的 run 回调中处理
 
 **会话层级不变量**：
 
