@@ -78,10 +78,15 @@ for (const file of backendFiles) {
   }
 }
 
-const libSrc = read('src-tauri/src/lib.rs');
+// 注册表本体可能在 lib.rs 或独立装配模块(如 commands_registry.rs):
+// 两者都读,任一命中即可(拆分是行数预算的正常手段,注册表唯一性由
+// 「只增一次」契约与 clippy/编译期唯一性保证)。
+const libSrc = ['src-tauri/src/lib.rs', 'src-tauri/src/commands_registry.rs']
+  .map((f) => read(f))
+  .join('\n');
 const handlerMatch = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]\)/);
 if (!handlerMatch) {
-  fail('registry-parse', 'lib.rs 里找不到 generate_handler! 注册表');
+  fail('registry-parse', 'lib.rs / commands_registry.rs 里找不到 generate_handler! 注册表');
 } else {
   // 注册表里既有命令也有注释(`// Task/Team 管理命令(…,包装 reflect_task::TaskManager)`)。
   // 必须先剥掉行注释,否则 `reflect_task` / `reflect_stream` 这类**注释里

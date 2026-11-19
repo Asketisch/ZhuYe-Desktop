@@ -193,7 +193,10 @@ fn apply_model_switch_group_rejects_unknown_label() {
     "#;
     let mut cfg = reflect_config::load_from_str(toml).unwrap();
     let err = apply_model_switch(&mut cfg, "my-glm", "m", Some("ghost")).unwrap_err();
-    assert!(err.msg.contains("ghost") && err.msg.contains("my-glm"), "{err:?}");
+    assert!(
+        err.msg.contains("ghost") && err.msg.contains("my-glm"),
+        "{err:?}"
+    );
 }
 
 /// 组 id 不存在时 apply_model_switch 直接报错(防御分支;调用方已

@@ -117,6 +117,202 @@ pub async fn reflect_tailscale_daemon_status() -> CommandResult<String> {
     Ok("not implemented yet (Phase 2 follow-up)".into())
 }
 
+// ── SSH 远程开发(会话层接缝;docs/plans/ssh-remote.md)────────────────
+//
+// 远端跑 `zhuye serve`(stdio JSONL),桌面以 SSH 子进程为传输成为协议
+// 客户端。host 注册表持久化 `$ZHUYE_HOME/remote-hosts.json`;连接走
+// `state/remote.rs` 的 RemoteSessionManager(事件泵进既有 session/background
+// 通道,submit 经前台插槽分流)。远端前置:已装 zhuye CLI(BatchMode
+// 密钥认证;连接时以 `zhuye --version` 探测,失败给安装引导)。
+
+/// 远程主机列表(注册表读口)。
+#[tauri::command]
+pub async fn reflect_remote_hosts() -> CommandResult<Vec<crate::state::remote::RemoteHost>> {
+    Ok(crate::state::remote::load_hosts())
+}
+
+/// 新增/覆盖一台远程主机(按 name 幂等)。返回更新后的列表。
+#[tauri::command]
+pub async fn reflect_remote_host_save(
+    name: String,
+    host: String,
+    port: Option<u16>,
+    user: Option<String>,
+) -> CommandResult<Vec<crate::state::remote::RemoteHost>> {
+    let name = name.trim().to_string();
+    let host = host.trim().to_string();
+    if name.is_empty() || host.is_empty() {
+        return Err(CommandError {
+            msg: "name 与 host 不能为空".into(),
+        });
+    }
+    let mut hosts = crate::state::remote::load_hosts();
+    let entry = crate::state::remote::RemoteHost {
+        name,
+        host,
+        port: port.unwrap_or(22),
+        user: user.map(|u| u.trim().to_string()).filter(|u| !u.is_empty()),
+    };
+    match hosts.iter_mut().find(|h| h.name == entry.name) {
+        Some(slot) => *slot = entry,
+        None => hosts.push(entry),
+    }
+    crate::state::remote::save_hosts(&hosts).map_err(CommandError::from)?;
+    Ok(hosts)
+}
+
+/// 删除一台远程主机。返回更新后的列表。
+#[tauri::command]
+pub async fn reflect_remote_host_remove(
+    name: String,
+) -> CommandResult<Vec<crate::state::remote::RemoteHost>> {
+    let mut hosts = crate::state::remote::load_hosts();
+    hosts.retain(|h| h.name != name);
+    crate::state::remote::save_hosts(&hosts).map_err(CommandError::from)?;
+    Ok(hosts)
+}
+
+/// 连通性 + 远端 CLI 探测:`ssh <host> -- zhuye --version`(BatchMode)。
+/// 返回版本行;失败给引导文案(装 CLI / 配密钥)。
+#[tauri::command]
+pub async fn reflect_remote_test(
+    host: String,
+    port: Option<u16>,
+    user: Option<String>,
+) -> CommandResult<String> {
+    let entry = crate::state::remote::RemoteHost {
+        name: "probe".into(),
+        host: host.trim().to_string(),
+        port: port.unwrap_or(22),
+        user: user
+            .filter(|u| !u.trim().is_empty())
+            .map(|u| u.trim().to_string()),
+    };
+    if entry.host.is_empty() {
+        return Err(CommandError {
+            msg: "host 不能为空".into(),
+        });
+    }
+    // 复用传输 argv 组装(替换远端命令为 --version)。
+    let mut argv = crate::state::remote::ssh_argv_for_probe(&entry);
+    let bin = argv.remove(0);
+    let out = tokio::process::Command::new(&bin)
+        .args(&argv)
+        .output()
+        .await
+        .map_err(|e| CommandError {
+            msg: crate::state::remote::spawn_error_message(&bin, e),
+        })?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        return Err(CommandError {
+            msg: format!(
+                "远端不可达或 zhuye 未安装(退出码 {:?}):{};确认已配密钥(BatchMode)且远端已装 zhuye CLI",
+                out.status.code(),
+                stderr.trim()
+            ),
+        });
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// 远端一键安装 zhuye CLI(bootstrap):ssh 拉起远端 `sh` 执行安装脚本
+/// (探测 OS/架构 → 下载上游 Release 资产 → 装到 `~/.local/bin` 免 sudo
+/// → 自验 `--version`)。返回版本输出;失败给可行动引导(缺 curl / 架构
+/// 无产物 / OS 不支持)。安装后 connect 经登录 shell 找到它。
+#[tauri::command]
+pub async fn reflect_remote_bootstrap(
+    agent: State<'_, MinimalAgent>,
+    host: String,
+) -> CommandResult<String> {
+    let entry = crate::state::remote::load_hosts()
+        .into_iter()
+        .find(|h| h.name == host)
+        .ok_or_else(|| CommandError {
+            msg: format!("远程主机不存在: {host}"),
+        })?;
+    crate::state::remote::bootstrap::run(&agent, &entry)
+        .await
+        .map_err(CommandError::from)
+}
+
+/// 连接远程会话:拉起 serve 并等握手。返回会话 id(uuid 字符串,前端
+/// 据此 bind / 提交)。
+#[tauri::command]
+pub async fn reflect_remote_connect(
+    agent: State<'_, MinimalAgent>,
+    host: String,
+    cwd: String,
+) -> CommandResult<String> {
+    let entry = crate::state::remote::load_hosts()
+        .into_iter()
+        .find(|h| h.name == host)
+        .ok_or_else(|| CommandError {
+            msg: format!("远程主机不存在: {host}"),
+        })?;
+    let cwd = cwd.trim().to_string();
+    if cwd.is_empty() {
+        return Err(CommandError {
+            msg: "远端工作目录不能为空".into(),
+        });
+    }
+    crate::state::remote::connect(&agent, &entry, &cwd)
+        .await
+        .map_err(CommandError::from)
+}
+
+/// bind 到远程会话(前台插槽置位;后续 submit/interrupt 路由远端)。
+#[tauri::command]
+pub async fn reflect_remote_bind(agent: State<'_, MinimalAgent>, sid: String) -> CommandResult<()> {
+    if !crate::state::remote::is_remote_session(&agent, &sid).await {
+        return Err(CommandError {
+            msg: format!("远程会话不存在或已断开: {sid}"),
+        });
+    }
+    crate::state::remote::set_foreground_remote(&agent, Some(sid));
+    Ok(())
+}
+
+/// 断开远程会话(杀 serve 子进程;远端 rollout 已落盘可 resume)。
+#[tauri::command]
+pub async fn reflect_remote_disconnect(
+    agent: State<'_, MinimalAgent>,
+    sid: String,
+) -> CommandResult<()> {
+    crate::state::remote::disconnect(&agent, &sid)
+        .await
+        .map_err(CommandError::from)
+}
+
+/// 活跃远程会话列表(sid / host / cwd)。
+#[tauri::command]
+pub async fn reflect_remote_sessions(
+    agent: State<'_, MinimalAgent>,
+) -> CommandResult<Vec<RemoteSessionInfo>> {
+    let foreground = crate::state::remote::foreground_remote(&agent);
+    let sessions = crate::state::remote::active_sessions(&agent).await;
+    Ok(sessions
+        .into_iter()
+        .map(|(sid, host, cwd)| RemoteSessionInfo {
+            is_foreground: foreground.as_deref() == Some(sid.as_str()),
+            sid,
+            host,
+            cwd,
+        })
+        .collect())
+}
+
+/// 活跃远程会话信息(camelCase 出线)。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteSessionInfo {
+    pub sid: String,
+    pub host: String,
+    pub cwd: String,
+    /// 是否为当前前台远程会话。
+    pub is_foreground: bool,
+}
+
 // ── v1.11 基建#12:远程网页访问状态 ─────────────────────────────────────
 
 /// v1.11 基建#12:启动远程网页状态服务器(`GET /status` 只读诊断 JSON)。

@@ -78,6 +78,7 @@ const shell: Record<string, StringEntry> = {
   'shell.nav.files':              { en: 'Files',                                                  'zh-CN': '文件' },
   'shell.nav.git':                { en: 'Git',                                                    'zh-CN': 'Git' },
   'shell.nav.terminal':           { en: 'Terminal',                                               'zh-CN': '终端' },
+  'shell.nav.browser':            { en: 'Browser',                                                'zh-CN': '浏览器' },
   'shell.nav.skills':             { en: 'Skills & Tools',                                         'zh-CN': '技能与工具' },
   'shell.nav.notifications':      { en: 'Notifications',                                          'zh-CN': '通知' },
   'shell.nav.settings':           { en: 'Settings',                                               'zh-CN': '设置' },

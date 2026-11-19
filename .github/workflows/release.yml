@@ -240,6 +240,17 @@ jobs:
         # --no-frontend：pnpm tauri build 的 beforeBuildCommand 已运行
         # `pnpm build`；在 CI runner 上跑两次是浪费。
         # --target：macOS x86_64 在 arm64 runner 上交叉编译，其余为空（宿主目标）。
+        env:
+          # 应用自更新（OTA）：tauri-plugin-updater 需要 minisign 签名。私钥
+          # 生成见 scripts/gen-update-keys.sh；未配置 secret 时构建**硬失败**
+          #（不做静默降级 —— 发布出去的包必须带可校验的更新签名）。
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # 仅发布构建开启 updater 产物（本地构建不要求签名密钥）：
+          # macOS *.app.tar.gz / Windows *.msi.zip / Linux *.AppImage.tar.gz + .sig。
+          # 经 build.sh 的 TAURI_CLI_ARGS 透传；单引号在 build.sh 的 eval 中保护 JSON。
+          TAURI_CLI_ARGS: >-
+            --config '{"bundle":{"createUpdaterArtifacts":true}}'
         run: >-
           bash scripts/build.sh --bundles=${{ matrix.bundles }} --no-frontend
           ${{ matrix.target != '' && format('--target={0}', matrix.target) || '' }}
@@ -310,6 +321,17 @@ jobs:
 
       - name: List downloaded
         run: ls -la release-assets/ release-review/ 2>/dev/null || true
+
+      # 应用自更新（OTA）：汇总各平台 updater 产物生成 latest.json 更新清单，
+      # 与安装包同批挂到 Release（endpoint 指 releases/latest/download/latest.json）。
+      # 缺任一平台产物即失败 —— 不允许发「检查不到更新」的残缺发布。
+      - name: Generate updater latest.json
+        env:
+          UPDATE_VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          bash scripts/gen-latest-json.sh release-assets "${UPDATE_VERSION#v}" \
+            "${{ github.repository }}" release-assets/latest.json
 
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2

@@ -32,6 +32,7 @@
 | 发布门禁分层与应用级测试 | [tests/AGENTS.md](tests/AGENTS.md) |
 | 上游核心 crate（submodule，只读镜像，不在本仓库建篇） | 下方「上游 submodule 体系索引」 · [SUBMODULE.md](SUBMODULE.md) |
 | 架构与系统文档（不建篇） | [docs/architecture.md](docs/architecture.md) · [docs/codebase-map.md](docs/codebase-map.md) · [docs/capabilities.md](docs/capabilities.md) · [docs/protocol-bridge.md](docs/protocol-bridge.md) · [docs/changelog.md](docs/changelog.md) · [docs/user-guide.md](docs/user-guide.md)（外链） |
+| 三大功能规划（应用自更新 / 内置浏览器 / SSH 远程） | [docs/plans/hot-update.md](docs/plans/hot-update.md) · [docs/plans/browser-control.md](docs/plans/browser-control.md) · [docs/plans/ssh-remote.md](docs/plans/ssh-remote.md) |
 
 ### 上游 submodule 体系索引（`zhuye-agent/`，只读）
 

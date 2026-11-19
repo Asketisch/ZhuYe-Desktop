@@ -76,6 +76,30 @@ vi.mock('@/utils/commands', async () => {
       calls.push({ cmd: 'reflect_status_server_stop', args: undefined });
       return undefined;
     }),
+    // SSH 远程开发(state/remote.rs 会话层接缝)。
+    reflect_remote_hosts: vi.fn(async () => [
+      { name: 'build-box', host: '10.0.0.5', port: 22, user: null },
+    ]),
+    reflect_remote_host_save: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'reflect_remote_host_save', args });
+      return [{ name: args.name as string, host: args.host as string, port: (args.port as number) ?? 22, user: (args.user as string | null) ?? null }];
+    }),
+    reflect_remote_host_remove: vi.fn(async () => []),
+    reflect_remote_test: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'reflect_remote_test', args });
+      return 'zhuye 0.1.15';
+    }),
+    reflect_remote_bootstrap: vi.fn(async (host: string) => {
+      calls.push({ cmd: 'reflect_remote_bootstrap', args: { host } });
+      return 'zhuye 0.1.15 (installed)';
+    }),
+    reflect_remote_connect: vi.fn(async (host: string, cwd: string) => {
+      calls.push({ cmd: 'reflect_remote_connect', args: { host, cwd } });
+      return '00000000-0000-4000-8000-0000000000aa';
+    }),
+    reflect_remote_bind: vi.fn(async () => undefined),
+    reflect_remote_disconnect: vi.fn(async () => undefined),
+    reflect_remote_sessions: vi.fn(async () => []),
   };
 });
 
@@ -187,6 +211,41 @@ describe('RemoteView', () => {
     fireEvent.click(stopBtn);
     await waitFor(() => {
       expect(calls.some((c) => c.cmd === 'reflect_status_server_stop')).toBe(true);
+    });
+  });
+
+  it('SSH 区块:主机列表渲染,连接后导航到远程会话', async () => {
+    render(wrap(<RemoteView />));
+    await waitFor(() => {
+      expect(screen.getByTestId('remote-ssh-fill-build-box')).toBeDefined();
+    });
+
+    // 填表 → 连接 → 调 reflect_remote_connect(name, cwd)。
+    fireEvent.change(screen.getByTestId('remote-ssh-name'), { target: { value: 'build-box' } });
+    fireEvent.change(screen.getByTestId('remote-ssh-cwd'), { target: { value: '/home/me/proj' } });
+    fireEvent.click(screen.getByTestId('remote-ssh-connect'));
+    await waitFor(() => {
+      const connect = calls.find((c) => c.cmd === 'reflect_remote_connect');
+      expect(connect).toBeDefined();
+      expect(connect?.args).toEqual({ host: 'build-box', cwd: '/home/me/proj' });
+    });
+  });
+
+  it('SSH 一键安装:点击后调 reflect_remote_bootstrap 并自动重测主机', async () => {
+    render(wrap(<RemoteView />));
+    await waitFor(() => {
+      expect(screen.getByTestId('remote-ssh-bootstrap')).toBeDefined();
+    });
+    fireEvent.change(screen.getByTestId('remote-ssh-name'), { target: { value: 'fresh-box' } });
+    fireEvent.click(screen.getByTestId('remote-ssh-bootstrap'));
+    await waitFor(() => {
+      const boot = calls.find((c) => c.cmd === 'reflect_remote_bootstrap');
+      expect(boot).toBeDefined();
+      expect(boot?.args).toEqual({ host: 'fresh-box' });
+    });
+    // 装完自动重测(reflect_remote_test 被再次调用)。
+    await waitFor(() => {
+      expect(calls.some((c) => c.cmd === 'reflect_remote_test')).toBe(true);
     });
   });
 });

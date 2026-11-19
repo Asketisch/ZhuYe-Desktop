@@ -1,8 +1,9 @@
 //! 更新检查(release manifest 探测)。
 
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 
-use crate::commands::error::CommandResult;
+use crate::commands::error::{CommandError, CommandResult};
 
 /// 更新信息(camelCase 出线,遵循桌面端 DTO 约定)。
 #[derive(Debug, Serialize, Deserialize)]
@@ -108,6 +109,114 @@ fn compare_versions(latest: &str, current: &str) -> bool {
     let l = parse(latest);
     let c = parse(current);
     l > c
+}
+
+// ===== 自更新（OTA）:tauri-plugin-updater 命令面 =====
+
+/// `reflect_update_progress` 事件负载（tag = "type",camelCase 出线）。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase", tag = "type")]
+pub enum UpdateProgressPayload {
+    /// 开始下载。
+    Started,
+    /// 下载中。
+    Progress {
+        /// 已下载字节。
+        downloaded: u64,
+        /// 总字节（unknown 时为 null）。
+        total: Option<u64>,
+    },
+    /// 下载完成，安装已执行（等待重启生效）。
+    Finished,
+}
+
+/// 自更新安装结果。
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInstallOutcome {
+    /// 是否找到并安装了更新（false = 已是最新，无需重启）。
+    pub installed: bool,
+    /// 安装的目标版本（installed=false 时为 null）。
+    pub version: Option<String>,
+    /// 更新说明正文（release notes）。
+    pub notes: Option<String>,
+}
+
+/// 检查 → 下载 → 安装更新（一条命令走完整回路）。
+///
+/// 进度经 `reflect_update_progress` 事件推前端（Started / Progress / Finished）；
+/// 安装成功后由前端引导调用 `reflect_relaunch_app` 生效。签名校验由
+/// tauri-plugin-updater 按 `tauri.conf.json > plugins.updater.pubkey` 强制 ——
+/// 未配置密钥或端点时返回结构化错误（不 panic、不静默）。
+#[tauri::command]
+pub async fn reflect_download_install_update(
+    agent: tauri::State<'_, crate::state::MinimalAgent>,
+) -> CommandResult<UpdateInstallOutcome> {
+    // 应用句柄从托管状态取（而非直接当参数）—— 与其他 OS 交互命令同款：
+    // mock runtime 下句柄缺失返回结构化错误，能力覆盖层可驱动真实命令体。
+    let app = agent.app_handle().ok_or_else(|| CommandError {
+        msg: "应用句柄未就绪，无法执行更新".to_string(),
+    })?;
+
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater_builder().build().map_err(|e| CommandError {
+        msg: format!("updater 初始化失败: {e}"),
+    })?;
+    let update = updater.check().await.map_err(|e| CommandError {
+        msg: format!("updater 检查失败: {e}"),
+    })?;
+    let Some(update) = update else {
+        // 已是最新 —— 不发事件，直接返回。
+        return Ok(UpdateInstallOutcome {
+            installed: false,
+            version: None,
+            notes: None,
+        });
+    };
+
+    let _ = app.emit("reflect_update_progress", UpdateProgressPayload::Started);
+    let mut downloaded: u64 = 0;
+    let progress_app = app.clone();
+    let finish_app = app.clone();
+    update
+        .download_and_install(
+            move |chunk, total| {
+                downloaded = downloaded.saturating_add(chunk as u64);
+                let _ = progress_app.emit(
+                    "reflect_update_progress",
+                    UpdateProgressPayload::Progress { downloaded, total },
+                );
+            },
+            move || {
+                let _ = finish_app.emit("reflect_update_progress", UpdateProgressPayload::Finished);
+            },
+        )
+        .await
+        .map_err(|e| CommandError {
+            msg: format!("更新下载/安装失败: {e}"),
+        })?;
+
+    Ok(UpdateInstallOutcome {
+        installed: true,
+        version: Some(update.version),
+        notes: update.body,
+    })
+}
+
+/// 重启应用（更新安装完成后生效）。
+///
+/// 用 tauri 核心 `request_restart`（非阻塞变体）：置位 restart_on_exit 后请求
+/// 事件循环退出，进程由 run loop 干净替换 —— 比 `restart()` 更适合命令层
+/// （`restart()` 在非主线程会 `sleep(Duration::MAX)` 永久阻塞工作线程）。
+#[tauri::command]
+pub async fn reflect_relaunch_app(
+    agent: tauri::State<'_, crate::state::MinimalAgent>,
+) -> CommandResult<()> {
+    let app = agent.app_handle().ok_or_else(|| CommandError {
+        msg: "应用句柄未就绪，无法重启".to_string(),
+    })?;
+    app.request_restart();
+    Ok(())
 }
 
 #[cfg(test)]

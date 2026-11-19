@@ -526,7 +526,10 @@ describe('IPC parity (frontend ↔ backend)', () => {
   });
 
   it('every frontend command has matching handler in invoke_handler', async () => {
-    const libSrc = nodeRead('src-tauri/src/lib.rs', 'utf8');
+    // 注册表本体在 lib.rs 或独立装配模块(commands_registry.rs),任一命中。
+    const libSrc = ['src-tauri/src/lib.rs', 'src-tauri/src/commands_registry.rs']
+      .map((f) => nodeRead(f, 'utf8'))
+      .join('\n');
     const frontend = await import('@/utils/commands');
     const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('reflect_'));
 

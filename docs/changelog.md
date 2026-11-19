@@ -4,6 +4,48 @@
 
 ## 未发布
 
+- **SSH 远程开发（会话层接缝）**：桌面端 SSH 到某台机器，agent 会话在远端
+  跑 —— 远端执行 `zhuye serve`（stdio JSONL），桌面以 SSH 子进程为传输成为
+  协议客户端。新增 host 注册表（`$ZHUYE_HOME/remote-hosts.json`，`/remote`
+  页 CRUD + `zhuye --version` 连通性探测）与 8 个命令（`reflect_remote_*`）；
+  连接 = 握手（session_configured）→ bind 置前台插槽 → `reflect_submit` /
+  `reflect_submit_op` 整条路由远端 stdin，事件经既有 session/background 通道
+  回前端（审批弹窗零改动）；断开杀本地 serve 子进程（远端 rollout 已落盘）。
+  传输复用 BatchMode/ConnectTimeout argv 模式（无新 SSH 库），二进制可经
+  `ZHUYE_REMOTE_SSH_BIN` 覆盖（测试 stub 注入点）。
+  **远端一键安装**：新增 `reflect_remote_bootstrap` —— 经 ssh 送 POSIX sh
+  脚本到远端执行（探测 OS/架构 → 解析上游 latest tag → 下载
+  `zhuye-<版本>-<triple>.tar.gz`，curl/wget 自适应 → 装到 `~/.local/bin`
+  免 sudo → 自验 `--version`），失败按退出码给可行动引导（OS/架构不支持、
+  缺 curl、无法解析版本）。配套两处传输修正：serve/probe 一律改经
+  `sh -lc`（登录 shell）执行 —— 非交互 ssh 命令的默认 PATH 不含
+  `~/.local/bin`，登录 shell 才会带上；桌面端缺 ssh 二进制时按平台给
+  安装引导（Windows OpenSSH 客户端是可选功能）。跨平台矩阵
+  （macOS→Linux 主场景 / Windows→Linux 前置 / 其余未验证）与共同前置
+  （known_hosts 首连、BatchMode 密钥）见 docs/plans/ssh-remote.md §1a。
+  v1 有意边界：远端会话
+  在 /remote 页管理（侧栏「远程」分组列后续）；文件/编辑器/git 面板对远程
+  工作区有意降级；密码交互认证不支持（报错引导配 key）。
+- **内置受控浏览器（F39）**：上游 submodule 新增 `zhuye-browser` crate +
+  `plugins/browser` 插件 —— agent 经 MCP 工具控制本机 Chrome/Edge/Chromium
+  （导航 / 可及性快照 / 点击 / 填写 / 按键 / 滚动 / 截图），CDP 仅 loopback
+  + 单 target 强制校验、隔离 profile（`$ZHUYE_HOME/browser-profile`）、
+  `@eN` 元素引用 + 快照绑定（旧 ref 显式失效防误点）。桌面端新增 `/browser`
+  浏览器面板：CDP screencast 帧流只读渲染（`reflect_browser_start/stop/
+  status/env` 命令 + `reflect_browser_frame` 事件），与插件控制通道共享
+  同一发现契约；本机无浏览器或插件未装时双层优雅降级（Unavailable 文案 /
+  面板空态引导）。submodule 指针升至上游 `feat/browser-plugin`（f064c1c），
+  ModelInfo 适配上游 models.dev 新字段（supports_vision / max_output_tokens）。
+- **应用自更新（OTA）**：设置页从「只检查不安装」升级为完整自更新回路 ——
+  检查 → 下载（进度条，minisign 签名校验）→ 安装 → 重启引导，基于
+  tauri-plugin-updater + tauri 核心 `request_restart`（Rust 侧驱动，不经
+  插件 JS API）。新增命令 `reflect_download_install_update` /
+  `reflect_relaunch_app` 与 `reflect_update_progress` 事件；发布链产
+  latest.json 更新清单（`scripts/gen-latest-json.sh`），minisign 密钥生成
+  见 `scripts/gen-update-keys.sh`（私钥走 GitHub secrets，未配置时 release
+  构建硬失败）。updater 插件只在生产 runtime 注册（其初始化硬要求
+  `plugins.updater` 配置段，mock context 无此段）；设置页挂载即自动检查，
+  原生菜单「Check for Updates…」事件接线到设置页（此前该事件无前端消费者）。
 - **模型组（`[[provider_group]]`）**：模型配置从「anthropic / openai 两个内置
   端口」升级为「任意多个命名模型组」—— 每组自带线格式（openai / anthropic）
   + base_url + api_key，组 id 直接注册为引擎凭证池名，模型 spec 前缀 = 组 id

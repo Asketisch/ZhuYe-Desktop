@@ -6,10 +6,12 @@
  *   - 点「检查更新」后调用 reflect_check_update
  *   - 有新版 → 显示版本徽标 + 发布说明 + 发布页链接
  *   - 探测出错 → 如实展示错误,不静默
+ *   - OTA 自更新:点击安装 → 进度事件驱动进度条 → 完成出现重启按钮
+ *   - 安装失败 → 如实展示,不影响检查区
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
-import { resetMockInvoke, mockInvoke } from '@/test/setup.tsx';
+import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react';
+import { resetMockInvoke, mockInvoke, emitMockEvent } from '@/test/setup.tsx';
 import { UpdatesSection } from './UpdatesSection';
 
 vi.mock('@tanstack/react-router', async () => {
@@ -102,6 +104,95 @@ describe('UpdatesSection', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('updates-error').textContent).toContain('bridge down');
+    });
+  });
+
+  // ====== OTA 自更新(下载 → 校验 → 安装 → 重启) ======
+
+  /** 探测一个有新版的 update info,为安装流测试铺底。 */
+  function mockUpdateAvailable() {
+    mockInvoke('reflect_check_update', async () => ({
+      currentVersion: '0.1.0',
+      latestVersion: '0.2.0',
+      updateAvailable: true,
+      releaseUrl: null,
+      releaseNotes: null,
+      probedAt: 1,
+      error: null,
+    }));
+  }
+
+  it('有新版 → 出现「立即更新」;已是最新结果 → 安装区收起', async () => {
+    mockUpdateAvailable();
+    render(<UpdatesSection />);
+    fireEvent.click(screen.getByTestId('updates-check'));
+    await waitFor(() => {
+      expect(screen.getByTestId('updates-install')).toBeDefined();
+    });
+    expect(screen.getByTestId('updates-install-start')).toBeDefined();
+
+    // 已是最新(installed=false)→ 收起安装区并刷新检查结果。
+    mockInvoke('reflect_download_install_update', async () => ({
+      installed: false,
+      version: null,
+      notes: null,
+    }));
+    fireEvent.click(screen.getByTestId('updates-install-start'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('updates-install-start')).toBeNull();
+    });
+  });
+
+  it('安装全回路:进度事件驱动进度条 → 完成 → 重启按钮触发 relaunch', async () => {
+    mockUpdateAvailable();
+    render(<UpdatesSection />);
+    fireEvent.click(screen.getByTestId('updates-check'));
+    await waitFor(() => {
+      expect(screen.getByTestId('updates-install-start')).toBeDefined();
+    });
+
+    let relaunchCalls = 0;
+    mockInvoke('reflect_relaunch_app', async () => {
+      relaunchCalls += 1;
+      return undefined;
+    });
+    mockInvoke('reflect_download_install_update', async () => {
+      act(() => {
+        emitMockEvent('reflect_update_progress', { type: 'started' });
+        emitMockEvent('reflect_update_progress', { type: 'progress', downloaded: 50, total: 100 });
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId('updates-install-progress').textContent).toContain('50');
+      });
+      act(() => {
+        emitMockEvent('reflect_update_progress', { type: 'finished' });
+      });
+      return { installed: true, version: '0.2.0', notes: null };
+    });
+    fireEvent.click(screen.getByTestId('updates-install-start'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('updates-install-done')).toBeDefined();
+    });
+    expect(screen.getByTestId('updates-install-done').textContent).toContain('0.2.0');
+    fireEvent.click(screen.getByTestId('updates-relaunch'));
+    expect(relaunchCalls).toBe(1);
+  });
+
+  it('安装失败 → 展示错误,检查区不受影响', async () => {
+    mockUpdateAvailable();
+    render(<UpdatesSection />);
+    fireEvent.click(screen.getByTestId('updates-check'));
+    await waitFor(() => {
+      expect(screen.getByTestId('updates-install-start')).toBeDefined();
+    });
+
+    mockInvoke('reflect_download_install_update', async () => {
+      throw new Error('updater check failed: offline');
+    });
+    fireEvent.click(screen.getByTestId('updates-install-start'));
+    await waitFor(() => {
+      expect(screen.getByTestId('updates-install-error').textContent).toContain('offline');
     });
   });
 });

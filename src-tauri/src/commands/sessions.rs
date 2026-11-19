@@ -77,6 +77,14 @@ pub async fn reflect_bind_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
 ) -> CommandResult<String> {
+    // 远程会话分流:活跃远程 sid → 前台插槽置位即返回(远端 rollout 在
+    // 远端磁盘;本地不走 replay/rebind 机器)。bind 本地会话时插槽自动清。
+    if crate::state::remote::is_remote_session(&agent, &id.to_string()).await {
+        crate::state::remote::set_foreground_remote(&agent, Some(id.to_string()));
+        return Ok(id.to_string());
+    }
+    // 切回本地会话:清远程前台插槽(submit 回本地线程)。
+    crate::state::remote::set_foreground_remote(&agent, None);
     // 与配置写入、活跃代理切换保持一致的锁顺序，覆盖回放和线程重建。
     let _config_write = agent.inner.config_write_lock.lock().await;
     let _transition = agent.inner.session_transition_lock.lock().await;

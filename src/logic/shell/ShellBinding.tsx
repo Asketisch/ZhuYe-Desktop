@@ -13,6 +13,7 @@ import { reflect_create_session, reflect_pick_workspace_folder, reflect_set_work
 import { useAgentStore } from '@/stores/agentStore';
 import { useThemeCycle } from '@/logic/shell/useThemeCycle';
 import { useCommandPaletteShortcut } from '@/logic/shell/useCommandPaletteShortcut';
+import { useMenuEvents } from '@/logic/shell/useMenuEvents';
 import { usePaletteActions } from '@/logic/shell/usePaletteActions';
 import { useCurrentWorkspace, CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
 
@@ -43,6 +44,9 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
 
   // ⌘K / Ctrl+K 全局快捷键 + Esc 关闭
   const { paletteOpen, setPaletteOpen } = useCommandPaletteShortcut();
+
+  // 原生菜单事件消费(menu-check-updates → 设置页,由挂载时自动检查完成触发)。
+  useMenuEvents((to) => { void router.navigate({ to }); });
 
   /** 切换工作区并失效相关缓存(失效集与 WorkspacesView 的切换路径一致)。 */
   const switchWorkspace = async (path: string) => {

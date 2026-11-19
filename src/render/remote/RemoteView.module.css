@@ -185,3 +185,63 @@
   font-size: var(--fs-xs, 12px);
   color: var(--text-secondary, #c9d1e0);
 }
+/* ── SSH 远程开发区块 ── */
+
+.sshForm {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.sshInput {
+  flex: 1;
+  min-width: 140px;
+  font-size: var(--fs-xs);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+
+.sshSessionList {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sshSessionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.sshSessionHost {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.sshSessionCwd {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

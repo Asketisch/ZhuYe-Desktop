@@ -129,9 +129,7 @@ pub async fn reflect_set_model(
     let is_group = {
         let cfg_lock = agent.cfg();
         let cfg = cfg_lock.read();
-        cfg.provider_group
-            .iter()
-            .any(|g| g.id.trim() == provider)
+        cfg.provider_group.iter().any(|g| g.id.trim() == provider)
     };
     if !matches!(provider.as_str(), "anthropic" | "openai" | "ollama") && !is_group {
         return Err(CommandError {
@@ -198,12 +196,9 @@ fn apply_model_switch(
                 .ok_or_else(|| CommandError {
                     msg: format!("provider group '{provider}' not found"),
                 })?;
-            if let Some(entry) = label.and_then(|l| {
-                group
-                    .credentials
-                    .iter_mut()
-                    .find(|c| c.label.trim() == l)
-            }) {
+            if let Some(entry) =
+                label.and_then(|l| group.credentials.iter_mut().find(|c| c.label.trim() == l))
+            {
                 entry.model = model_opt;
                 return Ok(());
             }

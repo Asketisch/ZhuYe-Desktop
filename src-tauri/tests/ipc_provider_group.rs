@@ -25,7 +25,10 @@ base_url = "https://open.bigmodel.cn/api/paas/v4"
 
 #[test]
 fn provider_group_config_reloads_and_set_model_switches_by_group_id() {
-    common::invoke_ok("reflect_bind_session", json!({"id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}));
+    common::invoke_ok(
+        "reflect_bind_session",
+        json!({"id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}),
+    );
     common::invoke_ok("reflect_save_config", json!({"toml": GROUP_TOML}));
 
     // 组保存后热重载已重建 registry:agent_status 如实反映 active provider
@@ -46,7 +49,10 @@ fn provider_group_config_reloads_and_set_model_switches_by_group_id() {
 
 #[test]
 fn provider_group_set_model_rejects_unknown_group_id() {
-    common::invoke_ok("reflect_bind_session", json!({"id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}));
+    common::invoke_ok(
+        "reflect_bind_session",
+        json!({"id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}),
+    );
     common::invoke_ok("reflect_save_config", json!({"toml": GROUP_TOML}));
     let err = common::invoke_err(
         "reflect_set_model",
@@ -65,7 +71,10 @@ fn provider_group_set_model_rejects_unknown_group_id() {
 fn provider_group_group_level_model_change_triggers_reload() {
     // 只改组级 model(经 set_model 写组字段)→ 下一次 status 即新 spec,
     // 证明 `provider_stack_changed` 覆盖了 provider_group 段。
-    common::invoke_ok("reflect_bind_session", json!({"id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}));
+    common::invoke_ok(
+        "reflect_bind_session",
+        json!({"id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}),
+    );
     common::invoke_ok("reflect_save_config", json!({"toml": GROUP_TOML}));
     let first = common::invoke_ok(
         "reflect_set_model",

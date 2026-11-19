@@ -32,6 +32,7 @@ export * from './terminal';
 export * from './files';
 export * from './allowlist';
 export * from './updates';
+export * from './browser';
 export * from './search';
 export * from './kms';
 export * from './lsp';

@@ -1,4 +1,4 @@
-import { Wifi, Save, X, RefreshCw, Loader2, Info } from 'lucide-react';
+import { Wifi, Save, X, RefreshCw, Loader2, Info, Terminal, PlugZap, Trash2 } from 'lucide-react';
 import type { RemoteConfigDraft, RemoteViewProps } from '@/contracts/remote';
 import { PageShell } from '../shell/PageShell';
 import { Badge } from '../design-system/Badge';
@@ -197,6 +197,107 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
               </div>
             )}
           </dl>
+        )}
+      </Card>
+
+      {/* SSH 远程开发(state/remote.rs 会话层接缝) */}
+      <Card level="outlined" padding="md" className={s.section} data-testid="remote-ssh-card">
+        <header className={s.sectionHeader}>
+          <div>
+            <strong>{t('remote.ssh.title')}</strong>
+            <div className={s.sectionHint}>{t('remote.ssh.hint')}</div>
+          </div>
+          <Badge variant={ctrl.sshSessions.length > 0 ? 'success' : 'neutral'} data-testid="remote-ssh-badge">
+            {t('remote.ssh.sessionCount', { count: ctrl.sshSessions.length })}
+          </Badge>
+        </header>
+
+        {/* 活跃会话 */}
+        {ctrl.sshSessions.length > 0 && (
+          <ul className={s.sshSessionList} data-testid="remote-ssh-sessions">
+            {ctrl.sshSessions.map((session) => (
+              <li key={session.sid} className={s.sshSessionRow}>
+                <Icon icon={Terminal} size={13} />
+                <span className={s.sshSessionHost}>{session.host}</span>
+                <span className={s.sshSessionCwd}>{session.cwd}</span>
+                {session.isForeground && (
+                  <Badge variant="accent">{t('remote.ssh.foreground')}</Badge>
+                )}
+                <span className={s.spacer} />
+                <Button size="sm" variant="danger" onClick={() => void ctrl.sshDisconnect(session.sid)} data-testid={`remote-ssh-disconnect-${session.sid}`}>
+                  <Trash2 size={12} />
+                  {t('remote.ssh.disconnect')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* 连接表单 */}
+        <div className={s.sshForm} data-testid="remote-ssh-form">
+          <input
+            className={s.sshInput}
+            placeholder={t('remote.ssh.namePlaceholder')}
+            value={ctrl.sshConnectForm.name}
+            onChange={(e) => ctrl.patchSshConnectForm({ name: e.target.value })}
+            data-testid="remote-ssh-name"
+          />
+          <input
+            className={s.sshInput}
+            placeholder={t('remote.ssh.hostPlaceholder')}
+            value={ctrl.sshConnectForm.host}
+            onChange={(e) => ctrl.patchSshConnectForm({ host: e.target.value })}
+            data-testid="remote-ssh-host"
+          />
+          <input
+            className={s.sshInput}
+            placeholder={t('remote.ssh.cwdPlaceholder')}
+            value={ctrl.sshConnectForm.cwd}
+            onChange={(e) => ctrl.patchSshConnectForm({ cwd: e.target.value })}
+            data-testid="remote-ssh-cwd"
+          />
+        </div>
+        <div className={s.sectionActions}>
+          <Button size="sm" variant="primary" disabled={ctrl.sshBusy || !ctrl.sshConnectForm.name || !ctrl.sshConnectForm.cwd} onClick={() => void ctrl.sshConnect()} data-testid="remote-ssh-connect">
+            {ctrl.sshBusy ? <Loader2 size={12} className={s.spin} /> : <PlugZap size={12} />}
+            {t('remote.ssh.connect')}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={!ctrl.sshConnectForm.host} onClick={() => void ctrl.sshTest()} data-testid="remote-ssh-test">
+            {ctrl.sshTesting ? <Loader2 size={12} className={s.spin} /> : null}
+            {t('remote.ssh.test')}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={ctrl.sshBooting || !ctrl.sshConnectForm.name} onClick={() => void ctrl.sshBootstrap()} data-testid="remote-ssh-bootstrap">
+            {ctrl.sshBooting ? <Loader2 size={12} className={s.spin} /> : null}
+            {t('remote.ssh.bootstrap')}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={!ctrl.sshConnectForm.name || !ctrl.sshConnectForm.host} onClick={() => void ctrl.sshSaveHost()} data-testid="remote-ssh-save">
+            <Save size={12} />
+            {t('remote.ssh.saveHost')}
+          </Button>
+        </div>
+        <p className={s.statusMsg}>{t('remote.ssh.prereq')}</p>
+
+        {/* 已保存主机 */}
+        {ctrl.sshHosts.length > 0 && (
+          <ul className={s.sshSessionList} data-testid="remote-ssh-hosts">
+            {ctrl.sshHosts.map((host) => (
+              <li key={host.name} className={s.sshSessionRow}>
+                <span className={s.sshSessionHost}>{host.name}</span>
+                <span className={s.sshSessionCwd}>
+                  {host.user ? `${host.user}@` : ''}
+                  {host.host}
+                  {host.port !== 22 ? `:${host.port}` : ''}
+                </span>
+                <span className={s.spacer} />
+                <Button size="sm" variant="ghost" onClick={() => ctrl.patchSshConnectForm({ name: host.name, host: host.host, port: host.port, user: host.user ?? '' })} data-testid={`remote-ssh-fill-${host.name}`}>
+                  {t('remote.ssh.fill')}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void ctrl.sshRemoveHost(host.name)} data-testid={`remote-ssh-remove-${host.name}`}>
+                  <Trash2 size={12} />
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 

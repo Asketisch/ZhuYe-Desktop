@@ -24,11 +24,11 @@
 | 领域文件 | 领域文件 | 领域文件 | 领域文件 |
 |---|---|---|---|
 | activity | agent | agents | allowlist |
-| approvals | autopilot | config | discussion |
-| events | files | git | goal |
-| health | hooks | importSessions | kms |
-| lsp | mcp | media | memory |
-| models | notes | notifications | permissions |
+| approvals | autopilot | browser | config |
+| discussion | events | files | git |
+| goal | health | hooks | importSessions |
+| kms | lsp | mcp | media |
+| memory | models | notes | notifications |
 | pipeline | plan | plugins | preview |
 | prompts | questions | remote | runtimeStatus |
 | sandbox | schedule | search | security |

@@ -130,6 +130,36 @@
     "reflect_delete_team": {
       "name": "contract-probe-team"
     },
+    "reflect_download_install_update": {},
+    "reflect_relaunch_app": {},
+    "reflect_remote_bootstrap": {
+      "host": "contract-probe-box"
+    },
+    "reflect_remote_bind": {
+      "sid": "00000000-0000-4000-8000-0000000000aa"
+    },
+    "reflect_remote_connect": {
+      "host": "contract-probe-box",
+      "cwd": "/home/probe/proj"
+    },
+    "reflect_remote_disconnect": {
+      "sid": "00000000-0000-4000-8000-0000000000aa"
+    },
+    "reflect_remote_host_remove": {
+      "name": "contract-probe-box"
+    },
+    "reflect_remote_host_save": {
+      "name": "contract-probe-box",
+      "host": "10.0.0.5",
+      "port": 2222,
+      "user": "probe"
+    },
+    "reflect_remote_hosts": {},
+    "reflect_remote_sessions": {},
+    "reflect_remote_test": {
+      "host": "10.0.0.5",
+      "port": 2222
+    },
     "reflect_dream": {
       "insights": [
         "能力覆盖层洞察一",
@@ -620,6 +650,10 @@
       "ports": [5173, 8080],
       "recent_output": "Local: http://localhost:5173/"
     },
+    "reflect_browser_env": {},
+    "reflect_browser_start": {},
+    "reflect_browser_status": {},
+    "reflect_browser_stop": {},
     "reflect_browse_marketplace": {
       "name": "fake-mkt"
     },

@@ -13,6 +13,8 @@
 | check-render-boundaries.mjs | 检查已迁移渲染与逻辑目录的依赖边界 | `pnpm typecheck` / `pnpm build` |
 | build.sh | 按 OS 选默认打包目标的 release 构建 | `--fast` / `--universal` / `--bundles=` / `--no-frontend` / `--dry-run`；`pnpm build:native` |
 | create_tag.sh | 一站式发版：版本 bump + CHANGELOG 转正 + 提交 + tag + 推送 | `--dry-run` / `--no-push` / `--yes` |
+| gen-update-keys.sh | 生成 OTA 自更新的 minisign 密钥对（私钥不入库） | 直接运行；公钥填 tauri.conf.json > plugins.updater.pubkey |
+| gen-latest-json.sh | 汇总各平台 updater 产物生成更新清单 latest.json（release CI 专用） | `gen-latest-json.sh <目录> <版本> <owner/repo> <输出>` |
 | dump-ts-types.sh | Rust 协议类型经 JSON Schema 生成 TS 类型 | `pnpm types:gen` |
 | gen-icons.sh | logo.png → 全套应用图标 + favicon | `--check` / `--dry-run` / `--local` / `--tray-keep`；`pnpm icons` |
 | install.sh | 装二进制与 .app 到本机 | `--prefix=` / `--app-dir=` / `--dry-run` |
@@ -38,6 +40,7 @@
 - `versions_consistent()` 与 `tests/static/run.sh` 的 check_versions 同一口径，不一致即拒发。
 - 流程：前置校验（main 分支 + 工作区干净 + 不落后远端 + submodule 指针已推上 ZhuYe 远端）→ bump → CHANGELOG「未发布」段转正 → 本地跑静态门禁 → 提交 + annotated tag + 推送。
 - 推送 `v*` tag 触发 `.github/workflows/release.yml`：门禁全绿后打包发 GitHub Release。
+- 发布前置（一次性，仓库外）：OTA 更新签名的 `TAURI_SIGNING_*` secrets 已配置（生成见 gen-update-keys.sh）—— 未配置时 release.yml 构建硬失败，属预期门禁。
 
 ### install.sh / dump-ts-types.sh / render-display-png.py
 

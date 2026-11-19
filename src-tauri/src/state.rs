@@ -36,6 +36,7 @@ pub(crate) mod quota;
 pub(crate) mod rebind;
 pub(crate) mod recorder_guard;
 pub(crate) mod reload;
+pub mod remote;
 mod remote_config;
 pub(crate) mod sandbox;
 mod session;
@@ -91,7 +92,13 @@ impl MinimalAgent {
     }
 
     /// 提交 Submission → 拿 per-turn `TurnHandle` → spawn 转发到 broadcast。
+    ///
+    /// 前台远程会话插槽置位时整条路由到远端 serve 的 stdin
+    /// (`state/remote.rs`),本地 AgentThread 不参与。
     pub async fn submit(&self, submission: reflect_protocol::Submission) -> anyhow::Result<()> {
+        if let Some(sid) = remote::foreground_remote(self) {
+            return remote::submit_to_session(self, &sid, submission).await;
+        }
         submit::submit(self, submission).await
     }
 

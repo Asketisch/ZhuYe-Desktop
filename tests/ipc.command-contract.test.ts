@@ -63,7 +63,7 @@ describe('IPC command contract (exhaustive parity)', () => {
   });
 
   it('every command is registered in lib.rs invoke_handler', () => {
-    const libSrc = readFileSync('src-tauri/src/lib.rs', 'utf8');
+    const libSrc = [readFileSync('src-tauri/src/lib.rs', 'utf8'), readFileSync('src-tauri/src/commands_registry.rs', 'utf8')].join('\n');
     const match = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]/);
     expect(match).not.toBeNull();
     const handlerBody = match![1];
@@ -87,6 +87,8 @@ describe('IPC command contract (exhaustive parity)', () => {
       'reflect_kms_list_pages', 'reflect_kms_search', 'reflect_list_media',
       'reflect_media_capabilities', 'reflect_get_remote_status', 'reflect_tailscale_status',
       'reflect_tailscale_daemon_status', 'reflect_check_update', 'reflect_get_autopilot_config',
+      'reflect_browser_status', 'reflect_browser_env',
+      'reflect_remote_hosts', 'reflect_remote_sessions',
       'reflect_autopilot_history', 'reflect_current_workspace', 'reflect_activity_count',
       'reflect_get_schedule_status', 'reflect_get_remote_config',
       'reflect_tailscale_daemon_command_preview',
@@ -447,7 +449,7 @@ describe('fakeBackend integrity', () => {
     // dock::reflect_set_dock_badge 是同步命令)。只扫 `pub async fn` 会让
     // 同步命令整个漏掉 —— 替身缺 handler 也就没人发现。
     const backendNames = [...src.matchAll(/pub (?:async )?fn (reflect_\w+)/g)].map((m) => m[1]);
-    const libSrc = readFileSync('src-tauri/src/lib.rs', 'utf8');
+    const libSrc = [readFileSync('src-tauri/src/lib.rs', 'utf8'), readFileSync('src-tauri/src/commands_registry.rs', 'utf8')].join('\n');
     const handlerMatch = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]/)![1];
     const registered = backendNames.filter((n) => handlerMatch.includes(n));
     expect(registered.length).toBe(backendNames.length);
