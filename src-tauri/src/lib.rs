@@ -152,6 +152,11 @@ pub fn run() {
 /// 不会随 AppKit reopen 自动 `orderFront`,必须手动 `show()`;
 /// 已有可见窗口时由 AppKit 默认激活行为接管。复用托盘的
 /// [`tray::show_main_window`](show + unminimize + set_focus)。
+///
+/// 仅 macOS 存在:唯一调用点(`RunEvent::Reopen`)是 macOS/iOS 专属
+/// 变体,Linux/Windows 下不编译本函数,否则 dead_code 撞
+/// `[workspace.lints.rust] warnings = "deny"`(CI 实证)。
+#[cfg(target_os = "macos")]
 fn reopen_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, has_visible_windows: bool) {
     if !has_visible_windows {
         tracing::debug!("[reflect-gui] dock reopen: showing main window");
@@ -171,6 +176,9 @@ mod tests {
     /// Dock reopen 分发不 panic:mock app 无 main 窗口时 `show_main_window`
     /// 为 no-op,两个分支都不应 panic。mock runtime 无法真实投递 Reopen、
     /// 也无法断言窗口可见性,这里锁住的是接线签名,防止重构静默丢分支。
+    /// reopen_main_window 是 macOS 专属(cfg(target_os = "macos")),
+    /// 测试随平台裁剪 —— Linux/Windows 下该函数不存在,编译会报错。
+    #[cfg(target_os = "macos")]
     #[test]
     fn dock_reopen_dispatch_does_not_panic() {
         let app = mock_builder()
