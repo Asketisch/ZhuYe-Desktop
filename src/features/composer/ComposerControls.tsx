@@ -25,6 +25,8 @@ import { reflect_agent_status, reflect_get_config, reflect_set_model } from '@/u
 import { reflect_list_provider_models, type ProviderModelInfo } from '@/utils/commands/models';
 import { reflect_get_effort, reflect_set_effort } from '@/utils/commands/permissions';
 import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
+import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
+import { groupDisplayLabel, listGroups, type GroupEntry } from '@/features/settings/config/groups';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
@@ -61,25 +63,28 @@ export function ComposerControls() {
   const pushToast = useAgentStore((st) => st.pushToast);
 
   const [plans, setPlans] = useState<PlanEntry[]>([]);
+  // 自定义模型组([[provider_group]]):与内置 plan 平级的可切换目标。
+  const [groups, setGroups] = useState<GroupEntry[]>([]);
   const [activeProvider, setActiveProvider] = useState('');
   const [activeCredential, setActiveCredential] = useState('');
   const [currentSpec, setCurrentSpec] = useState('');
   const [switching, setSwitching] = useState(false);
   const [effort, setEffort] = useState<Effort>('low');
-  // 接口拉取的模型列表(挂在 planKey 上)+ 拉取状态。
+  // 接口拉取的模型列表(挂在目标 key 上)+ 拉取状态。
   const [apiModels, setApiModels] = useState<ProviderModelInfo[]>([]);
   const [apiModelsFor, setApiModelsFor] = useState('');
   const [fetchingModels, setFetchingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
   // 配置 + 当前模型快照。`refresh` 在切换成功后再调 —— 配置已被后端
-  // 改写(条目 model / active.credential),本地 plans 必须重读。
+  // 改写(条目 model / active.credential / 组 model),本地 plans/groups 必须重读。
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
       const toml = await reflect_get_config();
       if (cancelled) return;
       setPlans(listPlans(toml));
+      setGroups(listGroups(toml));
       setActiveProvider(readActiveProvider(toml));
       setActiveCredential(readActiveCredential(toml));
     };
@@ -104,13 +109,36 @@ export function ComposerControls() {
 
   const onSwitchModel = async (value: string) => {
     if (switching) return;
-    // 'model:<id>' = 从接口拉取的模型(挂到当前选中 plan 的端口上)。
+    // 'model:<id>' = 从接口拉取的模型:active 是自定义组时写组默认模型,
+    // 否则挂到当前选中 plan 的端口上。
     if (value.startsWith('model:')) {
+      const modelId = value.slice('model:'.length);
+      if (activeGroup) {
+        setSwitching(true);
+        try {
+          // 组切换不钉凭据(组级 model = 默认模型)。
+          const spec = await reflect_set_model(activeGroup.id, modelId);
+          setCurrentSpec(spec);
+          setActiveProvider(activeGroup.id);
+          setActiveCredential('');
+          await refreshPlans();
+        } catch (e) {
+          // 静默吞错会让「点了没反应」无法诊断 —— 后端拒绝(如未知
+          // provider / 配置非法)必须可见。
+          pushToast({
+            kind: 'error',
+            message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
+          });
+        } finally {
+          setSwitching(false);
+        }
+        return;
+      }
       const target = selectedPlan;
       if (!target) return;
       setSwitching(true);
       try {
-        const spec = await reflect_set_model(target.provider, value.slice('model:'.length), target.label);
+        const spec = await reflect_set_model(target.provider, modelId, target.label);
         setCurrentSpec(spec);
         setActiveProvider(target.provider);
         setActiveCredential(target.label);
@@ -118,6 +146,34 @@ export function ComposerControls() {
       } catch (e) {
         // 静默吞错会让「点了没反应」无法诊断 —— 后端拒绝(如未知
         // provider / 配置非法)必须可见。
+        pushToast({
+          kind: 'error',
+          message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
+        });
+      } finally {
+        setSwitching(false);
+      }
+      return;
+    }
+    // 'group:<id>' = 切换到自定义模型组(以组当前默认模型生效)。
+    if (value.startsWith('group:')) {
+      const group = groups.find((g) => g.id === value.slice('group:'.length));
+      if (!group) return;
+      setSwitching(true);
+      try {
+        const spec = await reflect_set_model(group.id, group.model.trim());
+        setCurrentSpec(spec);
+        setActiveProvider(group.id);
+        setActiveCredential('');
+        await refreshPlans();
+        // 切到组但没有默认模型:请求仍无模型可用 —— 明示而非静默。
+        if (!group.model.trim()) {
+          pushToast({
+            kind: 'warn',
+            message: t('composer.controls.pinnedNoModel', { label: groupDisplayLabel(group) }),
+          });
+        }
+      } catch (e) {
         pushToast({
           kind: 'error',
           message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
@@ -153,16 +209,38 @@ export function ComposerControls() {
     }
   };
 
-  /** 切换成功后重读配置(后端已改写 active.credential / 条目 model)。 */
+  /** 切换成功后重读配置(后端已改写 active.credential / 条目 model / 组 model)。 */
   const refreshPlans = async () => {
     const toml = await reflect_get_config();
     setPlans(listPlans(toml));
+    setGroups(listGroups(toml));
     setActiveProvider(readActiveProvider(toml));
     setActiveCredential(readActiveCredential(toml));
   };
 
-  /** 对当前选中 plan 的 base_url + api_key 拉取可用模型列表。 */
+  /** 对当前选中 plan 的 base_url + api_key 拉取可用模型列表;
+   * active 是自定义组时对组端点强制刷新(绕过 TTL 缓存)。 */
   const onFetchModels = async () => {
+    if (activeGroup) {
+      if (!activeGroup.baseUrl.trim() || fetchingModels) return;
+      setFetchingModels(true);
+      setModelsError(null);
+      try {
+        const models = await fetchProviderModels(
+          activeGroup.baseUrl,
+          activeGroup.apiKey,
+          activeGroup.endpoint,
+          { refresh: true },
+        );
+        setApiModels(models);
+        setApiModelsFor(`group:${activeGroup.id}`);
+      } catch (e) {
+        setModelsError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setFetchingModels(false);
+      }
+      return;
+    }
     const plan = selectedPlan;
     if (!plan || !plan.apiKey.trim() || fetchingModels) return;
     setFetchingModels(true);
@@ -192,7 +270,9 @@ export function ComposerControls() {
     });
   };
 
-  const hasPlans = plans.length > 0;
+  const hasPlans = plans.length > 0 || groups.length > 0;
+  // active.provider 是自定义组 id 时,组本身成为选中态(与内置 plan 平级)。
+  const activeGroup = groups.find((g) => g.id === activeProvider) ?? null;
   // 选中态单一事实源:`[active].credential` 钉住的 plan;未钉住时回落
   // 顶层隐式 default plan,再回落该 provider 首个 plan。
   const selectedPlan =
@@ -201,8 +281,34 @@ export function ComposerControls() {
       : undefined) ??
     plans.find((p) => p.provider === activeProvider && p.topLevel) ??
     plans.find((p) => p.provider === activeProvider);
-  // 接口模型列表只在归属 plan 仍被选中时显示(避免展示别的 plan 的列表)。
-  const showApiModels = apiModels.length > 0 && selectedPlan != null && apiModelsFor === planKey(selectedPlan);
+  // 选中目标的 key(组 or plan):接口模型列表的归属判定用。
+  const selectedKey = activeGroup
+    ? `group:${activeGroup.id}`
+    : selectedPlan
+      ? planKey(selectedPlan)
+      : '';
+  // 接口模型列表只在归属目标仍被选中时显示(避免展示别的目标的列表)。
+  const showApiModels = apiModels.length > 0 && selectedKey !== '' && apiModelsFor === selectedKey;
+
+  // active 是自定义组 → 挂载/切换后自动拉取组内模型清单(前端 TTL memo,
+  // 命中缓存零网络),填进既有的 optgroup。
+  useEffect(() => {
+    const group = activeGroup;
+    if (!group || !group.baseUrl.trim()) return;
+    let cancelled = false;
+    fetchProviderModels(group.baseUrl, group.apiKey, group.endpoint)
+      .then((models) => {
+        if (cancelled) return;
+        setApiModels(models);
+        setApiModelsFor(`group:${group.id}`);
+      })
+      .catch(() => {
+        // 自动拉取失败保持静默:手动刷新按钮仍可用,错误在那里可见。
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGroup?.id, activeGroup?.baseUrl, activeGroup?.apiKey, activeGroup?.endpoint]);
 
   /** 能力标记后缀:接口返回了明确信息才标注,未返回由用户自行判断。 */
   const visionSuffix = (v: boolean | null) =>
@@ -223,7 +329,7 @@ export function ComposerControls() {
           <span className={s.modelRow}>
             <select
               className={s.controlSelect}
-              value={selectedPlan ? planKey(selectedPlan) : ''}
+              value={selectedKey}
               disabled={!hasPlans || switching}
               onChange={(event) => void onSwitchModel(event.target.value)}
               aria-label={t('composer.controls.modelAria')}
@@ -231,7 +337,7 @@ export function ComposerControls() {
               title={currentSpec || t('composer.controls.modelConfigureHint')}
             >
               {!hasPlans && <option value="">{currentSpec || t('composer.controls.modelNone')}</option>}
-              {hasPlans && !selectedPlan && (
+              {hasPlans && !selectedKey && (
                 <option value="">
                   {currentSpec
                     ? t('composer.controls.modelCurrent', { spec: currentSpec })
@@ -241,6 +347,11 @@ export function ComposerControls() {
               {plans.map((plan) => (
                 <option key={planKey(plan)} value={planKey(plan)}>
                   {plan.label} · {plan.model || plan.provider}
+                </option>
+              ))}
+              {groups.map((group) => (
+                <option key={`group:${group.id}`} value={`group:${group.id}`}>
+                  {groupDisplayLabel(group)} · {group.model || group.endpoint}
                 </option>
               ))}
               {showApiModels && (

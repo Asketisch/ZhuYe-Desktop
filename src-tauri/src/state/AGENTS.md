@@ -12,7 +12,7 @@
 |---|---|
 | `state.rs` | facade：`MinimalAgent` 顶壳、子模块布线、thin 委托 |
 | `agent.rs` | `MinimalAgentInner` 共享内部状态（含后台线程表） + `new_empty` + 状态诊断快照 |
-| `model_spec.rs` | model spec 解析专题：降级原因 / 显式解析兜底 / 动态清单发现（消费方 install / reload） |
+| `model_spec.rs` | model spec 解析专题：降级原因 / 显式解析兜底（内置段与模型组 `[[provider_group]]` 按组 id 查凭据）/ 动态清单发现（消费方 install / reload） |
 | `install.rs` / `thread_factory.rs` | 二段构造第二阶段 `install_agent_thread` / install 与 rebind 共享的线程构造路径 |
 | `submit.rs` / `session.rs` | per-turn 提交流水（submit / submit_op / interrupt）/ session broadcast 入口 |
 | `rebind.rs`（+ `rebind/tests.rs`） / `reload.rs`（+ `reload/tests.rs`） | 会话换绑（后台持续运行：demote/promote/后台表） / provider 栈热重载，测试走 `#[cfg(test)] mod tests;` 目录形式 |
@@ -25,6 +25,7 @@
 - 宿主状态不变量（`install_agent_thread` 时机、Lagged 容忍、close-to-tray）只认根 [AGENTS.md](../../../AGENTS.md)「关键不变量」，本篇不复述。
 - 与 app-core 的消费关系：本目录经 `state.rs`、`activity.rs`、`agent.rs`、`sandbox.rs`、`submit.rs` 消费 `reflect_app_core`，完整消费方地图与收敛判定见 [../../../app-core/AGENTS.md](../../../app-core/AGENTS.md)。
 - 改 `reload.rs` 行为时同步补 `reload/tests.rs`（`#[cfg(test)] mod tests;` 目录形式，与 `memory_store/tests.rs`、`commands/config/tests.rs` 同一模式）。
+- **provider 栈热重载的 diff 段**（`provider_stack_changed`）：`active` / `anthropic` / `openai` / `ollama` / **`provider_group`（模型组，组 id 注册为池名）** / `routing` / `model_discovery` 任一变化即重建 registry —— 新增 provider 相关配置段时**必须**把对应字段加进该比对列表，否则改配置不触发热重载。
 - **后台会话线程表（v1.x 后台持续运行）**：`inner.background`（`Vec<(ThreadId, Arc<AgentThread>)>`，上限 `MAX_BACKGROUND_THREADS`）+ `background_tx`（`reflect_session_event` 通道）+ `background_running`（forwarder 按 turn 生命周期维护）。不变量：跨会话换绑**不得 cancel** 旧线程（会话级令牌 = `Op::Shutdown`，「切走即停」的根因）；**同一 session 不允许两个 live 线程**——原地重建（forced 热重载 / pending error 重试）与超限驱逐仍走 cancel；forced 换绑清空后台表（provider 栈已重建，旧线程攥旧 registry）。`session.rs::route_event` 按 ptr_eq 分流前台/后台；`submit.rs` 的 per-turn forwarder 带提交时 bound sid（流式 delta 只走 per-turn 通道，降级后的 turn 靠它路由到后台通道）。
 - **rebind 代数信号**：`inner.rebind_generation`（watch）在每次成功换绑时自增；`submit` 里挂在插件挂载等待上的提交据此快速失败（旧实现靠 cancel 旧线程间接解挂，后台化后线程不再被取消）。
 - **一个线程一个 forwarder**：`AgentThread::subscribe_session()` 是**追加订阅者**语义（每次调用新建一条 mpsc 通道挂进 `session_subs`），同一线程挂两个 forwarder 会让每条事件被**双发**到前台通道（delta 文本翻倍）。线程的会话 id 终身不变，其 forwarder 自首次绑定起一直存活 —— promote（bind 回后台会话）**不得**再起 forwarder（`rebind.rs` 的 `promoted` 标记）。`inner.forwarder_count` 供回归断言（`rebind/tests.rs::promote_does_not_start_second_forwarder`）。

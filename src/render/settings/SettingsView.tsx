@@ -11,7 +11,7 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
   onTomlChange, onCommit, showSecrets, onToggleSecret, approvalPolicy, onApprovalPolicyChange,
   status, loading, configLoading, saving, permissionPending, saved, error, onOpenPrompts, onPermission,
   onSave, onClose, slots }: SettingsViewProps) {
-  const { ConfigInfoLine, ConfigForm, PlansSection, PermissionRulesSection, DisplaySection,
+  const { ConfigInfoLine, ConfigForm, GroupsSection, PermissionRulesSection, DisplaySection,
     NotificationsSection, ConfigHealthBanner, GuardStatsCard, SecurityScanCard, UpdatesSection } = slots;
   const hasModel = Boolean(status?.has_model);
   return (
@@ -25,8 +25,8 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
           <NavBtn active={section === 'provider'} onClick={() => onSectionChange('provider')}>
             {t('settings.provider')}
           </NavBtn>
-          <NavBtn active={section === 'plans'} onClick={() => onSectionChange('plans')}>
-            {t('settings.nav.plans')}
+          <NavBtn active={section === 'groups'} onClick={() => onSectionChange('groups')}>
+            {t('settings.nav.groups')}
           </NavBtn>
           <NavBtn active={section === 'permissions'} onClick={() => onSectionChange('permissions')}>
             {t('settings.permissions')}
@@ -102,12 +102,12 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
           </section>
         )}
 
-        {section === 'plans' && (
-          <PlansSection
+        {section === 'groups' && (
+          <GroupsSection
             rawToml={rawToml}
             onChange={onTomlChange}
-            // Plans 页操作即时落盘：仅改内存 state 的话，后端 config 不变，
-            // 模型选择器 / Models 页读到的仍是旧配置（「保存了却选不到」）。
+            // 模型组页操作即时落盘：仅改内存 state 的话，后端 config 不变，
+            // 模型选择器 / 状态徽标读到的仍是旧配置（「保存了却选不到」）。
             onCommit={onCommit}
           />
         )}

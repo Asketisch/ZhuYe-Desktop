@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `29aa9ad`（ZhuYe main tip，完整 SHA `29aa9ad0`；`ce57058` 回归测试之上：上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。上一轮 `ce57058` 补齐组合穷举回归测试，见 §3.32。
+> 最近审计：submodule `e8422d9`（**feat/provider-group 特性分支**，`5f84750` → `e8422d9`，2 个提交：模型组 `[[provider_group]]` schema/builder 装配 + `active_provider` String 化 + anthropic `list_models`；上游文档同步。本 bump 暂未合入 ZhuYe main —— 推送与合入由仓库维护者执行，合入后本行应改回 main tip 基准）。基线 `29aa9ad`（ZhuYe main tip，完整 SHA `29aa9ad0`；`ce57058` 回归测试之上：上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。上一轮 `ce57058` 补齐组合穷举回归测试，见 §3.32。
 
 ## 阅读约定
 

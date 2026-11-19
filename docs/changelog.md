@@ -4,6 +4,19 @@
 
 ## 未发布
 
+- **模型组（`[[provider_group]]`）**：模型配置从「anthropic / openai 两个内置
+  端口」升级为「任意多个命名模型组」—— 每组自带线格式（openai / anthropic）
+  + base_url + api_key，组 id 直接注册为引擎凭证池名，模型 spec 前缀 = 组 id
+  （`<组id>/<模型>`）。引擎侧（submodule `feat/provider-group`，`5f84750` →
+  `e8422d9`）：新 schema `provider_group.rs`、builder 组装配（非法/重复 id 与
+  未知 endpoint warn 跳过）、`active_provider` 接受组 id、anthropic 端点补齐
+  `list_models`（`model = "free"` 与 `zhuye models list` 对 anthropic 格式端点
+  此前不可用）。桌面侧：设置页「Coding Plans」升级为「模型组」统一管理面
+  （内置端口 plan 与自定义组平铺选默认；组保存后**自动拉取**组内模型清单，
+  点选即设组默认模型；TTL memo 避免重复打网络）；Composer 模型选择器把组
+  作为与 plan 平级的可切换目标；`reflect_set_model` 的 `provider` 值域扩展
+  为「内置段名或已声明组 id」（命令与负载结构不变）；热重载 diff 纳入
+  `provider_group` 段。旧配置零迁移、内置三段行为不变。
 - **沙箱对齐 workspace-write 口径**（上游 871924bf + 桌面接线）：此前文件工具
   只能访问当前工作区（读旁边的项目直接 `path escaped sandbox`），Seatbelt
   默认 `(deny network*)`（连 localhost 一起拦），设置里的「允许出站网络」

@@ -4,7 +4,6 @@ import { I18nProvider } from '@/utils/i18n';
 import { reflect_query_plan_quota, reflect_list_provider_models, reflect_test_provider_chat } from '@/utils/commands';
 import { PlansSection } from './PlansSection';
 import { AUTO_FAILOVER_PREF_KEY } from '@/stores/agent/planFailover';
-import { readActiveProvider } from '../config/plans';
 
 // 只替换余量查询 / 模型列表 IPC，其余 barrel 导出保持真实实现。
 vi.mock('@/utils/commands', async () => {
@@ -71,18 +70,6 @@ describe('PlansSection', () => {
     expect(screen.getAllByText('default').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('点击非默认供应商卡片 → onChange/onCommit 写入 [active].provider', () => {
-    const onChange = vi.fn();
-    const onCommit = vi.fn();
-    renderSection(SAMPLE_TOML, onChange, onCommit);
-    fireEvent.click(screen.getByTestId('provider-default-openai'));
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(readActiveProvider(onChange.mock.calls[0][0] as string)).toBe('openai');
-    // 落盘回调收到同一份 TOML（「保存了却选不到模型」的回归锚）。
-    expect(onCommit).toHaveBeenCalledTimes(1);
-    expect(onCommit.mock.calls[0][0]).toBe(onChange.mock.calls[0][0]);
-  });
-
   it('填写表单保存 → onChange/onCommit 追加新的 [[provider.credentials]] 块', () => {
     const onChange = vi.fn();
     const onCommit = vi.fn();
@@ -110,17 +97,6 @@ describe('PlansSection', () => {
     expect(onChange.mock.calls[0][0] as string).not.toContain('glm-plan');
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit.mock.calls[0][0]).toBe(onChange.mock.calls[0][0]);
-  });
-
-  it('自动切换开关写入 localStorage 偏好', () => {
-    renderSection(SAMPLE_TOML);
-    // 第一个 = 额度耗尽自动切换;第二个 = 按最大上下文自动压缩。
-    const checkbox = screen.getAllByRole('checkbox')[0];
-    expect((checkbox as HTMLInputElement).checked).toBe(true);
-    fireEvent.click(checkbox);
-    expect(localStorage.getItem(AUTO_FAILOVER_PREF_KEY)).toBe('off');
-    fireEvent.click(checkbox);
-    expect(localStorage.getItem(AUTO_FAILOVER_PREF_KEY)).toBe('on');
   });
 
   it('查询余量 → 调 IPC 并渲染百分比 / 剩余 / 重置时间', async () => {
@@ -238,11 +214,6 @@ describe('PlansSection', () => {
     await waitFor(() => expect(screen.getByTestId('plans-chat-reply').textContent).toContain('你好！'));
   });
 
-  it('自动压缩开关写入 localStorage 偏好', () => {
-    renderSection(SAMPLE_TOML);
-    const toggle = screen.getByTestId('plans-auto-compact') as HTMLInputElement;
-    expect(toggle.checked).toBe(true);
-    fireEvent.click(toggle);
-    expect(localStorage.getItem('reflect.autoCompact')).toBe('off');
-  });
+  // 自动切换 / 自动压缩开关已随统一页面上移至 GroupsSection(见
+  // GroupsSection.test.tsx),此处不再重复覆盖。
 });

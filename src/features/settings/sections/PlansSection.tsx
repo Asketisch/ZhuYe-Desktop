@@ -1,17 +1,18 @@
 /**
- * 编码计划（Coding Plans）设置区 —— plan 凭证的专属管理入口。
+ * 编码计划（Coding Plans）面板 —— 内置端口（anthropic / openai）下的
+ * plan 凭证管理，由统一的模型组页（GroupsSection）内嵌。
  *
  * 一个 plan = `[[<provider>.credentials]]` 中一个带 label 的条目
  * （api_key / base_url / model / quota），与后端凭证池一一对应；
- * 默认供应商 = `[active].provider`，凭证池内故障切换由上游 graph 层
- * 自动完成，额度耗尽后的跨供应商自动切换见 `stores/agent/planFailover.ts`。
+ * 凭证池内故障切换由上游 graph 层自动完成，额度耗尽后的跨供应商
+ * 自动切换见 `stores/agent/planFailover.ts`（开关在 GroupsSection）。
  *
  * 与 ConfigForm 共享同一份 rawToml buffer（props 传入），由设置页统一的
  * Save 按钮落盘；后端 `reflect_save_config` 校验 + 热重载 provider 栈，
  * 新计划无需重启生效。
  */
 import { useState } from 'react';
-import { Plus, Trash2, Pencil, Zap, ShieldCheck, Gauge, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Pencil, Zap, Gauge, RefreshCw } from 'lucide-react';
 import { Badge, Button, Icon, Input, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
@@ -22,29 +23,20 @@ import {
   type ProviderModelInfo,
 } from '@/utils/commands';
 import {
-  AUTO_FAILOVER_PREF_KEY,
-  isAutoFailoverEnabled,
-} from '@/stores/agent/planFailover';
-import {
-  AUTO_COMPACT_PREF_KEY,
-  isAutoCompactEnabled,
-} from '@/stores/agent/autoCompact';
-import {
   listPlans,
   maskKey,
-  pickFailoverProvider,
   PLAN_PROVIDERS,
   QUOTA_SOURCES,
   readActiveProvider,
   readContextWindowForModel,
   removePlan,
-  setActiveProvider,
   setContextWindowForModel,
   upsertPlan,
   type PlanEntry,
   type PlanProvider,
   type PlanQuota,
 } from '../config/plans';
+import { ModelOptionsList } from '../components/ModelOptionsList';
 import s from '@/render/settings/SettingsView.module.css';
 
 export interface PlansSectionProps {
@@ -100,8 +92,6 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
   const { t } = useI18n();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [showKey, setShowKey] = useState(false);
-  const [autoFailover, setAutoFailover] = useState(isAutoFailoverEnabled);
-  const [autoCompact, setAutoCompact] = useState(isAutoCompactEnabled);
   const [quotaQueries, setQuotaQueries] = useState<Record<string, QuotaQueryState>>({});
   // 模型列表拉取（按接入端口缓存；编辑表单内 base_url + api_key 即可试查）。
   const [formModels, setFormModels] = useState<ProviderModelInfo[] | null>(null);
@@ -116,8 +106,8 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
   const [chatError, setChatError] = useState<string | null>(null);
 
   const plans = listPlans(rawToml);
+  // 只读派生:plan 卡片徽标标出当前默认端口(默认组选择器在 GroupsSection)。
   const activeProvider = readActiveProvider(rawToml);
-  const backup = pickFailoverProvider(rawToml, activeProvider || 'x');
 
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
 
@@ -268,63 +258,8 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
     }
   };
 
-  /** 能力标记后缀:接口返回了明确信息才标注,未返回由用户自行判断。 */
-  const visionSuffix = (v: boolean | null) =>
-    v === true ? ` · ${t('common.visionTag')}` : v === false ? ` · ${t('common.noVisionTag')}` : '';
-
-  const onToggleAutoFailover = (enabled: boolean) => {
-    setAutoFailover(enabled);
-    try {
-      localStorage.setItem(AUTO_FAILOVER_PREF_KEY, enabled ? 'on' : 'off');
-    } catch {
-      // localStorage 不可用（隐私模式等）—— UI 状态仍然生效到本会话。
-    }
-  };
-
-  const onToggleAutoCompact = (enabled: boolean) => {
-    setAutoCompact(enabled);
-    try {
-      localStorage.setItem(AUTO_COMPACT_PREF_KEY, enabled ? 'on' : 'off');
-    } catch {
-      // localStorage 不可用（隐私模式等）—— UI 状态仍然生效到本会话。
-    }
-  };
-
   return (
     <section data-testid="plans-section">
-      <h3 className={s.sectionTitle}>{t('settings.plans.title')}</h3>
-      <p className={s.sectionDesc}>{t('settings.plans.desc')}</p>
-
-      {/* 默认供应商（[active].provider） */}
-      <h4 className={s.sectionTitle}>{t('settings.plans.defaultProvider')}</h4>
-      <div className={s.permGrid}>
-        {PLAN_PROVIDERS.map((provider) => (
-          <button
-            key={provider}
-            className={s.permCard}
-            data-active={provider === activeProvider || undefined}
-            data-testid={`provider-default-${provider}`}
-            onClick={() => {
-              const next = setActiveProvider(rawToml, provider);
-              onChange(next);
-              onCommit?.(next);
-            }}
-          >
-            <div className={s.permCardHeader}>
-              <Badge variant={provider === activeProvider ? 'success' : 'neutral'} solid>
-                {provider === activeProvider ? t('settings.plans.defaultBadge') : provider}
-              </Badge>
-              {provider !== activeProvider && <span className={s.providerName}>{provider}</span>}
-            </div>
-            <p className={s.permDesc}>
-              {provider === activeProvider
-                ? t('settings.plans.currentDefault')
-                : t('settings.plans.clickToSet')}
-            </p>
-          </button>
-        ))}
-      </div>
-
       {/* Plan 列表 */}
       <h4 className={s.sectionTitle}>{t('settings.plans.list')}</h4>
       {plans.length === 0 && <p className={s.sectionDesc}>{t('settings.plans.empty')}</p>}
@@ -423,12 +358,6 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
           );
         })}
       </div>
-      {backup && (
-        <p className={s.hint}>
-          <Icon icon={ShieldCheck} size={12} /> {t('settings.plans.backupHint', { provider: backup })}
-        </p>
-      )}
-
       {/* 新增 / 编辑表单 */}
       <h4 className={s.sectionTitle}>
         {form.editingLabel ? t('settings.plans.editTitle') : t('settings.plans.addTitle')}
@@ -505,34 +434,12 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
             </span>
           )}
           {modelsError && <span className={s.fetchHint} data-failed>{modelsError}</span>}
-          {/* 拉取结果必须是显式可点击列表:WKWebView(macOS Tauri)对
-              <datalist> 建议下拉支持不可靠,拉取后无任何可选入口。 */}
           {formModels && formModelsProvider === form.provider && !modelsError && formModels.length > 0 && (
-            <div
-              className={s.modelOptions}
-              role="listbox"
-              aria-label={t('settings.plans.modelsGroup')}
-              data-testid="plans-model-options"
-            >
-              {formModels.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  role="option"
-                  aria-selected={form.model === m.id}
-                  className={s.modelOption}
-                  data-active={form.model === m.id || undefined}
-                  onClick={() => patch({ model: m.id })}
-                  title={`${m.id}${visionSuffix(m.supports_vision)}`}
-                >
-                  <span className={s.modelOptionId}>{m.id}</span>
-                  <span className={s.modelOptionMeta}>
-                    {m.display_name && m.display_name !== m.id ? m.display_name : ''}
-                    {visionSuffix(m.supports_vision)}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <ModelOptionsList
+              models={formModels}
+              value={form.model}
+              onPick={(id) => patch({ model: id })}
+            />
           )}
         </div>
         <div className={s.fieldRow}>
@@ -631,30 +538,6 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
           )}
         </div>
       </div>
-
-      {/* 额度耗尽自动切换 */}
-      <h4 className={s.sectionTitle}>{t('settings.plans.autoFailover')}</h4>
-      <label className={s.fieldRow}>
-        <input
-          type="checkbox"
-          checked={autoFailover}
-          onChange={(e) => onToggleAutoFailover(e.target.checked)}
-        />
-        <span className={s.fieldLabel}>{t('settings.plans.autoFailoverLabel')}</span>
-      </label>
-      <p className={s.sectionDesc}>{t('settings.plans.autoFailoverDesc')}</p>
-
-      {/* 按最大上下文自动压缩 */}
-      <label className={s.fieldRow}>
-        <input
-          type="checkbox"
-          checked={autoCompact}
-          onChange={(e) => onToggleAutoCompact(e.target.checked)}
-          data-testid="plans-auto-compact"
-        />
-        <span className={s.fieldLabel}>{t('settings.plans.autoCompactLabel')}</span>
-      </label>
-      <p className={s.sectionDesc}>{t('settings.plans.autoCompactDesc')}</p>
     </section>
   );
 }
