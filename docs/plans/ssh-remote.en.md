@@ -4,7 +4,8 @@
   <a href="ssh-remote.md">中文</a> · <b>English</b>
 </p>
 
-> **Status**: plan finalized, phased implementation in progress.
+> **Status**: v1 core loop shipped (desktop commit 2ba023d9): host registry + SSH transport + handshake + foreground-slot submit routing + event pump + disconnect cleanup; L3 covered end-to-end with a stub ssh.
+> **TODO**: on-device acceptance (requires key auth + remote zhuye CLI); 3b follow-ups (reverse RemoteTool registration, remote file/git panels, sidebar "Remote" group, serve-resume on switch-back).
 > **Goal**: the desktop connects over SSH to a machine and the agent session runs remotely (remote cwd, remote tool execution, remote rollout persistence), while the desktop UI consumes the event stream unchanged.
 > **Related**: [../headless-daemon.md](../headless-daemon.md) (isomorphic shape, TCP variant as follow-up); [../capabilities.md](../capabilities.md) §2 "intentionally unwired" serve/remote-tool protocol; [../protocol-bridge.md](../protocol-bridge.md).
 

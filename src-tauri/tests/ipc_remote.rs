@@ -1,9 +1,9 @@
 //! 能力覆盖层 · SSH 远程开发 —— 真实命令体 over 真实 IPC 通路。
 //!
-//! 传输用 **stub ssh**:临时目录里放一个可执行脚本(`ZHUYE_REMOTE_SSH_BIN`
+//! 传输用 **stub ssh** —— 临时目录里放一个可执行脚本(`ZHUYE_REMOTE_SSH_BIN`
 //! 指向它),模拟远端 `zhuye serve` 的 wire 行为(session_configured 握手
-//! + 回合事件)。覆盖:host 注册表 CRUD(隔离 HOME 持久化)、连接握手、
-//! 前台插槽置位、事件进 session 通道、断开清理。**不连任何真 ssh**。
+//! 加回合事件)。用例覆盖 host 注册表 CRUD(隔离 HOME 持久化)、连接握手、
+//! 前台插槽置位、事件进 session 通道与断开清理,全程不连任何真 ssh。
 
 mod common;
 

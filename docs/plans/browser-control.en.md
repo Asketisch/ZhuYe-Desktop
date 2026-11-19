@@ -4,7 +4,8 @@
   <a href="browser-control.md">中文</a> · <b>English</b>
 </p>
 
-> **Status**: plan finalized, phased implementation in progress.
+> **Status**: v1 shipped (upstream feat/browser-plugin f064c1cd + desktop commit 583fd04e): zhuye-browser crate + plugins/browser plugin + /browser panel (screencast display channel).
+> **TODO**: on-device acceptance of live picture + agent control interplay; /browser route visual baselines via the CI workflow_dispatch (VISUAL_UPDATE=1); `require_token` proxy and panel input forwarding are follow-ups.
 > **Goal**: the agent can control a browser (navigate / click / type / screenshot / read page structure), while the desktop simultaneously shows the controlled page live in a browser panel.
 > **Related**: upstream `zhuye-computer-use/src/a11y.rs` (F39 foundation); `todo.md` D1 "full controlled browser"; [../capabilities.md](../capabilities.md).
 

@@ -4,7 +4,8 @@
   <b>中文</b> · <a href="browser-control.en.md">English</a>
 </p>
 
-> **状态**：规划定稿，分阶段实施中。
+> **状态**：v1 已落地（上游 feat/browser-plugin f064c1cd + 桌面提交 583fd04e）：zhuye-browser crate + plugins/browser 插件 + /browser 面板（screencast 显示通道）。
+> **待办**：真机画面与 agent 控制联动的实机验收；/browser 路由视觉基线经 CI workflow_dispatch（VISUAL_UPDATE=1）重生成；`require_token` 代理、面板输入转发列后续项。
 > **目标**：agent 能控制一个浏览器（导航/点击/输入/截屏/读页面结构），桌面端同时把被控页面实时展示在浏览器面板中。
 > **关联**：上游 `zhuye-computer-use/src/a11y.rs`（F39 地基）；`todo.md` D1「完整版受控浏览器」；[../capabilities.md](../capabilities.md)。
 

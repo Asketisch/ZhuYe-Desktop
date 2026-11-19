@@ -4,7 +4,8 @@
   <b>中文</b> · <a href="ssh-remote.en.md">English</a>
 </p>
 
-> **状态**：规划定稿，分阶段实施中。
+> **状态**：v1 核心回路已落地（桌面提交 2ba023d9）：host 注册表 + SSH 传输 + 握手 + 前台插槽提交路由 + 事件泵 + 断开清理；L3 以 stub-ssh 全链路覆盖。
+> **待办**：真机连接实机验收（需密钥免密 + 远端 zhuye CLI）；3b 后续项（反向 RemoteTool 注册、文件/git 面板远端化、侧栏「远程」分组、serve resume 切回恢复）。
 > **目标**：桌面端 SSH 到某台机器，agent 会话在远程机器上跑（远端 cwd、远端工具执行、远端 rollout 落盘），桌面 UI 无差别消费事件流。
 > **关联**：[../headless-daemon.md](../headless-daemon.md)（同构形态，TCP 版后续项）；[../capabilities.md](../capabilities.md) §2「有意不接线」的 serve/远程工具协议；[../protocol-bridge.md](../protocol-bridge.md)。
 

@@ -4,7 +4,8 @@
   <a href="hot-update.md">中文</a> · <b>English</b>
 </p>
 
-> **Status**: plan finalized, phased implementation in progress.
+> **Status**: v1 shipped (desktop commit 9acf91bc): full OTA loop + release-chain signing/latest.json.
+> **TODO**: minisign key generation and GitHub secrets setup (`scripts/gen-update-keys.sh`, manual step outside the repo); Apple Developer ID notarization and Windows signing are follow-ups.
 > **Goal**: let the user complete the full self-update loop — check → download → signature verification → install → relaunch — inside the app, without manually downloading installers.
 > **Related**: [../gui/04-roadmap.md](../gui/04-roadmap.md) M3.x "multi-platform auto-update"; [protocol-bridge.md](../protocol-bridge.md) update command surface.
 

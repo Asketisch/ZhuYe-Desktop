@@ -4,7 +4,8 @@
   <b>中文</b> · <a href="hot-update.en.md">English</a>
 </p>
 
-> **状态**：规划定稿，分阶段实施中。
+> **状态**：v1 已落地（桌面提交 9acf91bc）：完整 OTA 回路 + 发布链签名/latest.json。
+> **待办**：minisign 密钥生成与 GitHub secrets 配置（`scripts/gen-update-keys.sh`，仓库外手工步骤）；Apple Developer ID 公证与 Windows 签名列为后续项。
 > **目标**：用户在应用内完成「检查 → 下载 → 签名校验 → 安装 → 重启」的完整自更新回路，无需手动下载安装包。
 > **关联**：[../gui/04-roadmap.md](../gui/04-roadmap.md) M3.x「多平台 auto-update」；[protocol-bridge.md](../protocol-bridge.md) 更新命令面。
 
