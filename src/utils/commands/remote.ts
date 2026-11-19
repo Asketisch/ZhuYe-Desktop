@@ -175,6 +175,11 @@ export async function reflect_remote_test(args: {
   });
 }
 
+/** 远端一键安装 zhuye CLI(bootstrap)。返回安装后的版本输出行。 */
+export async function reflect_remote_bootstrap(host: string): Promise<string> {
+  return invoke<string>('reflect_remote_bootstrap', { host });
+}
+
 /** 连接远程会话(拉起 serve + 握手)。返回会话 id。 */
 export async function reflect_remote_connect(host: string, cwd: string): Promise<string> {
   return invoke<string>('reflect_remote_connect', { host, cwd });

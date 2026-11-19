@@ -20,14 +20,31 @@ fn write_stub_ssh() -> PathBuf {
     std::fs::create_dir_all(&dir).expect("create stub dir");
     let script = dir.join("stub-ssh");
     let body = r#"#!/usr/bin/env bash
-SID="00000000-0000-4000-8000-0000000000aa"
-TID="00000000-0000-4000-8000-0000000000b1"
-echo "{\"id\":\"\",\"msg\":{\"type\":\"session_configured\",\"session_id\":\"$SID\",\"model\":\"mock\",\"provider\":\"mock\",\"approval_policy\":\"auto\",\"sandbox_policy\":\"workspace_only\"}}"
-while IFS= read -r _line; do
-  echo "{\"id\":\"stub\",\"msg\":{\"type\":\"turn_started\",\"turn_id\":\"$TID\"}}"
-  echo "{\"id\":\"stub\",\"msg\":{\"type\":\"turn_complete\",\"turn_id\":\"$TID\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cached_tokens\":0},\"status\":\"success\"}}"
-  echo '{"id":"stub","msg":{"type":"submission_closed"}}'
-done
+# 按远端命令分支:serve(握手+回显)/ --version(探测)/ bootstrap(安装)。
+case "$*" in
+  *"serve"*)
+    SID="00000000-0000-4000-8000-0000000000aa"
+    TID="00000000-0000-4000-8000-0000000000b1"
+    echo "{\"id\":\"\",\"msg\":{\"type\":\"session_configured\",\"session_id\":\"$SID\",\"model\":\"mock\",\"provider\":\"mock\",\"approval_policy\":\"auto\",\"sandbox_policy\":\"workspace_only\"}}"
+    while IFS= read -r _line; do
+      echo "{\"id\":\"stub\",\"msg\":{\"type\":\"turn_started\",\"turn_id\":\"$TID\"}}"
+      echo "{\"id\":\"stub\",\"msg\":{\"type\":\"turn_complete\",\"turn_id\":\"$TID\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cached_tokens\":0},\"status\":\"success\"}}"
+      echo '{"id":"stub","msg":{"type":"submission_closed"}}'
+    done
+    ;;
+  *"--version"*)
+    echo "zhuye 0.1.15 (stub)"
+    ;;
+  *"exec sh"*)
+    # bootstrap:桌面送安装脚本经 stdin,这里模拟装完的自验输出。
+    cat > /dev/null
+    echo "zhuye 0.1.15 (installed by stub)"
+    ;;
+  *)
+    echo "stub: unknown remote command: $*" >&2
+    exit 9
+    ;;
+esac
 "#;
     std::fs::write(&script, body).expect("write stub");
     #[cfg(unix)]
@@ -207,6 +224,34 @@ fn remote_connect_fails_for_unknown_host_and_bad_handshake() {
             json!({ "host": "dead-box", "cwd": "/tmp" }),
         );
         assert!(err.is_err(), "{err:?}");
+    });
+}
+
+#[test]
+fn remote_bootstrap_installs_and_reports_version() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        let _lock = state_lock();
+        let _hosts = HostsGuard::take();
+        let stub = write_stub_ssh();
+        let _ssh = SshBinGuard::set(&stub);
+
+        invoke_ok(
+            "reflect_remote_host_save",
+            json!({ "name": "fresh-box", "host": "fresh" }),
+        );
+        // bootstrap 命令走 stub 的 "exec sh" 分支:返回安装自验版本行。
+        let out = invoke_ok("reflect_remote_bootstrap", json!({ "host": "fresh-box" }));
+        assert_eq!(
+            out.as_str().unwrap(),
+            "zhuye 0.1.15 (installed by stub)",
+            "{out}"
+        );
+
+        // 未知 host → 结构化错误。
+        let err = invoke("reflect_remote_bootstrap", json!({ "host": "nope" }));
+        assert!(err.is_err(), "{err:?}");
+        assert!(err.unwrap_err().to_string().contains("不存在"));
     });
 }
 

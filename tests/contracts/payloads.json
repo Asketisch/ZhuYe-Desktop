@@ -132,6 +132,9 @@
     },
     "reflect_download_install_update": {},
     "reflect_relaunch_app": {},
+    "reflect_remote_bootstrap": {
+      "host": "contract-probe-box"
+    },
     "reflect_remote_bind": {
       "sid": "00000000-0000-4000-8000-0000000000aa"
     },

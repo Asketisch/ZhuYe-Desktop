@@ -28,6 +28,9 @@ use tokio_util::sync::CancellationToken;
 
 use super::MinimalAgent;
 
+/// 远端 zhuye CLI 一键安装(bootstrap):脚本生成 + 经 ssh stdin 执行。
+pub mod bootstrap;
+
 /// 连接握手等待上限(ssh 建连 + 远端 serve 启动)。
 const HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 /// 传输二进制覆盖 env(测试 stub 注入点;生产不设)。
@@ -123,18 +126,24 @@ pub fn set_foreground_remote(agent: &MinimalAgent, sid: Option<String>) {
 
 /// 组装 ssh 传输 argv(`--` 之后远端命令)。
 fn ssh_argv(host: &RemoteHost, cwd: &str) -> Vec<String> {
-    ssh_argv_with_remote_cmd(
-        host,
-        &["serve".to_string(), "--cwd".to_string(), cwd.to_string()],
-    )
+    let script = format!("exec zhuye serve --cwd {}", sh_quote(cwd));
+    ssh_argv_with_remote_cmd(host, &script)
 }
 
-/// 探测用 argv(`-- zhuye --version`;连通性 + CLI 存在性一次完成)。
+/// 探测用 argv(`-- sh -lc 'exec zhuye --version'`;连通性 + CLI 存在性一次完成)。
 pub(crate) fn ssh_argv_for_probe(host: &RemoteHost) -> Vec<String> {
-    ssh_argv_with_remote_cmd(host, &["--version".to_string()])
+    ssh_argv_with_remote_cmd(host, "exec zhuye --version")
 }
 
-fn ssh_argv_with_remote_cmd(host: &RemoteHost, remote_cmd: &[String]) -> Vec<String> {
+/// POSIX sh 单引号引用(内嵌单引号按 `'\''` 转义)。
+fn sh_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+/// 组装 ssh argv;远端命令一律经 `sh -lc`(**登录 shell**)执行 ——
+/// bootstrap 把 zhuye 装到 `~/.local/bin`,非交互 ssh 命令的默认 PATH
+/// 不含它,登录 shell 才会读 `~/.profile` 把它带上。
+fn ssh_argv_with_remote_cmd(host: &RemoteHost, script: &str) -> Vec<String> {
     let target = match &host.user {
         Some(user) => format!("{user}@{}", host.host),
         None => host.host.clone(),
@@ -151,10 +160,11 @@ fn ssh_argv_with_remote_cmd(host: &RemoteHost, remote_cmd: &[String]) -> Vec<Str
         argv.push(host.port.to_string());
     }
     argv.push(target);
-    // `--` 终结 ssh 选项解析;远端命令 = serve(单进程单 AgentThread,stdio 协议面)。
+    // `--` 终结 ssh 选项解析;远端命令 = sh -lc(登录 shell 查 PATH)。
     argv.push("--".into());
-    argv.push("zhuye".into());
-    argv.extend(remote_cmd.iter().cloned());
+    argv.push("sh".into());
+    argv.push("-lc".into());
+    argv.push(script.to_string());
     argv
 }
 
@@ -367,23 +377,22 @@ mod tests {
     }
 
     #[test]
-    fn ssh_argv_contains_batch_mode_and_serve_command() {
+    fn ssh_argv_contains_batch_mode_and_login_shell_serve() {
         let argv = ssh_argv(&host("dev"), "/home/me/proj");
         assert_eq!(argv[0], "ssh");
         assert!(argv.windows(2).any(|w| w == ["-o", "BatchMode=yes"]));
         assert!(argv.windows(2).any(|w| w == ["-o", "ConnectTimeout=10"]));
         assert!(argv.contains(&"example.invalid".to_string()));
-        // `--` 之后是远端命令。
+        // `--` 之后 = sh -lc 'exec zhuye serve --cwd …'(登录 shell:bootstrap
+        // 把 zhuye 装到 ~/.local/bin,只有登录 shell 的 PATH 才带它)。
         let dd = argv.iter().position(|a| a == "--").unwrap();
         assert_eq!(
-            &argv[dd + 1..dd + 4],
-            &[
-                "zhuye".to_string(),
-                "serve".to_string(),
-                "--cwd".to_string()
-            ]
+            &argv[dd + 1..dd + 3],
+            &["sh".to_string(), "-lc".to_string()]
         );
-        assert!(argv.contains(&"/home/me/proj".to_string()));
+        let script = &argv[dd + 3];
+        assert!(script.contains("exec zhuye serve --cwd"), "{script}");
+        assert!(script.contains("'/home/me/proj'"), "cwd 应带引号: {script}");
     }
 
     #[test]
@@ -400,6 +409,13 @@ mod tests {
     fn ssh_argv_omits_port_flag_for_default() {
         let argv = ssh_argv(&host("dev"), "/tmp");
         assert!(!argv.iter().any(|a| a == "-p"));
+    }
+
+    #[test]
+    fn sh_quote_escapes_embedded_single_quotes() {
+        assert_eq!(sh_quote("/opt/proj"), "'/opt/proj'");
+        // 内嵌单引号按 POSIX 惯例转义为 '\''。
+        assert_eq!(sh_quote("it's"), "'it'\\''s'");
     }
 
     #[test]

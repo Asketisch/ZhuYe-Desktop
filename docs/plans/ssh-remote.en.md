@@ -4,8 +4,8 @@
   <a href="ssh-remote.md">中文</a> · <b>English</b>
 </p>
 
-> **Status**: v1 core loop shipped (desktop commit 2ba023d9): host registry + SSH transport + handshake + foreground-slot submit routing + event pump + disconnect cleanup; L3 covered end-to-end with a stub ssh.
-> **TODO**: on-device acceptance (requires key auth + remote zhuye CLI); 3b follow-ups (reverse RemoteTool registration, remote file/git panels, sidebar "Remote" group, serve-resume on switch-back).
+> **Status**: v1 core loop shipped (desktop commit 2ba023d9; bootstrap increment see changelog): host registry + SSH transport (login shell) + handshake + foreground-slot submit routing + event pump + disconnect cleanup + **one-click remote zhuye CLI install**; L3 covered end-to-end with a stub ssh.
+> **TODO**: on-device acceptance (one Windows→Linux and one macOS→Linux box); 3b follow-ups (reverse RemoteTool registration, remote file/git panels, sidebar "Remote" group, serve-resume on switch-back, known_hosts first-connect guidance).
 > **Goal**: the desktop connects over SSH to a machine and the agent session runs remotely (remote cwd, remote tool execution, remote rollout persistence), while the desktop UI consumes the event stream unchanged.
 > **Related**: [../headless-daemon.md](../headless-daemon.md) (isomorphic shape, TCP variant as follow-up); [../capabilities.md](../capabilities.md) §2 "intentionally unwired" serve/remote-tool protocol; [../protocol-bridge.md](../protocol-bridge.md).
 
@@ -19,6 +19,19 @@ The other two seams, not chosen:
 - Host layer (workspace as an `ssh://` URL): `WorkspaceState` / `AgentConfig.workspace` / `ToolContext.workspace` are all a `PathBuf` type chain — major upstream surgery.
 
 Session-layer advantages: the protocol envelope is shared by four runtimes (transport-agnostic), serve IO is already parameterized, **upstream needs zero engine changes in v1** (serve is already a stdio protocol surface), and sandbox/permissions/rollout/memory all close the loop locally on the remote — semantics identical to local runs.
+
+## 1a. Platform matrix & remote install (cross-platform scope)
+
+| Desktop → remote | Status | Notes |
+|---|---|---|
+| macOS → Linux | ✅ primary design target | macOS ships OpenSSH; key auth + remote zhuye (one-click bootstrap available) |
+| Windows → Linux | 🟡 usable, more prerequisites | Windows OpenSSH client is an optional feature (missing binary → actionable error, or `ZHUYE_REMOTE_SSH_BIN` pointing at Git's ssh); passphrase-protected keys require the ssh-agent service |
+| macOS/Windows → macOS remote | 🟡 plausible, not verified on device | upstream publishes darwin artifacts; bootstrap applies |
+| Any → Windows remote | ⛔ not a target scenario | zhuye serve would theoretically run but is unverified |
+
+**Common prerequisites** (all platforms): BatchMode key auth (no interactive passwords); **known_hosts must already contain the host** before the first connect (BatchMode fails the host-key prompt — guide users to ssh manually once); the remote zhuye CLI can be installed via the one-click bootstrap.
+
+**Remote install (bootstrap, implemented)**: `reflect_remote_bootstrap` pipes a POSIX sh script over ssh — detect OS/arch → resolve the upstream latest tag → download `zhuye-<version>-<triple>.tar.gz` (curl or wget) → install to `~/.local/bin` (no sudo) → self-verify. Transport pairing: serve/probe run through `sh -lc` (login shell) so the install location is on PATH (non-interactive ssh commands do not include `~/.local/bin` by default).
 
 ## 2. Existing foundation
 

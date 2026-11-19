@@ -266,6 +266,10 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
             {ctrl.sshTesting ? <Loader2 size={12} className={s.spin} /> : null}
             {t('remote.ssh.test')}
           </Button>
+          <Button size="sm" variant="ghost" disabled={ctrl.sshBooting || !ctrl.sshConnectForm.name} onClick={() => void ctrl.sshBootstrap()} data-testid="remote-ssh-bootstrap">
+            {ctrl.sshBooting ? <Loader2 size={12} className={s.spin} /> : null}
+            {t('remote.ssh.bootstrap')}
+          </Button>
           <Button size="sm" variant="ghost" disabled={!ctrl.sshConnectForm.name || !ctrl.sshConnectForm.host} onClick={() => void ctrl.sshSaveHost()} data-testid="remote-ssh-save">
             <Save size={12} />
             {t('remote.ssh.saveHost')}

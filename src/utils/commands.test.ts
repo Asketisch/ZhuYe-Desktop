@@ -84,6 +84,7 @@ import {
   reflect_remote_disconnect,
   reflect_remote_hosts,
   reflect_remote_sessions,
+  reflect_remote_bootstrap,
   reflect_browser_start,
   reflect_browser_status,
   reflect_browser_stop,
@@ -560,6 +561,11 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(bind, { sid: 'sid-1' });
     const disconnect = await captureCmd('reflect_remote_disconnect', () => reflect_remote_disconnect('sid-1'));
     expectArgs(disconnect, { sid: 'sid-1' });
+  });
+
+  it('reflect_remote_bootstrap forwards { host }', async () => {
+    const args = await captureCmd('reflect_remote_bootstrap', () => reflect_remote_bootstrap('box'));
+    expectArgs(args, { host: 'box' });
   });
 
   // ----- 搜索 -----

@@ -216,6 +216,26 @@ pub async fn reflect_remote_test(
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
+/// 远端一键安装 zhuye CLI(bootstrap):ssh 拉起远端 `sh` 执行安装脚本
+/// (探测 OS/架构 → 下载上游 Release 资产 → 装到 `~/.local/bin` 免 sudo
+/// → 自验 `--version`)。返回版本输出;失败给可行动引导(缺 curl / 架构
+/// 无产物 / OS 不支持)。安装后 connect 经登录 shell 找到它。
+#[tauri::command]
+pub async fn reflect_remote_bootstrap(
+    agent: State<'_, MinimalAgent>,
+    host: String,
+) -> CommandResult<String> {
+    let entry = crate::state::remote::load_hosts()
+        .into_iter()
+        .find(|h| h.name == host)
+        .ok_or_else(|| CommandError {
+            msg: format!("远程主机不存在: {host}"),
+        })?;
+    crate::state::remote::bootstrap::run(&agent, &entry)
+        .await
+        .map_err(CommandError::from)
+}
+
 /// 连接远程会话:拉起 serve 并等握手。返回会话 id(uuid 字符串,前端
 /// 据此 bind / 提交)。
 #[tauri::command]

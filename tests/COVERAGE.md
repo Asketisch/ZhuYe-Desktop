@@ -66,7 +66,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | 终端 | `run_shell`（含 v1.11 `sshHost` 远端分支）`kill_shell` `list_shell_sessions` | L3 `ipc_workspace.rs`、`ipc_shell_runtime.rs`（会话隔离、生命周期回收与终止副作用）；SSH 参数拼装（`BatchMode` / `ConnectTimeout` / host trim / 命令单参数）由 `commands/shell.rs` 单测覆盖，前缀剥离与会话 `ssh:<host>` 标注由 L2 `useTerminalController.test` 覆盖 | `TerminalView` |
 | 媒体 | `list_media` `media_capabilities` `image_process` | L3 `ipc_workspace.rs`（真实 PNG/JPEG、base64、资产及处理产物随文件变更） | `MediaView` |
 | 受控浏览器 | `browser_start` `browser_stop` `browser_status` `browser_env` | L3 `ipc_browser.rs`（无实例状态、start 结构化错误且不拉真浏览器、stop 幂等、env profile 路径） | `BrowserView`（替身:空态/帧事件/启停;真画面实机验） |
-| SSH 远程开发 | `remote_hosts` `remote_host_save/remove` `remote_test` `remote_connect` `remote_bind` `remote_disconnect` `remote_sessions` | L3 `ipc_remote.rs`（stub-ssh:注册表持久化往返、握手 sid 提取、前台插槽与 isForeground、bind 未知 sid 拒绝、坏握手/未知 host 结构化错误、断开清理;事件泵与 submit 分流经 stub 全链路断言） | `RemoteView`（替身:SSH 卡片主机列表/连接表单/断开;真机连接实机验） |
+| SSH 远程开发 | `remote_hosts` `remote_host_save/remove` `remote_test` `remote_bootstrap` `remote_connect` `remote_bind` `remote_disconnect` `remote_sessions` | L3 `ipc_remote.rs`（stub-ssh 按远端命令分支:注册表持久化往返、握手 sid 提取、前台插槽与 isForeground、bind 未知 sid 拒绝、坏握手/未知 host 结构化错误、断开清理、bootstrap 安装自验输出;argv 登录 shell 形态与 bootstrap 脚本内容单测钉死） | `RemoteView`（替身:SSH 卡片主机列表/连接表单/一键安装+自动重测/断开;真机连接实机验） |
 | 任务 | `list/create/get/update/claim/stop/release/delete_task` `get_task_output` | L3 `ipc_domains.rs` | `TasksBoardView` |
 | 团队 | `list/upsert/get/delete_team` | L3 `ipc_domains.rs` | `TeamEditor` |
 | Squad | `list/create/get/delete_squad` `delegate_next` `assign_squad_task` | L3 `ipc_domains.rs` | `SquadView` |

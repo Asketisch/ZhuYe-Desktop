@@ -2053,6 +2053,7 @@ export function installFakeBackend(): FakeBackend {
     return backend.state.sshHosts;
   }));
   handle('reflect_remote_test', handler(() => 'zhuye 0.1.15'));
+  handle('reflect_remote_bootstrap', handler(() => 'zhuye 0.1.15 (installed)'));
   handle('reflect_remote_connect', handler(() => '00000000-0000-4000-8000-0000000000aa'));
   handle('reflect_remote_bind', handler(() => undefined));
   handle('reflect_remote_disconnect', handler(() => undefined));

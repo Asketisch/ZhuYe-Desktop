@@ -4,8 +4,8 @@
   <b>中文</b> · <a href="ssh-remote.en.md">English</a>
 </p>
 
-> **状态**：v1 核心回路已落地（桌面提交 2ba023d9）：host 注册表 + SSH 传输 + 握手 + 前台插槽提交路由 + 事件泵 + 断开清理；L3 以 stub-ssh 全链路覆盖。
-> **待办**：真机连接实机验收（需密钥免密 + 远端 zhuye CLI）；3b 后续项（反向 RemoteTool 注册、文件/git 面板远端化、侧栏「远程」分组、serve resume 切回恢复）。
+> **状态**：v1 核心回路已落地（桌面提交 2ba023d9，bootstrap 增量见 changelog）：host 注册表 + SSH 传输（登录 shell）+ 握手 + 前台插槽提交路由 + 事件泵 + 断开清理 + **远端一键安装 zhuye CLI**；L3 以 stub-ssh 全链路覆盖。
+> **待办**：真机连接实机验收（Windows→Linux 与 macOS→Linux 各一台）；3b 后续项（反向 RemoteTool 注册、文件/git 面板远端化、侧栏「远程」分组、serve resume 切回恢复、known_hosts 首连引导）。
 > **目标**：桌面端 SSH 到某台机器，agent 会话在远程机器上跑（远端 cwd、远端工具执行、远端 rollout 落盘），桌面 UI 无差别消费事件流。
 > **关联**：[../headless-daemon.md](../headless-daemon.md)（同构形态，TCP 版后续项）；[../capabilities.md](../capabilities.md) §2「有意不接线」的 serve/远程工具协议；[../protocol-bridge.md](../protocol-bridge.md)。
 
@@ -19,6 +19,19 @@
 - 宿主层（workspace 指 `ssh://` URL）：`WorkspaceState`/`AgentConfig.workspace`/`ToolContext.workspace` 全是 `PathBuf` 类型链，属上游大手术。
 
 会话层的天然优势：协议信封四方共用（传输无关）、serve IO 已参数化、**上游 v1 零引擎改动**（serve 本就是 stdio 协议面）、沙箱/权限/rollout/记忆全部在远端本地闭环（语义与本地完全一致）。
+
+## 1a. 平台矩阵与远端安装（跨平台口径）
+
+| 桌面端 → 远端 | 状态 | 说明 |
+|---|---|---|
+| macOS → Linux | ✅ 设计主场景 | macOS 自带 OpenSSH；密钥免密 + 远端 zhuye（可经 bootstrap 一键安装） |
+| Windows → Linux | 🟡 可用，前置较多 | Windows OpenSSH 客户端是可选功能（未装时 spawn 报错给安装引导，或 `ZHUYE_REMOTE_SSH_BIN` 指定 Git 自带 ssh）；带口令私钥需 ssh-agent 运行 |
+| macOS/Windows → macOS 远端 | 🟡 理论可行，未实机验证 | 上游有 darwin 产物，bootstrap 同样适用 |
+| 任意 → Windows 远端 | ⛔ 非目标场景 | zhuye serve 理论可跑但未验证，不支持 |
+
+**共同前置**（全平台）：BatchMode 密钥免密（密码交互不支持）；**首次连接前 known_hosts 需已含该主机**（BatchMode 下主机密钥确认弹窗会直接失败，引导用户先手动 ssh 一次）；远端 zhuye CLI 可经 bootstrap 一键安装。
+
+**远端安装（bootstrap，已实现）**：`reflect_remote_bootstrap` 经 ssh 送 POSIX sh 脚本到远端执行 —— 探测 OS/架构 → 解析上游 latest tag → 下载 `zhuye-<版本>-<triple>.tar.gz`（curl/wget 二选一）→ 装到 `~/.local/bin`（免 sudo）→ 自验。传输侧配套：serve/probe 一律经 `sh -lc`（登录 shell）执行，保证安装位置进入 PATH（非交互 ssh 命令的默认 PATH 不含 `~/.local/bin`）。
 
 ## 2. 现状地基
 

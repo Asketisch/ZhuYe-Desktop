@@ -65,6 +65,8 @@ const remote: Record<string, StringEntry> = {
   'remote.ssh.test':         { en: 'Test host',                           'zh-CN': '测试主机' },
   'remote.ssh.testOk':       { en: 'reachable: {version}',                'zh-CN': '可达:{version}' },
   'remote.ssh.saveHost':     { en: 'Save host',                           'zh-CN': '保存主机' },
+  'remote.ssh.bootstrap':    { en: 'Install on remote',                   'zh-CN': '安装到远端' },
+  'remote.ssh.bootstrapOk':  { en: 'Installed: {version}',                'zh-CN': '已安装:{version}' },
   'remote.ssh.fill':         { en: 'Fill',                                'zh-CN': '填入' },
   'remote.ssh.saved':        { en: 'Host saved.',                         'zh-CN': '主机已保存。' },
   'remote.ssh.connected':    { en: 'Remote session connected.',           'zh-CN': '远程会话已连接。' },

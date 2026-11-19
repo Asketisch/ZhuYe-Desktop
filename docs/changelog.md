@@ -12,7 +12,18 @@
   `reflect_submit_op` 整条路由远端 stdin，事件经既有 session/background 通道
   回前端（审批弹窗零改动）；断开杀本地 serve 子进程（远端 rollout 已落盘）。
   传输复用 BatchMode/ConnectTimeout argv 模式（无新 SSH 库），二进制可经
-  `ZHUYE_REMOTE_SSH_BIN` 覆盖（测试 stub 注入点）。v1 有意边界：远端会话
+  `ZHUYE_REMOTE_SSH_BIN` 覆盖（测试 stub 注入点）。
+  **远端一键安装**：新增 `reflect_remote_bootstrap` —— 经 ssh 送 POSIX sh
+  脚本到远端执行（探测 OS/架构 → 解析上游 latest tag → 下载
+  `zhuye-<版本>-<triple>.tar.gz`，curl/wget 自适应 → 装到 `~/.local/bin`
+  免 sudo → 自验 `--version`），失败按退出码给可行动引导（OS/架构不支持、
+  缺 curl、无法解析版本）。配套两处传输修正：serve/probe 一律改经
+  `sh -lc`（登录 shell）执行 —— 非交互 ssh 命令的默认 PATH 不含
+  `~/.local/bin`，登录 shell 才会带上；桌面端缺 ssh 二进制时按平台给
+  安装引导（Windows OpenSSH 客户端是可选功能）。跨平台矩阵
+  （macOS→Linux 主场景 / Windows→Linux 前置 / 其余未验证）与共同前置
+  （known_hosts 首连、BatchMode 密钥）见 docs/plans/ssh-remote.md §1a。
+  v1 有意边界：远端会话
   在 /remote 页管理（侧栏「远程」分组列后续）；文件/编辑器/git 面板对远程
   工作区有意降级；密码交互认证不支持（报错引导配 key）。
 - **内置受控浏览器（F39）**：上游 submodule 新增 `zhuye-browser` crate +

@@ -28,6 +28,7 @@ import {
   reflect_remote_test,
   reflect_remote_connect,
   reflect_remote_disconnect,
+  reflect_remote_bootstrap,
   type ReflectRemoteConfigSnapshot,
   type ReflectRemoteHost,
   type ReflectRemoteSessionInfo,
@@ -77,8 +78,10 @@ export interface RemoteController {
   sshTest: () => Promise<void>;
   sshConnect: () => Promise<void>;
   sshDisconnect: (sid: string) => Promise<void>;
+  sshBootstrap: () => Promise<void>;
   sshBusy: boolean;
   sshTesting: boolean;
+  sshBooting: boolean;
 }
 
 /** SSH 连接表单草稿。 */
@@ -332,6 +335,24 @@ export function useRemoteController(): RemoteController {
     [sshDisconnectMut],
   );
 
+  // 一键安装:远端无 zhuye CLI 时(测试主机报错后)使用;装完自动重测。
+  const sshBootstrapMut = useMutation({
+    mutationFn: () => reflect_remote_bootstrap(sshForm.name),
+    onSuccess: async (version) => {
+      pushToast({ kind: 'success', message: t('remote.ssh.bootstrapOk', { version }) });
+      // 装完即验证可达性,让用户直接 connect。
+      try {
+        await sshTestMut.mutateAsync();
+      } catch {
+        // 重测失败信息已由 sshTestMut 的 onError toast,不再叠加。
+      }
+    },
+    onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
+  });
+  const sshBootstrap = useCallback(async () => {
+    await sshBootstrapMut.mutateAsync();
+  }, [sshBootstrapMut]);
+
   return {
     config: cfgQ.data ?? null,
     status: statusQ.data ?? null,
@@ -371,7 +392,9 @@ export function useRemoteController(): RemoteController {
     sshTest,
     sshConnect,
     sshDisconnect,
+    sshBootstrap,
     sshBusy: sshConnectMut.isPending || sshDisconnectMut.isPending,
     sshTesting: sshTestMut.isPending,
+    sshBooting: sshBootstrapMut.isPending,
   };
 }
