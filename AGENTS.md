@@ -135,11 +135,11 @@ pnpm test -- src/features/settings/SettingsView.test.tsx
 - `useSessions`（`src/logic/sessions/useSessions.ts`）是会话列表的规范 hook，旧切片路径提供兼容导出
 - 切换会话 → `reflect_replay_session(id)` 后水合本地状态
 - 时间分组（`Now/今天/昨天/本周/更早`）在 hook 中，不在侧边栏组件中
-- **切走必降级、切回必恢复**：引擎只在回合**结束**时把 assistant 消息落进
-  rollout，审批 / 提问 / plan 更是压根不落盘 → 切走时旧会话若有在飞 turn
-  或待确认交互，必须把前台实时投影播种进后台注册表
+- **切走必降级、切回必恢复**：assistant 内容按步骤增量落盘，但正在流出的
+  半截文本、运行态，以及审批 / 提问 / plan 这些 gate 请求仍不在 rollout 里。
+  切走时旧会话若有在飞 turn 或待确认交互，必须把前台实时投影播种进后台注册表
   （`useBackgroundSessions.demote`），切回时由 `mergePendingInto` 整体
-  注回。否则历史凭空消失、运行态退化成「已结束」（停止按钮消失）、审批框
+  注回。否则最新增量丢失、运行态退化成「已结束」（停止按钮消失）、审批框
   永久丢失、回合永远挂着
 
 ## 开发流程检查表（改任何代码前必读）

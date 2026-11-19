@@ -7540,9 +7540,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-php"
-version = "0.24.2"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d8c17c3ab69052c5eeaa7ff5cd972dd1bc25d1b97ee779fec391ad3b5df5592"
+checksum = "d9779e392d38af4254f48be0e57b7eed4d50ec7a6e55a7e5e2e74df8f8f032d3"
 dependencies = [
  "cc",
  "tree-sitter-language",
@@ -9819,7 +9819,7 @@ dependencies = [
 name = "zhuye-import"
 version = "0.0.6"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "clap",
  "rusqlite",
@@ -9868,7 +9868,7 @@ version = "0.0.6"
 dependencies = [
  "async-stream",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "eventsource-stream",
  "futures",
@@ -9914,7 +9914,7 @@ name = "zhuye-mcp"
 version = "0.0.6"
 dependencies = [
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "futures",
  "parking_lot",
  "reqwest 0.13.4",

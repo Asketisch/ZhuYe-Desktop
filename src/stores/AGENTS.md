@@ -31,7 +31,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 - **`turn_rewound` 截断语义**：引擎 `truncate_after(to_turn_id)` 丢弃该 turn **含**及其之后（recorder.rs）；reducer 本地截断同语义（`slice(0, idx)`），与 `editRewindTargetFor`（回退目标恒为目标轮自身 id）配套。
 - **权限模式恒为三态**：store 的 `permissionMode` 只经两个写入口写入——reducer 的 `permission_mode_changed` 与 `syncPermissionMode`（bind 返回值）——两者都过 `normalizePermissionMode`（`src/types/protocol/enums.ts`：`accept_edits→auto`、`bypass→prompt`、其余弃用档→auto）。引擎计划批准的 `auto_mode` 会切到弃用档 `accept_edits`（上游 `submission_loop.rs` 待修），归一化保证 `ComposerControls` 切换器恒为计划/询问/默认三段、不裸回显 wire 值。
 - **后台会话投影与主 reducer 的分工（v1.x 后台持续运行）**：主 reducer 只消化前台会话事件；后台会话事件走 `reflect_session_event` 通道由 `backgroundSessions.ts` 消化（每会话 scratch 直接跑同一份 `reduceEvent`，pending 形状零漂移）。切回会话的水合序列必须调 `mergePendingInto`（gate 请求不落 rollout），切走时若旧会话有 streaming turn 或有待确认交互必调 `demote`（把前台投影播种进 scratch）。后台会话不能远程停止/应答——须切回操作。
-- **在飞内容只能靠内存投影存活（关键）**：引擎**只在回合结束时**才把 assistant 消息落进 rollout（上游 `submission_loop.rs`），回合未结束（阻塞在 plan 审批、被中断、app 退出）时解析 session 文件复现不出助手历史；审批 / 提问 / plan 更是 gate 请求，**压根不落盘**。因此切走时必须 `demote`（播种前台 turns + pending），切回时 `mergePendingInto` 整体注回 —— 否则切回后历史凭空消失、运行态退化成「已结束」（停止按钮随之消失，卡住的回合再也停不下来）、审批框永久丢失。
+- **在飞内容靠内存投影跨会话存活（关键）**：上游已按步骤增量落盘 assistant 内容（`persist_assistant_step`），但正在流出的半截文本、运行态，以及审批 / 提问 / plan 这些 gate 请求仍不在 rollout 里。因此切走时必须 `demote`（播种前台 turns + pending），切回时 `mergePendingInto` 整体注回 —— 否则切回后最新增量丢失、运行态退化成「已结束」（停止按钮随之消失，卡住的回合再也停不下来）、审批框永久丢失。
 - **队列按会话隔离**：`QueuedMessage.sessionId` 在入队时盖章（`enqueueMessage` 取 `loadedSessionId`）；展示（`QueuedMessages` / `Inspector` / `ZDock`，均经 `selectQueuedForActiveSession` + `useShallow`——选择器返回新数组，裸用会触发 zustand v5 无限重渲）与排空（`drainQueue`）只作用于前台会话的队列项。
 
 ## 禁止事项
