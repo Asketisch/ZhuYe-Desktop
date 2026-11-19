@@ -58,6 +58,12 @@ fn track_running(inner: &super::agent::MinimalAgentInner, sid: Option<ThreadId>,
 /// 线程被换绑降级到后台后,forwarder 继续存活并以此为标签把事件发往
 /// 后台通道,直到线程通道关闭自然退出。
 ///
+/// **一个线程只能有一个 forwarder**:`subscribe_session()` 是追加订阅者
+/// 语义(每次调用新建一条 mpsc 通道),同一线程挂两个 forwarder 会把
+/// 每条事件双发到前台通道(delta 文本翻倍)。线程的会话 id 终身不变,
+/// 因此 forwarder 也只需创建一次 —— promote(bind 回后台会话)复用既有
+/// forwarder,不再新建(见 `state/rebind.rs`)。
+///
 /// 在 `install_agent_thread` / `rebind_session` 内部调用,外部不应直接调。
 pub(crate) fn start_forwarder(agent: &MinimalAgent, sid: Option<ThreadId>) {
     let thread_lock = agent.inner.thread.lock();
@@ -69,6 +75,9 @@ pub(crate) fn start_forwarder(agent: &MinimalAgent, sid: Option<ThreadId>) {
 
     let mut session_rx = thread.subscribe_session();
     let inner = agent.inner.clone();
+    inner
+        .forwarder_count
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     tauri::async_runtime::spawn(async move {
         tracing::info!("[reflect-gui] session forward task started");
         while let Some(event) = session_rx.recv().await {

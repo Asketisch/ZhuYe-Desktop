@@ -121,6 +121,35 @@ describe('session switch & replay hydration', () => {
     expect(log.textContent).not.toContain('Summarize the auth flow');
   });
 
+  it('运行中会话切走再切回:在飞历史、运行态与待审批交互都不丢', async () => {
+    const app = renderApp();
+    await app.navigate('/chat/sess-alpha');
+    await waitFor(() => expect(useAgentStore.getState().loadedSessionId).toBe('sess-alpha'));
+
+    // 脚本化 agent:产出 plan 后挂在 plan 审批上 —— 回合不收尾,assistant
+    // 消息永不落 rollout;审批请求更是压根不落盘。两者的唯一存活载体是
+    // 内存投影(降级时播种、切回时注回)。
+    backend.agent.script = [
+      { emit: [{ type: 'plan_ready', plan_id: 'p-live', markdown: '# 官网规划' }] },
+      { gate: 'plan_approval', id: 'p-live' },
+    ];
+    await typeAndSend('开始规划官网');
+
+    await waitFor(() => expect(useAgentStore.getState().pendingPlan?.id).toBe('p-live'));
+    expect(useAgentStore.getState().turns.some((turn) => turn.status === 'streaming')).toBe(true);
+
+    // 切走 → 旧会话降级进后台注册表(主 store 清空)。
+    await app.navigate('/chat/sess-beta');
+    await waitFor(() => expect(useAgentStore.getState().loadedSessionId).toBe('sess-beta'));
+    expect(useAgentStore.getState().pendingPlan).toBeNull();
+
+    // 切回 → 后台投影整体注回:审批框重弹、运行态恢复。
+    await app.navigate('/chat/sess-alpha');
+    await waitFor(() => expect(useAgentStore.getState().loadedSessionId).toBe('sess-alpha'));
+    expect(useAgentStore.getState().pendingPlan?.id).toBe('p-live');
+    expect(useAgentStore.getState().turns.some((turn) => turn.status === 'streaming')).toBe(true);
+  });
+
   it('new chat (/chat) clears loaded session state', async () => {
     const app = renderApp();
     await app.navigate('/chat/sess-alpha');

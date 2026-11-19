@@ -111,16 +111,20 @@ fn rebind_session_with(
     // v1.x promote:目标会话的后台线程仍在跑/仍可用 → 直接复用 warm 线程
     // (内存上下文即在,preload/initial_mode 忽略),不再重建。线程已死
     // (cancel/closed)则照常走重建。
-    let thread = if !force {
+    //
+    // `promoted` 标记:warm 线程**已有**自己的 forwarder(降级时未停),
+    // 复用即可 —— 再起一个会让同一线程的事件被双发(`subscribe_session`
+    // 是追加订阅者语义,见 `state/session.rs`)。
+    let (thread, promoted) = if !force {
         match take_background(agent, sid) {
             Some(warm) => {
                 debug!("rebind_session: {sid} promote 后台线程(免重建)");
-                warm
+                (warm, true)
             }
-            None => build(agent, Some(sid), preload, initial_mode)?,
+            None => (build(agent, Some(sid), preload, initial_mode)?, false),
         }
     } else {
-        build(agent, Some(sid), preload, initial_mode)?
+        (build(agent, Some(sid), preload, initial_mode)?, false)
     };
 
     // 1. 处置旧线程。读出旧 Arc 与其 sid,然后**立即释放 thread-slot 锁**
@@ -178,7 +182,13 @@ fn rebind_session_with(
     // 3. 为新 thread 起独立 forwarder(共享 session_tx;带 sid,降级后台后
     //    由它把该线程事件分流到 background_tx)。被降级旧线程的 forwarder
     //    同样继续存活 —— 线程 cancel/关闭时自然退出。
-    super::session::start_forwarder(agent, Some(sid));
+    //
+    //    promote 分支**不**再起 forwarder:warm 线程自带的 forwarder 仍
+    //    在跑且 sid 相同(线程的会话 id 终身不变),再起一个会让同一线程
+    //    的每条事件双发到前台通道(delta 文本翻倍)。
+    if !promoted {
+        super::session::start_forwarder(agent, Some(sid));
+    }
 
     // 4. Cron 换向:旧 driver 已在 step 1.5 停止,这里写新 sender 并起
     //    新 driver(首个 tick 立即扫描,补发窗口内到期的 job),保留 job id。

@@ -39,6 +39,43 @@ export function editRewindTargetFor(
   return { rewindTo: turnId, userText: userItem.text ?? '' };
 }
 
+/**
+ * 把旧会话降级进后台注册表:播种它在飞回合的实时投影与待确认交互。
+ *
+ * 为什么必须播种整份投影:
+ * - **在飞历史**:引擎只在回合**结束**时才把 assistant 消息落进
+ *   rollout。回合未结束(阻塞在 plan 审批等)时,解析 session 文件复现
+ *   不出助手历史 —— 唯一能救回这段内容的是内存里的实时投影。
+ * - **待确认交互**:审批 / 提问 / plan 是 gate 请求,**压根不落盘**,
+ *   只能靠内存投影跨会话切换存活(否则切回后审批框消失,回合永远
+ *   挂着,连停止按钮都随之消失)。
+ *
+ * 无在飞工作(回合已收尾)的会话:rollout 即完整事实源,不留内存
+ * 投影 —— 避免注册表随访问过的会话数无限膨胀。
+ */
+function demotePreviousSession(): void {
+  const state = useAgentStore.getState();
+  const previous = state.loadedSessionId;
+  if (!previous) return;
+  const hasPending =
+    state.pendingApprovals.length > 0 ||
+    state.pendingQuestions.length > 0 ||
+    state.pendingAskUser.length > 0 ||
+    state.pendingPlan !== null;
+  const running = state.turns.some((turn) => turn.status === 'streaming');
+  if (!running && !hasPending) {
+    useBackgroundSessions.getState().clearSession(previous);
+    return;
+  }
+  useBackgroundSessions.getState().demote(previous, {
+    turns: state.turns,
+    pendingApprovals: state.pendingApprovals,
+    pendingQuestions: state.pendingQuestions,
+    pendingAskUser: state.pendingAskUser,
+    pendingPlan: state.pendingPlan,
+  });
+}
+
 /** 绑定会话回放、操作与可替换的聊天视图。 */
 export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatViewProps>; slots: ChatSlots }) {
   const { sessionId } = useParams({ strict: false }) as { sessionId?: string };
@@ -183,22 +220,18 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
   };
 
   useEffect(() => {
-    if (!sessionId) {
+    const myId = ++requestIdRef.current;
+    // 切换会话:旧会话先降级进后台注册表,再清空主 store —— clearSession
+    // 会把「回合未结束、rollout 尚未落盘 assistant 消息」的那段历史与
+    // 待审批请求一起抹掉。
+    if (useAgentStore.getState().loadedSessionId !== sessionId) {
+      demotePreviousSession();
       clearSession();
+    }
+    if (!sessionId) {
       setLoading(false);
       setError(null);
       return;
-    }
-    const myId = ++requestIdRef.current;
-    // 绑定新线程前移除旧会话的交互，避免加载窗口里向错误线程应答。
-    if (useAgentStore.getState().loadedSessionId !== sessionId) {
-      // v1.x 后台持续运行:旧会话若有 turn 正在跑,播种 running 态进后台
-      // 注册表(turn_started 是前台事件,降级后的后台通道不会再发)。
-      const previous = useAgentStore.getState().loadedSessionId;
-      if (previous && useAgentStore.getState().turns.some((turn) => turn.status === 'streaming')) {
-        useBackgroundSessions.getState().seedRunning(previous);
-      }
-      clearSession();
     }
     setLoading(true);
     setError(null);

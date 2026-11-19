@@ -215,6 +215,42 @@ async fn rebind_demotes_old_thread_and_promotes_warm_thread() {
     );
 }
 
+/// promote(bind 回后台会话)不得**再起**一个 forwarder。
+///
+/// `AgentThread::subscribe_session()` 是追加订阅者语义(每次调用新建一条
+/// mpsc 通道并挂进 `session_subs`)—— 同一线程挂两个 forwarder,每条事件
+/// 都会被**双发**到前台通道(delta 文本翻倍)。线程的会话 id 终身不变,
+/// 其 forwarder 从首次绑定起一直存活,promote 只需复用。
+#[tokio::test]
+async fn promote_does_not_start_second_forwarder() {
+    use std::sync::atomic::Ordering;
+
+    let agent = MinimalAgent::new_empty();
+    *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+    agent.install_agent_thread().await;
+
+    let session_a = ThreadId::new();
+    rebind_session(&agent, session_a, vec![], None).unwrap();
+    let after_bind_a = agent.inner.forwarder_count.load(Ordering::Relaxed);
+
+    // 切到 B:新线程 → 新起一个 forwarder(A 的 forwarder 继续存活)。
+    let session_b = ThreadId::new();
+    rebind_session(&agent, session_b, vec![], None).unwrap();
+    assert_eq!(
+        agent.inner.forwarder_count.load(Ordering::Relaxed),
+        after_bind_a + 1,
+        "换绑到新会话应为新线程起一个 forwarder"
+    );
+
+    // bind 回 A:promote 复用 warm 线程 —— 不得再起 forwarder。
+    rebind_session(&agent, session_a, vec![], None).unwrap();
+    assert_eq!(
+        agent.inner.forwarder_count.load(Ordering::Relaxed),
+        after_bind_a + 1,
+        "promote 不得再起 forwarder(否则同一线程的事件被双发)"
+    );
+}
+
 /// 原地重建(同 id + pending error)必须 cancel 旧线程 —— 同一 session
 /// 不允许两个 live 线程写同一 rollout 文件。
 #[tokio::test]

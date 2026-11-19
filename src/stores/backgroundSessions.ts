@@ -15,6 +15,12 @@
  * `ingest` 直接跑同一份 `reduceEvent`(pending 构造 / turn 收尾清理 /
  * plan 流转全复用),本文件不复制任何事件语义。
  *
+ * scratch 同时承载该会话的**实时 turns 投影**:引擎只在回合**结束**时
+ * 才把 assistant 消息落进 rollout,回合未结束(阻塞在 plan 审批、被
+ * 中断…)时解析 session 文件复现不出助手历史 —— 降级时把前台投影播种
+ * 进 scratch(`demote`),切回时由 `mergePendingInto` 整体注回,历史 /
+ * 运行态 / 待审批交互才不随会话切换丢失。
+ *
  * 已知限制(注释与 docs 同步):后台会话不能远程停止/应答 —— 须切回
  * 该会话操作;徽标 + toast 引导用户切回。
  */
@@ -29,6 +35,7 @@ import type {
   PendingAskUser,
   PendingPlan,
   PendingQuestion,
+  Turn,
 } from './agent/types';
 import type { ReflectEvent } from '@/types/protocol';
 
@@ -48,21 +55,40 @@ export interface BackgroundSessionSnapshot {
   updatedAt: number;
 }
 
+/**
+ * 前台会话降级进后台时播种的实时投影。
+ *
+ * 为什么要播种整份投影(而不是只记「在跑」):
+ * - **在飞历史**:引擎只在**回合结束**时才把 assistant 消息落进 rollout,
+ *   回合未结束(例如阻塞在 plan 审批)时解析 session 文件复现不出助手
+ *   历史 —— 唯一能救回这段内容的是内存里的实时投影。
+ * - **待确认交互**:审批 / 提问 / ask_user / plan 是 gate 请求,**压根不
+ *   落 rollout**,只能靠内存投影跨会话切换存活(否则切回后审批框消失、
+ *   回合永远挂起)。
+ */
+export interface ForegroundProjection {
+  turns: Turn[];
+  pendingApprovals: PendingApproval[];
+  pendingQuestions: PendingQuestion[];
+  pendingAskUser: PendingAskUser[];
+  pendingPlan: PendingPlan | null;
+}
+
 interface BackgroundSessionsState {
   sessions: Record<string, BackgroundSessionSnapshot>;
   /** 消化一条后台事件(带 session id)。 */
   ingest: (sessionId: string, event: ReflectEvent) => void;
   /**
-   * 切走时播种:该会话有 turn 正在前台跑(turn_started 是前台事件,后台
-   * 通道不会再发)—— 播种 running 态,让徽标立即亮起;后续后台事件继续
-   * 更新(降级线程的 delta 流到后台通道后,`reduceEvent` 的 mapTurn 会
-   * 为未知 turn 惰性建条目,running 由此续上)。
+   * 前台 → 后台降级:用前台当前投影播种该会话的 scratch(turns + 待确认
+   * 交互)。之后该会话在后台收到的事件继续叠加在同一份 scratch 上 ——
+   * 它就是该会话的完整实时投影。
    */
-  seedRunning: (sessionId: string) => void;
+  demote: (sessionId: string, projection: ForegroundProjection) => void;
   /**
-   * 切回该会话后调用(bind → replay 水合完成时):把 pending 交互合并进
-   * 主 store(rollout 不含 gate 请求,必须合并)并清除本 store 条目 ——
-   * 之后该会话回到前台,事件重新走主 reducer。
+   * 切回该会话后调用(bind → replay 水合完成时):把后台投影**整体**注回
+   * 主 store —— 待确认交互(rollout 不含 gate 请求)与在飞回合的实时
+   * 投影(rollout 尚未落盘)都必须合并,否则会话会静默卡在审批上 / 历史
+   * 凭空消失。之后该会话回到前台,事件重新走主 reducer。
    */
   mergePendingInto: (sessionId: string) => void;
   /** 会话删除 / 离开时清理投影与 scratch。 */
@@ -130,35 +156,52 @@ export const useBackgroundSessions = create<BackgroundSessionsState>((set, get) 
     }));
   },
 
-  seedRunning: (sessionId) => {
-    set((state) => {
-      const existing = state.sessions[sessionId];
-      if (existing?.running) return state;
-      const scratch = { ...useAgentStore.getInitialState() };
+  demote: (sessionId, projection) => {
+    let scratch = scratches.get(sessionId);
+    if (!scratch) {
+      // 主 store 初始状态即合法空 AgentState(zustand getInitialState),
+      // pending 构造 / 清理所需的全部字段齐备。
+      scratch = { ...useAgentStore.getInitialState() };
       scratches.set(sessionId, scratch);
-      return {
-        sessions: {
-          ...state.sessions,
-          [sessionId]: {
-            running: true,
-            pendingCount: existing?.pendingCount ?? 0,
-            pending: existing?.pending ?? pendingOf(scratch),
-            updatedAt: Date.now(),
-          },
+    }
+    // 前台是当前投影的权威源:会话在前台期间它的事件全走前台通道,
+    // 主 store 持有完整实时投影。播种后,后台事件继续叠加在同一份
+    // scratch 上 —— 它就是该会话跨会话切换存活的完整投影。
+    scratch.turns = projection.turns.map((turn) => ({ ...turn, items: [...turn.items] }));
+    scratch.pendingApprovals = projection.pendingApprovals;
+    scratch.pendingQuestions = projection.pendingQuestions;
+    scratch.pendingAskUser = projection.pendingAskUser;
+    scratch.pendingPlan = projection.pendingPlan;
+    scratch.loadedSessionId = sessionId;
+    const pending = pendingOf(scratch);
+    const pendingCount = pendingCountOf(pending);
+    set((state) => ({
+      sessions: {
+        ...state.sessions,
+        [sessionId]: {
+          running: scratch.turns.some((turn) => turn.status === 'streaming'),
+          pendingCount,
+          pending,
+          updatedAt: Date.now(),
         },
-      };
-    });
+      },
+    }));
   },
 
   mergePendingInto: (sessionId) => {
     const snapshot = get().sessions[sessionId];
     if (!snapshot) return;
+    const scratch = scratches.get(sessionId);
     // 水合已清过 pending(changedSession),这里整体替换为后台记录值。
+    // turns 同理:回放只含已落盘的记录,回合未结束时助手输出还没进
+    // rollout —— 用后台实时投影覆盖,否则切回后历史凭空消失、运行态
+    // 退化成「已结束」(停止按钮随之消失,卡住的回合再也停不下来)。
     useAgentStore.setState({
       pendingApprovals: snapshot.pending.approvals,
       pendingQuestions: snapshot.pending.questions,
       pendingAskUser: snapshot.pending.askUser,
       ...(snapshot.pending.plan ? { pendingPlan: snapshot.pending.plan } : {}),
+      ...(scratch && scratch.turns.length > 0 ? { turns: scratch.turns } : {}),
     });
     scratches.delete(sessionId);
     set((state) => {

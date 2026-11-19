@@ -27,6 +27,7 @@
 - 改 `reload.rs` 行为时同步补 `reload/tests.rs`（`#[cfg(test)] mod tests;` 目录形式，与 `memory_store/tests.rs`、`commands/config/tests.rs` 同一模式）。
 - **后台会话线程表（v1.x 后台持续运行）**：`inner.background`（`Vec<(ThreadId, Arc<AgentThread>)>`，上限 `MAX_BACKGROUND_THREADS`）+ `background_tx`（`reflect_session_event` 通道）+ `background_running`（forwarder 按 turn 生命周期维护）。不变量：跨会话换绑**不得 cancel** 旧线程（会话级令牌 = `Op::Shutdown`，「切走即停」的根因）；**同一 session 不允许两个 live 线程**——原地重建（forced 热重载 / pending error 重试）与超限驱逐仍走 cancel；forced 换绑清空后台表（provider 栈已重建，旧线程攥旧 registry）。`session.rs::route_event` 按 ptr_eq 分流前台/后台；`submit.rs` 的 per-turn forwarder 带提交时 bound sid（流式 delta 只走 per-turn 通道，降级后的 turn 靠它路由到后台通道）。
 - **rebind 代数信号**：`inner.rebind_generation`（watch）在每次成功换绑时自增；`submit` 里挂在插件挂载等待上的提交据此快速失败（旧实现靠 cancel 旧线程间接解挂，后台化后线程不再被取消）。
+- **一个线程一个 forwarder**：`AgentThread::subscribe_session()` 是**追加订阅者**语义（每次调用新建一条 mpsc 通道挂进 `session_subs`），同一线程挂两个 forwarder 会让每条事件被**双发**到前台通道（delta 文本翻倍）。线程的会话 id 终身不变，其 forwarder 自首次绑定起一直存活 —— promote（bind 回后台会话）**不得**再起 forwarder（`rebind.rs` 的 `promoted` 标记）。`inner.forwarder_count` 供回归断言（`rebind/tests.rs::promote_does_not_start_second_forwarder`）。
 
 ## 禁止事项
 

@@ -115,6 +115,14 @@ pub(crate) struct MinimalAgentInner {
     /// 后台会话是否有 turn 在跑(forwarder 按 turn 生命周期维护)。
     /// 仅服务驱逐策略(空闲线程优先驱逐);promote/evict 时同样增删。
     pub(crate) background_running: ParkingMutex<std::collections::HashSet<ThreadId>>,
+    /// 已启动的 session forwarder 计数(诊断 / 回归断言用)。
+    ///
+    /// **一个线程只需一个 forwarder**:`AgentThread::subscribe_session()`
+    /// 是**追加订阅者**语义(每次调用新建一条 mpsc 通道并挂进
+    /// `session_subs`),同一线程挂两个 forwarder 会让每条事件被
+    /// **双发**到前台通道(delta 文本翻倍)。因此 promote(bind 回后台
+    /// 会话)复用既有 forwarder,不再新建 —— 见 `state/rebind.rs`。
+    pub(crate) forwarder_count: std::sync::atomic::AtomicUsize,
     /// rebind 代数:每次成功换绑(含 promote)自增。挂在插件挂载上的
     /// 提交(`wait_for_plugins`)据此感知「会话已切走」并快速失败,
     /// 而非无限等待可能卡死的挂载(旧实现靠 cancel 旧线程间接解挂,
@@ -239,6 +247,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         background: ParkingMutex::new(Vec::new()),
         background_tx,
         background_running: ParkingMutex::new(std::collections::HashSet::new()),
+        forwarder_count: std::sync::atomic::AtomicUsize::new(0),
         rebind_generation,
         cron_driver: ParkingMutex::new(None),
         autopilot_driver: ParkingMutex::new(None),
