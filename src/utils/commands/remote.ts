@@ -113,3 +113,84 @@ export async function reflect_status_server_stop(): Promise<void> {
 export async function reflect_status_server_state(): Promise<number | null> {
   return invoke<number | null>('reflect_status_server_state');
 }
+// ── SSH 远程开发(会话层接缝;docs/plans/ssh-remote.md)────────────────
+//
+// 远端跑 `zhuye serve`(stdio JSONL),桌面以 SSH 子进程为传输成为协议
+// 客户端。host 注册表持久化 `$ZHUYE_HOME/remote-hosts.json`;连接经
+// `reflect_remote_connect` 返回会话 id,`setActiveId(sid)` 即进入
+// /chat/<sid>(ChatView 的 bind 对远程 sid 短路:后端置前台插槽,
+// 后续 submit/interrupt 整条路由远端 stdin)。
+
+/** 远程主机(注册表条目,camelCase 出线)。 */
+export interface ReflectRemoteHost {
+  name: string;
+  host: string;
+  port: number;
+  user: string | null;
+}
+
+/** 活跃远程会话信息。 */
+export interface ReflectRemoteSessionInfo {
+  sid: string;
+  host: string;
+  cwd: string;
+  isForeground: boolean;
+}
+
+/** 远程主机列表(注册表读口)。 */
+export async function reflect_remote_hosts(): Promise<ReflectRemoteHost[]> {
+  return invoke<ReflectRemoteHost[]>('reflect_remote_hosts');
+}
+
+/** 新增/覆盖一台远程主机(按 name 幂等)。返回更新后的列表。 */
+export async function reflect_remote_host_save(args: {
+  name: string;
+  host: string;
+  port?: number;
+  user?: string;
+}): Promise<ReflectRemoteHost[]> {
+  return invoke<ReflectRemoteHost[]>('reflect_remote_host_save', {
+    name: args.name,
+    host: args.host,
+    port: args.port ?? null,
+    user: args.user ?? null,
+  });
+}
+
+/** 删除一台远程主机。返回更新后的列表。 */
+export async function reflect_remote_host_remove(name: string): Promise<ReflectRemoteHost[]> {
+  return invoke<ReflectRemoteHost[]>('reflect_remote_host_remove', { name });
+}
+
+/** 连通性 + 远端 CLI 探测(`ssh <host> -- zhuye --version`)。 */
+export async function reflect_remote_test(args: {
+  host: string;
+  port?: number;
+  user?: string;
+}): Promise<string> {
+  return invoke<string>('reflect_remote_test', {
+    host: args.host,
+    port: args.port ?? null,
+    user: args.user ?? null,
+  });
+}
+
+/** 连接远程会话(拉起 serve + 握手)。返回会话 id。 */
+export async function reflect_remote_connect(host: string, cwd: string): Promise<string> {
+  return invoke<string>('reflect_remote_connect', { host, cwd });
+}
+
+/** bind 到远程会话(前台插槽置位)。 */
+export async function reflect_remote_bind(sid: string): Promise<void> {
+  await invoke<void>('reflect_remote_bind', { sid });
+}
+
+/** 断开远程会话(杀 serve 子进程;远端 rollout 已落盘)。 */
+export async function reflect_remote_disconnect(sid: string): Promise<void> {
+  await invoke<void>('reflect_remote_disconnect', { sid });
+}
+
+/** 活跃远程会话列表。 */
+export async function reflect_remote_sessions(): Promise<ReflectRemoteSessionInfo[]> {
+  return invoke<ReflectRemoteSessionInfo[]>('reflect_remote_sessions');
+}

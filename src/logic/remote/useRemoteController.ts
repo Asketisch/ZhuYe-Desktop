@@ -21,10 +21,20 @@ import {
   reflect_tailscale_daemon_command_preview,
   reflect_tailscale_status,
   reflect_update_remote_config,
+  reflect_remote_hosts,
+  reflect_remote_host_remove,
+  reflect_remote_host_save,
+  reflect_remote_sessions,
+  reflect_remote_test,
+  reflect_remote_connect,
+  reflect_remote_disconnect,
   type ReflectRemoteConfigSnapshot,
+  type ReflectRemoteHost,
+  type ReflectRemoteSessionInfo,
   type ReflectRemoteStatus,
   type ReflectTailscaleStatus,
 } from '@/utils/commands';
+import { useNavigate } from '@tanstack/react-router';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 
@@ -56,6 +66,28 @@ export interface RemoteController {
   serverBusy: boolean;
 
   isMutating: boolean;
+
+  // ── SSH 远程开发(state/remote.rs 会话层接缝)──
+  sshHosts: ReflectRemoteHost[];
+  sshSessions: ReflectRemoteSessionInfo[];
+  sshConnectForm: SshConnectDraft;
+  patchSshConnectForm: (patch: Partial<SshConnectDraft>) => void;
+  sshSaveHost: () => Promise<void>;
+  sshRemoveHost: (name: string) => Promise<void>;
+  sshTest: () => Promise<void>;
+  sshConnect: () => Promise<void>;
+  sshDisconnect: (sid: string) => Promise<void>;
+  sshBusy: boolean;
+  sshTesting: boolean;
+}
+
+/** SSH 连接表单草稿。 */
+export interface SshConnectDraft {
+  name: string;
+  host: string;
+  port: number | null;
+  user: string;
+  cwd: string;
 }
 
 export interface RemoteConfigDraft {
@@ -194,6 +226,112 @@ export function useRemoteController(): RemoteController {
     setDraft(emptyRemoteDraft(cfgQ.data));
   }, [cfgQ.data]);
 
+  // ── SSH 远程开发 ──
+  const navigate = useNavigate();
+  const hostsQ = useQuery({
+    queryKey: [...REMOTE_QUERY_KEY, 'ssh-hosts'],
+    queryFn: () => reflect_remote_hosts(),
+    staleTime: REMOTE_STALE_MS,
+  });
+  const sessionsQ = useQuery({
+    queryKey: [...REMOTE_QUERY_KEY, 'ssh-sessions'],
+    queryFn: () => reflect_remote_sessions(),
+    refetchInterval: 10_000,
+  });
+  const [sshForm, setSshForm] = useState<SshConnectDraft>({
+    name: '',
+    host: '',
+    port: null,
+    user: '',
+    cwd: '',
+  });
+  const patchSshConnectForm = useCallback(
+    (patch: Partial<SshConnectDraft>) => setSshForm((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+  const invalidateSsh = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: [...REMOTE_QUERY_KEY, 'ssh-hosts'] });
+    void qc.invalidateQueries({ queryKey: [...REMOTE_QUERY_KEY, 'ssh-sessions'] });
+  }, [qc]);
+
+  const sshSaveHostMut = useMutation({
+    mutationFn: () =>
+      reflect_remote_host_save({
+        name: sshForm.name,
+        host: sshForm.host,
+        port: sshForm.port ?? undefined,
+        user: sshForm.user || undefined,
+      }),
+    onSuccess: () => {
+      invalidateSsh();
+      pushToast({ kind: 'success', message: t('remote.ssh.saved') });
+    },
+    onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
+  });
+  const sshSaveHost = useCallback(async () => {
+    await sshSaveHostMut.mutateAsync();
+  }, [sshSaveHostMut]);
+
+  const sshRemoveHostMut = useMutation({
+    mutationFn: (name: string) => reflect_remote_host_remove(name),
+    onSuccess: invalidateSsh,
+    onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
+  });
+  const sshRemoveHost = useCallback(
+    async (name: string) => {
+      await sshRemoveHostMut.mutateAsync(name);
+    },
+    [sshRemoveHostMut],
+  );
+
+  const sshTestMut = useMutation({
+    mutationFn: () =>
+      reflect_remote_test({
+        host: sshForm.host,
+        port: sshForm.port ?? undefined,
+        user: sshForm.user || undefined,
+      }),
+    onSuccess: (version) =>
+      pushToast({ kind: 'success', message: t('remote.ssh.testOk', { version }) }),
+    onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
+  });
+  const sshTest = useCallback(async () => {
+    await sshTestMut.mutateAsync();
+  }, [sshTestMut]);
+
+  // 连接 = reflect_remote_connect(握手)→ bind → 前台插槽置位 →
+  // 导航 /chat/<sid>:ChatView 挂载 bind 对远程 sid 短路(后端清形)。
+  const sshConnectMut = useMutation({
+    mutationFn: () => reflect_remote_connect(sshForm.name, sshForm.cwd),
+    onSuccess: async (sid) => {
+      invalidateSsh();
+      pushToast({ kind: 'success', message: t('remote.ssh.connected') });
+      // 进入远程会话 = 导航 /chat/<sid>:ChatView 挂载 bind 对远程 sid
+      // 短路(后端置前台插槽)。无 router 上下文(能力覆盖层/测试)时跳过。
+      try {
+        void navigate({ to: '/chat/$sessionId', params: { sessionId: sid } });
+      } catch {
+        // 测试环境无 router:navigate 同步抛错,吞掉即可。
+      }
+    },
+    onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
+  });
+  const sshConnect = useCallback(async () => {
+    await sshConnectMut.mutateAsync();
+  }, [sshConnectMut]);
+
+  const sshDisconnectMut = useMutation({
+    mutationFn: (sid: string) => reflect_remote_disconnect(sid),
+    onSuccess: invalidateSsh,
+    onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
+  });
+  const sshDisconnect = useCallback(
+    async (sid: string) => {
+      await sshDisconnectMut.mutateAsync(sid);
+    },
+    [sshDisconnectMut],
+  );
+
   return {
     config: cfgQ.data ?? null,
     status: statusQ.data ?? null,
@@ -222,5 +360,18 @@ export function useRemoteController(): RemoteController {
     startServer,
     stopServer,
     serverBusy: startServerMut.isPending || stopServerMut.isPending,
+
+    // SSH 远程开发。
+    sshHosts: hostsQ.data ?? [],
+    sshSessions: sessionsQ.data ?? [],
+    sshConnectForm: sshForm,
+    patchSshConnectForm,
+    sshSaveHost,
+    sshRemoveHost,
+    sshTest,
+    sshConnect,
+    sshDisconnect,
+    sshBusy: sshConnectMut.isPending || sshDisconnectMut.isPending,
+    sshTesting: sshTestMut.isPending,
   };
 }

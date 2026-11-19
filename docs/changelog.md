@@ -4,6 +4,17 @@
 
 ## 未发布
 
+- **SSH 远程开发（会话层接缝）**：桌面端 SSH 到某台机器，agent 会话在远端
+  跑 —— 远端执行 `zhuye serve`（stdio JSONL），桌面以 SSH 子进程为传输成为
+  协议客户端。新增 host 注册表（`$ZHUYE_HOME/remote-hosts.json`，`/remote`
+  页 CRUD + `zhuye --version` 连通性探测）与 8 个命令（`reflect_remote_*`）；
+  连接 = 握手（session_configured）→ bind 置前台插槽 → `reflect_submit` /
+  `reflect_submit_op` 整条路由远端 stdin，事件经既有 session/background 通道
+  回前端（审批弹窗零改动）；断开杀本地 serve 子进程（远端 rollout 已落盘）。
+  传输复用 BatchMode/ConnectTimeout argv 模式（无新 SSH 库），二进制可经
+  `ZHUYE_REMOTE_SSH_BIN` 覆盖（测试 stub 注入点）。v1 有意边界：远端会话
+  在 /remote 页管理（侧栏「远程」分组列后续）；文件/编辑器/git 面板对远程
+  工作区有意降级；密码交互认证不支持（报错引导配 key）。
 - **内置受控浏览器（F39）**：上游 submodule 新增 `zhuye-browser` crate +
   `plugins/browser` 插件 —— agent 经 MCP 工具控制本机 Chrome/Edge/Chromium
   （导航 / 可及性快照 / 点击 / 填写 / 按键 / 滚动 / 截图），CDP 仅 loopback

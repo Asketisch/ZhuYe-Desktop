@@ -258,6 +258,8 @@ export interface FakeBackend {
     autopilotConfig: Record<string, unknown>;
     /** 远程配置 —— 线格式与 `src-tauri/src/commands/remote.rs::RemoteConfigSnapshot` 一致（camelCase）。 */
     remoteConfig: { host: string; port: number; authToken: string | null; autoConnect: boolean; endpoint: string; isReady: boolean };
+    /** SSH 远程主机注册表(替身内存态;真持久化在 Rust 侧 remote-hosts.json)。 */
+    sshHosts: Array<{ name: string; host: string; port: number; user: string | null }>;
     /** `reflect_write_file` 写入的文件内容（path → content），供 `reflect_read_file` 读回。 */
     files: Record<string, string>;
     dirListing: Record<string, unknown>;
@@ -449,6 +451,8 @@ export function installFakeBackend(): FakeBackend {
       wikis: [{ name: 'engineering', description: 'Eng wiki' }],
       wikiPages: { 'engineering/auth': { title: 'Auth', content: '---\ntitle: Auth\n---\n# Auth\nJWT flow', tags: [] } },
       autopilotConfig: { enabled: false, schedule: '0 9 * * *', taskTemplate: '', agent: null, maxConcurrent: 1 },
+
+      sshHosts: [] as Array<{ name: string; host: string; port: number; user: string | null }>,
       remoteConfig: { host: '', port: 4732, authToken: null, autoConnect: false, endpoint: '', isReady: false },
       files: {},
       dirListing: {
@@ -2034,6 +2038,25 @@ export function installFakeBackend(): FakeBackend {
     notes: null,
   })));
   handle('reflect_relaunch_app', handler(() => undefined));
+  // —— SSH 远程开发 ——
+  // 替身:空注册表 + 无活跃会话(真连接由 L3 stub-ssh 覆盖)。
+  handle('reflect_remote_hosts', handler(() => []));
+  handle('reflect_remote_host_save', handler((args) => {
+    backend.state.sshHosts = [
+      ...backend.state.sshHosts.filter((h) => h.name !== args?.name),
+      { name: args?.name, host: args?.host, port: args?.port ?? 22, user: args?.user ?? null },
+    ];
+    return backend.state.sshHosts;
+  }));
+  handle('reflect_remote_host_remove', handler((args) => {
+    backend.state.sshHosts = backend.state.sshHosts.filter((h) => h.name !== args?.name);
+    return backend.state.sshHosts;
+  }));
+  handle('reflect_remote_test', handler(() => 'zhuye 0.1.15'));
+  handle('reflect_remote_connect', handler(() => '00000000-0000-4000-8000-0000000000aa'));
+  handle('reflect_remote_bind', handler(() => undefined));
+  handle('reflect_remote_disconnect', handler(() => undefined));
+  handle('reflect_remote_sessions', handler(() => []));
   // —— 受控浏览器面板 ——
   // fakeBackend 模拟「未运行」状态;帧流事件由真后端推送,替身不发帧。
   handle('reflect_browser_start', handler(() => ({

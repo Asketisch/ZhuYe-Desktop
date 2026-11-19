@@ -55,6 +55,23 @@ const remote: Record<string, StringEntry> = {
   'remote.statusServerStarted':{ en: 'Status page serving on :{port}',                       'zh-CN': '状态页已启动 :{port}' },
   'remote.statusServerStopped':{ en: 'Status page stopped',                                   'zh-CN': '状态页已停止' },
   'remote.statusServerFailed': { en: 'Status page error: {message}',                         'zh-CN': '状态页错误:{message}' },
+  // ── SSH 远程开发 ──
+  'remote.ssh.title':        { en: 'SSH remote development',              'zh-CN': 'SSH 远程开发' },
+  'remote.ssh.hint':         { en: 'Run the agent on a remote machine via `zhuye serve` over SSH. Requires key-based auth (BatchMode) and the zhuye CLI on the remote host.', 'zh-CN': 'agent 在远程机器上跑(SSH 传输 zhuye serve)。前置:密钥免密认证(BatchMode)+ 远端已装 zhuye CLI。' },
+  'remote.ssh.sessionCount': { en: '{count} active',                      'zh-CN': '{count} 个活跃' },
+  'remote.ssh.foreground':   { en: 'foreground',                          'zh-CN': '前台' },
+  'remote.ssh.connect':      { en: 'Connect',                             'zh-CN': '连接' },
+  'remote.ssh.disconnect':   { en: 'Stop',                                'zh-CN': '断开' },
+  'remote.ssh.test':         { en: 'Test host',                           'zh-CN': '测试主机' },
+  'remote.ssh.testOk':       { en: 'reachable: {version}',                'zh-CN': '可达:{version}' },
+  'remote.ssh.saveHost':     { en: 'Save host',                           'zh-CN': '保存主机' },
+  'remote.ssh.fill':         { en: 'Fill',                                'zh-CN': '填入' },
+  'remote.ssh.saved':        { en: 'Host saved.',                         'zh-CN': '主机已保存。' },
+  'remote.ssh.connected':    { en: 'Remote session connected.',           'zh-CN': '远程会话已连接。' },
+  'remote.ssh.namePlaceholder':  { en: 'Name (e.g. build-box)',           'zh-CN': '名称(如 build-box)' },
+  'remote.ssh.hostPlaceholder':  { en: 'host or user@host (Tailscale name works)', 'zh-CN': '主机或 user@host(可用 Tailscale 名)' },
+  'remote.ssh.cwdPlaceholder':   { en: 'remote workspace path (/home/me/proj)', 'zh-CN': '远端工作目录(/home/me/proj)' },
+  'remote.ssh.prereq':       { en: 'Connect spawns `zhuye serve --cwd <path>` over SSH; submissions, events, approvals and rollouts all live on the remote. File panels intentionally degrade for remote workspaces.', 'zh-CN': '连接即经 SSH 拉起 `zhuye serve --cwd <路径>`;提交 / 事件 / 审批 / rollout 全部在远端闭环。文件面板对远程工作区有意降级(暂不支持)。' },
 } as const;
 
 export default remote;

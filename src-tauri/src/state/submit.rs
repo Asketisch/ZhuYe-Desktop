@@ -145,6 +145,16 @@ pub(crate) async fn submit_op(
     agent: &MinimalAgent,
     op: reflect_protocol::Op,
 ) -> anyhow::Result<String> {
+    // 前台远程会话:op(interrupt / 审批 / compact / permission …)直接写
+    // 远端 stdin;submission id 由远端回执事件按 id 关联(无本地 per-turn
+    // 通道,泵统一分流)。
+    if let Some(sid) = super::remote::foreground_remote(agent) {
+        let submission =
+            reflect_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
+        let id = submission.id.clone();
+        super::remote::submit_to_session(agent, &sid, submission).await?;
+        return Ok(id);
+    }
     let thread = current_thread(agent)?;
     let _transition = agent.inner.session_transition_lock.lock().await;
     ensure_current_thread(agent, &thread)?;

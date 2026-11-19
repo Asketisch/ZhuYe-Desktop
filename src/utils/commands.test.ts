@@ -80,6 +80,10 @@ import {
   reflect_check_update,
   reflect_download_install_update,
   reflect_relaunch_app,
+  reflect_remote_bind,
+  reflect_remote_disconnect,
+  reflect_remote_hosts,
+  reflect_remote_sessions,
   reflect_browser_start,
   reflect_browser_status,
   reflect_browser_stop,
@@ -542,6 +546,20 @@ describe('commands forwarding (mapping)', () => {
     expectArgs(await captureCmd('reflect_browser_stop', () => reflect_browser_stop()), undefined);
     expectArgs(await captureCmd('reflect_browser_status', () => reflect_browser_status()), undefined);
     expectArgs(await captureCmd('reflect_browser_env', () => reflect_browser_env()), undefined);
+  });
+
+  // ----- SSH 远程开发 -----
+
+  it('reflect_remote hosts/sessions have no args', async () => {
+    expectArgs(await captureCmd('reflect_remote_hosts', () => reflect_remote_hosts()), undefined);
+    expectArgs(await captureCmd('reflect_remote_sessions', () => reflect_remote_sessions()), undefined);
+  });
+
+  it('reflect_remote bind/disconnect forwards { sid }', async () => {
+    const bind = await captureCmd('reflect_remote_bind', () => reflect_remote_bind('sid-1'));
+    expectArgs(bind, { sid: 'sid-1' });
+    const disconnect = await captureCmd('reflect_remote_disconnect', () => reflect_remote_disconnect('sid-1'));
+    expectArgs(disconnect, { sid: 'sid-1' });
   });
 
   // ----- 搜索 -----

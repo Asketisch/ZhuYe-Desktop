@@ -18,7 +18,7 @@
 | 多 agent 与任务 | agents、squad、collaboration、tasks-board、autopilot、plan、schedule | subagent 编排、小队、协作通道、任务看板、自动驾驶、计划审批、定时任务 |
 | 可观测与遥测 | traces、usage、notifications、debug、media | 轨迹、用量、活动通知、agent 状态调试镜像、媒体资产 |
 | 知识与资产 | memory、skills、prompts、models、apps | 记忆库、技能、prompt 模板、模型选择、应用面板 |
-| 连接与扩展 | remote、side-channel、kms、hooks | 远程连接（Tailscale 系）、侧信道、密钥管理、用户 hooks 配置面板 |
+| 连接与扩展 | remote、side-channel、kms、hooks | 远程连接（Tailscale 探测 + iOS daemon 配置 + **SSH 远程开发**:host 注册表/连接表单/活跃会话管理）、侧信道、密钥管理、用户 hooks 配置面板 |
 | 入口与平台 | about、mobile、workspaces | 关于页、移动端视图、工作区管理 |
 
 全部路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示和终端页由 `src/logic/` 的绑定接收 `src/contracts/` 契约，并通过 `RendererProvider` 注入 `src/render/` 的默认视图。切片文件目前负责组合尚未迁移的子面板。会话列表与输入框的 TS 逻辑在 `src/logic/`，旧路径提供兼容导出。

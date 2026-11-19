@@ -19,6 +19,7 @@
 | `plugins.rs` / `plugin_hooks.rs` / `plugin_status.rs` | 插件运行时接线 / 插件事件桥 / 加载快照 |
 | `autopilot.rs` / `quota.rs` / `remote_config.rs` | Autopilot 装配 / coding plan 配额接线 / 远端连接配置 |
 | `agent.rs` 内 `browser` 字段 | 受控浏览器管理器（`src-tauri/src/browser_backend.rs`）：启动/attach + screencast 帧流；tokio Mutex（命令体持锁跨 await） |
+| `remote.rs` | SSH 远程会话管理器：host 注册表（`$ZHUYE_HOME/remote-hosts.json`）+ serve 子进程传输 + 事件泵（前台进 `session_tx`、后台进 `background_tx`）；`foreground_remote` 插槽驱动 submit/submit_op 整条路由远端 stdin |
 | `permissions.rs` / `sandbox.rs` / `recorder_guard.rs` / `side_channel_forwarder.rs` / `subagents.rs` / `task_hooks.rs` / `activity.rs` / `discussion.rs` | 权限层装配 / OS 沙箱落点 / 会话写入协调 / 终态事件补发 / 子代理工具注册 / 任务生命周期转发 / activity 订阅 / 讨论运行态 |
 
 ## 本地契约与同步点

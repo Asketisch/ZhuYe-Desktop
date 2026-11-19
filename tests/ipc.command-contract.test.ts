@@ -88,6 +88,7 @@ describe('IPC command contract (exhaustive parity)', () => {
       'reflect_media_capabilities', 'reflect_get_remote_status', 'reflect_tailscale_status',
       'reflect_tailscale_daemon_status', 'reflect_check_update', 'reflect_get_autopilot_config',
       'reflect_browser_status', 'reflect_browser_env',
+      'reflect_remote_hosts', 'reflect_remote_sessions',
       'reflect_autopilot_history', 'reflect_current_workspace', 'reflect_activity_count',
       'reflect_get_schedule_status', 'reflect_get_remote_config',
       'reflect_tailscale_daemon_command_preview',
