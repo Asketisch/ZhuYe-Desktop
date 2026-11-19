@@ -38,15 +38,16 @@ use commands::{
     reflect_current_workspace_dirs, reflect_cycle_permission_mode, reflect_delegate_next,
     reflect_delete_agent_def, reflect_delete_mcp_server, reflect_delete_session,
     reflect_delete_squad, reflect_delete_subagent_spec, reflect_delete_task, reflect_delete_team,
-    reflect_dream, reflect_effort_capability, reflect_enter_goal_mode, reflect_enter_plan_mode,
-    reflect_exit_goal_mode, reflect_exit_plan_mode, reflect_export_session,
-    reflect_export_session_markdown, reflect_fork_session, reflect_generate_session_title,
-    reflect_get_active_agent, reflect_get_agent_def, reflect_get_autopilot_config,
-    reflect_get_config, reflect_get_effective_prompt, reflect_get_effort,
-    reflect_get_remote_config, reflect_get_remote_status, reflect_get_schedule_status,
-    reflect_get_side_channel, reflect_get_squad, reflect_get_subagent_spec, reflect_get_task,
-    reflect_get_task_output, reflect_get_team, reflect_get_trace, reflect_gh_pr_list,
-    reflect_git_commit, reflect_git_diff, reflect_git_log, reflect_git_stage, reflect_git_status,
+    reflect_download_install_update, reflect_dream, reflect_effort_capability,
+    reflect_enter_goal_mode, reflect_enter_plan_mode, reflect_exit_goal_mode,
+    reflect_exit_plan_mode, reflect_export_session, reflect_export_session_markdown,
+    reflect_fork_session, reflect_generate_session_title, reflect_get_active_agent,
+    reflect_get_agent_def, reflect_get_autopilot_config, reflect_get_config,
+    reflect_get_effective_prompt, reflect_get_effort, reflect_get_remote_config,
+    reflect_get_remote_status, reflect_get_schedule_status, reflect_get_side_channel,
+    reflect_get_squad, reflect_get_subagent_spec, reflect_get_task, reflect_get_task_output,
+    reflect_get_team, reflect_get_trace, reflect_gh_pr_list, reflect_git_commit,
+    reflect_git_diff, reflect_git_log, reflect_git_stage, reflect_git_status,
     reflect_git_unstage, reflect_goal_snapshot, reflect_hook_approval, reflect_image_process,
     reflect_import_discover, reflect_import_sessions, reflect_ingest_upload,
     reflect_install_from_marketplace, reflect_install_plugin, reflect_install_skill,
@@ -70,9 +71,10 @@ use commands::{
     reflect_pty_close, reflect_pty_resize, reflect_pty_start, reflect_pty_write,
     reflect_query_guard_stats, reflect_query_plan_quota, reflect_query_subagents,
     reflect_read_file, reflect_read_image_base64, reflect_read_span_log, reflect_recovery_state,
-    reflect_release_task, reflect_remove_memory, reflect_remove_schedule, reflect_remove_workspace,
-    reflect_rename_session, reflect_replay_session, reflect_rescan_extensions, reflect_reveal_path,
-    reflect_rewind, reflect_run_discussion, reflect_run_pipeline, reflect_run_security_scan,
+    reflect_relaunch_app, reflect_release_task, reflect_remove_memory, reflect_remove_schedule,
+    reflect_remove_workspace, reflect_rename_session, reflect_replay_session,
+    reflect_rescan_extensions, reflect_reveal_path, reflect_rewind, reflect_run_discussion,
+    reflect_run_pipeline, reflect_run_security_scan,
     reflect_run_shell, reflect_run_team_pipeline, reflect_sandbox_status, reflect_save_agent_def,
     reflect_save_allowlist, reflect_save_config, reflect_save_pipeline_config,
     reflect_save_subagent_spec, reflect_scan_local_ports, reflect_screenshot,
@@ -239,6 +241,9 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             reflect_check_allowlist,
             reflect_export_session_markdown,
             reflect_check_update,
+            // 自更新（OTA）：下载安装 + 重启生效
+            reflect_download_install_update,
+            reflect_relaunch_app,
             reflect_search_files,
             // Task/Team 管理命令(多 agent 协调,包装 reflect_task::TaskManager)
             reflect_list_tasks,
@@ -396,6 +401,13 @@ pub fn run() {
     tracing_subscriber::fmt::init();
 
     configure(tauri::Builder::<tauri::Wry>::new())
+        // 应用自更新（OTA）：Rust 侧 UpdaterExt 驱动（commands/update.rs），
+        // 更新端点与 minisign 公钥见 tauri.conf.json > plugins.updater。
+        // 插件只在生产 runtime 注册：它初始化时**硬要求** config 里有
+        // plugins.updater 段（缺段直接 PluginInitialization 失败），而能力
+        // 覆盖层的 mock context 没有这段（Context.config 字段私有、外部无法
+        // 补）。命令本体仍在共享 configure() 里，L3 走结构化错误路径覆盖。
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // ====== Menu (在 builder 阶段静态注入) ======
         .menu(menu::build_menu)
         .on_menu_event(menu::handle_menu_event)

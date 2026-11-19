@@ -1016,6 +1016,24 @@ fn network_dependent_commands_return_structured_results() {
 }
 
 #[test]
+fn ota_update_commands_fail_without_app_handle() {
+    // OTA 自更新依赖真实应用句柄（updater 构建在 mock runtime 下无端点/密钥
+    // 可用）。夹具不注入句柄 —— 两个命令都必须返回**结构化错误**,不 panic:
+    // 与 network_dependent_commands 同款健壮性口径。
+    for (cmd, body) in [
+        ("reflect_download_install_update", json!({})),
+        ("reflect_relaunch_app", json!({})),
+    ] {
+        match invoke(cmd, body) {
+            // 理论上应走 Err(句柄未就绪);万一未来夹具注入了句柄而 updater
+            // 返回了配置错误,也要是结构化结果而非 panic。
+            Ok(v) => assert!(!v.is_null(), "{cmd} 返回 null"),
+            Err(e) => assert!(!e.to_string().is_empty(), "{cmd} 错误信息为空"),
+        }
+    }
+}
+
+#[test]
 fn workspace_is_restored_after_workspace_scoped_tests() {
     // 兜底:确认工作区仍可读(前面的用例切换过工作区)。
     let ws = current_workspace();

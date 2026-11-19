@@ -130,6 +130,8 @@
     "reflect_delete_team": {
       "name": "contract-probe-team"
     },
+    "reflect_download_install_update": {},
+    "reflect_relaunch_app": {},
     "reflect_dream": {
       "insights": [
         "能力覆盖层洞察一",

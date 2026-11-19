@@ -137,10 +137,12 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | `reflect_run_security_scan` | 内部跑 `cargo audit` —— 需网络 + 数十秒 | `audit.yml` 独立 workflow 覆盖 |
 
 **「网络类只验错误路径」的含义**：`reflect_check_update` /
-`reflect_gh_pr_list` / `reflect_list_provider_models` /
-`reflect_test_provider_chat` / `reflect_query_plan_quota` 依赖**外网**。
-CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 —— 能力覆盖层
-正是盯这一条：网络类只验错误路径的健壮性。
+`reflect_download_install_update` / `reflect_relaunch_app`（OTA 自更新，
+tauri-plugin-updater 只在生产 runtime 注册；mock 下经应用句柄缺失路径验
+结构化错误）/ `reflect_gh_pr_list` / `reflect_list_provider_models` /
+`reflect_test_provider_chat` / `reflect_query_plan_quota` 依赖**外网或
+OS 集成**。CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 ——
+能力覆盖层正是盯这一条：网络类只验错误路径的健壮性。
 
 **编排的自动覆盖范围**：L3 用本地模型替身验证讨论中两个角色顺序与并发
 发言的身份、记录与事件；用真实 shell 节点验证流水线产出及失败传播。

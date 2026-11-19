@@ -36,7 +36,7 @@ IPC、AgentThread 与隔离数据目录）。模型替身仅替代 provider，�
 | 遥测、用量、搜索、媒体、知识库 | `ipc_telemetry_runtime.rs` 验证真实模型回合生成 activity、模型调用 trace 与 turn/model span，并按会话查询；`ipc_activity_disabled.rs` 验证关闭后无内存和磁盘审计；`ipc_workspace.rs` 验证新增文件即被搜索、图片处理产物进入媒体列表、删除后即时消失；KMS 验证页面写入、并发保护、搜索和错误恢复；前端替身 | 搜索、媒体、知识库的真实窗口交互 |
 | 路由、主题、键盘、可访问性 | Linux ARM64 真窗口逐条挂载路由矩阵并检查主内容和渲染错误边界；macOS 全路由 dark/light 视觉回归通过；路由矩阵 + jsdom axe | 各路由更深层业务操作与系统级键盘快捷键 |
 | 原生窗口、菜单、托盘、系统选择器、通知 | Linux ARM64 真窗口启动、导航和本地模型交互；菜单 mock runtime | Windows 实际事件与生命周期；系统选择器/通知隔离测试 |
-| 原生产物与升级 | macOS `.app` / DMG 结构、前端嵌入、签名与授权通过；安装脚本在隔离 HOME 中连续安装两次，验证二进制和 `.app` 替换及旧 bundle 文件清理；已安装二进制在隔离 HOME 中 `--help` 启动成功 | 跨版本数据迁移和回滚 |
+| 原生产物与升级 | macOS `.app` / DMG 结构、前端嵌入、签名与授权通过；安装脚本在隔离 HOME 中连续安装两次，验证二进制和 `.app` 替换及旧 bundle 文件清理；已安装二进制在隔离 HOME 中 `--help` 启动成功；OTA 自更新（`reflect_download_install_update` / `reflect_relaunch_app`）真后端验证应用句柄缺失时返回结构化错误，前端替身覆盖进度事件 → 完成重启引导与失败展示；release.yml 产签名更新包与 latest.json（依赖 `TAURI_SIGNING_*` secrets，未配置即构建失败） | 真实下载/安装回路的实机验收（需真发布密钥与多版本发布） |
 | 真实 provider | L6 使用免费池实时发现的 `openai/baidu/ernie-5.5-flash-preview:free`，最近一次完整门禁完成 16 项通过：模型解析、真实 SSE 主回合、工具调用、中断、压缩、回退、Plan/Goal、标题、任务工具、子代理、讨论、流水线、团队流水线及完整链路协议形状；此前一次配额恢复时还完成过工具审批 | 本轮模型未发起工具审批所需调用、未发起追问，两项显式跳过；不把跳过折算成覆盖 |
 
 `screenshot`、真实鼠标键盘、系统守护进程和打开文件管理器涉及宿主系统；

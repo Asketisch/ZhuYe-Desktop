@@ -78,6 +78,8 @@ import {
   reflect_check_allowlist,
   // updates
   reflect_check_update,
+  reflect_download_install_update,
+  reflect_relaunch_app,
   // search
   reflect_search_files,
   // tasks (Phase 1 multi-agent)
@@ -514,6 +516,18 @@ describe('commands forwarding (mapping)', () => {
 
   it('reflect_check_update has no args', async () => {
     const args = await captureCmd('reflect_check_update', () => reflect_check_update());
+    expectArgs(args, undefined);
+  });
+
+  it('reflect_download_install_update has no args', async () => {
+    const args = await captureCmd('reflect_download_install_update', () =>
+      reflect_download_install_update(),
+    );
+    expectArgs(args, undefined);
+  });
+
+  it('reflect_relaunch_app has no args', async () => {
+    const args = await captureCmd('reflect_relaunch_app', () => reflect_relaunch_app());
     expectArgs(args, undefined);
   });
 

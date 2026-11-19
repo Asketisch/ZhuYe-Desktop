@@ -4,6 +4,16 @@
 
 ## 未发布
 
+- **应用自更新（OTA）**：设置页从「只检查不安装」升级为完整自更新回路 ——
+  检查 → 下载（进度条，minisign 签名校验）→ 安装 → 重启引导，基于
+  tauri-plugin-updater + tauri 核心 `request_restart`（Rust 侧驱动，不经
+  插件 JS API）。新增命令 `reflect_download_install_update` /
+  `reflect_relaunch_app` 与 `reflect_update_progress` 事件；发布链产
+  latest.json 更新清单（`scripts/gen-latest-json.sh`），minisign 密钥生成
+  见 `scripts/gen-update-keys.sh`（私钥走 GitHub secrets，未配置时 release
+  构建硬失败）。updater 插件只在生产 runtime 注册（其初始化硬要求
+  `plugins.updater` 配置段，mock context 无此段）；设置页挂载即自动检查，
+  原生菜单「Check for Updates…」事件接线到设置页（此前该事件无前端消费者）。
 - **沙箱对齐 workspace-write 口径**（上游 871924bf + 桌面接线）：此前文件工具
   只能访问当前工作区（读旁边的项目直接 `path escaped sandbox`），Seatbelt
   默认 `(deny network*)`（连 localhost 一起拦），设置里的「允许出站网络」

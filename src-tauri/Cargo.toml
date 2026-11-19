@@ -30,6 +30,10 @@ tauri-plugin-global-shortcut = "2"
 # 原生目录选择对话框（WorkspacesView「打开项目目录」），仅 Rust 侧调用，
 # 不经 JS IPC，因此无需 dialog capability。
 tauri-plugin-dialog          = "2"
+# 应用自更新（OTA）：下载 + minisign 签名校验 + 安装（Rust 侧 UpdaterExt 驱动，
+# 前端只经自有命令面调用，无需 updater capability）。重启用 tauri 核心
+# AppHandle::request_restart（2.12 起内置），无需 tauri-plugin-process。
+tauri-plugin-updater         = "2"
 serde                       = { workspace = true }
 reqwest                    = { workspace = true }
 serde_json                  = { workspace = true }

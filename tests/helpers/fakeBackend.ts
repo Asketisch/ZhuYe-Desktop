@@ -2026,6 +2026,14 @@ export function installFakeBackend(): FakeBackend {
     probedAt: 0,
     error: null,
   })));
+  // OTA 自更新:模拟「已是最新」路径(不触发前端重启引导);真下载/安装由
+  // Rust 侧 tauri-plugin-updater 完成,L3 覆盖错误路径与结构。
+  handle('reflect_download_install_update', handler(() => ({
+    installed: false,
+    version: null,
+    notes: null,
+  })));
+  handle('reflect_relaunch_app', handler(() => undefined));
   // 线格式与 `app-core::autopilot::AutopilotConfig` 一致（camelCase）；update 落状态后读回。
   handle('reflect_get_autopilot_config', handler(() => wire(backend.state.autopilotConfig)));
   handle(

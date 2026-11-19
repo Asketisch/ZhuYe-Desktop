@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `29aa9ad`（ZhuYe main tip，完整 SHA `29aa9ad0`；`ce57058` 回归测试之上：上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。上一轮 `ce57058` 补齐组合穷举回归测试，见 §3.32。
+> 最近审计：submodule `5f84750`（ZhuYe main tip，完整 SHA `5f847507`；`29aa9ad` 之上为增能力零漂移复审：Op/EventMsg 与内置工具集合逐项比对零变化，上游增量 = Plan mode hooks 白名单修复与「先探索再提问」方法论、沙箱 workspace-write 口径对齐（871924b，桌面配套见 changelog「沙箱对齐 workspace-write 口径」）、assistant 按步骤增量落盘（e39bc92，桌面配套见 changelog「会话切换不再丢历史」）、CI/deps 升级与差分验证器加变体批准通道 —— 均不改变能力矩阵行。上一轮 `29aa9ad` 见文末历史审计记录。）
 
 ## 阅读约定
 
@@ -373,6 +373,7 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 
 各轮 submodule 升级的审计流水（最新在上）：
 
+- **上一轮 `29aa9ad`**（ZhuYe main tip，`ce57058` 回归测试之上：上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。其上一轮 `ce57058` 补齐组合穷举回归测试，见 §3.32。）
 - **上一轮 `199a3d3`**（rollout 首行修复：首条 UserInput 之前的 `PermissionModeChanged` / `PlanRequest` 等记录在 SessionMeta 未落盘时不再持久化（初始模式改由会话头落地时补记），`parse_first_session_meta` 在前 8 条非空行内扫描 SessionMeta 恢复存量坏文件 —— 修复「先切权限模式再发首条消息的会话被索引丢弃、workspace 归属丢失」。GUI 侧配套：`plan_draft_updated` 消费、Inspector 计划 tab 正文渲染、工作区移除不再被 incidental 切换复活（详见 §3.32）。）
 - **上一轮 `893faa9`**（System 消息折叠修复：`ChatRequest::fold_system_messages` 把内联 `System`（压缩摘要 / PreCompact hook 注入 / resume 回放 summary）折叠进 `system` 块，消除严格 OpenAI 兼容网关的 `INVALID_REQUEST`（"System message must be at the beginning."），并修掉 Anthropic 静默丢弃内联 System 导致的内容丢失。本次仅在请求构造层修复，**产品命令、事件、配置与 SDK 公开面零变更，桌面无适配**。）
 - **上一轮 `1239806`**（F01 注入防护强化：`[prompt_guard]` 由 opt-in 转**默认开启**，工具输出 Block/Review 裁决 + 外部工具定义注册期扫描（Block 拒绝注册）+ SHA-256 指纹上报；新增 `Op::QueryGuardStats` / `EventMsg::GuardStats`（additive，GUI 已接设置开关 + 工具行注入徽标），及 F24 Windows 沙箱 FFI 等 develop 线全部修复。）

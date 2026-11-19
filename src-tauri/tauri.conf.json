@@ -29,6 +29,14 @@
     },
     "macOSPrivateApi": true
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Asketisch/ReflectDesktop/releases/latest/download/latest.json"
+      ],
+      "pubkey": "REPLACE_WITH_MINISIGN_PUBKEY"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": [
