@@ -654,6 +654,16 @@
     "reflect_browser_start": {},
     "reflect_browser_status": {},
     "reflect_browser_stop": {},
+    "reflect_browser_navigate": {
+      "url": "example.com"
+    },
+    "reflect_browser_back": {},
+    "reflect_browser_forward": {},
+    "reflect_browser_reload": {},
+    "reflect_browser_set_device": {
+      "width": 390,
+      "height": 844
+    },
     "reflect_browse_marketplace": {
       "name": "fake-mkt"
     },

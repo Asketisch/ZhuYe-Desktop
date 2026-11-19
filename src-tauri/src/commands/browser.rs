@@ -1,8 +1,9 @@
-//! 受控浏览器面板命令面(启动 / 停止 / 状态)。
+//! 受控浏览器面板命令面(启动 / 停止 / 状态 / 导航 / 设备模拟)。
 //!
 //! agent 控制走上游 `zhuye-browser` 插件(MCP 工具,Prompt 审批);
-//! 本命令面只管**桌面面板的显示通道**:screencast 帧流启停与状态查询。
-//! 两条通道共享同一发现契约(profile 目录的 `DevToolsActivePort`)。
+//! 本命令面只管**桌面面板的显示通道**:screencast 帧流启停、状态查询
+//! 与地址栏导航。两条通道共享同一发现契约(profile 目录的
+//! `DevToolsActivePort`)。
 
 use serde::{Deserialize, Serialize};
 
@@ -57,4 +58,58 @@ pub async fn reflect_browser_env() -> CommandResult<BrowserEnvInfo> {
         executable_override: std::env::var("ZHUYE_BROWSER_EXECUTABLE").is_ok(),
         profile_dir: browser_backend::profile_dir().display().to_string(),
     })
+}
+
+/// 地址栏导航:输入规范化(无 scheme 补 `https://`)→ `Page.navigate` →
+/// best-effort 等加载完成(≤10s)。浏览器未运行时报结构化错误。
+#[tauri::command]
+pub async fn reflect_browser_navigate(
+    agent: tauri::State<'_, MinimalAgent>,
+    url: String,
+) -> CommandResult<BrowserStatusDto> {
+    browser_backend::navigate(&agent, &url)
+        .await
+        .map_err(crate::commands::error::CommandError::from)
+}
+
+/// 后退一步(导航历史越界时 no-op)。
+#[tauri::command]
+pub async fn reflect_browser_back(
+    agent: tauri::State<'_, MinimalAgent>,
+) -> CommandResult<BrowserStatusDto> {
+    browser_backend::back(&agent)
+        .await
+        .map_err(crate::commands::error::CommandError::from)
+}
+
+/// 前进一步(导航历史越界时 no-op)。
+#[tauri::command]
+pub async fn reflect_browser_forward(
+    agent: tauri::State<'_, MinimalAgent>,
+) -> CommandResult<BrowserStatusDto> {
+    browser_backend::forward(&agent)
+        .await
+        .map_err(crate::commands::error::CommandError::from)
+}
+
+/// 刷新当前页(`ignoreCache: false`)。
+#[tauri::command]
+pub async fn reflect_browser_reload(
+    agent: tauri::State<'_, MinimalAgent>,
+) -> CommandResult<BrowserStatusDto> {
+    browser_backend::reload(&agent)
+        .await
+        .map_err(crate::commands::error::CommandError::from)
+}
+
+/// 应用设备模拟尺寸(0/0 = 清除 override 复位;预设清单在前端)。
+#[tauri::command]
+pub async fn reflect_browser_set_device(
+    agent: tauri::State<'_, MinimalAgent>,
+    width: u32,
+    height: u32,
+) -> CommandResult<BrowserStatusDto> {
+    browser_backend::set_device(&agent, width, height)
+        .await
+        .map_err(crate::commands::error::CommandError::from)
 }

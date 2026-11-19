@@ -2110,6 +2110,42 @@ export function installFakeBackend(): FakeBackend {
     executableOverride: false,
     profileDir: '/tmp/zhuye/browser-profile',
   })));
+  // 导航族:替身只回写状态(URL 规范化与加载等待都在真后端)。
+  handle('reflect_browser_navigate', handler((args) => ({
+    running: true,
+    url: args?.url ?? null,
+    title: null,
+    streaming: true,
+    message: null,
+  })));
+  handle('reflect_browser_back', handler(() => ({
+    running: true,
+    url: 'about:blank',
+    title: null,
+    streaming: true,
+    message: null,
+  })));
+  handle('reflect_browser_forward', handler(() => ({
+    running: true,
+    url: 'about:blank',
+    title: null,
+    streaming: true,
+    message: null,
+  })));
+  handle('reflect_browser_reload', handler(() => ({
+    running: true,
+    url: 'about:blank',
+    title: null,
+    streaming: true,
+    message: null,
+  })));
+  handle('reflect_browser_set_device', handler(() => ({
+    running: true,
+    url: 'about:blank',
+    title: null,
+    streaming: true,
+    message: null,
+  })));
   // 线格式与 `app-core::autopilot::AutopilotConfig` 一致（camelCase）；update 落状态后读回。
   handle('reflect_get_autopilot_config', handler(() => wire(backend.state.autopilotConfig)));
   handle(

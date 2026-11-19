@@ -11,6 +11,13 @@
 //! 帧经 `reflect_browser_frame` 事件推前端(`<img src=data:...>` 渲染;
 //! CSP `img-src data:` 已允许)。screencast 连接**只读画面、不注入输入**
 //! —— agent 控制与面板显示是两条独立连接,互不抢输入。
+//!
+//! ## 面板导航
+//!
+//! 导航命令(后退/前进/刷新/地址栏)在 [`nav`] 子模块:每条命令开一条
+//! **短连接**(connect → attach → send → 回复 → drop),不与 screencast
+//! 连接互抢。screencast 循环顺带跟踪 `Page.frameNavigated` 把最新 URL
+//! 记入 [`BrowserManager`],供状态查询在 CDP target 扑空时兜底。
 
 use std::path::PathBuf;
 
@@ -18,6 +25,10 @@ use reflect_browser::chrome;
 use serde::Serialize;
 use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
+
+mod nav;
+
+pub use nav::{back, forward, navigate, reload, set_device};
 
 /// 面板状态 DTO(camelCase 出线)。
 #[derive(Debug, Clone, Serialize)]
@@ -53,6 +64,11 @@ pub struct BrowserManager {
     process: Option<chrome::BrowserProcess>,
     /// screencast 帧流任务取消令牌(运行中为 Some)。
     screencast_cancel: Option<CancellationToken>,
+    /// 最近已知页面 URL(screencast 跟踪 `Page.frameNavigated` 写入;
+    /// 状态查询的 CDP target 扑空时兜底显示)。
+    last_url: Option<String>,
+    /// 最近已知页面标题(来源同上;`frameNavigated` 不带 title,常为 None)。
+    last_title: Option<String>,
 }
 
 impl BrowserManager {
@@ -79,11 +95,10 @@ fn browser_ws_endpoint() -> Result<String, String> {
 }
 
 /// 浏览器级连接上取第一个 page target(targetInfo 带 url / title /
-/// webSocketDebuggerUrl)。
-async fn first_page_target(ws_url: &str) -> Result<Value, String> {
-    let mut conn = reflect_browser::cdp::CdpConnection::connect(ws_url)
-        .await
-        .map_err(|e| format!("CDP 连接失败: {e}"))?;
+/// webSocketDebuggerUrl / targetId)。
+async fn first_page_target_on(
+    conn: &mut reflect_browser::cdp::CdpConnection,
+) -> Result<Value, String> {
     let result = conn
         .command("Target.getTargets", json!({}))
         .await
@@ -98,6 +113,14 @@ async fn first_page_target(ws_url: &str) -> Result<Value, String> {
                 .cloned()
         })
         .ok_or_else(|| "浏览器无 page target".to_string())
+}
+
+/// 打开短连接解析第一个 page target(每次调用独立连接,用完即断)。
+async fn first_page_target(ws_url: &str) -> Result<Value, String> {
+    let mut conn = reflect_browser::cdp::CdpConnection::connect(ws_url)
+        .await
+        .map_err(|e| format!("CDP 连接失败: {e}"))?;
+    first_page_target_on(&mut conn).await
 }
 
 /// 启动浏览器(必要时)并开始 screencast 帧流。
@@ -150,9 +173,22 @@ pub async fn start(agent: &crate::state::MinimalAgent) -> Result<BrowserStatusDt
         .to_string();
 
     let cancel = CancellationToken::new();
-    tokio::spawn(run_screencast(page_ws_url, app, cancel.clone()));
+    // screencast 任务顺带跟踪导航事件:经共享 inner 写回 last_url
+    // (锁短暂持有;start 返回后即释放,不会与锁互等)。
+    // MinimalAgent Clone 廉价(内部全 Arc),整只传入即可。
+    tokio::spawn(run_screencast(
+        page_ws_url,
+        app,
+        cancel.clone(),
+        agent.clone(),
+    ));
     manager.process = process;
     manager.screencast_cancel = Some(cancel);
+    manager.last_url = target.get("url").and_then(Value::as_str).map(String::from);
+    manager.last_title = target
+        .get("title")
+        .and_then(Value::as_str)
+        .map(String::from);
 
     Ok(BrowserStatusDto {
         running: true,
@@ -185,6 +221,9 @@ pub async fn stop(agent: &crate::state::MinimalAgent) -> Result<BrowserStatusDto
     if let Some(token) = manager.screencast_cancel.take() {
         token.cancel();
     }
+    // 面板已离场:记忆值一并清掉,避免状态查询回退到陈旧 URL。
+    manager.last_url = None;
+    manager.last_title = None;
     // 本模块拉起的实例直接回收(Drop 内 kill + wait);外部实例(插件或
     // 用户手动启动)只停画面流,不动浏览器本体。
     let message = if manager.process.take().is_some() {
@@ -221,11 +260,13 @@ async fn status_locked(manager: &BrowserManager) -> Result<BrowserStatusDto, Str
                 streaming: manager.streaming(),
                 message: None,
             }),
+            // target 查询扑空(导航瞬间 target 短暂不可见等):画面流仍在
+            // → 仍算运行;URL/标题退回 screencast 跟踪的记忆值。
             Err(err) => Ok(BrowserStatusDto {
-                running: false,
-                url: None,
-                title: None,
-                streaming: false,
+                running: manager.streaming(),
+                url: manager.last_url.clone(),
+                title: manager.last_title.clone(),
+                streaming: manager.streaming(),
                 message: Some(err),
             }),
         },
@@ -242,7 +283,15 @@ async fn status_locked(manager: &BrowserManager) -> Result<BrowserStatusDto, Str
 /// screencast 帧流任务:page 级 ws + Page.startScreencast → 事件转发。
 ///
 /// 只读事件流,不注入任何输入;连接断开静默结束(面板可重新 start)。
-async fn run_screencast(page_ws_url: String, app: tauri::AppHandle, cancel: CancellationToken) {
+/// 顺带跟踪 `Page.frameNavigated` 把主 frame 的最新 URL 记入共享的
+/// [`BrowserManager`](导航/刷新期间 target 查询扑空时的状态兜底;
+/// `Page.frameStartedLoading` 只带 frameId 没有 URL,无法用于跟踪)。
+async fn run_screencast(
+    page_ws_url: String,
+    app: tauri::AppHandle,
+    cancel: CancellationToken,
+    agent: crate::state::MinimalAgent,
+) {
     use futures_util::{SinkExt, StreamExt};
     use tokio_tungstenite::tungstenite::Message;
 
@@ -283,7 +332,24 @@ async fn run_screencast(page_ws_url: String, app: tauri::AppHandle, cancel: Canc
             msg = stream.next() => match msg {
                 Some(Ok(Message::Text(text))) => {
                     let Ok(v) = serde_json::from_str::<Value>(&text) else { continue };
-                    if v.get("method").and_then(Value::as_str) != Some("Page.screencastFrame") {
+                    let method = v.get("method").and_then(Value::as_str).unwrap_or_default();
+                    if method == "Page.frameNavigated" {
+                        // 主 frame 判定:无 parentId(iframe 导航不覆盖面板 URL)。
+                        let frame = v.pointer("/params/frame");
+                        let is_main = frame.and_then(|f| f.get("parentId")).is_none();
+                        let url = frame
+                            .and_then(|f| f.get("url"))
+                            .and_then(Value::as_str)
+                            .filter(|u| !u.is_empty());
+                        if is_main {
+                            if let Some(url) = url {
+                                let mut manager = agent.inner.browser.lock().await;
+                                manager.last_url = Some(url.to_string());
+                            }
+                        }
+                        continue;
+                    }
+                    if method != "Page.screencastFrame" {
                         continue;
                     }
                     // 必须回 ack,否则浏览器节流到 1 帧。

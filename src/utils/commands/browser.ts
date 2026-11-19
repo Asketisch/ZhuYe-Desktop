@@ -1,9 +1,10 @@
 /**
  * 受控浏览器面板命令封装。
  *
- * agent 对浏览器的**控制**(导航/点击/输入/截屏)走上游 `zhuye-browser`
- * 插件的 MCP 工具;本命令面只管**桌面面板的显示通道**——screencast
- * 帧流(`reflect_browser_frame` 事件)的启停与状态查询。两条通道共享
+ * agent 对浏览器的**控制**(点击/输入/截屏)走上游 `zhuye-browser`
+ * 插件的 MCP 工具;本命令面管**桌面面板的显示通道**——screencast
+ * 帧流(`reflect_browser_frame` 事件)的启停、状态查询与地址栏导航
+ * (后端开短连接 page 级 CDP 命令,不与帧流连接互抢)。两条通道共享
  * 同一发现契约(隔离 profile 的 DevToolsActivePort 文件)。
  *
  * DTO 为 camelCase(桌面端出线约定)。
@@ -55,6 +56,34 @@ export async function reflect_browser_status(): Promise<ReflectBrowserStatus> {
 /** 诊断:profile 目录与可执行文件覆盖状态。 */
 export async function reflect_browser_env(): Promise<ReflectBrowserEnv> {
   return invoke<ReflectBrowserEnv>('reflect_browser_env');
+}
+
+/** 地址栏导航(输入规范化:无 scheme 补 `https://`);导航后返回状态。 */
+export async function reflect_browser_navigate(url: string): Promise<ReflectBrowserStatus> {
+  return invoke<ReflectBrowserStatus>('reflect_browser_navigate', { url });
+}
+
+/** 后退一步(导航历史越界时后端 no-op);返回状态。 */
+export async function reflect_browser_back(): Promise<ReflectBrowserStatus> {
+  return invoke<ReflectBrowserStatus>('reflect_browser_back');
+}
+
+/** 前进一步(导航历史越界时后端 no-op);返回状态。 */
+export async function reflect_browser_forward(): Promise<ReflectBrowserStatus> {
+  return invoke<ReflectBrowserStatus>('reflect_browser_forward');
+}
+
+/** 刷新当前页;返回状态。 */
+export async function reflect_browser_reload(): Promise<ReflectBrowserStatus> {
+  return invoke<ReflectBrowserStatus>('reflect_browser_reload');
+}
+
+/** 应用设备模拟尺寸(0/0 = 清除 override 复位);返回状态。 */
+export async function reflect_browser_set_device(
+  width: number,
+  height: number,
+): Promise<ReflectBrowserStatus> {
+  return invoke<ReflectBrowserStatus>('reflect_browser_set_device', { width, height });
 }
 
 /** 订阅 screencast 帧(base64 JPEG);返回取消订阅函数。 */
