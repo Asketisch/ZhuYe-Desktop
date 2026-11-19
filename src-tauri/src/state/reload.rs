@@ -86,7 +86,17 @@ pub(crate) async fn hot_reload_provider_stack(
     }
     let provider_changed = provider_stack_changed(old, new)
         || agent.inner.pending_model_discovery_error.lock().is_some();
+    // workspace-write:沙箱段(writable_dirs / allow_network)进了线程
+    // 配置快照,变更需强制重绑才对当前会话生效 —— 否则要等下次切换
+    // 会话。os_level 不在此列:submit 每轮盖章,无需重绑。
+    let sandbox_changed = old.sandbox != new.sandbox;
+    if sandbox_changed {
+        info!(
+            "[reflect-gui] sandbox section changed; forcing rebind to refresh writable dirs / network"
+        );
+    }
     if !provider_changed
+        && !sandbox_changed
         && old.hooks == new.hooks
         && agent.inner.pending_rebind_error.lock().is_none()
     {

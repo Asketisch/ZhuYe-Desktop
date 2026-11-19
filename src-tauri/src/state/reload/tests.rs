@@ -108,6 +108,38 @@ async fn hot_reload_rebuilds_registry_and_rebinds() {
     );
 }
 
+/// workspace-write:`[sandbox]` 段变更(allow_network / writable_dirs)
+/// 必须触发强制重绑 —— 线程配置在 bind 时快照,不重绑则设置页拨动
+/// 网络开关对当前会话不生效。provider 段未变 → registry 不得重建。
+#[tokio::test]
+async fn hot_reload_detects_sandbox_section_change() {
+    let agent = MinimalAgent::new_empty();
+    agent.install_agent_thread().await;
+    let sid = reflect_protocol::ThreadId::new();
+    super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
+    let thread_before = agent.inner.thread.lock().clone().unwrap();
+    let registry_before = agent.inner.model_registry.lock().clone().unwrap();
+
+    let base = "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n";
+    let old = reflect_config::load_from_str(base).unwrap();
+    let new = reflect_config::load_from_str(&format!("{base}\n[sandbox]\nallow_network = true\n"))
+        .unwrap();
+    assert_ne!(old.sandbox, new.sandbox, "测试前提:两边的沙箱段确实不同");
+    let _ = hot_reload_provider_stack(&agent, &old, &new).await;
+
+    let thread_after = agent.inner.thread.lock().clone().unwrap();
+    let registry_after = agent.inner.model_registry.lock().clone().unwrap();
+    assert!(
+        !std::sync::Arc::ptr_eq(&thread_before, &thread_after),
+        "沙箱段变化必须强制重绑(线程配置快照含可写目录与网络)"
+    );
+    assert!(
+        std::sync::Arc::ptr_eq(&registry_before, &registry_after),
+        "provider 段未变时不得重建 registry"
+    );
+    assert_eq!(agent.bound_session_id(), Some(sid), "会话 id 保持不变");
+}
+
 /// 诚实化回归:provider 段变化但无任何显式 model → spec 保持 stub,
 /// 降级原因给出「有 provider 但没 model」的可行动指引(而非编造
 /// `openai/gpt-4o` 之类的默认模型名)。

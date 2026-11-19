@@ -198,7 +198,12 @@ pub(crate) fn construct_thread(
         .with_sandbox_writable(merged_sandbox_writable(
             cfg_snapshot.sandbox.writable_dirs.clone(),
             crate::workspace_state::WorkspaceState::additional_dirs(),
-        ));
+        ))
+        // workspace-write:`[sandbox].allow_network` 接进运行时。此前只
+        // 写进 toml 不被消费,bash 恒为禁网;设置页拨动后经 reload 的
+        // sandbox 段重绑生效。true = Seatbelt `(allow network*)`,false =
+        // 拒出站但放行 localhost 与 Unix socket(上游 os_sandbox)。
+        .with_sandbox_network(Some(cfg_snapshot.sandbox.allow_network));
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
@@ -279,6 +284,14 @@ pub(crate) fn construct_thread(
         // lock + expect 重取)。
         let registry_for_side = Arc::clone(&registry);
         let tools_for_side = Arc::clone(&agent.inner.tools);
+        // workspace-write:侧通道线程与主线程同源的可写目录与网络开关。
+        // 此前侧通道 AgentConfig 不带这两项 —— 空可写根 + 禁网,与主
+        // 线程不一致(bind 时快照,与主线程同生命周期)。
+        let sandbox_writable_for_side = merged_sandbox_writable(
+            cfg_snapshot.sandbox.writable_dirs.clone(),
+            crate::workspace_state::WorkspaceState::additional_dirs(),
+        );
+        let sandbox_network_for_side = cfg_snapshot.sandbox.allow_network;
         // v1.x 修复:主会话的模式句柄 —— 侧通道线程此前以默认 Auto + 零
         // hook 运行,主会话处于 Plan 模式时侧通道可写全量工具(边界穿透)。
         // 与 CLI 侧通道工厂(builder.rs build_side_channel_factory)对齐:
@@ -301,7 +314,9 @@ pub(crate) fn construct_thread(
                 m4.recorder = None;
                 let mut side_cfg = AgentConfig::new(model, workspace)
                     .with_m4(m4)
-                    .with_cancel(cancel);
+                    .with_cancel(cancel)
+                    .with_sandbox_writable(sandbox_writable_for_side.clone())
+                    .with_sandbox_network(Some(sandbox_network_for_side));
                 side_cfg.inherited_approval_mode = Some(parent_mode.clone());
                 let side_thread = AgentThread::new(
                     side_cfg,
