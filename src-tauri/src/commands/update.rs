@@ -159,17 +159,19 @@ pub async fn reflect_download_install_update(
     })?;
 
     use tauri_plugin_updater::UpdaterExt;
-    let updater = app
-        .updater_builder()
-        .build()
-        .map_err(|e| CommandError { msg: format!("updater 初始化失败: {e}") })?;
-    let update = updater
-        .check()
-        .await
-        .map_err(|e| CommandError { msg: format!("updater 检查失败: {e}") })?;
+    let updater = app.updater_builder().build().map_err(|e| CommandError {
+        msg: format!("updater 初始化失败: {e}"),
+    })?;
+    let update = updater.check().await.map_err(|e| CommandError {
+        msg: format!("updater 检查失败: {e}"),
+    })?;
     let Some(update) = update else {
         // 已是最新 —— 不发事件，直接返回。
-        return Ok(UpdateInstallOutcome { installed: false, version: None, notes: None });
+        return Ok(UpdateInstallOutcome {
+            installed: false,
+            version: None,
+            notes: None,
+        });
     };
 
     let _ = app.emit("reflect_update_progress", UpdateProgressPayload::Started);
@@ -190,7 +192,9 @@ pub async fn reflect_download_install_update(
             },
         )
         .await
-        .map_err(|e| CommandError { msg: format!("更新下载/安装失败: {e}") })?;
+        .map_err(|e| CommandError {
+            msg: format!("更新下载/安装失败: {e}"),
+        })?;
 
     Ok(UpdateInstallOutcome {
         installed: true,

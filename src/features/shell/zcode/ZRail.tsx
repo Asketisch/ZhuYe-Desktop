@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   MessageSquare, Search, FolderGit2, Terminal, FolderKanban, Zap, Bot, Users, Clock,
-  Settings, Menu, Download, Bell, Mic, Wifi, BookOpen, Image as ImageIcon,
+  Settings, Menu, Download, Bell, Mic, Wifi, BookOpen, Image as ImageIcon, Globe,
   Wrench, GitBranch, GitPullRequestArrow, Webhook, Activity, Gauge, Info, Home,
   Workflow, ChevronDown,
 } from 'lucide-react';
@@ -43,6 +43,7 @@ const MORE_GROUPS: { titleKey: Parameters<ReturnType<typeof useI18n>['t']>[0]; i
       { to: '/pulls', labelKey: 'shell.nav.pulls', icon: GitPullRequestArrow },
       { to: '/terminal', labelKey: 'shell.nav.terminal', icon: Terminal },
       { to: '/skills', labelKey: 'shell.nav.skills', icon: Wrench },
+      { to: '/browser', labelKey: 'shell.nav.browser', icon: Globe },
       { to: '/hooks', labelKey: 'shell.nav.hooks', icon: Webhook },
       { to: '/traces', labelKey: 'shell.nav.traces', icon: Activity },
       { to: '/usage', labelKey: 'shell.nav.usage', icon: Gauge },

@@ -619,6 +619,10 @@
       "ports": [5173, 8080],
       "recent_output": "Local: http://localhost:5173/"
     },
+    "reflect_browser_env": {},
+    "reflect_browser_start": {},
+    "reflect_browser_status": {},
+    "reflect_browser_stop": {},
     "reflect_browse_marketplace": {
       "name": "fake-mkt"
     },

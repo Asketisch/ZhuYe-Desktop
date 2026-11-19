@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `5f84750`（ZhuYe main tip，完整 SHA `5f847507`；`29aa9ad` 之上为增能力零漂移复审：Op/EventMsg 与内置工具集合逐项比对零变化，上游增量 = Plan mode hooks 白名单修复与「先探索再提问」方法论、沙箱 workspace-write 口径对齐（871924b，桌面配套见 changelog「沙箱对齐 workspace-write 口径」）、assistant 按步骤增量落盘（e39bc92，桌面配套见 changelog「会话切换不再丢历史」）、CI/deps 升级与差分验证器加变体批准通道 —— 均不改变能力矩阵行。上一轮 `29aa9ad` 见文末历史审计记录。）
+> 最近审计：submodule `f064c1c`（完整 SHA `f064c1cd`，`feat/browser-plugin` 分支 tip；`5f84750` 之上为三增量：① `26e0d04` skills 加载链支持 `.agents/skills` 目录 + models.dev 社区目录四维能力 —— `ModelInfo` 增 `supports_vision` / `max_output_tokens`（serde default），桌面 model_catalog 已适配提取；② `29aa9ad` 增量（Plan hooks / 沙箱口径 / 增量落盘）见文末历史审计行，矩阵零漂移；③ **本分支新增 `zhuye-browser` crate + `plugins/browser`（F39 受控浏览器）**—— 非协议 Op/Event 变更，能力面为独立 MCP server 二进制 + 桌面显示通道（`reflect_browser_*` 命令 + `reflect_browser_frame` 事件），矩阵已补行。Op/EventMsg 与内置工具集合比对仍零变化。）
 
 ## 阅读约定
 
@@ -58,6 +58,7 @@
 | 插件 | `reflect-plugin` / `zhuye-wasm` | `PluginManager` / `PluginManifest` / Wasm Hook + Tool | ✅ 列表 / 启停 / 卸载 / 本地安装 + marketplace；WASM hook/tool 随插件运行时加载，但详情面仅到文件与启停状态（§3.13） |
 | 沙箱 | `reflect-sandbox` | `OsSandbox` / `detect_backend` | ✅ 有效状态在状态栏可见（§3.5）+ **开关真正生效**（§3.19，每轮协议策略） |
 | BM25 | `reflect-bm25` | `rank_lines` / `tokenize` | ✅ GUI 搜索可选 **BM25 相关性**（§3.16，与 agent 的 grep 同款） |
+| 浏览器控制（F39） | `reflect-browser`（收编上游 `zhuye-browser`） | `BrowserBackend` / `CdpBrowserBackend` / `BrowserSecurity` / `plugins/browser` MCP 工具 | 🟡 agent **控制通道**需安装 browser 插件（CDP 仅 loopback + 单 target + 隔离 profile，Prompt 审批）；桌面**显示通道**已接线 —— `/browser` 面板 + `reflect_browser_start/stop/status/env` + `reflect_browser_frame` 帧流；本机无浏览器时双层降级。面板画面为实机验收项 |
 | AST | `reflect-ast` | `LanguageGrid` / `list_languages` | ❌ 语言网格不可见 |
 | 配置分析 | `reflect-config::analytics` | `status_line` / `Health` | 🟡 设置页显示配置路径与分析状态；watcher 健康度不可见 |
 
@@ -295,6 +296,17 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 | 注入通道 | `UserPromptSubmit` 首轮 `HookDecision::InjectMessage`（引擎包 `<system-reminder>` user 消息），引擎循环零触碰；`AtomicBool` 每会话只注一次 |
 
 ---
+
+### 3.36 受控浏览器显示通道（F39 桌面半边）
+
+上游 `zhuye-browser` crate + `plugins/browser` 落地后,桌面接线**显示通道**:
+`reflect_browser_start/stop/status/env` 命令(`commands/browser.rs`)+
+`reflect_browser_frame` 事件(base64 JPEG,`Page.startScreencast` 只读帧流,
+`everyNthFrame=2` 节流)。与 agent 控制通道共享 `$ZHUYE_HOME/browser-profile`
+的 `DevToolsActivePort` 发现契约(先启动者持有,后到 attach)。`status`
+无副作用(不拉起浏览器);`start` 的应用句柄检查先于一切浏览器探测 ——
+能力覆盖层不会误启真浏览器(L3 `ipc_browser.rs`)。**控制通道**(MCP 工具)
+需装 browser 插件;真机画面与 agent 联动为实机验收项。
 
 ## 4. 剩余缺口与后续
 

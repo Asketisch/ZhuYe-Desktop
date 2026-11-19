@@ -4,6 +4,16 @@
 
 ## 未发布
 
+- **内置受控浏览器（F39）**：上游 submodule 新增 `zhuye-browser` crate +
+  `plugins/browser` 插件 —— agent 经 MCP 工具控制本机 Chrome/Edge/Chromium
+  （导航 / 可及性快照 / 点击 / 填写 / 按键 / 滚动 / 截图），CDP 仅 loopback
+  + 单 target 强制校验、隔离 profile（`$ZHUYE_HOME/browser-profile`）、
+  `@eN` 元素引用 + 快照绑定（旧 ref 显式失效防误点）。桌面端新增 `/browser`
+  浏览器面板：CDP screencast 帧流只读渲染（`reflect_browser_start/stop/
+  status/env` 命令 + `reflect_browser_frame` 事件），与插件控制通道共享
+  同一发现契约；本机无浏览器或插件未装时双层优雅降级（Unavailable 文案 /
+  面板空态引导）。submodule 指针升至上游 `feat/browser-plugin`（f064c1c），
+  ModelInfo 适配上游 models.dev 新字段（supports_vision / max_output_tokens）。
 - **应用自更新（OTA）**：设置页从「只检查不安装」升级为完整自更新回路 ——
   检查 → 下载（进度条，minisign 签名校验）→ 安装 → 重启引导，基于
   tauri-plugin-updater + tauri 核心 `request_restart`（Rust 侧驱动，不经

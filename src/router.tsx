@@ -33,6 +33,7 @@ import { AboutView } from '@/features/about/AboutView';
 import { AppsView } from '@/features/apps/AppsView';
 import { ImportView } from '@/features/import/ImportView';
 import { HtmlPreviewView } from '@/features/preview/HtmlPreviewView';
+import { BrowserView } from '@/features/browser/BrowserView';
 import { CollaborationView } from '@/features/collaboration/CollaborationView';
 import { DebugView } from '@/features/debug/DebugView';
 import { DesignSystemView } from '@/features/design-system/DesignSystemView';
@@ -81,6 +82,7 @@ const debugRoute = new Route({ getParentRoute: () => rootRoute, path: 'debug', c
 const appsRoute = new Route({ getParentRoute: () => rootRoute, path: 'apps', component: AppsView });
 const importRoute = new Route({ getParentRoute: () => rootRoute, path: 'import', component: ImportView });
 const previewRoute = new Route({ getParentRoute: () => rootRoute, path: 'preview', component: HtmlPreviewView });
+const browserRoute = new Route({ getParentRoute: () => rootRoute, path: 'browser', component: BrowserView });
 const collaborationRoute = new Route({ getParentRoute: () => rootRoute, path: 'collaboration', component: CollaborationView });
 const mobileRoute = new Route({ getParentRoute: () => rootRoute, path: 'mobile', component: MobileView });
 const dictationRoute = new Route({ getParentRoute: () => rootRoute, path: 'dictation', component: DictationView });
@@ -121,6 +123,7 @@ const routeTree = rootRoute.addChildren([
   appsRoute,
   importRoute,
   previewRoute,
+  browserRoute,
   collaborationRoute,
   mobileRoute,
   dictationRoute,

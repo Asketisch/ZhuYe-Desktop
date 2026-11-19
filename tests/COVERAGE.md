@@ -65,6 +65,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | Git | `git_status` `git_diff` `git_log` `git_stage` `git_unstage` `git_commit` | L3 `ipc_workspace.rs`（临时仓库内、差异内容、撤销暂存及空提交错误） | `GitView` / `DiffViewer` |
 | 终端 | `run_shell`（含 v1.11 `sshHost` 远端分支）`kill_shell` `list_shell_sessions` | L3 `ipc_workspace.rs`、`ipc_shell_runtime.rs`（会话隔离、生命周期回收与终止副作用）；SSH 参数拼装（`BatchMode` / `ConnectTimeout` / host trim / 命令单参数）由 `commands/shell.rs` 单测覆盖，前缀剥离与会话 `ssh:<host>` 标注由 L2 `useTerminalController.test` 覆盖 | `TerminalView` |
 | 媒体 | `list_media` `media_capabilities` `image_process` | L3 `ipc_workspace.rs`（真实 PNG/JPEG、base64、资产及处理产物随文件变更） | `MediaView` |
+| 受控浏览器 | `browser_start` `browser_stop` `browser_status` `browser_env` | L3 `ipc_browser.rs`（无实例状态、start 结构化错误且不拉真浏览器、stop 幂等、env profile 路径） | `BrowserView`（替身:空态/帧事件/启停;真画面实机验） |
 | 任务 | `list/create/get/update/claim/stop/release/delete_task` `get_task_output` | L3 `ipc_domains.rs` | `TasksBoardView` |
 | 团队 | `list/upsert/get/delete_team` | L3 `ipc_domains.rs` | `TeamEditor` |
 | Squad | `list/create/get/delete_squad` `delegate_next` `assign_squad_task` | L3 `ipc_domains.rs` | `SquadView` |

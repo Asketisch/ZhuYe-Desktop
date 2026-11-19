@@ -148,6 +148,13 @@ pub(crate) fn parse_models_response(
                 .get("owned_by")
                 .and_then(|o| o.as_str())
                 .map(str::to_string),
+            // 上游 34e19acf 新增:厂商目录披露的视觉/输出上限(未披露为 None,
+            // 上游 models_dev::enrich_model_info 可再补齐)。
+            supports_vision: item.get("vision").and_then(|v| v.as_bool()),
+            max_output_tokens: item
+                .get("max_output_tokens")
+                .and_then(|v| v.as_u64())
+                .and_then(|v| u32::try_from(v).ok()),
         };
         out.push(ProviderModelInfo {
             id: id.to_string(),

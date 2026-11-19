@@ -14,7 +14,7 @@
 | 输入运行时 | **composer**、editor、dictation、command-palette | composer（39 文件）是编辑器运行时规范位置（根 AGENTS.md本篇规则 3）；editor 仅 `diffHunks.ts` 纯 diff 算法（供 editorStore 复用）；dictation 语音输入；command-palette 命令面板 |
 | 壳层与弹窗 | **shell**、**design-system**、**modals** | shell（43 文件）五窗格 IDE 布局，内含 `zcode/` v2 重设计子树；design-system（42 文件，`primitives/` + README）共享组件；modals（18 文件）由 `index.tsx` 编排全部弹窗 |
 | 设置 | **settings** | 36 文件，`config/` + `sections/` 分层；应用状态同步检查表（根 AGENTS.md）的 UI 端 |
-| 工作台 | files、terminal、git、preview、import | 文件树与 diff review、交互终端、Git 面板、预览、会话导入 |
+| 工作台 | files、terminal、git、preview、browser、import | 文件树与 diff review、交互终端、Git 面板、预览、受控浏览器面板(screencast)、会话导入 |
 | 多 agent 与任务 | agents、squad、collaboration、tasks-board、autopilot、plan、schedule | subagent 编排、小队、协作通道、任务看板、自动驾驶、计划审批、定时任务 |
 | 可观测与遥测 | traces、usage、notifications、debug、media | 轨迹、用量、活动通知、agent 状态调试镜像、媒体资产 |
 | 知识与资产 | memory、skills、prompts、models、apps | 记忆库、技能、prompt 模板、模型选择、应用面板 |

@@ -2034,6 +2034,33 @@ export function installFakeBackend(): FakeBackend {
     notes: null,
   })));
   handle('reflect_relaunch_app', handler(() => undefined));
+  // —— 受控浏览器面板 ——
+  // fakeBackend 模拟「未运行」状态;帧流事件由真后端推送,替身不发帧。
+  handle('reflect_browser_start', handler(() => ({
+    running: true,
+    url: 'about:blank',
+    title: null,
+    streaming: true,
+    message: null,
+  })));
+  handle('reflect_browser_stop', handler(() => ({
+    running: false,
+    url: null,
+    title: null,
+    streaming: false,
+    message: '已停止浏览器实例',
+  })));
+  handle('reflect_browser_status', handler(() => ({
+    running: false,
+    url: null,
+    title: null,
+    streaming: false,
+    message: null,
+  })));
+  handle('reflect_browser_env', handler(() => ({
+    executableOverride: false,
+    profileDir: '/tmp/zhuye/browser-profile',
+  })));
   // 线格式与 `app-core::autopilot::AutopilotConfig` 一致（camelCase）；update 落状态后读回。
   handle('reflect_get_autopilot_config', handler(() => wire(backend.state.autopilotConfig)));
   handle(

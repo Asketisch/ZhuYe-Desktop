@@ -18,6 +18,7 @@
 | `rebind.rs`（+ `rebind/tests.rs`） / `reload.rs`（+ `reload/tests.rs`） | 会话换绑（后台持续运行：demote/promote/后台表） / provider 栈热重载，测试走 `#[cfg(test)] mod tests;` 目录形式 |
 | `plugins.rs` / `plugin_hooks.rs` / `plugin_status.rs` | 插件运行时接线 / 插件事件桥 / 加载快照 |
 | `autopilot.rs` / `quota.rs` / `remote_config.rs` | Autopilot 装配 / coding plan 配额接线 / 远端连接配置 |
+| `agent.rs` 内 `browser` 字段 | 受控浏览器管理器（`src-tauri/src/browser_backend.rs`）：启动/attach + screencast 帧流；tokio Mutex（命令体持锁跨 await） |
 | `permissions.rs` / `sandbox.rs` / `recorder_guard.rs` / `side_channel_forwarder.rs` / `subagents.rs` / `task_hooks.rs` / `activity.rs` / `discussion.rs` | 权限层装配 / OS 沙箱落点 / 会话写入协调 / 终态事件补发 / 子代理工具注册 / 任务生命周期转发 / activity 订阅 / 讨论运行态 |
 
 ## 本地契约与同步点

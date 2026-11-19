@@ -100,6 +100,7 @@ reflect-import      = { package = "zhuye-import", path = "zhuye-agent/crates/int
 reflect-computer-use = { package = "zhuye-computer-use", path = "zhuye-agent/crates/integrations/zhuye-computer-use" }
 reflect-shell       = { package = "zhuye-shell", path = "zhuye-agent/crates/integrations/zhuye-shell" }
 reflect-git-tools   = { package = "zhuye-git-tools", path = "zhuye-agent/crates/integrations/zhuye-git-tools" }
+reflect-browser     = { package = "zhuye-browser", path = "zhuye-agent/crates/integrations/zhuye-browser" }
 
 # runtime 层
 reflect-core = { package = "zhuye-core", path = "zhuye-agent/crates/runtime/zhuye-core" }
@@ -145,6 +146,7 @@ zhuye-import = { path = "zhuye-agent/crates/integrations/zhuye-import" }
 zhuye-computer-use = { path = "zhuye-agent/crates/integrations/zhuye-computer-use" }
 zhuye-shell = { path = "zhuye-agent/crates/integrations/zhuye-shell" }
 zhuye-git-tools = { path = "zhuye-agent/crates/integrations/zhuye-git-tools" }
+zhuye-browser = { path = "zhuye-agent/crates/integrations/zhuye-browser" }
 zhuye-core = { path = "zhuye-agent/crates/runtime/zhuye-core" }
 zhuye-exec = { path = "zhuye-agent/crates/runtime/zhuye-exec" }
 zhuye-cli  = { path = "zhuye-agent/crates/runtime/zhuye-cli" }
@@ -157,6 +159,13 @@ reflect-app-core    = { path = "app-core" }
 # ── 通用外部依赖(需与核心 workspace 对齐版本,核心 crate 的 workspace=true 会解析到这里)──
 tokio              = { version = "1", features = ["full"] }
 tokio-util         = "0.7"
+# submodule zhuye-skills(skills 市场整目录安装,上游 26e0d04)继承的打包依赖。
+tar                = "0.4"
+flate2             = "1"
+# 浏览器面板 screencast(CDP Page.startScreencast 事件流)+ submodule
+# zhuye-browser real feature 同版本。
+tokio-tungstenite  = "0.30"
+futures-util       = "0.3"
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
 serde_yaml         = "0.9"

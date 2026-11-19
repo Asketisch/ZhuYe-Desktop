@@ -80,6 +80,10 @@ import {
   reflect_check_update,
   reflect_download_install_update,
   reflect_relaunch_app,
+  reflect_browser_start,
+  reflect_browser_status,
+  reflect_browser_stop,
+  reflect_browser_env,
   // search
   reflect_search_files,
   // tasks (Phase 1 multi-agent)
@@ -529,6 +533,15 @@ describe('commands forwarding (mapping)', () => {
   it('reflect_relaunch_app has no args', async () => {
     const args = await captureCmd('reflect_relaunch_app', () => reflect_relaunch_app());
     expectArgs(args, undefined);
+  });
+
+  // ----- 浏览器面板 -----
+
+  it('reflect_browser_start/stop/status/env have no args', async () => {
+    expectArgs(await captureCmd('reflect_browser_start', () => reflect_browser_start()), undefined);
+    expectArgs(await captureCmd('reflect_browser_stop', () => reflect_browser_stop()), undefined);
+    expectArgs(await captureCmd('reflect_browser_status', () => reflect_browser_status()), undefined);
+    expectArgs(await captureCmd('reflect_browser_env', () => reflect_browser_env()), undefined);
   });
 
   // ----- 搜索 -----

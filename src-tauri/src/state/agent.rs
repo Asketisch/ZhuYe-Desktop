@@ -54,6 +54,9 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) pending_plugin_reload_error: ParkingMutex<Option<String>>,
     pub(crate) pending_model_discovery_error: ParkingMutex<Option<String>>,
     pub(crate) shell_sessions: crate::shell_sessions::ShellSessions,
+    /// 受控浏览器管理器(启动/attach + screencast 帧流;browser_backend.rs)。
+    /// 用 tokio Mutex:命令体在 await 期间持锁(帧流启动/状态查询跨 IO)。
+    pub(crate) browser: tokio::sync::Mutex<crate::browser_backend::BrowserManager>,
     pub(crate) memory_store: crate::memory_store::MemoryStore,
     pub(crate) hook_store: crate::hook_store::HookStore,
     /// Task/Team 管理器(供多 agent 命令面调用)。
@@ -226,6 +229,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         pending_plugin_reload_error: ParkingMutex::new(None),
         pending_model_discovery_error: ParkingMutex::new(None),
         shell_sessions: crate::shell_sessions::ShellSessions::default(),
+        browser: tokio::sync::Mutex::new(crate::browser_backend::BrowserManager::new()),
         memory_store: crate::memory_store::MemoryStore,
         hook_store: crate::hook_store::HookStore::default(),
         task_manager,

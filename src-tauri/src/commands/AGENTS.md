@@ -4,7 +4,7 @@
 
 ## 模块概述
 
-Tauri 命令表全集，按领域一域一文件（领域文件数以目录与 `mod.rs` 声明清单为准，命令总量以 `grep '#\[tauri::command\]'` 结果为准——注意文档注释也会命中，如 `error.rs` 首部注释）。`mod.rs` 是薄桶：46 个领域子模块声明 + `pub use *` 再导出，`sessions` 声明为 `pub(crate)`。
+Tauri 命令表全集，按领域一域一文件（领域文件数以目录与 `mod.rs` 声明清单为准，命令总量以 `grep '#\[tauri::command\]'` 结果为准——注意文档注释也会命中，如 `error.rs` 首部注释）。`mod.rs` 是薄桶：47 个领域子模块声明 + `pub use *` 再导出，`sessions` 声明为 `pub(crate)`。
 
 ## 核心文件导航
 
@@ -19,7 +19,7 @@ Tauri 命令表全集，按领域一域一文件（领域文件数以目录与 `
 | `runtime_status.rs` | 配置状态包含 app-core 健康诊断 |
 | `model_catalog.rs` | 纯逻辑无命令体：provider `/models` 响应解析 + 免费判定（与 `models.rs` 的命令分工） |
 
-其余领域文件按域分组：代理与团队（`agents` / `subagents` / `squad`）、工具接入（`mcp` / `lsp` / `skills` / `plugins` / `hooks`）、文件与终端（`files`（嵌套 `files/image.rs` 图片附件读取、`files/upload.rs` 上传落盘——webview 字节流文件转工作区 `.zhuye/uploads/` 真实路径）/ `git`（嵌套 `git/status.rs`）/ `shell` / `pty`）、配置与安全（`config`（嵌套 `config/tests.rs`）/ `permissions` / `security` / `kms` / `allowlist`）、观测与后台（`traces` / `stats` / `activity` / `schedule` / `runtime_status`）、媒体与远程（`media` / `remote` / `side_channel` / `autopilot`）。附件选择器（单选 `reflect_pick_file` / 多选 `reflect_pick_files`）在 `workspaces.rs`（tauri-plugin-dialog Rust 侧，不经 JS IPC）。
+其余领域文件按域分组：代理与团队（`agents` / `subagents` / `squad`）、工具接入（`mcp` / `lsp` / `skills` / `plugins` / `hooks`）、文件与终端（`files`（嵌套 `files/image.rs` 图片附件读取、`files/upload.rs` 上传落盘——webview 字节流文件转工作区 `.zhuye/uploads/` 真实路径）/ `git`（嵌套 `git/status.rs`）/ `shell` / `pty`）、配置与安全（`config`（嵌套 `config/tests.rs`）/ `permissions` / `security` / `kms` / `allowlist`）、观测与后台（`traces` / `stats` / `activity` / `schedule` / `runtime_status`）、媒体与远程（`media` / `browser` 受控浏览器面板 / `remote` / `side_channel` / `autopilot`）。附件选择器（单选 `reflect_pick_file` / 多选 `reflect_pick_files`）在 `workspaces.rs`（tauri-plugin-dialog Rust 侧，不经 JS IPC）。
 
 ## 本地契约与同步点
 

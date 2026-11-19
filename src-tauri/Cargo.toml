@@ -99,6 +99,10 @@ reflect-plugin              = { workspace = true }
 # 插件 agents 能力的宿主:SubAgentFactory(仅作 loader 挂载点,桌面端
 # 不注册内置子代理 spec —— 内置 call_* 工具是独立 feature)。
 reflect-subagent            = { workspace = true }
+# 受控浏览器(收编上游 zhuye-browser):chrome.rs 的发现/启动契约 +
+# a11y 快照类型;real feature 启用 CDP(ws 栈)。
+reflect-browser             = { workspace = true, features = ["real"] }
+futures-util                = { workspace = true }
 # 多 agent 讨论编排(CLI `reflect discussion` 的 GUI 对应;逻辑在 app-core,
 # 这里仅 PipelineReport/类型直传需要 reflect-pipeline)。
 reflect-discussion          = { workspace = true }
@@ -123,6 +127,9 @@ once_cell                   = { workspace = true }
 image                       = { workspace = true }
 xcap                        = { workspace = true }
 enigo                       = { workspace = true }
+# 浏览器面板 screencast:CDP Page.startScreencast 事件流(与 submodule
+# zhuye-browser 同版本,经 workspace.dependencies 统一)。
+tokio-tungstenite           = { workspace = true }
 portable-pty = "0.9.0"
 
 # 仅 macOS 的 dock 徽标：通过 objc2 设置 NSApplication.dockTile.badgeLabel。
