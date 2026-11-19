@@ -3,8 +3,9 @@
  *
  * 对着 base_url + api_key 拉取可用模型（`reflect_list_provider_models`），
  * 两种接入端口：anthropic（/v1/models）与 openai（/models，兼容多数
- * OpenAI 兼容网关）。能力信息取决于厂商是否返回；未返回时
- * `supports_vision` 为 null，由用户自行判断。
+ * OpenAI 兼容网关）。能力信息 live 披露优先；未披露的字段由 models.dev
+ * 社区目录补齐（Anthropic 官方端口也有窗口/输出/视觉/思考数据），
+ * 两边都没说时为 null。
  */
 import { invoke } from '../bridge';
 
@@ -14,7 +15,7 @@ export interface ProviderModelInfo {
   id: string;
   /** 展示名（厂商未返回时与 id 相同）。 */
   display_name: string;
-  /** 厂商声明的视觉输入能力；null = 接口未返回。 */
+  /** 视觉输入能力；null = live 与目录都没说，由用户自行判断。 */
   supports_vision: boolean | null;
   /**
    * 是否免费：`true` / `false` = 已判定；`null` = **未知**
@@ -24,14 +25,32 @@ export interface ProviderModelInfo {
    * `free_id_patterns`），与引擎跑 `model = "free"` 时用的是同一套规则。
    */
   is_free: boolean | null;
-  /** 上下文窗口（厂商未披露时为 null）。 */
+  /** 上下文窗口 token（live / 目录都没披露时为 null）。 */
   context_window: number | null;
+  /** 最大输出 token（live / 目录都没披露时为 null）。 */
+  max_output_tokens: number | null;
+  /** 是否具备思考能力（models.dev 目录投票）；null = 未知。 */
+  supports_reasoning: boolean | null;
 }
 
 /** 模型列表 + 查询端口。 */
 export interface ProviderModelsResult {
   endpoint: string;
   models: ProviderModelInfo[];
+}
+
+/** 单模型能力查询结果（对齐后端 `ModelAbilitiesResult`）。 */
+export interface ModelAbilitiesResult {
+  /** 上下文窗口 token；null = 未知。 */
+  context_window: number | null;
+  /** 最大输出 token；null = 未知。 */
+  max_output_tokens: number | null;
+  /** 是否接受图片输入；null = 未知（**未知不拦截发送**）。 */
+  supports_vision: boolean | null;
+  /** 是否具备思考能力；null = 未知。 */
+  supports_reasoning: boolean | null;
+  /** 思考档位菜单（厂商词表原样，如 `["low","medium","high"]`）。 */
+  effort_levels: string[] | null;
 }
 
 /**
@@ -67,4 +86,15 @@ export async function reflect_test_provider_chat(
     endpoint,
     model,
   });
+}
+
+/**
+ * 查单个模型的能力（窗口 / 输出上限 / 视觉 / 思考），不依赖 provider
+ * 实拉 —— 数据来自 models.dev 目录（内嵌快照 + 磁盘缓存），纯查询不
+ * 发网络请求。供模型卡片展示与 composer 发送前的视觉检查。
+ */
+export async function reflect_lookup_model_abilities(
+  modelId: string,
+): Promise<ModelAbilitiesResult> {
+  return invoke<ModelAbilitiesResult>('reflect_lookup_model_abilities', { modelId });
 }

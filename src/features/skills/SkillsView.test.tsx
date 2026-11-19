@@ -60,7 +60,7 @@ describe('SkillsView — skill marketplace', () => {
     // 空输入 → 禁止提交。
     expect(btn.disabled).toBe(true);
 
-    fireEvent.change(screen.getByLabelText('Skill marketplace'), {
+    fireEvent.change(screen.getByTestId('skill-repo-input'), {
       target: { value: 'owner/repo' },
     });
     expect(btn.disabled).toBe(false);
@@ -87,7 +87,7 @@ describe('SkillsView — skill marketplace', () => {
     render(wrap(<SkillsView />));
     await screen.findByTestId('skill-market-row');
     const before = listCalls.length;
-    fireEvent.change(screen.getByLabelText('Skill marketplace'), {
+    fireEvent.change(screen.getByTestId('skill-repo-input'), {
       target: { value: 'owner/new-skill' },
     });
     fireEvent.click(screen.getByTestId('skill-install-btn'));
@@ -102,7 +102,7 @@ describe('SkillsView — skill marketplace', () => {
     });
     render(wrap(<SkillsView />));
     await screen.findByTestId('skill-market-row');
-    fireEvent.change(screen.getByLabelText('Skill marketplace'), {
+    fireEvent.change(screen.getByTestId('skill-repo-input'), {
       target: { value: 'bad/repo' },
     });
     fireEvent.click(screen.getByTestId('skill-install-btn'));

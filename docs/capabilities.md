@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `29aa9ad`（ZhuYe main tip，完整 SHA `29aa9ad0`；`ce57058` 回归测试之上：上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。上一轮 `ce57058` 补齐组合穷举回归测试，见 §3.32。
+> 最近审计：submodule `26e0d04`（ZhuYe main tip，完整 SHA `26e0d040`；上游 `34e19acf` 引入 `reflect_llm::models_dev` models.dev 社区目录 —— 窗口 / 输出上限 / 视觉 / 思考档位四维能力，跨厂商投票 + 兜底链 + 内嵌快照 + 24h 磁盘缓存，级联进 `context_window_for` / `output_budget` / `reasoning_effort`，策展静态表优先、目录只填空缺；桌面配套 `reflect_lookup_model_abilities` 命令 + 模型列表四维标签 + 一键填充最大上下文 + 视觉降级警示/确认弹窗 + provider `max_tokens` 表单，详见 §3.33。更早 `29aa9ad`：`ce57058` 回归测试之上上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。更早 `ce57058` 补齐组合穷举回归测试，见 §3.32。
 
 ## 阅读约定
 
@@ -28,14 +28,14 @@
 |---|---|---|---|
 | 协议 Op / EventMsg | `reflect-protocol` | `Op`（26 变体）/ `EventMsg`（50 变体） | 🟡 24 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证 |
 | 线程运行时 | `reflect-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 权限解析器已接线（§3.1）；运行态覆盖缺口见 `tests/RUNTIME_COVERAGE.md` |
-| LLM / Provider | `reflect-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` / `output_budget` / `reasoning_effort` | 🟡 plans / quota、凭证池健康度、自适应输出预算、`max` / `ultra` 档位与按模型钳制已接线；冷却原因在核心内不公开 |
+| LLM / Provider | `reflect-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` / `output_budget` / `reasoning_effort` / `models_dev` | 🟡 plans / quota、凭证池健康度、自适应输出预算、`max` / `ultra` 档位与按模型钳制已接线；**models.dev 四维能力（窗口/输出/视觉/思考）经目录补齐并展示**（§3.33）；冷却原因在核心内不公开 |
 | 计价 | `reflect-llm::providers` | `pricing_table` / `pricing_for` / `RateCard` | ✅ 费率卡直接读核心公开费率表（develop 收编;桌面反解 shim 已删） |
 | Autopilot | `reflect-stream::autopilot` | 配置/历史持久化 + 到期判定 + `fire_if_due` 闭环 | 🟡 桌面后台驱动已接线，指定 agent 经 side-channel 执行；历史终态关联存在并发错配风险，见 `tests/RUNTIME_COVERAGE.md` |
 | 侧通道 | `reflect-core::side_channel` | `SideChannelDriver` / `SideChannelRegistry` / `Op::Start\|Cancel\|QuerySideChannels` | ✅ **引擎原生执行**(develop WP9 收编):driver 经线程工厂注入,命令走协议三 Op,事件三变体全接线(reducer + 视图订阅);registry 进程级共享,跨会话 rebind 存活 |
 | 权限 | `reflect-permissions` | `FilePermissionStore` / `StorePermissionResolver` / 回合审批策略 | ✅ 三层 store 已挂载；Settings 可见规则，会话可独立选择审批策略及 Plan 工作模式 |
-| 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` / `[context_windows]` / `[prompt_guard]` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；上下文窗口、思考强度和 prompt guard 随配置生效，但 guard/窗口明细没有专属配置面 |
-| 思考强度 | `reflect-llm::reasoning_effort` | 按模型族与端点描述支持档位 / 拒绝后逐级降档 | ✅ Composer 与 Models 页共用 `reflect_effort_capability`，只提供可用档位并显示实际生效值 |
-| 模型清单发现 | `reflect-config::discovery` / `reflect-llm::model_catalog` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24） |
+| 配置 | `reflect-config` | `ReflectConfig`(~30 段) / `ConfigWatcher` / `[context_windows]` / `[prompt_guard]` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；上下文窗口、思考强度和 prompt guard 随配置生效；**provider 段 `max_tokens` 表单已补**（§3.33），但 guard / 窗口明细仍没有专属配置面 |
+| 思考强度 | `reflect-llm::reasoning_effort` | 按模型族与端点描述支持档位 / 拒绝后逐级降档 / **models.dev 目录档位映射** | ✅ Composer 与 Models 页共用 `reflect_effort_capability`，只提供可用档位并显示实际生效值；静态表未收录的新模型由目录档位投票补档（§3.33） |
+| 模型清单发现 | `reflect-config::discovery` / `reflect-llm::model_catalog` / `reflect-llm::models_dev` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` / `abilities_for` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24）+ **models.dev 目录补四维能力**（§3.33） |
 | MCP | `reflect-mcp` | `McpConnectionManager` / registry | ✅ 观测 + **增删 + 精选 catalog + 资源/prompt 浏览**（§3.12 / §3.16） |
 | LSP | `reflect-lsp` | `LspConnectionManager` / `DiagnosticRegistry` | ✅ 启停 + 预热 + **诊断可见**（§3.10） |
 | 工具注册表 | `reflect-tools` | `register_builtin_tools` / `ToolRegistry` / `Sanitizer` / `WorktreeCoordinator` / `LoopGuard` / `checkpoint_tool` | ✅ 与上游共用 27 个内置工具清单，桌面注入 AST；工具列表、worktree 状态、checkpoint 与循环失控守卫随运行时生效（§3.16） |
@@ -87,9 +87,13 @@
 
 CLI 三层权限 store 桌面端此前未挂载（deny 规则被静默忽略）→ `src-tauri/src/state/permissions.rs` 按 CLI 同构装配三层链式 store + `HeuristicYoloClassifier`；`reflect_list_permission_rules` + Settings → Permissions「生效的权限规则」只读列表。
 
-### 3.2 Skills 列表与运行时对齐
+### 3.2 Skills 列表与运行时对齐 / skills.sh 市场
 
 桌面手写扫描与运行时两处分叉（目录不同 + 漏内置技能）→ `reflect_list_skills` 改用核心 `scan_skills_dirs` / `bundled_skills`，DTO 补 `bundled` / `whenPaths` / `version` / `body` / `pluginId`，UI 标注「内置」徽标。
+
+加载链目录收敛到上游唯一出口 `reflect_config::default_skill_dirs`：`<ws>/.zhuye/skills` → `<ws>/.agents/skills` → `~/.zhuye/skills` → `~/.agents/skills`（顺序即同名优先级）。两个 bootstrap（zhuye-exec / zhuye m4）与 GUI 列表、运行时 `Op::RescanExtensions` 全部消费同一份清单，不重启即生效；`.agents/skills` 是业界通用 agent 目录约定（Cursor / Codex 等共用），属「路径只经 paths 取」红线的说明性例外（非烛夜私有目录，不走 `ZHUYE_HOME` 重定向）。GUI 已装列表按 path 给 `.agents` 来源打徽标。
+
+skills.sh 市场（搜索 + 安装）GUI 全接通：搜索 API 需 Vercel OIDC 认证故不可直调，改用其**公开 sitemap** 建全量本地索引（`~/.zhuye/cache/skills-market.json`，24h TTL，失败降级旧缓存）；安装走 GitHub codeload tarball 整目录提取（skills.sh 生态的技能在 `skills/<name>/` 子目录且带 scripts/references 附属文件，此前只拉仓库根单 SKILL.md 的 `reflect_install_skill` 对该生态失效）。三条命令 `reflect_search_skill_market` / `reflect_install_skill_from_market` / `reflect_refresh_skill_market_index` 由上游 `reflect_skills::{directory, marketplace}` 承载，装到用户级 `~/.zhuye/skills/`；搜索结果带 `source`（owner/repo）与 `official`（第一方厂商）来源标签；安装含 zip-slip 防护 / 跳符号链接 / 装前 supply_chain 扫描 / staging 原子替换。原 `reflect_install_skill`（单仓直装）保留为 UI 高级入口。
 
 ### 3.3 会话笔记只读面
 
@@ -293,6 +297,19 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 | AGENTS.md 项目指令 | `app-core::prompt_env::AgentsMdHook`（复刻 exec 版语义：用户级 + 项目级合并、32KB 截断、`Source:` 标注、`## Project Instructions` 段格式经 `append_agents_md_section` 生成）；`[active] agents_md` 开关（缺省开，与 headless 同口径）。exec crate 拖 clap/opentelemetry 不适合 GUI 依赖，属上游收敛候选 |
 | 环境上下文块 | `app-core::prompt_env::EnvContextHook`：会话首轮注入 `## Environment Context`（工作目录、平台/架构、OS 版本 best-effort 缓存探测、今天日期、shell），对齐主流 agent 的 `<env>` 块实践 |
 | 注入通道 | `UserPromptSubmit` 首轮 `HookDecision::InjectMessage`（引擎包 `<system-reminder>` user 消息），引擎循环零触碰；`AtomicBool` 每会话只注一次 |
+
+### 3.36 模型四维能力智能化（上游 `34e19acf` + 桌面接线，v1.x）
+
+借鉴 magpie 的多来源聚合：provider 实拉清单是 live 权威，models.dev 社区目录补缺，用户配置/策展静态表压顶。
+
+| 维度 | 上游级联（策展优先、目录填空缺） | 桌面消费 |
+|---|---|---|
+| 上下文窗口 | `context_window_for` = override → 静态表 → models.dev 目录 | 用量条 / 压缩阈值（既有链路，目录自动插档）+ 模型列表标签 + 一键填充 `[context_windows]` |
+| 输出上限 | `output_budget::model_output_limit` = 精确表 → 目录 | 自适应预算（既有）+ 模型列表标签 + provider `max_tokens` 表单（显式覆盖） |
+| 视觉 | `ModelInfo.supports_vision`（live / 目录） | 模型列表标签 + composer 警示条 / 发送确认弹窗（剥离图片），未知不拦截 |
+| 思考强度 | `reasoning_effort::max_effort_for_model` = 静态表 → 目录档位映射 → 保守默认 | Composer / Models 页 `reflect_effort_capability` 档位自动变准（无需改 UI） |
+
+目录实现要点：`reflect_llm::models_dev` 解析 api.json → 跨 provider 投票（窗口/输出取众数、平票取小；视觉/思考多数表决；档位集合取众数）→ 变体拼写（`.`/`-` 归一）+ `-128k`/`-1m` 名字后缀兜底链；内嵌 gzip 快照（`scripts/fetch-models-dev.sh` 产出）+ 磁盘缓存（`reflect_config::paths` 用户级目录 `cache/models-dev.json`，24h TTL）+ 显式刷新，**引擎启动不联网**，失败静默用旧数据。桌面新增 `reflect_lookup_model_abilities`（纯内存查询）供模型卡片与发送前视觉检查；`reflect_list_provider_models` 条目经 `enrich_with_catalog` 补缺（Anthropic 官方端口从此也有四维能力）。目录数据只补 `None`，从不覆盖 live 披露或用户配置（与 magpie Decorate 同语义）。
 
 ---
 

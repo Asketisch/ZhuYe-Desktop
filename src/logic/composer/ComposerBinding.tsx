@@ -11,6 +11,7 @@ import { usePluginCommands } from './usePluginCommands';
 import { useBangShell } from './useBangShell';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { useActiveSession } from '@/logic/sessions/useSessions';
+import { useModelAbilities } from '@/logic/models/useModelAbilities';
 import { useI18n } from '@/utils/i18n';
 import { useUiPrefs } from '@/logic/preferences/uiPrefs';
 import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
@@ -191,6 +192,17 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
     !busy &&
     !attachments.hasBlocking() &&
     (Boolean(text.trim()) || attachments.attachments.length > 0);
+
+  // 视觉降级警示:当前模型**明确**不支持视觉且附件里有图片 → 输入卡内
+  // 常驻提示(发送时另有确认弹窗,见 useComposerSubmission)。
+  // `supports_vision === null`(目录没说)不警示也不拦截 —— 未知不是否定。
+  const currentSpec = useAgentStore((st) => st.prompt?.currentSpec ?? '');
+  const abilities = useModelAbilities(currentSpec);
+  const visionBlocked =
+    abilities.data?.supports_vision === false &&
+    attachments.attachments.some(
+      (a) => a.attachment.kind === 'image' || a.attachment.kind === 'local_image',
+    );
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
   // v1.11 桌面#4:锁定发送时提示键位改为 ⌘/Ctrl+Enter(与实际行为一致)。
   const sendHint = !sendOnEnter
@@ -213,7 +225,7 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
     workspaceLabel={workspaceLabel} toolbar={TIER_A_TOOLBAR.map((command) => ({
       name: command.name, summary: t(command.summaryKey as Parameters<typeof t>[0]),
     }))}
-    attachments={attachments.attachments} dragActive={drop.dragActive} bangRuns={bang.runs}
+    attachments={attachments.attachments} visionBlocked={visionBlocked} dragActive={drop.dragActive} bangRuns={bang.runs}
     textareaRef={textareaRef} fileInputRef={fileInputRef} imageInputRef={imageInputRef}
     onChange={onChange} onKeyDown={onKeyDown} onPaste={onPaste} onDrop={onDrop} onDragOver={onDragOver}
     onPickFile={onPickFile} onPickImage={onPickImage} onSlashActiveChange={setSlashActiveIdx} onSlashSelect={onSlashSelect}

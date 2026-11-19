@@ -49,11 +49,15 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   { section: 'anthropic', key: 'base_url', labelKey: 'settings.config.field.anthropic.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.anthropic.base_url' },
   { section: 'anthropic', key: 'model', labelKey: 'settings.config.field.anthropic.model', kind: 'text', placeholderKey: 'settings.config.placeholder.anthropic.model' },
   { section: 'anthropic', key: 'timeout_secs', labelKey: 'settings.config.field.anthropic.timeout_secs', kind: 'integer' },
+  // provider 段输出上限:请求未显式给 max_tokens 时的默认值,优先于
+  // 引擎自适应预算(引擎 apply_request_param_defaults 三级:请求 > 段配置 > 自适应)。
+  { section: 'anthropic', key: 'max_tokens', labelKey: 'settings.config.field.anthropic.max_tokens', kind: 'integer' },
 
   { section: 'openai', key: 'api_key', labelKey: 'settings.config.field.openai.api_key', kind: 'text', secret: true, placeholderKey: 'settings.config.placeholder.openai.api_key' },
   { section: 'openai', key: 'base_url', labelKey: 'settings.config.field.openai.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.openai.base_url' },
   { section: 'openai', key: 'model', labelKey: 'settings.config.field.openai.model', kind: 'text', placeholderKey: 'settings.config.placeholder.openai.model' },
   { section: 'openai', key: 'timeout_secs', labelKey: 'settings.config.field.openai.timeout_secs', kind: 'integer' },
+  { section: 'openai', key: 'max_tokens', labelKey: 'settings.config.field.openai.max_tokens', kind: 'integer' },
 
   { section: 'compact', key: 'trigger_tokens', labelKey: 'settings.config.field.compact.trigger_tokens', kind: 'integer' },
 

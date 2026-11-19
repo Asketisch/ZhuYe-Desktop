@@ -94,6 +94,11 @@ const composer: Record<string, StringEntry> = {
   'composer.bang.truncated':                 { en: 'Output truncated — expand to view more.',       'zh-CN': '输出已截断 —— 展开查看更多。' },
   'composer.upload.failed':                  { en: 'Failed to attach “{name}”: {msg}',              'zh-CN': '添加附件「{name}」失败：{msg}' },
   'composer.upload.tooLarge':                { en: 'File exceeds the 64 MiB limit ({size} bytes).', 'zh-CN': '文件超过 64 MiB 上限（{size} 字节）。' },
+  // ── 视觉降级（模型明确不支持视觉时的警示与发送确认） ─────────────────
+  'composer.visionNotice':         { en: 'This model cannot see images. They will be stripped when sent.', 'zh-CN': '当前模型不支持视觉识别，发送时图片将被剥离。' },
+  'composer.visionConfirmTitle':   { en: 'Model cannot see images',     'zh-CN': '当前模型不支持视觉识别' },
+  'composer.visionConfirmMessage': { en: '{model} does not support image input. Send without the images?', 'zh-CN': '{model} 不支持图片输入。要剥离图片后继续发送吗？' },
+  'composer.visionConfirmSend':    { en: 'Send without images',         'zh-CN': '剥离图片并发送' },
 };
 
 export default composer;

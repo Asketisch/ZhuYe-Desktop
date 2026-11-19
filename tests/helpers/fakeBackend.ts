@@ -882,7 +882,7 @@ export function installFakeBackend(): FakeBackend {
       resets_at: '2026-08-28T18:00:00Z',
     })),
   );
-  // provider 模型列表：默认返回两条（一条带 vision 能力标记，一条无）。
+  // provider 模型列表：默认返回两条（一条带能力标记，一条全未知）。
   handle(
     'reflect_list_provider_models',
     handler(() => ({
@@ -894,6 +894,8 @@ export function installFakeBackend(): FakeBackend {
           supports_vision: true,
           is_free: false,
           context_window: 128000,
+          max_output_tokens: 16384,
+          supports_reasoning: false,
         },
         {
           id: 'gpt-4o-mini',
@@ -901,8 +903,21 @@ export function installFakeBackend(): FakeBackend {
           supports_vision: null,
           is_free: null,
           context_window: null,
+          max_output_tokens: null,
+          supports_reasoning: null,
         },
       ],
+    })),
+  );
+  // 单模型能力查询（models.dev 目录，纯内存）：返回固定样例。
+  handle(
+    'reflect_lookup_model_abilities',
+    handler(() => ({
+      context_window: 128000,
+      max_output_tokens: 16384,
+      supports_vision: true,
+      supports_reasoning: false,
+      effort_levels: null,
     })),
   );
   // LSP：默认关闭；开关只翻转状态，warmup 报告未预热。
@@ -1654,6 +1669,16 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_status_server_stop', handler(() => undefined));
   // v1.11 基建#1(桌面#1):Skill 市场。
   handle('reflect_install_skill', handler(() => 'sub-fake'));
+  handle('reflect_search_skill_market', handler((_cmd: string, args?: { query?: string }) => {
+    const q = (args?.query ?? '').toLowerCase();
+    if (q.length < 2) return [];
+    return [
+      { id: 'anthropics/skills/frontend-design', source: 'anthropics/skills', slug: 'frontend-design', official: true },
+      { id: 'vercel-labs/skills/find-skills', source: 'vercel-labs/skills', slug: 'find-skills', official: true },
+    ].filter((e) => e.slug.includes(q) || e.source.includes(q));
+  }));
+  handle('reflect_install_skill_from_market', handler(() => 'sub-fake'));
+  handle('reflect_refresh_skill_market_index', handler(() => 2));
   // v1.11 D9:外部 Agent 会话导入。
   handle('reflect_import_discover', handler((_cmd: string, args?: { kind?: string }) => {
     const kind = args?.kind ?? 'claude_code';

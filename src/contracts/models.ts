@@ -16,6 +16,8 @@ export interface ModelsViewProps {
   loading: boolean;
   hasModel: boolean;
   model: string | undefined;
+  /** 当前模型能力标签(已在绑定层拼好本地化文案,如「200K 上下文」);空数组 = 全未知。 */
+  abilityTags: string[];
   workspace: string | undefined;
   degradedReason: string | null;
   plans: ModelsPlanView[];

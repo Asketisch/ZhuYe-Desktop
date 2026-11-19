@@ -4,6 +4,36 @@
 
 ## 未发布
 
+- **skills.sh 技能市场 + `.agents/skills` 加载链**：Skills 页新增「技能市场」——
+  搜索框从 skills.sh 公开 sitemap 建的全量本地索引(24h 缓存)匹配 2000+ 社区
+  技能,结果带 `owner/repo` 来源徽标与第一方「官方」标签,一键安装整目录
+  (SKILL.md + 附属 scripts/references)到 `~/.zhuye/skills/` 并即时生效;
+  市场安装含 zip-slip 防护、跳符号链接、装前供应链扫描与原子替换。原 GitHub
+  单仓直装降为「高级」入口。skills.sh 搜索 API 需 Vercel OIDC 认证无法直调,
+  故走公开 sitemap + 本地评分搜索(无语义/安装量排序)。运行时加载链经上游
+  收敛到唯一出口 `default_skill_dirs`:`<ws>/.zhuye/skills` → `<ws>/.agents/skills`
+  → `~/.zhuye/skills` → `~/.agents/skills`(同名前者优先),业界通用
+  `.agents/skills` 目录让烛夜与 Cursor/Codex 等 agent 共享技能。新命令:
+  `reflect_search_skill_market` / `reflect_install_skill_from_market` /
+  `reflect_refresh_skill_market_index`(上游 `26e0d040`)。
+- **模型能力智能化（models.dev 社区目录 + 四维能力接线）**：此前 provider 清单
+  拉到了 `context_window` / `supports_vision` 但前端零消费，`max_output_tokens`
+  根本不在元数据里，思考强度只靠代码内静态表，Anthropic 官方端口拿不到任何
+  能力信息。借鉴 magpie 的多来源聚合思路：
+  **上游**（zhuye-agent `34e19acf`）—— 新增 `reflect_llm::models_dev`：models.dev
+  社区目录（10,010 模型 / 324 provider，CC0），跨厂商投票（窗口/输出取众数、
+  视觉/思考多数表决）、变体拼写与 `-128k` 名字后缀兜底链、内嵌 gzip 快照
+  （`scripts/fetch-models-dev.sh` 产出）+ 磁盘缓存（24h TTL）+ 显式刷新，
+  **引擎启动不联网**；窗口/输出上限/思考档位三个级联均插目录档（策展静态表
+  优先、目录只填空缺，与 magpie Decorate 同语义），CLI/TUI/SDK 同享。
+  **桌面** —— 新命令 `reflect_lookup_model_abilities`（纯内存查询、不发网络）；
+  `reflect_list_provider_models` 的条目经目录补缺（Anthropic 官方端口从此有
+  窗口/输出/视觉/思考）；模型选择器与 Plan 列表展示「200K 上下文 · 32K 输出 ·
+  支持视觉 · 支持思考」标签，点选模型时「最大上下文」留空则一键带入；Models
+  页卡片展示当前模型四维能力；**视觉降级** —— 当前模型明确不支持视觉且带
+  图片时输入框常驻警示条、点发送弹确认框（剥离图片并发送 / 取消），
+  未知（`null`）不拦截；设置页暴露 provider 段 `max_tokens` 表单字段。
+  思考档位随上游目录补全后，Composer / Models 页的档位选项自动变准。
 - **沙箱对齐 workspace-write 口径**（上游 871924bf + 桌面接线）：此前文件工具
   只能访问当前工作区（读旁边的项目直接 `path escaped sandbox`），Seatbelt
   默认 `(deny network*)`（连 localhost 一起拦），设置里的「允许出站网络」

@@ -2,8 +2,9 @@
  * Skill 注册表封装 —— 列出 agent 当前可用的 skill 及其触发词。
  *
  * 后端与核心运行时**同源**(`reflect_skills::scan_skills_dirs` +
- * `bundled_skills`),目录与合并语义与 agent 实际加载的一致 ——
- * GUI 不会再列出 agent 用不到的、或漏掉 agent 能用的技能。
+ * `bundled_skills`),目录取唯一出口 `default_skill_dirs`
+ * (`.zhuye/skills` ×2 + 业界通用 `.agents/skills` ×2),GUI 列出的与
+ * agent 实际加载的一致。另含 skills.sh 市场三条命令(搜索/安装/刷新)。
  */
 import { invoke } from '../bridge';
 
@@ -63,4 +64,41 @@ export async function reflect_query_guard_stats(): Promise<string> {
  */
 export async function reflect_install_skill(repo: string): Promise<string> {
   return invoke<string>('reflect_install_skill', { repo });
+}
+
+/** skills.sh 市场条目(搜索结果)。 */
+export interface SkillMarketEntry {
+  /** 稳定 id:`owner/repo/slug`。 */
+  id: string;
+  /** 来源仓库 `owner/repo`(UI 来源徽标)。 */
+  source: string;
+  /** skill slug。 */
+  slug: string;
+  /** 官方(第一方厂商)来源标签。 */
+  official: boolean;
+}
+
+/**
+ * 搜索 skills.sh 目录。索引首次访问自动从公开 sitemap 拉取(24h TTL),
+ * 后续走本地缓存;query < 2 字符返回空。
+ */
+export async function reflect_search_skill_market(
+  query: string,
+  limit = 50,
+): Promise<SkillMarketEntry[]> {
+  return invoke<SkillMarketEntry[]>('reflect_search_skill_market', { query, limit });
+}
+
+/**
+ * 从 skills.sh 市场安装技能到用户级 `~/.zhuye/skills/`(整目录,含附属
+ * 文件),装完触发运行时重扫(无需重启)。source:`owner/repo[/slug]`、
+ * skills.sh 或 GitHub URL。返回重扫 submission id。
+ */
+export async function reflect_install_skill_from_market(source: string): Promise<string> {
+  return invoke<string>('reflect_install_skill_from_market', { source });
+}
+
+/** 强制刷新 skills.sh 目录索引(跳过 TTL),返回条目数。 */
+export async function reflect_refresh_skill_market_index(): Promise<number> {
+  return invoke<number>('reflect_refresh_skill_market_index');
 }

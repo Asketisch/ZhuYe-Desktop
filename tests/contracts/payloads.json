@@ -290,6 +290,9 @@
       "apiKey": "test",
       "endpoint": "/v1/models"
     },
+    "reflect_lookup_model_abilities": {
+      "modelId": "claude-sonnet-4"
+    },
     "reflect_list_schedules": {},
     "reflect_list_session_notes": {
       "id": "00000000-0000-0000-0000-000000000000"
@@ -637,6 +640,14 @@
     "reflect_install_skill": {
       "repo": "owner/repo"
     },
+    "reflect_search_skill_market": {
+      "query": "react",
+      "limit": 50
+    },
+    "reflect_install_skill_from_market": {
+      "source": "anthropics/skills/frontend-design"
+    },
+    "reflect_refresh_skill_market_index": {},
     "reflect_import_discover": {
       "kind": "claude_code"
     },

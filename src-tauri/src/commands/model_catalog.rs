@@ -1,16 +1,25 @@
-//! Provider 模型清单 —— 条目解析 + 免费判定。
+//! Provider 模型清单 —— 条目解析 + 免费判定 + 目录补缺。
 //!
-//! 与 `models.rs` 的分工:那边是 **Tauri 命令**(拉清单 / 测连通),
-//! 这边是 **纯逻辑**(把 provider 的 `/models` 响应解析成条目,并按
-//! `reflect_llm::FreeModelRules` 判定免费)。
+//! 与 `models.rs` 的分工:那边是 **Tauri 命令**(拉清单 / 测连通 /
+//! 单查能力),这边是 **纯逻辑**(把 provider 的 `/models` 响应解析成
+//! 条目,按 `reflect_llm::FreeModelRules` 判定免费,再用 models.dev
+//! 目录补齐空缺字段)。
 //!
 //! 字段探测口径与上游 `reflect_llm::providers::openai` 一致:
 //! - 上下文窗口:`context_window` → `context_length` → `top_provider.context_length`;
+//! - 输出上限:`max_output_tokens` → `top_provider.max_completion_tokens`;
+//! - 视觉:`architecture.input_modalities` / `input_modalities` 含 `"image"`
+//!   (仅 openai 端口探测;anthropic 官方清单不返回能力,交给目录补);
 //! - 免费标记:`isFree` → `pricing` 全零 → `None`(交给规则判)。
 //!
 //! 判定规则来自**当前生效**的 `[model_discovery]` 段(`always_free` /
 //! `free_id_patterns`,留空用内置默认)—— 与引擎跑 `model = "free"` 时
 //! 挑的是同一套规则,不会出现「界面说免费、引擎挑不到」。
+//!
+//! **目录补缺**(`enrich_with_catalog`):live 披露优先,models.dev 目录
+//! 只填 `None` 字段(与上游 `enrich_model_info` / magpie Decorate 同
+//! 语义)—— Anthropic 官方端口从此也能拿到窗口 / 输出上限 / 视觉 /
+//! 思考能力。
 
 use serde::Serialize;
 use serde_json::Value;
@@ -26,13 +35,17 @@ pub struct ProviderModelInfo {
     pub id: String,
     /// 展示名(厂商未返回时与 id 相同)。
     pub display_name: String,
-    /// 厂商声明的视觉输入能力。`None` = 接口未返回,由用户自行判断。
+    /// 视觉输入能力。`None` = live 与目录都没说,由用户自行判断。
     pub supports_vision: Option<bool>,
     /// 是否免费。`Some(true)` / `Some(false)` = 已判定;`None` = **未知**
     /// (provider 没表态,规则也没命中 —— 此时不能断言它免费)。
     pub is_free: Option<bool>,
-    /// 上下文窗口(provider 未披露则 `None`)。
+    /// 上下文窗口(live / 目录都没披露则 `None`)。
     pub context_window: Option<u32>,
+    /// 最大输出 token(live / 目录都没披露则 `None`)。
+    pub max_output_tokens: Option<u32>,
+    /// 是否具备思考能力(models.dev 目录投票;`None` = 未知)。
+    pub supports_reasoning: Option<bool>,
 }
 
 /// 模型列表 + 查询端口。
@@ -79,6 +92,24 @@ fn extract_context_window(item: &Value) -> Option<u32> {
         item.get("context_length"),
         item.get("top_provider")
             .and_then(|tp| tp.get("context_length")),
+    ];
+    for candidate in candidates.into_iter().flatten() {
+        if let Some(v) = candidate.as_u64() {
+            if v > 0 && v <= u32::MAX as u64 {
+                return Some(v as u32);
+            }
+        }
+    }
+    None
+}
+
+/// 从模型对象提取最大输出 token —— 与上游
+/// `reflect_llm::providers::openai::extract_max_output_tokens` 同口径。
+fn extract_max_output_tokens(item: &Value) -> Option<u32> {
+    let candidates = [
+        item.get("max_output_tokens"),
+        item.get("top_provider")
+            .and_then(|tp| tp.get("max_completion_tokens")),
     ];
     for candidate in candidates.into_iter().flatten() {
         if let Some(v) = candidate.as_u64() {
@@ -148,6 +179,8 @@ pub(crate) fn parse_models_response(
                 .get("owned_by")
                 .and_then(|o| o.as_str())
                 .map(str::to_string),
+            supports_vision: None,
+            max_output_tokens: None,
         };
         out.push(ProviderModelInfo {
             id: id.to_string(),
@@ -159,12 +192,37 @@ pub(crate) fn parse_models_response(
             },
             is_free: rules.classify(&catalog_entry),
             context_window: catalog_entry.context_window,
+            max_output_tokens: extract_max_output_tokens(item),
+            supports_reasoning: None,
         });
     }
     // id 去重(部分网关同一 id 返回多条)并保持返回顺序。
     let mut seen = std::collections::HashSet::new();
     out.retain(|m| seen.insert(m.id.clone()));
     Ok(out)
+}
+
+/// 用 models.dev 目录补齐条目的空缺字段(live 披露优先,目录只填
+/// `None`)。目录数据 = 上游 `reflect_llm::models_dev` 的进程级懒加载
+/// (磁盘缓存与内嵌快照取新);空目录 = 全未知,行为与补缺前一致。
+///
+/// 思考能力(`supports_reasoning`)live 清单不披露,只来自目录。
+pub(crate) fn enrich_with_catalog(models: &mut [ProviderModelInfo]) {
+    for m in models.iter_mut() {
+        let abilities = reflect_llm::abilities_for(&m.id);
+        if m.supports_vision.is_none() {
+            m.supports_vision = abilities.supports_vision;
+        }
+        if m.context_window.is_none() {
+            m.context_window = abilities.context_window;
+        }
+        if m.max_output_tokens.is_none() {
+            m.max_output_tokens = abilities.max_output_tokens;
+        }
+        if m.supports_reasoning.is_none() {
+            m.supports_reasoning = abilities.supports_reasoning;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -294,5 +352,69 @@ mod tests {
         assert_eq!(models[1].context_window, Some(128000));
         assert_eq!(models[2].context_window, Some(64000));
         assert_eq!(models[3].context_window, None);
+    }
+
+    /// 输出上限:两种字段形态依次探测(上游同口径)。
+    #[test]
+    fn parse_extracts_max_output_tokens() {
+        let body = serde_json::to_vec(&json!({
+            "data": [
+                { "id": "a", "max_output_tokens": 16384 },
+                { "id": "b", "top_provider": { "max_completion_tokens": 8192 } },
+                { "id": "c" }
+            ]
+        }))
+        .unwrap();
+        let models = parse_models_response("openai", &body, &FreeModelRules::default()).unwrap();
+        assert_eq!(models[0].max_output_tokens, Some(16384));
+        assert_eq!(models[1].max_output_tokens, Some(8192));
+        assert_eq!(models[2].max_output_tokens, None);
+    }
+
+    /// 目录补缺:live 披露优先,目录只填 `None` 字段;空目录 = 行为
+    /// 与补缺前一致。install_catalog 是进程级全局,用全局唯一的假模型
+    /// 名避免与其它用例(读真实目录)串扰。
+    #[test]
+    fn enrich_fills_gaps_from_catalog() {
+        use reflect_llm::{DevCatalog, ModelAbilities, install_catalog};
+        install_catalog(DevCatalog::from_entries([(
+            "zzenrich-model".to_string(),
+            ModelAbilities {
+                context_window: Some(200_000),
+                max_output_tokens: Some(32_768),
+                supports_vision: Some(true),
+                supports_reasoning: Some(true),
+                effort_levels: None,
+            },
+        )]));
+        let mut models = vec![
+            // live 已披露窗口与视觉 → 保留;输出与思考由目录补。
+            ProviderModelInfo {
+                id: "zzenrich-model".into(),
+                display_name: "zzenrich-model".into(),
+                supports_vision: Some(false),
+                is_free: None,
+                context_window: Some(8_000),
+                max_output_tokens: None,
+                supports_reasoning: None,
+            },
+            // 目录没有的模型 → 字段原样(全 None)。
+            ProviderModelInfo {
+                id: "zzenrich-other".into(),
+                display_name: "zzenrich-other".into(),
+                supports_vision: None,
+                is_free: None,
+                context_window: None,
+                max_output_tokens: None,
+                supports_reasoning: None,
+            },
+        ];
+        enrich_with_catalog(&mut models);
+        assert_eq!(models[0].context_window, Some(8_000), "live 窗口优先");
+        assert_eq!(models[0].supports_vision, Some(false), "live 视觉优先");
+        assert_eq!(models[0].max_output_tokens, Some(32_768), "目录补输出");
+        assert_eq!(models[0].supports_reasoning, Some(true), "思考只来自目录");
+        assert_eq!(models[1].supports_reasoning, None, "目录没有 → 未知");
+        install_catalog(DevCatalog::default());
     }
 }

@@ -27,6 +27,7 @@ import { reflect_get_effort, reflect_set_effort } from '@/utils/commands/permiss
 import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
+import { formatTokens } from '@/utils/formatTokens';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import { ALL_EFFORTS, useEffortCapability } from './useEffortCapability';
 import s from '@/render/composer/ComposerControls.module.css';
@@ -208,6 +209,12 @@ export function ComposerControls() {
   const visionSuffix = (v: boolean | null) =>
     v === true ? ` · ${t('common.visionTag')}` : v === false ? ` · ${t('common.noVisionTag')}` : '';
 
+  /** 数值能力标记:窗口 / 输出上限(200K 上下文 · 32K 输出),未披露不标。 */
+  const ctxSuffix = (v: number | null) =>
+    v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.ctxTag')}` : '';
+  const outSuffix = (v: number | null) =>
+    v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.outTag')}` : '';
+
   /**
    * 免费标记后缀 —— 只在**已判定为免费**时标注。
    *
@@ -248,6 +255,8 @@ export function ComposerControls() {
                   {apiModels.map((m) => (
                     <option key={m.id} value={`model:${m.id}`}>
                       {m.id}
+                      {ctxSuffix(m.context_window)}
+                      {outSuffix(m.max_output_tokens)}
                       {visionSuffix(m.supports_vision)}
                       {freeSuffix(m.is_free)}
                     </option>

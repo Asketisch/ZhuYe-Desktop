@@ -169,8 +169,8 @@ describe('PlansSection', () => {
     vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
       endpoint: 'anthropic',
       models: [
-        { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: 200000 },
-        { id: 'claude-haiku-4', display_name: 'Claude Haiku 4', supports_vision: true, is_free: false, context_window: null },
+        { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: 200000, max_output_tokens: 64000, supports_reasoning: true },
+        { id: 'claude-haiku-4', display_name: 'Claude Haiku 4', supports_vision: true, is_free: false, context_window: null, max_output_tokens: null, supports_reasoning: null },
       ],
     });
     renderSection(SAMPLE_TOML);
@@ -199,10 +199,36 @@ describe('PlansSection', () => {
     expect(within(options).getByText('claude-haiku-4').closest('button')?.getAttribute('aria-selected')).toBe('true');
   });
 
+  it('点选模型一键填充「最大上下文」(披露窗口且输入框留空时)', async () => {
+    vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
+      endpoint: 'anthropic',
+      models: [
+        { id: 'glm-4.7', display_name: 'glm-4.7', supports_vision: null, is_free: null, context_window: 200000, max_output_tokens: 128000, supports_reasoning: true },
+      ],
+    });
+    renderSection(SAMPLE_TOML);
+    fireEvent.change(screen.getByPlaceholderText('https://open.bigmodel.cn/api/anthropic'), {
+      target: { value: 'https://open.bigmodel.cn/api/anthropic' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('sk-…'), { target: { value: 'sk-new' } });
+    fireEvent.click(screen.getByTestId('plans-fetch-models'));
+    await waitFor(() => expect(screen.getByTestId('plans-model-options')).toBeTruthy());
+    const options = screen.getByTestId('plans-model-options');
+    // 模型条目 meta 行展示目录/厂商披露的能力标签。
+    expect(within(options).getByText(/200K/)).toBeTruthy();
+    expect(within(options).getByText(/128K/)).toBeTruthy();
+    expect(within(options).getByText(/reasoning/)).toBeTruthy();
+    // 「最大上下文」留空 → 点选模型时一键带入窗口(保存落 [context_windows])。
+    const maxContextInput = screen.getByPlaceholderText('200000') as HTMLInputElement;
+    expect(maxContextInput.value).toBe('');
+    fireEvent.click(within(options).getByText('glm-4.7'));
+    expect(maxContextInput.value).toBe('200000');
+  });
+
   it('测试连接：调模型列表接口（零 token），成功显示 ✓', async () => {
     vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
       endpoint: 'anthropic',
-      models: [{ id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: null }],
+      models: [{ id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: null, max_output_tokens: null, supports_reasoning: null }],
     });
     renderSection(SAMPLE_TOML);
     // 表单默认为空(按钮禁用),先填 base_url + api_key。

@@ -4,8 +4,11 @@
 //! - `openai`   → `GET {base_url}/models`,`Authorization: Bearer <key>`
 //! - `anthropic`→ `GET {base_url}/v1/models`,`x-api-key` + `anthropic-version`
 //!
-//! 条目解析与**免费判定**在 `super::model_catalog`(纯逻辑,可单测);
-//! 本模块只负责命令层:拼 URL / 发请求 / 组装响应。
+//! 条目解析与**免费判定**在 `super::model_catalog`(纯逻辑,可单测),
+//! 解析后再经 models.dev 目录补缺空缺字段(Anthropic 官方端口从此
+//! 也有窗口 / 输出 / 视觉 / 思考能力);本模块只负责命令层:拼 URL /
+//! 发请求 / 组装响应。不依赖实拉的**单模型能力查询**在
+//! `super::model_abilities`(命令 `reflect_lookup_model_abilities`)。
 
 use serde::Serialize;
 use serde_json::Value;
@@ -13,7 +16,9 @@ use std::time::Duration;
 
 use futures::StreamExt;
 
-use super::model_catalog::{ProviderModelsResult, free_model_rules, parse_models_response};
+use super::model_catalog::{
+    ProviderModelsResult, enrich_with_catalog, free_model_rules, parse_models_response,
+};
 use crate::commands::error::{CommandError, CommandResult};
 
 /// 成功响应体上限。模型清单可能很长，但 20 MiB 已远超常规供应商；
@@ -159,8 +164,17 @@ pub async fn reflect_list_provider_models(
     }
     // 先读完整 body(读体失败 = 瞬时),再解析(解析失败 = 确定性)。
     let body = read_bounded_body(resp, MODELS_RESPONSE_MAX).await?;
-    let models = parse_models_response(&endpoint, &body, &rules)?;
+    let mut models = parse_models_response(&endpoint, &body, &rules)?;
+    // models.dev 目录补缺(live 披露优先;空目录 = 行为与补缺前一致)。
+    enrich_with_catalog(&mut models);
     tracing::info!(endpoint = %endpoint, count = models.len(), "provider models listed");
+    // 顺带后台刷新目录缓存(TTL 内立即返回;失败静默用旧数据)。
+    // 不 await —— 刷新是 30s 超时的网络调用,不能拖住清单命令。
+    tokio::spawn(async {
+        if let Err(e) = reflect_llm::refresh_if_stale().await {
+            tracing::warn!("models.dev 目录刷新失败(继续用旧数据): {e}");
+        }
+    });
     Ok(ProviderModelsResult { endpoint, models })
 }
 

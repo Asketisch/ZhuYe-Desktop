@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Pencil, Zap, ShieldCheck, Gauge, RefreshCw } from 'lucide-react';
 import { Badge, Button, Icon, Input, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
+import { formatTokens } from '@/utils/formatTokens';
 import {
   reflect_query_plan_quota,
   reflect_list_provider_models,
@@ -272,6 +273,16 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
   const visionSuffix = (v: boolean | null) =>
     v === true ? ` · ${t('common.visionTag')}` : v === false ? ` · ${t('common.noVisionTag')}` : '';
 
+  /** 数值能力标记:窗口 / 输出上限(200K 上下文 · 32K 输出),未披露不标。 */
+  const ctxSuffix = (v: number | null) =>
+    v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.ctxTag')}` : '';
+  const outSuffix = (v: number | null) =>
+    v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.outTag')}` : '';
+
+  /** 思考能力标记:目录明确表态才标注。 */
+  const reasoningSuffix = (v: boolean | null) =>
+    v === true ? ` · ${t('common.reasoningTag')}` : v === false ? ` · ${t('common.noReasoningTag')}` : '';
+
   const onToggleAutoFailover = (enabled: boolean) => {
     setAutoFailover(enabled);
     try {
@@ -522,13 +533,25 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
                   aria-selected={form.model === m.id}
                   className={s.modelOption}
                   data-active={form.model === m.id || undefined}
-                  onClick={() => patch({ model: m.id })}
-                  title={`${m.id}${visionSuffix(m.supports_vision)}`}
+                  onClick={() =>
+                    patch({
+                      model: m.id,
+                      // 披露了窗口且「最大上下文」留空 → 一键带入(用户可改;
+                      // 保存仍落 [context_windows] 既有链路,驱动压缩阈值与用量条)。
+                      ...(!form.maxContext && m.context_window
+                        ? { maxContext: String(m.context_window) }
+                        : {}),
+                    })
+                  }
+                  title={`${m.id}${ctxSuffix(m.context_window)}${outSuffix(m.max_output_tokens)}${visionSuffix(m.supports_vision)}${reasoningSuffix(m.supports_reasoning)}`}
                 >
                   <span className={s.modelOptionId}>{m.id}</span>
                   <span className={s.modelOptionMeta}>
                     {m.display_name && m.display_name !== m.id ? m.display_name : ''}
+                    {ctxSuffix(m.context_window)}
+                    {outSuffix(m.max_output_tokens)}
                     {visionSuffix(m.supports_vision)}
+                    {reasoningSuffix(m.supports_reasoning)}
                   </span>
                 </button>
               ))}

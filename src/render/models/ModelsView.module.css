@@ -83,6 +83,28 @@
   white-space: nowrap;
 }
 
+/* 能力行 —— models.dev 目录查询的窗口/输出/视觉/思考结论。 */
+.abilityRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.abilityRow span::before {
+  content: '·';
+  margin-right: var(--space-1);
+  color: var(--text-faint, var(--text-muted));
+}
+
+.abilityRow span:first-child::before {
+  content: none;
+  margin-right: 0;
+}
+
 .workspaceRow {
   display: flex;
   align-items: center;

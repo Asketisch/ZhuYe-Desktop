@@ -108,3 +108,32 @@
 .marketRow input {
   flex: 1;
 }
+
+/* skills.sh 市场:刷新索引图标按钮 + 高级直装提示。 */
+.refreshBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.refreshBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.refreshBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.advancedHint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: var(--space-3) 0 var(--space-1);
+}

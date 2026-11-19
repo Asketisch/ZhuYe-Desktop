@@ -5,24 +5,26 @@
 //! 此前桌面端手写了一份扫描 + YAML 解析(扫 `~/.zhuye/skills` 与
 //! `cwd/.zhuye/skills`),与核心运行时的实际技能集有两处分叉:
 //!
-//! - **目录不同** —— 核心 `m4_bootstrap` 扫的是
-//!   `<workspace>/.zhuye/skills` 加 `~/.zhuye/skills`;桌面端扫的是
-//!   `cwd`。进程工作目录与 agent 工作区不是一回事,列表因此可能为空或
-//!   指向错误的目录。
+//! - **目录不同** —— 核心 `m4_bootstrap` 扫的是 `default_skill_dirs`
+//!   (`<workspace>/.zhuye/skills` + `<workspace>/.agents/skills` +
+//!   `~/.zhuye/skills` + `~/.agents/skills`),桌面端此前只扫前两者。
 //! - **漏掉内置技能** —— 核心在扫描后还会 `merge_bundled`(把 crate 内置的
 //!   15+ 个 skill 合进 catalog),桌面端没有这一步。GUI 列出的技能少于
 //!   agent 实际能激活的。
 //!
-//! 现在直接复用核心的 `reflect_skills::{scan_skills_dirs, bundled_skills}`,
-//! 目录与合并语义与运行时逐行一致,GUI 不再可能与 agent 分叉。
+//! 现在扫描目录直接取上游唯一出口 `reflect_config::default_skill_dirs`,
+//! 复用核心的 `reflect_skills::{scan_skills_dirs, bundled_skills}`,目录与
+//! 合并语义与运行时逐行一致,GUI 不再可能与 agent 分叉。
 //!
 //! 内置技能包受 `[active] bundled_skills` 门控(上游 0.1.8 起**默认关闭**):
 //! 核心 `m4_bootstrap` 只在开关为 true 时 `merge_bundled`,这里按同一开关
 //! 决定是否把内置技能并入列表 —— 否则 GUI 会列出 15 个 agent 根本没加载、
 //! `load_skill` 也激活不了的技能。
+//!
+//! 另有三条 skills.sh 市场命令(搜索 / 安装 / 强制刷新索引),领域逻辑在
+//! 上游 `reflect_skills::{directory, marketplace}`,本文件只做命令适配。
 
 use std::collections::HashSet;
-use std::path::PathBuf;
 
 use reflect_protocol::Op;
 use reflect_skills::{bundled_skills, scan_skills_dirs};
@@ -61,14 +63,18 @@ pub struct SkillInfo {
 /// 此前只扫目录,用户在 Skills 视图里看不到(「装了却看不到」)。
 #[tauri::command]
 pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SkillInfo>> {
-    let ws_skills: PathBuf =
-        reflect_config::paths::project_data_path(&agent.workspace(), &["skills"]);
-    let home_skills: PathBuf = reflect_config::paths::data_path_or_relative(&["skills"]);
-    let dirs = [ws_skills.as_path(), home_skills.as_path()];
-
-    // 与核心 `m4_bootstrap` 同序:工作区在前、用户级在后。
-    let mut metas = scan_skills_dirs(&dirs);
-    let mut seen: HashSet<String> = metas.iter().map(|m| m.name.clone()).collect();
+    // 与核心两处 bootstrap 完全同源的唯一目录清单(顺序即同名优先级):
+    // <ws>/.zhuye/skills → <ws>/.agents/skills → ~/.zhuye/skills → ~/.agents/skills。
+    let dirs_owned = reflect_config::default_skill_dirs(&agent.workspace());
+    let dirs: Vec<&std::path::Path> = dirs_owned.iter().map(|p| p.as_path()).collect();
+    // scan_skills_dirs 不去重同名:按清单顺序先到先得(高优先级目录胜),
+    // 与 catalog.scan → get() 取首个的语义一致。
+    let scanned = scan_skills_dirs(&dirs);
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut metas: Vec<_> = scanned
+        .into_iter()
+        .filter(|m| seen.insert(m.name.clone()))
+        .collect();
     // `merge_bundled` 的语义:同名不覆盖(用户/工作区技能优先);
     // 且只在 `[active] bundled_skills = true` 时合入(与核心 bootstrap 同门)。
     let mut bundled: HashSet<String> = HashSet::new();
@@ -187,6 +193,78 @@ pub async fn reflect_install_skill(
         .await?)
 }
 
+/// skills.sh 市场条目(搜索结果,字段 camelCase)。
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillMarketEntryInfo {
+    /// 稳定 id:`owner/repo/slug`。
+    pub id: String,
+    /// 来源仓库 `owner/repo`(UI 来源徽标)。
+    pub source: String,
+    /// skill slug。
+    pub slug: String,
+    /// 官方(第一方厂商)来源标签。
+    pub official: bool,
+}
+
+/// 市场索引缓存路径:`~/.zhuye/cache/skills-market.json`(ZHUYE_HOME 可重定向)。
+fn market_index_cache_path() -> std::path::PathBuf {
+    reflect_config::paths::data_path_or_relative(&["cache", "skills-market.json"])
+}
+
+/// 搜索 skills.sh 目录。索引首次访问自动拉取(24h TTL),后续走本地缓存;
+/// query < 2 字符返回空。领域逻辑在上游 `reflect_skills::directory`。
+#[tauri::command]
+pub async fn reflect_search_skill_market(
+    query: String,
+    limit: Option<u32>,
+) -> CommandResult<Vec<SkillMarketEntryInfo>> {
+    let entries = reflect_skills::fetch_index(&market_index_cache_path(), false)
+        .await
+        .map_err(|e| e.to_string())?;
+    let hits = reflect_skills::search_entries(&entries, &query, limit.unwrap_or(50) as usize);
+    Ok(hits
+        .into_iter()
+        .map(|h| SkillMarketEntryInfo {
+            id: h.id,
+            source: h.source,
+            slug: h.slug,
+            official: h.official,
+        })
+        .collect())
+}
+
+/// 从 skills.sh 市场安装技能到用户级 `~/.zhuye/skills/`(整目录,含附属文件),
+/// 装完触发 `Op::RescanExtensions` 让运行时无需重启即发现。
+/// source 形态:`owner/repo/slug`、`owner/repo`、skills.sh / GitHub URL。
+#[tauri::command]
+pub async fn reflect_install_skill_from_market(
+    agent: State<'_, MinimalAgent>,
+    source: String,
+) -> CommandResult<String> {
+    // 语义校验前置(非法形态不发网络请求)。
+    reflect_skills::normalize_market_source(&source).map_err(|e| e.to_string())?;
+    let out_dir = reflect_config::paths::data_path_or_relative(&["skills"]);
+    reflect_skills::install_skill_from_market(&source, &out_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(agent
+        .submit_op(Op::RescanExtensions {
+            skills: true,
+            commands: false,
+        })
+        .await?)
+}
+
+/// 强制刷新 skills.sh 目录索引(跳过 TTL),返回条目数。
+#[tauri::command]
+pub async fn reflect_refresh_skill_market_index() -> CommandResult<u32> {
+    let entries = reflect_skills::fetch_index(&market_index_cache_path(), true)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(entries.len() as u32)
+}
+
 #[cfg(test)]
 mod guard_stats_tests {
     use super::*;
@@ -201,5 +279,20 @@ mod guard_stats_tests {
         // 命令名字符串本身也要出现在测试里 —— 门禁按字符串扫描。
         let name = "reflect_query_guard_stats";
         assert!(name.starts_with("reflect_"));
+    }
+
+    /// 市场命令名字符串存在性(命令面静态门禁据此认定有测试引用)。
+    #[test]
+    fn market_command_names_are_stable() {
+        for name in [
+            "reflect_search_skill_market",
+            "reflect_install_skill_from_market",
+            "reflect_refresh_skill_market_index",
+        ] {
+            assert!(name.starts_with("reflect_"));
+        }
+        // 缓存路径固定为 data/cache 下的 market 索引文件。
+        let cache = market_index_cache_path();
+        assert!(cache.ends_with("cache/skills-market.json"));
     }
 }

@@ -11,7 +11,7 @@ import { EmptyState } from '../design-system/EmptyState';
 import { SegmentedControl } from '../design-system/SegmentedControl';
 import s from './ModelsView.module.css';
 
-export function ModelsView({ t, loading, hasModel, model, workspace, degradedReason, plans,
+export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace, degradedReason, plans,
   effort, effortOptions, effortAdjusted, effortEffective, saved, onGoSettings, onSwitchPlan,
   onEffortChange, onApplyEffort }: ModelsViewProps) {
   return (
@@ -33,6 +33,12 @@ export function ModelsView({ t, loading, hasModel, model, workspace, degradedRea
                 <code className={s.modelName}>{model}</code>
                 <Badge variant="success" dot>{t('about.ready')}</Badge>
               </div>
+              {/* 能力标签在绑定层拼好本地化文案,全未知时不渲染。 */}
+              {abilityTags.length > 0 && (
+                <div className={s.abilityRow} data-testid="models-ability-row">
+                  {abilityTags.map((tag) => (<span key={tag}>{tag}</span>))}
+                </div>
+              )}
               {workspace && (
                 <div className={s.workspaceRow}>
                   <Icon icon={Folder} size={12} />

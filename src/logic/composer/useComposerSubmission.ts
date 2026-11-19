@@ -11,6 +11,8 @@ import {
   SESSIONS_QUERY_KEY,
 } from '@/logic/sessions/useSessions';
 import { useEnsureSession } from '@/logic/sessions/useEnsureSession';
+import { confirmDialog } from '@/logic/modals/confirm';
+import { reflect_lookup_model_abilities } from '@/utils/commands/models';
 import { useI18n } from '@/utils/i18n';
 import {
   useAgentStore,
@@ -129,10 +131,36 @@ export function useComposerSubmission({
           pushToast({ kind: 'info', message: parsed.message ?? t('composer.commandHandled') });
         }
       } else {
+        // 视觉降级(确认弹窗 + 剥离):当前模型**明确**不支持视觉且带图片
+        // → 确认后剥离图片继续发送,取消则不发(附件保留)。
+        // `supports_vision === null`(目录没说)不拦截 —— 未知不是否定。
+        const hasImages = attachments.attachments.some(
+          (a) => a.attachment.kind === 'image' || a.attachment.kind === 'local_image',
+        );
+        let stripImages = false;
+        if (hasImages) {
+          const spec = useAgentStore.getState().prompt?.currentSpec?.trim();
+          if (spec) {
+            const abilities = await reflect_lookup_model_abilities(spec).catch(() => null);
+            if (abilities?.supports_vision === false) {
+              const ok = await confirmDialog({
+                title: t('composer.visionConfirmTitle'),
+                message: t('composer.visionConfirmMessage', { model: spec }),
+                confirmLabel: t('composer.visionConfirmSend'),
+              });
+              if (!ok) return;
+              stripImages = true;
+            }
+          }
+        }
         const items: UserInputItem[] = [
           ...(value ? [{ type: 'text' as const, text: value }] : []),
           ...attachments.toUserInputItems(),
-        ];
+        ].filter(
+          (item) => !stripImages || (item.type !== 'image' && item.type !== 'local_image'),
+        );
+        // 剥离后既无文本也无附件(纯图片消息) → 不发送,附件保留待用户处理。
+        if (items.length === 0) return;
         // 首页尚未绑定会话：先创建并等待 ChatView 完成绑定，避免把首条
         // 消息投递到上一个会话的线程或未持久化的占位线程。
         if (!activeId) await ensureSessionReady(null);

@@ -201,6 +201,9 @@ enigo              = "0.6"
 eventsource-stream = "0.2"
 rankfns            = "0.1"
 htmd               = "0.5"
+# zhuye-skills 市场安装:GitHub tarball 流式解包(tar+gzip,防 zip-slip)。
+tar                = "0.4"
+flate2             = "1"
 minijinja          = "2"
 sled               = "0.34"
 # 会话导入(zhuye-import):ZCode 历史存于 SQLite;bundled 自带 C 源,免系统依赖。

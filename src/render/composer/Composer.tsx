@@ -7,7 +7,7 @@ import s from './Composer.module.css';
 
 export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRunning, slashVisible,
   slashQuery, slashActiveIdx, mentionVisible, mentionQuery, workspaceLabel, toolbar, attachments,
-  dragActive, bangRuns, textareaRef, fileInputRef, imageInputRef, onChange, onKeyDown, onPaste,
+  visionBlocked, dragActive, bangRuns, textareaRef, fileInputRef, imageInputRef, onChange, onKeyDown, onPaste,
   onDrop, onDragOver, onPickFile, onPickImage, onSlashActiveChange, onSlashSelect, onToolbarCommand,
   onOpenSlash, onAttachFile, onAttachImage, onMention, onPickMention, onCloseMention,
   onRemoveAttachment, onRetryAttachment, onDismissBang, onKillBang, onSendModeChange, onInterrupt,
@@ -76,6 +76,13 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
           </div>
         )}
         <BangRunsPanel runs={bangRuns} onDismiss={onDismissBang} onKill={onKillBang} />
+        {/* 视觉降级警示：模型明确不支持视觉且带图片附件时常驻提示，
+            发送时另有确认弹窗（见 useComposerSubmission）。 */}
+        {visionBlocked && (
+          <div className={s.visionNotice} role="status" data-testid="composer-vision-notice">
+            {t('composer.visionNotice')}
+          </div>
+        )}
         <AttachmentBar
           attachments={attachments}
           onRemove={onRemoveAttachment}

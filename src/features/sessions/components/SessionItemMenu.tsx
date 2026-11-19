@@ -176,7 +176,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
           onClick={onTogglePin}
           data-testid={`session-pin-${session.session_id}`}
         >
-          {pinned ? '📌' : '📍'} {pinned ? t('threads.unpin') : t('threads.pin')}
+          {pinned ? t('threads.unpin') : t('threads.pin')}
         </button>
       )}
       <button
@@ -187,7 +187,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
         disabled={pending}
         data-testid={`session-rename-${session.session_id}`}
       >
-        ✎ {t('threads.rename')}
+        {t('threads.rename')}
       </button>
       {onGenerateTitle && (
         <button
@@ -198,7 +198,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
           disabled={pending}
           data-testid={`session-ai-rename-${session.session_id}`}
         >
-          ✨ {t('threads.aiRename')}
+          {t('threads.aiRename')}
         </button>
       )}
       {onFork && (
@@ -210,7 +210,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
           disabled={pending}
           data-testid={`session-fork-${session.session_id}`}
         >
-          ⑂ {t('threads.fork')}
+          {t('threads.fork')}
         </button>
       )}
       <button
@@ -221,7 +221,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
         disabled={pending}
         data-testid={`session-export-${session.session_id}`}
       >
-        ↓ {t('threads.export')}
+        {t('threads.export')}
       </button>
       {onArchive && (
         <button
@@ -232,7 +232,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
           disabled={pending}
           data-testid={`session-archive-${session.session_id}`}
         >
-          📦 {archivedRow ? t('threads.unarchive') : t('threads.archive')}
+          {archivedRow ? t('threads.unarchive') : t('threads.archive')}
         </button>
       )}
       <button
@@ -243,7 +243,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
         disabled={pending}
         data-testid={`session-delete-${session.session_id}`}
       >
-        🗑 {t('threads.delete')}
+        {t('threads.delete')}
       </button>
       {exportPath && (
         <div className={s.toast} role="status">

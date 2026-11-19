@@ -31,6 +31,8 @@ export interface ComposerViewProps {
   workspaceLabel?: string;
   toolbar: Array<{ name: string; summary: string }>;
   attachments: StagedAttachment[];
+  /** 视觉降级警示：当前模型**明确**不支持视觉且附件含图片（未知不警示）。 */
+  visionBlocked: boolean;
   dragActive: boolean;
   bangRuns: BangRun[];
   textareaRef: Ref<HTMLTextAreaElement>;
