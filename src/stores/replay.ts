@@ -104,7 +104,7 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
   if (role !== 'user' && role !== 'assistant') return [];
 
   if (typeof content === 'string') {
-    const text = content.trim();
+    const text = stripInjectedSystemBlocks(content.trim());
     return text ? [textItem(role, text)] : [];
   }
   if (!Array.isArray(content)) return [];
@@ -124,7 +124,13 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
     const b = block as Record<string, unknown>;
     switch (b.type) {
       case 'text': {
-        const text = typeof b.text === 'string' ? b.text.trim() : '';
+        const raw = typeof b.text === 'string' ? b.text.trim() : '';
+        if (!raw) break;
+        // 引擎注入的环境上下文 / AGENTS.md 项目指令以 `<system-reminder>`
+        // 包裹后**随用户输入一并落盘**(role 仍是 user)。回放时它们会冒充
+        // 用户发言渲染成气泡 —— 这里剥掉,只保留用户真实正文。
+        // 后端 `records_to_preload` 不受影响:模型侧上下文保持原样。
+        const text = stripInjectedSystemBlocks(raw);
         if (!text) break;
         // 引擎 File item 的落盘形态:独立文本块 `@path` / `@path:Ls-Le`。
         const mention = FILE_MENTION_RE.exec(text);
@@ -189,6 +195,28 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
 
 /** 独立 `@path(:Ls-Le)` 文本块 —— 引擎 `UserInputItem::File` 的落盘形态。 */
 const FILE_MENTION_RE = /^@(\S+?)(?::L(\d+)-L(\d+))?$/;
+
+/**
+ * 引擎注入块包裹标签 —— `<system-reminder>…</system-reminder>`。
+ *
+ * 注入通道:`app-core/src/prompt_env.rs` 的 `EnvContextHook`(环境上下文)
+ * 与 `AgentsMdHook`(AGENTS.md 项目指令)经 `HookDecision::InjectMessage`
+ * 注入,引擎包装成 `<system-reminder>` 的 user 文本块,与用户输入**同批
+ * 落盘**(role=user)。回放时必须剥除,否则注入内容会冒充用户发言。
+ */
+const INJECTED_BLOCK_RE = /<system-reminder>[\s\S]*?<\/system-reminder>/g;
+
+/**
+ * 剥除文本里的引擎注入块(`<system-reminder>…</system-reminder>`)。
+ *
+ * 返回剥除后的正文(首尾空白已裁剪);剥完为空 → 返回 `''`,调用方丢弃
+ * 该文本块。注入块通常独占一个 ContentBlock,但也允许与用户正文同块 ——
+ * 两种形态都要能剥干净。
+ */
+export function stripInjectedSystemBlocks(text: string): string {
+  if (!text.includes('<system-reminder>')) return text.trim();
+  return text.replace(INJECTED_BLOCK_RE, '').trim();
+}
 
 /** 0-255 字节数组 → base64(分块拼接,防超长数组爆调用栈)。 */
 function bytesToBase64(bytes: number[]): string {

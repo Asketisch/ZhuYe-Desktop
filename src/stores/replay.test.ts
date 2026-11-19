@@ -345,3 +345,81 @@ describe('turnsFromRollout 用户附件还原(A2)', () => {
     ]);
   });
 });
+
+describe('turnsFromRollout 引擎注入块剥除', () => {
+  const ENV_BLOCK = [
+    '<system-reminder>## Environment Context',
+    '',
+    '- Working directory (workspace root): /ws',
+    '- Platform: macos (aarch64)',
+    '</system-reminder>',
+  ].join('\n');
+
+  it('独占文本块的注入上下文被丢弃,不渲染成用户气泡', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [
+          { type: 'text', text: '帮我规划官网' },
+          { type: 'text', text: ENV_BLOCK },
+        ],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([{ kind: 'user_text', text: '帮我规划官网' }]);
+  });
+
+  it('注入块与正文同块时只剥注入段,保留用户正文', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [{ type: 'text', text: `帮我规划官网\n${ENV_BLOCK}` }],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([{ kind: 'user_text', text: '帮我规划官网' }]);
+  });
+
+  it('AGENTS.md 项目指令注入(## Project Instructions)同样被剥除', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [
+          { type: 'text', text: '<system-reminder>## Project Instructions\n\nSource: /ws/AGENTS.md\n\n中文注释</system-reminder>' },
+        ],
+      }),
+    ]);
+    // 整条消息只剩注入内容 → 无可渲染项 → 该 turn 不出现。
+    expect(turns).toEqual([]);
+  });
+
+  it('不含注入标签的普通正文不受影响', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [{ type: 'text', text: '这个 system-reminder 是什么东西?' }],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'user_text', text: '这个 system-reminder 是什么东西?' },
+    ]);
+  });
+
+  it('assistant 侧的注入标签同样剥除', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'assistant',
+        content: [{ type: 'text', text: `结论如下\n${ENV_BLOCK}` }],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([{ kind: 'assistant_text', text: '结论如下' }]);
+  });
+});
