@@ -143,13 +143,34 @@
   color: var(--text-primary);
 }
 
-/* v1.x 后台持续运行:后台会话徽标(运行中圆点 + 待确认计数)。 */
+/* v1.x 后台持续运行:运行中呼吸点(活动会话与后台会话同款)。 */
 .bgDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent, var(--text-primary));
+  background: var(--success, var(--accent, var(--text-primary)));
   flex-shrink: 0;
+  animation: bgDotPulse 1.6s ease-in-out infinite;
+}
+
+/* 呼吸脉动:「正在运行」的活体感(尺寸 + 透明度双通道)。 */
+@keyframes bgDotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.72);
+  }
+}
+
+/* 减少动态偏好:退化为静态点,不牺牲可辨识度。 */
+@media (prefers-reduced-motion: reduce) {
+  .bgDot {
+    animation: none;
+  }
 }
 
 .bgPending {

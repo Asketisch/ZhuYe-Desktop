@@ -41,6 +41,7 @@ const chat: Record<string, StringEntry> = {
   'chat.backgroundPendingToast':   { en: 'A background session needs your confirmation — switch to it to respond', 'zh-CN': '后台会话有新的待确认交互，切回该会话处理' },
   'chat.backgroundBadgeRunning':   { en: 'Running in background',                                             'zh-CN': '后台运行中' },
   'chat.backgroundBadgePending':   { en: '{n} pending confirmation(s)',                                       'zh-CN': '{n} 项待确认' },
+  'chat.sessionBadgeRunning':      { en: 'Running',                                                           'zh-CN': '运行中' },
   'chat.thinking':                 { en: 'thinking',                                                          'zh-CN': '思考中' },
   'chat.thinkingWith':             { en: 'thinking: {snippet}',                                               'zh-CN': '思考中: {snippet}' },
   'chat.thinkingSummary':          { en: 'reasoning summary',                                                 'zh-CN': '推理摘要' },
