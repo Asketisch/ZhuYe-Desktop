@@ -389,7 +389,8 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
 ///     - 启动 `forward_agent_events` 把 agent event 推到前端;
 ///     - 注册全局快捷键 + 应用菜单 + 托盘图标;
 ///     - 启动 `AgentThread` 的 会话事件转发器;
-/// 5. `on_window_event` 拦截 macOS 关闭按钮 → hide (close-to-tray)。
+/// 5. `on_window_event` 拦截 macOS 关闭按钮 → hide (close-to-tray);
+///    run 事件循环回调处理 `RunEvent::Reopen` (点击 Dock 图标) → 唤回主窗口。
 ///
 /// 命令面来自 [`configure`] —— 与能力覆盖层测试共用同一份。
 pub fn run() {
@@ -460,10 +461,63 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running reflect-desktop");
+        // `Builder::run` 内部即 build + run 的组合,拆开后行为等价,
+        // 换取 run 事件循环回调 —— 无回调的 `.run(ctx)` 会把
+        // `RunEvent::Reopen` (点击 Dock 图标) 静默丢弃,close-to-tray
+        // 隐藏后的主窗口将无法唤回。
+        .build(tauri::generate_context!())
+        .expect("error while building reflect-desktop")
+        .run(|app, event| {
+            // macOS:点击 Dock 图标(AppKit reopen)唤回主窗口。
+            // `RunEvent::Reopen` 变体仅 macOS/iOS 编译,必须 cfg 守卫,
+            // 否则 Linux/Windows CI 直接编译失败。
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows,
+                ..
+            } = event
+            {
+                reopen_main_window(app, has_visible_windows);
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (app, event);
+            }
+        });
+}
+
+/// macOS Dock reopen 落点:无可见窗口时唤回主窗口。
+///
+/// close-to-tray 把关闭按钮降级为 `hide()`,被 `orderOut` 的窗口
+/// 不会随 AppKit reopen 自动 `orderFront`,必须手动 `show()`;
+/// 已有可见窗口时由 AppKit 默认激活行为接管。复用托盘的
+/// [`tray::show_main_window`](show + unminimize + set_focus)。
+fn reopen_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, has_visible_windows: bool) {
+    if !has_visible_windows {
+        tracing::debug!("[reflect-gui] dock reopen: showing main window");
+        tray::show_main_window(app);
+    }
 }
 
 // `ping` 命令体见 [`commands::health`] —— 单独成模块:`ping` 必须是 `pub`
 // 才能被能力覆盖层测试经**真实** IPC 通路打(命令宏需 `#[macro_export]` 到
 // crate 根;定义在 crate 根会与导出位置冲突)。
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+
+    /// Dock reopen 分发不 panic:mock app 无 main 窗口时 `show_main_window`
+    /// 为 no-op,两个分支都不应 panic。mock runtime 无法真实投递 Reopen、
+    /// 也无法断言窗口可见性,这里锁住的是接线签名,防止重构静默丢分支。
+    #[test]
+    fn dock_reopen_dispatch_does_not_panic() {
+        let app = mock_builder()
+            .build(mock_context(noop_assets()))
+            .expect("mock app");
+
+        reopen_main_window(app.handle(), false);
+        reopen_main_window(app.handle(), true);
+    }
+}

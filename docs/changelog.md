@@ -4,6 +4,13 @@
 
 ## 未发布
 
+- **修复 macOS 点击 Dock 图标无法唤回窗口**：close-to-tray 设计下点红色关闭
+  按钮只是隐藏窗口（进程后台存活），但此前 `run()` 用的是无回调的
+  `.run(ctx)`，macOS 点击 Dock 图标投递的 `RunEvent::Reopen` 事件被静默丢弃
+  —— 隐藏后的主窗口永远唤不回来（只能靠托盘菜单或 Cmd+Shift+Space）。
+  现改为 `.build(ctx)` + 带 run 回调的 `App::run`，无可见窗口时经
+  `reopen_main_window`（复用托盘 `show_main_window`：show + unminimize +
+  set_focus）唤回主窗口；已有可见窗口时由 AppKit 默认激活行为接管。
 - **沙箱对齐 workspace-write 口径**（上游 871924bf + 桌面接线）：此前文件工具
   只能访问当前工作区（读旁边的项目直接 `path escaped sandbox`），Seatbelt
   默认 `(deny network*)`（连 localhost 一起拦），设置里的「允许出站网络」
