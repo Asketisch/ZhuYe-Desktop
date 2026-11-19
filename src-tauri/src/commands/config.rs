@@ -102,12 +102,16 @@ pub async fn reflect_save_config(
 /// `hot_reload_provider_stack`(重建 registry + 强制重绑当前会话),
 /// 下一个 turn 立即生效。
 ///
-/// `label` = 要钉住的 plan(`[[<provider>.credentials]]` 的 label):
+/// `provider` 值域:内置段名(`anthropic` / `openai` / `ollama`)或
+/// 模型组 id(`[[provider_group]]` 中已声明的 `id`)。
+///
+/// `label` = 要钉住的 plan(内置段为 `[[<provider>.credentials]]` 的
+/// label;模型组为组内 credentials 的 label):
 /// - `Some(非空)`:写入 `[active].credential`;model 写入该条目自身的
 ///   `model` 字段(与前端 plan 编辑器同源,条目 model 优先于段级)。
 ///   条目不存在时报错,防止钉住指向空处静默失效。
 /// - `None`/空串:不钉住(清除 `[active].credential`),model 写段级
-///   `[<provider>].model`。
+///   `[<provider>].model`(模型组写组级 `model`)。
 ///
 /// `model` 传空串 = 清除对应位置的 model 覆盖。返回解析后的完整 spec;
 /// 无任何显式 model 时返回空串(诚实缺失,由 UI 显示"未配置模型")。
@@ -119,9 +123,21 @@ pub async fn reflect_set_model(
     label: Option<String>,
 ) -> CommandResult<String> {
     let _config_write = agent.inner.config_write_lock.lock().await;
-    if !matches!(provider.as_str(), "anthropic" | "openai" | "ollama") {
+    let provider = provider.trim().to_string();
+    // 值域校验:内置段名,或配置中已存在的模型组 id(组 id 直接注册为
+    // 池名,切换语义与内置段完全一致)。
+    let is_group = {
+        let cfg_lock = agent.cfg();
+        let cfg = cfg_lock.read();
+        cfg.provider_group
+            .iter()
+            .any(|g| g.id.trim() == provider)
+    };
+    if !matches!(provider.as_str(), "anthropic" | "openai" | "ollama") && !is_group {
         return Err(CommandError {
-            msg: format!("unknown provider: {provider} (expected anthropic | openai | ollama)"),
+            msg: format!(
+                "unknown provider: {provider} (expected anthropic | openai | ollama | an existing [[provider_group]] id)"
+            ),
         });
     }
     let mut new_cfg = agent.cfg().read().clone();
@@ -171,7 +187,34 @@ fn apply_model_switch(
             let s = cfg.ollama.get_or_insert_with(Default::default);
             apply_section_model(&mut s.credentials, &mut s.model, label, model_opt)
         }
-        _ => unreachable!("provider validated by caller"),
+        // 模型组:provider 已由调用方校验为配置中存在的组 id。
+        // label 命中组内 credentials → 写条目 model(与内置段同语义);
+        // 显式钉住却找不到条目 → 报错;未钉住 → 写组级 model。
+        _ => {
+            let group = cfg
+                .provider_group
+                .iter_mut()
+                .find(|g| g.id.trim() == provider)
+                .ok_or_else(|| CommandError {
+                    msg: format!("provider group '{provider}' not found"),
+                })?;
+            if let Some(entry) = label.and_then(|l| {
+                group
+                    .credentials
+                    .iter_mut()
+                    .find(|c| c.label.trim() == l)
+            }) {
+                entry.model = model_opt;
+                return Ok(());
+            }
+            if let Some(l) = label {
+                return Err(CommandError {
+                    msg: format!("credential label '{l}' not found in provider group '{provider}'"),
+                });
+            }
+            group.model = model_opt;
+            Ok(())
+        }
     }
 }
 

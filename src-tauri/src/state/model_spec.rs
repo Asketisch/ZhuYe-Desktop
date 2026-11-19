@@ -38,11 +38,16 @@ pub(crate) fn resolve_model_spec_with_fallback(cfg: &ReflectConfig) -> Option<St
         return Some(spec);
     }
     let provider = cfg.active_provider()?;
-    let creds = match provider {
+    let creds = match provider.as_str() {
         "anthropic" => cfg.anthropic.as_ref().map(|s| &s.credentials),
         "openai" => cfg.openai.as_ref().map(|s| &s.credentials),
         "ollama" => cfg.ollama.as_ref().map(|s| &s.credentials),
-        _ => None,
+        // 模型组:按组 id 查组内凭据(与引擎 credentials_of 同口径)。
+        _ => cfg
+            .provider_group
+            .iter()
+            .find(|g| g.id.trim() == provider)
+            .map(|g| &g.credentials),
     }?;
     let model = creds
         .iter()

@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `26e0d04`（ZhuYe main tip，完整 SHA `26e0d040`；上游 `34e19acf` 引入 `reflect_llm::models_dev` models.dev 社区目录 —— 窗口 / 输出上限 / 视觉 / 思考档位四维能力，跨厂商投票 + 兜底链 + 内嵌快照 + 24h 磁盘缓存，级联进 `context_window_for` / `output_budget` / `reasoning_effort`，策展静态表优先、目录只填空缺；桌面配套 `reflect_lookup_model_abilities` 命令 + 模型列表四维标签 + 一键填充最大上下文 + 视觉降级警示/确认弹窗 + provider `max_tokens` 表单，详见 §3.33。更早 `29aa9ad`：`ce57058` 回归测试之上上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。更早 `ce57058` 补齐组合穷举回归测试，见 §3.32。
+> 最近审计：submodule `f5edab5`（上游 `main` tip `26e0d04` ∪ `feat/provider-group`（合并提交 `f5edab5`）：模型组 `[[provider_group]]` schema/builder 装配 + `active_provider` String 化（env / `[active]` 均可点名组 id）+ anthropic `list_models`（`GET {base}/v1/models`，`model = "free"` 与 `zhuye models list` 对 anthropic 格式端点自此可用），桌面配套「模型组」统一设置页与 Composer 组切换，详见 §3.37。其上：上游 `34e19acf` 引入 `reflect_llm::models_dev` models.dev 社区目录 —— 窗口 / 输出上限 / 视觉 / 思考档位四维能力，跨厂商投票 + 兜底链 + 内嵌快照 + 24h 磁盘缓存，级联进 `context_window_for` / `output_budget` / `reasoning_effort`，策展静态表优先、目录只填空缺；桌面配套 `reflect_lookup_model_abilities` 命令 + 模型列表四维标签 + 一键填充最大上下文 + 视觉降级警示/确认弹窗 + provider `max_tokens` 表单，详见 §3.36。更早 `29aa9ad`：`ce57058` 回归测试之上上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。更早 `ce57058` 补齐组合穷举回归测试，见 §3.32。
 
 ## 阅读约定
 
@@ -312,6 +312,21 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 目录实现要点：`reflect_llm::models_dev` 解析 api.json → 跨 provider 投票（窗口/输出取众数、平票取小；视觉/思考多数表决；档位集合取众数）→ 变体拼写（`.`/`-` 归一）+ `-128k`/`-1m` 名字后缀兜底链；内嵌 gzip 快照（`scripts/fetch-models-dev.sh` 产出）+ 磁盘缓存（`reflect_config::paths` 用户级目录 `cache/models-dev.json`，24h TTL）+ 显式刷新，**引擎启动不联网**，失败静默用旧数据。桌面新增 `reflect_lookup_model_abilities`（纯内存查询）供模型卡片与发送前视觉检查；`reflect_list_provider_models` 条目经 `enrich_with_catalog` 补缺（Anthropic 官方端口从此也有四维能力）。目录数据只补 `None`，从不覆盖 live 披露或用户配置（与 magpie Decorate 同语义）。
 
 ---
+
+### 3.37 模型组（`[[provider_group]]`，上游 `feat/provider-group` ∪ main `26e0d04` + 桌面接线）
+
+模型配置从「anthropic / openai 两个内置端口」升级为「任意多个命名模型组」（对标 ZCode / Magpie 的 provider 分组模型）：
+
+| 维度 | 落点 |
+|---|---|
+| schema | `zhuye-config::schema::provider_group`：组 id（= 模型 spec 前缀与 registry 池名）/ endpoint（openai\|anthropic）/ base_url / api_key / model / responses_api / timeout / 嵌套 credentials |
+| builder | 组 id 直接 `register_pool`；内置段与组共用 entries helper；非法 / 重复 id、未知 endpoint warn 跳过不阻断 |
+| active 解析 | `active_provider` 由 `&'static str` 改 `Option<String>`：env 与 `[active].provider` 均可点名组 id；fallback 探测追加首个可用组 |
+| 清单发现 | `AnthropicClient::list_models`（404/405 诚实降级）—— anthropic 格式端点的 `model = "free"` 与 `zhuye models list` 自此可用 |
+| 桌面命令 | `reflect_set_model` 的 `provider` 值域扩展为「内置段名或已声明组 id」（命令与负载结构不变）；热重载 diff 纳入 `provider_group` 段 |
+| 桌面 UI | 设置页「模型组」统一页（内置端口 plan 与自定义组平铺选默认；组保存后自动拉取组内模型清单，前端 5min TTL memo）；Composer 模型选择器把组作为与 plan 平级的可切换目标 |
+
+旧配置零迁移、内置三段行为不变。详见 `docs/protocol-bridge.md` §2 与上游 `docs/configuration.md`「模型组」段。
 
 ## 4. 剩余缺口与后续
 

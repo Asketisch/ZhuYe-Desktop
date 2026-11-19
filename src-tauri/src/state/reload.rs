@@ -28,6 +28,9 @@ fn provider_stack_changed(
         || old.anthropic != new.anthropic
         || old.openai != new.openai
         || old.ollama != new.ollama
+        // 模型组(`[[provider_group]]`)变更也触发重建 —— 组 id 注册为
+        // 池名,增删改组都要重建 registry 才能生效。
+        || old.provider_group != new.provider_group
         || old.routing != new.routing
         // `[model_discovery]` 段变更也必须触发重载 —— 它决定 `model = "free"`
         // 从清单里挑哪个模型(开关 / 偏好 / 免费判定规则)。不改这段,

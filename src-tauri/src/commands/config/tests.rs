@@ -130,3 +130,96 @@ fn apply_model_switch_empty_model_clears_override() {
     assert_eq!(cfg.anthropic.as_ref().unwrap().credentials[0].model, None);
     assert_eq!(cfg.resolved_model_spec(), None);
 }
+
+/// 模型组切换:provider = 组 id 时 model 写组级 `model` 字段,
+/// spec 解析出 `<组id>/<model>`。
+#[test]
+fn apply_model_switch_group_writes_group_model() {
+    let toml = r#"
+        [active]
+        provider = "anthropic"
+
+        [[provider_group]]
+        id = "my-glm"
+        endpoint = "openai"
+        base_url = "https://open.bigmodel.cn/api/paas/v4"
+    "#;
+    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    apply_model_switch(&mut cfg, "my-glm", "GLM-5.3-Flash", None).unwrap();
+    assert_eq!(cfg.active.provider.as_deref(), Some("my-glm"));
+    assert_eq!(cfg.active.credential, None);
+    assert_eq!(
+        cfg.provider_group[0].model.as_deref(),
+        Some("GLM-5.3-Flash")
+    );
+    assert_eq!(
+        cfg.resolved_model_spec().as_deref(),
+        Some("my-glm/GLM-5.3-Flash")
+    );
+}
+
+/// 模型组 + 钉住组内凭据条目:model 写条目自身(label 命中)。
+#[test]
+fn apply_model_switch_group_pins_credential_entry_model() {
+    let toml = r#"
+        [[provider_group]]
+        id = "my-glm"
+        endpoint = "openai"
+
+        [[provider_group.credentials]]
+        label = "backup"
+        api_key = "sk-b"
+    "#;
+    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    apply_model_switch(&mut cfg, "my-glm", "GLM-5.3-Flash", Some("backup")).unwrap();
+    assert_eq!(cfg.active.credential.as_deref(), Some("backup"));
+    assert_eq!(
+        cfg.provider_group[0].credentials[0].model.as_deref(),
+        Some("GLM-5.3-Flash")
+    );
+    assert_eq!(
+        cfg.resolved_model_spec().as_deref(),
+        Some("my-glm/GLM-5.3-Flash")
+    );
+}
+
+/// 模型组显式钉住组内不存在的凭据 → 报错(防 pin 指向空处)。
+#[test]
+fn apply_model_switch_group_rejects_unknown_label() {
+    let toml = r#"
+        [[provider_group]]
+        id = "my-glm"
+        endpoint = "openai"
+    "#;
+    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let err = apply_model_switch(&mut cfg, "my-glm", "m", Some("ghost")).unwrap_err();
+    assert!(err.msg.contains("ghost") && err.msg.contains("my-glm"), "{err:?}");
+}
+
+/// 组 id 不存在时 apply_model_switch 直接报错(防御分支;调用方已
+/// 做过存在性校验,这里是纯函数层的兜底)。
+#[test]
+fn apply_model_switch_rejects_missing_group() {
+    let toml = r#"
+        [active]
+        provider = "anthropic"
+    "#;
+    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let err = apply_model_switch(&mut cfg, "no-such-group", "m", None).unwrap_err();
+    assert!(err.msg.contains("no-such-group"), "{err:?}");
+}
+
+/// 空 model 切到组 = 清除组级 model 覆盖(切组本身有效)。
+#[test]
+fn apply_model_switch_group_empty_model_clears_override() {
+    let toml = r#"
+        [[provider_group]]
+        id = "my-glm"
+        endpoint = "openai"
+        model = "old-model"
+    "#;
+    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    apply_model_switch(&mut cfg, "my-glm", "  ", None).unwrap();
+    assert_eq!(cfg.provider_group[0].model, None);
+    assert_eq!(cfg.resolved_model_spec(), None);
+}
