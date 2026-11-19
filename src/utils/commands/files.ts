@@ -94,3 +94,23 @@ export async function reflect_read_image_base64(
 export async function reflect_write_file(path: string, content: string): Promise<string> {
   return invoke<string>('reflect_write_file', { path, content });
 }
+
+export interface ReflectIngestUploadResult {
+  /** 落盘文件的绝对路径(`<workspace>/.zhuye/uploads/<ts>_<name>`)。 */
+  path: string;
+  /** 写入字节数。 */
+  size: number;
+}
+
+/**
+ * 把 webview 侧只有字节、没有路径的文件（`<input type=file>` /
+ * clipboardData / DOM drop 兜底）落盘到当前工作区 `.zhuye/uploads/`，
+ * 返回真实路径 —— 引擎 `UserInputItem::File` 与 `/read` 都按路径消费，
+ * 落在工作区内才能保证 agent 可读。上限 64 MiB。
+ */
+export async function reflect_ingest_upload(
+  filename: string,
+  base64: string,
+): Promise<ReflectIngestUploadResult> {
+  return invoke<ReflectIngestUploadResult>('reflect_ingest_upload', { filename, base64 });
+}

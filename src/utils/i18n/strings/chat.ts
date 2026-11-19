@@ -29,6 +29,18 @@ const chat: Record<string, StringEntry> = {
   'chat.rewindConfirmMessage':     { en: 'Drop this turn and everything after it from the conversation? A .bak backup of the session file is kept. Workspace files are not touched.', 'zh-CN': '将从对话中丢弃此轮及其后的全部记录？会话文件会保留 .bak 备份，工作区文件不受影响。' },
   'chat.rewound':                  { en: 'Conversation rewound — continue with a new prompt',                 'zh-CN': '对话已回退 —— 输入新指令继续' },
   'chat.rewindFailed':             { en: 'Rewind failed: {msg}',                                              'zh-CN': '回退失败：{msg}' },
+  // C1 整条消息复制 / C2 一键重生成 / C3 继续生成。
+  'chat.copyMessage':              { en: 'Copy message',                                                      'zh-CN': '复制消息' },
+  'chat.regenerate':               { en: 'Regenerate — discard from this turn and resend',                    'zh-CN': '重新生成 —— 丢弃此轮起的内容并原样重发' },
+  'chat.regenerateConfirmTitle':   { en: 'Regenerate this turn?',                                              'zh-CN': '重新生成此轮？' },
+  'chat.regenerateConfirmMessage': { en: 'The conversation from this turn onward will be discarded and your original message (including attachments) will be resent as-is.', 'zh-CN': '此轮（含）之后的对话将被丢弃，你的原消息（含附件）会原样重发。' },
+  'chat.regenerateFailed':         { en: 'Regenerate failed: {msg}',                                          'zh-CN': '重新生成失败：{msg}' },
+  'chat.continueGeneration':       { en: 'Continue generating',                                               'zh-CN': '继续生成' },
+  'chat.continuePrompt':           { en: 'Continue from where you stopped.',                                  'zh-CN': '请从中断处继续。' },
+  // v1.x 后台持续运行:后台会话徽标与待确认提醒。
+  'chat.backgroundPendingToast':   { en: 'A background session needs your confirmation — switch to it to respond', 'zh-CN': '后台会话有新的待确认交互，切回该会话处理' },
+  'chat.backgroundBadgeRunning':   { en: 'Running in background',                                             'zh-CN': '后台运行中' },
+  'chat.backgroundBadgePending':   { en: '{n} pending confirmation(s)',                                       'zh-CN': '{n} 项待确认' },
   'chat.thinking':                 { en: 'thinking',                                                          'zh-CN': '思考中' },
   'chat.thinkingWith':             { en: 'thinking: {snippet}',                                               'zh-CN': '思考中: {snippet}' },
   'chat.thinkingSummary':          { en: 'reasoning summary',                                                 'zh-CN': '推理摘要' },

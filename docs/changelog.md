@@ -4,6 +4,44 @@
 
 ## 未发布
 
+- **会话后台持续运行**：切换会话不再中断原会话的运行（此前换绑会取消旧
+  线程的会话级令牌，等于 `Op::Shutdown`，「切走即停」）。后台会话经新
+  `reflect_session_event` 通道（载荷 `{session_id, event}`）继续上报；会话
+  列表新增「运行中 / 待确认」徽标与 toast 引导；后台积攒的待确认交互
+  （审批/提问/plan，不落 rollout）切回时自动合并，不再静默卡死；跟进消息
+  队列按会话隔离，展示与排空只作用于前台会话。bind 回后台会话时复用
+  warm 线程（promote 免重建）；热重载清场后台表（provider 栈一致性）。
+  已知边界：后台会话不能远程停止/应答（须切回）；切回时进行中的回复从
+  首个到达增量起续流。
+- **上下文注入接线**：桌面端补挂 AGENTS.md 项目指令注入（引擎已有该
+  hook 但仅 headless CLI 注册——半接线修复；`[active] agents_md` 开关
+  缺省开）并新增环境上下文块（工作目录 / 平台与架构 / OS 版本 / 今天
+  日期 / shell，会话首轮 `<system-reminder>` 注入）——对齐主流 agent 的
+  环境注入实践。实现住 `app-core::prompt_env`（exec crate 拖 CLI 依赖
+  不适合 GUI；上游收敛候选）。
+- **权限模式三态归一**：批准计划后输入框右下角切换器不再出现第四项
+  「accept_edits」——引擎计划批准的 `auto_mode` 选择会切到已弃用档
+  （`submission_loop.rs`，与其「accept_edits 已并入 auto」的协议注释相悖，
+  上游待修），桌面在 reducer 事件回读与 bind 返回值同步两个写入口统一
+  归一化（`accept_edits→auto` 语义恒等、`bypass→prompt` 安全基线、
+  `deny/bubble→auto` 与 StatusBar 回落口径一致），切换器恒为
+  计划/询问/默认三态。
+- 对齐 DeepSeek chat demo 的三线增强（附件 / 渲染 / 消息操作，引擎协议零变更）：
+  **附件管线** —— 文件按钮经 `reflect_pick_files` 原生多选拿真实路径；粘贴 /
+  DOM drop 的字节流文件经 `reflect_ingest_upload` 落盘 `<workspace>/.zhuye/uploads/`
+  转 file mention（agent `/read` 沙箱内可读），不再产生 `(file) 名字` 假占位；
+  附件带 pending/ready/error 状态机（失败可重试，非就绪禁发）；历史消息渲染
+  真实附件（图片缩略图 + 文件 chip），live 提交与回放（image 字节数组 / `@path`
+  标注块）同型，`(N attachments)` 占位文本删除。
+  **渲染** —— LaTeX 公式（KaTeX）、Mermaid 图表按需渲染（strict 安全 + 图表/代码
+  切换）、Prism +18 种语言与别名归一、图片点击 Lightbox 放大（Markdown 图片 URL
+  净化放行 `data:image/`）。
+  **消息操作** —— 用户/助手气泡整条复制（助手侧剥离思考链）；一键重生成
+  （Rewind 到目标轮含 + 附件原样重发）；末轮「继续生成」（引擎无 Continue Op，
+  以续写指令近似）。
+  **附带修复** —— `turn_rewound` reducer 与 `editRewindTargetFor` 与引擎
+  `truncate_after`「丢弃目标轮含之后」语义对齐（此前本地多保留一轮、编辑
+  index>0 时会连带删掉前一轮）。
 - 修复「先切权限模式再发首条消息的会话从侧边栏消失」：上游 rollout
   索引只认 jsonl 首行为 SessionMeta，而首条消息前的模式切换会抢先落盘
   成为物理首行，整个会话被索引丢弃、workspace 归属随之丢失（磁盘实测

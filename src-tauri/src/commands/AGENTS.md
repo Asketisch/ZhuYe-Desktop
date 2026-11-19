@@ -18,7 +18,7 @@ Tauri 命令表全集，按领域一域一文件（领域文件数以目录与 `
 | `models.rs` | 模型域命令：拉 provider 清单 / 测连通 |
 | `model_catalog.rs` | 纯逻辑无命令体：provider `/models` 响应解析 + 免费判定（与 `models.rs` 的命令分工） |
 
-其余领域文件按域分组：代理与团队（`agents` / `subagents` / `squad`）、工具接入（`mcp` / `lsp` / `skills` / `plugins` / `hooks`）、文件与终端（`files`（嵌套 `files/image.rs`）/ `git`（嵌套 `git/status.rs`）/ `shell` / `pty`）、配置与安全（`config`（嵌套 `config/tests.rs`）/ `permissions` / `security` / `kms` / `allowlist`）、观测与后台（`traces` / `stats` / `activity` / `schedule` / `runtime_status`）、媒体与远程（`media` / `remote` / `side_channel` / `autopilot`）。
+其余领域文件按域分组：代理与团队（`agents` / `subagents` / `squad`）、工具接入（`mcp` / `lsp` / `skills` / `plugins` / `hooks`）、文件与终端（`files`（嵌套 `files/image.rs` 图片附件读取、`files/upload.rs` 上传落盘——webview 字节流文件转工作区 `.zhuye/uploads/` 真实路径）/ `git`（嵌套 `git/status.rs`）/ `shell` / `pty`）、配置与安全（`config`（嵌套 `config/tests.rs`）/ `permissions` / `security` / `kms` / `allowlist`）、观测与后台（`traces` / `stats` / `activity` / `schedule` / `runtime_status`）、媒体与远程（`media` / `remote` / `side_channel` / `autopilot`）。附件选择器（单选 `reflect_pick_file` / 多选 `reflect_pick_files`）在 `workspaces.rs`（tauri-plugin-dialog Rust 侧，不经 JS IPC）。
 
 ## 本地契约与同步点
 

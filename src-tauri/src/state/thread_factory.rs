@@ -156,6 +156,24 @@ pub(crate) fn construct_thread(
     // 会话零副作用。rebind 恢复 Plan 模式的会话由此同样受保护。
     hook_engine.register(reflect_hooks::builtins::PlanModeGate::default_mode());
 
+    // v1.x:首轮上下文注入(环境块 + AGENTS.md)—— 修复此前「headless CLI
+    // 注册而 GUI 从不注册」的半接线(exec 侧 builtin_hooks.rs 头注释声称
+    // 桌面已注册,与实际不符)。实现住在 app-core::prompt_env(exec crate
+    // 拖 clap/opentelemetry,不适合 GUI 依赖)。注入通道 UserPromptSubmit
+    // 首轮 InjectMessage,引擎循环零触碰;hook 实例随 thread 生命周期,
+    // 每会话只注一次。AGENTS.md 挂 `[active] agents_md` 开关(缺省开,
+    // 与 headless.rs 同口径);环境块恒开(主流 agent 均默认注入)。
+    if cfg_snapshot.active.agents_md.unwrap_or(true) {
+        let user_data_dir = reflect_config::data_path_or_relative(&[]);
+        hook_engine.register(reflect_app_core::prompt_env::AgentsMdHook::new(
+            agent.workspace(),
+            Some(user_data_dir),
+        ));
+    }
+    hook_engine.register(reflect_app_core::prompt_env::EnvContextHook::new(
+        agent.workspace(),
+    ));
+
     // 持久化:仅在 sid = Some 时挂 recorder + 固定 id。bind 命令前不挂,
     // 避免随机 id 产生空文件污染 `~/.zhuye/sessions/`。
     let mut cfg = AgentConfig::new(model_spec, agent.workspace())

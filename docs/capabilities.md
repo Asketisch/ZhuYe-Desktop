@@ -258,6 +258,42 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 
 同批上游 `893faa95`（折叠内联 System 消息）修复严格 provider 对压缩摘要中置 System 的 400 拒绝。
 
+### 3.33 附件管线 / 消息渲染 / 消息操作对齐 chat demo（v1.x，桌面侧）
+
+对照 DeepSeek chat demo 的差距审计后接线，引擎协议面零变更（`UserInputItem::File/Image` 本就支持）：
+
+| 能力 | 现在 |
+|---|---|
+| 通用文件真实进上下文 | `reflect_pick_files`（原生多选拿真实路径）+ `reflect_ingest_upload`（webview 字节流落盘 `<workspace>/.zhuye/uploads/` 转路径）；文件按钮 / 粘贴 / DOM drop 三入口不再产生 `(file) 名字` 假占位 |
+| 历史消息附件渲染 | `user_attachments` TurnItem：live 提交与回放（image 字节数组 → data-URL；`@path(:Ls-Le)` 标注块 → 文件 chip）两条数据路径同型；`(N attachments)` 占位文本删除 |
+| 附件状态机 | pending / ready / error + 失败重试；任一非 ready 禁发 |
+| 消息渲染 | LaTeX（KaTeX 行内 + 块级）、Mermaid 按需渲染（strict 安全 + 图表/代码切换）、Prism +18 语言与别名归一、图片 Lightbox |
+| 消息操作 | 气泡级整条复制（助手侧剥离思考链）；一键重生成（Rewind 到目标轮含 + `userItemsFromTurn` 原样重发，纯附件轮亦可）；末轮「继续生成」（引擎无 Continue Op，以续写指令 UserInput 近似） |
+| 回退语义修正 | `turn_rewound` reducer 此前保留目标轮（与引擎 `truncate_after` 「丢弃该轮含之后」相悖）；`editRewindTargetFor` index>0 时误传前一轮 id 会连带删掉前一轮 —— 两处已与引擎对齐 |
+
+### 3.34 会话后台持续运行（v1.x，桌面侧）
+
+此前换绑会话会取消旧线程的会话级 cancel token（= `Op::Shutdown`），运行中的 turn 被真正中断 ——「切走即停」。引擎本就支持多 `AgentThread` 实例并存，是桌面编排层的单槽设计把它限制成了单活动会话。现在：
+
+| 能力 | 现在 |
+|---|---|
+| 后台保活 | 跨会话换绑不再 cancel 旧线程：有会话归属的旧线程迁入后台表（上限 8，超限按「空闲优先、最旧兜底」驱逐）继续跑；bind 回该会话时 promote 复用 warm 线程（免重建、免重灌上下文） |
+| 后台事件通道 | 新 `reflect_session_event` 通道（载荷 `{session_id, event}`）；前台 `reflect_event` 线格式与 reducer 语义不变 |
+| 运行可见性 | 会话列表徽标（运行中圆点 + 待确认数，`useBackgroundSessions` 投影）+ 新待确认 toast 引导切回 |
+| 后台待确认交互 | gate 请求（审批/提问/ask_user/plan）不落 rollout —— 切回水合后由 `mergePendingInto` 注回主 store，后台会话不再静默卡死在审批上 |
+| 队列按会话隔离 | 排队项入队时盖章 session id；展示与排空只取前台会话队列，后台会话的队列回到前台才排空 |
+| 边界（诚实声明） | 后台会话不能远程停止/应答（须切回）；切回时 in-flight turn 从首个到达的 delta 起续流（此前增量在后台通道由 `mapTurn` 惰性建 turn 承接，前缀缺失）；原地重建（热重载 / pending error）与后台清场仍走 cancel |
+
+### 3.35 上下文注入接线（v1.x，桌面侧）
+
+引擎已有 AGENTS.md 注入 hook（`zhuye-exec::builtin_hooks`）但只在 headless CLI 路径注册，桌面 `thread_factory` 从未挂载（该文件头注释声称桌面已注册——半接线）；环境上下文（OS 版本 / 平台 / 日期 / 工作目录 / shell）则引擎与桌面均无注入。现在：
+
+| 能力 | 现在 |
+|---|---|
+| AGENTS.md 项目指令 | `app-core::prompt_env::AgentsMdHook`（复刻 exec 版语义：用户级 + 项目级合并、32KB 截断、`Source:` 标注、`## Project Instructions` 段格式经 `append_agents_md_section` 生成）；`[active] agents_md` 开关（缺省开，与 headless 同口径）。exec crate 拖 clap/opentelemetry 不适合 GUI 依赖，属上游收敛候选 |
+| 环境上下文块 | `app-core::prompt_env::EnvContextHook`：会话首轮注入 `## Environment Context`（工作目录、平台/架构、OS 版本 best-effort 缓存探测、今天日期、shell），对齐主流 agent 的 `<env>` 块实践 |
+| 注入通道 | `UserPromptSubmit` 首轮 `HookDecision::InjectMessage`（引擎包 `<system-reminder>` user 消息），引擎循环零触碰；`AtomicBool` 每会话只注一次 |
+
 ---
 
 ## 4. 剩余缺口与后续

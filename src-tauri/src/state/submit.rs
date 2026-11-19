@@ -21,6 +21,19 @@ fn current_thread(agent: &MinimalAgent) -> anyhow::Result<Arc<reflect_core::Agen
         .ok_or_else(|| anyhow::anyhow!("agent thread not installed yet; setup not complete"))
 }
 
+/// 等待 rebind 代数前进(与快照值不同即返回)。
+/// sender 一侧 drop(app 关闭)同样视为已变更,解除等待。
+async fn wait_for_rebind(rx: &mut tokio::sync::watch::Receiver<u64>, generation_at: u64) {
+    loop {
+        if *rx.borrow_and_update() != generation_at {
+            return;
+        }
+        if rx.changed().await.is_err() {
+            return;
+        }
+    }
+}
+
 fn ensure_current_thread(
     agent: &MinimalAgent,
     thread: &Arc<reflect_core::AgentThread>,
@@ -70,8 +83,19 @@ pub(crate) async fn submit(
     // 0. 必须先 install_agent_thread。
     let thread = current_thread(agent)?;
     // 插件挂载可能耗时；等待时不占用会话切换锁，切换或关闭可取消等待。
+    // v1.x 后台持续运行:换绑不再 cancel 旧线程,等待改由 rebind 代数
+    // 显式解除 —— 会话切走时快速失败,不无限挂在可能卡死的挂载上。
     if matches!(submission.op, reflect_protocol::Op::UserInput { .. }) {
-        agent.wait_for_plugins(&thread).await?;
+        let mut generation_rx = agent.inner.rebind_generation.subscribe();
+        let generation_at_wait = *generation_rx.borrow();
+        tokio::select! {
+            result = agent.wait_for_plugins(&thread) => {
+                result?;
+            }
+            _ = wait_for_rebind(&mut generation_rx, generation_at_wait) => {
+                anyhow::bail!("session changed before submission; retry in the current session");
+            }
+        }
     }
     let _transition = agent.inner.session_transition_lock.lock().await;
     ensure_current_thread(agent, &thread)?;
@@ -96,12 +120,15 @@ pub(crate) async fn submit(
         thread.cancel_token().cancel();
     }
 
-    // 2. spawn 转发:这个 turn 的所有 event 进 broadcast。
+    // 2. spawn 转发:这个 turn 的所有 event 进 broadcast。带 bound sid ——
+    //    流式 delta 只走 per-turn 通道(不走 session 扇出),线程若在本
+    //    turn 途中被切走降级,后续事件靠它路由到后台通道(v1.x 后台持续运行)。
     let inner = agent.inner.clone();
+    let sid = agent.bound_session_id();
     let sub_id = submission.id.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = handle.next().await {
-            super::session::publish_if_current(&inner, &thread, event);
+            super::session::route_event(&inner, &thread, sid, event);
         }
         tracing::debug!("[reflect-gui] turn {} forwarder closed", sub_id);
     });
@@ -139,10 +166,11 @@ pub(crate) async fn submit_op(
         thread.cancel_token().cancel();
     }
     let inner = agent.inner.clone();
+    let sid = agent.bound_session_id();
     let sub_id = id.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = handle.next().await {
-            super::session::publish_if_current(&inner, &thread, event);
+            super::session::route_event(&inner, &thread, sid, event);
         }
         tracing::debug!("[reflect-gui] op turn {} forwarder closed", sub_id);
     });
@@ -302,9 +330,15 @@ mod tests {
             .await
             .unwrap()
             .unwrap_err();
+        // v1.x 后台持续运行:换绑不再 cancel 旧线程,挂起的提交改由
+        // `ensure_current_thread` 快速失败("session changed");旧文案
+        // ("session closed" / "plugin mount ended")仍兼容。
+        let message = error.to_string();
         assert!(
-            error.to_string().contains("session closed")
-                || error.to_string().contains("plugin mount ended")
+            message.contains("session changed")
+                || message.contains("session closed")
+                || message.contains("plugin mount ended"),
+            "挂起提交必须快速失败,实得: {message}"
         );
         drop(mount);
     }

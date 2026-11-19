@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
-import type { ReflectEvent, ReflectSubmission } from '@/types/protocol';
+import type { PermissionMode, ReflectEvent, ReflectSubmission } from '@/types/protocol';
+import { normalizePermissionMode } from '@/types/protocol';
 import {
   reflect_ask_user_input_response,
   reflect_ask_user_question_response,
@@ -33,10 +34,10 @@ import {
   extractExhaustionSignal,
 } from './planFailover';
 import { reduceEvent } from './reducer';
-import { appendItem, markTurn } from './turns';
+import { appendItem, markTurn, userAttachmentsFromItems } from './turns';
 import { runQueryGuardStats } from './guardStats'; // F01
-import { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
 import { wireApprovalPolicy } from './approvalPolicy';
+import { createQueueActions } from './queue';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
 export const useAgentStore = create<AgentState>((set, get) => {
@@ -243,19 +244,20 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const firstText = items.find(
       (item): item is { type: 'text'; text: string } => item.type === 'text',
     );
+    // A2:附件不再退化为 "(N attachments)" 占位文本 —— 图片缩略图 /
+    // 文件 chip 以 user_attachments item 渲染,发送前后观感一致。
+    const attachments = userAttachmentsFromItems(items);
     set((state) => ({
       turns: [
         ...state.turns,
         {
           id,
-          items: firstText
-            ? [{ kind: 'user_text' as const, text: firstText.text }]
-            : [
-                {
-                  kind: 'user_text' as const,
-                  text: `(${items.length} attachment${items.length === 1 ? '' : 's'})`,
-                },
-              ],
+          items: [
+            ...(firstText ? [{ kind: 'user_text' as const, text: firstText.text }] : []),
+            ...(attachments.length > 0
+              ? [{ kind: 'user_attachments' as const, attachments }]
+              : []),
+          ],
           status: 'streaming' as const,
         },
       ],
@@ -330,71 +332,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     await reflect_prompt_command({ type: 'switch', layer: layer ?? null });
   },
   queryGuardStats: () => runQueryGuardStats(reflect_query_guard_stats), // F01
-  enqueueMessage: (items, workspace) => {
-    const firstText = items.find(
-      (item): item is { type: 'text'; text: string } => item.type === 'text',
-    );
-    set((state) => ({
-      queuedMessages: [
-        ...state.queuedMessages,
-        {
-          id: uuid(),
-          items,
-          text: firstText?.text ?? `(${items.length} attachments)`,
-          ...(workspace ? { workspace } : {}),
-          createdAt: Date.now(),
-        },
-      ],
-    }));
-  },
-
-  removeQueued: (id) => {
-    set((state) => ({ queuedMessages: state.queuedMessages.filter((m) => m.id !== id) }));
-  },
-
-  updateQueued: (id, text) => {
-    set((state) => ({
-      queuedMessages: state.queuedMessages.map((m) => {
-        if (m.id !== id) return m;
-        // 仅更新首个 text item；附件项原样保留。
-        let replaced = false;
-        const items = m.items.map((item) => {
-          if (!replaced && item.type === 'text') {
-            replaced = true;
-            return { ...item, text };
-          }
-          return item;
-        });
-        if (!replaced) items.unshift({ type: 'text', text });
-        return { ...m, items, text };
-      }),
-    }));
-  },
-
-  drainQueue: async () => {
-    const state = get();
-    if (state.queuedMessages.length === 0) return;
-    if (selectIsTurnRunning(state)) return;
-    // 审批/提问/输入/plan 等待中 → 暂停排空，处理完后由下一次事件再触发。
-    if (selectHasPendingInteraction(state)) return;
-    const [next, ...rest] = state.queuedMessages;
-    set({ queuedMessages: rest });
-    try {
-      await state.submitItems(next.items, next.workspace ?? undefined);
-    } catch (error) {
-      // 提交失败:消息放回队首等下一次事件重试,不静默丢弃。
-      // 若用户期间编辑过队列(该条已不在),仍放回最前,保证不丢内容。
-      const current = get();
-      const queued = current.queuedMessages.some((m) => m.id === next.id)
-        ? current.queuedMessages
-        : [next, ...current.queuedMessages];
-      current.pushToast({
-        kind: 'error',
-        message: error instanceof Error ? error.message : String(error),
-      });
-      set({ queuedMessages: queued });
-    }
-  },
+  ...createQueueActions(set, get),
 
   compact: async () => {
     await reflect_compact();
@@ -439,7 +377,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
     await reflect_cycle_permission_mode();
   },
   syncPermissionMode: (mode) => {
-    set({ permissionMode: mode });
+    // v1.x:bind 返回值可能携带弃用档(计划批准落盘的 accept_edits),
+    // 与 reducer 的 permission_mode_changed 同款归一化,切换器恒三态。
+    set({ permissionMode: normalizePermissionMode(mode as PermissionMode) });
   },
 
   answerQuestion: async (id, answers) => {

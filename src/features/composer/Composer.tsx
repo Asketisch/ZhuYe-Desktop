@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowUp,
   SlashSquare,
@@ -13,18 +13,17 @@ import { Icon, IconButton, Tooltip } from '@/features/design-system';
 import { SlashPopup } from './SlashPopup';
 import { TIER_A_TOOLBAR, filterSlashCommands } from './slashCommands';
 import { AttachmentBar } from './AttachmentBar';
-import { useAttachments } from './useAttachments';
 import { MentionPicker } from './MentionPicker';
 import { usePromptHistory } from './usePromptHistory';
 import { useComposerInput } from './useComposerInput';
 import { useComposerDraft } from './useComposerDraft';
 import { useComposerSubmission, type SendMode } from './useComposerSubmission';
+import { useComposerFileEntries } from './useComposerFileEntries';
 import { usePluginCommands } from './usePluginCommands';
 import { ContextUsage } from './ContextUsage';
 import { ComposerControls } from './ComposerControls';
 import { ComposerContextBar } from './ComposerContextBar';
 import { useBangShell } from './useBangShell';
-import { useComposerDragDrop } from './useComposerDragDrop';
 import { BangRunsPanel } from './BangRunsPanel';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { useActiveSession } from '@/features/sessions/hooks/useSessions';
@@ -56,7 +55,19 @@ export function Composer() {
   const [sendMode, setSendMode] = useState<SendMode>('queue');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const attachments = useAttachments();
+  // A1:附件三入口(原生多选 / 粘贴 / 拖拽兜底)聚合 hook,见
+  // useComposerFileEntries —— 图片内联、其余落盘转真实路径 file mention。
+  const {
+    attachments,
+    ingest,
+    drop,
+    onPickImage,
+    onAttachFile,
+    onPickFile,
+    onPaste,
+    onDrop,
+    onDragOver,
+  } = useComposerFileEntries(fileInputRef);
   const history = usePromptHistory('default');
   const { currentWorkspace } = useCurrentWorkspace();
   // P3：`!` 终端直通 —— 本地执行面板（不进 agent 循环、不写会话历史）。
@@ -132,79 +143,6 @@ export function Composer() {
     setSlashVisible(false);
   }, []);
 
-  const onPickImage = useCallback((files: FileList | null) => {
-    if (!files) return;
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') attachments.addInlineImage(reader.result, file.type);
-      };
-      reader.readAsDataURL(file);
-    });
-  }, [attachments]);
-
-  const onPickFile = useCallback((files: FileList | null) => {
-    if (!files) return;
-    Array.from(files).forEach((file) => attachments.addLocalImage(`(file) ${file.name}`));
-  }, [attachments]);
-
-  // P2：剪贴板粘贴 —— 图片直接转 base64 内联附件；文件加占位 chip。
-  const onPaste = useCallback(
-    (event: ClipboardEvent<HTMLTextAreaElement>) => {
-      const items = Array.from(event.clipboardData?.items ?? []);
-      let handled = false;
-      for (const item of items) {
-        if (item.kind === 'file' && item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (!file) continue;
-          handled = true;
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === 'string') attachments.addInlineImage(reader.result, file.type);
-          };
-          reader.readAsDataURL(file);
-        } else if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (!file) continue;
-          handled = true;
-          attachments.addLocalImage(`(file) ${file.name}`);
-        }
-      }
-      if (handled) event.preventDefault();
-    },
-    [attachments],
-  );
-
-  // P2：拖拽投放 —— DOM drop 仅作浏览器/测试兜底;Tauri(WKWebView)下
-  // Finder 拖入的文件不进 dataTransfer,由 useComposerDragDrop 的原生
-  // 事件接管（nativeDrop=true 时在此抑制,防双通道重复添加）。
-  const drop = useComposerDragDrop(attachments);
-  const onDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      if (drop.nativeDrop) return;
-      const files = event.dataTransfer?.files;
-      if (!files || files.length === 0) return;
-      event.preventDefault();
-      Array.from(files).forEach((file) => {
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === 'string') attachments.addInlineImage(reader.result, file.type);
-          };
-          reader.readAsDataURL(file);
-        } else {
-          attachments.addLocalImage(`(file) ${file.name}`);
-        }
-      });
-    },
-    [attachments, drop.nativeDrop],
-  );
-
-  const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (event.dataTransfer?.types?.includes('Files')) event.preventDefault();
-  }, []);
-
   const onPickMention = useCallback(
     (relPath: string) => {
       // 1. 清除 textarea 末尾的 `@<query>` 片段（保留前导空白）
@@ -263,7 +201,12 @@ export function Composer() {
     });
   }, [interrupt, pushToast, t]);
 
-  const canSend = !busy && (Boolean(text.trim()) || attachments.attachments.length > 0);
+  // A3:任一附件还在落盘(pending)或已失败(error)时禁发 —— 对齐
+  // 「全部就绪才可发送」,防止把半成品附件集发出去。
+  const canSend =
+    !busy &&
+    !attachments.hasBlocking() &&
+    (Boolean(text.trim()) || attachments.attachments.length > 0);
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
   // v1.11 桌面#4:锁定发送时提示键位改为 ⌘/Ctrl+Enter(与实际行为一致)。
   const sendHint = !sendOnEnter
@@ -346,7 +289,11 @@ export function Composer() {
           </div>
         )}
         <BangRunsPanel runs={bang.runs} onDismiss={bang.dismiss} onKill={(id) => void bang.kill(id)} />
-        <AttachmentBar attachments={attachments.attachments} onRemove={attachments.remove} />
+        <AttachmentBar
+          attachments={attachments.attachments}
+          onRemove={attachments.remove}
+          onRetry={ingest.retry}
+        />
         <textarea
           ref={textareaRef}
           rows={1}
@@ -378,7 +325,7 @@ export function Composer() {
               <IconButton
                 label={t('composer.toolbar.attachFile')}
                 size="sm"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={onAttachFile}
                 data-testid="composer-attach-file"
               >
                 <Icon icon={FileText} size={14} />

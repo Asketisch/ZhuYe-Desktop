@@ -344,6 +344,34 @@ pub async fn reflect_pick_file(
     Ok(picked)
 }
 
+/// 弹出原生**多选**文件选择框(Composer 附件按钮入口)；取消 → `None`。
+///
+/// 与 `reflect_pick_file`(单选、TOML 配置入口)刻意分开:附件场景不过滤
+/// 扩展名、一次可拖选多个,返回真实绝对路径供 file mention / 内联图片
+/// 分流(与 Finder 原生拖拽同款管线)。
+#[tauri::command]
+pub async fn reflect_pick_files(
+    agent: State<'_, MinimalAgent>,
+) -> CommandResult<Option<Vec<String>>> {
+    let app = agent.app_handle().ok_or_else(|| CommandError {
+        msg: "native file picker unavailable: app handle not installed".into(),
+    })?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().pick_files(move |files| {
+        let picked = files.map(|list| {
+            list.into_iter()
+                .filter_map(|f| f.into_path().ok())
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+        });
+        let _ = tx.send(picked);
+    });
+    let picked = rx.await.map_err(|e| CommandError {
+        msg: format!("file picker closed unexpectedly: {e}"),
+    })?;
+    Ok(picked)
+}
+
 /// 在系统文件管理器中定位并选中 `path`（Finder 显示 / 资源管理器选中 /
 /// xdg-open 打开所在目录）。
 #[tauri::command]

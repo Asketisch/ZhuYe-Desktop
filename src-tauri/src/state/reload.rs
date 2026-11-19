@@ -109,7 +109,7 @@ pub(crate) async fn hot_reload_provider_stack(
         //    原因如实写进降级原因。绝不把占位串 `"provider/free"` 当成真模型 ——
         //    它会被发给 provider,表现为难诊断的「模型不存在」。
         let (resolved_spec, resolve_error) =
-            super::agent::resolve_model_spec_with_discovery(new, &registry).await;
+            super::model_spec::resolve_model_spec_with_discovery(new, &registry).await;
         if let Some(ref err) = resolve_error {
             warn!(
                 "[reflect-gui] model spec resolution failed ({err}); keeping previous model spec"
@@ -124,7 +124,7 @@ pub(crate) async fn hot_reload_provider_stack(
             agent.inner.pending_model_discovery_error.lock().take();
             let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());
             *agent.inner.model_spec.write() = model_spec;
-            *agent.inner.degraded_reason.lock() = super::agent::compute_degraded_reason(new);
+            *agent.inner.degraded_reason.lock() = super::model_spec::compute_degraded_reason(new);
         }
         if let Some(error) = resolve_error {
             reload_errors.push(error);
@@ -186,7 +186,7 @@ fn clear_pending_plugin_reload(agent: &MinimalAgent) {
 }
 
 fn clear_diagnostic(agent: &MinimalAgent, previous: &str) {
-    let base_reason = super::agent::compute_degraded_reason(&agent.inner.cfg.read());
+    let base_reason = super::model_spec::compute_degraded_reason(&agent.inner.cfg.read());
     let mut degraded = agent.inner.degraded_reason.lock();
     if let Some(message) = degraded.as_deref() {
         let remaining = if message == previous {

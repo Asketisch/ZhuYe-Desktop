@@ -10,9 +10,12 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { emitComposerPrefill } from '@/features/composer/useComposerDraft';
-import { useAgentStore } from '@/stores/agentStore';
+import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
+import { useBackgroundSessions } from '@/stores/backgroundSessions';
+import { userItemsFromTurn } from '@/stores/agent/turns';
 import { reflect_replay_session, reflect_git_diff } from '@/utils/commands';
 import { reflect_bind_session, reflect_fork_session } from '@/utils/commands/sessions';
+import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { useActiveSession } from '@/features/sessions/hooks/useSessions';
 import { useUiPrefs } from '@/utils/uiPrefs';
 import type { ReflectRolloutRecord } from '@/utils/types';
@@ -40,9 +43,11 @@ import { reflect_export_session_markdown } from '@/utils/commands/sessions';
  * v1.11 F7+D6:编辑历史消息的 rewind 目标推算(纯函数,导出供行为测试
  * 直接锁定**真实实现**,防测试内复刻逻辑漂移)。
  *
- * 语义:index 0 → 截断含自身(清空重发);否则截到前一轮为止(丢弃目标
- * 轮及之后的记录,改完重发即从该点重新生成)。返回 `null` 表示该轮没有
- * 用户文本,不可编辑。
+ * 语义:引擎 `truncate_after(to_turn_id)` 丢弃该 turn **含**及其之后的
+ * 记录(recorder.rs / writer.rs::truncate_content)—— 因此回退目标恒为
+ * 目标轮自身的 id:丢弃「目标轮及之后」,改完重发即从该点重新生成,
+ * 此前的轮次完整保留。(此前 index>0 时误传前一轮 id,会连带删掉前一轮;
+ * 与引擎对齐后修正。)返回 `null` 表示该轮没有用户文本,不可编辑。
  */
 export function editRewindTargetFor(
   turns: { id: string; items: { kind: string; text?: string }[] }[],
@@ -52,10 +57,7 @@ export function editRewindTargetFor(
   if (index === -1) return null;
   const userItem = turns[index].items.find((it) => it.kind === 'user_text');
   if (!userItem || userItem.kind !== 'user_text') return null;
-  return {
-    rewindTo: index === 0 ? turnId : turns[index - 1].id,
-    userText: userItem.text ?? '',
-  };
+  return { rewindTo: turnId, userText: userItem.text ?? '' };
 }
 
 export function ChatView() {
@@ -124,9 +126,9 @@ export function ChatView() {
   };
 
   // v1.11 F7+D6:编辑历史消息 —— 组合既有 Op::Rewind 与 composer 预填:
-  // 截断「目标轮(含)之后」的全部记录(目标轮为第 0 轮时即清空重发),
-  // 再把该轮用户文本填回 composer,用户改完直接发送 = 从该点重新生成。
-  // 零协议改动(Rewind 语义已覆盖「截断 + 短历史回放」)。
+  // 截断「目标轮(含)之后」的全部记录,再把该轮用户文本填回 composer,
+  // 用户改完直接发送 = 从该点重新生成。零协议改动(Rewind 语义已覆盖
+  // 「截断 + 短历史回放」)。
   const handleEditTurn = async (turnId: string) => {
     const epoch = sessionEpoch.current.value;
     const target = editRewindTargetFor(turns, turnId);
@@ -155,6 +157,51 @@ export function ChatView() {
     }
   };
 
+  // C2 一键重生成:Rewind(丢弃目标轮含之后,与编辑同款引擎语义)+
+  // 把该轮用户内容(user_text + 附件)原样重发 —— 编辑流的「免改直发」
+  // 变体。附件经 userItemsFromTurn 逆转回 UserInputItem(image 的 data-URL
+  // 由后端 normalize_image_data 解码)。
+  const submitItems = useAgentStore((st) => st.submitItems);
+  const { currentWorkspace } = useCurrentWorkspace();
+  const handleRegenerateTurn = async (turnId: string) => {
+    const epoch = sessionEpoch.current.value;
+    const target = turns.find((tr) => tr.id === turnId);
+    if (!target) return;
+    const items = userItemsFromTurn(target);
+    if (items === null) return;
+    const ok = await confirmDialog({
+      title: t('chat.regenerateConfirmTitle'),
+      message: t('chat.regenerateConfirmMessage'),
+    });
+    if (!ok || epoch !== sessionEpoch.current.value ||
+        useAgentStore.getState().loadedSessionId !== sessionId) return;
+    try {
+      await rewind(turnId);
+      await submitItems(items, currentWorkspace);
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.regenerateFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
+  };
+
+  // C3 继续生成:引擎无 Continue Op —— 以一条续写指令 UserInput 开新
+  // turn(显式近似;上一轮上下文天然在会话历史里,模型可接着写)。
+  // 仅在无运行中 turn 时可触发(MessageList 只对末轮露出按钮,这里再守一次)。
+  const submit = useAgentStore((st) => st.submit);
+  const handleContinueTurn = async () => {
+    if (selectIsTurnRunning(useAgentStore.getState())) return;
+    try {
+      await submit(t('chat.continuePrompt'), currentWorkspace);
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.regenerateFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
+  };
+
   useEffect(() => {
     if (!sessionId) {
       clearSession();
@@ -164,7 +211,15 @@ export function ChatView() {
     }
     const myId = ++requestIdRef.current;
     // 绑定新线程前移除旧会话的交互，避免加载窗口里向错误线程应答。
-    if (useAgentStore.getState().loadedSessionId !== sessionId) clearSession();
+    if (useAgentStore.getState().loadedSessionId !== sessionId) {
+      // v1.x 后台持续运行:旧会话若有 turn 正在跑,播种 running 态进后台
+      // 注册表(turn_started 是前台事件,降级后的后台通道不会再发)。
+      const previous = useAgentStore.getState().loadedSessionId;
+      if (previous && useAgentStore.getState().turns.some((turn) => turn.status === 'streaming')) {
+        useBackgroundSessions.getState().seedRunning(previous);
+      }
+      clearSession();
+    }
     setLoading(true);
     setError(null);
     // v1.x:先 bind(后端幂等,同 id 短路)再决定 hydrate。bind 保证后端
@@ -185,6 +240,9 @@ export function ChatView() {
       .then((records: ReflectRolloutRecord[] | null) => {
         if (requestIdRef.current !== myId) return;
         if (records) hydrateSession(sessionId, records);
+        // v1.x 后台持续运行:该会话在后台期间积攒的待确认交互(gate 请求
+        // 不落 rollout)合并进主 store,否则会话会静默卡在审批上。
+        useBackgroundSessions.getState().mergePendingInto(sessionId);
       })
       .catch((e: unknown) => {
       if (requestIdRef.current !== myId) return;
@@ -336,6 +394,8 @@ export function ChatView() {
             onForkTurn={(turnId, branch) => handleFork(branch, turnId)}
             onRewindTurn={(turnId) => void handleRewind(turnId)}
             onEditTurn={(turnId) => void handleEditTurn(turnId)}
+            onRegenerateTurn={(turnId) => void handleRegenerateTurn(turnId)}
+            onContinueTurn={() => void handleContinueTurn()}
           />
         </div>
       )}

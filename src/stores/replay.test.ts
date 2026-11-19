@@ -268,3 +268,80 @@ describe('planFromRollout', () => {
     ])).toBeNull();
   });
 });
+
+describe('turnsFromRollout 用户附件还原(A2)', () => {
+  it('image 块(0-255 字节数组)转 data-URL 缩略图附件', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        // "AAAA"(base64) = 字节 [0,0,0]。
+        content: [
+          { type: 'text', text: '看这张图' },
+          { type: 'image', data: [0, 0, 0], mime_type: 'image/png' },
+        ],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'user_text', text: '看这张图' },
+      {
+        kind: 'user_attachments',
+        attachments: [{ kind: 'image', src: 'data:image/png;base64,AAAA', mime: 'image/png' }],
+      },
+    ]);
+  });
+
+  it('独立 @path(:Ls-Le) 文本块解析为文件 chip,相邻块合并成组', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [
+          { type: 'text', text: '参考这两个文件' },
+          { type: 'text', text: '@/ws/src/main.rs' },
+          { type: 'text', text: '@/ws/src/lib.rs:L10-L20' },
+        ],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'user_text', text: '参考这两个文件' },
+      {
+        kind: 'user_attachments',
+        attachments: [
+          { kind: 'file', path: '/ws/src/main.rs' },
+          { kind: 'file', path: '/ws/src/lib.rs', range: { start_line: 10, end_line: 20 } },
+        ],
+      },
+    ]);
+  });
+
+  it('正文中段的 @mention 不误判(仅整块匹配才转 chip)', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [{ type: 'text', text: '帮我看看 @someone 提到的 /path/to 文件' }],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'user_text', text: '帮我看看 @someone 提到的 /path/to 文件' },
+    ]);
+  });
+
+  it('assistant 侧的 @path 文本块不转 chip(仅用户侧)', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'assistant',
+        content: [{ type: 'text', text: '@/ws/README.md' }],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'assistant_text', text: '@/ws/README.md' },
+    ]);
+  });
+});

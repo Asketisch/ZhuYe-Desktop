@@ -35,16 +35,19 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
     );
     let list = common::invoke_ok("reflect_list_hooks", json!({}));
     let hooks = list.as_array().unwrap();
-    // v1.x:工厂现在无条件注册 plan_mode_gate(GUI Plan 只读边界,与 CLI
-    // 对齐)+ 配置启用的 search_budget,共 2 个。plan_mode_gate 恒启用
+    // v1.x:工厂恒驻注册 plan_mode_gate(GUI Plan 只读边界)+ 首轮上下文
+    // 注入对 agents-md-inject / env-context-inject(`[active] agents_md`
+    // 缺省开)+ 配置启用的 search_budget,共 4 个。plan_mode_gate 恒启用
     // (不可 toggle,是边界而非偏好);search_budget 可被 toggle。
-    assert_eq!(hooks.len(), 2, "hooks: {hooks:?}");
+    assert_eq!(hooks.len(), 4, "hooks: {hooks:?}");
     let names: Vec<&str> = hooks
         .iter()
         .map(|h| h["name"].as_str().unwrap_or_default())
         .collect();
     assert!(names.contains(&"search_budget"), "hooks: {hooks:?}");
     assert!(names.contains(&"plan_mode_gate"), "hooks: {hooks:?}");
+    assert!(names.contains(&"agents-md-inject"), "hooks: {hooks:?}");
+    assert!(names.contains(&"env-context-inject"), "hooks: {hooks:?}");
     let budget = hooks.iter().find(|h| h["name"] == "search_budget").unwrap();
     assert_eq!(budget["enabled"], true);
     common::invoke_err(
@@ -83,15 +86,24 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         json!({ "toml": "[hooks]\nenabled = [\"test_runner\"]\n" }),
     );
     let reconfigured = common::invoke_ok("reflect_list_hooks", json!({}));
-    // v1.x:重配置后 engine = 重启用的 test_runner + 恒驻的 plan_mode_gate。
+    // v1.x:重配置后 engine = 重启用的 test_runner + 恒驻的 plan_mode_gate
+    // + 上下文注入对,共 4 个。
     let reconfigured = reconfigured.as_array().unwrap();
-    assert_eq!(reconfigured.len(), 2, "hooks: {reconfigured:?}");
+    assert_eq!(reconfigured.len(), 4, "hooks: {reconfigured:?}");
     let names: Vec<&str> = reconfigured
         .iter()
         .map(|h| h["name"].as_str().unwrap_or_default())
         .collect();
     assert!(names.contains(&"test_runner"), "hooks: {reconfigured:?}");
     assert!(names.contains(&"plan_mode_gate"), "hooks: {reconfigured:?}");
+    assert!(
+        names.contains(&"agents-md-inject"),
+        "hooks: {reconfigured:?}"
+    );
+    assert!(
+        names.contains(&"env-context-inject"),
+        "hooks: {reconfigured:?}"
+    );
     let runner = reconfigured
         .iter()
         .find(|h| h["name"] == "test_runner")

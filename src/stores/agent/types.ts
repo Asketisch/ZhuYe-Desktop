@@ -12,8 +12,16 @@ import type { TokenSnapshot } from './tokenTypes';
 // 这里重新导出 —— 既有导入路径(`@/stores/agent/types`)全部保持有效。
 export type { LiveModelUsage, TokenSnapshot } from './tokenTypes';
 
+/**
+ * A2 附件元数据类型拆到 `./attachmentTypes`(单文件行数预算,先例同
+ * `./tokenTypes`)—— 这里 re-export,既有导入路径保持有效。
+ */
+export type { UserAttachmentMeta } from './attachmentTypes';
+import type { UserAttachmentMeta } from './attachmentTypes';
+
 export type TurnItem =
   | { kind: 'user_text'; text: string }
+  | { kind: 'user_attachments'; attachments: UserAttachmentMeta[] }
   | { kind: 'assistant_text'; text: string; streaming?: boolean }
   | {
       kind: 'thinking';
@@ -110,6 +118,8 @@ export interface QueuedMessage {
   text: string;
   /** 提交时注入的 workspace（入队时的现场）。 */
   workspace?: string | null;
+  /** v1.x 后台持续运行:入队时盖章的会话 id（队列按会话隔离）。 */
+  sessionId?: string;
   createdAt: number;
 }
 
@@ -229,32 +239,12 @@ export interface PluginLoadedInfo {
   at: number;
 }
 
-export interface CollabSession {
-  id: string;
-  participants: string[];
-  mode: string;
-  startedAt: number;
-  status: 'running' | 'done' | 'failed' | 'cancelled';
-  outcome?: string;
-  rounds?: number;
-  messages: CollabMessage[];
-}
-
-export interface CollabMessage {
-  from: string;
-  kind: string;
-  content: string;
-  round: number;
-  at: number;
-}
-
-export interface RoutingSnapshot {
-  kind: 'switched' | 'failed_over' | 'cooldown_started' | 'cooldown_cleared' | 'spec_fallback';
-  role: string;
-  from?: string;
-  to?: string;
-  reason: string;
-}
+/**
+ * 协作域类型(CollabSession / CollabMessage / RoutingSnapshot)拆到
+ * `./collabTypes`(单文件行数预算)—— 这里 re-export,既有导入路径保持有效。
+ */
+export type { CollabSession, CollabMessage, RoutingSnapshot } from './collabTypes';
+import type { CollabSession, RoutingSnapshot } from './collabTypes';
 
 export type ToastKind = 'info' | 'warn' | 'error' | 'success';
 

@@ -14,7 +14,8 @@
 import { useEffect, useState } from 'react';
 import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBranch, Gauge, Bot, RefreshCw, Square } from 'lucide-react';
 import { Icon, Badge, IconButton, Tooltip } from '@/features/design-system';
-import { useAgentStore } from '@/stores/agentStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import type { SubagentProgressEntry } from '@/stores/agentStore';
 import { ListTodo, GitCommitHorizontal } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
@@ -561,7 +562,8 @@ function ChangesTab() {
 function PlanTab() {
   const { t } = useI18n();
   const todos = useAgentStore((st) => st.todos);
-  const queued = useAgentStore((st) => st.queuedMessages);
+  // v1.x 后台持续运行:只展示当前前台会话的队列。
+  const queued = useAgentStore(useShallow(selectQueuedForActiveSession));
   const plan = useAgentStore((st) => st.plan);
   const planDraft = useAgentStore((st) => st.planDraft);
   return (

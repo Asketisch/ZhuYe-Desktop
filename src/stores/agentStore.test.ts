@@ -163,7 +163,9 @@ describe('reduceEvent — lifecycle', () => {
     expect(patch.turns![0].status).toBe('aborted');
   });
 
-  it('turn_rewound truncates turns to to_turn_id', () => {
+  it('turn_rewound drops the target turn and everything after it', () => {
+    // 引擎 `truncate_after(to_turn_id)` 丢弃该 turn 含及其之后(recorder.rs),
+    // 本地截断同语义:rewind 到 t2 → 只剩 t1。
     const s: AgentState = {
       ...emptyState(),
       turns: [
@@ -172,9 +174,9 @@ describe('reduceEvent — lifecycle', () => {
         { id: 't3', items: [], status: 'done' },
       ],
     };
-    const patch = reduceEvent(s, ev('', { type: 'turn_rewound', to_turn_id: 't2', truncated_after: 1 }));
-    expect(patch.turns).toHaveLength(2);
-    expect(patch.turns!.map((t) => t.id)).toEqual(['t1', 't2']);
+    const patch = reduceEvent(s, ev('', { type: 'turn_rewound', to_turn_id: 't2', truncated_after: 2 }));
+    expect(patch.turns).toHaveLength(1);
+    expect(patch.turns!.map((t) => t.id)).toEqual(['t1']);
   });
 
   it('shutdown_complete sets lastError', () => {
@@ -913,6 +915,17 @@ describe('reduceEvent — plan mode', () => {
       ev('', { type: 'permission_mode_changed', from: 'auto', to: 'plan' }),
     );
     expect(patch.permissionMode).toBe('plan');
+  });
+
+  it('permission_mode_changed 归一化弃用档:计划批准的 accept_edits 落 auto', () => {
+    // 引擎 apply_plan_approval_choice 的 AutoMode 选择切到弃用的
+    // accept_edits(submission_loop.rs),如实回显会出现第四态 —— 桌面
+    // 侧归一为 auto(两者在 auto_approves_tool 中行为一致)。
+    const patch = reduceEvent(
+      emptyState(),
+      ev('', { type: 'permission_mode_changed', from: 'plan', to: 'accept_edits' }),
+    );
+    expect(patch.permissionMode).toBe('auto');
   });
 });
 

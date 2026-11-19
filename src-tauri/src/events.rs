@@ -10,7 +10,8 @@
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::broadcast;
 
-use reflect_protocol::Event;
+use reflect_protocol::{Event, ThreadId};
+use serde::Serialize;
 
 /// Forward task —— 在 Tauri setup 阶段 spawn 一次,持续到 AppHandle drop。
 ///
@@ -44,4 +45,40 @@ pub async fn forward_agent_events<R: Runtime>(
         }
     }
     tracing::warn!("[reflect-gui] forward_agent_events exited");
+}
+
+/// 后台会话事件的线格式:`{ session_id, event }`(v1.x 后台持续运行)。
+/// 前端据此维护后台会话的运行徽标 / 待确认交互(见
+/// `src/stores/backgroundSessions.ts`),不进主 reducer。
+#[derive(Debug, Clone, Serialize)]
+pub struct BackgroundEvent {
+    pub session_id: ThreadId,
+    pub event: Event,
+}
+
+/// 后台通道转发任务 —— 与 [`forward_agent_events`] 同款生命周期与 lag 容忍,
+/// 通道名为 `reflect_session_event`(前台通道 `reflect_event` 线格式不变)。
+pub async fn forward_background_events<R: Runtime>(
+    app: AppHandle<R>,
+    mut rx: broadcast::Receiver<(ThreadId, Event)>,
+) {
+    tracing::info!("[reflect-gui] forward_background_events started");
+    loop {
+        match rx.recv().await {
+            Ok((session_id, event)) => {
+                let payload = BackgroundEvent { session_id, event };
+                if let Err(e) = app.emit("reflect_session_event", &payload) {
+                    tracing::error!("[reflect-gui] emit reflect_session_event failed: {e}");
+                }
+            }
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                tracing::warn!("[reflect-gui] background forwarder lagged, dropped {n} events");
+            }
+            Err(broadcast::error::RecvError::Closed) => {
+                tracing::warn!("[reflect-gui] forward_background_events: broadcast channel closed");
+                break;
+            }
+        }
+    }
+    tracing::warn!("[reflect-gui] forward_background_events exited");
 }

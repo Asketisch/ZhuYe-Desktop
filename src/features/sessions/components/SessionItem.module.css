@@ -142,3 +142,17 @@
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
+/* v1.x 后台持续运行:后台会话徽标(运行中圆点 + 待确认计数)。 */
+.bgDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent, var(--text-primary));
+  flex-shrink: 0;
+}
+
+.bgPending {
+  color: var(--text-primary);
+  font-weight: 600;
+}

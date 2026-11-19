@@ -10,6 +10,7 @@
 import { memo, useState, useRef, useEffect } from 'react';
 import type { ReflectSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
+import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import { displayTitle } from '../utils/buckets';
 import { basename } from '../utils/workspaceGroups';
 import { SessionItemMenu } from './SessionItemMenu';
@@ -58,6 +59,8 @@ function SessionItemImpl({
   onToggleSelect,
 }: SessionItemProps) {
   const { t } = useI18n();
+  // v1.x 后台持续运行:该会话在后台运行中 / 有待确认交互 → 徽标。
+  const bg = useBackgroundSessions((state) => state.sessions[session.session_id]);
   const hasActions = Boolean(onRename && onDelete && onExport);
   const [menuOpen, setMenuOpen] = useState(false);
   const kebabRef = useRef<HTMLButtonElement | null>(null);
@@ -126,6 +129,25 @@ function SessionItemImpl({
             </>
           )}
           <span>{session.message_count} msgs</span>
+          {/* v1.x 后台持续运行:运行中圆点 + 待确认数(gate 请求不落
+              rollout,必须切回处理 —— 徽标引导)。仅非活动行显示:活动
+              会话的运行态由主 store 投影承担。 */}
+          {!active && bg?.running && (
+            <span
+              className={s.bgDot}
+              title={t('chat.backgroundBadgeRunning')}
+              data-testid={`session-bg-running-${session.session_id}`}
+            />
+          )}
+          {!active && bg && bg.pendingCount > 0 && (
+            <span
+              className={s.bgPending}
+              title={t('chat.backgroundBadgePending', { n: bg.pendingCount })}
+              data-testid={`session-bg-pending-${session.session_id}`}
+            >
+              ●{bg.pendingCount}
+            </span>
+          )}
         </div>
       </button>
       {hasActions && !selectable && (

@@ -79,7 +79,8 @@ fn normalize_image_data(v: serde_json::Value) -> CommandResult<serde_json::Value
 }
 
 /// 小型 base64 解码器(与 reflect-llm 内手写编码器配对;src-tauri 无 base64 依赖)。
-fn base64_decode(input: &str) -> Option<Vec<u8>> {
+/// `pub(crate)`:文件上传落盘(`files/upload.rs`)复用同一解码器。
+pub(crate) fn base64_decode(input: &str) -> Option<Vec<u8>> {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut rev = [255u8; 256];
     for (i, &c) in ALPHABET.iter().enumerate() {

@@ -280,6 +280,50 @@ fn native_pickers_report_unavailable_without_desktop_runtime() {
     assert!(!e.is_null(), "错误响应不应为 null");
     let e = invoke_err("reflect_pick_file", json!({ "extensions": ["toml"] }));
     assert!(!e.is_null(), "错误响应不应为 null");
+    let e = invoke_err("reflect_pick_files", json!({}));
+    assert!(!e.is_null(), "错误响应不应为 null");
+}
+
+// ============================================================================
+// 上传落盘(A1:浏览器字节流文件 → 工作区 .zhuye/uploads 真实路径)
+// ============================================================================
+
+#[test]
+fn ingest_upload_lands_in_workspace_uploads_dir() {
+    let _guard = workspace_lock();
+    let ws = temp_workspace("uploads");
+    set_workspace(&ws);
+
+    // "probe" 的 base64;文件名带路径穿越与非法字符,验证净化。
+    let res = invoke_ok(
+        "reflect_ingest_upload",
+        json!({ "filename": "../报告:final?.txt", "base64": "cHJvYmU=" }),
+    );
+    let path = res["path"].as_str().expect("缺少 path");
+    assert!(
+        std::path::Path::new(path).starts_with(&ws),
+        "落盘路径必须在工作区内: {path} (ws={ws})"
+    );
+    let uploads_dir = std::path::Path::new(&ws).join(".zhuye").join("uploads");
+    assert!(
+        std::path::Path::new(path).starts_with(&uploads_dir),
+        "落盘路径必须在 .zhuye/uploads 下: {path}"
+    );
+    assert!(!path.contains(".."), "文件名未净化路径穿越: {path}");
+    assert_eq!(std::fs::read(path).unwrap(), b"probe", "内容应原样落盘");
+    assert_eq!(res["size"].as_u64(), Some(5));
+}
+
+#[test]
+fn ingest_upload_rejects_invalid_base64() {
+    let _guard = workspace_lock();
+    let ws = temp_workspace("uploads-bad");
+    set_workspace(&ws);
+    let e = invoke_err(
+        "reflect_ingest_upload",
+        json!({ "filename": "a.txt", "base64": "!!!" }),
+    );
+    assert!(!e.is_null(), "非法 base64 必须报错");
 }
 
 // ============================================================================

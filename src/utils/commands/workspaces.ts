@@ -86,6 +86,15 @@ export async function reflect_pick_file(extensions?: string[]): Promise<string |
   return invoke<string | null>('reflect_pick_file', { extensions: extensions ?? null });
 }
 
+/**
+ * 弹出原生**多选**文件选择框（Composer 附件按钮入口）；取消 → `null`。
+ * 返回真实绝对路径：图片扩展名走内联 base64，其余转 file mention
+ * （与 Finder 原生拖拽同款管线，见 useComposerDragDrop）。
+ */
+export async function reflect_pick_files(): Promise<string[] | null> {
+  return invoke<string[] | null>('reflect_pick_files');
+}
+
 /** 在系统文件管理器（Finder / 资源管理器 / xdg-open）中定位路径。 */
 export async function reflect_reveal_path(path: string): Promise<void> {
   return invoke<void>('reflect_reveal_path', { path });

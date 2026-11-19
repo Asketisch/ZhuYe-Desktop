@@ -14,6 +14,16 @@ import { useAgentStore } from './store';
 import { readApprovalPolicy, writeApprovalPolicy } from './approvalPolicy';
 import type { ReflectSubmission } from '@/types/protocol';
 
+describe('store.syncPermissionMode — 弃用档归一化', () => {
+  it('bind 返回的 accept_edits(计划批准落盘产物)归一为 auto', () => {
+    useAgentStore.getState().syncPermissionMode('accept_edits');
+    expect(useAgentStore.getState().permissionMode).toBe('auto');
+    useAgentStore.getState().syncPermissionMode('bypass');
+    // bypass 与引擎安全基线一致降级 prompt。
+    expect(useAgentStore.getState().permissionMode).toBe('prompt');
+  });
+});
+
 describe('store.submit — Submission.workspace 线格式', () => {
   let sent: ReflectSubmission[] = [];
 

@@ -17,6 +17,7 @@
 | `discussion.rs`（+ `discussion_events.rs`，pub(crate)） | 多 agent 讨论编排（GUI 对应 CLI `reflect discussion`） | |
 | `tailscale.rs` | Tailscale 检测与远程主机建议 | |
 | `sandbox.rs` | OS 沙箱桌面侧胶水（解析已收编上游 `reflect_sandbox`） | |
+| `prompt_env.rs` | 内置上下文注入 hooks：`AgentsMdHook`（AGENTS.md 项目指令，复刻 `zhuye-exec::builtin_hooks` 同名实现）+ `EnvContextHook`（环境上下文块：工作目录/平台/OS 版本/日期/shell）；`thread_factory` 注册 | 上游 exec crate 拖 clap/opentelemetry 不适合 GUI 依赖，**上游收敛候选**（把 hooks 下沉出 exec 后桌面改用上游版） |
 | `activity.rs` | activity 审计：实现已收编上游 `reflect_telemetry`，本地仅留共享句柄与再导出 | |
 
 ## 层内依赖约定

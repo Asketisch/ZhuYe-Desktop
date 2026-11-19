@@ -707,3 +707,9 @@ export interface ReflectEvent {
   id: string;
   msg: ReflectEventMsg;
 }
+
+/** 外层 Tauri `reflect_session_event` payload(v1.x 后台持续运行)。 */
+export interface ReflectSessionEvent {
+  session_id: string;
+  event: ReflectEvent;
+}

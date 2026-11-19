@@ -90,6 +90,15 @@ beforeEach(() => {
   // reflect_current_workspace —— 默认未打开工作区(null);AppShell 的 useCurrentWorkspace 依赖
   mockInvoke('reflect_current_workspace', async () => null);
 
+  // reflect_pick_files —— 附件多选框默认「用户取消」(null),组件测试按需覆写
+  mockInvoke('reflect_pick_files', async () => null);
+
+  // reflect_ingest_upload —— 字节落盘默认成功,返回工作区内路径(A1 附件管线)
+  mockInvoke('reflect_ingest_upload', async (filename: string, _base64: string) => ({
+    path: `/Users/dev/project/.zhuye/uploads/stub_${filename}`,
+    size: 5,
+  }));
+
   // reflect_create_session —— 纯 ID 分配(首条 submission 时后端物化)
   mockInvoke('reflect_create_session', async () => 'sess-stub-new');
 

@@ -67,12 +67,12 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //     表现为难诊断的「模型不存在」。
     reflect_config::discovery::clear_catalog_cache();
     let (resolved_spec, discovery_error) =
-        super::agent::resolve_model_spec_with_discovery(&cfg_snapshot, &registry).await;
+        super::model_spec::resolve_model_spec_with_discovery(&cfg_snapshot, &registry).await;
     let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());
     *agent.inner.model_spec.write() = model_spec.clone();
     *agent.inner.pending_model_discovery_error.lock() = discovery_error.clone();
     *agent.inner.degraded_reason.lock() =
-        super::agent::compute_degraded_reason(&cfg_snapshot).or(discovery_error);
+        super::model_spec::compute_degraded_reason(&cfg_snapshot).or(discovery_error);
     // 3d. 解析完成后再发布 registry —— bind 命令在这之前一律拒绝。
     *agent.inner.model_registry.lock() = Some(registry);
 
@@ -93,8 +93,8 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     *agent.inner.thread.lock() = Some(thread.clone());
     *agent.inner.task_hook_target.write() = Some(thread.hook_engine());
 
-    // 6. 启动会话事件转发器。
-    super::session::start_forwarder(agent);
+    // 6. 启动会话事件转发器(占位线程无会话归属,sid=None:非前台事件丢弃)。
+    super::session::start_forwarder(agent, None);
 
     // 6a. 启动 Activity logger 订阅:独立 broadcast receiver
     //     把每个 Event 映射成 ActivityEvent 写入本地 timeline,与 forwarder

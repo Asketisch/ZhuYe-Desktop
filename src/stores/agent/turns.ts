@@ -1,6 +1,52 @@
-import type { Turn, TurnItem, TurnStatus } from './types';
+import type { Turn, TurnItem, TurnStatus, UserAttachmentMeta } from './types';
+import type { UserInputItem } from '@/types/protocol';
 
 export const EVENT_ID_NONE = '';
+
+/**
+ * 提交的 UserInputItem 列表 → 可渲染附件元数据(A2)。
+ * - `image`(base64/data-URL 内联)→ 缩略图元数据;
+ * - `file`(路径 mention)→ 文件 chip 元数据(含行区间);
+ * - `text` / `skill` / `local_image`(遗留占位)不产生附件展示。
+ */
+export function userAttachmentsFromItems(items: UserInputItem[]): UserAttachmentMeta[] {
+  const out: UserAttachmentMeta[] = [];
+  for (const item of items) {
+    if (item.type === 'image') {
+      out.push({ kind: 'image', src: item.data, mime: item.mime_type });
+    } else if (item.type === 'file') {
+      out.push(item.range ? { kind: 'file', path: item.path, range: item.range } : { kind: 'file', path: item.path });
+    }
+  }
+  return out;
+}
+
+/**
+ * 轮内用户内容 → 可重发的 UserInputItem 列表(C2 一键重生成用)。
+ * `user_text` → text item;`user_attachments` 逆转回 image / file item
+ * (image 的 src 为 data-URL,后端 `normalize_image_data` 会解码)。
+ * 找不到用户内容(纯助手轮 / 错误轮)返回 null。
+ */
+export function userItemsFromTurn(turn: Turn): UserInputItem[] | null {
+  const items: UserInputItem[] = [];
+  let hasUser = false;
+  for (const item of turn.items) {
+    if (item.kind === 'user_text') {
+      if (item.text.trim()) items.push({ type: 'text', text: item.text });
+      hasUser = true;
+    } else if (item.kind === 'user_attachments') {
+      for (const att of item.attachments) {
+        if (att.kind === 'image') {
+          items.push({ type: 'image', data: att.src, mime_type: att.mime });
+        } else {
+          items.push(att.range ? { type: 'file', path: att.path, range: att.range } : { type: 'file', path: att.path });
+        }
+      }
+      hasUser = true;
+    }
+  }
+  return hasUser ? items : null;
+}
 
 export function appendItem(turns: Turn[], turnId: string, item: TurnItem): Turn[] {
   if (turnId === EVENT_ID_NONE) return turns;

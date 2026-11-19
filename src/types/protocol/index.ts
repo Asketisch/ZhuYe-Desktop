@@ -45,6 +45,7 @@ export {
   type EventMsgByType,
   type ReflectEvent,
   type ReflectEventMsg,
+  type ReflectSessionEvent,
   type SessionConfiguredPayload,
   type TurnStartedPayload,
   type TurnCompletePayload,
@@ -121,6 +122,7 @@ export type { ReflectSessionInfo, ReflectRolloutRecord } from './rollout';
 // ----- Shared enums -----
 export type {
   PermissionMode,
+  UiPermissionMode,
   ApprovalPolicy,
   SandboxPolicy,
   RiskLevel,
@@ -128,6 +130,7 @@ export type {
   ReviewDecision,
   PlanApprovalChoice,
 } from './enums';
+export { normalizePermissionMode } from './enums';
 
 // ----- Usage -----
 export type { TokenUsagePayload } from './usage';

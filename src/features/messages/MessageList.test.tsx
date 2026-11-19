@@ -264,3 +264,125 @@ describe('MessageList', () => {
     expect(screen.queryByTestId('turn-fork-turn-a')).toBeNull();
   });
 });
+
+describe('MessageList A2/C1/C2/C3 新增交互', () => {
+  beforeEach(() => {
+    useAgentStore.getState().reset();
+  });
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('renders user_attachments:图片缩略图 + 文件 chip(A2)', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't1',
+          status: 'done',
+          items: [
+            { kind: 'user_text', text: '看这些' },
+            {
+              kind: 'user_attachments',
+              attachments: [
+                { kind: 'image', src: 'data:image/png;base64,AA', mime: 'image/png' },
+                { kind: 'file', path: '/ws/src/main.rs', range: { start_line: 1, end_line: 9 } },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    const thumb = screen.getByTestId('user-attachment-image-0') as HTMLImageElement;
+    expect(thumb.querySelector('img')?.src).toBe('data:image/png;base64,AA');
+    expect(screen.getByTestId('user-attachment-file-1').textContent).toContain('main.rs');
+    expect(screen.getByTestId('user-attachment-file-1').textContent).toContain('L1-L9');
+  });
+
+  it('点击缩略图打开 Lightbox,Esc 关闭(B4 联动)', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't1',
+          status: 'done',
+          items: [
+            { kind: 'user_text', text: 'img' },
+            {
+              kind: 'user_attachments',
+              attachments: [{ kind: 'image', src: 'data:image/png;base64,AA', mime: 'image/png' }],
+            },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    fireEvent.click(screen.getByTestId('user-attachment-image-0'));
+    expect(screen.getByTestId('lightbox')).toBeDefined();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('lightbox')).toBeNull();
+  });
+
+  it('user/assistant 气泡提供整条复制按钮,复制剥离思考链的正文(C1)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't1',
+          status: 'done',
+          items: [
+            { kind: 'user_text', text: '问一下' },
+            { kind: 'assistant_text', text: '<think>隐</think>正式回答' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    fireEvent.click(screen.getByTestId('user-copy'));
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith('问一下');
+    fireEvent.click(screen.getByTestId('assistant-copy'));
+    await Promise.resolve();
+    // splitAssistantText 剥离 <think> 段,只复制正文。
+    expect(writeText).toHaveBeenLastCalledWith('正式回答');
+  });
+
+  it('regenerate 按钮仅在含用户内容的已完成轮出现并回调(C2)', () => {
+    const onRegenerateTurn = vi.fn();
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't1',
+          status: 'done',
+          items: [{ kind: 'user_text', text: 'q' }, { kind: 'assistant_text', text: 'a' }],
+        },
+      ],
+    });
+    render(wrap(<MessageList onRegenerateTurn={onRegenerateTurn} />));
+    fireEvent.click(screen.getByTestId('turn-regenerate-t1'));
+    expect(onRegenerateTurn).toHaveBeenCalledWith('t1');
+  });
+
+  it('continue 按钮仅在末轮(含助手产出)出现(C3)', () => {
+    const onContinueTurn = vi.fn();
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't1',
+          status: 'done',
+          items: [{ kind: 'user_text', text: 'q1' }, { kind: 'assistant_text', text: 'a1' }],
+        },
+        {
+          id: 't2',
+          status: 'done',
+          items: [{ kind: 'user_text', text: 'q2' }, { kind: 'assistant_text', text: 'a2' }],
+        },
+      ],
+    });
+    render(wrap(<MessageList onContinueTurn={onContinueTurn} />));
+    // t1 非末轮:无按钮;t2 末轮:有。
+    expect(screen.queryByTestId('turn-continue-t1')).toBeNull();
+    fireEvent.click(screen.getByTestId('turn-continue-t2'));
+    expect(onContinueTurn).toHaveBeenCalledWith('t2');
+  });
+});

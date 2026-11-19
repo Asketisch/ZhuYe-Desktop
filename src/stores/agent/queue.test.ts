@@ -74,6 +74,38 @@ describe('queuedMessages — 队列状态机', () => {
     expect(useAgentStore.getState().queuedMessages).toHaveLength(1);
   });
 
+  it('drainQueue：只排空当前前台会话的队列(v1.x 后台持续运行)', async () => {
+    // 会话 A 入队两条,切到会话 B 再入队一条。B 前台空闲 → drain 只发
+    // B 的消息;A 的队列原样保留,等 A 回前台再排。
+    useAgentStore.setState({ loadedSessionId: 'sess-a' });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'a1' }]);
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'a2' }]);
+    useAgentStore.setState({ loadedSessionId: 'sess-b' });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'b1' }]);
+
+    await useAgentStore.getState().drainQueue();
+    expect(sent).toHaveLength(1);
+    expect((sent[0].op as { items: { text: string }[] }).items[0].text).toBe('b1');
+    const remaining = useAgentStore.getState().queuedMessages;
+    expect(remaining).toHaveLength(2);
+    expect(remaining.map((m) => m.text).sort()).toEqual(['a1', 'a2']);
+
+    // 切回 A:drain 排 A 的队首,序保持。
+    useAgentStore.setState({ loadedSessionId: 'sess-a', turns: [] });
+    await useAgentStore.getState().drainQueue();
+    expect(sent).toHaveLength(2);
+    expect((sent[1].op as { items: { text: string }[] }).items[0].text).toBe('a1');
+  });
+
+  it('enqueueMessage 盖章当前会话 id(loadedSessionId 为 null 时存 undefined)', () => {
+    useAgentStore.setState({ loadedSessionId: 'sess-x' });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'q' }]);
+    expect(useAgentStore.getState().queuedMessages[0].sessionId).toBe('sess-x');
+    useAgentStore.setState({ loadedSessionId: null });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'q2' }]);
+    expect(useAgentStore.getState().queuedMessages[1].sessionId).toBeUndefined();
+  });
+
   it('drainQueue：空闲时逐条发出（turn 收尾后再排下一条）', async () => {
     useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'q1' }]);
     useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'q2' }]);

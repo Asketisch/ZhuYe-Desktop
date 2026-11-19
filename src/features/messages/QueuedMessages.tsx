@@ -6,15 +6,18 @@
  * 自动逐条发出；等待审批/提问/输入/plan 时暂停排空。
  */
 import { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Play, Trash2, Pencil, Check, X } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
-import { useAgentStore } from '@/stores/agentStore';
+import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import s from './QueuedMessages.module.css';
 
 export function QueuedMessages() {
   const { t } = useI18n();
-  const queued = useAgentStore((st) => st.queuedMessages);
+  // v1.x 后台持续运行:只展示当前前台会话的队列(按入队时盖章的
+  // sessionId 过滤;undefined 视作当前会话,兼容既有数据)。
+  const queued = useAgentStore(useShallow(selectQueuedForActiveSession));
   const removeQueued = useAgentStore((st) => st.removeQueued);
   const updateQueued = useAgentStore((st) => st.updateQueued);
   const [editingId, setEditingId] = useState<string | null>(null);

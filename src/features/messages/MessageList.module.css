@@ -71,6 +71,32 @@
   opacity: 1;
 }
 
+/* ===== C1 气泡级复制（hover / 聚焦时显示） ===== */
+.copyBtn {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0.25rem;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.turn:hover .copyBtn,
+.turn:focus-within .copyBtn {
+  opacity: 1;
+}
+
+.copyBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-elev-2);
+}
+
 /* ===== 用户气泡 ===== */
 .userRow {
   display: flex;

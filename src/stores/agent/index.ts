@@ -1,7 +1,11 @@
 export { reduceEvent } from './reducer';
 export { useAgentStore } from './store';
 export { useAgent } from './useAgent';
-export { selectHasPendingInteraction, selectIsTurnRunning } from './selectors';
+export {
+  selectHasPendingInteraction,
+  selectIsTurnRunning,
+  selectQueuedForActiveSession,
+} from './selectors';
 export { SUBAGENT_FEED_CAP } from './types';
 export type { ToolOutputSummary } from './turns';
 export type {

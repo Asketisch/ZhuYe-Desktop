@@ -1,8 +1,6 @@
 //! 文件树 (`reflect_list_dir`) + 文本读 (`reflect_read_file`) + 写回
-//! (`reflect_write_file`)。
-//!
-//! 共享的过滤 / 排序辅助函数给 `search.rs` 复用；图片附件读取在
-//! [`image`] 子模块 —— 不走工作区沙盒的独立域。
+//! (`reflect_write_file`)。共享的过滤 / 排序辅助函数给 `search.rs` 复用；
+//! 附件子模块见 [`image`] 与 [`upload`](self::upload)。
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -367,10 +365,12 @@ pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandRe
     Ok(canon_joined)
 }
 
-/// 图片附件读取是独立的域(不走工作区沙盒),见 [`image`] 子模块。
+/// 附件子模块:`image`(图片读取,不走工作区沙盒)与 `upload`(字节落盘)。
 mod image;
+mod upload;
 
 pub use image::{ImageBase64Result, reflect_read_image_base64};
+pub use upload::{IngestUploadResult, reflect_ingest_upload};
 
 #[cfg(test)]
 mod tests {

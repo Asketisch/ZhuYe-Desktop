@@ -88,14 +88,16 @@ describe('lifecycle events', () => {
     expect(st().turns[0].status).toBe('aborted');
   });
 
-  it('turn_rewound truncates turns after the cutoff turn id', () => {
+  it('turn_rewound drops the cutoff turn and everything after it', () => {
+    // 引擎 truncate_after(to_turn_id) 丢弃该 turn 含及其之后(recorder.rs),
+    // 本地截断同语义:rewind 到 sub-1 → sub-1/b/c 全部移除。
     emitEvent('sub-1', { type: 'turn_started', turn_id: 'a' });
     emitEvent('sub-2', { type: 'turn_started', turn_id: 'b' });
     emitEvent('sub-3', { type: 'turn_started', turn_id: 'c' });
     expect(st().turns.length).toBe(3);
 
-    emitEvent('', { type: 'turn_rewound', to_turn_id: 'sub-1', truncated_after: 2 });
-    expect(st().turns.map((t) => t.id)).toEqual(['sub-1']);
+    emitEvent('', { type: 'turn_rewound', to_turn_id: 'sub-1', truncated_after: 3 });
+    expect(st().turns.map((t) => t.id)).toEqual([]);
   });
 
   it('turn_rewound without cutoff keeps turns (backend is source of truth)', () => {
@@ -463,6 +465,11 @@ describe('plan mode events', () => {
   it('permission_mode_changed updates store mode', () => {
     emitEvent('', { type: 'permission_mode_changed', from: 'prompt', to: 'plan' });
     expect(st().permissionMode).toBe('plan');
+  });
+
+  it('permission_mode_changed 归一化弃用档 accept_edits(计划批准产物)为 auto', () => {
+    emitEvent('', { type: 'permission_mode_changed', from: 'plan', to: 'accept_edits' });
+    expect(st().permissionMode).toBe('auto');
   });
 });
 

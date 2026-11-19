@@ -25,6 +25,7 @@ pub mod discussion;
 pub(crate) mod discussion_events;
 pub mod media;
 pub mod pipeline;
+pub mod prompt_env;
 pub mod sandbox;
 pub mod stats;
 pub mod tailscale;

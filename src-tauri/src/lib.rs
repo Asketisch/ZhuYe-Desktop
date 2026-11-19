@@ -48,14 +48,15 @@ use commands::{
     reflect_get_task_output, reflect_get_team, reflect_get_trace, reflect_gh_pr_list,
     reflect_git_commit, reflect_git_diff, reflect_git_log, reflect_git_stage, reflect_git_status,
     reflect_git_unstage, reflect_goal_snapshot, reflect_hook_approval, reflect_image_process,
-    reflect_import_discover, reflect_import_sessions, reflect_install_from_marketplace,
-    reflect_install_plugin, reflect_install_skill, reflect_interrupt, reflect_kill_shell,
-    reflect_kms_create, reflect_kms_delete, reflect_kms_get_page, reflect_kms_list,
-    reflect_kms_list_pages, reflect_kms_save_page, reflect_kms_search, reflect_list_activity,
-    reflect_list_agent_defs, reflect_list_archived_sessions, reflect_list_dir,
-    reflect_list_discussions, reflect_list_hook_events, reflect_list_hooks,
-    reflect_list_marketplaces, reflect_list_mcp_prompts, reflect_list_mcp_resources,
-    reflect_list_mcp_servers, reflect_list_media, reflect_list_memory, reflect_list_note_sessions,
+    reflect_import_discover, reflect_import_sessions, reflect_ingest_upload,
+    reflect_install_from_marketplace, reflect_install_plugin, reflect_install_skill,
+    reflect_interrupt, reflect_kill_shell, reflect_kms_create, reflect_kms_delete,
+    reflect_kms_get_page, reflect_kms_list, reflect_kms_list_pages, reflect_kms_save_page,
+    reflect_kms_search, reflect_list_activity, reflect_list_agent_defs,
+    reflect_list_archived_sessions, reflect_list_dir, reflect_list_discussions,
+    reflect_list_hook_events, reflect_list_hooks, reflect_list_marketplaces,
+    reflect_list_mcp_prompts, reflect_list_mcp_resources, reflect_list_mcp_servers,
+    reflect_list_media, reflect_list_memory, reflect_list_note_sessions,
     reflect_list_permission_rules, reflect_list_pipeline_configs, reflect_list_plugin_commands,
     reflect_list_plugins, reflect_list_provider_models, reflect_list_schedules,
     reflect_list_session_notes, reflect_list_sessions, reflect_list_shell_sessions,
@@ -64,7 +65,7 @@ use commands::{
     reflect_list_traces, reflect_list_workspaces, reflect_list_worktrees, reflect_load_allowlist,
     reflect_lsp_diagnostics, reflect_lsp_set_enabled, reflect_lsp_status, reflect_lsp_warmup,
     reflect_mcp_catalog, reflect_media_capabilities, reflect_memory_sections,
-    reflect_model_rate_cards, reflect_parse_agent_md, reflect_pick_file,
+    reflect_model_rate_cards, reflect_parse_agent_md, reflect_pick_file, reflect_pick_files,
     reflect_pick_workspace_folder, reflect_plan_approval, reflect_prompt_command,
     reflect_pty_close, reflect_pty_resize, reflect_pty_start, reflect_pty_write,
     reflect_query_guard_stats, reflect_query_plan_quota, reflect_query_subagents,
@@ -188,6 +189,7 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             reflect_set_workspace_dirs,
             reflect_pick_workspace_folder,
             reflect_pick_file,
+            reflect_pick_files,
             reflect_reveal_path,
             reflect_current_workspace,
             reflect_install_skill,
@@ -229,6 +231,7 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             reflect_list_dir,
             reflect_read_file,
             reflect_read_image_base64,
+            reflect_ingest_upload,
             reflect_write_file,
             // 审批白名单 / Markdown 导出 / 更新检查 / 文件搜索
             reflect_load_allowlist,
@@ -438,6 +441,15 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 let session_rx = agent_for_forward.subscribe_session();
                 events::forward_agent_events(app_handle, session_rx).await;
+            });
+            // v1.x 后台持续运行:后台会话事件(带 session id)走独立通道
+            // `reflect_session_event`,前端据此维护运行徽标 / 待确认提醒;
+            // 前台通道 `reflect_event` 线格式与 reducer 语义不变。
+            let agent_for_background: MinimalAgent = (*app.state::<MinimalAgent>()).clone();
+            let app_handle_bg = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let background_rx = agent_for_background.subscribe_background();
+                events::forward_background_events(app_handle_bg, background_rx).await;
             });
 
             tracing::info!(

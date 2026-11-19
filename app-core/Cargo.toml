@@ -31,6 +31,10 @@ reflect-subagent   = { workspace = true }
 reflect-config     = { workspace = true }
 # pipeline:DAG 流水线 + team 四阶段预设(CLI `reflect pipeline` 的 GUI 对应)
 reflect-pipeline   = { workspace = true }
+# prompt_env:内置上下文注入 hooks(Hook trait / HookDecision / SystemMessage)
+reflect-hooks      = { workspace = true }
+# prompt_env:AGENTS.md 段格式生成(append_agents_md_section,与 exec/TUI 同源)
+reflect-prompt     = { workspace = true }
 async-trait        = { workspace = true }
 
 # 通用

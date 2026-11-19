@@ -50,3 +50,32 @@
 .remove:hover {
   color: var(--text-primary);
 }
+
+/* A3 状态机:落盘中的 chip 弱化,失败的 chip 红框标错。 */
+.chip[data-status='pending'] {
+  opacity: 0.75;
+}
+
+.chip[data-status='error'] {
+  background: var(--danger-subtle, rgba(224, 100, 100, 0.15));
+  border-color: var(--danger-border, rgba(224, 100, 100, 0.5));
+}
+
+.errorIcon {
+  color: var(--danger-text, #e06464);
+  flex-shrink: 0;
+}
+
+.retry {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem;
+}
+
+.retry:hover {
+  color: var(--text-primary);
+}

@@ -324,6 +324,10 @@
     "reflect_lsp_warmup": {
       "path": "main.rs"
     },
+    "reflect_ingest_upload": {
+      "filename": "contract-probe.txt",
+      "base64": "cHJvYmU="
+    },
     "reflect_mcp_catalog": {},
     "reflect_media_capabilities": {},
     "reflect_memory_sections": {},
@@ -340,6 +344,7 @@
         "toml"
       ]
     },
+    "reflect_pick_files": {},
     "reflect_pick_workspace_folder": {},
     "reflect_plan_approval": {
       "id": "plan-probe",

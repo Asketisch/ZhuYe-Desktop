@@ -17,7 +17,7 @@
  * 按轮 fork：`onForkTurn` 存在时，每个非 streaming turn 尾部 hover 出现
  * 「从此轮分叉」按钮（turn.id 即 rollout 的 turn_id，后端截至该轮复制）。
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Brain,
   Wrench,
@@ -27,6 +27,10 @@ import {
   GitBranch,
   RotateCcw,
   Pencil,
+  RefreshCw,
+  ChevronsRight,
+  Check,
+  Copy,
 } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
 import { Markdown } from '@/components/Markdown';
@@ -35,6 +39,7 @@ import { useI18n } from '@/utils/i18n';
 import { Collapsible } from './Collapsible';
 import { ToolCell, ToolOutputBody } from './ToolCells';
 import { QueuedMessages } from './QueuedMessages';
+import { UserAttachments } from './UserAttachments';
 import { splitAssistantText } from './assistantText';
 import s from './MessageList.module.css';
 
@@ -74,6 +79,8 @@ export function MessageList({
   onForkTurn,
   onRewindTurn,
   onEditTurn,
+  onRegenerateTurn,
+  onContinueTurn,
 }: {
   /** 可选：按轮 fork —— 传入后在每个已结束 turn 上提供「从此轮分叉」入口。 */
   onForkTurn?: (turnId: string, branch: string) => void;
@@ -81,6 +88,10 @@ export function MessageList({
   onRewindTurn?: (turnId: string) => void;
   /** 可选：按轮编辑(v1.11 F7+D6)—— 截断后把该轮用户文本填回 composer。 */
   onEditTurn?: (turnId: string) => void;
+  /** 可选：一键重生成(C2)—— rewind 到该轮用户消息前 + 原样重发。 */
+  onRegenerateTurn?: (turnId: string) => void;
+  /** 可选：继续生成(C3)—— 仅末轮提供,提交续写指令(引擎无 Continue Op)。 */
+  onContinueTurn?: (turnId: string) => void;
 } = {}) {
   const turns = useAgentStore((st) => st.turns);
   const ref = useRef<HTMLDivElement>(null);
@@ -110,9 +121,12 @@ export function MessageList({
             key={t.id}
             turn={t}
             index={i}
+            isLast={i === turns.length - 1}
             onForkTurn={onForkTurn}
             onRewindTurn={onRewindTurn}
           onEditTurn={onEditTurn}
+          onRegenerateTurn={onRegenerateTurn}
+          onContinueTurn={onContinueTurn}
           />
         ))}
         <QueuedMessages />
@@ -124,15 +138,21 @@ export function MessageList({
 function TurnView({
   turn,
   index,
+  isLast = false,
   onForkTurn,
   onRewindTurn,
   onEditTurn,
+  onRegenerateTurn,
+  onContinueTurn,
 }: {
   turn: Turn;
   index: number;
+  isLast?: boolean;
   onForkTurn?: (turnId: string, branch: string) => void;
   onRewindTurn?: (turnId: string) => void;
   onEditTurn?: (turnId: string) => void;
+  onRegenerateTurn?: (turnId: string) => void;
+  onContinueTurn?: (turnId: string) => void;
 }) {
   const nodes = groupToolNodes(turn.items);
   const { t } = useI18n();
@@ -148,6 +168,18 @@ function TurnView({
     Boolean(onEditTurn) &&
     turn.status !== 'streaming' &&
     turn.items.some((it) => it.kind === 'user_text');
+  // C2 一键重生成:含用户内容(文本或附件)、已落全的轮可重发。
+  const canRegenerate =
+    Boolean(onRegenerateTurn) &&
+    turn.status !== 'streaming' &&
+    turn.items.some((it) => it.kind === 'user_text' || it.kind === 'user_attachments');
+  // C3 继续生成:仅末轮且已有助手产出 —— 引擎无 Continue Op,提交一条
+  // 续写指令开新 turn(显式近似,见 ChatView.handleContinueTurn)。
+  const canContinue =
+    Boolean(onContinueTurn) &&
+    isLast &&
+    turn.status !== 'streaming' &&
+    turn.items.some((it) => it.kind === 'assistant_text');
   return (
     <div className={s.turn}>
       {nodes.map((node, i) => (
@@ -159,8 +191,28 @@ function TurnView({
           turnStatus={turn.status}
         />
       ))}
-      {(canFork || canRewind) && (
+      {(canFork || canRewind || canRegenerate || canContinue) && (
         <div className={s.turnActions}>
+          {canContinue && (
+            <IconButton
+              size="sm"
+              label={t('chat.continueGeneration')}
+              onClick={() => onContinueTurn?.(turn.id)}
+              data-testid={`turn-continue-${turn.id}`}
+            >
+              <Icon icon={ChevronsRight} size={12} />
+            </IconButton>
+          )}
+          {canRegenerate && (
+            <IconButton
+              size="sm"
+              label={t('chat.regenerate')}
+              onClick={() => onRegenerateTurn?.(turn.id)}
+              data-testid={`turn-regenerate-${turn.id}`}
+            >
+              <Icon icon={RefreshCw} size={12} />
+            </IconButton>
+          )}
           {canRewind && (
             <IconButton
               size="sm"
@@ -228,6 +280,9 @@ function ItemView({ node, turnStatus }: { node: RenderNode; turnStatus: Turn['st
     case 'user_text':
       return <UserBubble text={item.text} />;
 
+    case 'user_attachments':
+      return <UserAttachments attachments={item.attachments} />;
+
     case 'assistant_text': {
       const streaming = item.streaming === true && turnStatus === 'streaming';
       return <AssistantBubble text={item.text} streaming={streaming} />;
@@ -281,10 +336,35 @@ function ItemView({ node, turnStatus }: { node: RenderNode; turnStatus: Turn['st
   }
 }
 
+/** C1 气泡级复制按钮:复制成功换对勾 1.5s(与代码块复制同款反馈)。 */
+function CopyButton({ text, testId }: { text: string; testId: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const onCopy = () => {
+    void navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <button
+      type="button"
+      className={s.copyBtn}
+      onClick={onCopy}
+      title={t('chat.copyMessage')}
+      aria-label={t('chat.copyMessage')}
+      data-testid={testId}
+    >
+      <Icon icon={copied ? Check : Copy} size={12} />
+    </button>
+  );
+}
+
 function UserBubble({ text }: { text: string }) {
   return (
     <div className={s.userRow}>
       <div className={s.userBubble}>{text}</div>
+      <CopyButton text={text} testId="user-copy" />
     </div>
   );
 }
@@ -341,6 +421,8 @@ function AssistantBubble({ text, streaming }: { text: string; streaming: boolean
           !thinking && <span className={s.thinking}>…</span>
         )}
         {streaming && <span className={s.cursor} aria-hidden="true" />}
+        {/* C1:整条复制 —— 复制剥离思考链后的正文 markdown。 */}
+        {!streaming && content.length > 0 && <CopyButton text={content} testId="assistant-copy" />}
       </div>
     </div>
   );

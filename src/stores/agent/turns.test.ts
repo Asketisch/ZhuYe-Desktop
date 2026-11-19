@@ -11,6 +11,8 @@ import {
   summarizeToolOutput,
   upsertDelta,
   upsertThinking,
+  userAttachmentsFromItems,
+  userItemsFromTurn,
 } from './turns';
 import type { Turn, TurnItem } from './types';
 
@@ -201,5 +203,66 @@ describe('abortTurnOrLatestStreaming', () => {
   it('is a no-op when nothing is streaming', () => {
     const turns: Turn[] = [{ id: 't1', items: [], status: 'done' }];
     expect(abortTurnOrLatestStreaming(turns, 'unknown-id')).toBe(turns);
+  });
+});
+
+describe('userAttachmentsFromItems / userItemsFromTurn(A2/C2 附件元数据往返)', () => {
+  it('把提交 items 映射为可渲染附件(image/file),text 与 skill 跳过', () => {
+    const items = [
+      { type: 'text', text: 'hi' },
+      { type: 'image', data: 'data:image/png;base64,AA', mime_type: 'image/png' },
+      { type: 'file', path: '/ws/a.ts' },
+      { type: 'file', path: '/ws/b.rs', range: { start_line: 1, end_line: 5 } },
+      { type: 'skill', name: 'x' },
+    ] as const;
+    expect(userAttachmentsFromItems([...items])).toEqual([
+      { kind: 'image', src: 'data:image/png;base64,AA', mime: 'image/png' },
+      { kind: 'file', path: '/ws/a.ts' },
+      { kind: 'file', path: '/ws/b.rs', range: { start_line: 1, end_line: 5 } },
+    ]);
+  });
+
+  it('userItemsFromTurn 逆转轮内用户内容(纯文本轮)', () => {
+    const turn: Turn = {
+      id: 't1',
+      items: [
+        { kind: 'user_text', text: '你好' },
+        { kind: 'assistant_text', text: '回复' },
+      ],
+      status: 'done',
+    };
+    expect(userItemsFromTurn(turn)).toEqual([{ type: 'text', text: '你好' }]);
+  });
+
+  it('userItemsFromTurn 逆转附件轮(图片+文件,含行区间)', () => {
+    const turn: Turn = {
+      id: 't2',
+      items: [
+        { kind: 'user_text', text: '' },
+        {
+          kind: 'user_attachments',
+          attachments: [
+            { kind: 'image', src: 'data:image/png;base64,AA', mime: 'image/png' },
+            { kind: 'file', path: '/ws/a.ts' },
+            { kind: 'file', path: '/ws/b.rs', range: { start_line: 3, end_line: 9 } },
+          ],
+        },
+      ],
+      status: 'done',
+    };
+    expect(userItemsFromTurn(turn)).toEqual([
+      { type: 'image', data: 'data:image/png;base64,AA', mime_type: 'image/png' },
+      { type: 'file', path: '/ws/a.ts' },
+      { type: 'file', path: '/ws/b.rs', range: { start_line: 3, end_line: 9 } },
+    ]);
+  });
+
+  it('userItemsFromTurn 无用户内容(纯助手轮)返回 null', () => {
+    const turn: Turn = {
+      id: 't3',
+      items: [{ kind: 'assistant_text', text: 'only' }],
+      status: 'done',
+    };
+    expect(userItemsFromTurn(turn)).toBeNull();
   });
 });

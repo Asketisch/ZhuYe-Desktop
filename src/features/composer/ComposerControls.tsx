@@ -327,9 +327,9 @@ export function ComposerControls() {
           </span>
         )}
         <div className={s.permSwitch} role="radiogroup" aria-label={t('composer.controls.permissionAria')} data-testid="composer-permission-switch">
-          {!PERMISSION_SEGMENTS.some((segment) => segment.value === permissionMode) && (
-            <span aria-live="polite">{permissionMode}</span>
-          )}
+          {/* v1.x:store 的 permissionMode 经 normalizePermissionMode 归一
+              (reducer 事件回读 + bind 返回值同步两个写入口),恒为三态,
+              无需对弃用档做裸回显。 */}
           {PERMISSION_SEGMENTS.map((segment) => (
             <button
               key={segment.value}

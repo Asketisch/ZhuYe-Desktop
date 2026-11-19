@@ -9,7 +9,8 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { CheckSquare, Target, List, X, Pencil, Pause, Play, Send, Loader2 } from 'lucide-react';
-import { useAgentStore } from '@/stores/agentStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import s from './zcode.module.css';
 
@@ -38,7 +39,8 @@ export function ZDock({
   const { t } = useI18n();
   const todos = useAgentStore((st) => st.todos);
   void t;
-  const queued = useAgentStore((st) => st.queuedMessages);
+  // v1.x 后台持续运行:只展示当前前台会话的队列。
+  const queued = useAgentStore(useShallow(selectQueuedForActiveSession));
   const removeQueued = useAgentStore((st) => st.removeQueued);
   const drainQueue = useAgentStore((st) => st.drainQueue);
 

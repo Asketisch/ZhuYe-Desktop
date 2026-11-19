@@ -1,0 +1,49 @@
+/* UserAttachments —— 用户消息附件行(A2):缩略图 + 文件 chip,右对齐成组。 */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding: 0.15rem 0;
+}
+
+.thumbBtn {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 0.5rem;
+  padding: 0;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: var(--bg-elev-2, rgba(255, 255, 255, 0.03));
+  line-height: 0;
+}
+
+.thumb {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  display: block;
+}
+
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 16rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent-border, rgba(94, 175, 230, 0.4));
+  background: var(--accent-subtle, rgba(94, 175, 230, 0.15));
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileRange {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}

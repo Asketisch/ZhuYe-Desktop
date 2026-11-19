@@ -8,6 +8,7 @@ export {
   reduceEvent,
   selectHasPendingInteraction,
   selectIsTurnRunning,
+  selectQueuedForActiveSession,
   useAgent,
   useAgentStore,
 } from './agent';

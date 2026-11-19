@@ -499,6 +499,17 @@ describe('Composer inline controls', () => {
     expect((screen.getByTestId('composer-approval-policy') as HTMLSelectElement).value).toBe('full_access');
   });
 
+  it('权限切换器恒为三段:store 残留弃用档也不裸回显第四项', () => {
+    // 正常路径下 reducer/sync 两条写入口都经 normalizePermissionMode
+    // 归一(见 agentStore.test);这里强制注入弃用档,锁定「切换器只有
+    // 计划/询问/默认三段、不再出现原始字符串回显」的渲染契约。
+    useAgentStore.setState({ permissionMode: 'accept_edits' as never });
+    renderComposer();
+    const group = screen.getByTestId('composer-permission-switch');
+    expect(group.querySelectorAll('button')).toHaveLength(3);
+    expect(group.textContent).not.toContain('accept_edits');
+  });
+
   it('lists coding plans and switches model via reflect_set_model', async () => {
     mockInvoke(
       'reflect_get_config',

@@ -225,6 +225,8 @@ export interface FakeBackend {
     pickedFolder: string | null;
     /** `reflect_pick_file` 的模拟返回值（null = 用户取消）。 */
     pickedFile: string | null;
+    /** `reflect_pick_files`（多选）的模拟返回值（null = 用户取消）。 */
+    pickedFiles: string[] | null;
     activity: Array<Record<string, unknown>>;
     agentDefs: Array<Record<string, unknown>>;
     allowlist: { prefixes: string[] };
@@ -407,6 +409,7 @@ export function installFakeBackend(): FakeBackend {
       ],
       pickedFolder: null,
       pickedFile: null,
+      pickedFiles: null,
       activity: [
         { kind: 'tool_call', label: 'read_file(src/lib.rs)', at: nowIso(-300_000) },
         { kind: 'message', label: 'user: hello', at: nowIso(-400_000) },
@@ -1250,7 +1253,18 @@ export function installFakeBackend(): FakeBackend {
   handle('reflect_current_workspace', handler(() => backend.state.workspaces[0]?.path ?? '/Users/dev/project'));
   handle('reflect_pick_workspace_folder', handler(() => backend.state.pickedFolder));
   handle('reflect_pick_file', handler(() => backend.state.pickedFile));
+  handle('reflect_pick_files', handler(() => backend.state.pickedFiles));
   handle('reflect_reveal_path', handler(() => undefined));
+  // —— A1 上传落盘:字节 → 工作区 .zhuye/uploads 真实路径(模拟)。 ——
+  handle(
+    'reflect_ingest_upload',
+    handler((args: { filename: string; base64: string }) => {
+      const ws = backend.state.workspaces[0]?.path ?? '/Users/dev/project';
+      // 裸 base64 长度 → 字节数(去掉 padding 估算),够测试断言用。
+      const size = Math.max(0, Math.floor((args.base64.replace(/=+$/, '').length * 3) / 4));
+      return { path: `${ws}/.zhuye/uploads/${args.filename}`, size };
+    }),
+  );
 
   // —— traces(本地 LLM 调用记录只读查询)——
   handle('reflect_list_traces', handler(() => [

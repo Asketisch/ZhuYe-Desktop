@@ -1,0 +1,32 @@
+/* Lightbox —— 图片放大预览遮罩(B4),token 化暗色底。 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-scrim, rgba(0, 0, 0, 0.72));
+  backdrop-filter: blur(2px);
+}
+
+.frame {
+  position: relative;
+  max-width: min(92vw, 1200px);
+  max-height: 88vh;
+  display: flex;
+}
+
+.image {
+  max-width: 100%;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
+.closeBtn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}

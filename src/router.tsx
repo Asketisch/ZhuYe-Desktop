@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, RootRoute, Router } from '@tanstack/react-router';
 import React, { useEffect } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
+import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import { useEditorStore } from '@/stores/editorStore';
 import { ModalStack } from '@/features/modals';
 import { AppShell } from '@/features/shell/AppShell';
@@ -167,9 +168,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     // editorStore 也订阅同一 agent event bus,把 tool_call_end 中的
     // Diff 内容累计到 FilesView 的 pending 编辑列表(Cursor 式 review)。
     const unsubscribeEditor = useEditorStore.getState().subscribe();
+    // v1.x 后台持续运行:后台会话事件走独立通道,本 store 维护运行徽标
+    // 与待确认交互投影(主 reducer 只管前台会话)。
+    const unsubscribeBackground = useBackgroundSessions.getState().subscribe();
     return () => {
       unsubscribeAgent();
       unsubscribeEditor();
+      unsubscribeBackground();
     };
   }, []);
   return <I18nProvider><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></I18nProvider>;

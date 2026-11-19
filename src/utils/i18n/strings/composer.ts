@@ -92,6 +92,8 @@ const composer: Record<string, StringEntry> = {
   'composer.bang.failed':                    { en: 'failed',                                        'zh-CN': '失败' },
   'composer.bang.kill':                      { en: 'Terminate',                                     'zh-CN': '终止' },
   'composer.bang.truncated':                 { en: 'Output truncated — expand to view more.',       'zh-CN': '输出已截断 —— 展开查看更多。' },
+  'composer.upload.failed':                  { en: 'Failed to attach “{name}”: {msg}',              'zh-CN': '添加附件「{name}」失败：{msg}' },
+  'composer.upload.tooLarge':                { en: 'File exceeds the 64 MiB limit ({size} bytes).', 'zh-CN': '文件超过 64 MiB 上限（{size} 字节）。' },
 };
 
 export default composer;

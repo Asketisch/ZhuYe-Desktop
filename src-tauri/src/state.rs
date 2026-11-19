@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use reflect_config::ReflectConfig;
-use reflect_protocol::{Event, RolloutRecorder};
+use reflect_protocol::{Event, RolloutRecorder, ThreadId};
 use reflect_tools::ToolRegistry;
 use tokio::sync::broadcast;
 
@@ -27,6 +27,7 @@ mod agent;
 mod autopilot;
 mod discussion;
 mod install;
+pub(crate) mod model_spec;
 pub(crate) mod permissions;
 pub(crate) mod plugin_hooks;
 pub(crate) mod plugin_status;
@@ -103,6 +104,12 @@ impl MinimalAgent {
     /// 订阅 session 级 broadcast。前端 Tauri listener 拿到的就是这个 receiver。
     pub fn subscribe_session(&self) -> broadcast::Receiver<Event> {
         session::subscribe_session(self)
+    }
+
+    /// 订阅后台会话 broadcast(v1.x 后台持续运行):`(session_id, Event)` 流,
+    /// 经 `reflect_session_event` 通道推前端,供会话列表徽标 / 后台待确认提醒。
+    pub fn subscribe_background(&self) -> broadcast::Receiver<(ThreadId, Event)> {
+        session::subscribe_background(self)
     }
 
     /// 会话广播发送方句柄（MCP/LSP 生命周期事件反向推送用）。

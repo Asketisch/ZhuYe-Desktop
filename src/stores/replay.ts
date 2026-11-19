@@ -1,5 +1,5 @@
 import type { ReflectRolloutRecord } from '@/utils/types';
-import type { CompactionStats, PlanDocState, Turn, TurnItem } from './agent/types';
+import type { CompactionStats, PlanDocState, Turn, TurnItem, UserAttachmentMeta } from './agent/types';
 import { summarizeArgs, summarizeToolOutput } from './agent/turns';
 
 /**
@@ -95,6 +95,10 @@ export function turnsFromRollout(records: ReflectRolloutRecord[]): {
  * TurnItem 列表。只渲染 user / assistant 两种 role —— `system` / `tool`
  * 角色的持久化记录不进入历史视图(tool 输出已由 assistant 消息里的
  * `tool_result` 块承载)。
+ *
+ * A2:用户侧附件在回放里还原 —— `image` 块(0-255 字节数组)转 data-URL
+ * 缩略图;引擎把 `UserInputItem::File` 展开成的独立 `@path(:Ls-Le)` 文本
+ * 块解析回文件 chip(只认整块匹配,用户正文里手打的 `@xxx` 不受影响)。
  */
 function contentToItems(content: unknown, role: string): TurnItem[] {
   if (role !== 'user' && role !== 'assistant') return [];
@@ -106,13 +110,43 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
   if (!Array.isArray(content)) return [];
 
   const items: TurnItem[] = [];
+  /** 相邻附件块合并进同一个 user_attachments item(chip 行视觉成组)。 */
+  const pushAttachment = (attachment: UserAttachmentMeta) => {
+    const last = items[items.length - 1];
+    if (last?.kind === 'user_attachments') {
+      items[items.length - 1] = { kind: 'user_attachments', attachments: [...last.attachments, attachment] };
+    } else {
+      items.push({ kind: 'user_attachments', attachments: [attachment] });
+    }
+  };
   for (const block of content) {
     if (!block || typeof block !== 'object') continue;
     const b = block as Record<string, unknown>;
     switch (b.type) {
       case 'text': {
         const text = typeof b.text === 'string' ? b.text.trim() : '';
-        if (text) items.push(textItem(role, text));
+        if (!text) break;
+        // 引擎 File item 的落盘形态:独立文本块 `@path` / `@path:Ls-Le`。
+        const mention = FILE_MENTION_RE.exec(text);
+        if (role === 'user' && mention) {
+          pushAttachment(
+            mention[2]
+              ? {
+                  kind: 'file',
+                  path: mention[1],
+                  range: { start_line: Number(mention[2]), end_line: Number(mention[3]) },
+                }
+              : { kind: 'file', path: mention[1] },
+          );
+          break;
+        }
+        items.push(textItem(role, text));
+        break;
+      }
+      case 'image': {
+        const mime = typeof b.mime_type === 'string' ? b.mime_type : 'image/png';
+        if (!Array.isArray(b.data)) break;
+        pushAttachment({ kind: 'image', src: `data:${mime};base64,${bytesToBase64(b.data as number[])}`, mime });
         break;
       }
       case 'tool_use': {
@@ -146,11 +180,24 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
         break;
       }
       default:
-        // image 等块暂不进历史视图(base64 负载);diff 已由 tool_result 提取。
+        // 其余块(diff 等)已由 tool_result 提取,不进历史视图。
         break;
     }
   }
   return items;
+}
+
+/** 独立 `@path(:Ls-Le)` 文本块 —— 引擎 `UserInputItem::File` 的落盘形态。 */
+const FILE_MENTION_RE = /^@(\S+?)(?::L(\d+)-L(\d+))?$/;
+
+/** 0-255 字节数组 → base64(分块拼接,防超长数组爆调用栈)。 */
+function bytesToBase64(bytes: number[]): string {
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.slice(i, i + CHUNK));
+  }
+  return btoa(binary);
 }
 
 function textItem(role: string, text: string): TurnItem {

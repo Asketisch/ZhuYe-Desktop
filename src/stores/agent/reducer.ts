@@ -1,4 +1,5 @@
 import type { ReflectEvent } from '@/types/protocol';
+import { normalizePermissionMode } from '@/types/protocol';
 import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, PluginLoadedInfo, TodoItem } from './types';
 import { COMPACTION_RECORD_CAP, SUBAGENT_FEED_CAP } from './types';
 import { upsertServer } from './servers';
@@ -61,12 +62,13 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
     case 'turn_rewound': {
       const cutoff = msg.to_turn_id;
       if (!cutoff) return {};
-      // 按 id 查找截断 turn;保留所有该 turn 及之前的 turn。
-      // v4 UUID 无法字典序比较,改为查找索引。若 id 未知则保持 turns 不动
-      // (后端是单一事实源,下一次回放会重新对齐)。
+      // 引擎 `truncate_after(to_turn_id)` 丢弃该 turn **含**及其之后的
+      // 记录(recorder.rs),本地截断必须同语义:只保留出现在该 turn
+      // *之前*的 turn。v4 UUID 无法字典序比较,改为查找索引。若 id 未知
+      // 则保持 turns 不动(后端是单一事实源,下一次回放会重新对齐)。
       const idx = state.turns.findIndex((turn) => turn.id === cutoff);
       if (idx < 0) return {};
-      return { turns: state.turns.slice(0, idx + 1) };
+      return { turns: state.turns.slice(0, idx) };
     }
 
     case 'shutdown_complete':
@@ -604,8 +606,10 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
       // v1.x 修复:模式被切换(用户手动接管或审批自身翻转)时清掉悬挂的
       // plan 弹窗 —— 配合上游「手动切模式 cancel_all 在途审批 waiter」,
       // 迟到的审批决策不再二次翻转模式覆盖用户设置。
+      // v1.x:弃用档归一化 —— 引擎计划批准 auto_mode 会切到弃用的
+      // accept_edits,如实回显会出现第四态;归一为三态(auto/prompt/plan)。
       return {
-        permissionMode: msg.to,
+        permissionMode: normalizePermissionMode(msg.to),
         ...(state.pendingPlan ? { pendingPlan: null } : {}),
       };
 

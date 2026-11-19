@@ -59,9 +59,11 @@ describe('useComposerDragDrop', () => {
     );
     await act(() => result.current.drop.ingestPaths(['/tmp/shot.png', '/tmp/notes.txt']));
     await waitFor(() => expect(result.current.attachments.attachments).toHaveLength(2));
+    // A3:staged 形状({id, status, attachment}),断言取 .attachment。
     const [img, mention] = result.current.attachments.attachments;
-    expect(img).toEqual({ kind: 'image', data: 'data:image/png;base64,AAAA', mime_type: 'image/png' });
-    expect(mention).toEqual({ kind: 'file', path: '/tmp/notes.txt' });
+    expect(img.status).toBe('ready');
+    expect(img.attachment).toEqual({ kind: 'image', data: 'data:image/png;base64,AAAA', mime_type: 'image/png' });
+    expect(mention.attachment).toEqual({ kind: 'file', path: '/tmp/notes.txt' });
   });
 
   it('pushes an error toast when image read fails', async () => {

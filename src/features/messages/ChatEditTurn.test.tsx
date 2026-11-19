@@ -3,7 +3,8 @@
  *
  * 直接锁定 ChatView 导出的**真实实现** `editRewindTargetFor`(防测试内
  * 复刻逻辑漂移)+ prefill 总线把原文装回挂载的 Composer 草稿(真实 hook 渲染):
- * - rewind 目标推算:index>0 → 前一轮;index 0 → 含自身(清空重发)
+ * - rewind 目标推算:恒为目标轮自身(引擎 truncate_after 丢弃该轮含之后,
+ *   此前的轮次完整保留)
  * - 同时返回该轮用户原文(供 prefill)
  * - 无用户文本的 turn / 不存在的 turn → null(不可编辑)
  */
@@ -19,9 +20,9 @@ const TURNS = [
 ];
 
 describe('edit history turn — semantic building blocks (real implementation)', () => {
-  it('editing t2 rewinds to previous turn t1 and returns original user text', () => {
+  it('editing t2 rewinds to t2 itself (engine drops target turn and after)', () => {
     const target = editRewindTargetFor(TURNS, 't2');
-    expect(target).toEqual({ rewindTo: 't1', userText: '第二条' });
+    expect(target).toEqual({ rewindTo: 't2', userText: '第二条' });
   });
 
   it('editing t0 rewinds to itself (clear all, resend) with its own text', () => {
