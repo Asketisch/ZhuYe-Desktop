@@ -6,6 +6,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '@/features/shell/AppShell';
 import { useAgentStore } from '@/stores/agentStore';
+import { useShellUi } from '@/stores/shellUi';
 import { resetMockInvoke, mockInvoke, createTestQueryClient } from '@/test/setup.tsx';
 import { isPinned, togglePin, unpin } from '@/features/sessions/utils/pins';
 
@@ -56,46 +57,49 @@ describe('AppShell collapse behavior', () => {
     navigate.mockClear();
     route.pathname = '/';
     useAgentStore.getState().reset();
+    // harness 壳层 UI 状态迁移到 shellUi（含 localStorage 持久化），逐用例重置。
+    localStorage.clear();
+    useShellUi.setState({
+      rail: false, dockOpen: false, dockMode: 'inspector', dockWide: false,
+      termOpen: false, semantic: 'on', inboxOpen: false, settingsOpen: false,
+      paletteOpen: false, moreMenuOpen: false, unread: {},
+    });
   });
   afterEach(() => { cleanup(); unpin('clear-active'); });
 
-  it('initial: sidebar visible, inspector hidden', () => {
+  // v3 harness：侧栏与 dock 常驻 DOM，收起态由 .rail / .no-inspector 类驱动。
+  const appEl = () => document.querySelector('[data-testid="harness-app"]') as HTMLElement;
+
+  it('initial: sidebar visible, dock hidden (no-inspector class)', () => {
     render(wrap(<AppShell />));
-    expect(screen.getByTestId('shell-sidebar')).toBeDefined();
-    expect(screen.queryByTestId('shell-inspector')).toBeNull();
+    expect(screen.getByTestId('harness-sidebar')).toBeDefined();
+    expect(appEl().className).toContain('no-inspector');
+    expect(appEl().className).not.toContain('rail');
   });
 
-  it('clicking sidebar toggle button removes sidebar from DOM', () => {
+  it('clicking rail toggle switches app into rail mode and back', () => {
     render(wrap(<AppShell />));
-    expect(screen.getByTestId('shell-sidebar')).toBeDefined();
-    fireEvent.click(screen.getByLabelText('Hide sidebar'));
-    expect(screen.queryByTestId('shell-sidebar')).toBeNull();
+    fireEvent.click(screen.getByTestId('harness-rail'));
+    expect(appEl().className).toContain('rail');
+    fireEvent.click(screen.getByTestId('harness-rail'));
+    expect(appEl().className).not.toContain('rail');
   });
 
-  it('clicking sidebar toggle twice round-trips (open → close → open)', () => {
+  it('clicking inspector toggle opens the dock and back', () => {
     render(wrap(<AppShell />));
-    const hideBtn = screen.getByLabelText('Hide sidebar');
-    fireEvent.click(hideBtn);
-    expect(screen.queryByTestId('shell-sidebar')).toBeNull();
-    // 第一次折叠后，按钮 label 变回 "Show sidebar"
-    fireEvent.click(screen.getByLabelText('Show sidebar'));
-    expect(screen.getByTestId('shell-sidebar')).toBeDefined();
+    fireEvent.click(screen.getByLabelText('Inspector dock'));
+    expect(appEl().className).not.toContain('no-inspector');
+    fireEvent.click(screen.getByLabelText('Inspector dock'));
+    expect(appEl().className).toContain('no-inspector');
   });
 
-  it('clicking inspector toggle adds inspector to DOM', () => {
+  it('rail and collapsed dock can coexist', () => {
     render(wrap(<AppShell />));
-    expect(screen.queryByTestId('shell-inspector')).toBeNull();
-    fireEvent.click(screen.getByLabelText('Show inspector'));
-    expect(screen.getByTestId('shell-inspector')).toBeDefined();
-  });
-
-  it('both panels can be collapsed simultaneously', () => {
-    render(wrap(<AppShell />));
-    fireEvent.click(screen.getByLabelText('Hide sidebar'));
-    fireEvent.click(screen.getByLabelText('Show inspector'));
-    fireEvent.click(screen.getByLabelText('Hide inspector'));
-    expect(screen.queryByTestId('shell-sidebar')).toBeNull();
-    expect(screen.queryByTestId('shell-inspector')).toBeNull();
+    fireEvent.click(screen.getByTestId('harness-rail'));
+    fireEvent.click(screen.getByLabelText('Inspector dock'));
+    fireEvent.click(screen.getByLabelText('Inspector dock'));
+    expect(appEl().className).toContain('rail');
+    expect(appEl().className).toContain('no-inspector');
   });
 
   // 回归保护：AppShell 必须渲染 <Outlet />（不是 children prop），
@@ -117,7 +121,7 @@ describe('AppShell collapse behavior', () => {
     mockInvoke('reflect_current_workspace', async () => null);
 
     render(wrap(<AppShell />));
-    fireEvent.click(screen.getByRole('button', { name: /^new chat$/i }));
+    fireEvent.click(screen.getByTestId('harness-nav-new'));
 
     await new Promise((r) => setTimeout(r, 0)); // 让 .then(setActiveId) 微任务落地
     expect(created).toEqual(['sess-new-1']);
@@ -172,7 +176,7 @@ describe('AppShell collapse behavior', () => {
     mockInvoke('reflect_create_session', () => new Promise<string>((resolve) => { finish = resolve; }));
     render(wrap(<AppShell />));
     const chosen = await screen.findByRole('button', { name: /Chosen session/ });
-    fireEvent.click(screen.getByRole('button', { name: /^new chat$/i }));
+    fireEvent.click(screen.getByTestId('harness-nav-new'));
     await waitFor(() => expect(finish).toBeTypeOf('function'));
     fireEvent.click(chosen);
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/chat/$sessionId', params: { sessionId: 'chosen' } }));
@@ -194,8 +198,9 @@ describe('AppShell collapse behavior', () => {
     mockInvoke('reflect_archive_session', () => new Promise<void>((resolve) => { finish = resolve; }));
     render(wrap(<AppShell />));
     const next = await screen.findByRole('button', { name: /Next session/ });
-    fireEvent.click(screen.getByTestId('session-kebab-old'));
-    fireEvent.click(screen.getByTestId('session-archive-old'));
+    // v3 harness：归档入口在会话行 ⋯ 菜单，经应用内确认框执行。
+    fireEvent.click(await screen.findByTestId('session-more-old'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
     await waitFor(() => expect(finish).toBeTypeOf('function'));
     fireEvent.click(next);
@@ -225,14 +230,14 @@ describe('AppShell collapse behavior', () => {
   });
 
   // 回归保护：TitleBar 必须挂 data-tauri-drag-region（否则窗口无法拖动），
-  // 必须是 .shell 的第一个子元素（贯通全宽，红绿灯嵌在里面）。
+  // 必须是 .app 的第一个子元素（贯通全宽，红绿灯避让区嵌在里面）。
   it('TitleBar is top-level (spans full width) and has drag region', () => {
     const { container } = render(wrap(<AppShell />));
-    const titlebar = container.querySelector('[data-testid="titlebar"]');
+    const titlebar = container.querySelector('[data-testid="harness-titlebar"]');
     expect(titlebar).not.toBeNull();
     expect(titlebar?.hasAttribute('data-tauri-drag-region')).toBe(true);
 
-    // .shell 的第一个子元素应当是 titlebar（不是 ActivityBar）。
+    // .app 的第一个子元素应当是 titlebar。
     const shell = container.firstChild as HTMLElement;
     expect(shell.firstChild).toBe(titlebar);
   });

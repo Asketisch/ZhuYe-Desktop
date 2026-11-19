@@ -1,95 +1,134 @@
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search } from 'lucide-react';
+import { Bell, Contrast, Command, PanelLeft, PanelRight, Moon, Sun, SquareTerminal } from 'lucide-react';
 import type { TitleBarProps } from '@/contracts/titleBar';
 import { Icon } from '../design-system/Icon';
-import { IconButton } from '../design-system/IconButton';
-import { Tooltip } from '../design-system/Tooltip';
-import { Badge } from '../design-system/Badge';
-import s from './TitleBar.module.css';
 
-/** 路径 → i18n key 映射。统一通过 t(key) 渲染。 */
-const TITLES: Record<string, string> = {
-  '/': 'shell.title.chat',
-  '/home': 'shell.title.home',
-  '/chat': 'shell.title.chat',
-  '/sessions': 'shell.title.threads',
-  '/files': 'shell.title.files',
-  '/git': 'shell.title.git',
-  '/terminal': 'shell.title.terminal',
-  '/skills': 'shell.title.skills',
-  '/workspaces': 'shell.title.workspaces',
-  '/models': 'shell.title.models',
-  '/plan': 'shell.title.plan',
-  '/prompts': 'shell.title.prompts',
-  '/notifications': 'shell.title.notifications',
-  '/settings': 'shell.title.settings',
-  '/about': 'shell.title.about',
-  '/debug': 'shell.title.debug',
-  '/apps': 'shell.title.apps',
-  '/import': 'shell.title.import',
-  '/preview': 'shell.title.preview',
-  '/collaboration': 'shell.title.collaboration',
-  '/mobile': 'shell.title.mobile',
-  '/dictation': 'shell.title.dictation',
-  '/design-system': 'shell.title.designSystem',
-  '/memory': 'shell.title.memory',
-  '/search': 'shell.title.search',
-  '/tasks': 'shell.title.tasks',
-  '/schedule': 'shell.title.schedule',
-  '/agents': 'shell.title.agents',
-  '/side-channels': 'shell.title.sideChannels',
-  '/remote': 'shell.title.remote',
-  '/kms': 'shell.title.kms',
-  '/autopilot': 'shell.title.autopilot',
-  '/squad': 'shell.title.squad',
-  '/media': 'shell.title.media',
-};
-
-function titleFor(pathname: string, t: TitleBarProps['t']): string {
-  const key = TITLES[pathname];
-  if (key) return t(key);
-  if (pathname.startsWith('/chat')) return t('shell.title.chat');
-  return t('shell.title.reflect');
-}
-
-export function TitleBar({ t, pathname, sessionLabel, permissionMode, sidebarOpen, inspectorOpen,
-  onToggleSidebar, onToggleInspector }: TitleBarProps) {
+/**
+ * harness 标题条（v3 设计稿移植）。
+ *
+ * 布局：红绿灯避让区 → rail 开关 → 工作区标题 → 弹性空隙 → 右侧动作组
+ * （任务中心铃铛+角标 / 终端 / dock / 命令面板 / 单色 / 主题）。
+ * macOS Overlay 红绿灯由系统绘制，这里只留避让宽度。
+ */
+export function TitleBar(props: TitleBarProps) {
+  const {
+    t, workspaceLabel, pendingCount,
+    onToggleSidebar, onToggleTerm, termOpen, onToggleInspector, inspectorOpen,
+    onOpenPalette, onOpenInbox, semantic, onToggleSemantic, resolvedTheme, onToggleTheme,
+    dockMode, onSetDockMode,
+  } = props;
   return (
-    // data-tauri-drag-region="deep"：子树内任意非交互元素命中都触发拖动；
-    // drag.js 自动跳过 button/a/input（isClickableElement），toggle 仍可点击，
-    // 并在命中时自行 preventDefault 防止文本选中抢焦点。
-    <header
-      className={s.bar}
-      data-tauri-drag-region="deep"
-      data-testid="titlebar"
-    >
-      <div className={s.left}>
-        <Tooltip label={sidebarOpen ? t('shell.hideSidebar') : t('shell.showSidebar')} side="bottom">
-          <IconButton label={sidebarOpen ? t('shell.hideSidebar') : t('shell.showSidebar')} onClick={onToggleSidebar}>
-            <Icon icon={sidebarOpen ? PanelLeftClose : PanelLeftOpen} size={16} />
-          </IconButton>
-        </Tooltip>
-        <h1 className={s.title}>{titleFor(pathname, t)}</h1>
-        {/* session 状态（保留 "session: ..." 文案契约，供 MessageList 测试断言） */}
-        <span className={s.sessionStatus} data-testid="titlebar-session">
-          {t('shell.sessionLabel', { label: sessionLabel })}
-        </span>
-      </div>
-      <div className={s.right}>
-        <Tooltip label={t('shell.commandPaletteHint')} side="bottom">
-          <kbd className={s.kbdHint}>
-            <Icon icon={Search} size={11} /> ⌘K
-          </kbd>
-        </Tooltip>
-        {permissionMode && (
-          <Badge variant={permissionMode === 'auto' ? 'success' : permissionMode === 'plan' ? 'info' : 'warning'}>
-            {t(`permissionMode.${permissionMode}.name`)}
-          </Badge>
-        )}
-        <Tooltip label={inspectorOpen ? t('shell.hideInspector') : t('shell.showInspector')} side="bottom">
-          <IconButton label={inspectorOpen ? t('shell.hideInspector') : t('shell.showInspector')} onClick={onToggleInspector} variant={inspectorOpen ? 'active' : 'default'}>
-            <Icon icon={inspectorOpen ? PanelRightClose : PanelRightOpen} size={16} />
-          </IconButton>
-        </Tooltip>
+    <header className="titlebar" data-tauri-drag-region data-testid="harness-titlebar">
+      <button
+        type="button"
+        className="tb-btn"
+        title={t('harness.title.rail')}
+        aria-label={t('harness.title.rail')}
+        onClick={onToggleSidebar}
+        data-testid="harness-rail"
+      >
+        <Icon icon={PanelLeft} size={15} />
+      </button>
+      <span className="tb-title mono" data-testid="harness-workspace-label">{workspaceLabel}</span>
+      <span className="tb-spacer" />
+      <div className="tb-actions">
+        {/* 任务中心：待批准 / 待回答 / 后台完成的汇总入口 */}
+        <button
+          type="button"
+          className="tb-btn tb-bell"
+          title={t('harness.inbox.title')}
+          aria-label={t('harness.inbox.title')}
+          onClick={onOpenInbox}
+          data-testid="harness-inbox"
+        >
+          <Icon icon={Bell} size={15} />
+          <span className="tb-badge" hidden={pendingCount === 0} data-testid="harness-inbox-badge">{pendingCount}</span>
+        </button>
+        {/* 终端面板 */}
+        <button
+          type="button"
+          className={`tb-btn${termOpen ? ' on' : ''}`}
+          title={t('harness.title.term')}
+          aria-label={t('harness.title.term')}
+          onClick={onToggleTerm}
+          data-testid="harness-term"
+        >
+          <Icon icon={SquareTerminal} size={15} />
+        </button>
+        {/* 右 dock：检查器开合 */}
+        <button
+          type="button"
+          className={`tb-btn${inspectorOpen ? ' on' : ''}`}
+          title={t('harness.title.inspect')}
+          aria-label={t('harness.title.inspect')}
+          onClick={onToggleInspector}
+          data-testid="harness-inspect"
+        >
+          <Icon icon={PanelRight} size={15} />
+        </button>
+        {/* dock 快捷档位：浏览器 / 文件 / 用量（点按直达对应档位） */}
+        <button
+          type="button"
+          className={`tb-btn${dockMode === 'browser' && inspectorOpen ? ' on' : ''}`}
+          title={t('harness.dock.browser')}
+          aria-label={t('harness.dock.browser')}
+          onClick={() => onSetDockMode('browser')}
+          data-testid="harness-dock-browser"
+        >
+          <span className="mono" style={{ fontSize: 12 }}>◧</span>
+        </button>
+        <button
+          type="button"
+          className={`tb-btn${dockMode === 'files' && inspectorOpen ? ' on' : ''}`}
+          title={t('harness.dock.files')}
+          aria-label={t('harness.dock.files')}
+          onClick={() => onSetDockMode('files')}
+          data-testid="harness-dock-files"
+        >
+          <span className="mono" style={{ fontSize: 12 }}>▤</span>
+        </button>
+        <button
+          type="button"
+          className={`tb-btn${dockMode === 'usage' && inspectorOpen ? ' on' : ''}`}
+          title={t('harness.dock.usage')}
+          aria-label={t('harness.dock.usage')}
+          onClick={() => onSetDockMode('usage')}
+          data-testid="harness-dock-usage"
+        >
+          <span className="mono" style={{ fontSize: 12 }}>◒</span>
+        </button>
+        {/* 命令面板 */}
+        <button
+          type="button"
+          className="tb-btn"
+          title={t('harness.title.palette')}
+          aria-label={t('harness.title.palette')}
+          onClick={onOpenPalette}
+          data-testid="harness-palette"
+        >
+          <Icon icon={Command} size={15} />
+        </button>
+        {/* 单色 / 语义色 */}
+        <button
+          type="button"
+          className={`tb-btn${semantic === 'off' ? ' on' : ''}`}
+          title={t('harness.title.mono')}
+          aria-label={t('harness.title.mono')}
+          onClick={onToggleSemantic}
+          data-testid="harness-mono"
+        >
+          <Icon icon={Contrast} size={15} />
+        </button>
+        {/* 亮色 / 暗色 */}
+        <button
+          type="button"
+          className="tb-btn"
+          title={t('harness.title.theme')}
+          aria-label={t('harness.title.theme')}
+          onClick={onToggleTheme}
+          data-testid="harness-theme"
+        >
+          <Icon icon={resolvedTheme === 'dark' ? Moon : Sun} size={15} />
+        </button>
       </div>
     </header>
   );

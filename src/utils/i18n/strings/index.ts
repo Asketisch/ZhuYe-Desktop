@@ -23,6 +23,7 @@ import design from './design';
 import dictation from './dictation';
 import files from './files';
 import git from './git';
+import harness from './harness';
 import home from './home';
 import hooks from './hooks';
 import kms from './kms';
@@ -73,6 +74,7 @@ export const STRINGS: Record<string, StringEntry> = {
   ...dictation,
   ...files,
   ...git,
+  ...harness,
   ...home,
   ...hooks,
   ...kms,

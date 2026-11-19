@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ComponentType, ReactNode } from 'react';
-import type { ShellSlots, ShellViewProps } from '@/contracts/shell';
+import type { ShellSlots, ShellViewProps, ShellViewMode, HarnessNavItem } from '@/contracts/shell';
 import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
 import { unpin, useSessionPins } from '@/logic/sessions/pins';
 import { useAgentStore as useZAgentStore } from '@/stores/agentStore';
+import { useShellUi } from '@/stores/shellUi';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
@@ -16,6 +17,18 @@ import { useCommandPaletteShortcut } from '@/logic/shell/useCommandPaletteShortc
 import { useMenuEvents } from '@/logic/shell/useMenuEvents';
 import { usePaletteActions } from '@/logic/shell/usePaletteActions';
 import { useCurrentWorkspace, CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
+import { useSessionBadges } from './useSessionBadges';
+import { useHarnessShortcuts } from './useHarnessShortcuts';
+
+/** 路由 → harness 视图形态（壳层样式与「更多」菜单高亮的依据）。 */
+function pathnameToViewMode(pathname: string): ShellViewMode {
+  if (pathname === '/' || pathname === '/home') return 'home';
+  if (pathname.startsWith('/chat')) return 'conv';
+  if (pathname.startsWith('/plan')) return 'plan';
+  if (pathname.startsWith('/market')) return 'market';
+  if (pathname.startsWith('/lanes')) return 'lanes';
+  return 'page';
+}
 
 /** 绑定主壳的会话、工作区和全局动作。 */
 export function ShellBinding({ view: View, slots, content }: { view: ComponentType<ShellViewProps>; slots: ShellSlots; content: ReactNode }) {
@@ -34,8 +47,11 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   const suppressInteraction = pathname.startsWith('/chat') && (zApprovals.length > 0 || zQuestions.length > 0 || zAskUsers.length > 0);
   const qc = useQueryClient();
   const { t, tp } = useI18n();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [sidebarOpen] = useState(true);
+  // dock 开合已迁移到 shellUi store（标题条 / 快捷键 / dock 档位按钮共用）。
+  const uiStoreOpen = useShellUi((s) => s.dockOpen);
+  const inspectorOpen = uiStoreOpen;
+  const setInspectorOpen = useShellUi((s) => s.setDockOpen);
   // 异步导航完成时只允许最后一次用户操作改变当前会话。
   const selectSeqRef = useRef(0);
 
@@ -222,20 +238,143 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
 
   const toasts = useAgentStore((st) => st.toasts);
   const dismissToast = useAgentStore((st) => st.dismissToast);
+
+  // ===== harness 壳层数据 =====
+  // 壳层 UI 状态（rail / dock / 终端面板 / 任务中心 / 单色模式）。
+  const ui = useShellUi();
+  // 单色模式挂到 <html data-semantic>，与主题 attribute 同层。
+  useEffect(() => {
+    document.documentElement.setAttribute('data-semantic', ui.semantic);
+  }, [ui.semantic]);
+  const viewMode = pathnameToViewMode(pathname);
+  const workspaceLabel = useMemo(() => {
+    if (!currentWorkspace) return t('harness.title.workspace');
+    const segments = currentWorkspace.split('/').filter(Boolean);
+    return segments[segments.length - 1] ?? currentWorkspace;
+  }, [currentWorkspace, t]);
+  // 会话徽标：前台来自主 store，后台来自 backgroundSessions 投影。
+  const sessionIds = useMemo(() => sessions.all.map((s) => s.session_id), [sessions.all]);
+  const unreadRegistry = useMemo(() => ({
+    unread: ui.unread,
+    markRead: ui.markRead,
+    markUnread: ui.markUnread,
+  }), [ui.unread, ui.markRead, ui.markUnread]);
+  const { badges, pendingCount, runningCount } = useSessionBadges(activeId, sessionIds, unreadRegistry);
+  // 打开会话即清除未读产出标记。
+  useEffect(() => {
+    if (activeId) ui.markRead(activeId);
+    // markRead 引用稳定（zustand action）。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
+  // 「更多」菜单：dock 五档与侧栏固定项之外的其余路由页。
+  const harnessNavigate = useCallback((to: string) => { void router.navigate({ to }); }, [router]);
+  const morePages = useMemo<HarnessNavItem[]>(() => [
+    { label: t('threads.title'), path: '/sessions' },
+    { label: t('files.title'), path: '/files' },
+    { label: t('search.title'), path: '/search' },
+    { label: t('git.title'), path: '/git' },
+    { label: t('pulls.title'), path: '/pulls' },
+    { label: t('models.title'), path: '/models' },
+    { label: t('skills.title'), path: '/skills' },
+    { label: t('workspaces.title'), path: '/workspaces' },
+    { label: t('prompts.title'), path: '/prompts' },
+    { label: t('agents.title'), path: '/agents' },
+    { label: t('squad.title'), path: '/squad' },
+    { label: t('sideChannel.title'), path: '/side-channels' },
+    { label: t('tasks.title'), path: '/tasks' },
+    { label: t('schedule.title'), path: '/schedule' },
+    { label: t('autopilot.title'), path: '/autopilot' },
+    { label: t('remote.title'), path: '/remote' },
+    { label: t('kms.title'), path: '/kms' },
+    { label: t('memory.title'), path: '/memory' },
+    { label: t('media.title'), path: '/media' },
+    { label: t('traces.title'), path: '/traces' },
+    { label: t('notifications.title'), path: '/notifications' },
+    { label: t('collaboration.title'), path: '/collaboration' },
+    { label: t('import.title'), path: '/import' },
+    { label: t('apps.title'), path: '/apps' },
+    { label: t('mobile.title'), path: '/mobile' },
+    { label: t('dictation.title'), path: '/dictation' },
+    { label: t('preview.title'), path: '/preview' },
+    { label: t('debug.title'), path: '/debug' },
+    { label: t('about.title'), path: '/about' },
+  ], [t]);
+  const harnessData = useMemo(() => ({
+    t,
+    viewMode,
+    workspaceLabel,
+    morePages,
+    navigate: harnessNavigate,
+    openSettings: () => ui.setSettingsOpen(true),
+    moreMenuOpen: ui.moreMenuOpen,
+    onToggleMoreMenu: () => ui.setMoreMenuOpen(!ui.moreMenuOpen),
+    onCloseMoreMenu: () => ui.setMoreMenuOpen(false),
+    badges,
+    pendingCount,
+    runningCount,
+  }), [t, viewMode, workspaceLabel, morePages, harnessNavigate, ui.setSettingsOpen, ui.moreMenuOpen,
+    ui.setMoreMenuOpen, badges, pendingCount, runningCount]);
+
+  // 「更多」菜单的外部点击 / Esc 关闭。
+  useEffect(() => {
+    if (!ui.moreMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if ((e.target as Element | null)?.closest?.('[data-more-menu-anchor]')) return;
+      ui.setMoreMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') ui.setMoreMenuOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [ui.moreMenuOpen, ui.setMoreMenuOpen]);
+
+  // harness 快捷键（⌘\ / ⌘` / dock 档位 / 任务中心 / 单色 / 主题 …）。
+  useHarnessShortcuts({
+    onNewSession: handleNewChat,
+    onNavigate: harnessNavigate,
+  });
+
   return <View
     slots={slots} content={content} sidebarOpen={sidebarOpen} inspectorOpen={inspectorOpen}
     sidebarLabel={t('sidebar.sessions')} inspectorLabel={t('shell.inspector')}
     suppressInteraction={suppressInteraction} toasts={toasts} onDismissToast={dismissToast}
     onOpenUpdates={() => { void router.navigate({ to: '/usage' }); }}
-    titleBar={{ sidebarOpen, inspectorOpen, onToggleSidebar: () => setSidebarOpen((value) => !value),
-      onToggleInspector: () => setInspectorOpen((value) => !value) }}
+    harness={{
+      data: harnessData,
+      rail: ui.rail,
+      onToggleRail: ui.toggleRail,
+      dockOpen: inspectorOpen,
+      dockMode: ui.dockMode,
+      dockWide: ui.dockWide,
+      onSetDockMode: ui.setDockMode,
+      onToggleDockWide: ui.toggleDockWide,
+      onToggleDock: () => setInspectorOpen(!inspectorOpen),
+      termOpen: ui.termOpen,
+      onToggleTerm: ui.toggleTerm,
+      inboxOpen: ui.inboxOpen,
+      inboxTab: ui.inboxTab,
+      onToggleInbox: ui.toggleInbox,
+      onCloseInbox: ui.closeInbox,
+      onOpenInbox: ui.openInbox,
+      settingsOpen: ui.settingsOpen,
+      onCloseSettings: () => ui.setSettingsOpen(false),
+      semantic: ui.semantic,
+      onToggleSemantic: ui.toggleSemantic,
+    }}
+    // v3 harness：标题条的 rail 开关接 shellUi.rail（旧 sidebarOpen 仅保留兼容字段）。
+    titleBar={{ sidebarOpen: !ui.rail, inspectorOpen, onToggleSidebar: ui.toggleRail,
+      onToggleInspector: () => setInspectorOpen(!inspectorOpen) }}
     sidebar={{ groups: sessions.groups, loading: sessions.loading, error: sessions.error, activeId,
       currentWorkspace, onSelect: handleSelect, onRefresh: sessions.refresh, onNewChat: handleNewChat,
       onNewChatIn: handleNewChatIn, onRemoveWorkspace: (path) => { void handleRemoveWorkspace(path); },
       onRename: sessions.rename, onDelete: handleDeleteSession, onExport: sessions.export,
       onFork: handleForkSession, onArchive: handleArchiveSession,
       onGenerateTitle: (id) => sessions.generateTitle(id, true), onOpenProject: () => { void handleOpenProject(); },
-      pinnedIds: pins.pinnedIds, onTogglePin: pins.toggle, archived: sessions.archived, onUnarchive: handleUnarchiveSession }}
+      pinnedIds: pins.pinnedIds, onTogglePin: pins.toggle, archived: sessions.archived, onUnarchive: handleUnarchiveSession,
+      badges }}
     palette={{ open: paletteOpen, onClose: () => setPaletteOpen(false),
       navigate: (to) => { void router.navigate({ to }); }, cycleTheme, setTheme: setThemeMode, resolvedTheme: resolved,
       newSession, clearAllSessions: () => { void clearAllSessions(); }, exportActive: () => { void exportActive(); },

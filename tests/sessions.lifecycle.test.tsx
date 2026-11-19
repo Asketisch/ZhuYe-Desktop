@@ -30,24 +30,23 @@ async function typeAndSend(text: string): Promise<void> {
 describe('session list & project groups', () => {
   it('groups sidebar sessions by project directory (known empty project included)', async () => {
     renderApp();
-    const sidebar = await screen.findByTestId('shell-sidebar');
+    const sidebar = await screen.findByTestId('harness-sidebar');
 
     await waitFor(() => expect(sidebar.textContent).toContain('Fix login bug'));
-    // 项目分组头：workspaces.json 的两个已知项目都显示（含空项目 scratch）。
+    // 工作区行：workspaces.json 的两个已知项目都显示（含空项目 scratch）。
     expect(sidebar.textContent).toContain('project');
     expect(sidebar.textContent).toContain('scratch');
-    // 组内会话按最近活跃在前：Fix login bug（5 分钟前）→ Old experiment（3 周前）。
-    const projIdx = sidebar.textContent!.indexOf('project');
+    // 会话扁平列表按最近活跃在前：Fix login bug（5 分钟前）→ Old experiment（3 周前）。
     const bugIdx = sidebar.textContent!.indexOf('Fix login bug');
     const oldIdx = sidebar.textContent!.indexOf('Old experiment');
-    expect(bugIdx).toBeGreaterThan(projIdx);
+    expect(bugIdx).toBeGreaterThan(-1);
     expect(oldIdx).toBeGreaterThan(bugIdx);
   });
 
   it('empty session list renders no stale time grouping', async () => {
     backend.state.sessions = [];
     renderApp();
-    const sidebar = await screen.findByTestId('shell-sidebar');
+    const sidebar = await screen.findByTestId('harness-sidebar');
     // 等待 query 完成 —— 时间分桶文案不应再出现（已知项目组仍显示，但无会话）。
     await waitFor(() => {
       expect(backend.callsOf('reflect_list_sessions').length).toBeGreaterThanOrEqual(1);
@@ -58,7 +57,7 @@ describe('session list & project groups', () => {
   it('backend failure shows error UI in sidebar', async () => {
     backend.state.failures['reflect_list_sessions'] = new Error('rollout dir corrupted');
     renderApp();
-    const sidebar = await screen.findByTestId('shell-sidebar');
+    const sidebar = await screen.findByTestId('harness-sidebar');
     await waitFor(() => expect(sidebar.textContent).toContain('rollout dir corrupted'));
   });
 });
@@ -167,7 +166,7 @@ describe('session switch & replay hydration', () => {
     await waitFor(() => expect(app.pathname()).toBe('/chat/sess-alpha'));
     // 选中项带 aria-pressed 高亮。
     await waitFor(() => {
-      const sidebar = screen.getByTestId('shell-sidebar');
+      const sidebar = screen.getByTestId('harness-sidebar');
       const item = within(sidebar).getByText('Fix login bug').closest('button');
       expect(item?.getAttribute('aria-pressed')).toBe('true');
     });
@@ -190,7 +189,7 @@ describe('session mutations through the real UI', () => {
       newName: 'My custom title',
     });
     // rename 成功 → invalidate → 自动重刷列表，侧边栏立即显示新标题。
-    await waitFor(() => expect(within(screen.getByTestId('shell-sidebar')).getByText('My custom title')).toBeDefined());
+    await waitFor(() => expect(within(screen.getByTestId('harness-sidebar')).getByText('My custom title')).toBeDefined());
     // 后端状态同步更新。
     expect(backend.state.sessions.find((s) => s.session_id === 'sess-alpha')?.title).toBe('My custom title');
   });
@@ -199,8 +198,8 @@ describe('session mutations through the real UI', () => {
     renderApp();
     await screen.findByText('Fix login bug');
 
-    fireEvent.click(screen.getByTestId('session-kebab-sess-alpha'));
-    fireEvent.click(await screen.findByTestId('session-archive-sess-alpha'));
+    fireEvent.click(screen.getByTestId('session-more-sess-alpha'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
     // 应用内确认框（window.confirm 在 Tauri WKWebView 不可用）→ 确认。
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
@@ -217,8 +216,8 @@ describe('session mutations through the real UI', () => {
     renderApp();
     await screen.findByText('Refactor parser');
 
-    fireEvent.click(screen.getByTestId('session-kebab-sess-beta'));
-    fireEvent.click(await screen.findByTestId('session-delete-sess-beta'));
+    fireEvent.click(screen.getByTestId('session-more-sess-beta'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
     await waitFor(() =>
@@ -234,8 +233,8 @@ describe('session mutations through the real UI', () => {
     await screen.findByRole('log');
     expect(app.pathname()).toBe('/chat/sess-alpha');
 
-    fireEvent.click(screen.getByTestId('session-kebab-sess-alpha'));
-    fireEvent.click(await screen.findByTestId('session-archive-sess-alpha'));
+    fireEvent.click(screen.getByTestId('session-more-sess-alpha'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
     await waitFor(() => expect(app.pathname()).toBe('/chat'));

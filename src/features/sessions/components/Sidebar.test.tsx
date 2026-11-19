@@ -1,10 +1,15 @@
 /**
- * Vitest — Sidebar 组件测试（项目目录分组版）。
+ * Vitest —— Sidebar 组件测试（v3 harness 侧栏）。
+ *
+ * 新侧栏为扁平会话列表 + 工作区行：无分组折叠 / 多选模式 / 刷新按钮
+ * （能力保留在契约与绑定层，UI 由设计稿定稿去掉）。会话动作集中在
+ * 行内 ⋯ 菜单（重命名 / AI 改名 / fork / 导出 / 置顶 / 归档 / 删除）。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Sidebar } from '@/features/sessions/components/Sidebar';
 import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
+import { useShellUi } from '@/stores/shellUi';
 import type { WorkspaceSessionGroup } from '@/features/sessions/utils/workspaceGroups';
 import { UNASSIGNED_GROUP_KEY } from '@/features/sessions/utils/workspaceGroups';
 
@@ -48,9 +53,10 @@ const unassigned: WorkspaceSessionGroup = {
 
 beforeEach(() => {
   localStorage.clear();
+  useShellUi.setState({ unread: {}, moreMenuOpen: false });
 });
 
-describe('Sidebar', () => {
+describe('Sidebar (harness)', () => {
   it('renders empty state when no groups', () => {
     render(
       <Sidebar
@@ -96,7 +102,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('boom')).toBeDefined();
   });
 
-  it('renders project group header and session item', () => {
+  it('renders workspace rows and session rows', () => {
     render(
       <Sidebar
         groups={[groupA]}
@@ -108,19 +114,20 @@ describe('Sidebar', () => {
         onRefresh={vi.fn()}
       />,
     );
-    expect(screen.getByText('alpha')).toBeDefined();
-    expect(screen.getByText('Fix login bug')).toBeDefined();
-    expect(screen.getByText(/2 msgs/)).toBeDefined();
-    // 当前工作区分组带标记。
-    expect(screen.getByLabelText('Current workspace')).toBeDefined();
-    // 组头 hover 全路径。
-    expect(screen.getByText('alpha').closest('button')?.getAttribute('title')).toBe(WS_A);
+    // 工作区行 + 当前工作区高亮（.sel）。
+    const wsRow = screen.getByText('alpha').closest('button') as HTMLButtonElement;
+    expect(wsRow.getAttribute('class')).toContain('sel');
+    expect(wsRow.getAttribute('title')).toBe(WS_A);
+    // 会话行渲染 + 活动行高亮。
+    const sessRow = screen.getByTestId('harness-session-s1');
+    expect(sessRow.textContent).toContain('Fix login bug');
+    expect(sessRow.getAttribute('class')).toContain('sel');
   });
 
-  it('unassigned group is collapsed by default and expands on toggle', () => {
+  it('renders unassigned workspace row with localized label', () => {
     render(
       <Sidebar
-        groups={[groupA, unassigned]}
+        groups={[unassigned]}
         loading={false}
         error={null}
         activeId={null}
@@ -130,33 +137,10 @@ describe('Sidebar', () => {
       />,
     );
     expect(screen.getByText('Unassigned')).toBeDefined();
-    // 默认折叠:未归属会话不可见。
-    expect(screen.queryByText('u1')).toBeNull();
-    // 点组头展开。
-    fireEvent.click(screen.getByText('Unassigned').closest('button')!);
-    expect(screen.getByText('u1')).toBeDefined();
+    expect(screen.getByTestId('harness-session-u1')).toBeDefined();
   });
 
-  it('toggles an expanded project group collapsed and back', () => {
-    render(
-      <Sidebar
-        groups={[groupA]}
-        loading={false}
-        error={null}
-        activeId={null}
-        currentWorkspace={null}
-        onSelect={vi.fn()}
-        onRefresh={vi.fn()}
-      />,
-    );
-    expect(screen.getByText('Fix login bug')).toBeDefined();
-    fireEvent.click(screen.getByText('alpha').closest('button')!);
-    expect(screen.queryByText('Fix login bug')).toBeNull();
-    fireEvent.click(screen.getByText('alpha').closest('button')!);
-    expect(screen.getByText('Fix login bug')).toBeDefined();
-  });
-
-  it('calls onNewChatIn with the project path from the group "+" button', () => {
+  it('calls onNewChatIn with the project path when a workspace row is clicked', () => {
     const onNewChatIn = vi.fn();
     render(
       <Sidebar
@@ -170,14 +154,11 @@ describe('Sidebar', () => {
         onNewChatIn={onNewChatIn}
       />,
     );
-    const plusBtns = screen.getAllByLabelText('New chat in this project');
-    // 只有真实项目组有「+」,未归属分组没有。
-    expect(plusBtns).toHaveLength(1);
-    fireEvent.click(plusBtns[0]);
+    fireEvent.click(screen.getByText('alpha'));
     expect(onNewChatIn).toHaveBeenCalledWith(WS_A);
   });
 
-  it('expands all matched groups while searching by title', () => {
+  it('search toggle shows the inline query box and filters sessions', () => {
     render(
       <Sidebar
         groups={[groupA, groupB]}
@@ -189,35 +170,54 @@ describe('Sidebar', () => {
         onRefresh={vi.fn()}
       />,
     );
+    // 打开内联搜索框并输入。
+    fireEvent.click(screen.getByTitle('Search sessions…'));
     const input = screen.getByLabelText('Search sessions');
     fireEvent.change(input, { target: { value: 'Fix login' } });
-    // 只剩 alpha 组。
-    expect(screen.getByText('alpha')).toBeDefined();
-    expect(screen.queryByText('beta')).toBeNull();
-    expect(screen.getByText('Fix login bug')).toBeDefined();
+    // 命中的会话保留，未命中的隐藏。
+    expect(screen.getByTestId('harness-session-s1')).toBeDefined();
+    expect(screen.queryByTestId('harness-session-s2')).toBeNull();
   });
 
-  it('search matches project name so empty groups are discoverable', () => {
-    const emptyBeta: WorkspaceSessionGroup = { ...groupB, sessions: [] };
+  it('pendingOnly filter hides sessions without flags', () => {
     render(
       <Sidebar
-        groups={[groupA, emptyBeta]}
+        groups={[groupA, groupB]}
         loading={false}
         error={null}
         activeId={null}
         currentWorkspace={null}
         onSelect={vi.fn()}
         onRefresh={vi.fn()}
+        badges={{ s1: { dot: 'wait', pending: 'plan', unread: false } }}
       />,
     );
-    fireEvent.change(screen.getByLabelText('Search sessions'), { target: { value: 'beta' } });
-    expect(screen.getByText('beta')).toBeDefined();
-    expect(screen.queryByText('alpha')).toBeNull();
+    fireEvent.click(screen.getByTestId('harness-pending-only'));
+    expect(screen.getByTestId('harness-session-s1')).toBeDefined();
+    expect(screen.queryByTestId('harness-session-s2')).toBeNull();
   });
 
-  it('calls onSelect when item clicked', () => {
+  it('pending badge shows the count chip and the row flag', () => {
+    render(
+      <Sidebar
+        groups={[groupA]}
+        loading={false}
+        error={null}
+        activeId={null}
+        currentWorkspace={null}
+        onSelect={vi.fn()}
+        onRefresh={vi.fn()}
+        badges={{ s1: { dot: 'wait', pending: 'plan', unread: false } }}
+      />,
+    );
+    expect(screen.getByTestId('harness-sb-count').textContent).toBe('1');
+    const row = screen.getByTestId('harness-session-s1');
+    expect(row.getAttribute('class')).toContain('has-pending');
+  });
+
+  it('calls onSelect when a session row is clicked', () => {
     const onSelect = vi.fn();
-    const { container } = render(
+    render(
       <Sidebar
         groups={[groupA]}
         loading={false}
@@ -228,32 +228,13 @@ describe('Sidebar', () => {
         onRefresh={vi.fn()}
       />,
     );
-    const link = container.querySelector('button[aria-pressed]') as HTMLButtonElement;
-    link.click();
+    fireEvent.click(screen.getByTestId('harness-session-s1'));
     expect(onSelect).toHaveBeenCalledWith('s1');
   });
 
-  it('calls onRefresh when refresh button clicked', () => {
-    const onRefresh = vi.fn();
-    const { container } = render(
-      <Sidebar
-        groups={[groupA]}
-        loading={false}
-        error={null}
-        activeId={null}
-        currentWorkspace={null}
-        onSelect={vi.fn()}
-        onRefresh={onRefresh}
-      />,
-    );
-    const refreshBtn = container.querySelector('button[title="Refresh"]') as HTMLButtonElement;
-    refreshBtn.click();
-    expect(onRefresh).toHaveBeenCalled();
-  });
-
-  it('renders kebab menu with archive action when handlers provided', async () => {
+  it('opens the session menu and archives via the menu action', async () => {
     const onArchive = vi.fn().mockResolvedValue(undefined);
-    const { container } = render(
+    render(
       <>
         <Sidebar
           groups={[groupA]}
@@ -271,17 +252,41 @@ describe('Sidebar', () => {
         <ConfirmDialogHost />
       </>,
     );
-    const kebab = container.querySelector('[data-testid="session-kebab-s1"]') as HTMLButtonElement;
-    expect(kebab).toBeDefined();
-    kebab.click();
-    const archiveBtn = await screen.findByTestId('session-archive-s1');
-    fireEvent.click(archiveBtn);
-    // 应用内确认框弹出 → 确认。
+    fireEvent.click(screen.getByTestId('session-more-s1'));
+    const menu = await screen.findByTestId('harness-session-menu');
+    expect(menu).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    // 归档经应用内确认框（Tauri WKWebView 无 window.confirm）。
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
     await waitFor(() => expect(onArchive).toHaveBeenCalledWith('s1'));
   });
 
-  it('renders the open-project footer button and invokes the handler', () => {
+  it('delete goes through the in-app confirm dialog', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    render(
+      <>
+        <Sidebar
+          groups={[groupA]}
+          loading={false}
+          error={null}
+          activeId={null}
+          currentWorkspace={null}
+          onSelect={vi.fn()}
+          onRefresh={vi.fn()}
+          onRename={vi.fn().mockResolvedValue(undefined)}
+          onDelete={onDelete}
+          onExport={vi.fn().mockResolvedValue(null)}
+        />
+        <ConfirmDialogHost />
+      </>,
+    );
+    fireEvent.click(screen.getByTestId('session-more-s1'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('s1'));
+  });
+
+  it('renders the open-project button and invokes the handler', () => {
     const onOpenProject = vi.fn();
     render(
       <Sidebar
@@ -295,52 +300,7 @@ describe('Sidebar', () => {
         onOpenProject={onOpenProject}
       />,
     );
-
-    const btn = screen.getByTestId('sidebar-open-project');
-    fireEvent.click(btn);
+    fireEvent.click(screen.getByTestId('harness-open-project'));
     expect(onOpenProject).toHaveBeenCalledTimes(1);
-  });
-
-  it('multi-select mode bulk-deletes selected sessions', async () => {
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    const onSelect = vi.fn();
-    render(
-      <>
-        <Sidebar
-          groups={[groupA, groupB]}
-          loading={false}
-          error={null}
-          activeId={null}
-          currentWorkspace={null}
-          onSelect={onSelect}
-          onRefresh={vi.fn()}
-          onRename={vi.fn().mockResolvedValue(undefined)}
-          onDelete={onDelete}
-          onExport={vi.fn().mockResolvedValue(null)}
-        />
-        <ConfirmDialogHost />
-      </>,
-    );
-
-    // 进入多选 → 勾选两个会话。
-    fireEvent.click(screen.getByTestId('sidebar-select-mode'));
-    fireEvent.click(screen.getByTestId('session-select-s1'));
-    fireEvent.click(screen.getByTestId('session-select-s2'));
-    expect(screen.getByTestId('sidebar-selected-count').textContent).toContain('2');
-
-    // 选择模式下点行 = 切换选中（再次点击取消勾选），不触发导航。
-    fireEvent.click(screen.getByText('Fix login bug'));
-    expect(onSelect).not.toHaveBeenCalled();
-    expect(screen.getByTestId('sidebar-selected-count').textContent).toContain('1');
-    fireEvent.click(screen.getByText('Fix login bug'));
-    expect(screen.getByTestId('sidebar-selected-count').textContent).toContain('2');
-
-    // 批量删除：应用内确认 → 逐条 onDelete，完成后退出多选。
-    fireEvent.click(screen.getByTestId('sidebar-delete-selected'));
-    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
-    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(2));
-    expect(onDelete).toHaveBeenCalledWith('s1');
-    expect(onDelete).toHaveBeenCalledWith('s2');
-    expect(screen.queryByTestId('sidebar-select-bar')).toBeNull();
   });
 });

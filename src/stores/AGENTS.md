@@ -19,6 +19,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 | `backgroundSessions.ts` | 后台会话注册表（v1.x 后台持续运行）：消化 `reflect_session_event` 通道（`{session_id, event}`），每会话持一份主 reducer scratch 投影 running / pending / **实时 turns**（形状零漂移）；`demote` 在切走时把前台投影播种进 scratch，`mergePendingInto` 在切回水合后把待确认交互与在飞 turns 整体注回主 store |
 | `editorStore.ts` | agent 编辑的 pending hunk 列表，自订阅 agentEventBus；Accept 保留内容、Reject 用 inverse patch 经 `reflect_write_file` 落盘 |
 | `replay.ts` | `reflect_replay_session` 返回的 RolloutRecord 流 → turns + 压缩聚合统计；剥除引擎注入的 `<system-reminder>` 块（注入内容不冒充用户发言） |
+| `shellUi.ts` | harness 壳层 UI 状态（v3 设计）：rail / dockMode（五档）/ dockOpen / dockWide / termOpen / inbox / settings / palette / moreMenu / semantic（单色模式）/ dropHint / unread（后台完成未读产出）。rail·dock·term·semantic 持久化到 localStorage（`zhuye-harness-ui`）；快捷键（`logic/shell/useHarnessShortcuts`）与标题条/侧栏/壳视图全部消费本 store，不另设组件内状态 |
 
 ## 本地契约与同步点
 
@@ -33,6 +34,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 - **后台会话投影与主 reducer 的分工（v1.x 后台持续运行）**：主 reducer 只消化前台会话事件；后台会话事件走 `reflect_session_event` 通道由 `backgroundSessions.ts` 消化（每会话 scratch 直接跑同一份 `reduceEvent`，pending 形状零漂移）。切回会话的水合序列必须调 `mergePendingInto`（gate 请求不落 rollout），切走时若旧会话有 streaming turn 或有待确认交互必调 `demote`（把前台投影播种进 scratch）。后台会话不能远程停止/应答——须切回操作。
 - **在飞内容靠内存投影跨会话存活（关键）**：上游已按步骤增量落盘 assistant 内容（`persist_assistant_step`），但正在流出的半截文本、运行态，以及审批 / 提问 / plan 这些 gate 请求仍不在 rollout 里。因此切走时必须 `demote`（播种前台 turns + pending），切回时 `mergePendingInto` 整体注回 —— 否则切回后最新增量丢失、运行态退化成「已结束」（停止按钮随之消失，卡住的回合再也停不下来）、审批框永久丢失。
 - **队列按会话隔离**：`QueuedMessage.sessionId` 在入队时盖章（`enqueueMessage` 取 `loadedSessionId`）；展示（`QueuedMessages` / `Inspector` / `ZDock`，均经 `selectQueuedForActiveSession` + `useShallow`——选择器返回新数组，裸用会触发 zustand v5 无限重渲）与排空（`drainQueue`）只作用于前台会话的队列项。
+- **壳层 UI 状态归 shellUi**：窗口摆法（rail / dock / 终端面板 / 任务中心 / 设置弹窗 / 命令面板 / 更多菜单 / 单色模式）只进 `shellUi.ts`，不进组件 useState —— 标题条按钮、快捷键、侧栏按钮三方共享同一状态；paletteOpen 由 `useCommandPaletteShortcut`（⌘K）与标题条按钮共用。
 
 ## 禁止事项
 

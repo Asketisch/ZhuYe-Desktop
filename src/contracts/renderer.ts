@@ -46,6 +46,8 @@ import type { ThreadsViewProps } from './threads';
 import type { TracesViewProps } from './traces';
 import type { UsageViewProps } from './usage';
 import type { WorkspacesViewProps } from './workspaces';
+import type { MarketViewProps } from './market';
+import type { LanesViewProps } from './lanes';
 
 /** 应用可替换的完整渲染入口。 */
 export interface Renderer {
@@ -96,4 +98,6 @@ export interface Renderer {
   TracesView: ComponentType<TracesViewProps>;
   UsageView: ComponentType<UsageViewProps>;
   WorkspacesView: ComponentType<WorkspacesViewProps>;
+  MarketView: ComponentType<MarketViewProps>;
+  LanesView: ComponentType<LanesViewProps>;
 }

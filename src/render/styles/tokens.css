@@ -1,18 +1,20 @@
-/* ReflectDesktop 设计 token —— 单一事实来源。
+/* ZhuYe Harness 设计 token —— 单一事实来源（v3 全新设计）。
  *
- * 深色优先：`:root` 即深色主题（默认），`[data-theme="light"]` 覆盖为浅色。
- * `data-theme="system"`（或未设置）时，由 `prefers-color-scheme` 决定。
+ * 设计语言：黑白为唯一主色 —— 界面靠「底色明度差 + 发丝级细线」建立层次，
+ * 不使用大面积实心色块；语义色（ok / warn / danger）只出现在状态点 / diff
+ * 增删这类必须承载信息的位置，且可经 `data-semantic="off"` 一键中和为灰阶。
  *
- * v2 重设计（redesign/zcode-shell）：色板整体对齐 ZCode Zai Dark / Zai Light
- * （packages/ui/src/styles.css 实测值）——
- *   深色：background/panel = neutral-900，sidebar/terminal = neutral-950，
- *         card/input/popover = neutral-800，border = neutral-50 10%，
- *         user 气泡 = 白 8%，brand = sky-500。
- *   浅色：background = neutral-50，sidebar/panel = neutral-100，
- *         card = white，border = neutral-950 10%，brand = sky-400。
- * token 名保持不变 —— 组件层零改动换肤；新增 token 只增不改名。
+ * 双命名体系并存：
+ *   1) 设计原生名（--bg / --surface / --line / --fg / --fill / --white /
+ *      --ok …）—— harness.css 与新组件消费，与 agent-harness-desktop.html
+ *      设计稿同名同值，便于逐行对照移植；
+ *   2) 旧 token 名（--bg-app / --text-primary / --border-default …）——
+ *      既有视图的 CSS Modules 继续消费，值已重映射到 harness 色板，
+ *      旧视图零改动继承新视觉。
  *
- * 整个 src/** 唯一允许 import 的全局样式入口（配合 base.css）。
+ * `data-theme="dark"`（默认）为暗色；`data-theme="light"` 为亮色；
+ * `data-theme` 未设置时由 `prefers-color-scheme` 决定。
+ * 整个 src/** 唯一允许 import 的全局样式入口（配合 base.css / harness.css）。
  * 组件样式请用 CSS Modules（*.module.css），消费这里的 token。
  */
 
@@ -33,15 +35,15 @@
 
   /* ===== 窗口装饰（macOS Overlay 标题栏专用）=====
    * `titleBarStyle: "Overlay"` 下红绿灯按钮浮在 webview 之上，
-   * React 必须为它预留避让空间（见 TitleBar.module.css）。
+   * React 必须为它预留避让空间（见 TitleBar）。
    */
-  --titlebar-height: 40px;        /* 贯通顶栏高度（macOS 标准）*/
-  --traffic-light-gutter: 80px;   /* 红绿灯避让宽度（3 个 14px 圆 + 间距 + 左 padding）*/
+  --titlebar-height: 38px;        /* harness 标题条高度（设计稿 38px）*/
+  --traffic-light-gutter: 80px;   /* 红绿灯避让宽度 */
 
   /* ===== 排版 ===== */
-  --font-sans: "Inter", "DM Sans", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas,
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Microsoft YaHei", Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
     monospace;
 
   --fs-xs: 11px;
@@ -51,10 +53,10 @@
   --fs-lg: 16px;
   --fs-xl: 18px;
   --fs-2xl: 22px;
-  --fs-3xl: 28px;
+  --fs-3xl: 27px;
   --fs-4xl: 36px;
 
-  --lh-tight: 1.2;
+  --lh-tight: 1.3;
   --lh-normal: 1.5;
   --lh-relaxed: 1.7;
 
@@ -64,17 +66,17 @@
   --fw-bold: 700;
 
   /* ===== 圆角 ===== */
-  --radius-xs: 3px;
-  --radius-sm: 5px;
-  --radius-md: 8px;
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
   --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-xl: 18px;
   --radius-pill: 9999px;
 
-  /* ===== 工作台框架（v2 重设计新增，对齐 WorkspaceShellLayout 实测）===== */
-  --workspace-sidebar-width: 264px;   /* 侧栏默认宽（= 最小值，可拖拽）*/
-  --workspace-panel-radius: 12px;     /* macOS 26+ 内层圆角（旧系统 6px）*/
-  --workspace-frame-border: 0.5px;    /* frame 半像素描边 */
+  /* ===== 工作台框架 ===== */
+  --workspace-sidebar-width: 258px;   /* 侧栏默认宽（设计稿 258px）*/
+  --workspace-panel-radius: 12px;
+  --workspace-frame-border: 0.5px;
 
   /* ===== 层级 ===== */
   --z-base: 0;
@@ -85,20 +87,49 @@
   --z-tooltip: 1300;
 
   /* ===== 过渡 ===== */
-  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 130ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 280ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ===== 深色主题（Zai Dark，默认）===== */
-  --bg-app: #171717;        /* neutral-900：应用工作区 / 对话 frame 背景 */
-  --bg-surface: #262626;    /* neutral-800：卡片 / 输入 / 弹层 */
-  --bg-elevated: #262626;   /* 同 card（Zai Dark 无更高层）*/
-  --bg-input: #262626;      /* 输入控件底色 */
-  --bg-hover: rgba(255, 255, 255, 0.10);   /* surface-hover：白 10% */
-  --bg-active: rgba(255, 255, 255, 0.14);
-  --bg-app-rgb: 23, 23, 23;
-  --bg-surface-rgb: 38, 38, 38;
-  --bg-elevated-rgb: 38, 38, 38;
+  /* ============================================================
+     设计原生 token —— 暗色（默认）
+     ============================================================ */
+  --bg: #0a0a0b;                    /* 主区 */
+  --bg-2: #0f0f11;                  /* 侧栏 */
+  --surface: #131316;              /* 输入框 / 浮层 */
+  --surface-2: #18181c;
+  --line: rgba(255, 255, 255, 0.065);   /* 发丝线 */
+  --line-2: rgba(255, 255, 255, 0.12);
+  --fg: #f4f4f5;
+  --fg-2: #9b9ba2;
+  --fg-3: #6a6a71;
+  --fill: rgba(255, 255, 255, 0.05);    /* hover / 选中底 */
+  --fill-2: rgba(255, 255, 255, 0.085);
+  --white: #ffffff;                /* 强调色 = 白 */
+  --on-white: #0a0a0b;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --danger: #f85149;
+  --diff-add-bg: rgba(63, 185, 80, 0.10);
+  --diff-add-fg: #a5e9b3;
+  --diff-del-bg: rgba(248, 81, 73, 0.10);
+  --diff-del-fg: #ffb3ae;
+  --diff-ctx-fg: #8b949e;
+  --diff-gutter: #4d5560;
+  --term-bg: #0e0e10;
+  --term-fg: #c3c3c9;
+  --tip-bg: #1b1b20;               /* 悬浮气泡 / 浮层菜单底 */
+
+  /* ===== 旧名重映射 —— 暗色（消费方：既有视图 CSS Modules）===== */
+  --bg-app: var(--bg);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-2);
+  --bg-input: var(--surface);
+  --bg-hover: var(--fill);
+  --bg-active: var(--fill-2);
+  --bg-app-rgb: 10, 10, 11;
+  --bg-surface-rgb: 19, 19, 22;
+  --bg-elevated-rgb: 24, 24, 28;
   --surface-opacity: 1;
   --background-image: none;
   --background-image-opacity: 0.35;
@@ -106,88 +137,120 @@
   --bg-surface-alpha: rgba(var(--bg-surface-rgb), var(--surface-opacity));
   --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
-  --bg-sidebar: #0a0a0a;    /* neutral-950：侧栏 / 终端底 */
-  --bg-panel: #171717;      /* panel = neutral-900 */
-  --bg-header: #171717;
-  --bg-user-bubble: rgba(255, 255, 255, 0.08);  /* 用户气泡：白 8% */
-  --bg-surface-faint: rgba(255, 255, 255, 0.05); /* 低凸surface */
+  --bg-sidebar: var(--bg-2);
+  --bg-panel: var(--bg-2);
+  --bg-header: var(--bg);
+  --bg-user-bubble: var(--fill);
+  --bg-surface-faint: rgba(255, 255, 255, 0.03);
 
-  --text-primary: #fafafa;  /* neutral-50 */
-  --text-secondary: #a3a3a3; /* neutral-400 */
-  --text-muted: #737373;    /* neutral-500 */
-  --text-disabled: #525252; /* neutral-600 */
-  --text-subtle: rgba(250, 250, 250, 0.6);
-  --text-subtlest: rgba(250, 250, 250, 0.4);
+  --text-primary: var(--fg);
+  --text-secondary: var(--fg-2);
+  --text-muted: var(--fg-3);
+  --text-disabled: #52525b;
+  --text-subtle: rgba(244, 244, 245, 0.6);
+  --text-subtlest: rgba(244, 244, 245, 0.4);
 
-  --border-subtle: rgba(250, 250, 250, 0.06);
-  --border-default: rgba(250, 250, 250, 0.10);  /* neutral-50 10% */
-  --border-strong: rgba(250, 250, 250, 0.30);   /* border-hover */
+  --border-subtle: var(--line);
+  --border-default: var(--line-2);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  /* 旧视图曾引用但旧 token 表未定义的名字 —— 统一补齐别名。 */
+  --border: var(--line-2);
+  --bg-inset: var(--surface);
+  --bg-elev-2: var(--surface-2);
+  --bg-elev: var(--surface-2);
+  --bg-elev-1: var(--surface);
 
-  /* Brand（Zai Dark：sky-500）*/
-  --accent: #0ea5e9;
-  --accent-hover: #38bdf8;
-  --accent-active: #0284c7;
-  --accent-subtle: rgba(14, 165, 233, 0.14);
-  --accent-border: rgba(14, 165, 233, 0.38);
-  --accent-fg: #ffffff;
+  /* 强调色 = 白（黑白主色）*/
+  --accent: var(--white);
+  --accent-hover: var(--white);
+  --accent-active: #d4d4d8;
+  --accent-subtle: rgba(255, 255, 255, 0.08);
+  --accent-border: rgba(255, 255, 255, 0.2);
+  --accent-fg: var(--on-white);
 
-  /* 语义色 —— 每个含 fg / bg / border 三态（Zai Dark 值）*/
-  --success: #4ade80;       /* green-400 */
-  --success-fg: #052e16;
-  --success-bg: rgba(74, 222, 128, 0.12);
-  --success-border: rgba(74, 222, 128, 0.3);
+  /* 语义色 —— 每个含 fg / bg / border 三态（harness 值）*/
+  --success: var(--ok);
+  --success-fg: var(--on-white);
+  --success-bg: rgba(63, 185, 80, 0.12);
+  --success-border: rgba(63, 185, 80, 0.3);
 
-  --warning: #fbbf24;       /* yellow-400 */
-  --warning-fg: #451a03;
-  --warning-bg: rgba(251, 191, 36, 0.12);
-  --warning-border: rgba(251, 191, 36, 0.3);
+  --warning: var(--warn);
+  --warning-fg: var(--on-white);
+  --warning-bg: rgba(210, 153, 34, 0.12);
+  --warning-border: rgba(210, 153, 34, 0.3);
 
-  --danger: #f87171;        /* red-400 */
-  --danger-fg: #450a0a;
-  --danger-bg: rgba(248, 113, 113, 0.12);
-  --danger-border: rgba(248, 113, 113, 0.3);
+  /* --danger 与设计原生名同名同值，无需重映射 */
+  --danger-fg: var(--on-white);
+  --danger-bg: rgba(248, 81, 73, 0.12);
+  --danger-border: rgba(248, 81, 73, 0.3);
 
-  --info: #38bdf8;          /* sky-400 */
-  --info-fg: #0c1f3d;
-  --info-bg: rgba(56, 189, 248, 0.12);
-  --info-border: rgba(56, 189, 248, 0.3);
+  --info: var(--fg-2);
+  --info-fg: var(--on-white);
+  --info-bg: var(--fill);
+  --info-border: var(--line-2);
 
-  /* 轨迹角色色（styles.css trajectory-* 深色实测值）*/
-  --traj-user: #60a5fa;
-  --traj-assistant: #2dd4bf;
-  --traj-reasoning: #a78bfa;
-  --traj-tool-call: #f59e0b;
-  --traj-tool-result: #38bdf8;
+  /* 轨迹角色色 —— 单色化：以明度区分角色 */
+  --traj-user: var(--fg);
+  --traj-assistant: var(--fg-2);
+  --traj-reasoning: var(--fg-3);
+  --traj-tool-call: var(--fg-2);
+  --traj-tool-result: var(--fg-3);
 
-  /* diff（styles.css diff-added/removed）*/
-  --diff-added: #4ade80;
-  --diff-removed: #f87171;
+  /* diff */
+  --diff-added: var(--diff-add-fg);
+  --diff-removed: var(--diff-del-fg);
 
-  /* 阴影（深色用柔和发光式 elevation）*/
+  /* 阴影（深色用柔和 elevation）*/
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --shadow-focus: 0 0 0 3px var(--accent-subtle);
+  --shadow-focus: 0 0 0 3px rgba(127, 127, 127, 0.15);
 
   /* 滚动条（深色）*/
-  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb: var(--line-2);
+  --scrollbar-thumb-hover: var(--fg-3);
   --scrollbar-track: transparent;
 }
 
-/* ===== 亮色主题（Zai Light，值取自 styles.css 默认 :root 块）===== */
+/* ===== 亮色主题 ===== */
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-app: #fafafa;        /* neutral-50 */
-  --bg-surface: #ffffff;    /* card = white */
-  --bg-elevated: #ffffff;
-  --bg-input: #ffffff;
-  --bg-hover: #e5e5e5;      /* neutral-200 */
-  --bg-active: #d4d4d4;
-  --bg-app-rgb: 250, 250, 250;
+  --bg: #fbfbfc;
+  --bg-2: #f4f4f5;
+  --surface: #ffffff;
+  --surface-2: #f7f7f8;
+  --line: rgba(0, 0, 0, 0.07);
+  --line-2: rgba(0, 0, 0, 0.13);
+  --fg: #17171a;
+  --fg-2: #5d5d65;
+  --fg-3: #8b8b93;
+  --fill: rgba(0, 0, 0, 0.04);
+  --fill-2: rgba(0, 0, 0, 0.065);
+  --white: #111113;                 /* 强调色 = 近黑 */
+  --on-white: #ffffff;
+  --ok: #1f9d55;
+  --warn: #b7791f;
+  --danger: #d3453b;
+  --diff-add-bg: rgba(31, 157, 85, 0.10);
+  --diff-add-fg: #146c3a;
+  --diff-del-bg: rgba(211, 69, 59, 0.09);
+  --diff-del-fg: #a33129;
+  --diff-ctx-fg: #6b7280;
+  --diff-gutter: #9aa1a9;
+  --term-bg: #f7f7f8;
+  --term-fg: #3a3a40;
+  --tip-bg: #ffffff;
+
+  --bg-app: var(--bg);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-2);
+  --bg-input: var(--surface);
+  --bg-hover: var(--fill);
+  --bg-active: var(--fill-2);
+  --bg-app-rgb: 251, 251, 252;
   --bg-surface-rgb: 255, 255, 255;
-  --bg-elevated-rgb: 255, 255, 255;
+  --bg-elevated-rgb: 247, 247, 248;
   --surface-opacity: 1;
   --background-image: none;
   --background-image-opacity: 0.35;
@@ -195,64 +258,69 @@
   --bg-surface-alpha: rgba(var(--bg-surface-rgb), var(--surface-opacity));
   --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
-  --bg-sidebar: #f5f5f5;    /* neutral-100 */
-  --bg-panel: #f5f5f5;
-  --bg-header: #f5f5f5;
-  --bg-user-bubble: rgba(10, 10, 10, 0.05);
-  --bg-surface-faint: rgba(10, 10, 10, 0.03);
+  --bg-sidebar: var(--bg-2);
+  --bg-panel: var(--bg-2);
+  --bg-header: var(--bg);
+  --bg-user-bubble: var(--fill);
+  --bg-surface-faint: rgba(0, 0, 0, 0.02);
 
-  --text-primary: #404040;  /* neutral-700 = foreground */
-  --text-secondary: #595959; /* remote-foreground-muted */
-  --text-muted: rgba(64, 64, 64, 0.6); /* foreground-subtle */
-  --text-disabled: rgba(64, 64, 64, 0.4); /* foreground-subtlest */
-  --text-subtle: rgba(64, 64, 64, 0.7);
-  --text-subtlest: rgba(64, 64, 64, 0.4);
+  --text-primary: var(--fg);
+  --text-secondary: var(--fg-2);
+  --text-muted: var(--fg-3);
+  --text-disabled: #a1a1aa;
+  --text-subtle: rgba(23, 23, 26, 0.7);
+  --text-subtlest: rgba(23, 23, 26, 0.4);
 
-  --border-subtle: rgba(10, 10, 10, 0.06);
-  --border-default: rgba(10, 10, 10, 0.10);  /* neutral-950 10% */
-  --border-strong: rgba(10, 10, 10, 0.20);
+  --border-subtle: var(--line);
+  --border-default: var(--line-2);
+  --border-strong: rgba(0, 0, 0, 0.2);
+  /* 旧视图曾引用但旧 token 表未定义的名字 —— 统一补齐别名。 */
+  --border: var(--line-2);
+  --bg-inset: var(--surface);
+  --bg-elev-2: var(--surface-2);
+  --bg-elev: var(--surface-2);
+  --bg-elev-1: var(--surface);
 
-  --accent: #38bdf8;        /* sky-400 */
-  --accent-hover: #0ea5e9;
-  --accent-active: #0284c7;
-  --accent-subtle: rgba(56, 189, 248, 0.14);
-  --accent-border: rgba(56, 189, 248, 0.38);
-  --accent-fg: #ffffff;
+  --accent: var(--white);
+  --accent-hover: var(--white);
+  --accent-active: #27272a;
+  --accent-subtle: rgba(0, 0, 0, 0.06);
+  --accent-border: rgba(0, 0, 0, 0.18);
+  --accent-fg: var(--on-white);
 
-  --success: #16a34a;       /* green-600 */
+  --success: var(--ok);
   --success-fg: #ffffff;
-  --success-bg: rgba(22, 163, 74, 0.1);
-  --success-border: rgba(22, 163, 74, 0.3);
+  --success-bg: rgba(31, 157, 85, 0.1);
+  --success-border: rgba(31, 157, 85, 0.3);
 
-  --warning: #ca8a04;       /* yellow-600 */
+  --warning: var(--warn);
   --warning-fg: #ffffff;
-  --warning-bg: rgba(202, 138, 4, 0.12);
-  --warning-border: rgba(202, 138, 4, 0.3);
+  --warning-bg: rgba(183, 121, 31, 0.12);
+  --warning-border: rgba(183, 121, 31, 0.3);
 
-  --danger: #dc2626;        /* red-600 */
+  /* --danger 与设计原生名同名同值，无需重映射 */
   --danger-fg: #ffffff;
-  --danger-bg: rgba(220, 38, 38, 0.1);
-  --danger-border: rgba(220, 38, 38, 0.3);
+  --danger-bg: rgba(211, 69, 59, 0.1);
+  --danger-border: rgba(211, 69, 59, 0.3);
 
-  --info: #0ea5e9;
+  --info: var(--fg-2);
   --info-fg: #ffffff;
-  --info-bg: rgba(14, 165, 233, 0.1);
-  --info-border: rgba(14, 165, 233, 0.3);
+  --info-bg: var(--fill);
+  --info-border: var(--line-2);
 
-  /* 轨迹角色色（浅色实测值）*/
-  --traj-user: #2563eb;
-  --traj-assistant: #0f766e;
-  --traj-reasoning: #7c3aed;
-  --traj-tool-call: #d97706;
-  --traj-tool-result: #0284c7;
+  --traj-user: #17171a;
+  --traj-assistant: #5d5d65;
+  --traj-reasoning: #8b8b93;
+  --traj-tool-call: #5d5d65;
+  --traj-tool-result: #8b8b93;
 
-  --diff-added: #16a34a;
-  --diff-removed: #dc2626;
+  --diff-added: var(--diff-add-fg);
+  --diff-removed: var(--diff-del-fg);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
-  --shadow-focus: 0 0 0 3px var(--accent-subtle);
+  --shadow-focus: 0 0 0 3px rgba(127, 127, 127, 0.18);
 
   --scrollbar-thumb: rgba(0, 0, 0, 0.18);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
@@ -264,15 +332,41 @@
   :root:not([data-theme="dark"]) {
     color-scheme: light;
 
-    --bg-app: #fafafa;
-    --bg-surface: #ffffff;
-    --bg-elevated: #ffffff;
-    --bg-input: #ffffff;
-    --bg-hover: #e5e5e5;
-    --bg-active: #d4d4d4;
-    --bg-app-rgb: 250, 250, 250;
+    --bg: #fbfbfc;
+    --bg-2: #f4f4f5;
+    --surface: #ffffff;
+    --surface-2: #f7f7f8;
+    --line: rgba(0, 0, 0, 0.07);
+    --line-2: rgba(0, 0, 0, 0.13);
+    --fg: #17171a;
+    --fg-2: #5d5d65;
+    --fg-3: #8b8b93;
+    --fill: rgba(0, 0, 0, 0.04);
+    --fill-2: rgba(0, 0, 0, 0.065);
+    --white: #111113;
+    --on-white: #ffffff;
+    --ok: #1f9d55;
+    --warn: #b7791f;
+    --danger: #d3453b;
+    --diff-add-bg: rgba(31, 157, 85, 0.10);
+    --diff-add-fg: #146c3a;
+    --diff-del-bg: rgba(211, 69, 59, 0.09);
+    --diff-del-fg: #a33129;
+    --diff-ctx-fg: #6b7280;
+    --diff-gutter: #9aa1a9;
+    --term-bg: #f7f7f8;
+    --term-fg: #3a3a40;
+    --tip-bg: #ffffff;
+
+    --bg-app: var(--bg);
+    --bg-surface: var(--surface);
+    --bg-elevated: var(--surface-2);
+    --bg-input: var(--surface);
+    --bg-hover: var(--fill);
+    --bg-active: var(--fill-2);
+    --bg-app-rgb: 251, 251, 252;
     --bg-surface-rgb: 255, 255, 255;
-    --bg-elevated-rgb: 255, 255, 255;
+    --bg-elevated-rgb: 247, 247, 248;
     --surface-opacity: 1;
     --background-image: none;
     --background-image-opacity: 0.35;
@@ -280,66 +374,106 @@
     --bg-surface-alpha: rgba(var(--bg-surface-rgb), var(--surface-opacity));
     --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
-    --bg-sidebar: #f5f5f5;
-    --bg-panel: #f5f5f5;
-    --bg-header: #f5f5f5;
-    --bg-user-bubble: rgba(10, 10, 10, 0.05);
-    --bg-surface-faint: rgba(10, 10, 10, 0.03);
+    --bg-sidebar: var(--bg-2);
+    --bg-panel: var(--bg-2);
+    --bg-header: var(--bg);
+    --bg-user-bubble: var(--fill);
+    --bg-surface-faint: rgba(0, 0, 0, 0.02);
 
-    --text-primary: #404040;
-    --text-secondary: #595959;
-    --text-muted: rgba(64, 64, 64, 0.6);
-    --text-disabled: rgba(64, 64, 64, 0.4);
-    --text-subtle: rgba(64, 64, 64, 0.7);
-    --text-subtlest: rgba(64, 64, 64, 0.4);
+    --text-primary: var(--fg);
+    --text-secondary: var(--fg-2);
+    --text-muted: var(--fg-3);
+    --text-disabled: #a1a1aa;
+    --text-subtle: rgba(23, 23, 26, 0.7);
+    --text-subtlest: rgba(23, 23, 26, 0.4);
 
-    --border-subtle: rgba(10, 10, 10, 0.06);
-    --border-default: rgba(10, 10, 10, 0.10);
-    --border-strong: rgba(10, 10, 10, 0.20);
+    --border-subtle: var(--line);
+    --border-default: var(--line-2);
+    --border-strong: rgba(0, 0, 0, 0.2);
+    /* 旧视图曾引用但旧 token 表未定义的名字 —— 统一补齐别名。 */
+    --border: var(--line-2);
+    --bg-inset: var(--surface);
+    --bg-elev-2: var(--surface-2);
+    --bg-elev: var(--surface-2);
+    --bg-elev-1: var(--surface);
 
-    --accent: #38bdf8;
-    --accent-hover: #0ea5e9;
-    --accent-active: #0284c7;
-    --accent-subtle: rgba(56, 189, 248, 0.14);
-    --accent-border: rgba(56, 189, 248, 0.38);
-    --accent-fg: #ffffff;
+    --accent: var(--white);
+    --accent-hover: var(--white);
+    --accent-active: #27272a;
+    --accent-subtle: rgba(0, 0, 0, 0.06);
+    --accent-border: rgba(0, 0, 0, 0.18);
+    --accent-fg: var(--on-white);
 
-    --success: #16a34a;
+    --success: var(--ok);
     --success-fg: #ffffff;
-    --success-bg: rgba(22, 163, 74, 0.1);
-    --success-border: rgba(22, 163, 74, 0.3);
+    --success-bg: rgba(31, 157, 85, 0.1);
+    --success-border: rgba(31, 157, 85, 0.3);
 
-    --warning: #ca8a04;
+    --warning: var(--warn);
     --warning-fg: #ffffff;
-    --warning-bg: rgba(202, 138, 4, 0.12);
-    --warning-border: rgba(202, 138, 4, 0.3);
+    --warning-bg: rgba(183, 121, 31, 0.12);
+    --warning-border: rgba(183, 121, 31, 0.3);
 
-    --danger: #dc2626;
+    /* --danger 与设计原生名同名同值，无需重映射 */
     --danger-fg: #ffffff;
-    --danger-bg: rgba(220, 38, 38, 0.1);
-    --danger-border: rgba(220, 38, 38, 0.3);
+    --danger-bg: rgba(211, 69, 59, 0.1);
+    --danger-border: rgba(211, 69, 59, 0.3);
 
-    --info: #0ea5e9;
+    --info: var(--fg-2);
     --info-fg: #ffffff;
-    --info-bg: rgba(14, 165, 233, 0.1);
-    --info-border: rgba(14, 165, 233, 0.3);
+    --info-bg: var(--fill);
+    --info-border: var(--line-2);
 
-    --traj-user: #2563eb;
-    --traj-assistant: #0f766e;
-    --traj-reasoning: #7c3aed;
-    --traj-tool-call: #d97706;
-    --traj-tool-result: #0284c7;
+    --traj-user: #17171a;
+    --traj-assistant: #5d5d65;
+    --traj-reasoning: #8b8b93;
+    --traj-tool-call: #5d5d65;
+    --traj-tool-result: #8b8b93;
 
-    --diff-added: #16a34a;
-    --diff-removed: #dc2626;
+    --diff-added: var(--diff-add-fg);
+    --diff-removed: var(--diff-del-fg);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
     --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
-    --shadow-focus: 0 0 0 3px var(--accent-subtle);
+    --shadow-focus: 0 0 0 3px rgba(127, 127, 127, 0.18);
 
     --scrollbar-thumb: rgba(0, 0, 0, 0.18);
     --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
     --scrollbar-track: transparent;
   }
+}
+
+/* ===== 单色模式：语义色全部中和为灰阶 =====
+ * 由壳层在 <html> 上切换 `data-semantic="off"`（⌘⇧M / 设置·外观）。 */
+[data-semantic="off"] {
+  --ok: #8f8f97;
+  --warn: #8f8f97;
+  --danger: #8f8f97;
+  --success: var(--ok);
+  --warning: var(--warn);
+  --danger-bg: rgba(255, 255, 255, 0.06);
+  --danger-border: var(--line-2);
+  --diff-add-bg: rgba(255, 255, 255, 0.055);
+  --diff-add-fg: #e6e6e9;
+  --diff-del-bg: rgba(255, 255, 255, 0.03);
+  --diff-del-fg: #9a9aa2;
+  --diff-added: var(--diff-add-fg);
+  --diff-removed: var(--diff-del-fg);
+  --success-bg: var(--fill);
+  --success-border: var(--line-2);
+  --warning-bg: var(--fill);
+  --warning-border: var(--line-2);
+}
+
+[data-theme="light"][data-semantic="off"] {
+  --ok: #6f6f77;
+  --warn: #6f6f77;
+  --danger: #6f6f77;
+  --diff-add-bg: rgba(0, 0, 0, 0.05);
+  --diff-add-fg: #1c1c20;
+  --diff-del-bg: rgba(0, 0, 0, 0.028);
+  --diff-del-fg: #75757d;
+  --diff-added: var(--diff-add-fg);
+  --diff-removed: var(--diff-del-fg);
 }

@@ -96,12 +96,12 @@ describe('backend failures & recovery', () => {
     backend.state.failures['reflect_list_sessions'] = new Error('database locked');
     renderApp();
 
-    const sidebar = await screen.findByTestId('shell-sidebar');
+    const sidebar = await screen.findByTestId('harness-sidebar');
     await waitFor(() => expect(sidebar.textContent).toContain('database locked'));
 
     // 后端自愈。
     delete backend.state.failures['reflect_list_sessions'];
-    const refreshBtn = screen.getByTitle('Refresh');
+    const refreshBtn = screen.getByTestId('harness-refresh');
     fireEvent.click(refreshBtn);
 
     await waitFor(() => expect(sidebar.textContent).toContain('Fix login bug'));

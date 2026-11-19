@@ -53,6 +53,8 @@ import { MediaView } from '@/features/media';
 import { HooksView } from '@/features/hooks/HooksView';
 import { TracesView } from '@/features/traces/TracesView';
 import { UsageView } from '@/features/usage/UsageView';
+import { MarketView } from '@/features/market/MarketView';
+import { LanesView } from '@/features/lanes/LanesView';
 
 // ====== 路由树 (TanStack Router v1 API) ======
 
@@ -100,6 +102,8 @@ const squadRoute = new Route({ getParentRoute: () => rootRoute, path: 'squad', c
 const mediaRoute = new Route({ getParentRoute: () => rootRoute, path: 'media', component: MediaView });
 const tracesRoute = new Route({ getParentRoute: () => rootRoute, path: 'traces', component: TracesView });
 const usageRoute = new Route({ getParentRoute: () => rootRoute, path: 'usage', component: UsageView });
+const marketRoute = new Route({ getParentRoute: () => rootRoute, path: 'market', component: MarketView });
+const lanesRoute = new Route({ getParentRoute: () => rootRoute, path: 'lanes', component: LanesView });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -141,6 +145,8 @@ const routeTree = rootRoute.addChildren([
   mediaRoute,
   tracesRoute,
   usageRoute,
+  marketRoute,
+  lanesRoute,
 ]);
 
 // ====== 路由实例 ======

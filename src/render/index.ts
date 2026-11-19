@@ -46,6 +46,8 @@ import { ThreadsView } from './threads/ThreadsView';
 import { TracesView } from './traces/TracesView';
 import { UsageView } from './usage/UsageView';
 import { WorkspacesView } from './workspaces/WorkspacesView';
+import { MarketView } from './market/MarketView';
+import { LanesView } from './lanes/LanesView';
 
 /** 桌面端默认渲染实现。 */
 export const renderer: Renderer = {
@@ -83,4 +85,6 @@ export const renderer: Renderer = {
   TracesView,
   UsageView,
   WorkspacesView,
+  MarketView,
+  LanesView,
 };

@@ -98,6 +98,8 @@
 | `memory` | `features/memory/MemoryView.tsx` + `MemoryRow.tsx` + `MemoryAddForm.tsx` + `useMemoryController.ts` | 记忆视图 + 控制器钩子 |
 | `skills` | `features/skills/SkillsView.tsx` | 技能目录（已安装 skills + 工具列表） |
 | `hooks` | `features/hooks/HooksView.tsx` | Hook 运行时启停面板（/hooks） |
+| `market` | `features/market/MarketView.tsx`（binding `logic/market/` + 展示 `render/market/`） | 插件与 MCP 市场（/market）：MCP server / 插件 / 技能三源合并卡片 + marketplace 安装 |
+| `lanes` | `features/lanes/LanesView.tsx`（binding `logic/lanes/` + 展示 `render/lanes/`） | 子代理并行执行泳道（/lanes）：引擎子代理快照 + side-channel 归一泳道 |
 | `apps` | `features/apps/AppsView.tsx` | MCP 应用（M3.1+） |
 | `prompts` | `features/prompts/PromptsView.tsx` | 自定义提示库 |
 | `threads` | `features/threads/ThreadsView.tsx` + 测试 | 线程（M2.5 LRU） |

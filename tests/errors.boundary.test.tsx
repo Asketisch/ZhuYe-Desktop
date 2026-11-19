@@ -47,8 +47,8 @@ describe('view error boundary', () => {
     const fallback = await screen.findByTestId('view-error-boundary');
     expect(fallback.textContent).toMatch(/tags|map|null/i);
 
-    // 壳层仍然活着:状态栏与主内容区结构还在(崩溃被限制在视图内)。
-    expect(document.querySelector('[data-testid="statusbar-session-count"]')).not.toBeNull();
+    // 壳层仍然活着:标题条与主内容区结构还在(崩溃被限制在视图内)。
+    expect(document.querySelector('[data-testid="harness-titlebar"]')).not.toBeNull();
     expect(document.querySelector('main')).not.toBeNull();
   }, 20_000);
 

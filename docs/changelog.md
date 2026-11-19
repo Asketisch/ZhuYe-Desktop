@@ -4,6 +4,26 @@
 
 ## 未发布
 
+- **harness 全新界面（v3 重设计）**：桌面端 UI 整体切换到「harness」设计稿
+  （黑白单色主色 + 发丝线层次，语义色可经 ⌘⇧M 一键中和为灰阶；亮/暗主题
+  保留）。壳层重构：标题条（任务中心角标 / 终端 / dock / 命令面板 / 单色 /
+  主题）、侧栏（新会话 / 终端 / 插件 / 子代理 / 自动化任务 / 更多 + 会话
+  待办旗标与运行计时）、右 dock 五档（检查器 / 浏览器 / 文件 / 子代理 /
+  用量，⌘⇧B/E/S/C 直达）、底部真 PTY 终端面板（⌘`，Windows 下接
+  PowerShell）、任务中心（⌘⇧R，跨会话待批准 / 待回答 / 未读产出汇总）。
+  新增 shellUi store（窗口摆法持久化）、session badges / unread 投影、
+  harness 快捷键组。旧路由页面全部保留（侧栏「更多」菜单可达），设置改为
+  模态弹窗承载原 SettingsView。
+- **浏览器面板升级为可导航 dock**：新增 `reflect_browser_navigate /
+  back / forward / reload / set_device` 五个 CDP 命令（短连接逐命令下发，
+  `Page.navigate` 等待 loadEventFired ≤10s；URL 归一化补全 scheme；
+  `set_device` 经 `Emulation.setDeviceMetricsOverride` 提供桌面 / 平板 /
+  手机三档视口）。screencast 循环跟踪 `Page.frameNavigated`，面板 URL 栏
+  与状态随之更新。dock 组件 `BrowserDock` 提供后退 / 前进 / 刷新 / URL
+  输入 / 设备档 / 启停（`docs/protocol-bridge.md` 浏览器节已同步）。
+- **终端 shell 选择（Windows）**：`reflect_pty_start` 在 Windows 下优先
+  PowerShell（探测 PATH 内 pwsh.exe → powershell.exe 兜底），macOS/Linux
+  维持 `$SHELL`（默认 zsh）。
 - **SSH 远程开发（会话层接缝）**：桌面端 SSH 到某台机器，agent 会话在远端
   跑 —— 远端执行 `zhuye serve`（stdio JSONL），桌面以 SSH 子进程为传输成为
   协议客户端。新增 host 注册表（`$ZHUYE_HOME/remote-hosts.json`，`/remote`

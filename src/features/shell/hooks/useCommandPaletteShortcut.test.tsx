@@ -1,11 +1,17 @@
 /**
  * useCommandPaletteShortcut —— ⌘K / Ctrl+K + Esc 测试。
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useCommandPaletteShortcut } from './useCommandPaletteShortcut';
+import { useShellUi } from '@/stores/shellUi';
 
 describe('useCommandPaletteShortcut', () => {
+  // v3：开关状态迁到 shellUi store —— 用例间重置，避免跨用例污染。
+  beforeEach(() => {
+    useShellUi.setState({ paletteOpen: false });
+  });
+
   afterEach(() => {
     // 无全局资源需要清理 —— 监听器在卸载时移除。
   });

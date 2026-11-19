@@ -72,18 +72,12 @@ function renderSidebar(props: Partial<Parameters<typeof Sidebar>[0]> = {}) {
 }
 
 describe('Sidebar pinned section', () => {
-  it('renders pinned sessions on top and removes them from project groups', () => {
-    const { container } = renderSidebar({ pinnedIds: ['s1'], onTogglePin: () => {} });
-    const pinnedSection = screen.getByText('Pinned');
-    expect(pinnedSection).toBeDefined();
-    // 置顶会话出现在置顶区（带 📍 标记）。
-    const pinnedGroup = container.querySelector('section')!;
-    expect(pinnedGroup.textContent).toContain('Fix login bug');
-    // 常规分组不再包含 s1。
-    const alphaGroup = Array.from(container.querySelectorAll('section')).find((el) =>
-      el.textContent?.includes('alpha'),
-    )!;
-    expect(alphaGroup.textContent).not.toContain('📍 Fix login bug');
+  it('renders pinned sessions on top exactly once', () => {
+    renderSidebar({ pinnedIds: ['s1'], onTogglePin: () => {} });
+    expect(screen.getByText('Pinned')).toBeDefined();
+    // 置顶会话渲染在置顶区，且全列表只有一行（去重）。
+    expect(screen.getByTestId('harness-session-s1')).toBeDefined();
+    expect(screen.getAllByText('Fix login bug')).toHaveLength(1);
   });
 
   it('hides pinned section when nothing is pinned', () => {
@@ -91,7 +85,7 @@ describe('Sidebar pinned section', () => {
     expect(screen.queryByText('Pinned')).toBeNull();
   });
 
-  it('archive section lists archived sessions with restore label', () => {
+  it('archived list is no longer part of the sidebar (moved to /sessions)', () => {
     renderSidebar({
       archived: [sess('arch-1', 'Old work')],
       onUnarchive: async () => {},
@@ -99,11 +93,9 @@ describe('Sidebar pinned section', () => {
       onExport: async () => null,
       onRename: async () => {},
     });
-    fireEvent.click(screen.getByTestId('sidebar-archived').querySelector('button')!);
-    expect(screen.getByText('Old work')).toBeDefined();
-    // 归档行的菜单项语义为「恢复」。
-    fireEvent.click(screen.getByTestId('session-kebab-arch-1'));
-    expect(screen.getByTestId('session-archive-arch-1').textContent).toContain('Restore from archive');
+    // v3 设计把归档区从侧栏移除（由 /sessions 页承载），这里锁定该契约。
+    expect(screen.queryByTestId('sidebar-archived')).toBeNull();
+    expect(screen.queryByText('Old work')).toBeNull();
   });
 });
 

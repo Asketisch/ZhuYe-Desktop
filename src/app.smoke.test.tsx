@@ -124,14 +124,14 @@ describe('Router module structure', () => {
 describe('AppShell (IDE-style top-level shell)', () => {
   beforeEach(() => resetMockInvoke());
 
-  it('mounts with Sidebar + ActivityBar + StatusBar', () => {
+  it('mounts the harness shell (titlebar + sidebar + dock)', () => {
     render(wrap(<AppShell />));
-    // 侧边栏头部
+    // v3 harness 壳：标题条 / 侧栏 / 右 dock 五档头。
+    expect(screen.getByTestId('harness-titlebar')).toBeDefined();
+    expect(screen.getByTestId('harness-sidebar')).toBeDefined();
+    expect(screen.getByTestId('harness-dock')).toBeDefined();
+    // 侧栏会话组标签（i18n en）。
     expect(screen.getByText('Sessions')).toBeDefined();
-    // ActivityBar nav label（IconButton aria-label）
-    expect(screen.getByLabelText('Chat')).toBeDefined();
-    // StatusBar（含 model 占位）
-    expect(screen.getByText(/no model|@/)).toBeDefined();
   });
 });
 

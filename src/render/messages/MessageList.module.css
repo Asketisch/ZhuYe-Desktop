@@ -1,3 +1,7 @@
+/* harness 会话流（v3 设计稿移植）：
+ * 消息列 = 760px 居中列（与输入区同构），轮间距 18px；
+ * 用户文本 = 满宽 fill 圆角气泡；助手 = 无头像的直排 markdown；
+ * 语义色只出现在错误行等承载信息的位置。 */
 .scroll {
   flex: 1;
   overflow-y: auto;
@@ -5,12 +9,12 @@
 }
 
 .inner {
-  max-width: 820px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: var(--space-4) var(--space-4) var(--space-5);
+  padding: 22px 24px 8px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 18px;
 }
 
 .emptyWrap {
@@ -24,20 +28,20 @@
 }
 
 .emptyIcon {
-  color: var(--text-muted);
+  color: var(--fg-3);
   opacity: 0.5;
 }
 
 .emptyTitle {
   font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-  color: var(--text-secondary);
+  font-weight: 620;
+  color: var(--fg-2);
   margin: 0;
 }
 
 .emptyHint {
   font-size: var(--fs-sm);
-  color: var(--text-muted);
+  color: var(--fg-3);
   margin: 0;
   line-height: var(--lh-relaxed);
 }
@@ -45,17 +49,17 @@
 .emptyHint kbd {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  background: var(--bg-hover);
-  border: 1px solid var(--border-default);
+  background: var(--fill);
+  border: 1px solid var(--line);
   border-radius: var(--radius-xs);
   padding: 1px 5px;
-  color: var(--text-secondary);
+  color: var(--fg-2);
 }
 
 .turn {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 14px;
 }
 
 /* ===== 按轮 fork（hover / 聚焦时显示） ===== */
@@ -79,7 +83,7 @@
   justify-content: center;
   border: 0;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--fg-3);
   cursor: pointer;
   border-radius: var(--radius-sm);
   padding: 0.25rem;
@@ -93,72 +97,63 @@
 }
 
 .copyBtn:hover {
-  color: var(--text-primary);
-  background: var(--bg-elev-2);
+  color: var(--fg);
+  background: var(--fill-2);
 }
 
-/* ===== 用户气泡 ===== */
+/* ===== 用户文本（设计稿 .user-text：满宽 fill 气泡）===== */
 .userRow {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  min-width: 0;
 }
 
 .userBubble {
-  max-width: 75%;
-  padding: var(--space-2) var(--space-3);
-  background: var(--accent-subtle);
-  color: var(--text-primary);
-  border-radius: var(--radius-lg);
-  border-bottom-right-radius: var(--radius-xs);
-  font-size: var(--fs-base);
-  line-height: var(--lh-normal);
+  max-width: 100%;
+  padding: 10px 13px;
+  background: var(--fill);
+  color: var(--fg);
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* ===== 助手气泡 ===== */
+/* ===== 助手直排（无头像，markdown 直出）===== */
 .assistantRow {
   display: flex;
-  gap: var(--space-3);
+  gap: 0;
   align-items: flex-start;
+  min-width: 0;
 }
 
+/* v3 设计：助手不再带头像气泡，占位元素直接隐藏。 */
 .assistantAvatar {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-md);
-  background: var(--accent);
-  color: var(--accent-fg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-  margin-top: 2px;
+  display: none;
 }
 
 .assistantBubble {
   flex: 1;
   min-width: 0;
-  color: var(--text-primary);
-  font-size: var(--fs-base);
-  line-height: var(--lh-relaxed);
+  color: var(--fg);
+  font-size: 13.5px;
+  line-height: 1.75;
   position: relative;
 }
 
 .thinking {
-  color: var(--text-muted);
+  color: var(--fg-3);
 }
 
 /* streaming 光标 —— CSS 脉冲块 */
 .cursor {
   display: inline-block;
   width: 8px;
-  height: 16px;
+  height: 15px;
   margin-left: 2px;
   vertical-align: text-bottom;
-  background: var(--accent);
+  background: var(--fg);
   border-radius: 1px;
   animation: blink 1s steps(2) infinite;
 }
@@ -172,8 +167,8 @@
 /* ===== 等宽文本（thinking / tool）===== */
 .monoText {
   font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--fg-2);
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
@@ -184,21 +179,18 @@
 
 /* 思考过程文字 —— 比正文/工具输出更弱的视觉层级(浅色) */
 .thinkingText {
-  color: var(--text-muted);
+  color: var(--fg-3);
 }
 
-
-/* ===== 错误 / 折叠 ===== */
+/* ===== 错误行（语义色保留：danger 是必须承载信息的位置）===== */
 .errorRow {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  border-left: 3px solid var(--danger);
+  background: var(--diff-del-bg);
+  border: 1px solid var(--line);
   color: var(--danger);
   font-size: var(--fs-sm);
 }
-

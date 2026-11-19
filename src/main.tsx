@@ -7,6 +7,7 @@ import { renderer } from './render';
 import { bootstrapAppearance } from './logic/webview/bootstrapAppearance';
 import './render/styles/tokens.css';
 import './render/styles/base.css';
+import './render/styles/harness.css';
 
 // 启动时把持久化的主题模式 + UI 偏好 apply 到 <html>。
 bootstrapAppearance(renderer.appearance);

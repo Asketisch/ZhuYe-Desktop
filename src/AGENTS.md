@@ -10,13 +10,13 @@
 
 | 子区 | 职责 | 进它读哪篇 |
 |---|---|---|
-| `render/` / `logic/` / `contracts/` | 正在迁移的渲染视图、控制器及视图契约；当前覆盖全部路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示和终端页，`main.tsx` 注入 `RendererProvider` | [features/AGENTS.md](features/AGENTS.md) |
+| `render/` / `logic/` / `contracts/` | 正在迁移的渲染视图、控制器及视图契约；当前覆盖全部路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示和终端页，`main.tsx` 注入 `RendererProvider`。v3 harness 重设计：壳层（`render/shell/AppShell` + TitleBar）与侧栏（`render/sessions/Sidebar`）已换新（`harness.css` 全局类 + tokens v3 黑白主色），渲染层保持纯展示（禁 hook / 宿主对象 / 跨层 import，`check-render-boundaries.mjs` 守卫） | [features/AGENTS.md](features/AGENTS.md) |
 | `features/` | 全部功能切片（视图 + 控制器/hook + 就近测试） | [features/AGENTS.md](features/AGENTS.md) |
 | `stores/` | Zustand 状态层（agent 主状态机、editorStore、回放构建） | [stores/AGENTS.md](stores/AGENTS.md) |
 | `utils/` | IPC 包装、i18n 运行时、桥接降级、通用小工具 | [utils/AGENTS.md](utils/AGENTS.md) |
 | `services/` | `agentEventBus.ts` 持有唯一 Tauri `reflect_event` 订阅并一对多扇出；`agent.ts`（18 行）是指向 stores 的兼容 re-export | 本篇规则 2、4 |
 | `types/` | 协议类型：`protocol.ts` + `protocol/` 10 个分域手写文件 + `css-modules.d.ts`，另有脚本按需生成物 | 本篇规则 1 |
-| `render/styles/` | `typography.module.css`；全局设计标记与 reset 在 `render/styles/` | 根 AGENTS.md「约定」 |
+| `render/styles/` | `tokens.css`（v3 harness 设计 token：黑白主色双命名体系——设计原生名 `--bg/--surface/--line/--fg/--fill/--white/--ok…` 与旧名 `--bg-app/--text-primary…` 同值并存；`data-semantic="off"` 单色模式）+ `base.css`（reset）+ `harness.css`（壳层骨架与会话流共享组件的全局类，类名与 agent-harness-desktop.html 设计稿一一对应） | 根 AGENTS.md「约定」 |
 | `components/` | 跨切片通用组件，当前仅 `Markdown.tsx` + 同名 module.css | — |
 | `protocol/` | 前端侧提交构造，当前仅 `submissions.ts` | — |
 | `test/` | `setup.tsx`：Vitest 全局挂载与 mock 契约 | 本篇规则 3 |
@@ -24,7 +24,8 @@
 ## 层内依赖约定
 
 - 常规依赖方向 `features/ → stores/ → utils/`，`utils/bridge.ts` 是最底层。
-- `router.tsx` 是唯一集中 import 全部视图的文件：`rootRoute`（AppShell）+ 39 个 `new Route(` 经 `rootRoute.addChildren([...])` 组树；`AppProviders`（I18n + React Query + 事件订阅建立）也定义在此，文件尾部保留 `ModalStack` 向后兼容 re-export。
+- `router.tsx` 是唯一集中 import 全部视图的文件：`rootRoute`（AppShell）+ 41 个 `new Route(` 经 `rootRoute.addChildren([...])` 组树（v3 新增 `/market`、`/lanes`）；`AppProviders`（I18n + React Query + 事件订阅建立）也定义在此，文件尾部保留 `ModalStack` 向后兼容 re-export。
+- 壳层组装链：`features/shell/AppShell.tsx` 组 slots（含 v3 新增 DockPanel / TerminalDock / InboxPanel / SettingsHost）→ `ShellBinding` 供数（含 `harness` 数据包：徽标 / 更多菜单 / dock / 终端 / 单色）→ `render/shell/AppShell.tsx` 纯展示。壳层快捷键在 `logic/shell/useHarnessShortcuts`。
 
 ## 跨层边界
 

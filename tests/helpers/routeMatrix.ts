@@ -144,6 +144,16 @@ export const ROUTES: RouteSpec[] = [
     shows: ['demo-session'],
   },
   {
+    // market：三源合并卡片（MCP / 插件 / 技能）。
+    route: '/market',
+    commands: ['reflect_list_mcp_servers', 'reflect_list_plugins', 'reflect_list_skills'],
+  },
+  {
+    // lanes：子代理泳道（快照经 subagent_status 事件异步到达，空态即可）。
+    route: '/lanes',
+    commands: ['reflect_list_side_channels'],
+  },
+  {
     route: '/chat/sess-alpha',
     commands: ['reflect_replay_session'],
     shows: ['Summarize the auth flow'],
