@@ -28,6 +28,29 @@ fn error(e: impl std::fmt::Display) -> CommandError {
     CommandError { msg: e.to_string() }
 }
 
+/// Windows 终端 shell 探测：pwsh（PowerShell 7+）→ powershell.exe
+/// （Windows 内置，System32 必有）。不引入额外依赖，仅探测 PATH。
+#[cfg(windows)]
+fn powershell_or_default() -> String {
+    let has_pwsh = std::env::var_os("PATH")
+        .map(|paths| {
+            std::env::split_paths(&paths)
+                .map(|dir| dir.join("pwsh.exe"))
+                .any(|p| p.is_file())
+        })
+        .unwrap_or(false);
+    if has_pwsh {
+        return "pwsh.exe".into();
+    }
+    "powershell.exe".into()
+}
+
+/// 非 Windows 平台的空实现（保持调用点统一）。
+#[cfg(not(windows))]
+fn powershell_or_default() -> String {
+    unreachable!("powershell_or_default 仅在 Windows 分支调用")
+}
+
 #[tauri::command]
 pub async fn reflect_pty_start(
     agent: State<'_, MinimalAgent>,
@@ -47,8 +70,10 @@ pub async fn reflect_pty_start(
             pixel_height: 0,
         })
         .map_err(error)?;
+    // 系统级 shell 选择：macOS/Linux 取 $SHELL（默认 zsh/bash）；
+    // Windows 优先 PowerShell（用户显式要求），依次回退 pwsh → powershell → COMSPEC。
     let shell = if cfg!(windows) {
-        std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".into())
+        powershell_or_default()
     } else {
         std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into())
     };
