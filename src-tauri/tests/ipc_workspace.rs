@@ -147,7 +147,10 @@ fn removing_workspace_hides_all_path_variants() {
         .expect("工作区列表应为数组")
         .clone();
     for variant in [probe.as_str(), canonical.as_str()] {
-        if let Some(item) = list.iter().find(|item| item["path"].as_str() == Some(variant)) {
+        if let Some(item) = list
+            .iter()
+            .find(|item| item["path"].as_str() == Some(variant))
+        {
             assert_eq!(item["hidden"], true, "变体 {variant} 未被一并隐藏");
         }
     }
@@ -166,8 +169,12 @@ fn removing_workspace_prunes_placeholder_entries() {
     let list = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(&file).unwrap())
         .unwrap();
     let mut list = list.as_array().unwrap().clone();
-    list.push(json!({"path": "/", "label": "/", "last_used": 0, "session_count": 0, "hidden": false}));
-    list.push(json!({"path": ".", "label": ".", "last_used": 0, "session_count": 0, "hidden": false}));
+    list.push(
+        json!({"path": "/", "label": "/", "last_used": 0, "session_count": 0, "hidden": false}),
+    );
+    list.push(
+        json!({"path": ".", "label": ".", "last_used": 0, "session_count": 0, "hidden": false}),
+    );
     std::fs::write(&file, serde_json::to_string(&list).unwrap()).unwrap();
 
     invoke_ok("reflect_remove_workspace", json!({"path": probe}));

@@ -58,11 +58,17 @@ fn upsert_keeps_hidden_without_explicit_unhide() {
 
     // 常规切换(如点击该项目旧会话跟随工作区):保持隐藏。
     upsert_history(&file, entry("/tmp/a", 20), false).unwrap();
-    assert!(read_history(&file).unwrap()[0].hidden, "incidental switch must not revive");
+    assert!(
+        read_history(&file).unwrap()[0].hidden,
+        "incidental switch must not revive"
+    );
 
     // 显式恢复:取消隐藏。
     upsert_history(&file, entry("/tmp/a", 30), true).unwrap();
-    assert!(!read_history(&file).unwrap()[0].hidden, "explicit unhide restores");
+    assert!(
+        !read_history(&file).unwrap()[0].hidden,
+        "explicit unhide restores"
+    );
 }
 
 /// v1.x 修复:remove 按规范化路径匹配所有变体(此处用 macOS
@@ -81,7 +87,10 @@ fn hide_workspace_variants_matches_canonical_equivalents() {
 
     // 历史里存的是 canonical 变体,移除用的是非 canonical 变体。
     let mut list = vec![entry(&canonical.display().to_string(), 10)];
-    assert!(hide_workspace_variants(&mut list, &proj.display().to_string()));
+    assert!(hide_workspace_variants(
+        &mut list,
+        &proj.display().to_string()
+    ));
     assert!(list[0].hidden, "variant of same dir must be hidden");
 }
 
@@ -95,7 +104,10 @@ fn hide_workspace_variants_no_match_returns_false() {
 #[test]
 fn placeholder_workspace_paths_are_recognized() {
     for p in ["", ".", "/", "//", "/.", " . "] {
-        assert!(is_placeholder_workspace_path(p), "{p:?} should be placeholder");
+        assert!(
+            is_placeholder_workspace_path(p),
+            "{p:?} should be placeholder"
+        );
     }
     assert!(!is_placeholder_workspace_path("/tmp/proj"));
     assert!(!is_placeholder_workspace_path("/tmp/proj/"));

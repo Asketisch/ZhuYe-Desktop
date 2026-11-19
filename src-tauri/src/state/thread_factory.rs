@@ -292,9 +292,9 @@ pub(crate) fn construct_thread(
                     None,
                     None,
                 );
-                side_thread.register_hook(
-                    reflect_core::side_channel::InheritedPlanGate::new(parent_mode.clone()),
-                );
+                side_thread.register_hook(reflect_core::side_channel::InheritedPlanGate::new(
+                    parent_mode.clone(),
+                ));
                 Ok(side_thread)
             },
         );
