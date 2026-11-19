@@ -9,6 +9,8 @@
  */
 import { invoke } from '../bridge';
 import type { MemoryContext } from './memory';
+import type { ConfigHealthIssue } from '@/contracts/configHealth';
+export type { ConfigHealthIssue } from '@/contracts/configHealth';
 
 /** 单个 provider 的凭证池健康度。 */
 export interface CredentialPoolStatus {
@@ -53,7 +55,9 @@ export interface ConfigInfo {
   analyticsStatus: string;
   workspace: string;
   activeAgent: string;
+  issues: ConfigHealthIssue[];
 }
+
 
 /** 查询各 provider 的凭证池健康度。 */
 export function reflect_credential_pool_status(): Promise<CredentialPoolStatus[]> {

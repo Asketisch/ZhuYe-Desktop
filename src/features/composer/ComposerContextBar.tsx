@@ -9,7 +9,7 @@ import { FolderOpen, GitBranch } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { useGitStatusSummary } from '@/features/shell/hooks/useGitStatusSummary';
-import s from './ComposerContextBar.module.css';
+import s from '@/render/composer/ComposerContextBar.module.css';
 
 function basename(p: string): string {
   const parts = p.replace(/\/$/, '').split('/');

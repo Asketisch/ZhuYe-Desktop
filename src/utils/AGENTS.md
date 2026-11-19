@@ -10,13 +10,14 @@
 
 | 文件 | 职责 |
 |---|---|
+| `commands/runtimeStatus.ts` | 配置状态包含健康问题代码与级别 |
 | `bridge.ts` | `invoke` / `listen` 原语；非 Tauri 上下文（浏览器 preview / 测试）识别后静默降级为 `undefined` / noop unlisten，其余错误照抛 |
 | `commands/index.ts` | 按领域拆分的 barrel，逐个 `export *` 各 `commands/{domain}.ts`；新领域文件必须挂入 |
 | `commands/sessions.ts`（范式示例） | 单领域包装的标准形态：导出函数名与后端命令同名（`reflect_list_sessions` 等），参数与负载对齐后端命令表 |
 | `tauri.ts` / `commands.ts` / `i18n.ts` | 三个兼容桶，仅保留向后兼容 re-export，文件头明令不再新增 |
 | `i18n/` | 运行时拆分：`context.tsx`（Provider / `useI18n`）、`locale.ts`、`lookup.ts`、`interpolate.ts`、`types.ts` + `strings/` 领域文案目录 |
 | `notify.ts` | 系统通知（本目录最大单文件，约 330 行）；读 agentStore 做通知决策，是 utils → stores 的已知反向边 |
-| `theme.ts` / `uiPrefs.ts` | 主题初始化与 UI 偏好 bootstrap，`main.tsx` 启动序列消费 |
+| `theme.ts` / `uiPrefs.ts` | 主题与 UI 偏好兼容导出；持久化位于 `logic/preferences/`，外观映射位于 `render/appearance.ts` |
 
 ## commands/ 领域登记（全量，以文件系统为准）
 

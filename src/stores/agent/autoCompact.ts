@@ -15,8 +15,8 @@ import {
   readActiveCredential,
   readActiveProvider,
   readContextWindowForModel,
-} from '@/features/settings/config/plans';
-import { readField } from '@/features/settings/config/schema';
+} from '@/logic/settings/config/plans';
+import { readField } from '@/logic/settings/config/schema';
 
 export const AUTO_COMPACT_PREF_KEY = 'reflect.autoCompact';
 

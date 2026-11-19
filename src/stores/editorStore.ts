@@ -21,7 +21,7 @@ import {
   applyInverseHunk,
   parseUnifiedDiff,
   type DiffHunk,
-} from '@/features/editor/diffHunks';
+} from '@/logic/editor/diffHunks';
 import { summarizeToolOutput } from './agent/turns';
 
 export interface PendingEdit {

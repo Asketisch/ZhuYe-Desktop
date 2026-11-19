@@ -6,7 +6,7 @@ import { useI18n } from '@/utils/i18n';
 import { reflect_get_effective_prompt, reflect_prompt_command } from '@/utils/commands/prompts';
 import type { PromptSelection } from '@/utils/commands/prompts';
 import { ModalShell } from './ModalShell';
-import s from './PromptLayersModal.module.css';
+import s from '@/render/modals/PromptLayersModal.module.css';
 
 export function PromptLayersModal() {
   const { t } = useI18n();

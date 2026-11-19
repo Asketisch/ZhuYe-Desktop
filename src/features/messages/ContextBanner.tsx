@@ -11,7 +11,7 @@ import { Icon } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { useContextRatio } from '@/features/shell/useContextRatio';
-import s from './ContextBanner.module.css';
+import s from '@/render/messages/ContextBanner.module.css';
 
 export function ContextBanner() {
   const { t } = useI18n();

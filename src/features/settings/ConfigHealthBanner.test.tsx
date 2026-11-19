@@ -1,124 +1,54 @@
-/**
- * Vitest — F50 ConfigHealthBanner(纯函数派生 + 渲染 + dismiss)。
- */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ConfigHealthBanner, deriveConfigIssues } from './ConfigHealthBanner';
+import { ConfigHealthBanner } from './ConfigHealthBanner';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
+import type { ConfigHealthIssue } from '@/utils/commands/runtimeStatus';
 
 function wrap(node: React.ReactNode) {
   return <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>;
 }
 
-const HEALTHY_TOML = `
-[active]
-provider = "anthropic"
-[anthropic]
-api_key = "sk-ant-test"
-[sandbox]
-os_level = true
-`;
+function setIssues(issues: ConfigHealthIssue[]) {
+  mockInvoke('reflect_config_info', async () => ({ issues }));
+}
 
-const NO_PROVIDER_TOML = `
-[anthropic]
-api_key = ""
-`;
+describe('配置健康提示', () => {
+  beforeEach(() => resetMockInvoke());
+  afterEach(() => cleanup());
 
-const GUARD_OFF_TOML = `
-[active]
-provider = "anthropic"
-[prompt_guard]
-enabled = false
-`;
-
-describe('deriveConfigIssues(纯函数)', () => {
-  it('healthy config → no issues', () => {
-    expect(deriveConfigIssues(HEALTHY_TOML)).toEqual([]);
-  });
-
-  it('no provider + no api keys → critical', () => {
-    const issues = deriveConfigIssues(NO_PROVIDER_TOML);
-    const critical = issues.find((i) => i.key === 'no-provider');
-    expect(critical?.level).toBe('critical');
-    expect(critical?.message).toContain('provider');
-  });
-
-  it('prompt_guard explicitly disabled → warn', () => {
-    const issues = deriveConfigIssues(GUARD_OFF_TOML);
-    const warn = issues.find((i) => i.key === 'guard-disabled');
-    expect(warn?.level).toBe('warn');
-    expect(warn?.message).toContain('注入防护');
-  });
-
-  it('guard unset → no warning (F01 默认开启,不提示)', () => {
-    expect(deriveConfigIssues(HEALTHY_TOML).find((i) => i.key === 'guard-disabled')).toBeUndefined();
-  });
-
-  it('sandbox off → warn', () => {
-    const issues = deriveConfigIssues(`
-[active]
-provider = "anthropic"
-[sandbox]
-os_level = false
-`);
-    expect(issues.find((i) => i.key === 'sandbox-off')?.level).toBe('warn');
-  });
-});
-
-describe('ConfigHealthBanner 组件', () => {
-  beforeEach(() => {
-    resetMockInvoke();
-  });
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
-  });
-
-  it('renders critical issue for missing provider', async () => {
-    mockInvoke('reflect_get_config', async () => NO_PROVIDER_TOML);
+  it('显示后端返回的问题及翻译', async () => {
+    setIssues([{ key: 'no-provider', level: 'critical' }]);
     render(wrap(<ConfigHealthBanner />));
-    await waitFor(() => expect(screen.getByTestId('config-issue-no-provider')).toBeDefined());
-    expect(screen.getByText(/无法开始对话/)).toBeDefined();
+    expect(await screen.findByTestId('config-issue-no-provider')).toBeDefined();
+    expect(screen.getByText(/No model provider is configured/)).toBeDefined();
   });
 
-  it('hidden for healthy config', async () => {
-    mockInvoke('reflect_get_config', async () => HEALTHY_TOML);
+  it('健康配置没有问题行，仍可运行探活', async () => {
+    setIssues([]);
     render(wrap(<ConfigHealthBanner />));
-    await waitFor(() => expect(screen.queryByTestId('config-health-banner')).toBeNull());
+    await screen.findByTestId('config-drill');
+    expect(screen.queryByTestId('config-issue-no-provider')).toBeNull();
   });
 
-  it('dismiss per issue key', async () => {
-    mockInvoke('reflect_get_config', async () => GUARD_OFF_TOML);
+  it('按标识单独关闭问题', async () => {
+    setIssues([{ key: 'guard-disabled', level: 'warn' }, { key: 'sandbox-off', level: 'warn' }]);
     render(wrap(<ConfigHealthBanner />));
-    await waitFor(() => expect(screen.getByTestId('config-issue-guard-disabled')).toBeDefined());
-    // GUARD_OFF_TOML 同时触发 sandbox-off(未配置段)—— 两行各有 dismiss。
-    // 这里只关第一行,验证 dismiss 按 issue key 生效(另一行仍在)。
-    const row = screen.getByTestId('config-issue-guard-disabled');
+    const row = await screen.findByTestId('config-issue-guard-disabled');
     fireEvent.click(row.querySelector('button')!);
-    await waitFor(() => expect(screen.queryByTestId('config-issue-guard-disabled')).toBeNull());
+    expect(screen.queryByTestId('config-issue-guard-disabled')).toBeNull();
     expect(screen.getByTestId('config-issue-sandbox-off')).toBeDefined();
   });
-});
 
-describe('ConfigHealthBanner drill (F50 doctor --drill 等价)', () => {
-  it('drill probes backend ping and config fetch, shows structured results', async () => {
+  it('探活分别检查后端与配置读取', async () => {
+    setIssues([]);
     const calls: string[] = [];
-    mockInvoke('ping', async () => {
-      calls.push('ping');
-      return { msg: 'ok', version: '1' };
-    });
-    mockInvoke('reflect_get_config', async () => {
-      calls.push('config');
-      return HEALTHY_TOML;
-    });
+    mockInvoke('ping', async () => { calls.push('ping'); return { msg: 'ok', version: '1' }; });
+    mockInvoke('reflect_get_config', async () => { calls.push('config'); return ''; });
     render(wrap(<ConfigHealthBanner />));
-    // 等查询解析完成(banner 渲染)再点击 drill。
-    await screen.findByTestId('config-health-banner');
+    await screen.findByTestId('config-drill');
     fireEvent.click(screen.getByText(/Run drill|运行探活/i));
-    await waitFor(() => expect(calls).toContain('ping'));
-    await waitFor(() =>
-      expect(screen.getByTestId('config-drill-results').textContent).toContain('backend: ok'),
-    );
+    await waitFor(() => expect(calls).toEqual(['ping', 'config']));
+    expect(screen.getByTestId('config-drill-results').textContent).toContain('backend: ok');
   });
 });

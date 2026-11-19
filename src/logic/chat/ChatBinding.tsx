@@ -1,0 +1,326 @@
+import { useParams } from '@tanstack/react-router';
+import { useEffect, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
+import type { ChatSlots, ChatViewProps } from '@/contracts/chat';
+import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
+import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
+import { useBackgroundSessions } from '@/stores/backgroundSessions';
+import { userItemsFromTurn } from '@/stores/agent/turns';
+import { reflect_replay_session, reflect_git_diff } from '@/utils/commands';
+import { reflect_bind_session, reflect_fork_session, reflect_export_session_markdown } from '@/utils/commands/sessions';
+import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
+import { useActiveSession, useSessions } from '@/logic/sessions/useSessions';
+import { useUiPrefs } from '@/logic/preferences/uiPrefs';
+import type { ReflectRolloutRecord } from '@/utils/types';
+import { useI18n } from '@/utils/i18n';
+import { confirmDialog } from '@/logic/modals/confirm';
+import { useAutoSessionTitle } from '@/logic/sessions/useAutoSessionTitle';
+import { useGitSummary } from './gitSummary';
+import { useZShell } from '@/logic/shell/shellState';
+
+/**
+ * v1.11 F7+D6:编辑历史消息的 rewind 目标推算(纯函数,导出供行为测试
+ * 直接锁定**真实实现**,防测试内复刻逻辑漂移)。
+ *
+ * 语义:引擎 `truncate_after(to_turn_id)` 丢弃该 turn **含**及其之后的
+ * 记录(recorder.rs / writer.rs::truncate_content)—— 因此回退目标恒为
+ * 目标轮自身的 id:丢弃「目标轮及之后」,改完重发即从该点重新生成,
+ * 此前的轮次完整保留。(此前 index>0 时误传前一轮 id,会连带删掉前一轮;
+ * 与引擎对齐后修正。)返回 `null` 表示该轮没有用户文本,不可编辑。
+ */
+export function editRewindTargetFor(
+  turns: { id: string; items: { kind: string; text?: string }[] }[],
+  turnId: string,
+): { rewindTo: string; userText: string } | null {
+  const index = turns.findIndex((tr) => tr.id === turnId);
+  if (index === -1) return null;
+  const userItem = turns[index].items.find((it) => it.kind === 'user_text');
+  if (!userItem || userItem.kind !== 'user_text') return null;
+  return { rewindTo: turnId, userText: userItem.text ?? '' };
+}
+
+/** 绑定会话回放、操作与可替换的聊天视图。 */
+export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatViewProps>; slots: ChatSlots }) {
+  const { sessionId } = useParams({ strict: false }) as { sessionId?: string };
+  // B：本会话首个 turn 完成后自动生成 AI 标题（后端幂等，失败静默）。
+  useAutoSessionTitle(sessionId);
+  const turns = useAgentStore((st) => st.turns);
+  const loadedSessionId = useAgentStore((st) => st.loadedSessionId);
+  const hydrateSession = useAgentStore((st) => st.hydrateSession ?? (() => {}));
+  const clearSession = useAgentStore((st) => st.clearSession ?? (() => {}));
+  const syncPermissionMode = useAgentStore((st) => st.syncPermissionMode);
+  const { t } = useI18n();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+  const sessionEpoch = useRef({ id: sessionId, value: 0 });
+  if (sessionEpoch.current.id !== sessionId) {
+    sessionEpoch.current = { id: sessionId, value: sessionEpoch.current.value + 1 };
+  }
+  useEffect(() => () => { sessionEpoch.current.value += 1; }, []);
+
+  // 会话横幅的 Fork 入口:一键把当前会话完整历史复制为子会话并切换过去。
+  // 分支名用 CLI 同款默认 `manual`(侧边栏菜单入口可自定义;子会话可再改名)。
+  // 按轮 fork(`upToTurnId` 截至该轮含,见 MessageList)复用同一处理链。
+  const { setActiveId } = useActiveSession();
+  const pushToast = useAgentStore((st) => st.pushToast);
+  const [forking, setForking] = useState(false);
+  const handleFork = (branch: string, upToTurnId?: string) => {
+    if (!sessionId || forking) return;
+    const epoch = sessionEpoch.current.value;
+    setForking(true);
+    reflect_fork_session(sessionId, branch, upToTurnId)
+      .then((child) => {
+        pushToast({ kind: 'success', message: t('chat.forked', { id: child }) });
+        if (sessionEpoch.current.value === epoch) setActiveId(child);
+      })
+      .catch((e: unknown) => {
+        pushToast({
+          kind: 'error',
+          message: t('chat.forkFailed', { msg: e instanceof Error ? e.message : String(e) }),
+        });
+      })
+      .finally(() => setForking(false));
+  };
+
+  // v1.5:对话回退 —— Op::Rewind { to_turn_id } 丢弃该 turn(含)之后的
+  // rollout 记录,引擎下一轮从更短历史回放;writer 侧先写 .bak 备份。
+  const rewind = useAgentStore((st) => st.rewind);
+  const handleRewind = async (turnId: string) => {
+    const epoch = sessionEpoch.current.value;
+    const ok = await confirmDialog({
+      title: t('chat.rewindConfirmTitle'),
+      message: t('chat.rewindConfirmMessage'),
+    });
+    if (!ok || !sessionId || epoch !== sessionEpoch.current.value ||
+        useAgentStore.getState().loadedSessionId !== sessionId) return;
+    try {
+      await rewind(turnId);
+      pushToast({ kind: 'success', message: t('chat.rewound') });
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.rewindFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
+  };
+
+  // v1.11 F7+D6:编辑历史消息 —— 组合既有 Op::Rewind 与 composer 预填:
+  // 截断「目标轮(含)之后」的全部记录,再把该轮用户文本填回 composer,
+  // 用户改完直接发送 = 从该点重新生成。零协议改动(Rewind 语义已覆盖
+  // 「截断 + 短历史回放」)。
+  const handleEditTurn = async (turnId: string) => {
+    const epoch = sessionEpoch.current.value;
+    const target = editRewindTargetFor(turns, turnId);
+    if (target === null) {
+      // 轮不存在(静默)或没有用户文本(info 提示)都不可编辑。
+      if (turns.some((tr) => tr.id === turnId)) {
+        pushToast({ kind: 'info', message: t('chat.editNoUserText') });
+      }
+      return;
+    }
+    const ok = await confirmDialog({
+      title: t('chat.editConfirmTitle'),
+      message: t('chat.editConfirmMessage'),
+    });
+    if (!ok || !sessionId || epoch !== sessionEpoch.current.value ||
+        useAgentStore.getState().loadedSessionId !== sessionId) return;
+    try {
+      await rewind(target.rewindTo);
+      emitComposerPrefill(target.userText);
+      pushToast({ kind: 'success', message: t('chat.editPrefilled') });
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.rewindFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
+  };
+
+  // C2 一键重生成:Rewind(丢弃目标轮含之后,与编辑同款引擎语义)+
+  // 把该轮用户内容(user_text + 附件)原样重发 —— 编辑流的「免改直发」
+  // 变体。附件经 userItemsFromTurn 逆转回 UserInputItem(image 的 data-URL
+  // 由后端 normalize_image_data 解码)。
+  const submitItems = useAgentStore((st) => st.submitItems);
+  const { currentWorkspace } = useCurrentWorkspace();
+  const handleRegenerateTurn = async (turnId: string) => {
+    const epoch = sessionEpoch.current.value;
+    const target = turns.find((tr) => tr.id === turnId);
+    if (!target) return;
+    const items = userItemsFromTurn(target);
+    if (items === null) return;
+    const ok = await confirmDialog({
+      title: t('chat.regenerateConfirmTitle'),
+      message: t('chat.regenerateConfirmMessage'),
+    });
+    if (!ok || epoch !== sessionEpoch.current.value ||
+        useAgentStore.getState().loadedSessionId !== sessionId) return;
+    try {
+      await rewind(turnId);
+      await submitItems(items, currentWorkspace);
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.regenerateFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
+  };
+
+  // C3 继续生成:引擎无 Continue Op —— 以一条续写指令 UserInput 开新
+  // turn(显式近似;上一轮上下文天然在会话历史里,模型可接着写)。
+  // 仅在无运行中 turn 时可触发(MessageList 只对末轮露出按钮,这里再守一次)。
+  const submit = useAgentStore((st) => st.submit);
+  const handleContinueTurn = async () => {
+    if (selectIsTurnRunning(useAgentStore.getState())) return;
+    try {
+      await submit(t('chat.continuePrompt'), currentWorkspace);
+    } catch (e: unknown) {
+      pushToast({
+        kind: 'error',
+        message: t('chat.regenerateFailed', { msg: e instanceof Error ? e.message : String(e) }),
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!sessionId) {
+      clearSession();
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    const myId = ++requestIdRef.current;
+    // 绑定新线程前移除旧会话的交互，避免加载窗口里向错误线程应答。
+    if (useAgentStore.getState().loadedSessionId !== sessionId) {
+      // v1.x 后台持续运行:旧会话若有 turn 正在跑,播种 running 态进后台
+      // 注册表(turn_started 是前台事件,降级后的后台通道不会再发)。
+      const previous = useAgentStore.getState().loadedSessionId;
+      if (previous && useAgentStore.getState().turns.some((turn) => turn.status === 'streaming')) {
+        useBackgroundSessions.getState().seedRunning(previous);
+      }
+      clearSession();
+    }
+    setLoading(true);
+    setError(null);
+    // v1.x:先 bind(后端幂等,同 id 短路)再决定 hydrate。bind 保证后端
+    // AgentThread 落到本 session id(recorder + LLM 上下文),即使已水合
+    // 也必须先走一遍(早退前),Composer 发送才会续写本会话文件。
+    // 返回值是该会话恢复出的权限模式 —— 模式绑定会话而非进程,切换
+    // 会话后用返回值同步本地徽标/切换器,避免沿用上一会话的显示。
+    void reflect_bind_session(sessionId)
+      .then((mode) => {
+        if (requestIdRef.current !== myId) return null;
+        syncPermissionMode(mode);
+        // 已水合同 id:bind 已完成,不再重复 replay。读 store 实时值而非
+        // 闭包快照 —— `loadedSessionId` 不能进 deps(水合成功后会让本
+        // effect 重跑第二遍:多余 bind + loading banner 闪断)。
+        if (useAgentStore.getState().loadedSessionId === sessionId) return null;
+        return reflect_replay_session(sessionId);
+      })
+      .then((records: ReflectRolloutRecord[] | null) => {
+        if (requestIdRef.current !== myId) return;
+        if (records) hydrateSession(sessionId, records);
+        // v1.x 后台持续运行:该会话在后台期间积攒的待确认交互(gate 请求
+        // 不落 rollout)合并进主 store,否则会话会静默卡在审批上。
+        useBackgroundSessions.getState().mergePendingInto(sessionId);
+      })
+      .catch((e: unknown) => {
+      if (requestIdRef.current !== myId) return;
+      setError(e instanceof Error ? e.message : String(e));
+    }).finally(() => {
+      if (requestIdRef.current !== myId) return;
+      setLoading(false);
+    });
+    return () => {
+      // unmount / 换 session 时使在途请求作废,防止旧 replay 水合进
+      // 全局 store 污染新会话视图。
+      requestIdRef.current++;
+    };
+  }, [sessionId, hydrateSession, clearSession, syncPermissionMode]);
+
+  const isLoaded = !sessionId || loadedSessionId === sessionId;
+
+  // v2 工作台:轨迹/对话 view-ring + 底部分屏 + 右栏(shellState)
+  const [viewMode, setViewMode] = useState<'chat' | 'traj'>('chat');
+  const bottomOpen = useZShell((st) => st.bottomOpen);
+  const setBottomOpen = useZShell((st) => st.setBottomOpen);
+  const rightOpen = useZShell((st) => st.rightOpen);
+  const gitSum = useGitSummary(Boolean(sessionId));
+
+  // 交互接管:审批 / 问题 / 输入(任一在场即接管 composer 座位)
+  const takeoverApproval = useAgentStore((st) => st.pendingApprovals[0] ?? null);
+  const takeoverQuestion = useAgentStore((st) => st.pendingQuestions[0] ?? null);
+  const takeoverAskUser = useAgentStore((st) => st.pendingAskUser[0] ?? null);
+  const goalActive = useAgentStore((st) => st.goalActive);
+  const goalText = useAgentStore((st) => st.goalSnapshot?.goal ?? '');
+  const turnRunning = useAgentStore((st) => st.turns.some((tn) => tn.status === 'streaming'));
+  const sessions = useSessions();
+
+  // 首页工作台英雄态：全新对话（无 session、无历史、无加载错误）时，
+  // 问候语 + 快捷模板 chips + 居中 Composer 取代常规消息流。
+  // 首条消息发出后 turns > 0，同一 Composer 实例自然落回底部常规布局。
+  const hero = !sessionId && !loading && !error && turns.length === 0;
+
+  // B13：chat + diff 分屏视图。在 Settings → Display 中切换。
+  const [prefs] = useUiPrefs();
+  const [diffText, setDiffText] = useState<string | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  useEffect(() => {
+    if (!prefs.chatDiffSplit) {
+      setDiffText(null);
+      return;
+    }
+    setDiffLoading(true);
+    reflect_git_diff(false)
+      .then((d) => setDiffText(d))
+      .catch(() => setDiffText(''))
+      .finally(() => setDiffLoading(false));
+  }, [prefs.chatDiffSplit]);
+
+  const retry = () => {
+    if (!sessionId) return;
+  const myId = ++requestIdRef.current;
+  setError(null);
+  setLoading(true);
+  // 与主加载序列同构:bind(幂等)→ replay → hydrate。
+  void reflect_bind_session(sessionId)
+    .then((mode) => {
+      // 与主路径同源守卫:点 Retry 后立刻切走会话时,
+      // 旧会话恢复出的权限模式不得覆盖新会话。
+      if (requestIdRef.current !== myId) return null;
+      syncPermissionMode(mode);
+      return reflect_replay_session(sessionId);
+    })
+    .then((r) => {
+      if (requestIdRef.current !== myId || !r) return;
+      hydrateSession(sessionId, r);
+    }).catch((e: unknown) => {
+      if (requestIdRef.current !== myId) return;
+      setError(e instanceof Error ? e.message : String(e));
+    }).finally(() => {
+      if (requestIdRef.current !== myId) return;
+      setLoading(false);
+    });
+  };
+  const exportMarkdown = () => {
+    if (!sessionId) return;
+    void reflect_export_session_markdown(sessionId)
+      .then((result) => pushToast({ kind: 'success', message: t('toast.exportedMarkdown', { path: result?.path ?? '' }) }))
+      .catch((error: unknown) => pushToast({ kind: 'error', message: error instanceof Error ? error.message : String(error) }));
+  };
+  return <View
+    t={t} sessionId={sessionId}
+    title={sessionId ? (sessions.all.find((item) => item.session_id === sessionId)?.title ?? '' ?? sessionId.slice(0, 8)) : t('home.title')}
+    loading={loading} error={error} isLoaded={isLoaded} turns={turns} turnCount={turns.length} forking={forking}
+    hero={hero} split={prefs.chatDiffSplit} diffLoading={diffLoading} diffText={diffText}
+    viewMode={viewMode} onViewModeChange={setViewMode} bottomOpen={bottomOpen} rightOpen={rightOpen} gitSummary={gitSum}
+    goalActive={goalActive} goalText={goalText} turnRunning={turnRunning}
+    approval={takeoverApproval} question={takeoverQuestion} askUser={takeoverAskUser}
+    onFork={handleFork} onRetry={retry} onExport={exportMarkdown}
+    onToggleTerminal={() => setBottomOpen(!bottomOpen)} onCloseTerminal={() => setBottomOpen(false)}
+    onToggleRight={() => useZShell.getState().toggleRight()} onToggleTheme={() => useZShell.getState().toggleRight()}
+    onOpenSettings={() => { window.location.hash = '/settings'; }}
+    onRewind={(id) => { void handleRewind(id); }} onEdit={(id) => { void handleEditTurn(id); }}
+    onRegenerate={(id) => { void handleRegenerateTurn(id); }} onContinue={() => { void handleContinueTurn(); }} slots={slots}
+  />;
+}

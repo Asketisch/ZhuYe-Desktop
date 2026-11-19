@@ -18,7 +18,7 @@ import {
 } from './config/schema';
 import { StructuredField } from './components/StructuredField';
 import { ComplexSection, UnknownSection } from './components/ComplexEditors';
-import s from './SettingsView.module.css';
+import s from '@/render/settings/SettingsView.module.css';
 
 const KNOWN_TOML_SECTIONS = new Set(
   Object.keys(SIMPLE_FIELDS_BY_SECTION).concat([...COMPLEX_SECTIONS]),

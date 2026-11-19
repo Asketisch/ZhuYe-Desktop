@@ -11,7 +11,7 @@ import { Terminal as TerminalIcon, Globe, Eye, Plus, FileText } from 'lucide-rea
 import { reflect_read_file } from '@/utils/commands/files';
 import { useI18n } from '@/utils/i18n';
 import { InteractiveTerminal } from '@/features/terminal/InteractiveTerminal';
-import s from './zcode.module.css';
+import s from '@/render/shell/zcode/zcode.module.css';
 
 type BottomTab = 'term' | 'browser' | 'preview';
 

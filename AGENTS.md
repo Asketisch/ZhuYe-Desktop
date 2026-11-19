@@ -13,6 +13,8 @@
 
 ## AGENTS.md 体系导航
 
+桌面端路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示与终端页已拆分为 `src/render/`、`src/logic/` 与 `src/contracts/`。少量共享子面板仍在兼容迁移中。
+
 本体系按**渐进式披露**组织：根篇常驻上下文，目录级篇按需展开，系统级说明放 `docs/`。
 **修改任何目录前，先读该目录（或其所在层）的 AGENTS.md。**
 
@@ -130,7 +132,7 @@ pnpm test -- src/features/settings/SettingsView.test.tsx
 
 **会话层级不变量**：
 
-- `useSessions`（`src/features/sessions/hooks/useSessions.ts`）是会话列表的规范 hook
+- `useSessions`（`src/logic/sessions/useSessions.ts`）是会话列表的规范 hook，旧切片路径提供兼容导出
 - 切换会话 → `reflect_replay_session(id)` 后水合本地状态
 - 时间分组（`Now/今天/昨天/本周/更早`）在 hook 中，不在侧边栏组件中
 
@@ -172,7 +174,7 @@ pnpm test -- src/features/settings/SettingsView.test.tsx
    5. `docs/protocol-bridge.md` 已更新（如果线格式有变更）
    6. `docs/changelog.md` 已添加条目
 
-5. **设计系统规则** —— 使用现有的设计标记（`src/styles/tokens.css`，暗色优先，支持亮色/系统主题）和基础组件（`src/features/design-system/primitives/*`）构建共享壳层；不要在功能 CSS 中重复定义已存在的弹窗/提示/面板/浮层样式；所有视图通过 CSS Modules 消费 token（内联样式不硬编码颜色值）。
+5. **设计系统规则** —— 使用现有的设计标记（`src/render/styles/tokens.css`，暗色优先，支持亮色/系统主题）和基础组件（`src/features/design-system/primitives/*`）构建共享壳层；不要在功能 CSS 中重复定义已存在的弹窗/提示/面板/浮层样式；所有视图通过 CSS Modules 消费 token（内联样式不硬编码颜色值）。
 
 6. **验证** —— 按下方「验证矩阵」跑对应命令，全绿再提交。
 

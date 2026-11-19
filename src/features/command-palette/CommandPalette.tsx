@@ -11,7 +11,7 @@ import { Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { buildPaletteItems, type PaletteItem } from './registry';
 import { fuzzy } from './fuzzy';
-import s from './CommandPalette.module.css';
+import s from '@/render/command-palette/CommandPalette.module.css';
 
 export interface CommandPaletteProps {
   open: boolean;

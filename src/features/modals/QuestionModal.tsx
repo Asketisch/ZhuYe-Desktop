@@ -12,7 +12,7 @@ import { useAgentStore, type PendingQuestion } from '@/stores/agentStore';
 import type { Question } from '@/types/protocol';
 import { useI18n } from '@/utils/i18n';
 import { ModalShell } from './ModalShell';
-import s from './index.module.css';
+import s from '@/render/modals/index.module.css';
 
 export function QuestionModal({ question }: { question: PendingQuestion }) {
   const { t } = useI18n();

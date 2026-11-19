@@ -7,14 +7,14 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { AppProviders, router } from '../../src/router';
-import { initTheme } from '../../src/utils/theme';
-import { bootstrapUiPrefs } from '../../src/utils/uiPrefs';
+import { RendererProvider } from '../../src/logic/renderer/RendererProvider';
+import { renderer } from '../../src/render';
+import { bootstrapAppearance } from '../../src/logic/webview/bootstrapAppearance';
 import { mountVisualGlobals } from './shims/tauriCore';
-import '../../src/styles/tokens.css';
-import '../../src/styles/base.css';
+import '../../src/render/styles/tokens.css';
+import '../../src/render/styles/base.css';
 
-initTheme();
-bootstrapUiPrefs();
+bootstrapAppearance(renderer.appearance);
 mountVisualGlobals();
 
 const root = document.getElementById('root');
@@ -25,7 +25,9 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <AppProviders>
-      <RouterProvider router={router} />
+      <RendererProvider renderer={renderer}>
+        <RouterProvider router={router} />
+      </RendererProvider>
     </AppProviders>
   </StrictMode>,
 );

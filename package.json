@@ -8,9 +8,9 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/check-render-boundaries.mjs && tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node --test scripts/check-render-boundaries.test.mjs && node scripts/check-render-boundaries.mjs && tsc --noEmit",
     "types:gen": "bash scripts/dump-ts-types.sh",
     "icons": "bash scripts/gen-icons.sh",
     "icons:check": "bash scripts/gen-icons.sh --check",

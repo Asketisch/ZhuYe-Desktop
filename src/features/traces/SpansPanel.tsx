@@ -15,7 +15,7 @@ import { Activity } from 'lucide-react';
 import { Badge, Card, EmptyState, Icon, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { reflect_list_span_logs, reflect_read_span_log } from '@/utils/commands/traces';
-import s from './TracesView.module.css';
+import s from '@/render/traces/TracesView.module.css';
 
 export function SpansPanel() {
   const { t } = useI18n();

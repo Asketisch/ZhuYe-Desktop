@@ -18,7 +18,7 @@ import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { reflect_delete_session } from '@/utils/commands';
 
 // clearAllSessions 有二次确认(ConfirmDialog);测试中自动确认。
-vi.mock('@/features/modals/ConfirmDialog', () => ({
+vi.mock('@/logic/modals/confirm', () => ({
   confirmDialog: async () => true,
 }));
 

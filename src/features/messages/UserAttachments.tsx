@@ -10,7 +10,7 @@ import { FileText } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { Lightbox } from '@/components/Lightbox';
 import type { UserAttachmentMeta } from '@/stores/agent/types';
-import s from './UserAttachments.module.css';
+import s from '@/render/messages/UserAttachments.module.css';
 
 function basename(path: string): string {
   const parts = path.split('/').filter(Boolean);

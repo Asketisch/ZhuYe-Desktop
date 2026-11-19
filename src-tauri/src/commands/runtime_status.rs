@@ -192,6 +192,8 @@ pub struct ConfigInfo {
     pub workspace: String,
     /// 当前活跃 agent 名。
     pub active_agent: String,
+    /// 配置健康问题及其严重程度。
+    pub issues: Vec<reflect_app_core::config_health::ConfigHealthIssue>,
 }
 
 /// 查询配置位置与分析健康度。
@@ -213,6 +215,7 @@ pub async fn reflect_config_info(agent: State<'_, MinimalAgent>) -> CommandResul
         analytics_status: reflect_config::analytics::status_line(cfg.analytics.as_ref()),
         workspace: agent.workspace().display().to_string(),
         active_agent: crate::agent_state::AgentState::active_agent(),
+        issues: reflect_app_core::config_health::config_health_issues(&cfg),
     })
 }
 

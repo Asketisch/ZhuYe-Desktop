@@ -23,7 +23,7 @@ import {
   reflect_list_permission_rules,
   type PermissionRuleInfo,
 } from '@/utils/commands/permissions';
-import s from './PermissionRulesSection.module.css';
+import s from '@/render/settings/sections/PermissionRulesSection.module.css';
 
 const SCOPE_LABEL: Record<PermissionRuleInfo['scope'], string> = {
   config: 'settings.permRules.scopeConfig',

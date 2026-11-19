@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import { FileDiff, ChevronDown, ChevronRight } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { useAgentStore, type Turn, type TurnItem } from '@/stores/agentStore';
-import s from './ScmChanges.module.css';
+import s from '@/render/messages/ScmChanges.module.css';
 
 /** 写类工具名(改文件的才进 SCM 面板)。 */
 const WRITE_TOOLS = new Set([

@@ -10,6 +10,7 @@
 
 | 脚本 | 干什么 | 关键入口 |
 |---|---|---|
+| check-render-boundaries.mjs | 检查已迁移渲染与逻辑目录的依赖边界 | `pnpm typecheck` / `pnpm build` |
 | build.sh | 按 OS 选默认打包目标的 release 构建 | `--fast` / `--universal` / `--bundles=` / `--no-frontend` / `--dry-run`；`pnpm build:native` |
 | create_tag.sh | 一站式发版：版本 bump + CHANGELOG 转正 + 提交 + tag + 推送 | `--dry-run` / `--no-push` / `--yes` |
 | dump-ts-types.sh | Rust 协议类型经 JSON Schema 生成 TS 类型 | `pnpm types:gen` |
@@ -42,7 +43,7 @@
 
 - install.sh：装 `target/release/reflect-desktop` 到 `--prefix`（默认 `/usr/local/bin`）+ `ZhuYe.app` 到 `--app-dir`（默认 `~/Applications`）；`ZHUYE_INSTALL_BIN` / `ZHUYE_INSTALL_APP` 供 CI 传入与构建同源的路径。
 - dump-ts-types.sh：`cargo run -p zhuye-protocol --example dump_schema` → `npx json2ts` → `src/types/protocol.generated.ts`。产物为生成文件，勿手改；本脚本不是构建依赖，npx 不可用时跳过。
-- render-display-png.py：纯 Python（zlib + struct，无原生依赖）渲染 `docs/screenshots/display-section.png`，配色镜像 `src/styles/tokens.css`。
+- render-display-png.py：纯 Python（zlib + struct，无原生依赖）渲染 `docs/screenshots/display-section.png`，配色镜像 `src/render/styles/tokens.css`。
 
 ## 禁止事项
 

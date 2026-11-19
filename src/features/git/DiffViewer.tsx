@@ -8,7 +8,7 @@
  *   - `@@` → hunk header
  */
 import { useMemo } from 'react';
-import s from './DiffViewer.module.css';
+import s from '@/render/git/DiffViewer.module.css';
 
 export interface DiffViewerProps {
   diff: string;

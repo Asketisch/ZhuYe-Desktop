@@ -41,14 +41,14 @@
 | 更改 IDE shell（布局 / 活动栏 / 状态栏） | `src/features/shell/{AppShell,ActivityBar,TitleBar,StatusBar,Inspector,PageShell}.tsx`。有状态的 shell 交互位于 `src/features/shell/hooks/{useCommandPaletteShortcut,usePaletteActions,useThemeCycle}.ts`。 |
 | 更改审批 / 问题 / 计划模态框 | `src/features/modals/{ModalShell,index}.tsx`，各身体位于 `src/features/modals/{ApprovalModal,QuestionModal,AskUserModal,PlanReadyModal,ApprovalHistory}.tsx` |
 | 更改会话列表（侧栏） | `src/features/sessions/components/{Sidebar,WorkspaceGroup}.tsx`、`src/features/sessions/utils/workspaceGroups.ts`、`src/features/sessions/hooks/{useSessions,useCollapsedGroups}.ts`（HomeView / ThreadsView 的时间分桶在 `src/features/sessions/utils/buckets.ts` + `BucketGroup.tsx`） |
-| 更改设置持久化 | `src/features/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml,plans}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection,PlansSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
+| 更改设置持久化 | `src/logic/settings/SettingsBinding.tsx`、`src/render/settings/SettingsView.tsx`、`src/features/settings/ConfigForm.tsx`、`src/features/settings/config/{schema,toml,plans}.ts`、`src/features/settings/components/{StructuredField,ComplexEditors}.tsx`、`src/features/settings/sections/{DisplaySection,NotificationsSection,UpdatesSection,PlansSection}.tsx`、`src/utils/commands/config.ts`、`src-tauri/src/commands/config.rs` |
 | 更改 coding plan / 供应商切换 / 额度 failover | `src/features/settings/config/plans.ts`（纯函数）、`src/features/settings/sections/PlansSection.tsx`（设置入口）、`src/features/models/ModelsView.tsx`(一键切换)、`src/stores/agent/planFailover.ts`（耗尽自动切换）、`src-tauri/src/state/{quota,reload}.rs`（tracker 构建 + 热重载） |
 | 更改 OS 沙箱开关的生效口径 | `app-core/src/sandbox.rs`（唯一事实源：配置 `Option<bool>` 表态 → 有效值 → 协议策略）、`src-tauri/src/state/sandbox.rs`（env 优先解析）、`src-tauri/src/state/submit.rs`（每轮盖章 `thread_settings.sandbox_policy`）、`src-tauri/src/commands/sandbox.rs`（状态口径）、`src/features/shell/StatusBar.tsx`（徽标）。见 `docs/capabilities.md` §3.19 |
-| 增删命令面板条目 | `src/features/command-palette/registry.ts`（条目表）、`src/features/command-palette/CommandPalette.tsx`（props 透传）、`src/features/shell/hooks/usePaletteActions.ts`（动作实现）、`src/features/shell/AppShell.tsx`（接线） |
+| 增删命令面板条目 | `src/features/command-palette/registry.ts`（条目表）、`src/features/command-palette/CommandPalette.tsx`（props 透传）、`src/features/shell/hooks/usePaletteActions.ts`（动作实现）、`src/logic/shell/ShellBinding.tsx`（接线） |
 | 渲染 plan 执行进度 / 插件挂载 | `src/stores/agent/reducer.ts`（`plan_step` / `plugin_loaded` 分支）、`src/stores/agent/types.ts`（`PlanStepState` / `PluginLoadedInfo`）、`src/features/plan/PlanView.tsx`、`src/features/collaboration/PluginsPanel.tsx` |
 | 改动任务板 / 团队管理 | `src/features/tasks-board/{TasksBoardView,useTasksBoardController,TeamEditor}.tsx/ts`、`src/utils/commands/teams.ts`（团队 CRUD 包装 + `SystemTime` 形态） |
 | 改动审批弹窗的「始终允许」 | `src/features/modals/ApprovalModal.tsx`、`src/features/modals/allowRule.ts`（规则推导，纯函数）、`src-tauri/src/commands/permissions.rs`（`reflect_add_permission_rule` → 核心用户级权限文件）、`src/stores/agent/types.ts`（`PendingApproval.args` 原始参数） |
-| 更改主题 / 设计令牌 | `src/styles/tokens.css`、`src/features/design-system/DesignSystemView.tsx` |
+| 更改主题 / 设计令牌 | `src/render/styles/tokens.css`、`src/features/design-system/DesignSystemView.tsx` |
 | 添加托盘图标 / 菜单 / 快捷键 | `src-tauri/src/{tray,menu,shortcut}.rs`、`src-tauri/src/lib.rs` |
 | macOS dock 徽标 | `src-tauri/src/dock.rs` |
 | 记忆视图控制器 | `src/features/memory/MemoryView.tsx` + `src/features/memory/useMemoryController.ts` |
@@ -67,14 +67,14 @@
 
 - 组合根：`src/main.tsx`
 - 路由（TanStack Router）：`src/router.tsx`
-- 应用布局 shell（IDE 5 栏）：`src/features/shell/AppShell.tsx`（+ `ActivityBar/TitleBar/StatusBar/Inspector/PageShell`）
+- 应用布局 shell（IDE 5 栏）：`src/logic/shell/ShellBinding.tsx` + `src/render/shell/AppShell.tsx`（+ `TitleBar/StatusBar/Inspector` 等切片）
 - Tauri IPC 底层桥接：`src/utils/bridge.ts`（`invoke` / `listen` + 回退）
 - Tauri IPC 包装器桶文件（兼容）：`src/utils/tauri.ts`、`src/utils/commands.ts`
 - Tauri IPC 包装器（规范，按域）：`src/utils/commands/{health,agent,approvals,plan,permissions,questions,config,sessions,events,workspaces,skills,memory,hooks,git,terminal,files,allowlist,updates,search}.ts`
 - Agent 钩子（事件扇出 + 提交）：`src/services/agent.ts`（遗留兼容 re-export）+ `src/services/agentEventBus.ts`（引用计数总线）
 - 全局 Zustand store：`src/stores/agentStore.ts`（兼容门面）→ `src/stores/agent/`（规范实现：`store.ts` + `reducer.ts` + `turns.ts` + `toast.ts` + `servers.ts` + `types.ts` + `useAgent.ts` + `selectors.ts` + `planFailover.ts` + `queue.ts` + `index.ts`）
-- 主题基础设施：`src/utils/theme.ts`
-- 设计令牌 / base reset：`src/styles/{tokens,base}.css` + `typography.module.css`
+- 主题和偏好：`src/logic/preferences/` + `src/logic/webview/`；外观映射在 `src/render/appearance.ts`
+- 设计令牌 / base reset：`src/render/styles/{tokens,base}.css` + `src/styles/typography.module.css`
 - i18n 运行时：`src/utils/i18n.ts`（兼容桶文件）→ `src/utils/i18n/{context.tsx,locale.ts,interpolate.ts,lookup.ts,types.ts}` + `src/utils/i18n/strings/index.ts` 合并 `src/utils/i18n/strings/` 下的域目录（about / app / apps / chat / collaboration / common / composer / debug / design / dictation / files / git / home / inspector / memory / mobile / modal / models / notifications / palette / permissionMode / plan / prompts / settings / shell / sidebar / skills / slash / terminal / threads / toast / update / workspaces）
 - 共享类型：`src/types/protocol.ts`
 

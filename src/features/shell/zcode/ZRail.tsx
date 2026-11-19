@@ -15,7 +15,7 @@ import {
 import type { ComponentType } from 'react';
 import { useRouter, useLocation } from '@tanstack/react-router';
 import { useI18n } from '@/utils/i18n';
-import s from './zcode.module.css';
+import s from '@/render/shell/zcode/zcode.module.css';
 
 interface NavItem {
   to: string;

@@ -26,9 +26,9 @@ const ROOT = resolve(HERE, '../../../..');
 
 async function bundleCss(): Promise<string> {
   const [tokens, base, settings] = await Promise.all([
-    readFile(resolve(ROOT, 'src/styles/tokens.css'), 'utf8').catch(() => ''),
-    readFile(resolve(ROOT, 'src/styles/base.css'), 'utf8').catch(() => ''),
-    readFile(resolve(ROOT, 'src/features/settings/SettingsView.module.css'), 'utf8').catch(() => ''),
+    readFile(resolve(ROOT, 'src/render/styles/tokens.css'), 'utf8').catch(() => ''),
+    readFile(resolve(ROOT, 'src/render/styles/base.css'), 'utf8').catch(() => ''),
+    readFile(resolve(ROOT, 'src/render/settings/SettingsView.module.css'), 'utf8').catch(() => ''),
   ]);
   return [tokens, base, settings].join('\n');
 }

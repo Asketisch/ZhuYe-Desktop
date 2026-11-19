@@ -2,7 +2,7 @@
 import { useAgentStore, type PendingPlan } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { ModalShell } from './ModalShell';
-import s from './index.module.css';
+import s from '@/render/modals/index.module.css';
 
 export function PlanRequestModal({ plan }: { plan: PendingPlan }) {
   const { t } = useI18n();

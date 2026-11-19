@@ -6,7 +6,7 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Icon } from '@/features/design-system';
-import s from './Collapsible.module.css';
+import s from '@/render/messages/Collapsible.module.css';
 
 export interface CollapsibleProps {
   label: ReactNode;

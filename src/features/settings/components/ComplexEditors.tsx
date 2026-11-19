@@ -21,7 +21,7 @@ import {
   updateSubSection,
 } from '../config/toml';
 import { applyField, readField } from '../config/schema';
-import s from '../SettingsView.module.css';
+import s from '@/render/settings/SettingsView.module.css';
 
 const COMPLEX_DESCRIPTIONS: Record<string, LocaleKey> = {
   mcp_servers: 'settings.config.section.mcpDesc',

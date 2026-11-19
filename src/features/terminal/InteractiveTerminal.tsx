@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { onPtyExit, onPtyOutput, reflect_pty_close, reflect_pty_resize, reflect_pty_start, reflect_pty_write } from '@/utils/commands/terminal';
-import styles from './InteractiveTerminal.module.css';
+import styles from '@/render/terminal/InteractiveTerminal.module.css';
 
 export function InteractiveTerminal() {
   const container = useRef<HTMLDivElement>(null);

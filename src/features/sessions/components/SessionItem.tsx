@@ -14,7 +14,7 @@ import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import { displayTitle } from '../utils/buckets';
 import { basename } from '../utils/workspaceGroups';
 import { SessionItemMenu } from './SessionItemMenu';
-import s from './SessionItem.module.css';
+import s from '@/render/sessions/components/SessionItem.module.css';
 
 export interface SessionItemProps {
   session: ReflectSessionInfo;

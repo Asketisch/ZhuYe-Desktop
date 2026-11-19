@@ -1,0 +1,96 @@
+import type { I18nContextValue } from '@/utils/i18n/context';
+import type { ReflectTask, ReflectTaskStatus, ReflectTeam } from '@/utils/commands';
+
+export type TaskStatus = ReflectTaskStatus;
+export type BoardView = 'list' | 'board';
+export type TaskRowData = ReflectTask;
+export interface TeamMemberDraft { key: string; role: string; name: string; system_prompt: string }
+export type TeamData = ReflectTeam;
+
+export interface TasksBoardViewProps {
+  t: I18nContextValue['t'];
+  title: string;
+  subtitle: string;
+  width: 'sm' | 'md' | 'lg';
+  view: BoardView;
+  onViewChange: (v: BoardView) => void;
+  listId: string;
+  onListIdChange: (id: string) => void;
+  sessions: Array<{ session_id: string; title?: string }>;
+  teamNames: string[];
+  teams: TeamData[];
+  teamBusy: boolean;
+  onTeamSave: (team: TeamData) => Promise<void>;
+  onTeamDelete: (name: string) => Promise<void>;
+  showForm: boolean;
+  onToggleForm: () => void;
+  newSubject: string;
+  newDescription: string;
+  newOwner: string;
+  onNewSubjectChange: (v: string) => void;
+  onNewDescriptionChange: (v: string) => void;
+  onNewOwnerChange: (v: string) => void;
+  onCreate: () => Promise<void>;
+  tasks: TaskRowData[];
+  grouped: Record<TaskStatus, TaskRowData[]>;
+  loading: boolean;
+  error: unknown;
+  selected: TaskRowData | null;
+  onSelectTask: (task: TaskRowData | null) => void;
+  onClaim: (task: TaskRowData) => Promise<void>;
+  onAdvance: (task: TaskRowData, status: TaskStatus) => Promise<void>;
+  onRemove: (task: TaskRowData) => Promise<void>;
+  onStop: (task: TaskRowData) => Promise<void>;
+  onRelease: (task: TaskRowData) => Promise<void>;
+  labels: {
+    viewList: string; viewBoard: string; switchList: string; teamManager: string;
+    teams: string; add: string; cancel: string; activeList: string; listPlaceholder: string;
+    sessionLists: string; failed: string; failedDesc: string; empty: string;
+    emptyDesc: (listId: string) => string; claim: string; start: string; complete: string;
+    stop: string; release: string; delete: string; details: string; claimedBy: string;
+    subject: string; description: string; owner: string; create: string;
+    close: string; detailDescription: string; detailOutputPath: string; detailOutput: string;
+    detailOutputEmpty: string; teamCreate: string; teamEdit: (name: string) => string;
+    teamEmpty: string; teamName: string; teamDescription: string; teamSave: string;
+    teamAddMember: string; teamMemberRole: string; teamMemberName: string; teamMemberPrompt: string;
+    teamNameInvalid: string; teamMembers: (count: number) => string;
+  };
+  statusLabels: Record<TaskStatus, string>;
+  showListPicker: boolean;
+  onToggleListPicker: () => void;
+  onCloseListPicker: () => void;
+  showTeams: boolean;
+  onToggleTeams: () => void;
+  teamEditor: {
+    editing: string | null;
+    name: string;
+    description: string;
+    members: TeamMemberDraft[];
+    error: string | null;
+    startCreate: () => void;
+    startEdit: (team: TeamData) => void;
+    reset: () => void;
+    setName: (value: string) => void;
+    setDescription: (value: string) => void;
+    addMember: () => void;
+    updateMember: (key: string, patch: Partial<TeamMemberDraft>) => void;
+    removeMember: (key: string) => void;
+    submit: () => Promise<void>;
+    remove: (name: string) => Promise<void>;
+  };
+  teamLabels: {
+    teamManager: string;
+    teamCreate: string;
+    teamEmpty: string;
+    teamEdit: (name: string) => string;
+    teamMembers: (count: number) => string;
+    teamName: string;
+    teamDescription: string;
+    teamAddMember: string;
+    teamMemberRole: string;
+    teamMemberName: string;
+    teamMemberPrompt: string;
+    teamSave: string;
+    teamNameInvalid: string;
+  };
+}

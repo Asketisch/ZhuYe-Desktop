@@ -11,7 +11,7 @@ import { AlertTriangle, GitBranch } from 'lucide-react';
 import { Badge, Card, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { reflect_list_worktrees } from '@/utils/commands/git';
-import s from './GitView.module.css';
+import s from '@/render/git/GitView.module.css';
 
 export function WorktreePanel() {
   const { t } = useI18n();

@@ -8,7 +8,7 @@
  */
 import { useI18n } from '@/utils/i18n';
 import { useContextRatio } from './useContextRatio';
-import s from './ContextGauge.module.css';
+import s from '@/render/shell/ContextGauge.module.css';
 
 const RADIUS = 7;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;

@@ -10,8 +10,11 @@ import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { emitComposerPrefill } from '@/features/composer/useComposerDraft';
 import { Icon } from '@/features/design-system';
+import { Compass, Hammer, ScanSearch, Bug } from 'lucide-react';
 import { QUICK_PROMPTS, type QuickPrompt } from './quickPrompts';
-import s from './ChatHero.module.css';
+import s from '@/render/home/ChatHero.module.css';
+
+const icons = { explore: Compass, build: Hammer, review: ScanSearch, fix: Bug };
 
 type GreetingKey = 'chat.greeting.morning' | 'chat.greeting.afternoon' | 'chat.greeting.evening';
 
@@ -63,7 +66,7 @@ function QuickChip({ prompt }: { prompt: QuickPrompt }) {
       onClick={() => emitComposerPrefill(t(prompt.promptKey))}
       data-testid={`quick-prompt-${prompt.id}`}
     >
-      <Icon icon={prompt.icon} size={13} />
+      <Icon icon={icons[prompt.id]} size={13} />
       <span>{t(prompt.titleKey)}</span>
     </button>
   );

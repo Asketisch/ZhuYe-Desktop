@@ -19,7 +19,7 @@ import {
   reflect_save_pipeline_config,
   reflect_validate_pipeline,
 } from '@/utils/commands/pipeline';
-import s from './CollaborationView.module.css';
+import s from '@/render/collaboration/CollaborationView.module.css';
 
 /** 新建时的模板 —— 一个最小的两节点 DAG。 */
 const TEMPLATE = `name = "my-pipeline"

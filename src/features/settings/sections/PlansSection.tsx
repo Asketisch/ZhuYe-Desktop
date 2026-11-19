@@ -45,7 +45,7 @@ import {
   type PlanProvider,
   type PlanQuota,
 } from '../config/plans';
-import s from '../SettingsView.module.css';
+import s from '@/render/settings/SettingsView.module.css';
 
 export interface PlansSectionProps {
   rawToml: string;

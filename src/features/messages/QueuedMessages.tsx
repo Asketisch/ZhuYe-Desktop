@@ -11,7 +11,7 @@ import { Play, Trash2, Pencil, Check, X } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
 import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import s from './QueuedMessages.module.css';
+import s from '@/render/messages/QueuedMessages.module.css';
 
 export function QueuedMessages() {
   const { t } = useI18n();

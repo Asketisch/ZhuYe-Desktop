@@ -11,7 +11,7 @@ import type { ReflectSessionInfo } from '@/utils/commands';
 import { chatLinkFor, shortTimestamp } from '../utils/threadLabels';
 import { SessionItemMenu } from '@/features/sessions/components/SessionItemMenu';
 import { useI18n } from '@/utils/i18n';
-import s from './ThreadItem.module.css';
+import s from '@/render/threads/components/ThreadItem.module.css';
 
 export interface ThreadItemProps {
   session: ReflectSessionInfo;

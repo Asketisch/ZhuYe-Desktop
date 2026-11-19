@@ -12,7 +12,7 @@ import { ListChecks } from 'lucide-react';
 import { Badge, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import s from './Inspector.module.css';
+import s from '@/render/shell/Inspector.module.css';
 
 const STATUS_VARIANT: Record<string, 'neutral' | 'accent' | 'success'> = {
   pending: 'neutral',

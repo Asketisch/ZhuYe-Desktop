@@ -546,11 +546,11 @@ describe('IPC parity (frontend ↔ backend)', () => {
 describe('Design tokens', () => {
   it('tokens.css is importable', async () => {
     // Vitest 不会 bundle CSS;这里只确认文件存在
-    expect(nodeExists('src/styles/tokens.css')).toBe(true);
+    expect(nodeExists('src/render/styles/tokens.css')).toBe(true);
   });
 
   it('tokens.css declares core variables (accent / bg-app / text / font)', async () => {
-    const css = nodeRead('src/styles/tokens.css', 'utf8');
+    const css = nodeRead('src/render/styles/tokens.css', 'utf8');
     expect(css).toContain('--accent:');
     expect(css).toContain('--bg-app:');
     expect(css).toContain('--text-primary:');
@@ -559,8 +559,8 @@ describe('Design tokens', () => {
 
   it('main.tsx imports tokens.css + base.css', async () => {
     const main = nodeRead('src/main.tsx', 'utf8');
-    expect(main).toContain('./styles/tokens.css');
-    expect(main).toContain('./styles/base.css');
+    expect(main).toContain('./render/styles/tokens.css');
+    expect(main).toContain('./render/styles/base.css');
   });
 });
 

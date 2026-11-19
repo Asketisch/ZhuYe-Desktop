@@ -1,6 +1,6 @@
 # sessions
 
-会话侧栏（time-bucketed sidebar）+ 时间分桶工具 + 命名 session。
+会话侧栏（time-bucketed sidebar）+ 时间分桶工具 + 命名 session。会话数据 hook、时间桶和工作区分组实现在 `src/logic/sessions/`，本切片路径提供兼容导出。
 
 ## 目录结构
 
@@ -12,10 +12,10 @@ sessions/
 │   ├── BucketGroup.tsx       # 单个时间桶
 │   └── SessionItem.tsx       # 单个 session 行 (memo)
 ├── hooks/
-│   ├── useSessions.ts        # TanStack Query 数据 + rename mutation
+│   ├── useSessions.ts        # 逻辑目录 hook 的兼容导出
 │   └── useSessions.test.tsx  # 5 个 hook 测试 + 1 个 useActiveSession
 ├── utils/
-│   ├── buckets.ts            # 纯函数分桶 + displayTitle
+│   ├── buckets.ts            # 逻辑目录分桶的兼容导出
 │   └── buckets.test.ts       # 11 个纯函数测试
 ├── SessionsView.tsx          # 顶层容器(组合 hook + Sidebar)
 ├── index.ts                  # 公共 barrel

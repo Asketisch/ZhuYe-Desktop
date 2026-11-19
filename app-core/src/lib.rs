@@ -21,6 +21,7 @@
 #![warn(unused_extern_crates)]
 
 pub mod activity;
+pub mod config_health;
 pub mod discussion;
 pub(crate) mod discussion_events;
 pub mod media;

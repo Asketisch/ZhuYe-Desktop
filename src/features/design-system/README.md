@@ -2,6 +2,8 @@
 
 Design System primitives + token catalog。
 
+Badge、Card、Icon、Button、Spinner、Textarea、Select、IconButton、Tooltip 的实现与样式位于 `src/render/design-system/`，本目录保留兼容导出。
+
 ## 目录结构
 
 ```
@@ -51,7 +53,7 @@ design-system/
 
 ## Tokens
 
-- 单一真相源：`src/styles/tokens.css`（CSS variables）
+- 单一真相源：`src/render/styles/tokens.css`（CSS variables）
 - 通过 `import '@/styles/tokens.css'` 注入（main.tsx）
 - `detectPlatform` 选 macos vs other
 

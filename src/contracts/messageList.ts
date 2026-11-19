@@ -1,0 +1,32 @@
+import type { ComponentProps, ComponentType, RefObject } from 'react';
+import type { I18nContextValue } from '@/utils/i18n/context';
+import type { Turn } from '@/stores/agent/types';
+export type { Turn, TurnItem } from '@/stores/agent/types';
+import type { ToolCell, ToolOutputBody } from '@/features/messages/ToolCells';
+import type { QueuedMessages } from '@/features/messages/QueuedMessages';
+import type { UserAttachments } from '@/features/messages/UserAttachments';
+import type { Collapsible } from '@/features/messages/Collapsible';
+import type { Markdown } from '@/components/Markdown';
+import type { CopyButtonProps } from '@/contracts/copyButton';
+
+export interface MessageListSlots {
+  ToolCell: ComponentType<ComponentProps<typeof ToolCell>>;
+  ToolOutputBody: ComponentType<ComponentProps<typeof ToolOutputBody>>;
+  QueuedMessages: ComponentType<ComponentProps<typeof QueuedMessages>>;
+  UserAttachments: ComponentType<ComponentProps<typeof UserAttachments>>;
+  Collapsible: ComponentType<ComponentProps<typeof Collapsible>>;
+  Markdown: ComponentType<ComponentProps<typeof Markdown>>;
+  CopyButton: ComponentType<CopyButtonProps>;
+}
+
+export interface MessageListViewProps {
+  t: I18nContextValue['t'];
+  turns: readonly Turn[];
+  scrollRef: RefObject<HTMLDivElement | null>;
+  onForkTurn?: (turnId: string, branch: string) => void;
+  onRewindTurn?: (turnId: string) => void;
+  onEditTurn?: (turnId: string) => void;
+  onRegenerateTurn?: (turnId: string) => void;
+  onContinueTurn?: (turnId: string) => void;
+  slots: MessageListSlots;
+}

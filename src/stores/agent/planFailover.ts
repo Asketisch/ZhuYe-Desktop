@@ -13,7 +13,7 @@
  * 与 Tauri IPC 单测。
  */
 
-import { pickFailoverProvider, setActiveProvider } from '@/features/settings/config/plans';
+import { pickFailoverProvider, setActiveProvider } from '@/logic/settings/config/plans';
 import { reflect_get_config, reflect_save_config } from '@/utils/commands';
 import type { ToastKind } from './types';
 

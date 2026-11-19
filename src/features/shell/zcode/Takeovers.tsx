@@ -12,7 +12,7 @@ import { Shield, X, Check, Loader2 } from 'lucide-react';
 import { useAgentStore, type PendingApproval, type PendingQuestion, type PendingAskUser } from '@/stores/agentStore';
 import type { Question } from '@/types/protocol';
 import { useI18n } from '@/utils/i18n';
-import s from './zcode.module.css';
+import s from '@/render/shell/zcode/zcode.module.css';
 
 /* ===== 工具 / Hook 审批 ===== */
 export function ApprovalTakeover({ approval }: { approval: PendingApproval }) {

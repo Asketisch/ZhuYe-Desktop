@@ -33,12 +33,12 @@ describe('StatusBar — token indicator', () => {
   afterEach(() => cleanup());
 
   it('toggles work mode without cycling through legacy permission modes', async () => {
-    const modes: string[] = [];
-    mockInvoke('reflect_set_permission_mode', async (_cmd, args) => { modes.push(String(args?.mode)); });
+    const cycle = vi.fn();
+    mockInvoke('reflect_cycle_permission_mode', cycle);
     useAgentStore.setState({ permissionMode: 'plan' });
     render(wrap(<StatusBar />));
     fireEvent.click(screen.getByTitle('Switch work mode'));
-    await waitFor(() => expect(modes).toEqual(['auto']));
+    await waitFor(() => expect(cycle).toHaveBeenCalledOnce());
   });
 
   it('does not render token indicator when tokens is null', () => {

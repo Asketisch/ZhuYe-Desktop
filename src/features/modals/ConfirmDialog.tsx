@@ -22,54 +22,16 @@ import { useSyncExternalStore } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { ModalShell } from './ModalShell';
 
-export interface ConfirmOptions {
-  title: string;
-  message: string;
-  /** 确认按钮文案（默认 common.confirm）。 */
-  confirmLabel?: string;
-  /** 取消按钮文案（默认 common.cancel）。 */
-  cancelLabel?: string;
-}
-
-interface PendingRequest extends ConfirmOptions {
-  resolve: (ok: boolean) => void;
-}
-
-let pending: PendingRequest | null = null;
-const listeners = new Set<() => void>();
-
-function emitChange() {
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function settle(ok: boolean) {
-  pending?.resolve(ok);
-  pending = null;
-  emitChange();
-}
-
-/** 弹出确认框并等待用户选择。 */
-export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
-  if (pending) pending.resolve(false);
-  return new Promise<boolean>((resolve) => {
-    pending = { ...opts, resolve };
-    emitChange();
-  });
-}
+export { confirmDialog } from '@/logic/modals/confirm';
+export type { ConfirmOptions } from '@/logic/modals/confirm';
+import { subscribeConfirm, getConfirmRequest, settleConfirm } from '@/logic/modals/confirm';
 
 /** 应用根部的宿主组件：有确认请求时渲染 ModalShell。 */
 export function ConfirmDialogHost() {
   const request = useSyncExternalStore(
-    subscribe,
-    () => pending,
-    () => pending,
+    subscribeConfirm,
+    getConfirmRequest,
+    getConfirmRequest,
   );
   const { t } = useI18n();
   if (!request) return null;
@@ -77,15 +39,15 @@ export function ConfirmDialogHost() {
     <ModalShell
       title={request.title}
       open={true}
-      onClose={() => settle(false)}
+      onClose={() => settleConfirm(false)}
       secondaryAction={{
         label: request.cancelLabel ?? t('common.cancel'),
-        onClick: () => settle(false),
+        onClick: () => settleConfirm(false),
         dataTestId: 'confirm-dialog-cancel',
       }}
       primaryAction={{
         label: request.confirmLabel ?? t('common.confirm'),
-        onClick: () => settle(true),
+        onClick: () => settleConfirm(true),
         autoFocus: true,
         dataTestId: 'confirm-dialog-confirm',
       }}

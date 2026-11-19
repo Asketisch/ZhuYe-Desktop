@@ -46,10 +46,29 @@ fn config_round_trips_through_real_backend() {
 #[test]
 fn config_info_points_at_a_real_file() {
     let v = invoke_ok("reflect_config_info", json!({}));
+    assert!(v["issues"].is_array(), "健康诊断必须为数组: {v}");
     assert!(
         v["path"].is_string() || v["path"].is_null(),
         "path 字段异常: {v}"
     );
+}
+
+#[test]
+fn config_info_reports_health_issues_from_current_config() {
+    let _guard = common::state_lock();
+    invoke_ok(
+        "reflect_save_config",
+        json!({ "toml": "[prompt_guard]\nenabled = false\n[sandbox]\nos_level = false\n" }),
+    );
+    let info = invoke_ok("reflect_config_info", json!({}));
+    let issues = info["issues"].as_array().expect("健康问题应为数组");
+    for key in ["no-provider", "guard-disabled", "sandbox-off"] {
+        assert!(
+            issues.iter().any(|issue| issue["key"] == key),
+            "缺少 {key}: {info}"
+        );
+    }
+    invoke_ok("reflect_save_config", json!({ "toml": "" }));
 }
 
 #[test]

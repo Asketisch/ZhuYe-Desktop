@@ -4,7 +4,7 @@
 import type { SessionBucket } from '../utils/buckets';
 import { SessionItem } from './SessionItem';
 import { useI18n, type LocaleKey } from '@/utils/i18n';
-import s from './BucketGroup.module.css';
+import s from '@/render/sessions/components/BucketGroup.module.css';
 
 export interface BucketGroupProps {
   bucket: SessionBucket;

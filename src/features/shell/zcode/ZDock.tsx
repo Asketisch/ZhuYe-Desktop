@@ -12,7 +12,7 @@ import { CheckSquare, Target, List, X, Pencil, Pause, Play, Send, Loader2 } from
 import { useShallow } from 'zustand/react/shallow';
 import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import s from './zcode.module.css';
+import s from '@/render/shell/zcode/zcode.module.css';
 
 function useOutsideClose(onClose: () => void) {
   const ref = useRef<HTMLSpanElement>(null);

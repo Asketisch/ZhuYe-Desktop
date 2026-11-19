@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge, Card, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { reflect_list_hook_events } from '@/utils/commands/hooks';
-import s from './HooksView.module.css';
+import s from '@/render/hooks/HooksView.module.css';
 
 export function HookEventsPanel() {
   const { t } = useI18n();

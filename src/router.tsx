@@ -150,7 +150,7 @@ export type AppRouter = typeof router;
 
 // ====== React Query provider ======
 
-const queryClient = new QueryClient({
+const defaultQueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 30,
@@ -159,7 +159,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export function AppProviders({ children }: { children: React.ReactNode }) {
+export function AppProviders({ children, queryClient = defaultQueryClient }: { children: React.ReactNode; queryClient?: QueryClient }) {
   // 阶段 3a:在 provider mount 时建立唯一的 reflect_event 订阅。
   // store.subscribe() 是幂等的(防止 React 18 StrictMode 双 mount 重复订阅)。
   // unmount 时清理(返回的 cleanup 调 unlisten + 标记未订阅)。

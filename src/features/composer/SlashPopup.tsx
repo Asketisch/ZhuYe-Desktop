@@ -14,7 +14,7 @@
 import { useEffect } from 'react';
 import { filterSlashCommands } from './slashCommands';
 import { useI18n } from '@/utils/i18n';
-import s from './SlashPopup.module.css';
+import s from '@/render/composer/SlashPopup.module.css';
 
 interface Props {
   query: string;

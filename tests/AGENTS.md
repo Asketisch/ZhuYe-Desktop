@@ -36,6 +36,7 @@
 | 会话与设置 | sessions.lifecycle / settings.config |
 | 视图矩阵 | views.route-matrix / views.untested-slices |
 | 健壮性 | errors.boundary / errors.resilience |
+| 渲染替换 | renderer.swap（主壳、聊天、输入框与设置页替代实现） |
 | 性能与外壳 | perf.budgets / zcode-shell |
 
 ## 本地契约

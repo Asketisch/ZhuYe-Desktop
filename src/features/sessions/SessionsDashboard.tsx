@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard } from 'lucide-react';
 import { Badge, Card, Icon } from '@/features/design-system';
 import { reflect_list_sessions } from '@/utils/commands/sessions';
-import s from './SessionsDashboard.module.css';
+import s from '@/render/sessions/SessionsDashboard.module.css';
 
 /** 最近 N 天活跃分布的天数窗口。 */
 export const ACTIVITY_WINDOW_DAYS = 7;

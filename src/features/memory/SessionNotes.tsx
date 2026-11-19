@@ -18,7 +18,7 @@ import {
   reflect_list_note_sessions,
   reflect_list_session_notes,
 } from '@/utils/commands/notes';
-import s from './MemoryView.module.css';
+import s from '@/render/memory/MemoryView.module.css';
 
 export function SessionNotes() {
   const { t } = useI18n();

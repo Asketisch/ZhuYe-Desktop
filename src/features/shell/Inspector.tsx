@@ -26,7 +26,7 @@ import { DiffViewer } from '@/features/git/DiffViewer';
 import { useContextRatio } from './useContextRatio';
 import { CredentialPoolSection, SubagentCallsSection } from './RuntimeStatusSections';
 import { TodoPanel } from './TodoPanel';
-import s from './Inspector.module.css';
+import s from '@/render/shell/Inspector.module.css';
 
 type InspectorTab = 'overview' | 'files' | 'changes' | 'plan' | 'git';
 

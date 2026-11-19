@@ -94,8 +94,8 @@ beforeEach(() => {
   mockInvoke('reflect_pick_files', async () => null);
 
   // reflect_ingest_upload —— 字节落盘默认成功,返回工作区内路径(A1 附件管线)
-  mockInvoke('reflect_ingest_upload', async (filename: string, _base64: string) => ({
-    path: `/Users/dev/project/.zhuye/uploads/stub_${filename}`,
+  mockInvoke('reflect_ingest_upload', async (_command: string, args: { filename: string }) => ({
+    path: `/Users/dev/project/.zhuye/uploads/stub_${args.filename}`,
     size: 5,
   }));
 
@@ -115,6 +115,7 @@ beforeEach(() => {
   // ComposerControls / ModelsView —— 模型与 effort 读写默认 stub
   // （具体测试可自行 override 返回值）。
   mockInvoke('reflect_get_config', async () => '');
+  mockInvoke('reflect_config_info', async () => ({ path: null, exists: false, analyticsEnabled: false, analyticsStatus: '', workspace: '', activeAgent: '', issues: [] }));
   mockInvoke('reflect_agent_status', async () => ({
     ready: false,
     has_model: false,

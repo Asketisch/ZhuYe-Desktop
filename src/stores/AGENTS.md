@@ -48,4 +48,4 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 
 - [../AGENTS.md](../AGENTS.md) —— src 层篇（事件桥、协议类型分工、测试挂载）
 - [docs/protocol-bridge.md](../../docs/protocol-bridge.md) —— EventMsg 线格式权威定义
-- [../features/sessions/hooks/useSessions.ts](../features/sessions/hooks/useSessions.ts) —— 会话列表规范 hook（消费本层水合结果）
+- [../logic/sessions/useSessions.ts](../logic/sessions/useSessions.ts) —— 会话列表规范 hook（消费本层水合结果）

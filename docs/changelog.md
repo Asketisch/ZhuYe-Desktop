@@ -4,6 +4,8 @@
 
 ## 未发布
 
+- 设置页配置健康诊断由后端统一生成问题代码，界面按当前语言显示说明。
+
 - **会话后台持续运行**：切换会话不再中断原会话的运行（此前换绑会取消旧
   线程的会话级令牌，等于 `Op::Shutdown`，「切走即停」）。后台会话经新
   `reflect_session_event` 通道（载荷 `{session_id, event}`）继续上报；会话
@@ -2879,7 +2881,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - `src/features/shell/TitleBar.tsx` 改用 `data-tauri-drag-region="deep"`
     （Tauri drag.js 在子树内命中非交互元素即触发，整条顶栏可拖）；
     移除冗余的手写 `onMouseDown` preventDefault（drag.js 已自带）。
-  - `src/styles/base.css` 与 `TitleBar.module.css` 移除无效的
+  - `src/render/styles/base.css` 与 `TitleBar.module.css` 移除无效的
     `-webkit-app-region: drag`（WKWebView 不识别此 CSS 属性，Tauri 拖拽是
     属性 + JS 命中 + ACL 三件套）。
 - **项目目录**：WorkspacesView 接入真实历史列表 + 原生目录选择。
@@ -3652,7 +3654,7 @@ ReflectDesktop 实例提供建设基础。
 ### 修复 — 核心 UX
 
 - **窗口拖拽区**：TitleBar 的 `-webkit-app-region: drag` 现在真正生效。在
-  `src/styles/base.css` 中加固 `[data-tauri-drag-region]`（`position: relative; z-index: 1;
+  `src/render/styles/base.css` 中加固 `[data-tauri-drag-region]`（`position: relative; z-index: 1;
   user-select: none`），避免 flex/transform 祖先截获拖拽。在
   `src/features/shell/TitleBar.module.css` 中对 `.bar` / `.left` / `.right` / `.title` / `.sessionStatus`
   显式声明 `-webkit-app-region: drag` 作为双保险。放宽

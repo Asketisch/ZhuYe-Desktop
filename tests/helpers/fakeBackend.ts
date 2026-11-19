@@ -1607,6 +1607,7 @@ export function installFakeBackend(): FakeBackend {
     analyticsStatus: 'analytics: disabled',
     workspace: '/tmp/project',
     activeAgent: 'default',
+    issues: [],
   })));
 
   // —— 插件管理(列表 / 启停 / 卸载 / 本地安装)——

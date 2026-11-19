@@ -29,7 +29,7 @@ import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import { ALL_EFFORTS, useEffortCapability } from './useEffortCapability';
-import s from './ComposerControls.module.css';
+import s from '@/render/composer/ComposerControls.module.css';
 
 // 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。
 const EFFORTS = ALL_EFFORTS;

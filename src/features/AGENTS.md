@@ -4,7 +4,7 @@
 
 ## 层定位
 
-全部功能切片的宿主，是根 AGENTS.md「开发流程检查表」中「表现层 UI」与「有状态编排 hook」的落地处。每个切片 = 视图组件 + 控制器/hook + 就近测试；样式几乎每组件一个同名 `*.module.css`，颜色一律消费 `src/styles/tokens.css` 标记（规则见根 AGENTS.md「约定」）。
+全部功能切片的宿主，是根 AGENTS.md「开发流程检查表」中「表现层 UI」与「有状态编排 hook」的落地处。每个切片 = 视图组件 + 控制器/hook + 就近测试；样式几乎每组件一个同名 `*.module.css`，颜色一律消费 `src/render/styles/tokens.css` 标记（规则见根 AGENTS.md「约定」）。
 
 ## 子区速览（全量登记，以文件系统为准）
 
@@ -20,6 +20,8 @@
 | 知识与资产 | memory、skills、prompts、models、apps | 记忆库、技能、prompt 模板、模型选择、应用面板 |
 | 连接与扩展 | remote、side-channel、kms、hooks | 远程连接（Tailscale 系）、侧信道、密钥管理、用户 hooks 配置面板 |
 | 入口与平台 | about、mobile、workspaces | 关于页、移动端视图、工作区管理 |
+
+全部路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示和终端页由 `src/logic/` 的绑定接收 `src/contracts/` 契约，并通过 `RendererProvider` 注入 `src/render/` 的默认视图。切片文件目前负责组合尚未迁移的子面板。会话列表与输入框的 TS 逻辑在 `src/logic/`，旧路径提供兼容导出。
 
 ## 层内依赖约定
 

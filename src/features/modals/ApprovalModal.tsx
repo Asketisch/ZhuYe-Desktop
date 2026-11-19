@@ -24,7 +24,7 @@ import { reflect_add_permission_rule } from '@/utils/commands';
 import { Badge } from '@/features/design-system';
 import { ModalShell } from './ModalShell';
 import { deriveAllowRule, extractCommand } from './allowRule';
-import s from './index.module.css';
+import s from '@/render/modals/index.module.css';
 
 export function ApprovalModal({ approval }: { approval: PendingApproval }) {
   const { t } = useI18n();

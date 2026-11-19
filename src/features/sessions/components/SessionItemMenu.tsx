@@ -15,7 +15,7 @@ import { useState } from 'react';
 import type { ReflectSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/features/modals/ConfirmDialog';
-import s from './SessionItemMenu.module.css';
+import s from '@/render/sessions/components/SessionItemMenu.module.css';
 
 export interface SessionItemMenuProps {
   session: ReflectSessionInfo;

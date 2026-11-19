@@ -10,7 +10,7 @@
  */
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import s from './Composer.module.css';
+import s from '@/render/composer/Composer.module.css';
 
 const WARN_RATIO = 0.8;
 

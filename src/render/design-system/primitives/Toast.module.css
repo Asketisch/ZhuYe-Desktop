@@ -1,0 +1,57 @@
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 220px;
+  max-width: 400px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  box-shadow: var(--shadow-md);
+  border: 1px solid transparent;
+}
+
+.msg {
+  flex: 1;
+}
+
+.close {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  color: currentColor;
+  opacity: 0.7;
+  font-size: 16px;
+  line-height: 1;
+}
+.close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* kind 配色 —— 用语义 token */
+.toast[data-kind='info'] {
+  background: var(--info-bg);
+  color: var(--text-primary);
+  border-color: var(--info-border);
+}
+.toast[data-kind='success'] {
+  background: var(--success-bg);
+  color: var(--text-primary);
+  border-color: var(--success-border);
+}
+.toast[data-kind='warning'] {
+  background: var(--warning-bg);
+  color: var(--text-primary);
+  border-color: var(--warning-border);
+}
+.toast[data-kind='error'] {
+  background: var(--danger-bg);
+  color: var(--text-primary);
+  border-color: var(--danger-border);
+}

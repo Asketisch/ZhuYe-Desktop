@@ -16,7 +16,7 @@ import {
   reflect_credential_pool_status,
   reflect_recovery_state,
 } from '@/utils/commands/runtimeStatus';
-import s from './Inspector.module.css';
+import s from '@/render/shell/Inspector.module.css';
 
 /** 凭证池健康度:总数 / 健康数 / 冷却中。 */
 export function CredentialPoolSection() {

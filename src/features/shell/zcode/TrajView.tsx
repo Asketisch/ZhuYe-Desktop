@@ -11,7 +11,7 @@ import { Clock, CornerDownRight, Wrench, GitBranch, Search, ChevronRight, X } fr
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { deriveLanes, deriveTrajEntries } from './traj';
-import s from './zcode.module.css';
+import s from '@/render/shell/zcode/zcode.module.css';
 
 export function TrajView() {
   const { t } = useI18n();

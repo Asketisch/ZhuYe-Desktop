@@ -23,7 +23,7 @@ PNG_PATH = os.path.join(OUT_DIR, "display-section.png")
 HTML_PATH = os.path.join(OUT_DIR, "display-section.html")
 TEXT_PATH = os.path.join(OUT_DIR, "display-section.txt")
 
-# Reflect Desktop 暗色主题 token（镜像自 src/styles/tokens.css）。
+# Reflect Desktop 暗色主题 token（镜像自 src/render/styles/tokens.css）。
 BG_APP = "#0b0e14"
 BG_SURFACE = "#11151f"
 BG_ELEVATED = "#161b27"
