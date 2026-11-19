@@ -35,9 +35,18 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
     );
     let list = common::invoke_ok("reflect_list_hooks", json!({}));
     let hooks = list.as_array().unwrap();
-    assert_eq!(hooks.len(), 1);
-    assert_eq!(hooks[0]["name"], "search_budget");
-    assert_eq!(hooks[0]["enabled"], true);
+    // v1.x:工厂现在无条件注册 plan_mode_gate(GUI Plan 只读边界,与 CLI
+    // 对齐)+ 配置启用的 search_budget,共 2 个。plan_mode_gate 恒启用
+    // (不可 toggle,是边界而非偏好);search_budget 可被 toggle。
+    assert_eq!(hooks.len(), 2, "hooks: {hooks:?}");
+    let names: Vec<&str> = hooks
+        .iter()
+        .map(|h| h["name"].as_str().unwrap_or_default())
+        .collect();
+    assert!(names.contains(&"search_budget"), "hooks: {hooks:?}");
+    assert!(names.contains(&"plan_mode_gate"), "hooks: {hooks:?}");
+    let budget = hooks.iter().find(|h| h["name"] == "search_budget").unwrap();
+    assert_eq!(budget["enabled"], true);
     common::invoke_err(
         "reflect_toggle_hook",
         json!({ "name": "not_registered", "enabled": false }),
@@ -47,7 +56,13 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         json!({ "name": "search_budget", "enabled": false }),
     );
     let list = common::invoke_ok("reflect_list_hooks", json!({}));
-    assert_eq!(list[0]["enabled"], false);
+    let budget_after = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|h| h["name"] == "search_budget")
+        .expect("search_budget 仍在列表");
+    assert_eq!(budget_after["enabled"], false);
     common::invoke_ok(
         "reflect_bind_session",
         json!({ "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
@@ -68,9 +83,20 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         json!({ "toml": "[hooks]\nenabled = [\"test_runner\"]\n" }),
     );
     let reconfigured = common::invoke_ok("reflect_list_hooks", json!({}));
-    assert_eq!(reconfigured.as_array().unwrap().len(), 1);
-    assert_eq!(reconfigured[0]["name"], "test_runner");
-    assert_eq!(reconfigured[0]["enabled"], true);
+    // v1.x:重配置后 engine = 重启用的 test_runner + 恒驻的 plan_mode_gate。
+    let reconfigured = reconfigured.as_array().unwrap();
+    assert_eq!(reconfigured.len(), 2, "hooks: {reconfigured:?}");
+    let names: Vec<&str> = reconfigured
+        .iter()
+        .map(|h| h["name"].as_str().unwrap_or_default())
+        .collect();
+    assert!(names.contains(&"test_runner"), "hooks: {reconfigured:?}");
+    assert!(names.contains(&"plan_mode_gate"), "hooks: {reconfigured:?}");
+    let runner = reconfigured
+        .iter()
+        .find(|h| h["name"] == "test_runner")
+        .unwrap();
+    assert_eq!(runner["enabled"], true);
 
     // 真插件的任务 hook 经 IPC 触发，并随线程重绑和启停同步。
     #[cfg(unix)]

@@ -71,25 +71,30 @@ fn upsert_keeps_hidden_without_explicit_unhide() {
     );
 }
 
-/// v1.x 修复:remove 按规范化路径匹配所有变体(此处用 macOS
-/// `/var` → `/private/var` 符号链接构造两个字符串不同的同一目录)。
+/// v1.x 修复:remove 按规范化路径匹配所有变体。此处用 `..` 路径分量
+/// 构造字符串不同、文件系统同一的目录(`proj/../proj` 经 canonicalize
+/// 解析回 `proj`)—— 不依赖 macOS 符号链接前缀(此前用 macOS
+/// `/var` → `/private/var` 构造,该前置在 Linux tempdir 上不成立)。
 #[test]
 fn hide_workspace_variants_matches_canonical_equivalents() {
     let tmp = tempfile::tempdir().unwrap();
     let proj = tmp.path().join("proj");
     std::fs::create_dir_all(&proj).unwrap();
     let canonical = proj.canonicalize().unwrap();
+    // 字符串不同的同一目录变体:带 `..` 分量的路径在所有平台都成立
+    // (canonicalize 按文件系统语义消掉 `..`,得到与 proj 相同的真实路径)。
+    let variant = proj.join("..").join("proj");
     assert_ne!(
         canonical.display().to_string(),
-        proj.display().to_string(),
-        "前置:macOS tempdir 路径应与 canonical 形态不同"
+        variant.display().to_string(),
+        "前置:带 .. 分量的路径应与 canonical 形态不同"
     );
 
-    // 历史里存的是 canonical 变体,移除用的是非 canonical 变体。
+    // 历史里存的是 canonical 变体,移除用的是带 .. 的变体。
     let mut list = vec![entry(&canonical.display().to_string(), 10)];
     assert!(hide_workspace_variants(
         &mut list,
-        &proj.display().to_string()
+        &variant.display().to_string()
     ));
     assert!(list[0].hidden, "variant of same dir must be hidden");
 }
