@@ -44,13 +44,14 @@ let driver: WebDriver | null = null;
 let chatSessionPath = '';
 
 async function openMorePage(label: string) {
-  await driver!.findElement(By.css('[data-testid="zrail-more"]')).click();
-  const menu = await driver!.wait(until.elementLocated(By.css('[data-testid="activitybar-more-flyout"]')), 10_000);
+  // v3 harness:侧栏「更多」菜单(plain button,无 role=menuitem)。
+  await driver!.findElement(By.css('[data-testid="harness-nav-more"]')).click();
+  const menu = await driver!.wait(until.elementLocated(By.css('[data-testid="harness-more-menu"]')), 10_000);
   const inViewport = await driver!.executeScript<boolean>(
     'const r = arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;', menu,
   );
   expect(inViewport, 'navigation flyout must remain inside the window').toBe(true);
-  await menu.findElement(By.xpath(`.//*[@role="menuitem" and normalize-space(.)="${label}"]`)).click();
+  await menu.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`)).click();
 }
 
 /** 等待弹窗出现;超时时先截图并转储 body 文本再抛出原错误。
@@ -108,19 +109,29 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     // React 首次提交前 aside 还没渲染 —— 单发 findElement 会竞态
     // NoSuchElement。用应用自己的 testid 钩子等条件渲染的侧栏出现。
     await driver!.wait(
-      until.elementLocated(By.css('[data-testid="shell-sidebar"]')),
+      until.elementLocated(By.css('[data-testid="harness-sidebar"]')),
       30_000,
     );
-    const sidebar = await driver!.findElement(By.css('[data-testid="shell-sidebar"]'));
+    const sidebar = await driver!.findElement(By.css('[data-testid="harness-sidebar"]'));
     expect(sidebar).toBeTruthy();
     const main = await driver!.findElement(By.css('main'));
     expect(main).toBeTruthy();
   }, 60_000);
 
-  it('renders the configured model in the status bar', async () => {
-    const footer = await driver!.findElement(By.css('footer'));
-    await driver!.wait(async () => (await footer.getText()).includes('claude-mock'), 30_000);
-    expect(await footer.getText()).toContain('claude-mock');
+  it('renders the configured model in the composer selector', async () => {
+    // v3 harness:StatusBar 移除,模型面在 composer 工具条的选择器里。
+    const select = await driver!.wait(
+      until.elementLocated(By.css('[data-testid="composer-model-select"]')),
+      30_000,
+    );
+    await driver!.wait(async () => {
+      const value = await select.getAttribute('value');
+      const text = await select.getText();
+      return (value ?? '').includes('claude-mock') || (text ?? '').includes('claude-mock');
+    }, 30_000);
+    const value = await select.getAttribute('value');
+    const text = await select.getText();
+    expect((value ?? '') + (text ?? '')).toContain('claude-mock');
   }, 40_000);
 
   it('sends a message through the real agent and renders the streamed reply', async () => {
@@ -136,11 +147,16 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const logText = await driver!.findElement(By.css('[role="log"]')).getText();
     expect(logText).toContain('window-agent-chain-test');
     expect(logText).toContain('window second reply verified');
+    // v3 harness:用量面在右 dock 的「用量」档(标题条按钮直达并唤出)。
+    await driver!.findElement(By.css('[data-testid="harness-dock-usage"]')).click();
     const usage = await driver!.wait(
-      until.elementLocated(By.css('[data-testid="statusbar-tokens"]')),
+      until.elementLocated(By.css('[data-testid="usage-dock-total"]')),
       30_000,
     );
+    await driver!.wait(async () => (await usage.getText()).includes('17'), 30_000);
     expect(await usage.getText()).toContain('17');
+    // 收起 dock 还原现场(后续测试走窄窗 / 终端流程)。
+    await driver!.findElement(By.css('[data-testid="harness-inspect"]')).click();
     chatSessionPath = new URL(await driver!.getCurrentUrl()).pathname;
     expect(chatSessionPath).toMatch(/^\/chat\/.+/);
   }, 100_000);
@@ -200,7 +216,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
   it('keeps the navigation flyout usable at the minimum window size', async () => {
     await driver!.manage().window().setRect({ width: 800, height: 600 });
     try {
-      await driver!.findElement(By.css('button[aria-label="Hide sidebar"]')).click();
+      await driver!.findElement(By.css('[data-testid="harness-rail"]')).click();
       await openMorePage('Terminal');
       await driver!.wait(until.elementLocated(By.css('[data-testid="terminal-input"]')), 30_000);
     } catch (error) {
@@ -210,8 +226,8 @@ describe('window smoke (real process, real backend, local model stub)', () => {
       throw error;
     } finally {
       await driver!.manage().window().setRect({ width: 1280, height: 800 });
-      const showSidebar = await driver!.findElements(By.css('button[aria-label="Show sidebar"]'));
-      if (showSidebar.length) await showSidebar[0].click();
+      // rail 是 class 态:再点一次恢复展开。
+      await driver!.findElement(By.css('[data-testid="harness-rail"]')).click();
     }
   }, 50_000);
 
@@ -385,7 +401,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
 
     await waitLog((text) => text.includes('window-agent-chain-test'));
 
-    await driver!.findElement(By.xpath('//aside[@data-testid="shell-sidebar"]//button[normalize-space(.)="New chat" or normalize-space(.)="新建对话"]')).click();
+    await driver!.findElement(By.css('[data-testid="harness-sidebar"] [data-testid="harness-new-chat"]')).click();
     // 「新建对话」是异步的:先创建会话再导航到 /chat/<新 id>。导航落地前
     // 侧栏点击可能命中旧会话的输入框,必须等路由真正切走再输入。
     await driver!.wait(async () => {
@@ -400,12 +416,12 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     expect(secondPath).toMatch(/^\/chat\/.+/);
     expect(secondPath).not.toBe(originalPath);
 
-    await driver!.findElement(By.xpath('//aside[@data-testid="shell-sidebar"]//button[@aria-label="Refresh" or @aria-label="刷新"]')).click();
+    await driver!.findElement(By.css('[data-testid="harness-sidebar"] [data-testid="harness-refresh"]')).click();
     const sessionButton = async (path: string) => {
       const id = path.slice('/chat/'.length);
       // 列表行内 kebab 与会话按钮是兄弟节点,用 preceding-sibling 精确定位,
       // 避免行内其它按钮被误选。
-      const selector = `//button[@data-testid="session-kebab-${id}"]/preceding-sibling::button[@aria-pressed]`;
+      const selector = `//button[@data-testid="session-more-${id}"]/preceding-sibling::button[@aria-pressed]`;
       return driver!.wait(until.elementLocated(By.xpath(selector)), 30_000);
     };
     const assertSession = async (path: string, visible: string, absent: string) => {

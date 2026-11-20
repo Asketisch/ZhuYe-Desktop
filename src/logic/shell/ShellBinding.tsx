@@ -270,6 +270,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   const harnessNavigate = useCallback((to: string) => { void router.navigate({ to }); }, [router]);
   const morePages = useMemo<HarnessNavItem[]>(() => [
     { label: t('threads.title'), path: '/sessions' },
+    { label: t('terminal.title'), path: '/terminal' },
     { label: t('files.title'), path: '/files' },
     { label: t('search.title'), path: '/search' },
     { label: t('git.title'), path: '/git' },
