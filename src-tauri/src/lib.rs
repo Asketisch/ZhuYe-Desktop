@@ -168,7 +168,10 @@ fn reopen_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, has_visible_
 // 才能被能力覆盖层测试经**真实** IPC 通路打(命令宏需 `#[macro_export]` 到
 // crate 根;定义在 crate 根会与导出位置冲突)。
 
-#[cfg(test)]
+/// 仅 macOS 编译:模块内唯一测试锁的是 reopen 分发签名,被测函数是
+/// macOS 专属 —— Linux/Windows 下连导入一起裁掉,否则 unused import
+/// 撞 warnings = "deny"(CI ubuntu/windows 实证)。
+#[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::*;
     use tauri::test::{mock_builder, mock_context, noop_assets};
@@ -176,9 +179,6 @@ mod tests {
     /// Dock reopen 分发不 panic:mock app 无 main 窗口时 `show_main_window`
     /// 为 no-op,两个分支都不应 panic。mock runtime 无法真实投递 Reopen、
     /// 也无法断言窗口可见性,这里锁住的是接线签名,防止重构静默丢分支。
-    /// reopen_main_window 是 macOS 专属(cfg(target_os = "macos")),
-    /// 测试随平台裁剪 —— Linux/Windows 下该函数不存在,编译会报错。
-    #[cfg(target_os = "macos")]
     #[test]
     fn dock_reopen_dispatch_does_not_panic() {
         let app = mock_builder()

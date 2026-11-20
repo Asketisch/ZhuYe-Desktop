@@ -135,6 +135,9 @@ fn remote_hosts_registry_round_trips_persistently() {
 
 #[test]
 fn remote_connect_handshake_and_pump_flow() {
+    // 先在纯同步上下文预热进程级夹具:Runtime::new 在 async 上下文内
+    // 会 panic(详见 common::warmup 文档)。
+    common::warmup();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let _lock = state_lock();
@@ -197,6 +200,9 @@ fn remote_connect_handshake_and_pump_flow() {
 
 #[test]
 fn remote_connect_fails_for_unknown_host_and_bad_handshake() {
+    // 先在纯同步上下文预热进程级夹具:Runtime::new 在 async 上下文内
+    // 会 panic(详见 common::warmup 文档)。
+    common::warmup();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let _lock = state_lock();
@@ -229,6 +235,9 @@ fn remote_connect_fails_for_unknown_host_and_bad_handshake() {
 
 #[test]
 fn remote_bootstrap_installs_and_reports_version() {
+    // 先在纯同步上下文预热进程级夹具:Runtime::new 在 async 上下文内
+    // 会 panic(详见 common::warmup 文档)。
+    common::warmup();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let _lock = state_lock();
@@ -257,6 +266,9 @@ fn remote_bootstrap_installs_and_reports_version() {
 
 #[test]
 fn remote_bind_rejects_unknown_sid() {
+    // 先在纯同步上下文预热进程级夹具:Runtime::new 在 async 上下文内
+    // 会 panic(详见 common::warmup 文档)。
+    common::warmup();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let _lock = state_lock();
@@ -270,6 +282,9 @@ fn remote_bind_rejects_unknown_sid() {
 
 #[test]
 fn remote_test_probe_surfaces_cli_version_or_guidance() {
+    // 先在纯同步上下文预热进程级夹具:Runtime::new 在 async 上下文内
+    // 会 panic(详见 common::warmup 文档)。
+    common::warmup();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let _lock = state_lock();

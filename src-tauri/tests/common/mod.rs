@@ -185,6 +185,22 @@ pub fn init_isolated_env() {
     });
 }
 
+/// 在**进入任何 async 上下文之前**预热进程级 runtime 与共享夹具。
+///
+/// 自建 tokio runtime 的测试(如 ipc_remote.rs)必须先调本函数:
+/// `Runtime::new` 在 async 上下文内会 panic(「Cannot start a runtime
+/// from within a runtime」)—— 若夹具的首次初始化恰好发生在某个测试的
+/// `block_on` 里,同进程并发跑到的测试会集体炸掉(CI macOS 实证:
+/// 6 个 remote 测试同时 panic)。提前在纯同步上下文里把 RUNTIME /
+/// HARNESS 两个 OnceLock 填好,后续 get_or_init 直接命中,与测试调度
+/// 顺序无关。
+pub fn warmup() {
+    let _ = runtime();
+    // harness() 返回互斥锁守卫,`let _ =` 撞 let_underscore_lock(deny);
+    // drop 语义等价 —— 拿到守卫即完成初始化,立即释放。
+    drop(harness());
+}
+
 /// 取共享夹具(首次调用时构建 app)。
 ///
 /// ⚠️ 返回的是**互斥锁的守卫** —— 它在函数返回时就被释放。若把它留在
