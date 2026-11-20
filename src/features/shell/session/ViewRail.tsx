@@ -1,5 +1,5 @@
 /**
- * ZRail —— v2 重设计的 48px 窄 rail(redesign/zcode-shell)。
+ * ViewRail —— v2 重设计的 48px 窄 rail(v2-shell-redesign)。
  *
  * 替代旧 ActivityBar 的双模式设计:高频入口直接平铺,其余全部视图收纳进
  * 「更多」popover(沿用 ActivityBar 的 MORE_GROUPS 分组)。非 chat 主工作台
@@ -15,7 +15,7 @@ import {
 import type { ComponentType } from 'react';
 import { useRouter, useLocation } from '@tanstack/react-router';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/shell/zcode/zcode.module.css';
+import s from '@/render/shell/session/session.module.css';
 
 interface NavItem {
   to: string;
@@ -25,12 +25,12 @@ interface NavItem {
 }
 
 const PRIMARY: NavItem[] = [
-  { to: '/', labelKey: 'zcode.rail.chat', icon: MessageSquare, matchPrefix: '/chat' },
-  { to: '/files', labelKey: 'zcode.rail.files', icon: FolderGit2 },
-  { to: '/terminal', labelKey: 'zcode.rail.terminal', icon: Terminal },
-  { to: '/tasks', labelKey: 'zcode.rail.tasks', icon: FolderKanban },
-  { to: '/autopilot', labelKey: 'zcode.rail.autopilot', icon: Zap },
-  { to: '/squad', labelKey: 'zcode.rail.squad', icon: Users },
+  { to: '/', labelKey: 'rail.chat', icon: MessageSquare, matchPrefix: '/chat' },
+  { to: '/files', labelKey: 'rail.files', icon: FolderGit2 },
+  { to: '/terminal', labelKey: 'rail.terminal', icon: Terminal },
+  { to: '/tasks', labelKey: 'rail.tasks', icon: FolderKanban },
+  { to: '/autopilot', labelKey: 'rail.autopilot', icon: Zap },
+  { to: '/squad', labelKey: 'rail.squad', icon: Users },
 ];
 
 /** 「更多」浮层 —— 沿用 ActivityBar 的三组收纳,保证全部视图可达。 */
@@ -83,7 +83,7 @@ function isActive(pathname: string, item: NavItem): boolean {
   return pathname === prefix || pathname.startsWith(prefix + '/');
 }
 
-export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
+export function ViewRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
   const { t } = useI18n();
   const router = useRouter();
   const { pathname } = useLocation();
@@ -129,8 +129,8 @@ export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
           type="button"
           className={s.railBtn}
           data-active={moreOpen}
-          aria-label={t('zcode.rail.more')}
-          title={t('zcode.rail.more')}
+          aria-label={t('rail.more')}
+          title={t('rail.more')}
           data-testid="zrail-more"
           aria-haspopup="menu"
           onClick={() => setMoreOpen((v) => !v)}
@@ -141,7 +141,7 @@ export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
           <div
             className={`${s.pop} ${s.popRight}`}
             role="menu"
-            aria-label={t('zcode.rail.more')}
+            aria-label={t('rail.more')}
             data-testid="activitybar-more-flyout"
             style={{ maxHeight: '45vh', overflowY: 'auto' }}
           >
@@ -167,8 +167,8 @@ export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
       <button
         type="button"
         className={s.railBtn}
-        aria-label={t('zcode.rail.updates')}
-        title={t('zcode.rail.updates')}
+        aria-label={t('rail.updates')}
+        title={t('rail.updates')}
         onClick={onOpenUpdates}
       >
         <Download />
@@ -177,8 +177,8 @@ export function ZRail({ onOpenUpdates }: { onOpenUpdates?: () => void }) {
         type="button"
         className={s.railBtn}
         data-active={pathname.startsWith('/settings')}
-        aria-label={t('zcode.rail.settings')}
-        title={t('zcode.rail.settings')}
+        aria-label={t('rail.settings')}
+        title={t('rail.settings')}
         data-testid="zrail-settings"
         onClick={() => go('/settings')}
       >

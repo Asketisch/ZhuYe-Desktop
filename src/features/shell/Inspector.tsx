@@ -25,15 +25,16 @@ import { FileTree } from '@/features/files/FileTree';
 import { DiffViewer } from '@/features/git/DiffViewer';
 import { Markdown } from '@/components/Markdown';
 import { useContextRatio } from './useContextRatio';
+import { useShellUi } from '@/stores/shellUi';
 import { CredentialPoolSection, SubagentCallsSection } from './RuntimeStatusSections';
 import { TodoPanel } from './TodoPanel';
 import s from '@/render/shell/Inspector.module.css';
 
-type InspectorTab = 'overview' | 'files' | 'changes' | 'plan' | 'git';
-
 export function Inspector() {
   const { t } = useI18n();
-  const [tab, setTab] = useState<InspectorTab>('overview');
+  // 页签真源在 shellUi store：状态面板「计划」行点击可编程切到 plan 页签。
+  const tab = useShellUi((st) => st.inspectorTab);
+  const setTab = useShellUi((st) => st.setInspectorTab);
 
   return (
     <div className={s.root}>
@@ -48,10 +49,10 @@ export function Inspector() {
           <Icon icon={GitBranch} size={12} /> {t('inspector.tab.changes')}
         </button>
         <button type="button" role="tab" aria-selected={tab === 'plan'} className={s.tab} data-active={tab === 'plan' || undefined} onClick={() => setTab('plan')} data-testid="inspector-tab-plan">
-          <Icon icon={ListTodo} size={12} /> {t('zcode.inspector.tab.plan')}
+          <Icon icon={ListTodo} size={12} /> {t('inspector.tab.plan')}
         </button>
         <button type="button" role="tab" aria-selected={tab === 'git'} className={s.tab} data-active={tab === 'git' || undefined} onClick={() => setTab('git')} data-testid="inspector-tab-git">
-          <Icon icon={GitCommitHorizontal} size={12} /> {t('zcode.inspector.tab.git')}
+          <Icon icon={GitCommitHorizontal} size={12} /> {t('inspector.tab.git')}
         </button>
       </div>
       {tab === 'overview' && <OverviewTab />}
@@ -562,7 +563,7 @@ function ChangesTab() {
 }
 
 
-// ====== 计划 tab(v2:redesign/zcode-shell;v1.x 补 plan 正文渲染)======
+// ====== 计划 tab(v2:v2-shell-redesign;v1.x 补 plan 正文渲染)======
 
 function PlanTab() {
   const { t } = useI18n();
@@ -578,8 +579,8 @@ function PlanTab() {
       {plan && (
         <>
           <p className={s.planMeta} data-testid="inspector-plan-final">
-            {plan.status === 'approved' && <span>{t('zcode.inspector.plan.approved')}</span>}
-            {plan.status === 'rejected' && <span>{t('zcode.inspector.plan.rejected')}</span>}
+            {plan.status === 'approved' && <span>{t('inspector.plan.approved')}</span>}
+            {plan.status === 'rejected' && <span>{t('inspector.plan.rejected')}</span>}
             {plan.path && <code title={plan.path}>{plan.path}</code>}
           </p>
           {/* plan 正文是 markdown —— 渲染成结构化文档，而不是倾泻原文。 */}
@@ -591,7 +592,7 @@ function PlanTab() {
       {!plan && planDraft && (
         <>
           <p className={s.planMeta} data-testid="inspector-plan-draft">
-            <span>{t('zcode.inspector.plan.draft')}</span>
+            <span>{t('inspector.plan.draft')}</span>
             {planDraft.path && <code title={planDraft.path}>{planDraft.path}</code>}
           </p>
           <div className={s.planDoc} data-testid="inspector-plan-draft-body">
@@ -600,10 +601,10 @@ function PlanTab() {
         </>
       )}
       {todos.length === 0 && !plan && !planDraft && (
-        <p className={s.gitEmpty}>{t('zcode.inspector.plan.empty')}</p>
+        <p className={s.gitEmpty}>{t('inspector.plan.empty')}</p>
       )}
       {todos.length > 0 && (
-        <p className={s.planMeta}>{t('zcode.inspector.plan.todos')}</p>
+        <p className={s.planMeta}>{t('inspector.plan.todos')}</p>
       )}
       {todos.map((td, i) => (
         <div key={i} className={s.gitFile} data-status={td.status}>
@@ -615,7 +616,7 @@ function PlanTab() {
       ))}
       {queued.length > 0 && (
         <>
-          <p className={s.gitEmpty} style={{ marginTop: 12 }}>{t('zcode.inspector.plan.queued')}({queued.length})</p>
+          <p className={s.gitEmpty} style={{ marginTop: 12 }}>{t('inspector.plan.queued')}({queued.length})</p>
           {queued.map((qm) => (
             <div key={qm.id} className={s.gitFile}>
               <span className={s.gitPath} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{qm.text}</span>
@@ -627,7 +628,7 @@ function PlanTab() {
   );
 }
 
-// ====== Git tab(v2:redesign/zcode-shell)======
+// ====== Git tab(v2:v2-shell-redesign)======
 
 function GitTab() {
   const { t } = useI18n();
@@ -656,15 +657,15 @@ function GitTab() {
           </span>
         )}
       </div>
-      <p className={s.gitEmpty}>{t('zcode.inspector.git.changes', { count: status.entries.length })}</p>
-      {status.entries.length === 0 && <p className={s.gitEmpty}>{t('zcode.inspector.git.clean')}</p>}
+      <p className={s.gitEmpty}>{t('inspector.git.changes', { count: status.entries.length })}</p>
+      {status.entries.length === 0 && <p className={s.gitEmpty}>{t('inspector.git.clean')}</p>}
       {status.entries.map((e) => (
         <div key={e.path + e.staged} className={s.gitFile}>
           <span className={s.gitPath}>{e.path}</span>
           <span className={s.gitStatusChip}>{e.status}</span>
         </div>
       ))}
-      <p className={s.gitEmpty}>{t('zcode.inspector.git.commits')}</p>
+      <p className={s.gitEmpty}>{t('inspector.git.commits')}</p>
       {log.map((c) => (
         <div key={c.hash} className={s.gitFile}>
           <span className={s.gitPath} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.subject}</span>

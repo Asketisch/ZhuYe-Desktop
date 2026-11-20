@@ -1,5 +1,5 @@
 /**
- * BottomTabs —— 底部分屏:终端 | 浏览器 | 预览(redesign/zcode-shell)。
+ * BottomTabs —— 底部分屏:终端 | 浏览器 | 预览(v2-shell-redesign)。
  *
  * 终端 = 系统 shell 的交互式伪终端;
  * 预览 = zhuye_read_file 读取工作区文件做只读预览;
@@ -11,7 +11,7 @@ import { Terminal as TerminalIcon, Globe, Eye, Plus, FileText } from 'lucide-rea
 import { zhuye_read_file } from '@/utils/commands/files';
 import { useI18n } from '@/utils/i18n';
 import { InteractiveTerminal } from '@/features/terminal/InteractiveTerminal';
-import s from '@/render/shell/zcode/zcode.module.css';
+import s from '@/render/shell/session/session.module.css';
 
 type BottomTab = 'term' | 'browser' | 'preview';
 
@@ -43,21 +43,21 @@ export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => vo
   }, [tab, previewPath]);
 
   return (
-    <div className={s.bottom} data-testid="zcode-bottom" hidden={!open}>
+    <div className={s.bottom} data-testid="session-bottom" hidden={!open}>
       <div className={s.bottomBar}>
-        <div className={s.btabs} role="tablist" aria-label={t('zcode.bottom.terminal')}>
-          <button type="button" role="tab" className={s.btab} data-active={tab === 'term'} aria-selected={tab === 'term'} data-testid="zcode-bottom-term" onClick={() => setTab('term')}>
-            <TerminalIcon size={12} /> {t('zcode.bottom.terminal')}
+        <div className={s.btabs} role="tablist" aria-label={t('bottom.terminal')}>
+          <button type="button" role="tab" className={s.btab} data-active={tab === 'term'} aria-selected={tab === 'term'} data-testid="session-bottom-term" onClick={() => setTab('term')}>
+            <TerminalIcon size={12} /> {t('bottom.terminal')}
           </button>
-          <button type="button" role="tab" className={s.btab} data-active={tab === 'browser'} aria-selected={tab === 'browser'} data-testid="zcode-bottom-browser" onClick={() => setTab('browser')}>
-            <Globe size={12} /> {t('zcode.bottom.browser')}
+          <button type="button" role="tab" className={s.btab} data-active={tab === 'browser'} aria-selected={tab === 'browser'} data-testid="session-bottom-browser" onClick={() => setTab('browser')}>
+            <Globe size={12} /> {t('bottom.browser')}
           </button>
-          <button type="button" role="tab" className={s.btab} data-active={tab === 'preview'} aria-selected={tab === 'preview'} data-testid="zcode-bottom-preview" onClick={() => setTab('preview')}>
-            <Eye size={12} /> {t('zcode.bottom.preview')}
+          <button type="button" role="tab" className={s.btab} data-active={tab === 'preview'} aria-selected={tab === 'preview'} data-testid="session-bottom-preview" onClick={() => setTab('preview')}>
+            <Eye size={12} /> {t('bottom.preview')}
           </button>
         </div>
         <span style={{ flex: 1 }} />
-        <button type="button" className={s.btab} aria-label={t('zcode.head.terminal')} onClick={onClose}>
+        <button type="button" className={s.btab} aria-label={t('head.terminal')} onClick={onClose}>
           <Plus size={13} style={{ transform: 'rotate(45deg)' }} />
         </button>
       </div>
@@ -73,7 +73,7 @@ export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
         <div className={s.viewport}>
           <Globe size={26} />
-          <span>{t('zcode.bottom.browserHint')}</span>
+          <span>{t('bottom.browserHint')}</span>
         </div>
       </div>
 
@@ -85,8 +85,8 @@ export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => vo
             style={{ border: 'none', background: 'transparent' }}
             value={previewPath}
             onChange={(e) => setPreviewPath(e.target.value)}
-            placeholder={t('zcode.bottom.previewPath')}
-            aria-label={t('zcode.bottom.previewPath')}
+            placeholder={t('bottom.previewPath')}
+            aria-label={t('bottom.previewPath')}
           />
         </div>
         {previewErr ? (
@@ -94,7 +94,7 @@ export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => vo
         ) : previewText != null ? (
           <div className={s.previewBody}>{previewText}</div>
         ) : (
-          <div className={s.viewport}>{t('zcode.bottom.previewEmpty')}</div>
+          <div className={s.viewport}>{t('bottom.previewEmpty')}</div>
         )}
       </div>
     </div>

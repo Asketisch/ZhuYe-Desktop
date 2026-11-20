@@ -1,132 +1,110 @@
-import { Volume2, Bell, Check } from 'lucide-react';
+import { Bell, Check, Volume2 } from 'lucide-react';
 import type { SettingsNotificationsProps } from '@/contracts/settingsNotifications';
-import { Button } from '../design-system/Button';
-import { Card } from '../design-system/Card';
-import { Badge } from '../design-system/Badge';
-import { Icon } from '../design-system/Icon';
-import s from './SettingsView.module.css';
-export function NotificationsSection({ t, opts, permission, onPatch, onRequestPermission }: SettingsNotificationsProps) {
-  return (
-    <div>
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}>
-          <Icon icon={Volume2} size={16} /> {t('settings.notifications.sound')}
-        </h3>
-        <p className={s.cardDesc}>
-          {t('settings.notifications.soundHelp')}
-        </p>
+import { GroupCard, Row, SubHead, Select } from './settingsKit';
+import kit from './SettingsPage.module.css';
 
-        <label className={s.row}>
+/** NotificationsSection —— 通知分区（纯展示，设置页套件视觉）。 */
+export function NotificationsSection({ t, opts, permission, onPatch, onRequestPermission }: SettingsNotificationsProps) {
+  const granted = permission === 'granted';
+  return (
+    <div className={kit.secBody}>
+      <SubHead title={<><Volume2 size={16} strokeWidth={1.5} aria-hidden /> {t('settings.notifications.sound')}</>} description={t('settings.notifications.soundHelp')} />
+      <GroupCard>
+        <Row label={t('settings.notifications.chime')}>
           <input
             type="checkbox"
+            className={kit.checkbox}
             checked={opts.sound}
+            aria-label={t('settings.notifications.chime')}
             onChange={(e) => onPatch({ sound: e.target.checked })}
           />
-          <span>{t('settings.notifications.chime')}</span>
-        </label>
-
-        <label className={s.row}>
-          <span>{t('settings.notifications.volume')}</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={opts.volume ?? 0.4}
-            onChange={(e) => onPatch({ volume: Number.parseFloat(e.target.value) })}
-          />
-          <span className={s.subtle}>
-            {Math.round((opts.volume ?? 0.4) * 100)}%
+        </Row>
+        <Row label={t('settings.notifications.volume')}>
+          <span className={kit.rangeCtl}>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={opts.volume ?? 0.4}
+              aria-label={t('settings.notifications.volume')}
+              onChange={(e) => onPatch({ volume: Number.parseFloat(e.target.value) })}
+            />
+            <span className={kit.rangeVal}>{Math.round((opts.volume ?? 0.4) * 100)}%</span>
           </span>
-        </label>
-      </Card>
+        </Row>
+      </GroupCard>
 
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}>
-          <Icon icon={Bell} size={16} /> {t('settings.notifications.desktop')}
-        </h3>
-        <p className={s.cardDesc}>
-          {t('settings.notifications.desktopHelp')}
-        </p>
-
-        <div className={s.row}>
-          <Badge variant={permission === 'granted' ? 'success' : 'warning'}>
-            {permission === 'granted' ? (
-              <>
-                <Icon icon={Check} size={12} /> {t('settings.notifications.granted')}
-              </>
-            ) : (
-              permission
+      <SubHead title={<><Bell size={16} strokeWidth={1.5} aria-hidden /> {t('settings.notifications.desktop')}</>} description={t('settings.notifications.desktopHelp')} />
+      <GroupCard>
+        <Row label={t('settings.notifications.desktop')}>
+          <span className={kit.rowCtl}>
+            <span className={kit.badge} data-fg={granted || undefined}>
+              {granted ? <><Check size={12} strokeWidth={1.5} aria-hidden /> {t('settings.notifications.granted')}</> : permission}
+            </span>
+            {permission === 'default' && (
+              <button type="button" className={kit.btn} onClick={onRequestPermission}>
+                {t('settings.notifications.request')}
+              </button>
             )}
-          </Badge>
-          {permission === 'default' && (
-            <Button variant="ghost" onClick={onRequestPermission}>
-              {t('settings.notifications.request')}
-            </Button>
-          )}
-        </div>
-
-        <label className={s.row}>
+            <input
+              type="checkbox"
+              className={kit.checkbox}
+              checked={opts.system}
+              disabled={!granted}
+              aria-label={t('settings.notifications.desktop')}
+              onChange={(e) => onPatch({ system: e.target.checked })}
+            />
+          </span>
+        </Row>
+        <Row label={t('settings.notifications.onlyUnfocused')} description={t('settings.notifications.onlyUnfocusedHelp')}>
           <input
             type="checkbox"
-            checked={opts.system}
-            disabled={permission !== 'granted'}
-            onChange={(e) => onPatch({ system: e.target.checked })}
-          />
-          <span>{t('settings.notifications.desktop')}</span>
-        </label>
-
-        <label className={s.row}>
-          <input
-            type="checkbox"
+            className={kit.checkbox}
             checked={opts.onlyUnfocused ?? true}
-            disabled={permission !== 'granted' || !opts.system}
+            disabled={!granted || !opts.system}
+            aria-label={t('settings.notifications.onlyUnfocused')}
             onChange={(e) => onPatch({ onlyUnfocused: e.target.checked })}
           />
-          <span>{t('settings.notifications.onlyUnfocused')}</span>
-        </label>
-        <p className={s.cardDesc}>{t('settings.notifications.onlyUnfocusedHelp')}</p>
-
-        <label className={s.row}>
-          <span>{t('settings.notifications.minDuration')}</span>
-          <select
+        </Row>
+        <Row label={t('settings.notifications.minDuration')}>
+          <Select
             value={String(opts.minDurationMs ?? 60_000)}
-            disabled={permission !== 'granted' || !opts.system}
-            onChange={(e) => onPatch({ minDurationMs: Number(e.target.value) })}
-          >
-            <option value="0">{t('settings.notifications.minDurationOff')}</option>
-            <option value="30000">{t('settings.notifications.minDuration30s')}</option>
-            <option value="60000">{t('settings.notifications.minDuration60s')}</option>
-            <option value="120000">{t('settings.notifications.minDuration2m')}</option>
-          </select>
-        </label>
-
-        <label className={s.row}>
+            ariaLabel={t('settings.notifications.minDuration')}
+            disabled={!granted || !opts.system}
+            onChange={(v) => onPatch({ minDurationMs: Number(v) })}
+            options={[
+              { value: '0', label: t('settings.notifications.minDurationOff') },
+              { value: '30000', label: t('settings.notifications.minDuration30s') },
+              { value: '60000', label: t('settings.notifications.minDuration60s') },
+              { value: '120000', label: t('settings.notifications.minDuration2m') },
+            ]}
+          />
+        </Row>
+        <Row label={t('settings.notifications.approval')} description={t('settings.notifications.approvalHelp')}>
           <input
             type="checkbox"
+            className={kit.checkbox}
             checked={opts.notifyApproval ?? true}
-            disabled={permission !== 'granted' || !opts.system}
+            disabled={!granted || !opts.system}
+            aria-label={t('settings.notifications.approval')}
             onChange={(e) => onPatch({ notifyApproval: e.target.checked })}
           />
-          <span>{t('settings.notifications.approval')}</span>
-        </label>
-        <p className={s.cardDesc}>{t('settings.notifications.approvalHelp')}</p>
-      </Card>
+        </Row>
+      </GroupCard>
 
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}>
-          <Icon icon={Bell} size={16} /> {t('settings.notifications.dockBadge')}
-        </h3>
-        <p className={s.cardDesc}>{t('settings.notifications.dockBadgeHelp')}</p>
-        <label className={s.row}>
+      <SubHead title={<><Bell size={16} strokeWidth={1.5} aria-hidden /> {t('settings.notifications.dockBadge')}</>} description={t('settings.notifications.dockBadgeHelp')} />
+      <GroupCard>
+        <Row label={t('settings.notifications.dockBadge')}>
           <input
             type="checkbox"
+            className={kit.checkbox}
             checked={opts.dockBadge ?? false}
+            aria-label={t('settings.notifications.dockBadge')}
             onChange={(e) => onPatch({ dockBadge: e.target.checked })}
           />
-          <span>{t('settings.notifications.dockBadge')}</span>
-        </label>
-      </Card>
+        </Row>
+      </GroupCard>
     </div>
   );
 }

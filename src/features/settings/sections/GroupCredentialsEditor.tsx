@@ -5,8 +5,9 @@
  * 一个模型组 = 一个端点 + 一组凭据，组内凭据按 weight 加权派位，
  * quota 是**挂在凭据上**的订阅配额声明。
  *
- * 纯受控组件 —— 凭据列表由父组件（GroupForm 的表单状态）持有，
+ * 纯受控组件 —— 凭据列表由父组件（GroupDetail 的表单状态）持有，
  * 增删改只回调 `onChange`，落盘由父组件统一 upsert。
+ * 标题由父级折叠区（Fold）承载，这里只渲染工具行（计数 / 新增 / 显隐）。
  */
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
@@ -52,19 +53,17 @@ export function GroupCredentialsEditor({ credentials, onChange }: GroupCredentia
 
   return (
     <div className={s.providerFields} data-testid="group-credentials">
-      <div className={s.fieldRow}>
-        <label className={s.fieldLabel}>{t('settings.groups.credentialsTitle')}</label>
-        <span className={s.modelFetchRow}>
-          <Badge variant="neutral">
-            {t('settings.groups.credentialCount', { count: credentials.length })}
-          </Badge>
-          <Button variant="ghost" size="sm" onClick={addCredential} data-testid="group-credential-add">
-            <Icon icon={Plus} size={12} /> {t('settings.groups.credentialAdd')}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowKey((v) => !v)}>
-            {showKey ? t('settings.config.hide') : t('settings.config.show')}
-          </Button>
-        </span>
+      <div className={s.gToolbar}>
+        <Badge variant="neutral">
+          {t('settings.groups.credentialCount', { count: credentials.length })}
+        </Badge>
+        <span className={s.gToolbarSpacer} />
+        <Button variant="ghost" size="sm" onClick={addCredential} data-testid="group-credential-add">
+          <Icon icon={Plus} size={12} /> {t('settings.groups.credentialAdd')}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setShowKey((v) => !v)}>
+          {showKey ? t('settings.config.hide') : t('settings.config.show')}
+        </Button>
       </div>
       {credentials.length === 0 && (
         <p className={s.sectionDesc}>{t('settings.groups.credentialsEmpty')}</p>

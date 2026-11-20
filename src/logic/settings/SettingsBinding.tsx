@@ -6,6 +6,7 @@ import { zhuye_get_config, zhuye_save_config, zhuye_agent_status, zhuye_set_perm
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
+import { useSettingsSearch } from './useSettingsSearch';
 
 /** 设置草稿、保存并发和权限动作的绑定。 */
 export function SettingsBinding({ view: View, slots, onClose }: { view: ComponentType<SettingsViewProps>; slots: SettingsSlots; onClose?: () => void }) {
@@ -85,6 +86,9 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
   const onSave = () => saveMutation.mutate(rawToml);
   const onPermission = (mode: SettingsPermissionMode) => permMutation.mutate(mode);
 
+  // 分区搜索（⌘K）：状态与键盘监听在 logic 层，渲染层只消费。
+  const search = useSettingsSearch(setSection);
+
   const toggleSecret = (key: string) => setShowSecrets((p) => ({ ...p, [key]: !p[key] }));
 
   return <View
@@ -101,6 +105,6 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
     saving={saveMutation.isPending} permissionPending={permMutation.isPending}
     saved={saved} error={error}
     onOpenPrompts={() => { openPromptPanel(); void promptList(); }}
-    onPermission={onPermission} onSave={onSave} onClose={onClose} slots={slots}
+    onPermission={onPermission} onSave={onSave} onClose={onClose} search={search} slots={slots}
   />;
 }

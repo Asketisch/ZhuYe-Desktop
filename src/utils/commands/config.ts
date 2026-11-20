@@ -37,6 +37,16 @@ export async function zhuye_save_config(toml: string): Promise<void> {
   return invoke<void>('zhuye_save_config', { toml });
 }
 
+/** 读取用户级自定义指令(`<用户数据目录>/AGENTS.md`;不存在 → 空串)。 */
+export async function zhuye_get_user_instructions(): Promise<string> {
+  return invoke<string>('zhuye_get_user_instructions');
+}
+
+/** 保存用户级自定义指令(原子写;与会话首轮注入同源,对所有会话生效)。 */
+export async function zhuye_save_user_instructions(content: string): Promise<void> {
+  return invoke<void>('zhuye_save_user_instructions', { content });
+}
+
 /**
  * 运行中切换模型 / 钉住组内凭据(热重载模型栈,下一个 turn 生效)。
  *

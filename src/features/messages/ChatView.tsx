@@ -7,15 +7,16 @@ import { ChatHero, QuickPromptRow } from '@/features/home/ChatHero';
 import { ContextBanner } from './ContextBanner';
 import { ScmChanges } from './ScmChanges';
 import { DiffViewer } from '@/features/git/DiffViewer';
-import { WorkHead, ViewRing } from '@/features/shell/zcode/WorkHead';
-import { ZDock } from '@/features/shell/zcode/ZDock';
-import { ApprovalTakeover, QuestionTakeover, AskUserTakeover } from '@/features/shell/zcode/Takeovers';
-import { TrajView } from '@/features/shell/zcode/TrajView';
-import { BottomTabs } from '@/features/shell/zcode/BottomTabs';
+import { WorkHead, ViewRing } from '@/features/shell/session/WorkHead';
+import { SessionDock } from '@/features/shell/session/SessionDock';
+import { StatusPanel } from '@/features/shell/session/StatusPanel';
+import { ApprovalTakeover, QuestionTakeover, AskUserTakeover } from '@/features/shell/session/Takeovers';
+import { TrajView } from '@/features/shell/session/TrajView';
+import { BottomTabs } from '@/features/shell/session/BottomTabs';
 
 export { editRewindTargetFor } from '@/logic/chat/ChatBinding';
 const slots = { MessageList, Composer, ChatHero, QuickPromptRow, ContextBanner, ScmChanges,
-  DiffViewer, WorkHead, ViewRing, ZDock, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
+  DiffViewer, WorkHead, ViewRing, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
   TrajView, BottomTabs };
 
 export function ChatView() {

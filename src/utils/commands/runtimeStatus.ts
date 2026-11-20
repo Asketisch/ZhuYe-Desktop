@@ -12,10 +12,13 @@ import type { MemoryContext } from './memory';
 import type { ConfigHealthIssue } from '@/contracts/configHealth';
 export type { ConfigHealthIssue } from '@/contracts/configHealth';
 
-/** 单个 provider 的凭证池健康度。 */
+/** 单个模型组的凭证池健康度（与后端 `runtime_status.rs` camelCase 出线对齐）。 */
 export interface CredentialPoolStatus {
-  provider: string;
-  /** 池内凭证总数(含顶层 `api_key` 的隐式条目)。 */
+  /** 模型组 id（`[[model_group]]` 的 `id`，同时是 registry 池名）。 */
+  group: string;
+  /** 组的接入端点（`openai` / `anthropic` / `ollama`）。 */
+  endpoint: string;
+  /** 池内凭证总数(含组级 `api_key` 的隐式条目)。 */
   total: number;
   /** 当前未处于冷却的凭证数。 */
   healthy: number;

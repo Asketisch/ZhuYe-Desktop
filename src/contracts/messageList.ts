@@ -12,7 +12,7 @@ import type { CopyButtonProps } from '@/contracts/copyButton';
 export interface MessageListSlots {
   ToolCell: ComponentType<ComponentProps<typeof ToolCell>>;
   ToolOutputBody: ComponentType<ComponentProps<typeof ToolOutputBody>>;
-  /** 连续工具调用的聚合组（zcode / codex 式摘要行）。 */
+  /** 连续工具调用的聚合组（对话式 agent 产品惯用的摘要行）。 */
   ToolGroup: ComponentType<ComponentProps<typeof ToolGroup>>;
   QueuedMessages: ComponentType<ComponentProps<typeof QueuedMessages>>;
   UserAttachments: ComponentType<ComponentProps<typeof UserAttachments>>;

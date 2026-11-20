@@ -8,7 +8,6 @@ import type { ImportKindOption, ImportViewProps } from '@/contracts/importView';
 const KINDS: ImportKindOption[] = [
   { value: 'claude_code', labelKey: 'import.kind.claudeCode' },
   { value: 'codex', labelKey: 'import.kind.codex' },
-  { value: 'zcode', labelKey: 'import.kind.zcode' },
 ];
 
 /** 外部会话导入绑定。 */
@@ -19,10 +18,10 @@ export function ImportBinding({ view: View }: { view: ComponentType<ImportViewPr
 
   const discoverQ = useQuery({
     queryKey: ['import-sources', kind],
-    queryFn: () => zhuye_import_discover(kind as 'claude_code' | 'codex' | 'zcode'),
+    queryFn: () => zhuye_import_discover(kind as 'claude_code' | 'codex'),
     staleTime: 10_000,
   });
-  const importMut = useMutation({ mutationFn: () => zhuye_import_sessions(kind as 'claude_code' | 'codex' | 'zcode', { dryRun, force: false }) });
+  const importMut = useMutation({ mutationFn: () => zhuye_import_sessions(kind as 'claude_code' | 'codex', { dryRun, force: false }) });
 
   const sources = discoverQ.data ?? [];
   return (

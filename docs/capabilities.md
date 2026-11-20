@@ -9,7 +9,9 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `0d51379`（完整 SHA `0d513790`；上一审计 `9cab0469`： `f5edab5` ∪ `feat/browser-plugin` 变基 tip）：模型组 `[[provider_group]]` schema/builder 装配 + `active_provider` String 化（env / `[active]` 均可点名组 id）+ anthropic `list_models`（`GET {base}/v1/models`，`model = "free"` 与 `zhuye models list` 对 anthropic 格式端点自此可用），桌面配套「模型组」统一设置页与 Composer 组切换，详见 §3.37。其上：上游 `34e19acf` 引入 `reflect_llm::models_dev` models.dev 社区目录 —— 窗口 / 输出上限 / 视觉 / 思考档位四维能力，跨厂商投票 + 兜底链 + 内嵌快照 + 24h 磁盘缓存，级联进 `context_window_for` / `output_budget` / `reasoning_effort`，策展静态表优先、目录只填空缺；桌面配套 `reflect_lookup_model_abilities` 命令 + 模型列表四维标签 + 一键填充最大上下文 + 视觉降级警示/确认弹窗 + provider `max_tokens` 表单，详见 §3.36。更早 `29aa9ad`：`ce57058` 回归测试之上上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。更早 `ce57058` 补齐组合穷举回归测试，见 §3.32。其上 `feat/browser-plugin`（f064c1cd 变基为 306dbc1d）新增 `zhuye-browser` crate + `plugins/browser`（F39 受控浏览器）—— 非 Op/EventMsg 变更，能力面为独立 MCP server 二进制 + 桌面显示通道（`zhuye_browser_*` 命令 + `zhuye_browser_frame` 事件），矩阵已补行（§3.38）。Op/EventMsg 与内置工具集合比对仍零变化。）
+> 最近审计：submodule `8da90e5`（上一审计 `0d51379`）：上游 0.1.16 门控型 bundled 插件基建 —— `zhuye-plugin::bundled`（`BUNDLED_PLUGIN_DEFAULTS` 表 + `bundled_plugin_enabled` / `bundled_tool_gates` 判定）+ `[plugins].disabled_plugins` 配置键（显式禁用 > 显式启用 > 默认开关；默认开 web-search / notebook，默认关 verify-hooks / lsp / goal-queue）+ 新增 `plugins/{lsp,notebook,verify-hooks,web-search}` 插件定义；另 `zhuye-kms` 从 abilities 归位 integrations（纯移动，桌面 Cargo.toml path 已随之改）。桌面配套接线：启动装配走 `register_builtin_tools_with_gates`、设置保存后 `apply_bundled_tool_gates` 差量同步共享工具表（web_search / notebook_edit register/unregister）、verify-hooks 门随线程构造注入 hook engine、lsp 手动开启在命令边界对禁用态显性报错、`zhuye_toggle_plugin` 语义对齐 CLI（bundled 停用写禁用表 / 启用清禁用表）；设置页 PluginsEditor 补 `disabled_plugins` 按行编辑。Op/EventMsg 零变化，无新增命令。
+
+> 上一轮审计：submodule `0d51379`（完整 SHA `0d513790`；上一审计 `9cab0469`： `f5edab5` ∪ `feat/browser-plugin` 变基 tip）：模型组 `[[provider_group]]` schema/builder 装配 + `active_provider` String 化（env / `[active]` 均可点名组 id）+ anthropic `list_models`（`GET {base}/v1/models`，`model = "free"` 与 `zhuye models list` 对 anthropic 格式端点自此可用），桌面配套「模型组」统一设置页与 Composer 组切换，详见 §3.37。其上：上游 `34e19acf` 引入 `reflect_llm::models_dev` models.dev 社区目录 —— 窗口 / 输出上限 / 视觉 / 思考档位四维能力，跨厂商投票 + 兜底链 + 内嵌快照 + 24h 磁盘缓存，级联进 `context_window_for` / `output_budget` / `reasoning_effort`，策展静态表优先、目录只填空缺；桌面配套 `reflect_lookup_model_abilities` 命令 + 模型列表四维标签 + 一键填充最大上下文 + 视觉降级警示/确认弹窗 + provider `max_tokens` 表单，详见 §3.36。更早 `29aa9ad`：`ce57058` 回归测试之上上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。更早 `ce57058` 补齐组合穷举回归测试，见 §3.32。其上 `feat/browser-plugin`（f064c1cd 变基为 306dbc1d）新增 `zhuye-browser` crate + `plugins/browser`（F39 受控浏览器）—— 非 Op/EventMsg 变更，能力面为独立 MCP server 二进制 + 桌面显示通道（`zhuye_browser_*` 命令 + `zhuye_browser_frame` 事件），矩阵已补行（§3.38）。Op/EventMsg 与内置工具集合比对仍零变化。）
 
 
 ## 阅读约定
@@ -56,7 +58,7 @@
 | 任务 / 团队 | `zhuye-task` | `TaskManager` / `TodoWriteTool` | ✅ CRUD + claim + **产出 / 停止 / 释放**（§3.11）+ **agent 侧任务工具**（§3.14）；**todo 清单已展示**（§3.18），清单回灌已由上游闭合（§3.18） |
 | 讨论 | `zhuye-discussion` | `DiscussionOrchestrator` | ✅ 顺序和并发讨论可运行，实时事件、失败与取消终态、历史筛选、取消入口和 transcript 持久化已接线 |
 | 流水线 | `zhuye-pipeline` | `Pipeline::from_toml` / `PipelineReport` | ✅ shell 节点可执行；桌面适配层透传自定义模板输入并保留失败传播 |
-| 插件 | `zhuye-plugin` / `zhuye-wasm` | `PluginManager` / `PluginManifest` / Wasm Hook + Tool | ✅ 列表 / 启停 / 卸载 / 本地安装 + marketplace；WASM hook/tool 随插件运行时加载，但详情面仅到文件与启停状态（§3.13） |
+| 插件 | `zhuye-plugin` / `zhuye-wasm` | `PluginManager` / `PluginManifest` / Wasm Hook + Tool / `BUNDLED_PLUGIN_DEFAULTS` 门控 | ✅ 列表 / 启停 / 卸载 / 本地安装 + marketplace；**门控型 bundled 插件已接线**（上游 0.1.16：`[plugins].disabled_plugins` 显式禁用 → `bundled_tool_gates` 判定源三路同源 —— 启动装配 `register_builtin_tools_with_gates`、设置保存后 `apply_bundled_tool_gates` 差量同步共享工具表、verify-hooks 随线程构造注入 hook engine、lsp 手动开启命令边界显性报错；toggle 语义对齐 CLI：bundled 插件停用写禁用表、启用清禁用表）；WASM hook/tool 随插件运行时加载，但详情面仅到文件与启停状态（§3.13） |
 | 沙箱 | `zhuye-sandbox` | `OsSandbox` / `detect_backend` | ✅ 有效状态在状态栏可见（§3.5）+ **开关真正生效**（§3.19，每轮协议策略） |
 | BM25 | `zhuye-bm25` | `rank_lines` / `tokenize` | ✅ GUI 搜索可选 **BM25 相关性**（§3.16，与 agent 的 grep 同款） |
 | 浏览器控制（F39） | `zhuye-browser`（收编上游 `zhuye-browser`） | `BrowserBackend` / `CdpBrowserBackend` / `BrowserSecurity` / `plugins/browser` MCP 工具 | 🟡 agent **控制通道**需安装 browser 插件（CDP 仅 loopback + 单 target + 隔离 profile，Prompt 审批）；桌面**显示通道**已接线 —— `/browser` 面板 + `zhuye_browser_start/stop/status/env` + `zhuye_browser_frame` 帧流；本机无浏览器时双层降级。面板画面为实机验收项 |
@@ -139,7 +141,7 @@ GUI 只能观测，加 server 要手改 config → `commands/mcp.rs` 四命令�
 
 ### 3.13 插件管理
 
-只能看 slash 命令，启停卸载要手改文件 → `commands/plugins.rs`：`list_plugins`（启用状态与运行时同源）/ `list_marketplaces` / `toggle_plugin`（`reload_plugins` diff 同步，不打断会话）/ `uninstall` / `install`（经核心 `PluginManager`，含 manifest 校验）；PluginsPanel。
+只能看 slash 命令，启停卸载要手改文件 → `commands/plugins.rs`：`list_plugins`（启用状态与运行时同源）/ `list_marketplaces` / `toggle_plugin`（`reload_plugins` diff 同步，不打断会话；上游 0.1.16 起语义对齐 CLI —— bundled 门控插件停用写入 `disabled_plugins`（默认开插件仅移出 enabled 是 no-op），启用同时清禁用表，并即时差量同步工具门）/ `uninstall` / `install`（经核心 `PluginManager`，含 manifest 校验）；PluginsPanel + 设置页 PluginsEditor（`enabled_plugins` / `disabled_plugins` 两个按行编辑的 textarea）。
 
 ### 3.14 工具注册表补齐（agent 侧「能不能用」的关键缺口）
 

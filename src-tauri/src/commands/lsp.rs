@@ -103,6 +103,17 @@ pub async fn zhuye_lsp_set_enabled(
 ) -> CommandResult<LspStatus> {
     let _lifecycle = agent.inner.lsp_lifecycle_lock.lock().await;
     if enabled {
+        // lsp 门控插件粗粒度开关(上游 0.1.16):`[plugins].disabled_plugins`
+        // 显式禁用即整体关闭 —— 即使有 `[lsp_servers]` 定义也不启动
+        // (与 exec `bootstrap_lsp` 的 `lsp_plugin_disabled` 同语义)。
+        // 桌面端 LSP 是手动开启,在命令边界显性报错而非静默 no-op。
+        if agent.cfg().read().plugins.is_disabled("lsp") {
+            return Err(CommandError {
+                msg: "lsp plugin is disabled via [plugins].disabled_plugins; \
+                      remove 'lsp' from that list to enable LSP"
+                    .into(),
+            });
+        }
         if agent.inner.lsp_manager.lock().is_none() {
             let cfg = agent.cfg().read().clone();
             crate::mcp::bootstrap_lsp(&agent, &cfg)

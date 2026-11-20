@@ -11,7 +11,7 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
   onToggleTerminal, onCloseTerminal, onToggleRight, onToggleTheme, onOpenSettings, onRewind,
   onEdit, onRegenerate, onContinue, slots }: ChatViewProps) {
   const { WorkHead, ViewRing, MessageList, Composer, ChatHero, QuickPromptRow, ContextBanner,
-    ScmChanges, TrajView, ZDock, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
+    ScmChanges, TrajView, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
     BottomTabs, DiffViewer } = slots;
   const takeover = approval ?? question ?? askUser;
   return (
@@ -25,7 +25,11 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
       {viewMode === 'traj' ? (
         <TrajView />
       ) : (
-      <div className={s.chatpane} data-testid="zcode-chatpane">
+      <div className={s.chatpane} data-testid="session-chatpane">
+      {/* 右上角浮动状态面板（目标 / 计划 / 进程）；定位锚在 chatpane 上。 */}
+      {!loading && !error && (
+        <StatusPanel goalActive={goalActive} goalText={goalText} turnRunning={turnRunning} />
+      )}
       {sessionId && loading && (
         <div className={s.sessionBanner} role="status" aria-live="polite">
           <Spinner size={14} />
@@ -80,7 +84,7 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
           />
         </div>
       )}
-      {!loading && !error && <ZDock goalActive={goalActive} goalText={goalText} turnRunning={turnRunning} />}
+      {!loading && !error && <SessionDock goalActive={goalActive} goalText={goalText} turnRunning={turnRunning} />}
       {!loading && !error && approval && <ApprovalTakeover approval={approval} />}
       {!loading && !error && question && <QuestionTakeover question={question} />}
       {!loading && !error && askUser && <AskUserTakeover askUser={askUser} />}

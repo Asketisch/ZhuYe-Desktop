@@ -83,7 +83,11 @@
     },
     "zhuye_config_info": {},
     "zhuye_create_session": {},
-    "zhuye_create_worktree": { "name": "contract-probe-wt", "branch": null, "path": null },
+    "zhuye_create_worktree": {
+      "name": "contract-probe-wt",
+      "branch": null,
+      "path": null
+    },
     "zhuye_create_squad": {
       "spec": {
         "name": "contract-probe-squad",
@@ -649,7 +653,10 @@
     },
     "zhuye_query_guard_stats": {},
     "zhuye_scan_local_ports": {
-      "ports": [5173, 8080],
+      "ports": [
+        5173,
+        8080
+      ],
       "recent_output": "Local: http://localhost:5173/"
     },
     "zhuye_browser_env": {},
@@ -736,6 +743,10 @@
       "path": "${TMP}/project-worktrees/contract-probe-wt",
       "force": false
     },
-    "zhuye_effort_capability": {}
+    "zhuye_effort_capability": {},
+    "zhuye_get_user_instructions": {},
+    "zhuye_save_user_instructions": {
+      "content": "# 自定义指令\n\n- 回复使用中文\n"
+    }
   }
 }

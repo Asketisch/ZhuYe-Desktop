@@ -196,6 +196,8 @@ export interface FakeBackend {
     archived: FakeSession[];
     rollouts: Record<string, Array<Record<string, unknown>>>;
     configToml: string;
+    /** 用户级自定义指令（设置页「个性化」分区）。 */
+    userInstructions: string;
     permissionMode: string;
     // 编辑器 Reject 恢复链路:zhuye_write_file 的最后一次写入。
     lastWriteFile: { path: string; content: string } | null;
@@ -331,6 +333,7 @@ export function installFakeBackend(): FakeBackend {
       ],
       rollouts: defaultRollouts(),
       configToml: '[active]\nprovider = "anthropic"\nmodel = "claude-sonnet-4"\n',
+      userInstructions: '',
       lastWriteFile: null,
       permissionMode: 'prompt',
       goal: { active: false, goal: null, verifyCommand: null, tokenBudget: null, turnCount: 0, tokensUsed: 0 },
@@ -842,6 +845,14 @@ export function installFakeBackend(): FakeBackend {
     'zhuye_save_config',
     handler((args) => {
       backend.state.configToml = String(args?.toml ?? '');
+    }),
+  );
+  // 用户级自定义指令（设置页「个性化」分区）—— 替身存内存即可。
+  handle('zhuye_get_user_instructions', handler(() => backend.state.userInstructions));
+  handle(
+    'zhuye_save_user_instructions',
+    handler((args) => {
+      backend.state.userInstructions = String(args?.content ?? '');
     }),
   );
   // 模型热切换：镜像后端「改 active.group 段 → resolved spec 变化」，

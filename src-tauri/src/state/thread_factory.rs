@@ -144,6 +144,18 @@ pub(crate) fn construct_thread(
     if hooks_cfg.enabled.is_none() {
         hooks_cfg.enabled = Some(Vec::new());
     }
+    // verify-hooks 门控插件(默认关):插件启用 = 显式启用 verification /
+    // test_runner 两个内置 hook,与 exec headless / lib facade 同一判定源
+    // (`zhuye_plugin::bundled_plugin_enabled`;config [hooks] 显式列出是
+    // 另一条路径,两者并存)。注入在 explicit-only 收紧之后,语义同上游。
+    // hook engine 随线程构造 —— 改插件启用状态后下次会话切换生效。
+    if zhuye_plugin::bundled_plugin_enabled(
+        "verify-hooks",
+        &cfg_snapshot.plugins.enabled_plugins,
+        &cfg_snapshot.plugins.disabled_plugins,
+    ) {
+        hooks_cfg.enable_hook_names(&["verification", "test_runner"]);
+    }
     let hook_engine: Arc<zhuye_hooks::HookEngine> = Arc::new(hooks_cfg.build_engine());
     agent.inner.hook_store.apply_disabled(&hook_engine)?;
     // v1.x 修复:无条件注册 PlanModeGate(GUI 的 Plan 只读边界)。

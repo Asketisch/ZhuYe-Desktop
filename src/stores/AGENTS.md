@@ -19,7 +19,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 | `backgroundSessions.ts` | 后台会话注册表（v1.x 后台持续运行）：消化 `zhuye_session_event` 通道（`{session_id, event}`），每会话持一份主 reducer scratch 投影 running / pending / **实时 turns**（形状零漂移）；`demote` 在切走时把前台投影播种进 scratch，`mergePendingInto` 在切回水合后把待确认交互与在飞 turns 整体注回主 store |
 | `editorStore.ts` | agent 编辑的 pending hunk 列表，自订阅 agentEventBus；Accept 保留内容、Reject 用 inverse patch 经 `zhuye_write_file` 落盘 |
 | `replay.ts` | `zhuye_replay_session` 返回的 RolloutRecord 流 → turns + 压缩聚合统计；剥除引擎注入的 `<system-reminder>` 块（注入内容不冒充用户发言） |
-| `shellUi.ts` | harness 壳层 UI 状态（v3 设计）：rail / dockMode（五档）/ dockOpen / dockWide / dockWidth（用户拖拽出的 dock 宽度，`null` = 未拖过，用各档位默认宽度）/ termOpen / inbox / settings / palette / moreMenu / semantic（单色模式）/ dropHint / unread（后台完成未读产出）。rail·dock·term·semantic·dockWidth 持久化到 localStorage（`zhuye-harness-ui`；dockWidth 拖拽中只改内存态、松手 `commitDockWidth` 落盘一次）；快捷键（`logic/shell/useHarnessShortcuts`）与标题条/侧栏/壳视图全部消费本 store，不另设组件内状态 |
+| `shellUi.ts` | harness 壳层 UI 状态（v3 设计）：rail / dockMode（五档）/ dockOpen / dockWide / dockWidth（用户拖拽出的 dock 宽度，`null` = 未拖过，用各档位默认宽度）/ termOpen / inbox / settings / palette / moreMenu / inspectorTab（检查器页签，StatusPanel「计划」行可编程切到 plan）/ dropHint / unread（后台完成未读产出）。rail·dock·term·semantic·dockWidth 持久化到 localStorage（`zhuye-harness-ui`；dockWidth 拖拽中只改内存态、松手 `commitDockWidth` 落盘一次）；快捷键（`logic/shell/useHarnessShortcuts`）与标题条/侧栏/壳视图全部消费本 store，不另设组件内状态 |
 
 ## 本地契约与同步点
 

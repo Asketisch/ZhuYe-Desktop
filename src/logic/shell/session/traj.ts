@@ -1,5 +1,5 @@
 /**
- * traj —— 从既有 agent store 的 turns 推导轨迹账本(redesign/zcode-shell)。
+ * traj —— 从既有 agent store 的 turns 推导轨迹账本(v2-shell-redesign)。
  *
  * ui-trajectory 口径:turn-aware 事件账本,User/Assistant/Reasoning/Tool/
  * Compaction 分组,轮次边界打点。数据源 = store.turns(turn_id + items)+

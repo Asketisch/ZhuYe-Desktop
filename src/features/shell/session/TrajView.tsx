@@ -1,5 +1,5 @@
 /**
- * TrajView —— 轨迹主视图(redesign/zcode-shell,ui-trajectory 口径)。
+ * TrajView —— 轨迹主视图(v2-shell-redesign,ui-trajectory 口径)。
  *
  * 全宽账本 + 三泳道 Timing 总览 + 右侧记录检查器(400px)。数据源 =
  * store.turns + compactions(traj.ts 推导),零新增 IPC。
@@ -11,7 +11,7 @@ import { Clock, CornerDownRight, Wrench, GitBranch, Search, ChevronRight, X } fr
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { deriveLanes, deriveTrajEntries } from './traj';
-import s from '@/render/shell/zcode/zcode.module.css';
+import s from '@/render/shell/session/session.module.css';
 
 export function TrajView() {
   const { t } = useI18n();
@@ -37,42 +37,42 @@ export function TrajView() {
   const stageCls = `${s.trajstage}`.trim();
 
   const roleLabel = (role: string) =>
-    role === 'user' ? t('zcode.traj.roleUser')
-    : role === 'assistant' ? t('zcode.traj.roleAssistant')
-    : role === 'reasoning' ? t('zcode.traj.roleReason')
-    : role === 'error' ? t('zcode.traj.roleError')
-    : t('zcode.traj.roleTool');
+    role === 'user' ? t('traj.roleUser')
+    : role === 'assistant' ? t('traj.roleAssistant')
+    : role === 'reasoning' ? t('traj.roleReason')
+    : role === 'error' ? t('traj.roleError')
+    : t('traj.roleTool');
 
   return (
     <div
       className={stageCls}
       data-fold-time={foldTime}
-      data-testid="zcode-traj"
+      data-testid="session-traj"
       role="tabpanel"
-      aria-label={t('zcode.view.traj')}
+      aria-label={t('view.traj')}
     >
       {/* 工具栏:折叠 chips + 搜索 */}
       <div className={s.tjBar}>
         <div className={s.tjFolds}>
-          <button type="button" className={s.tjFold} data-off={!foldTime} data-testid="zcode-traj-fold-time" onClick={() => setFoldTime((v) => !v)}>
-            <Clock size={13} /> {t('zcode.traj.foldTime')}
+          <button type="button" className={s.tjFold} data-off={!foldTime} data-testid="session-traj-fold-time" onClick={() => setFoldTime((v) => !v)}>
+            <Clock size={13} /> {t('traj.foldTime')}
           </button>
-          <button type="button" className={s.tjFold} data-testid="zcode-traj-fold-turns" onClick={() => setFoldTurns((v) => !v)}>
-            <CornerDownRight size={13} /> {t('zcode.traj.foldTurns')}
+          <button type="button" className={s.tjFold} data-testid="session-traj-fold-turns" onClick={() => setFoldTurns((v) => !v)}>
+            <CornerDownRight size={13} /> {t('traj.foldTurns')}
           </button>
-          <button type="button" className={s.tjFold} data-testid="zcode-traj-fold-calls" onClick={() => setFoldCalls((v) => !v)}>
-            <Wrench size={13} /> {t('zcode.traj.foldCalls')}
+          <button type="button" className={s.tjFold} data-testid="session-traj-fold-calls" onClick={() => setFoldCalls((v) => !v)}>
+            <Wrench size={13} /> {t('traj.foldCalls')}
           </button>
-          <button type="button" className={s.tjFold} data-testid="zcode-traj-fold-subs" onClick={() => setFoldSubs((v) => !v)}>
-            <GitBranch size={13} /> {t('zcode.traj.foldSubs')}
+          <button type="button" className={s.tjFold} data-testid="session-traj-fold-subs" onClick={() => setFoldSubs((v) => !v)}>
+            <GitBranch size={13} /> {t('traj.foldSubs')}
           </button>
         </div>
         <span className={s.tjSearch}>
           <Search size={13} />
           <input
             type="text"
-            placeholder={t('zcode.traj.search')}
-            aria-label={t('zcode.traj.search')}
+            placeholder={t('traj.search')}
+            aria-label={t('traj.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -81,14 +81,14 @@ export function TrajView() {
 
       {/* 三泳道 Timing 总览(时长折叠时隐藏) */}
       {!foldTime && (
-        <div className={s.tl3} data-testid="zcode-traj-timeline" aria-hidden="true">
-          <span className={s.tlLabel}>{t('zcode.traj.laneInput')}</span>
+        <div className={s.tl3} data-testid="session-traj-timeline" aria-hidden="true">
+          <span className={s.tlLabel}>{t('traj.laneInput')}</span>
           <span className={s.tlLane}>
             {lanes.filter((x) => x.lane === 'input').map((x, i) => (
               <span key={`i${i}`} className={`${s.tlSeg} ${s.tlInp}`} style={{ left: `${x.left}%`, width: `${x.width}%` }} />
             ))}
           </span>
-          <span className={s.tlLabel}>{t('zcode.traj.laneModel')}</span>
+          <span className={s.tlLabel}>{t('traj.laneModel')}</span>
           <span className={`${s.tlLane} ${s.tlLaneMid}`}>
             {lanes.filter((x) => x.lane === 'model').map((x, i) => (
               <span
@@ -99,7 +99,7 @@ export function TrajView() {
               />
             ))}
           </span>
-          <span className={s.tlLabel}>{t('zcode.traj.laneTool')}</span>
+          <span className={s.tlLabel}>{t('traj.laneTool')}</span>
           <span className={s.tlLane}>
             {lanes.filter((x) => x.lane === 'tool').map((x, i) => (
               <span
@@ -123,9 +123,9 @@ export function TrajView() {
               foldCalls ? s.ledFoldCalls : '',
               foldSubs ? s.ledFoldSubs : '',
             ].filter(Boolean).join(' ')}
-            data-testid="zcode-traj-ledger"
+            data-testid="session-traj-ledger"
           >
-            {visible.length === 0 && <div className={s.ledEmpty}>{turns.length === 0 ? t('zcode.traj.empty') : t('zcode.traj.search')}: {query}</div>}
+            {visible.length === 0 && <div className={s.ledEmpty}>{turns.length === 0 ? t('traj.empty') : t('traj.search')}: {query}</div>}
             {visible.map(({ e, i }) => (
               <button
                 key={e.key}
@@ -135,7 +135,7 @@ export function TrajView() {
                 data-boundary={e.boundary}
                 data-rec={e.role === 'tool_call' ? 'tool_call' : undefined}
                 data-sub={e.sub || undefined}
-                data-testid={`zcode-traj-row-${i}`}
+                data-testid={`session-traj-row-${i}`}
                 onClick={() => setSelIdx(selIdx === i ? null : i)}
               >
                 <span className={s.ledRole} data-role={e.role}>{roleLabel(e.role)}</span>
@@ -168,7 +168,7 @@ export function TrajView() {
 
           {/* 检查器侧栏(选中记录) */}
           {sel && (
-            <aside className={s.tjInsp} data-testid="zcode-traj-inspector">
+            <aside className={s.tjInsp} data-testid="session-traj-inspector">
               <div className={s.tiHead}>
                 <span className={s.tiRole} data-role={sel.role}>{roleLabel(sel.role)}</span>
                 <span className={s.tiMeta}>第 {sel.turn} 轮 · 第 {sel.step} 步</span>
@@ -177,27 +177,27 @@ export function TrajView() {
                 </button>
               </div>
               <div className={s.tiTabs}>
-                <button type="button" className={s.tiTab} data-active="true">{t('zcode.traj.overview')}</button>
+                <button type="button" className={s.tiTab} data-active="true">{t('traj.overview')}</button>
               </div>
               <div className={s.tiBody} data-active="true">
-                <div className={s.tiKv}><span className="zyK">{t('zcode.traj.level')}</span><span className="zyV">{t('zcode.traj.level')} ›</span></div>
+                <div className={s.tiKv}><span className="zyK">{t('traj.level')}</span><span className="zyV">{t('traj.level')} ›</span></div>
                 <div className={s.tiKv}>
-                  <span className="zyK">{t('zcode.traj.status')}</span>
-                  <span className="zyV">{sel.streaming ? t('zcode.traj.statusStreaming') : t('zcode.traj.statusDone')}</span>
+                  <span className="zyK">{t('traj.status')}</span>
+                  <span className="zyV">{sel.streaming ? t('traj.statusStreaming') : t('traj.statusDone')}</span>
                 </div>
                 {sel.toolName && sel.toolName !== 'output' && (
                   <div className={s.tiSec}>
-                    <div className={s.tiSecH}>{t('zcode.traj.params')} <ChevronRight size={13} /></div>
-                    <div className={s.tiJson}>{sel.args || t('zcode.traj.emptyField')}</div>
+                    <div className={s.tiSecH}>{t('traj.params')} <ChevronRight size={13} /></div>
+                    <div className={s.tiJson}>{sel.args || t('traj.emptyField')}</div>
                   </div>
                 )}
                 <div className={s.tiSec}>
-                  <div className={s.tiSecH}>{t('zcode.traj.result')} <ChevronRight size={13} /></div>
-                  <div className={s.tiOut}>{sel.text || t('zcode.traj.emptyField')}</div>
+                  <div className={s.tiSecH}>{t('traj.result')} <ChevronRight size={13} /></div>
+                  <div className={s.tiOut}>{sel.text || t('traj.emptyField')}</div>
                 </div>
                 <div className={s.tiSec}>
-                  <div className={s.tiSecH}>{t('zcode.traj.status')} <ChevronRight size={13} /></div>
-                  <div className={s.tiKv}><span className="zyK">{t('zcode.traj.status')}</span><span className="zyV">{sel.streaming ? t('zcode.traj.statusStreaming') : t('zcode.traj.statusDone')}</span></div>
+                  <div className={s.tiSecH}>{t('traj.status')} <ChevronRight size={13} /></div>
+                  <div className={s.tiKv}><span className="zyK">{t('traj.status')}</span><span className="zyV">{sel.streaming ? t('traj.statusStreaming') : t('traj.statusDone')}</span></div>
                 </div>
               </div>
             </aside>

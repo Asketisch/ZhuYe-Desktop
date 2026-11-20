@@ -55,7 +55,7 @@ describe('settings status badge', () => {
       expect(document.body.textContent).toContain('anthropic/claude-sonnet-4'),
     );
     // 权限快捷控件只在 Permissions 页显示（不再每个设置页签重复）。
-    fireEvent.click(screen.getByText('Permissions'));
+    fireEvent.click(screen.getByTestId('settings-section-behavior'));
     const planBtn = await waitFor(() => {
       const btn = screen.getByText('plan', { selector: 'button' });
       expect(btn).toBeDefined();
@@ -71,7 +71,7 @@ describe('settings status badge', () => {
 describe('permission mode controls', () => {
   it('quick buttons dispatch zhuye_set_permission_mode', async () => {
     await openSettings();
-    fireEvent.click(screen.getByText('Permissions'));
+    fireEvent.click(screen.getByTestId('settings-section-behavior'));
     const planBtn = await waitFor(() => {
       const btn = screen.getByText('plan', { selector: 'button' });
       expect(btn).toBeDefined();
@@ -85,7 +85,7 @@ describe('permission mode controls', () => {
 
   it('permissions section exposes independent approval policies', async () => {
     const app = await openSettings();
-    fireEvent.click(screen.getByText('Permissions'));
+    fireEvent.click(screen.getByTestId('settings-section-behavior'));
     const select = screen.getByRole('combobox', { name: 'Approval' }) as HTMLSelectElement;
     expect(Array.from(select.options).map((option) => option.value)).toEqual(['auto', 'prompt', 'auto_approve', 'full_access']);
     fireEvent.change(select, { target: { value: 'full_access' } });
@@ -138,8 +138,9 @@ describe('config editing & save round-trip', () => {
 describe('settings i18n', () => {
   it('switching language to zh-CN re-renders settings chrome', async () => {
     await openSettings();
-    // 语言下拉在设置侧栏；顺带断言该页 chrome 已渲染（模型组是默认页）。
-    await waitFor(() => expect(document.body.textContent).toContain('Model Groups'));
+    // 语言下拉在「常规」分区（全局偏好，不再是侧栏常驻项）。
+    fireEvent.click(screen.getByTestId('settings-section-general'));
+    await waitFor(() => expect(document.body.textContent).toContain('General'));
 
     // Language 下拉无关联 label；页面有多个 combobox，按含 en/zh-CN 选项定位。
     const select = screen

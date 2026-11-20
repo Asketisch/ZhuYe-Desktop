@@ -162,7 +162,7 @@ tcase "无垃圾文件入库(node_modules / .DS_Store / dist / target)" check_no
 
 # ── 6b. 品牌名卫生:自有代码不出现第三方 agent 产品名 ────────────────────
 # 豁免(逐条对齐,新增豁免须写明理由):
-#   - 导入线格式:`claude_code` / `codex` / `zcode` —— 协议枚举在上游
+#   - 导入线格式:`claude_code` / `codex` —— 协议枚举在上游
 #     zhuye-import,是线格式数据不是品牌宣传;
 #   - import 域 UI 来源名(`import.kind.*` / `import.subtitle`)与
 #     ImportBinding 的 value —— 用户要区分从哪个 harness 导入;

@@ -64,6 +64,11 @@
   max-width: 720px;
 }
 
+/* 模型组页的主从布局需要全宽 —— 内容区随 section 放宽。 */
+.content[data-wide] {
+  max-width: none;
+}
+
 .sectionTitle {
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
@@ -76,23 +81,6 @@
   color: var(--text-secondary);
   line-height: var(--lh-relaxed);
   margin: 0 0 var(--space-3);
-}
-
-.statusBar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--warning-bg);
-  border: 1px solid var(--warning-border);
-  color: var(--warning);
-  font-size: var(--fs-sm);
-}
-.statusBar[data-ok] {
-  background: var(--success-bg);
-  border-color: var(--success-border);
-  color: var(--success);
 }
 
 .errorBar {
@@ -130,11 +118,10 @@
 }
 
 .fieldLabel {
-  font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
+  font-size: var(--fs-sm);
 }
 
 /* 字段下方的补充说明（如「留空 = 免 Key 端点」）。 */
@@ -531,7 +518,7 @@
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  max-height: 200px;
+  max-height: 260px;
   overflow-y: auto;
   padding: var(--space-1);
   border: 1px solid var(--border-default);
@@ -541,7 +528,7 @@
 
 .modelOption {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-1) var(--space-2);
@@ -570,6 +557,364 @@
 .modelOptionMeta {
   color: var(--text-muted);
   font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* ====== 模型组页（GroupsSection 主从布局） ======
+   页头（内联状态点 + 添加按钮）→ 左组列表 + 右详情面板。
+   颜色一律消费 tokens 标记；开关复用 harness 全局类 .sw。 */
+
+.groupsPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.groupsHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.groupsHeaderSpacer {
+  flex: 1;
+}
+
+/* 内联状态点（Agent 就绪 / 降级）—— 替代旧整宽横幅 */
+.groupsStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--warning);
+  font-size: var(--fs-xs);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.groupsStatus[data-ok] {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success);
+}
+.groupsStatus code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* ---- 主从骨架：master-detail 卡口径 —— 一张带边框圆角卡内含
+   224px 左列导航 + 右详情，最小高度 576px（min-h-[36rem] 口径），
+   导航列自带右发丝边，详情列去独立卡（ZCode master-detail 同款）。 ---- */
+.groupsLayout {
+  overflow: clip;
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 576px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+
+@media (max-width: 760px) {
+  .groupsLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.groupsNavCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border-right: 1px solid var(--border-subtle);
+}
+
+@media (min-width: 761px) {
+  .groupsNavCol {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 576px;
+    overflow-y: auto;
+  }
+}
+
+.gNavList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gNavItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  text-align: left;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.gNavItem:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.gNavItem[data-active] {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* 展示名首字 monogram 头像 */
+.gNavAvatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+.gNavItem[data-active] .gNavAvatar {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.gNavItemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.gNavItemName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.gNavItemMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 凭据池健康点:绿 = 全可用;橙 = 有冷却;灰 = 无池信息 */
+.gNavDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--text-subtle);
+  opacity: 0.6;
+}
+.gNavDot[data-state='ok'] {
+  background: var(--success);
+  opacity: 1;
+}
+.gNavDot[data-state='cooling'] {
+  background: var(--warning);
+  opacity: 1;
+}
+
+.gNavEmpty {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  margin: 0;
+  padding: var(--space-2);
+}
+
+/* 左列底部全局开关（自动切换 / 自动压缩） */
+.groupsNavFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding: var(--space-3) var(--space-2) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.gSwitchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.gSwitchLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---- 右详情面板（master-detail 卡内，去独立卡框，留大内边距） ---- */
+.gDetail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+.gDetailHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.gDetailTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.gDetailName {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gDetailSub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  min-width: 0;
+}
+.gDetailSub code {
+  font-family: var(--font-mono);
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+}
+
+.gDetailUrl {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 双列 / 三列字段排布（身份 / 高级数值项） */
+.gFieldPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.gFieldTriple {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 760px) {
+  .gFieldPair,
+  .gFieldTriple {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 凭据池工具行（计数 / 新增 / 显隐） */
+.gToolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gToolbarSpacer {
+  flex: 1;
+}
+
+/* 折叠区（高级配置 / 组内凭据） */
+.gFold {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.gFoldHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.gFoldHead:hover {
+  color: var(--text-primary);
+}
+
+.gFoldChevron {
+  transition: transform var(--transition-fast);
+  color: var(--text-muted);
+}
+.gFoldHead[aria-expanded='true'] .gFoldChevron {
+  transform: rotate(180deg);
+}
+
+.gFoldBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+/* 模型清单行内的能力徽标（与行右侧对勾） */
+.modelOptionMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.modelOptionTags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.modelOptionTag {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 

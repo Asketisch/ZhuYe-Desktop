@@ -1,13 +1,27 @@
-import { Wifi, Save, X, RefreshCw, Loader2, Info, Terminal, PlugZap, Trash2 } from 'lucide-react';
+import { Loader2, PlugZap, RefreshCw, Save, Terminal, Trash2, Wifi, X } from 'lucide-react';
 import type { RemoteConfigDraft, RemoteViewProps } from '@/contracts/remote';
 import { PageShell } from '../shell/PageShell';
-import { Badge } from '../design-system/Badge';
-import { Button } from '../design-system/Button';
-import { Card } from '../design-system/Card';
-import { EmptyState } from '../design-system/EmptyState';
-import { Icon } from '../design-system/Icon';
 import { Spinner } from '../design-system/Spinner';
+import kit from '../settings/SettingsPage.module.css';
 import s from './RemoteView.module.css';
+
+/** 分区卡（套件行卡 + 内边距画框）。 */
+function Section({ testId, children }: { testId: string; children: React.ReactNode }) {
+  return <section className={`${kit.card} ${kit.panelPad}`} data-testid={testId}>{children}</section>;
+}
+
+/** 分区头：标题 + 提示 + 右侧动作。 */
+function SectionHead({ title, hint, children }: { title: string; hint: string; children?: React.ReactNode }) {
+  return (
+    <div className={kit.titleRow}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div className={kit.rowLabel}>{title}</div>
+        <div className={kit.resDesc}>{hint}</div>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) {
   return (
@@ -19,39 +33,31 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
       actions={
         <button
           type="button"
-          className={s.refreshBtn}
+          className={kit.btn}
           onClick={ctrl.refetch}
           data-testid="remote-refresh"
         >
-          <Icon icon={RefreshCw} size={12} /> {t('common.refresh')}
+          <RefreshCw size={12} strokeWidth={1.5} aria-hidden /> {t('common.refresh')}
         </button>
       }
     >
       {/* iOS connection setup */}
-      <Card level="outlined" padding="md" className={s.section} data-testid="remote-config-card">
-        <header className={s.sectionHeader}>
-          <div>
-            <strong>{t('remote.iosConnection')}</strong>
-            <div className={s.sectionHint}>
-              {t('remote.iosHint')}
-            </div>
-          </div>
-          <div className={s.sectionActions}>
-            <Badge variant={ctrl.config?.isReady ? 'success' : 'neutral'}>
-              {ctrl.config?.isReady ? t('remote.ready') : t('remote.notConfigured')}
-            </Badge>
-            <button
-              type="button"
-              className={s.editBtn}
-              onClick={ctrl.toggleShowForm}
-              data-testid="remote-edit-btn"
-            >
-              {ctrl.showForm ? <Icon icon={X} size={12} /> : <Save size={12} />}
-              {' '}
-              {ctrl.showForm ? t('common.cancel') : ctrl.config?.isReady ? t('remote.edit') : t('remote.configure')}
-            </button>
-          </div>
-        </header>
+      <Section testId="remote-config-card">
+        <SectionHead title={t('remote.iosConnection')} hint={t('remote.iosHint')}>
+          <span className={kit.badge} data-fg={ctrl.config?.isReady || undefined}>
+            {ctrl.config?.isReady ? t('remote.ready') : t('remote.notConfigured')}
+          </span>
+          <button
+            type="button"
+            className={`${kit.btn} ${kit.outline}`}
+            onClick={ctrl.toggleShowForm}
+            data-testid="remote-edit-btn"
+          >
+            {ctrl.showForm ? <X size={12} strokeWidth={1.5} aria-hidden /> : <Save size={12} strokeWidth={1.5} aria-hidden />}
+            {' '}
+            {ctrl.showForm ? t('common.cancel') : ctrl.config?.isReady ? t('remote.edit') : t('remote.configure')}
+          </button>
+        </SectionHead>
 
         {ctrl.config && !ctrl.showForm && (
           <dl className={s.configList} data-testid="remote-config-display">
@@ -129,10 +135,11 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
               />{' '}
               {t('remote.autoConnectLabel')}
             </label>
-            <div className={s.formActions}>
+            <div className={kit.toolbar}>
+              <span className={kit.grow} />
               <button
                 type="button"
-                className={s.cancelBtn}
+                className={`${kit.btn} ${kit.ghost}`}
                 onClick={ctrl.toggleShowForm}
                 data-testid="remote-form-cancel"
               >
@@ -140,31 +147,25 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
               </button>
               <button
                 type="submit"
-                className={s.submitBtn}
+                className={`${kit.btn} ${kit.primary}`}
                 disabled={ctrl.isMutating}
                 data-testid="remote-form-submit"
               >
-                {ctrl.isMutating ? <Icon icon={Loader2} size={12} /> : <Save size={12} />}
+                {ctrl.isMutating ? <Loader2 size={12} className={s.spin} /> : <Save size={12} strokeWidth={1.5} aria-hidden />}
                 {' '}{t('common.save')}
               </button>
             </div>
           </form>
         )}
-      </Card>
+      </Section>
 
       {/* Tailscale */}
-      <Card level="outlined" padding="md" className={s.section} data-testid="remote-tailscale-card">
-        <header className={s.sectionHeader}>
-          <div>
-            <strong>{t('remote.tailscale')}</strong>
-            <div className={s.sectionHint}>
-              {t('remote.tailscaleHint')}
-            </div>
-          </div>
-          <Badge variant={!ctrl.tailscale ? 'neutral' : ctrl.tailscale.running ? 'success' : 'warning'}>
+      <Section testId="remote-tailscale-card">
+        <SectionHead title={t('remote.tailscale')} hint={t('remote.tailscaleHint')}>
+          <span className={kit.badge} data-fg={Boolean(ctrl.tailscale?.running) || undefined}>
             {ctrl.tailscale?.installed ? (ctrl.tailscale.running ? t('remote.running') : t('remote.installed')) : t('remote.notInstalled')}
-          </Badge>
-        </header>
+          </span>
+        </SectionHead>
 
         {ctrl.tailscale && (
           <dl className={s.configList}>
@@ -198,36 +199,32 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
             )}
           </dl>
         )}
-      </Card>
+      </Section>
 
       {/* SSH 远程开发(state/remote.rs 会话层接缝) */}
-      <Card level="outlined" padding="md" className={s.section} data-testid="remote-ssh-card">
-        <header className={s.sectionHeader}>
-          <div>
-            <strong>{t('remote.ssh.title')}</strong>
-            <div className={s.sectionHint}>{t('remote.ssh.hint')}</div>
-          </div>
-          <Badge variant={ctrl.sshSessions.length > 0 ? 'success' : 'neutral'} data-testid="remote-ssh-badge">
+      <Section testId="remote-ssh-card">
+        <SectionHead title={t('remote.ssh.title')} hint={t('remote.ssh.hint')}>
+          <span className={kit.badge} data-fg={ctrl.sshSessions.length > 0 || undefined} data-testid="remote-ssh-badge">
             {t('remote.ssh.sessionCount', { count: ctrl.sshSessions.length })}
-          </Badge>
-        </header>
+          </span>
+        </SectionHead>
 
         {/* 活跃会话 */}
         {ctrl.sshSessions.length > 0 && (
           <ul className={s.sshSessionList} data-testid="remote-ssh-sessions">
             {ctrl.sshSessions.map((session) => (
               <li key={session.sid} className={s.sshSessionRow}>
-                <Icon icon={Terminal} size={13} />
+                <Terminal size={13} strokeWidth={1.5} aria-hidden />
                 <span className={s.sshSessionHost}>{session.host}</span>
                 <span className={s.sshSessionCwd}>{session.cwd}</span>
                 {session.isForeground && (
-                  <Badge variant="accent">{t('remote.ssh.foreground')}</Badge>
+                  <span className={kit.badge} data-fg>{t('remote.ssh.foreground')}</span>
                 )}
                 <span className={s.spacer} />
-                <Button size="sm" variant="danger" onClick={() => void ctrl.sshDisconnect(session.sid)} data-testid={`remote-ssh-disconnect-${session.sid}`}>
-                  <Trash2 size={12} />
+                <button type="button" className={`${kit.btn} ${kit.destructive}`} onClick={() => void ctrl.sshDisconnect(session.sid)} data-testid={`remote-ssh-disconnect-${session.sid}`}>
+                  <Trash2 size={12} strokeWidth={1.5} aria-hidden />
                   {t('remote.ssh.disconnect')}
-                </Button>
+                </button>
               </li>
             ))}
           </ul>
@@ -257,23 +254,23 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
             data-testid="remote-ssh-cwd"
           />
         </div>
-        <div className={s.sectionActions}>
-          <Button size="sm" variant="primary" disabled={ctrl.sshBusy || !ctrl.sshConnectForm.name || !ctrl.sshConnectForm.cwd} onClick={() => void ctrl.sshConnect()} data-testid="remote-ssh-connect">
-            {ctrl.sshBusy ? <Loader2 size={12} className={s.spin} /> : <PlugZap size={12} />}
+        <div className={kit.toolbar}>
+          <button type="button" className={`${kit.btn} ${kit.primary}`} disabled={ctrl.sshBusy || !ctrl.sshConnectForm.name || !ctrl.sshConnectForm.cwd} onClick={() => void ctrl.sshConnect()} data-testid="remote-ssh-connect">
+            {ctrl.sshBusy ? <Loader2 size={12} className={s.spin} /> : <PlugZap size={12} strokeWidth={1.5} aria-hidden />}
             {t('remote.ssh.connect')}
-          </Button>
-          <Button size="sm" variant="ghost" disabled={!ctrl.sshConnectForm.host} onClick={() => void ctrl.sshTest()} data-testid="remote-ssh-test">
+          </button>
+          <button type="button" className={`${kit.btn} ${kit.ghost}`} disabled={!ctrl.sshConnectForm.host} onClick={() => void ctrl.sshTest()} data-testid="remote-ssh-test">
             {ctrl.sshTesting ? <Loader2 size={12} className={s.spin} /> : null}
             {t('remote.ssh.test')}
-          </Button>
-          <Button size="sm" variant="ghost" disabled={ctrl.sshBooting || !ctrl.sshConnectForm.name} onClick={() => void ctrl.sshBootstrap()} data-testid="remote-ssh-bootstrap">
+          </button>
+          <button type="button" className={`${kit.btn} ${kit.ghost}`} disabled={ctrl.sshBooting || !ctrl.sshConnectForm.name} onClick={() => void ctrl.sshBootstrap()} data-testid="remote-ssh-bootstrap">
             {ctrl.sshBooting ? <Loader2 size={12} className={s.spin} /> : null}
             {t('remote.ssh.bootstrap')}
-          </Button>
-          <Button size="sm" variant="ghost" disabled={!ctrl.sshConnectForm.name || !ctrl.sshConnectForm.host} onClick={() => void ctrl.sshSaveHost()} data-testid="remote-ssh-save">
-            <Save size={12} />
+          </button>
+          <button type="button" className={`${kit.btn} ${kit.ghost}`} disabled={!ctrl.sshConnectForm.name || !ctrl.sshConnectForm.host} onClick={() => void ctrl.sshSaveHost()} data-testid="remote-ssh-save">
+            <Save size={12} strokeWidth={1.5} aria-hidden />
             {t('remote.ssh.saveHost')}
-          </Button>
+          </button>
         </div>
         <p className={s.statusMsg}>{t('remote.ssh.prereq')}</p>
 
@@ -289,107 +286,85 @@ export function RemoteView({ t, ctrl, copyOk, onCopyPreview }: RemoteViewProps) 
                   {host.port !== 22 ? `:${host.port}` : ''}
                 </span>
                 <span className={s.spacer} />
-                <Button size="sm" variant="ghost" onClick={() => ctrl.patchSshConnectForm({ name: host.name, host: host.host, port: host.port, user: host.user ?? '' })} data-testid={`remote-ssh-fill-${host.name}`}>
+                <button type="button" className={`${kit.btn} ${kit.ghost}`} onClick={() => ctrl.patchSshConnectForm({ name: host.name, host: host.host, port: host.port, user: host.user ?? '' })} data-testid={`remote-ssh-fill-${host.name}`}>
                   {t('remote.ssh.fill')}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => void ctrl.sshRemoveHost(host.name)} data-testid={`remote-ssh-remove-${host.name}`}>
-                  <Trash2 size={12} />
-                </Button>
+                </button>
+                <button type="button" className={`${kit.btn} ${kit.destructive} ${kit.iconOnly}`} onClick={() => void ctrl.sshRemoveHost(host.name)} aria-label={t('agents.delete')} data-testid={`remote-ssh-remove-${host.name}`}>
+                  <Trash2 strokeWidth={1.5} aria-hidden />
+                </button>
               </li>
             ))}
           </ul>
         )}
-      </Card>
+      </Section>
 
       {/* v1.11 基建#12:远程网页访问状态服务器。 */}
-      <Card level="outlined" padding="md" className={s.section} data-testid="remote-status-server-card">
-        <header className={s.sectionHeader}>
-          <div>
-            <strong>{t('remote.statusServerTitle')}</strong>
-            <div className={s.sectionHint}>
-              {t('remote.statusServerDesc')}
-            </div>
-          </div>
-          <Badge variant={ctrl.statusServerPort != null ? 'success' : 'neutral'} data-testid="remote-status-server-badge">
+      <Section testId="remote-status-server-card">
+        <SectionHead title={t('remote.statusServerTitle')} hint={t('remote.statusServerDesc')}>
+          <span className={kit.badge} data-fg={ctrl.statusServerPort != null || undefined} data-testid="remote-status-server-badge">
             {ctrl.statusServerPort != null
               ? t('remote.statusServerRunning', { port: ctrl.statusServerPort })
               : t('remote.statusServerOff')}
-          </Badge>
-        </header>
-        <div className={s.sectionHeader}>
-          <Button
-            size="sm"
-            variant="primary"
+          </span>
+        </SectionHead>
+        <div className={kit.toolbar}>
+          <button
+            type="button"
+            className={`${kit.btn} ${kit.primary}`}
             disabled={ctrl.serverBusy || ctrl.statusServerPort != null}
             onClick={() => void ctrl.startServer(4732)}
             data-testid="remote-status-server-start"
           >
             {t('remote.statusServerStart')}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
+          </button>
+          <button
+            type="button"
+            className={`${kit.btn} ${kit.ghost}`}
             disabled={ctrl.serverBusy || ctrl.statusServerPort == null}
             onClick={() => void ctrl.stopServer()}
             data-testid="remote-status-server-stop"
           >
             {t('remote.statusServerStop')}
-          </Button>
+          </button>
         </div>
         <p className={s.statusMsg}>{t('remote.statusServerHint')}</p>
-      </Card>
+      </Section>
 
       {/* Daemon hint */}
-      <Card level="outlined" padding="md" className={s.section} data-testid="remote-daemon-card">
-        <header className={s.sectionHeader}>
-          <div>
-            <strong>{t('remote.daemonHintTitle')}</strong>
-            <div className={s.sectionHint}>
-              {t('remote.daemonHintDesc')}
-            </div>
-          </div>
+      <Section testId="remote-daemon-card">
+        <SectionHead title={t('remote.daemonHintTitle')} hint={t('remote.daemonHintDesc')}>
           <button
             type="button"
-            className={s.copyBtn}
+            className={`${kit.btn} ${kit.outline}`}
             onClick={onCopyPreview}
             disabled={!ctrl.previewCmd}
             data-testid="remote-copy-preview"
           >
             {copyOk ? t('common.copied') : t('common.copy')}
           </button>
-        </header>
+        </SectionHead>
         {ctrl.previewCmd ? (
           <pre className={s.codeBlock} data-testid="remote-preview-text">{ctrl.previewCmd}</pre>
         ) : ctrl.loading ? (
-          <div className={s.loading}>
+          <div className={kit.emptyBox}>
             <Spinner size={16} />
           </div>
         ) : (
-          <EmptyState
-            icon={<Icon icon={Info} />}
-            title={t('remote.previewUnavailable')}
-            description={t('remote.previewUnavailableDesc')}
-          />
+          <div className={kit.emptyBox}>{t('remote.previewUnavailable')} —— {t('remote.previewUnavailableDesc')}</div>
         )}
-      </Card>
+      </Section>
 
       {/* Transport status */}
-      <Card level="outlined" padding="md" className={s.section} data-testid="remote-status-card">
-        <header className={s.sectionHeader}>
-          <div>
-            <strong>{t('remote.transportStatus')}</strong>
-            <div className={s.sectionHint}>
-              {t('remote.transportHint')}
-            </div>
-          </div>
-          <Badge variant={ctrl.status?.state === 'connected' ? 'success' : 'neutral'}>
+      <Section testId="remote-status-card">
+        <SectionHead title={t('remote.transportStatus')} hint={t('remote.transportHint')}>
+          <span className={kit.badge} data-fg={ctrl.status?.state === 'connected' || undefined}>
             {ctrl.status?.state ?? t('remote.unknown')}
-          </Badge>
-        </header>
+          </span>
+        </SectionHead>
         {ctrl.status?.message && (
           <p className={s.statusMsg}>{ctrl.status.message}</p>
         )}
-      </Card>
+      </Section>
     </PageShell>
   );
 }

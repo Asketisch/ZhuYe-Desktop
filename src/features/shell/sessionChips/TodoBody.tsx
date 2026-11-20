@@ -4,7 +4,7 @@
  * 数据来自 `TodoWrite` 工具写入的 `store.todos`（reducer 在每次
  * `tool_call_end` 时整体覆盖），本组件纯订阅渲染。
  *
- * 归属：composer 上方的会话内 chips 行（见 `zcode/ZDock.tsx`）。
+ * 归属：composer 上方的会话内 chips 行（见 `session/SessionDock.tsx`）。
  * 此前同样的内容挂在窗口右上角的 fixed 浮层（CornerStack）。
  */
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react';

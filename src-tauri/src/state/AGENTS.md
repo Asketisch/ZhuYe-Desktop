@@ -13,10 +13,10 @@
 | `state.rs` | facade：`MinimalAgent` 顶壳、子模块布线、thin 委托 |
 | `agent.rs` | `MinimalAgentInner` 共享内部状态（含后台线程表） + `new_empty` + 状态诊断快照 |
 | `model_spec.rs` | model spec 解析专题：降级原因 / 显式解析兜底（模型组 `[[model_group]]` 按组 id 查组内凭据）/ 动态清单发现（消费方 install / reload） |
-| `install.rs` / `thread_factory.rs` | 二段构造第二阶段 `install_agent_thread` / install 与 rebind 共享的线程构造路径 |
+| `install.rs` / `thread_factory.rs` | 二段构造第二阶段 `install_agent_thread` / install 与 rebind 共享的线程构造路径；内置工具注册带 bundled 插件门（`register_builtin_tools_with_gates`）与 verify-hooks 门控注入（启用即注入 verification / test_runner hook，判定源 `zhuye_plugin::bundled_plugin_enabled`） |
 | `submit.rs` / `session.rs` | per-turn 提交流水（submit / submit_op / interrupt）/ session broadcast 入口 |
-| `rebind.rs`（+ `rebind/tests.rs`） / `reload.rs`（+ `reload/tests.rs`） | 会话换绑（后台持续运行：demote/promote/后台表） / provider 栈热重载，测试走 `#[cfg(test)] mod tests;` 目录形式 |
-| `plugins.rs` / `plugin_hooks.rs` / `plugin_status.rs` | 插件运行时接线 / 插件事件桥 / 加载快照 |
+| `rebind.rs`（+ `rebind/tests.rs`） / `reload.rs`（+ `reload/tests.rs`） | 会话换绑（后台持续运行：demote/promote/后台表） / provider 栈热重载（plugins 段变更含门控工具差量同步），测试走 `#[cfg(test)] mod tests;` 目录形式 |
+| `plugins.rs` / `plugin_hooks.rs` / `plugin_status.rs` | 插件运行时接线（含 `apply_bundled_tool_gates`：web_search / notebook_edit 门随配置差量 register/unregister 共享工具表）/ 插件事件桥 / 加载快照 |
 | `autopilot.rs` / `quota.rs` / `remote_config.rs` | Autopilot 装配 / coding plan 配额接线 / 远端连接配置 |
 | `agent.rs` 内 `browser` 字段 | 受控浏览器管理器（`src-tauri/src/browser_backend.rs`）：启动/attach + screencast 帧流；tokio Mutex（命令体持锁跨 await） |
 | `remote.rs` | SSH 远程会话管理器：host 注册表（`$ZHUYE_HOME/remote-hosts.json`）+ serve 子进程传输（远端命令经 `sh -lc` 登录 shell）+ 事件泵（前台进 `session_tx`、后台进 `background_tx`）+ 远端 bootstrap 安装脚本；`foreground_remote` 插槽驱动 submit/submit_op 整条路由远端 stdin |

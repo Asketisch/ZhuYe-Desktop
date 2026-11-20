@@ -8,11 +8,10 @@ import type { StringEntry } from '../types';
 
 const strings: Record<string, StringEntry> = {
   'import.title':            { en: 'Import sessions',                      'zh-CN': '导入会话' },
-  'import.subtitle':         { en: 'Bring sessions from Claude Code / Codex / ZCode into ZhuYe.', 'zh-CN': '把 Claude Code / Codex / ZCode 的会话带进烛夜。' },
+  'import.subtitle':         { en: 'Bring sessions from Claude Code / Codex into ZhuYe.', 'zh-CN': '把 Claude Code / Codex 的会话带进烛夜。' },
   'import.kind':             { en: 'Source',                               'zh-CN': '来源' },
   'import.kind.claudeCode':  { en: 'Claude Code',                          'zh-CN': 'Claude Code' },
   'import.kind.codex':       { en: 'Codex',                                'zh-CN': 'Codex' },
-  'import.kind.zcode':       { en: 'ZCode',                                'zh-CN': 'ZCode' },
   'import.discovered':       { en: 'Discoverable sessions',                'zh-CN': '可导入会话数' },
   'import.discoverFailed':   { en: 'discovery failed',                     'zh-CN': '发现失败' },
   'import.dryRun':           { en: 'Preview only (no files written)',      'zh-CN': '仅预演（不写文件）' },

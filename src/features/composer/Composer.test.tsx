@@ -849,7 +849,7 @@ describe('Composer context bar (workspace + git branch)', () => {
   });
 });
 
-describe('Composer zcode 式聊天栏', () => {
+describe('Composer 会话聊天栏', () => {
   it('卡片底栏内含「+」入口与模型选择器', async () => {
     mockInvoke('zhuye_get_config', async () => '[active]\nprovider = "openai"\n\n[openai]\nmodel = "gpt-5"\napi_key = "sk-1"\n');
     mockInvoke('zhuye_agent_status', async () => ({

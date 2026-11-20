@@ -1,12 +1,8 @@
 import { Bot, Plus, Pencil, Trash2, Check } from 'lucide-react';
 import type { AgentsViewProps, ZhuyeAgentDef } from '@/contracts/agents';
 import { PageShell } from '../shell/PageShell';
-import { Badge } from '../design-system/Badge';
-import { Card } from '../design-system/Card';
-import { EmptyState } from '../design-system/EmptyState';
-import { Icon } from '../design-system/Icon';
 import { Spinner } from '../design-system/Spinner';
-import s from './AgentsView.module.css';
+import kit from '../settings/SettingsPage.module.css';
 
 export function AgentsView({ t, tab, onTabChange, activeAgent, defs, loading, error, isEditing, isMutating,
   isSwitchingAgent, draft, isCreating, onBeginCreate, onBeginEdit, onPatch, onSave, onCancel,
@@ -19,12 +15,12 @@ export function AgentsView({ t, tab, onTabChange, activeAgent, defs, loading, er
       width="lg"
       actions={
         <>
-          <div className={s.tabBar} role="tablist" aria-label={t('agents.tabs')}>
+          <div className={kit.seg} role="tablist" aria-label={t('agents.tabs')}>
             <button
               type="button"
               role="tab"
               aria-selected={tab === 'defs'}
-              className={s.tab}
+              className={kit.segBtn}
               data-active={tab === 'defs' || undefined}
               onClick={() => onTabChange('defs')}
               data-testid="agents-tab-defs"
@@ -35,7 +31,7 @@ export function AgentsView({ t, tab, onTabChange, activeAgent, defs, loading, er
               type="button"
               role="tab"
               aria-selected={tab === 'subagents'}
-              className={s.tab}
+              className={kit.segBtn}
               data-active={tab === 'subagents' || undefined}
               onClick={() => onTabChange('subagents')}
               data-testid="agents-tab-subagents"
@@ -46,12 +42,12 @@ export function AgentsView({ t, tab, onTabChange, activeAgent, defs, loading, er
           {tab === 'defs' && (
             <button
               type="button"
-              className={s.addBtn}
+              className={`${kit.btn} ${kit.primary}`}
               onClick={onBeginCreate}
               disabled={isEditing}
               data-testid="agents-add-btn"
             >
-              <Icon icon={Plus} size={12} /> {t('agents.new')}
+              <Plus size={12} strokeWidth={1.5} aria-hidden /> {t('agents.new')}
             </button>
           )}
         </>
@@ -64,23 +60,26 @@ export function AgentsView({ t, tab, onTabChange, activeAgent, defs, loading, er
       {/* 活跃 agent —— 运行时实际加载的那条定义。桌面端此前硬编码 agent
           名,这个视图能编辑定义但运行时永远不加载 —— 现在可以切换。 */}
       {activeAgent && (
-        <Card level="flat" padding="sm" className={s.activeCard} data-testid="agents-active">
-          <div className={s.activeHeader}>
-            <span className={s.activeLabel}>{t('agents.active.current')}</span>
-            <code className={s.activeName}>{activeAgent.name}</code>
-            {!activeAgent.defFound && (
-              <Badge variant="neutral">{t('agents.active.builtin')}</Badge>
-            )}
+        <div className={kit.card} data-testid="agents-active">
+          <div className={kit.row}>
+            <div className={kit.rowGrid}>
+              <div className={kit.rowText}>
+                <div className={kit.rowLabel}>{t('agents.active.current')} <code className={`${kit.mono} ${kit.resTitle}`}>{activeAgent.name}</code></div>
+                <div className={kit.rowDesc}>
+                  {t('agents.active.memoryScopes')}:{' '}
+                  {activeAgent.memoryScopes.length > 0
+                    ? activeAgent.memoryScopes.join(', ')
+                    : t('agents.active.noMemoryScopes')}
+                  {' · '}
+                  {t('agents.active.budget')}: {activeAgent.injectBudgetChars}
+                </div>
+              </div>
+              <div className={kit.rowCtl}>
+                {!activeAgent.defFound && <span className={kit.badge}>{t('agents.active.builtin')}</span>}
+              </div>
+            </div>
           </div>
-          <p className={s.activeMeta}>
-            {t('agents.active.memoryScopes')}:{' '}
-            {activeAgent.memoryScopes.length > 0
-              ? activeAgent.memoryScopes.join(', ')
-              : t('agents.active.noMemoryScopes')}
-            {' · '}
-            {t('agents.active.budget')}: {activeAgent.injectBudgetChars}
-          </p>
-        </Card>
+        </div>
       )}
 
       {/* Editor */}
@@ -97,27 +96,19 @@ export function AgentsView({ t, tab, onTabChange, activeAgent, defs, loading, er
 
       {/* List */}
       {loading ? (
-        <div className={s.loading}>
+        <div className={kit.emptyBox}>
           <Spinner size={20} />
         </div>
       ) : error ? (
-        <Card level="flat" padding="none">
-          <EmptyState
-            icon={<Icon icon={Bot} />}
-            title={t('agents.failed')}
-            description={t('agents.failedDesc')}
-          />
-        </Card>
+        <div className={kit.notice}>
+          <span>{t('agents.failed')}：{t('agents.failedDesc')}</span>
+        </div>
       ) : defs.length === 0 && !isEditing ? (
-        <Card level="flat" padding="none">
-          <EmptyState
-            icon={<Icon icon={Bot} />}
-            title={t('agents.empty')}
-            description={t('agents.emptyDesc')}
-          />
-        </Card>
+        <div className={kit.emptyBox}>
+          {t('agents.empty')} —— {t('agents.emptyDesc')}
+        </div>
       ) : (
-        <div className={s.list} data-testid="agents-list">
+        <div className={kit.resList} data-testid="agents-list">
           {defs.map((def) => (
             <AgentRow
               key={def.name}
@@ -156,48 +147,49 @@ function AgentRow({
   t: AgentsViewProps['t'];
 }) {
   return (
-    <div className={s.row} data-testid={`agent-row-${def.name}`} data-active={active || undefined}>
-      <div className={s.rowMain}>
-        <code className={s.rowName}>{def.name}</code>
-        <span className={s.rowDesc}>{def.description}</span>
-        {def.model && <Badge variant="accent">{def.model}</Badge>}
-        {def.readonly && <Badge variant="neutral">{t('agents.readonly')}</Badge>}
-        {def.spawnable && <Badge variant="success">{t('agents.spawnable')}</Badge>}
-        {active && <Badge variant="info">{t('agents.active.badge')}</Badge>}
-      </div>
-      <div className={s.rowSide}>
-        <div className={s.rowActions}>
-          {!active && (
-            <button
-              type="button"
-              className={s.actionBtn}
-              onClick={onActivate}
-              disabled={switching}
-              title={t('agents.active.set')}
-              data-testid={`agent-activate-${def.name}`}
-            >
-              <Icon icon={Check} size={12} />
-            </button>
-          )}
-          <button
-            type="button"
-            className={s.actionBtn}
-            onClick={onEdit}
-            title={t('agents.edit')}
-            data-testid={`agent-edit-${def.name}`}
-          >
-            <Icon icon={Pencil} size={12} />
-          </button>
-          <button
-            type="button"
-            className={`${s.actionBtn} ${s.actionBtnDanger}`}
-            onClick={onRemove}
-            title={t('agents.delete')}
-            data-testid={`agent-delete-${def.name}`}
-          >
-            <Icon icon={Trash2} size={12} />
-          </button>
+    <div className={kit.resItem} data-testid={`agent-row-${def.name}`} data-active={active || undefined}>
+      <span className={kit.iconTile}><Bot strokeWidth={1.5} aria-hidden /></span>
+      <div className={kit.resMain}>
+        <div className={kit.titleRow}>
+          <code className={`${kit.resTitle} ${kit.mono}`}>{def.name}</code>
+          {def.model && <span className={kit.badge} data-fg>{def.model}</span>}
+          {def.readonly && <span className={kit.badge}>{t('agents.readonly')}</span>}
+          {def.spawnable && <span className={kit.badge} data-fg>{t('agents.spawnable')}</span>}
+          {active && <span className={kit.badge} data-fg>{t('agents.active.badge')}</span>}
         </div>
+        <div className={kit.resDesc}>{def.description}</div>
+      </div>
+      <div className={`${kit.resSide} ${kit.sideWrap}`}>
+        {!active && (
+          <button
+            type="button"
+            className={`${kit.btn} ${kit.ghost} ${kit.iconOnly}`}
+            onClick={onActivate}
+            disabled={switching}
+            title={t('agents.active.set')}
+            data-testid={`agent-activate-${def.name}`}
+          >
+            <Check strokeWidth={1.5} aria-hidden />
+          </button>
+        )}
+        <button
+          type="button"
+          className={`${kit.btn} ${kit.ghost} ${kit.iconOnly}`}
+          onClick={onEdit}
+          title={t('agents.edit')}
+          data-testid={`agent-edit-${def.name}`}
+        >
+          <Pencil strokeWidth={1.5} aria-hidden />
+        </button>
+        <button
+          type="button"
+          className={`${kit.btn} ${kit.destructive} ${kit.iconOnly}`}
+          onClick={onRemove}
+          title={t('agents.delete')}
+          data-testid={`agent-delete-${def.name}`}
+        >
+          <Trash2 strokeWidth={1.5} aria-hidden />
+        </button>
       </div>
     </div>
   );

@@ -149,9 +149,9 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     await waitFor(() => expect(logText()).toContain('Executing the plan.'));
 
     // 5. 编辑工具需逐工具审批 —— v2:接管卡(非模态)。
-    const toolCard = await screen.findByTestId('zcode-approval');
+    const toolCard = await screen.findByTestId('session-approval');
     expect(within(toolCard).getByText(/write_file/)).toBeDefined();
-    fireEvent.click(within(toolCard).getByTestId('zcode-approval-allow'));
+    fireEvent.click(within(toolCard).getByTestId('session-approval-allow'));
     await waitFor(() => expect(backend.agent.toolApprovals.length).toBe(1));
     expect(backend.agent.toolApprovals[0]).toEqual({ id: 'apr-edit', decision: 'approve' });
 

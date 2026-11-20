@@ -21,7 +21,8 @@ export interface PageShellProps {
 export function PageShell({ icon: IconComp, title, subtitle, actions, width = 'md', children }: PageShellProps) {
   return (
     <div className={s.root} data-width={width}>
-      <header className={s.header}>
+      {/* data-pageshell-*：设置页嵌入路由页内容时按属性折叠页面壳 / 放开内容宽。 */}
+      <header className={s.header} data-pageshell-header="">
         <div className={s.headerLeft}>
           {IconComp && (
             <div className={s.icon}>
@@ -35,7 +36,9 @@ export function PageShell({ icon: IconComp, title, subtitle, actions, width = 'm
         </div>
         {actions && <div className={s.actions}>{actions}</div>}
       </header>
-      <div className={s.content}>{children}</div>
+      <div className={s.content} data-pageshell-content="">
+        {children}
+      </div>
     </div>
   );
 }

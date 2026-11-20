@@ -114,7 +114,7 @@
   background: transparent;
 }
 
-/* ===== v2 工作台(redesign/zcode-shell)===== */
+/* ===== v2 工作台(v2-shell-redesign)===== */
 .zroot {
   height: 100%;
   display: flex;
@@ -123,6 +123,9 @@
   overflow: hidden;
 }
 .chatpane {
+  position: relative;
+  /* 状态面板的 auto 态靠容器查询（≥1280px 展开面板 / 否则胶囊）。 */
+  container: conversation / inline-size;
   flex: 1;
   min-height: 0;
   display: flex;

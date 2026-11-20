@@ -1,5 +1,5 @@
 /**
- * 外部 Agent 导入(v1.11 D9)—— 三种外部 harness 会话 → 烛夜。
+ * 外部 Agent 导入(v1.11 D9)—— 外部 harness 会话 → 烛夜。
  *
  * 后端 `zhuye_import_discover` / `zhuye_import_sessions` 直接驱动
  * `zhuye-import` 引擎(发现来源 → 批量导入到本机 rollout base)。
@@ -7,7 +7,7 @@
 import { invoke } from '../bridge';
 
 /** 支持的 Harness 种类。 */
-export type ImportHarnessKind = 'claude_code' | 'codex' | 'zcode';
+export type ImportHarnessKind = 'claude_code' | 'codex';
 
 /** 一条可导入来源。 */
 export interface ZhuyeImportSourceInfo {

@@ -39,7 +39,14 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
         .as_ref()
         .and_then(|section| section.resolved())
         .map(|resolved| u32::from(resolved.max_questions));
-    register_builtin_tools(&tools, max_questions);
+    // 门控型 bundled 插件工具(web_search / notebook_edit)按插件状态决定
+    // 是否注册 —— 与 exec headless / lib facade 同一判定源
+    // (`zhuye_plugin::bundled_tool_gates`),关闭走 `[plugins].disabled_plugins`。
+    let gates = zhuye_plugin::bundled_tool_gates(
+        &cfg_snapshot.plugins.enabled_plugins,
+        &cfg_snapshot.plugins.disabled_plugins,
+    );
+    register_builtin_tools(&tools, max_questions, gates);
     // 2a. 任务工具 —— GUI 里有任务板,agent 也得能驱动它(此前只有 GUI 侧
     //     的 CRUD,agent 既看不到也改不了任务)。
     super::subagents::register_task_tools(&tools, agent.task_manager());
@@ -176,8 +183,18 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
 }
 
 /// 与上游运行时共用内置工具清单，AST 实现由桌面侧注入。
-fn register_builtin_tools(tools: &Arc<ToolRegistry>, max_questions: Option<u32>) {
-    zhuye_tools::register_builtin_tools(tools, max_questions, Arc::new(zhuye_ast::AstTool::new()));
+/// `gates` 为门控型 bundled 插件工具门(默认全开,见 `BundledToolGates::all_on`)。
+fn register_builtin_tools(
+    tools: &Arc<ToolRegistry>,
+    max_questions: Option<u32>,
+    gates: zhuye_tools::BundledToolGates,
+) {
+    zhuye_tools::register_builtin_tools_with_gates(
+        tools,
+        max_questions,
+        Arc::new(zhuye_ast::AstTool::new()),
+        gates,
+    );
 }
 
 #[cfg(test)]
@@ -188,7 +205,7 @@ mod tests {
     #[tokio::test]
     async fn register_builtin_tools_populates_registry() {
         let tools = Arc::new(ToolRegistry::new());
-        register_builtin_tools(&tools, Some(2));
+        register_builtin_tools(&tools, Some(2), zhuye_tools::BundledToolGates::all_on());
         let names = tools.list();
         assert_eq!(names.len(), zhuye_tools::BUILTIN_TOOL_COUNT);
         let question = serde_json::json!({
@@ -233,6 +250,22 @@ mod tests {
                 "missing tool: {expected}"
             );
         }
+    }
+
+    /// 门控全关时 web_search / notebook_edit 不进注册表(其余工具不受影响),
+    /// 与上游 `bundled_tool_gates(&[], &["web-search", "notebook"])` 同口径。
+    #[tokio::test]
+    async fn register_builtin_tools_respects_gates() {
+        let gates = zhuye_tools::BundledToolGates::new();
+        let tools = Arc::new(ToolRegistry::new());
+        register_builtin_tools(&tools, None, gates);
+        let names = tools.list();
+        assert_eq!(names.len(), zhuye_tools::UNGATED_BUILTIN_TOOL_COUNT);
+        assert!(!names.contains(&"web_search".to_string()));
+        assert!(!names.contains(&"notebook_edit".to_string()));
+        // 无门控项仍在:bash / tool_search 等代表样本。
+        assert!(names.contains(&"bash".to_string()));
+        assert!(names.contains(&"tool_search".to_string()));
     }
 
     /// 任务工具必须注册 —— GUI 里有任务板,agent 也得能驱动它。

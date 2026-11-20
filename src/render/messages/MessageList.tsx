@@ -33,7 +33,7 @@ function groupToolNodes(items: TurnItem[]): RenderNode[] {
       nodes.push({ kind: 'item', item });
     }
   }
-  // 连续的工具调用聚合成组（zcode / codex 式）：会话默认只露一行摘要，
+  // 连续的工具调用聚合成组（对话式 agent 产品惯例）：会话默认只露一行摘要，
   // 逐条调用收在折叠层里；单条调用保持独立行（不必再套一层壳）。
   const out: RenderNode[] = [];
   let buffer: ToolEntry[] = [];

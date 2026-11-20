@@ -217,23 +217,6 @@ fn import_sessions_unknown_kind_fails_fast() {
     );
 }
 
-#[test]
-fn import_discover_zcode_returns_list_or_clean_error() {
-    let _guard = common::state_lock();
-    // ZCode 来源依赖 `~/.zcode/cli/db/db.sqlite` 存在与否(沙箱 HOME 里
-    // 通常没有)→ 空清单或明确的发现错误都算合法;绝不允许 panic。
-    let result = common::invoke("zhuye_import_discover", json!({ "kind": "zcode" }));
-    match result {
-        Ok(list) => {
-            assert!(list.is_array(), "发现结果应为数组: {list}");
-        }
-        Err(err) => {
-            let msg = err["msg"].as_str().unwrap_or_default();
-            assert!(!msg.is_empty(), "错误必须带原因: {err}");
-        }
-    }
-}
-
 // ============================================================================
 // 桌面#2 补:插件市场**成功路径**(本地 directory 市场,零网络)
 // ============================================================================

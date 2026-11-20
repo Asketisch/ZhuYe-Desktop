@@ -59,7 +59,7 @@ const chat: Record<string, StringEntry> = {
   'chat.tool.args':                { en: 'args',                                                              'zh-CN': '参数' },
   'chat.tool.emptyArgs':           { en: '(no args)',                                                         'zh-CN': '(无参数)' },
   'chat.tool.planBodyHint':        { en: 'Plan body is rendered in the right panel — not shown inline.',            'zh-CN': '计划正文在右侧面板渲染，此处不再展开。' },
-  // 工具调用聚合组（zcode / codex 式）：连续调用折叠成一行摘要。
+  // 工具调用聚合组（对话式 agent 产品惯例）：连续调用折叠成一行摘要。
   'chat.toolGroup.summary':        { en: 'used {tools}',                                                       'zh-CN': '已使用 {tools}' },
   'chat.tool.noPath':              { en: '(no path)',                                                         'zh-CN': '(无路径)' },
   'chat.tool.chars':               { en: '{n} chars',                                                         'zh-CN': '{n} 字符' },

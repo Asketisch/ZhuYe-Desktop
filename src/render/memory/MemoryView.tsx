@@ -1,17 +1,19 @@
 /**
  * Memory —— 持久记忆面板：过滤、新增、编辑、分段与会话笔记。
+ *
+ * 视觉走设置页套件（SettingsPage.module.css）：过滤栏 = 工具栏胶囊 +
+ * 计数，列表 = 圆角行容器，空态/加载 = 套件空态。行条目（MemoryRow）
+ * 与表单（MemoryAddForm）/ 会话笔记（SessionNotesView）保留原组件。
+ * 测试锚点（memory-*）全部保留。
  */
-import { Brain, Plus, X, ShieldAlert } from 'lucide-react';
+import { Brain, Plus, ShieldAlert, X } from 'lucide-react';
 import type { MemoryViewProps } from '@/contracts/memory';
 import { PageShell } from '../shell/PageShell';
-import { Card } from '../design-system/Card';
-import { Icon } from '../design-system/Icon';
-import { EmptyState } from '../design-system/EmptyState';
 import { Spinner } from '../design-system/Spinner';
 import { MemoryRow } from './MemoryRow';
 import { MemoryAddForm } from './MemoryAddForm';
 import { SessionNotesView } from './SessionNotesView';
-import s from './MemoryView.module.css';
+import kit from '../settings/SettingsPage.module.css';
 
 export function MemoryView({ t, scopeWarning, filters, activeFilter, counts, showForm, canAdd,
   newScope, newKey, newValue, loading, error, entries, editKey, editValue, isMutating,
@@ -22,23 +24,24 @@ export function MemoryView({ t, scopeWarning, filters, activeFilter, counts, sho
   return (
     <PageShell icon={Brain} title={t('memory.title')} subtitle={t('memory.subtitle')} width="lg">
       {scopeWarning && (
-        <Card level="flat" padding="sm" className={s.scopeWarning} data-testid="memory-scope-warning">
-          <Icon icon={ShieldAlert} size={12} />
+        <div className={kit.notice} data-testid="memory-scope-warning">
+          <ShieldAlert size={14} strokeWidth={1.5} aria-hidden />
           <span>{scopeWarning}</span>
-        </Card>
+        </div>
       )}
 
-      <div className={s.filterBar}>
+      <div className={kit.toolbar}>
         {filters.map((scope) => (
-          <button key={scope} type="button" className={s.filterBtn}
+          <button key={scope} type="button" className={kit.pill}
             data-active={activeFilter === scope || undefined}
             onClick={() => onFilter(scope)} data-testid={`memory-filter-${scope}`}>
             {t(scope === 'all' ? 'memory.scope.all' : scope === 'user' ? 'memory.scope.user' : 'memory.scope.project')}{' '}
-            <span className={s.count}>{counts[scope as keyof MemoryViewProps['counts']] ?? 0}</span>
+            <span className={kit.dim}>{counts[scope as keyof MemoryViewProps['counts']] ?? 0}</span>
           </button>
         ))}
-        <button type="button" className={s.addBtn} onClick={onToggleForm} disabled={!canAdd} data-testid="memory-add-btn">
-          {showForm ? <Icon icon={X} size={12} /> : <Icon icon={Plus} size={12} />}{' '}
+        <span className={kit.grow} />
+        <button type="button" className={`${kit.btn} ${showForm ? kit.outline : kit.primary}`} onClick={onToggleForm} disabled={!canAdd} data-testid="memory-add-btn">
+          {showForm ? <X strokeWidth={1.5} aria-hidden /> : <Plus strokeWidth={1.5} aria-hidden />}{' '}
           {showForm ? t('memory.cancel') : t('memory.add')}
         </button>
       </div>
@@ -50,13 +53,13 @@ export function MemoryView({ t, scopeWarning, filters, activeFilter, counts, sho
       )}
 
       {loading ? (
-        <div className={s.loading}><Spinner size={20} /></div>
+        <div className={kit.emptyBox}><Spinner size={20} /></div>
       ) : error ? (
-        <Card level="flat" padding="none"><EmptyState icon={<Icon icon={Brain} />} title={t('memory.failed')} description={t('memory.failedDesc')} /></Card>
+        <div className={kit.notice}><span>{t('memory.failed')}：{t('memory.failedDesc')}</span></div>
       ) : entries.length === 0 ? (
-        <Card level="flat" padding="none"><EmptyState icon={<Icon icon={Brain} />} title={t('memory.empty')} description={t('memory.emptyDesc')} /></Card>
+        <div className={kit.emptyBox}>{t('memory.empty')} —— {t('memory.emptyDesc')}</div>
       ) : (
-        <div className={s.list} data-testid="memory-list">
+        <div className={kit.resList} data-testid="memory-list">
           {entries.map((entry) => (
             <MemoryRow key={entryKey(entry)} entryKey={entryKey} t={t} entry={entry} isEditing={editKey === entryKey(entry)}
               editValue={editValue} isMutating={isMutating}
@@ -68,7 +71,7 @@ export function MemoryView({ t, scopeWarning, filters, activeFilter, counts, sho
 
       {orphanDrafts.length > 0 && (
         <div data-testid="memory-orphan-draft">
-          <p className={s.empty}>{t('memory.editMissing')}</p>
+          <p className={kit.secDesc}>{t('memory.editMissing')}</p>
           {orphanDrafts.map((draft) => (
             <MemoryRow key={entryKey(draft.entry)} entryKey={entryKey} t={t} entry={draft.entry} isEditing={editKey === entryKey(draft.entry)}
               hasDraft removeTitle={t('memory.discardDraft')} editValue={editValue} isMutating={isMutating}
@@ -81,19 +84,21 @@ export function MemoryView({ t, scopeWarning, filters, activeFilter, counts, sho
       <SessionNotesView t={t} sessions={notesSessions} notes={notes} picked={notesPicked}
         loading={notesLoading} error={notesError} onPick={onPickNotesSession} />
 
-      {memorySectionsError && <Card level="flat" padding="sm" className={s.notesSection}><p className={s.empty}>{t('memory.sections.failed')}</p></Card>}
+      {memorySectionsError && <div className={kit.notice}><span>{t('memory.sections.failed')}</span></div>}
 
       {sections.length > 0 && (
-        <section className={s.notesSection} data-testid="memory-sections">
-          <h3 className={s.notesTitle}>
-            {t('memory.sections.title')}
-            {injectBudget > 0 && <span className={s.notesTitle}>{t('memory.sections.budget', { used: usedChars.toLocaleString(), total: injectBudget.toLocaleString() })}</span>}
-          </h3>
-          <ul className={s.notesList}>
+        <section className={kit.resGroup} data-testid="memory-sections">
+          <div className={kit.resHead}>
+            <h3>{t('memory.sections.title')}</h3>
+            {injectBudget > 0 && <span className={kit.count}>{t('memory.sections.budget', { used: usedChars.toLocaleString(), total: injectBudget.toLocaleString() })}</span>}
+          </div>
+          <ul className={kit.resList}>
             {sections.map((sec, index) => (
-              <li key={`${sec.scope}-${sec.index}-${index}`} className={s.noteItem}>
-                <span className={s.noteTime}>{sec.scope}{sec.title ? ` · ${sec.title}` : ''}</span>
-                <span className={s.noteText}>{sec.body}</span>
+              <li key={`${sec.scope}-${sec.index}-${index}`} className={kit.resItem}>
+                <div className={kit.resMain}>
+                  <span className={kit.resTitle}>{sec.scope}{sec.title ? ` · ${sec.title}` : ''}</span>
+                  <div className={kit.resDesc}>{sec.body}</div>
+                </div>
               </li>
             ))}
           </ul>

@@ -12,6 +12,7 @@ import { render, cleanup, fireEvent, waitFor, screen } from '@testing-library/re
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Inspector } from '@/features/shell/Inspector';
 import { useAgentStore } from '@/stores/agentStore';
+import { useShellUi } from '@/stores/shellUi';
 import { resetMockInvoke, createTestQueryClient, mockInvoke } from '@/test/setup.tsx';
 import type { TokenSnapshot } from '@/stores/agent/types';
 
@@ -32,6 +33,7 @@ describe('Inspector — token usage section', () => {
   beforeEach(() => {
     resetMockInvoke();
     useAgentStore.getState().reset();
+    useShellUi.setState({ inspectorTab: 'overview' });
   });
   afterEach(() => cleanup());
 
@@ -109,6 +111,7 @@ describe('Inspector tabs', () => {
   beforeEach(() => {
     resetMockInvoke();
     useAgentStore.getState().reset();
+    useShellUi.setState({ inspectorTab: 'overview' });
   });
 
   it('cancels a running subagent with its child id', async () => {
@@ -220,6 +223,8 @@ describe('Inspector — todo 清单', () => {
   beforeEach(() => {
     resetMockInvoke();
     useAgentStore.getState().reset();
+    // 页签真源在 shellUi（前一用例可能切走），回到概览。
+    useShellUi.setState({ inspectorTab: 'overview' });
   });
   afterEach(() => cleanup());
 
@@ -253,6 +258,7 @@ describe('Inspector — plan tab renders plan content', () => {
   beforeEach(() => {
     resetMockInvoke();
     useAgentStore.getState().reset();
+    useShellUi.setState({ inspectorTab: 'plan' });
   });
   afterEach(() => cleanup());
 

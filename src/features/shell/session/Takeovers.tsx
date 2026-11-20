@@ -1,5 +1,5 @@
 /**
- * Takeovers —— 审批 / 提问 / 输入 的 composer 座位接管卡(redesign/zcode-shell)。
+ * Takeovers —— 审批 / 提问 / 输入 的 composer 座位接管卡(v2-shell-redesign)。
  *
  * DeepSeek ui-approval / ui-user-questions 口径:等待交互时**接管 composer
  * 本体**(composer 整体隐藏,不留占位卡),处理完成后交还。
@@ -12,7 +12,7 @@ import { Shield, X, Check, Loader2 } from 'lucide-react';
 import { useAgentStore, type PendingApproval, type PendingQuestion, type PendingAskUser } from '@/stores/agentStore';
 import type { Question } from '@/types/protocol';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/shell/zcode/zcode.module.css';
+import s from '@/render/shell/session/session.module.css';
 
 /* ===== 工具 / Hook 审批 ===== */
 export function ApprovalTakeover({ approval }: { approval: PendingApproval }) {
@@ -30,11 +30,11 @@ export function ApprovalTakeover({ approval }: { approval: PendingApproval }) {
   };
 
   const title = approval.kind === 'tool'
-    ? t('zcode.approval.title', { tool: approval.toolName ?? 'bash' })
-    : t('zcode.approval.hookTitle');
+    ? t('approval.title', { tool: approval.toolName ?? 'bash' })
+    : t('approval.hookTitle');
 
   return (
-    <div className={s.takeover} data-kind="approval" data-testid="zcode-approval">
+    <div className={s.takeover} data-kind="approval" data-testid="session-approval">
       <div className={s.tkHead}>
         <Shield size={14} />
         {title}
@@ -47,20 +47,20 @@ export function ApprovalTakeover({ approval }: { approval: PendingApproval }) {
           className={s.popRow}
           style={{ width: 'auto', color: 'var(--danger)' }}
           disabled={busy}
-          data-testid="zcode-approval-deny"
+          data-testid="session-approval-deny"
           onClick={() => decide({ deny: { reason: 'denied by user' } })}
         >
-          {t('zcode.approval.deny')}
+          {t('approval.deny')}
         </button>
         <button
           type="button"
           className={s.popRow}
           style={{ width: 'auto' }}
           disabled={busy}
-          data-testid="zcode-approval-session"
+          data-testid="session-approval-session"
           onClick={() => decide('approve_for_session')}
         >
-          {t('zcode.approval.session')}
+          {t('approval.session')}
         </button>
         <button
           type="button"
@@ -68,12 +68,12 @@ export function ApprovalTakeover({ approval }: { approval: PendingApproval }) {
           style={{ width: 'auto', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 500 }}
           disabled={busy}
           autoFocus
-          data-testid="zcode-approval-allow"
+          data-testid="session-approval-allow"
           onClick={() => decide('approve')}
         >
-          {t('zcode.approval.once')}
+          {t('approval.once')}
         </button>
-        <span className={s.tkNote}>{t('zcode.approval.alwaysHint')}</span>
+        <span className={s.tkNote}>{t('approval.alwaysHint')}</span>
       </div>
     </div>
   );
@@ -113,7 +113,7 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
   };
 
   return (
-    <div className={s.takeover} data-kind="question" data-testid="zcode-question">
+    <div className={s.takeover} data-kind="question" data-testid="session-question">
       <div className={s.tkHead} style={{ color: 'var(--info)' }}>
         {t('modal.question.title')}
       </div>
@@ -188,7 +188,7 @@ export function AskUserTakeover({ askUser }: { askUser: PendingAskUser }) {
   const [busy, setBusy] = useState(false);
   const prompt = payload?.prompt ?? t('modal.askUser.defaultPrompt');
   return (
-    <div className={s.takeover} data-kind="question" data-testid="zcode-askuser">
+    <div className={s.takeover} data-kind="question" data-testid="session-askuser">
       <div className={s.tkHead} style={{ color: 'var(--info)' }}>
         <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', color: 'var(--text-primary)' }}>{prompt}</span>
         <button

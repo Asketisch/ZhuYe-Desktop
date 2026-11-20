@@ -2,7 +2,7 @@ import type { ComponentProps, ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { PendingApproval, PendingQuestion, PendingAskUser, Turn } from '@/stores/agent/types';
 import type { GitSummary } from '@/logic/chat/gitSummary';
-import type { WorkHead, ViewRing } from '@/features/shell/zcode/WorkHead';
+import type { WorkHead, ViewRing } from '@/features/shell/session/WorkHead';
 import type { MessageList } from '@/features/messages/MessageList';
 
 export interface ChatSlots {
@@ -15,7 +15,9 @@ export interface ChatSlots {
   ContextBanner: ComponentType;
   ScmChanges: ComponentType;
   TrajView: ComponentType;
-  ZDock: ComponentType<{ goalActive: boolean; goalText: string; turnRunning: boolean }>;
+  SessionDock: ComponentType<{ goalActive: boolean; goalText: string; turnRunning: boolean }>;
+  /** 右上角浮动状态面板（目标 / 计划 / 进程）。 */
+  StatusPanel: ComponentType<{ goalActive: boolean; goalText: string; turnRunning: boolean }>;
   ApprovalTakeover: ComponentType<{ approval: PendingApproval }>;
   QuestionTakeover: ComponentType<{ question: PendingQuestion }>;
   AskUserTakeover: ComponentType<{ askUser: PendingAskUser }>;

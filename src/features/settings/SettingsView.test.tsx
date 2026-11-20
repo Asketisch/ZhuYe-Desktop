@@ -73,34 +73,34 @@ describe('SettingsView', () => {
   });
   afterEach(() => cleanup());
 
-  it('renders Model Groups / Permissions / Advanced sections', async () => {
+  it('renders Model settings / Behavior / Advanced sections', async () => {
     renderSettingsView();
-    expect(screen.getByText('Settings')).toBeDefined();
-    // nav + section 都有同名标题，用 getAllByText。
-    expect(screen.getAllByText('Model Groups').length).toBeGreaterThanOrEqual(1);
+    // 分区标题出现在内容区（h2），导航按钮同名，用 getAllByText。
+    expect(screen.getAllByText('Model settings').length).toBeGreaterThanOrEqual(1);
     // 「提供商」导航项已随提供商方案层删除。
     expect(screen.queryByText('Provider')).toBeNull();
-    expect(screen.getAllByText('Permissions').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Behavior and tools').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Advanced/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows agent ready status badge when has_model', async () => {
     renderSettingsView();
+    // 状态徽标在「模型设置」分区头（默认分区即 groups）。
     await waitFor(() => {
       expect(screen.getByText(/Agent ready/)).toBeDefined();
     });
   });
 
-  it('clicking permission button calls zhuye_set_permission_mode', async () => {
+  it('clicking permission segment calls zhuye_set_permission_mode', async () => {
     let modeArg: string | null = null;
     mockInvoke('zhuye_set_permission_mode', async (_cmd: string, args: unknown) => {
       modeArg = (args as { mode: string }).mode;
     });
 
     renderSettingsView();
-    // 权限快捷控件只在 Permissions 页显示（不再每个设置页签重复）。
-    fireEvent.click(screen.getByText('Permissions'));
-    // permission 按钮文案:auto/prompt/deny/plan。
+    // 权限控件在「行为与工具」分区。
+    fireEvent.click(screen.getByTestId('settings-section-behavior'));
+    // permission 分段按钮文案:auto/prompt/plan。
     const planBtn = await screen.findByText('plan', { selector: 'button' });
     fireEvent.click(planBtn);
 
@@ -135,19 +135,17 @@ describe('SettingsView', () => {
 
   it('Save button calls zhuye_save_config with merged TOML', async () => {
     let savedToml: string | null = null;
+    // TEMP-DEBUG
     mockInvoke('zhuye_save_config', async (_cmd: string, args: unknown) => {
       savedToml = (args as { toml: string }).toml;
     });
 
     renderSettingsView();
-    // 等 config 加载完成(状态徽标出现 = get_config + agent_status 都 resolve)。
-    await waitFor(() => {
-      expect(screen.getByText(/Agent ready/)).toBeDefined();
-    });
-    // 再等一帧让 useEffect 把 rawToml 写入。
-    await waitFor(() => {
-      expect(screen.getByText('Save to ~/.zhuye/config.toml')).toBeDefined();
-    });
+    // 保存条在「高级」分区底部（config 表单所在页）。
+    fireEvent.click(screen.getByTestId('settings-section-advanced'));
+    // 等 config 加载完成（raw TOML 编辑框被 seed）→ 保存按钮才可用。
+    const editor = await screen.findByRole('textbox', { name: 'Advanced (raw TOML)' }) as HTMLTextAreaElement;
+    await waitFor(() => expect(editor.value).toBe(SAMPLE_TOML));
 
     fireEvent.click(screen.getByText('Save to ~/.zhuye/config.toml'));
     await waitFor(() => expect(savedToml).not.toBeNull(), { timeout: 2000 });
@@ -197,7 +195,7 @@ describe('SettingsView', () => {
 
   it('updates theme and appearance preferences from Display settings', async () => {
     renderSettingsView();
-    fireEvent.click(screen.getByRole('button', { name: 'Display' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Appearance' }));
 
     fireEvent.click(screen.getByRole('button', { name: /Dark/ }));
     expect(getTheme()).toBe('dark');
@@ -229,7 +227,7 @@ describe('SettingsView', () => {
 
   it('renders the Display screen with all four primary cards (theme / accent / transparency / background)', () => {
     const { container } = renderSettingsView();
-    fireEvent.click(screen.getByRole('button', { name: 'Display' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Appearance' }));
     const headings = Array.from(container.querySelectorAll('h3')).map((h) => h.textContent ?? '');
     expect(headings.some((t) => t.includes('Theme'))).toBe(true);
     expect(headings.some((t) => t.includes('Accent color'))).toBe(true);
@@ -251,7 +249,7 @@ describe('SettingsView', () => {
 
   it('toggles the developer-mode ActivityBar switch from Display settings', () => {
     renderSettingsView();
-    fireEvent.click(screen.getByRole('button', { name: 'Display' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Appearance' }));
     // 默认 simple（大众模式）：开关未勾选。
     const toggle = screen.getByTestId('settings-advanced-views') as HTMLInputElement;
     expect(toggle.checked).toBe(false);

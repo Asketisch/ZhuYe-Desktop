@@ -133,6 +133,9 @@ function FeatureFlagsEditor({ rawToml, onChange }: { rawToml: string; onChange: 
 function PluginsEditor({ rawToml, onChange }: { rawToml: string; onChange: (v: string) => void }) {
   const { t } = useI18n();
   const enabled = readField(rawToml, 'plugins', 'enabled_plugins');
+  // 门控型 bundled 插件显式禁用表(上游 0.1.16):写即让对应工具不进注册表
+  // (web_search / notebook_edit 消失、tool_search 搜不到)。
+  const disabled = readField(rawToml, 'plugins', 'disabled_plugins');
   return (
     <div className={s.complexEditor}>
       <label className={s.fieldLabel} htmlFor="plugins-enabled">{t('settings.config.pluginsLabel')}</label>
@@ -141,6 +144,14 @@ function PluginsEditor({ rawToml, onChange }: { rawToml: string; onChange: (v: s
         rows={4}
         value={enabled}
         onChange={(e) => onChange(applyField(rawToml, 'plugins', 'enabled_plugins', e.target.value, 'textarea'))}
+      />
+      <label className={s.fieldLabel} htmlFor="plugins-disabled">{t('settings.config.pluginsDisabledLabel')}</label>
+      <Textarea
+        id="plugins-disabled"
+        rows={3}
+        value={disabled}
+        placeholder={t('settings.config.pluginsDisabledPlaceholder')}
+        onChange={(e) => onChange(applyField(rawToml, 'plugins', 'disabled_plugins', e.target.value, 'textarea'))}
       />
     </div>
   );

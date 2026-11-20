@@ -1,15 +1,16 @@
 /**
- * zcode-shell —— v2 重设计组件测试(redesign/zcode-shell)。
+ * redesign —— v2 重设计组件测试(v2 壳层改版)。
  *
- * 覆盖:ZDock(计划/排队 chips + popover 交互)、审批接管卡(决策走 store)、
+ * 覆盖:SessionDock(计划/排队 chips + popover 交互)、审批接管卡(决策走 store)、
  * view-ring 切换(对话 ↔ 轨迹)、轨迹账本推导(traj.ts)。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { ZDock } from '@/features/shell/zcode/ZDock';
-import { ApprovalTakeover } from '@/features/shell/zcode/Takeovers';
-import { TrajView } from '@/features/shell/zcode/TrajView';
-import { deriveTrajEntries } from '@/features/shell/zcode/traj';
+import { SessionDock } from '@/features/shell/session/SessionDock';
+import { StatusPanel } from '@/features/shell/session/StatusPanel';
+import { ApprovalTakeover } from '@/features/shell/session/Takeovers';
+import { TrajView } from '@/features/shell/session/TrajView';
+import { deriveTrajEntries } from '@/features/shell/session/traj';
 import { useAgentStore } from '@/stores/agentStore';
 import type { Turn, TodoItem } from '@/stores/agentStore';
 import { I18nProvider } from '@/utils/i18n';
@@ -18,31 +19,31 @@ function mount(ui: React.ReactElement) {
   return render(<I18nProvider>{ui}</I18nProvider>);
 }
 
-/* ===== ZDock ===== */
+/* ===== SessionDock ===== */
 
-describe('ZDock', () => {
-  it('无 todo / 排队时不渲染这两枚 chip；目标与建议入口常驻', () => {
+describe('SessionDock', () => {
+  it('无排队时不出排队 chip；任务/目标已迁移到状态面板，本行不再承载', () => {
     useAgentStore.setState({ todos: [], queuedMessages: [], goalActive: false });
-    const { container } = mount(<ZDock goalActive={false} goalText="" turnRunning={false} />);
-    expect(container.querySelector('[data-testid="zcode-dock-todo"]')).toBeNull();
-    expect(container.querySelector('[data-testid="zcode-dock-queue"]')).toBeNull();
-    // v3：原「右上角角标栈」的任务/目标/子代理/建议并入本行 ——
-    // 目标（设目标入口）与建议（快捷 prompt）是常驻入口，不再是窗口级浮层。
-    expect(container.querySelector('[data-testid="zcode-dock-goal"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="zcode-dock-suggestions"]')).not.toBeNull();
+    const { container } = mount(<SessionDock goalActive={false} goalText="" turnRunning={false} />);
+    expect(container.querySelector('[data-testid="session-dock-todo"]')).toBeNull();
+    expect(container.querySelector('[data-testid="session-dock-queue"]')).toBeNull();
+    // 任务 / 目标在右上角状态面板（StatusPanel）；本行只留子代理 / 建议 / 排队。
+    expect(container.querySelector('[data-testid="session-dock-goal"]')).toBeNull();
+    expect(container.querySelector('[data-testid="session-dock-suggestions"]')).not.toBeNull();
   });
 
-  it('todo chip 显示进度并在 popover 中列出三态清单', () => {
+  it('todo 清单在状态面板的「进程」节中列出三态', () => {
     const todos: TodoItem[] = [
       { content: '定位根因', status: 'completed', active_form: null },
       { content: 'NT 收口', status: 'in_progress', active_form: '收口中' },
       { content: '回归', status: 'pending', active_form: null },
     ];
     useAgentStore.setState({ todos, queuedMessages: [], goalActive: false });
-    mount(<ZDock goalActive={false} goalText="" turnRunning={false} />);
-    const chip = screen.getByTestId('zcode-dock-todo');
-    expect(chip.textContent).toContain('1/3');
-    fireEvent.click(chip);
+    mount(<StatusPanel goalActive={false} goalText="" turnRunning={false} />);
+    const pill = screen.getByTestId('status-panel-pill');
+    expect(pill.textContent).toContain('1/3');
+    expect(pill.textContent).toContain('收口中');
+    fireEvent.click(pill);
     expect(screen.getAllByText('定位根因').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/收口中/).length).toBeGreaterThanOrEqual(1);
   });
@@ -57,8 +58,8 @@ describe('ZDock', () => {
       ],
     });
     const removeSpy = vi.spyOn(useAgentStore.getState(), 'removeQueued');
-    mount(<ZDock goalActive={false} goalText="" turnRunning={true} />);
-    fireEvent.click(screen.getByTestId('zcode-dock-queue'));
+    mount(<SessionDock goalActive={false} goalText="" turnRunning={true} />);
+    fireEvent.click(screen.getByTestId('session-dock-queue'));
     expect(screen.getByText('第一条')).toBeDefined();
     // 移除按钮 = 队列行内的最后一个图标按钮(aria-label 移除)。
     const removeBtns = screen.getAllByLabelText(/移除|Remove/);
@@ -86,8 +87,8 @@ describe('ApprovalTakeover', () => {
   it('渲染命令摘要与三按钮;允许一次 → store.approve(approve)', async () => {
     const spy = vi.spyOn(useAgentStore.getState(), 'approve').mockResolvedValue(undefined);
     mount(<ApprovalTakeover approval={approval} />);
-    expect(screen.getByTestId('zcode-approval').textContent).toContain('cargo test --workspace');
-    fireEvent.click(screen.getByTestId('zcode-approval-allow'));
+    expect(screen.getByTestId('session-approval').textContent).toContain('cargo test --workspace');
+    fireEvent.click(screen.getByTestId('session-approval-allow'));
     await vi.waitFor(() => expect(spy).toHaveBeenCalledWith('tool', 'apr-1', 'approve'));
     spy.mockRestore();
   });
@@ -95,7 +96,7 @@ describe('ApprovalTakeover', () => {
   it('本次会话允许 → approve_for_session', async () => {
     const spy = vi.spyOn(useAgentStore.getState(), 'approve').mockResolvedValue(undefined);
     mount(<ApprovalTakeover approval={approval} />);
-    fireEvent.click(screen.getByTestId('zcode-approval-session'));
+    fireEvent.click(screen.getByTestId('session-approval-session'));
     await vi.waitFor(() => expect(spy).toHaveBeenCalledWith('tool', 'apr-1', 'approve_for_session'));
     spy.mockRestore();
   });
@@ -103,7 +104,7 @@ describe('ApprovalTakeover', () => {
   it('拒绝 → deny 理由', async () => {
     const denySpy = vi.spyOn(useAgentStore.getState(), 'approve').mockResolvedValue(undefined);
     mount(<ApprovalTakeover approval={approval} />);
-    fireEvent.click(screen.getByTestId('zcode-approval-deny'));
+    fireEvent.click(screen.getByTestId('session-approval-deny'));
     await vi.waitFor(() =>
       expect(denySpy).toHaveBeenCalledWith('tool', 'apr-1', { deny: { reason: 'denied by user' } }),
     );
@@ -134,7 +135,7 @@ describe('TrajView(view-ring 轨迹)', () => {
 
   it('渲染密排账本:用户/助手/工具角色与工具名', () => {
     mount(<TrajView />);
-    const ledger = screen.getByTestId('zcode-traj-ledger');
+    const ledger = screen.getByTestId('session-traj-ledger');
     expect(ledger.textContent).toMatch(/用户|User/);
     expect(ledger.textContent).toMatch(/助手|Assistant/);
     expect(ledger.textContent).toMatch(/工具|Tool/);
@@ -144,16 +145,16 @@ describe('TrajView(view-ring 轨迹)', () => {
 
   it('选中记录打开检查器:层级/状态/参数分节', () => {
     mount(<TrajView />);
-    fireEvent.click(screen.getAllByTestId(/^zcode-traj-row-/)[2]);
-    const insp = screen.getByTestId('zcode-traj-inspector');
+    fireEvent.click(screen.getAllByTestId(/^session-traj-row-/)[2]);
+    const insp = screen.getByTestId('session-traj-inspector');
     expect(insp.textContent).toContain('第 1 轮');
     expect(insp.textContent).toContain('git status');
   });
 
   it('折叠调用:工具行隐藏、用户/助手行保留', () => {
     mount(<TrajView />);
-    fireEvent.click(screen.getByTestId('zcode-traj-fold-calls'));
-    const ledger = screen.getByTestId('zcode-traj-ledger');
+    fireEvent.click(screen.getByTestId('session-traj-fold-calls'));
+    const ledger = screen.getByTestId('session-traj-ledger');
     const visible = [...ledger.querySelectorAll('[data-rec]')].filter((el) => el.offsetHeight > 0);
     expect(visible.length).toBe(0);
     expect(ledger.textContent).toContain('根因已定位');

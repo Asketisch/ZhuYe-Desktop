@@ -70,7 +70,8 @@ zhuye-compact = { path = "zhuye-agent/crates/abilities/zhuye-compact" }
 zhuye-recovery = { path = "zhuye-agent/crates/abilities/zhuye-recovery" }
 zhuye-notes = { path = "zhuye-agent/crates/abilities/zhuye-notes" }
 zhuye-sanitize = { path = "zhuye-agent/crates/abilities/zhuye-sanitize" }
-zhuye-kms = { path = "zhuye-agent/crates/abilities/zhuye-kms" }
+# kms 已归位到 integrations(plugins/kms 能力本体,与 computer-use/shell 同款)
+zhuye-kms = { path = "zhuye-agent/crates/integrations/zhuye-kms" }
 zhuye-config = { path = "zhuye-agent/crates/resources/zhuye-config" }
 zhuye-permissions = { path = "zhuye-agent/crates/resources/zhuye-permissions" }
 zhuye-plugin = { path = "zhuye-agent/crates/resources/zhuye-plugin" }

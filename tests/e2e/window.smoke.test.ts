@@ -180,9 +180,9 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     await composer.sendKeys('window-tool-chain-test');
     const send = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-send"]')), 30_000);
     await send.click();
-    const dialog = await waitDialog('[data-testid="zcode-approval"]');
+    const dialog = await waitDialog('[data-testid="session-approval"]');
     expect(readFileSync(providerLog, 'utf8')).not.toContain('window tool result:');
-    await dialog.findElement(By.css('[data-testid="zcode-approval-allow"]')).click();
+    await dialog.findElement(By.css('[data-testid="session-approval-allow"]')).click();
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window tool round verified'), 60_000);
     expect(readFileSync(providerLog, 'utf8')).toContain('tool-approved-marker');
@@ -195,9 +195,9 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-tool-deny-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[data-testid="zcode-approval"]');
+    const dialog = await waitDialog('[data-testid="session-approval"]');
     expect(existsSync(marker)).toBe(false);
-    await dialog.findElement(By.css('[data-testid="zcode-approval-deny"]')).click();
+    await dialog.findElement(By.css('[data-testid="session-approval-deny"]')).click();
     const log = await driver!.findElement(By.css('[role="log"]'));
     await driver!.wait(async () => (await log.getText()).includes('window denial verified'), 60_000);
     expect(existsSync(marker)).toBe(false);
@@ -211,9 +211,9 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-tool-write-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[data-testid="zcode-approval"]');
+    const dialog = await waitDialog('[data-testid="session-approval"]');
     expect(existsSync(marker)).toBe(false);
-    await dialog.findElement(By.css('[data-testid="zcode-approval-allow"]')).click();
+    await dialog.findElement(By.css('[data-testid="session-approval-allow"]')).click();
     await driver!.wait(() => readFileSync(providerLog, 'utf8').includes('window write tool result:'), 30_000);
     const line = readFileSync(providerLog, 'utf8').split('\n').find((entry) => entry.startsWith('window write tool result:'));
     const result = JSON.parse(line!.slice('window write tool result:'.length));
@@ -501,7 +501,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-question-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[data-testid="zcode-question"]');
+    const dialog = await waitDialog('[data-testid="session-question"]');
     expect(await dialog.getText()).toContain('Choose a fruit?');
     const clickOpt = async (label: string, times = 1) => {
       for (let i = 0; i < times; i += 1) {
@@ -516,7 +516,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     await dialog.findElement(By.xpath('.//button[contains(normalize-space(.), "Submit") or contains(normalize-space(.), "提交")]')).click();
     await driver!.wait(async () => {
       try {
-        return (await driver!.findElements(By.css('[data-testid="zcode-question"]'))).length === 0;
+        return (await driver!.findElements(By.css('[data-testid="session-question"]'))).length === 0;
       } catch {
         return false;
       }
@@ -529,13 +529,13 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-card"] textarea')), 30_000);
     await composer.sendKeys('window-input-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
-    const dialog = await waitDialog('[data-testid="zcode-askuser"]');
+    const dialog = await waitDialog('[data-testid="session-askuser"]');
     const input = await dialog.findElement(By.css('textarea'));
     await input.sendKeys('window-synthetic-secret');
     await dialog.findElement(By.xpath('.//button[contains(normalize-space(.), "Submit") or contains(normalize-space(.), "提交")]')).click();
     await driver!.wait(async () => {
       try {
-        return (await driver!.findElements(By.css('[data-testid="zcode-askuser"]'))).length === 0;
+        return (await driver!.findElements(By.css('[data-testid="session-askuser"]'))).length === 0;
       } catch {
         return false;
       }

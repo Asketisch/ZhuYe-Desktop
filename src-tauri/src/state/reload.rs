@@ -72,13 +72,21 @@ pub(crate) async fn hot_reload_provider_stack(
     //    的 plugins 分支同语义)。模型接入栈变更触发的 rebind 会走
     //    spawn_mount 全量重挂,不依赖这里;此分支覆盖「只改了 [plugins]」
     //    的场景。无绑定会话时挂载目标线程尚未重建,下次 rebind 自然生效。
-    if old.plugins.enabled_plugins != new.plugins.enabled_plugins
-        || agent.inner.pending_plugin_reload_error.lock().is_some()
-    {
+    //    触发条件 = enabled / disabled 列表变化或上次挂载有失败待重试
+    //    (marketplace 源变更不触发 —— 挂载列表与工具门都不消费它)。
+    //    `disabled_plugins`(门控型 bundled 插件显式禁用,上游 0.1.16)
+    //    不作用于挂载列表,但改变工具注册门 —— 走 apply_bundled_tool_gates
+    //    差量同步到共享注册表(verify-hooks / lsp 门随下次线程构造 /
+    //    LSP 开启尝试重新判定)。
+    let plugins_changed = old.plugins.enabled_plugins != new.plugins.enabled_plugins
+        || old.plugins.disabled_plugins != new.plugins.disabled_plugins
+        || agent.inner.pending_plugin_reload_error.lock().is_some();
+    if plugins_changed {
         info!(
             "[zhuye-gui] plugins section changed; diff-syncing enabled plugins: {:?}",
             new.plugins.enabled_plugins
         );
+        crate::state::plugins::apply_bundled_tool_gates(agent);
         let _mount = agent.inner.plugin_mount_lock.lock().await;
         match super::plugins::reload_enabled_plugins(agent, &new.plugins.enabled_plugins).await {
             Ok(()) => clear_pending_plugin_reload(agent),

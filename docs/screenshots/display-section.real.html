@@ -754,6 +754,11 @@ h6 {
   max-width: 720px;
 }
 
+/* 模型组页的主从布局需要全宽 —— 内容区随 section 放宽。 */
+.content[data-wide] {
+  max-width: none;
+}
+
 .sectionTitle {
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
@@ -766,23 +771,6 @@ h6 {
   color: var(--text-secondary);
   line-height: var(--lh-relaxed);
   margin: 0 0 var(--space-3);
-}
-
-.statusBar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--warning-bg);
-  border: 1px solid var(--warning-border);
-  color: var(--warning);
-  font-size: var(--fs-sm);
-}
-.statusBar[data-ok] {
-  background: var(--success-bg);
-  border-color: var(--success-border);
-  color: var(--success);
 }
 
 .errorBar {
@@ -820,11 +808,10 @@ h6 {
 }
 
 .fieldLabel {
-  font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
+  font-size: var(--fs-sm);
 }
 
 /* 字段下方的补充说明（如「留空 = 免 Key 端点」）。 */
@@ -1221,7 +1208,7 @@ h6 {
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  max-height: 200px;
+  max-height: 260px;
   overflow-y: auto;
   padding: var(--space-1);
   border: 1px solid var(--border-default);
@@ -1231,7 +1218,7 @@ h6 {
 
 .modelOption {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-1) var(--space-2);
@@ -1263,9 +1250,367 @@ h6 {
   white-space: nowrap;
 }
 
+/* ====== 模型组页（GroupsSection 主从布局） ======
+   页头（内联状态点 + 添加按钮）→ 左组列表 + 右详情面板。
+   颜色一律消费 tokens 标记；开关复用 harness 全局类 .sw。 */
+
+.groupsPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.groupsHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.groupsHeaderSpacer {
+  flex: 1;
+}
+
+/* 内联状态点（Agent 就绪 / 降级）—— 替代旧整宽横幅 */
+.groupsStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--warning);
+  font-size: var(--fs-xs);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.groupsStatus[data-ok] {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success);
+}
+.groupsStatus code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* ---- 主从骨架：master-detail 卡口径 —— 一张带边框圆角卡内含
+   224px 左列导航 + 右详情，最小高度 576px（min-h-[36rem] 口径），
+   导航列自带右发丝边，详情列去独立卡（ZCode master-detail 同款）。 ---- */
+.groupsLayout {
+  overflow: clip;
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 576px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+
+@media (max-width: 760px) {
+  .groupsLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.groupsNavCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border-right: 1px solid var(--border-subtle);
+}
+
+@media (min-width: 761px) {
+  .groupsNavCol {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 576px;
+    overflow-y: auto;
+  }
+}
+
+.gNavList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gNavItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  text-align: left;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.gNavItem:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.gNavItem[data-active] {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* 展示名首字 monogram 头像 */
+.gNavAvatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+}
+.gNavItem[data-active] .gNavAvatar {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.gNavItemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.gNavItemName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.gNavItemMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 凭据池健康点:绿 = 全可用;橙 = 有冷却;灰 = 无池信息 */
+.gNavDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--text-subtle);
+  opacity: 0.6;
+}
+.gNavDot[data-state='ok'] {
+  background: var(--success);
+  opacity: 1;
+}
+.gNavDot[data-state='cooling'] {
+  background: var(--warning);
+  opacity: 1;
+}
+
+.gNavEmpty {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+  margin: 0;
+  padding: var(--space-2);
+}
+
+/* 左列底部全局开关（自动切换 / 自动压缩） */
+.groupsNavFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding: var(--space-3) var(--space-2) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.gSwitchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.gSwitchLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---- 右详情面板（master-detail 卡内，去独立卡框，留大内边距） ---- */
+.gDetail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+.gDetailHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.gDetailTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.gDetailName {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gDetailSub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  min-width: 0;
+}
+.gDetailSub code {
+  font-family: var(--font-mono);
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+}
+
+.gDetailUrl {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 双列 / 三列字段排布（身份 / 高级数值项） */
+.gFieldPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.gFieldTriple {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 760px) {
+  .gFieldPair,
+  .gFieldTriple {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 凭据池工具行（计数 / 新增 / 显隐） */
+.gToolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gToolbarSpacer {
+  flex: 1;
+}
+
+/* 折叠区（高级配置 / 组内凭据） */
+.gFold {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.gFoldHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.gFoldHead:hover {
+  color: var(--text-primary);
+}
+
+.gFoldChevron {
+  transition: transform var(--transition-fast);
+  color: var(--text-muted);
+}
+.gFoldHead[aria-expanded='true'] .gFoldChevron {
+  transform: rotate(180deg);
+}
+
+.gFoldBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+/* 模型清单行内的能力徽标（与行右侧对勾） */
+.modelOptionMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.modelOptionTags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.modelOptionTag {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
 </style>
 </head>
 <body>
-<div id="root"><div class="_displayCards_4f76e7"><div data-level="flat" data-padding="lg" class="_card_660d7a"><h3 class="_cardTitle_4f76e7"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor" aria-hidden="true" role="presentation"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg> <!-- -->Theme</h3><p class="_cardDesc_4f76e7">Choose how the app looks. &quot;System&quot; follows your OS preference.</p><div class="_segmented_4f76e7" role="group" aria-label="Theme"><button type="button" data-active="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor" aria-hidden="true" role="presentation"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg> <!-- -->System</button><button type="button"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon" aria-hidden="true" role="presentation"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg> <!-- -->Dark</button><button type="button"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun" aria-hidden="true" role="presentation"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg> <!-- -->Light</button></div></div><div data-level="flat" data-padding="lg" class="_card_660d7a"><h3 class="_cardTitle_4f76e7"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette" aria-hidden="true" role="presentation"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg> <!-- -->Accent color</h3><p class="_cardDesc_4f76e7">Choose the color used for highlights, links, and focus rings.</p><div class="_colorRow_4f76e7"><button type="button" class="_colorSwatch_4f76e7" data-active="true" style="--swatch-color:#5dd1c6" aria-label="#5dd1c6"></button><button type="button" class="_colorSwatch_4f76e7" style="--swatch-color:#60a5fa" aria-label="#60a5fa"></button><button type="button" class="_colorSwatch_4f76e7" style="--swatch-color:#a78bfa" aria-label="#a78bfa"></button><button type="button" class="_colorSwatch_4f76e7" style="--swatch-color:#f472b6" aria-label="#f472b6"></button><button type="button" class="_colorSwatch_4f76e7" style="--swatch-color:#fb923c" aria-label="#fb923c"></button><button type="button" class="_colorSwatch_4f76e7" style="--swatch-color:#4ade80" aria-label="#4ade80"></button><input class="_colorPicker_4f76e7" type="color" aria-label="Custom accent color" value="#5dd1c6"/><code class="_colorValue_4f76e7">#5dd1c6</code><button type="button" data-variant="tertiary" data-size="sm" class="_btn_bf4edc">Reset</button></div></div><div data-level="flat" data-padding="lg" class="_card_660d7a"><h3 class="_cardTitle_4f76e7"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minimize2" aria-hidden="true" role="presentation"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" x2="21" y1="10" y2="3"></line><line x1="3" x2="10" y1="21" y2="14"></line></svg> <!-- -->Transparency</h3><p class="_cardDesc_4f76e7">Let the background image show through app surfaces.</p><label class="_row_4f76e7"><span>Surface opacity</span><input type="range" min="50" max="100" step="1" value="100"/><span class="_subtle_4f76e7">100%</span></label><label class="_row_4f76e7"><input type="checkbox"/><span>Reduce transparency</span></label></div><div data-level="flat" data-padding="lg" class="_card_660d7a"><h3 class="_cardTitle_4f76e7"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image" aria-hidden="true" role="presentation"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg> <!-- -->Background image</h3><p class="_cardDesc_4f76e7">Choose a local image or use an HTTPS image URL.</p><input type="file" accept="image/*" class="_hiddenInput_4f76e7"/><div class="_backgroundActions_4f76e7"><button type="button" data-variant="secondary" data-size="sm" class="_btn_bf4edc">Choose image</button></div><div class="_urlRow_4f76e7"><input type="url" placeholder="https://…" aria-label="Background image URL" value=""/><button type="button" data-variant="tertiary" data-size="sm" class="_btn_bf4edc" disabled="">Apply</button></div></div><div data-level="flat" data-padding="lg" class="_card_660d7a"><h3 class="_cardTitle_4f76e7"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-panel-left" aria-hidden="true" role="presentation"><rect width="7" height="18" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect></svg> <!-- -->Display</h3><p class="_cardDesc_4f76e7">Compact layout saves vertical space.</p><label class="_row_4f76e7"><input type="checkbox"/><span>Show working tree diff next to chat</span></label><label class="_row_4f76e7"><span>Density</span><select><option value="comfortable" selected="">Comfortable</option><option value="compact">Compact</option></select></label><label class="_row_4f76e7"><input type="checkbox" data-testid="settings-advanced-views"/><span>Show all advanced views (developer mode)</span></label><p class="_subtle_4f76e7">Pin every view to the left navigation bar. When off, advanced views stay reachable via &quot;More&quot; and the ⌘K palette.</p></div><div data-level="flat" data-padding="lg" class="_card_660d7a"><h3 class="_cardTitle_4f76e7"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-type" aria-hidden="true" role="presentation"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" x2="15" y1="20" y2="20"></line><line x1="12" x2="12" y1="4" y2="20"></line></svg> <!-- -->Editor</h3><p class="_cardDesc_4f76e7">When off, Enter inserts a new line and sending requires ⌘/Ctrl+Enter or the send button (lock send against accidental sends).</p><label class="_row_4f76e7"><input type="checkbox" data-testid="settings-send-on-enter" checked=""/><span>Send with Enter</span></label></div><div data-level="flat" data-padding="lg" class="_card_660d7a"><h3 class="_cardTitle_4f76e7"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-type" aria-hidden="true" role="presentation"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" x2="15" y1="20" y2="20"></line><line x1="12" x2="12" y1="4" y2="20"></line></svg> <!-- -->Font scale</h3><p class="_cardDesc_4f76e7">Scale all UI text up or down.</p><label class="_row_4f76e7"><span>Font scale</span><input type="range" min="0.85" max="1.2" step="0.05" value="1"/><span class="_subtle_4f76e7">100<!-- -->%</span></label></div></div></div>
+<div id="root"><div class="_secBody_2b88bf"><div><h3 class="_subHead_2b88bf"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg> <!-- -->Theme</h3><p class="_subDesc_2b88bf">Choose how the app looks. &quot;System&quot; follows your OS preference.</p></div><div class="_card_2b88bf"><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Theme</div></div><div class="_rowCtl_2b88bf"><span class="_seg_2b88bf" role="group" aria-label="Theme"><button type="button" class="_segBtn_2b88bf" data-active="true" aria-pressed="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg> <!-- -->System</button><button type="button" class="_segBtn_2b88bf" aria-pressed="false"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg> <!-- -->Dark</button><button type="button" class="_segBtn_2b88bf" aria-pressed="false"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg> <!-- -->Light</button></span></div></div></div><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Font scale</div><div class="_rowDesc_2b88bf">Scale all UI text up or down.</div></div><div class="_rowCtl_2b88bf"><span class="_rangeCtl_2b88bf"><input type="range" min="0.85" max="1.2" step="0.05" aria-label="Font scale" value="1"/><span class="_rangeVal_2b88bf">100<!-- -->%</span></span></div></div></div><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Density</div></div><div class="_rowCtl_2b88bf"><span class="_selectWrap_2b88bf"><select aria-label="Density"><option value="comfortable" selected="">Comfortable</option><option value="compact">Compact</option></select><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span></div></div></div></div><div><h3 class="_subHead_2b88bf"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg> <!-- -->Accent color</h3><p class="_subDesc_2b88bf">Choose the color used for highlights, links, and focus rings.</p></div><div class="_card_2b88bf"><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Accent color</div></div><div class="_rowCtl_2b88bf"><span></span></div></div><div class="_rowDetail_2b88bf"><div class="_colorRow_2b88bf"><button type="button" class="_colorSwatch_2b88bf" data-active="true" style="--swatch-color:#5dd1c6" aria-label="#5dd1c6"></button><button type="button" class="_colorSwatch_2b88bf" style="--swatch-color:#60a5fa" aria-label="#60a5fa"></button><button type="button" class="_colorSwatch_2b88bf" style="--swatch-color:#a78bfa" aria-label="#a78bfa"></button><button type="button" class="_colorSwatch_2b88bf" style="--swatch-color:#f472b6" aria-label="#f472b6"></button><button type="button" class="_colorSwatch_2b88bf" style="--swatch-color:#fb923c" aria-label="#fb923c"></button><button type="button" class="_colorSwatch_2b88bf" style="--swatch-color:#4ade80" aria-label="#4ade80"></button><input class="_colorPicker_2b88bf" type="color" aria-label="Custom accent color" value="#5dd1c6"/><code class="_colorValue_2b88bf">#5dd1c6</code><button type="button" class="_btn_2b88bf">Reset</button></div></div></div></div><div><h3 class="_subHead_2b88bf"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minimize2" aria-hidden="true"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" x2="21" y1="10" y2="3"></line><line x1="3" x2="10" y1="21" y2="14"></line></svg> <!-- -->Transparency</h3><p class="_subDesc_2b88bf">Let the background image show through app surfaces.</p></div><div class="_card_2b88bf"><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Surface opacity</div></div><div class="_rowCtl_2b88bf"><span class="_rangeCtl_2b88bf"><input type="range" min="50" max="100" step="1" aria-label="Surface opacity" value="100"/><span class="_rangeVal_2b88bf">100%</span></span></div></div></div><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Reduce transparency</div></div><div class="_rowCtl_2b88bf"><input type="checkbox" class="_checkbox_2b88bf" aria-label="Reduce transparency"/></div></div></div></div><div><h3 class="_subHead_2b88bf"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg> <!-- -->Background image</h3><p class="_subDesc_2b88bf">Choose a local image or use an HTTPS image URL.</p></div><div class="_card_2b88bf"><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Choose image</div></div><div class="_rowCtl_2b88bf"><input type="file" accept="image/*" class="_hiddenInput_2b88bf"/><button type="button" class="_btn_2b88bf">Choose image</button></div></div></div><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Background image URL</div></div><div class="_rowCtl_2b88bf"><span></span></div></div><div class="_rowDetail_2b88bf"><div class="_urlRow_2b88bf"><input type="url" class="_input_2b88bf" placeholder="https://…" aria-label="Background image URL" value=""/><button type="button" class="_btn_2b88bf _outline_2b88bf" disabled="">Apply</button></div></div></div></div><div><h3 class="_subHead_2b88bf"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-panel-left" aria-hidden="true"><rect width="7" height="18" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect></svg> <!-- -->Display</h3><p class="_subDesc_2b88bf">Compact layout saves vertical space.</p></div><div class="_card_2b88bf"><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Show working tree diff next to chat</div></div><div class="_rowCtl_2b88bf"><span class="_rowCtl_2b88bf"><input type="checkbox" class="_checkbox_2b88bf" aria-label="Show working tree diff next to chat"/></span></div></div></div><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Show all advanced views (developer mode)</div><div class="_rowDesc_2b88bf">Pin every view to the left navigation bar. When off, advanced views stay reachable via &quot;More&quot; and the ⌘K palette.</div></div><div class="_rowCtl_2b88bf"><span class="_rowCtl_2b88bf"><input type="checkbox" class="_checkbox_2b88bf" aria-label="Show all advanced views (developer mode)" data-testid="settings-advanced-views"/></span></div></div></div><div class="_row_2b88bf"><div class="_rowGrid_2b88bf"><div class="_rowText_2b88bf"><div class="_rowLabel_2b88bf">Send with Enter</div><div class="_rowDesc_2b88bf">When off, Enter inserts a new line and sending requires ⌘/Ctrl+Enter or the send button (lock send against accidental sends).</div></div><div class="_rowCtl_2b88bf"><span class="_rowCtl_2b88bf"><input type="checkbox" class="_checkbox_2b88bf" aria-label="Send with Enter" data-testid="settings-send-on-enter" checked=""/></span></div></div></div></div></div></div>
 </body>
 </html>

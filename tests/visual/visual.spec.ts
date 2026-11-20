@@ -89,18 +89,27 @@ interface SurfaceSpec {
 }
 
 const SURFACES: SurfaceSpec[] = [
-  {
-    // 设置弹窗:侧栏用户条 ⋯ 打开。曾因弹窗栅格是「200px 侧栏 + 内容」
-    // 双列、而内容只渲染单列,导致内容列 0 宽、整页看不到任何设置项。
-    name: 'settings-modal',
+  // 设置页(全屏覆盖层):侧栏用户条 ⋯ 打开。曾因弹窗栅格是「200px 侧栏 +
+  // 内容」双列、而内容只渲染单列,导致内容列 0 宽、整页看不到任何设置项。
+  // 现为全屏两栏页;除整页默认面外,14 个分区逐面登记 —— 逐分区视觉
+  // 对照(与参考实现的分区级口径核对)靠这组基线。
+  ...[
+    'general', 'appearance', 'groups', 'remote', 'personalization', 'behavior',
+    'memory', 'agents', 'plugins', 'mcp', 'skills', 'hooks', 'usage', 'advanced',
+  ].map((section) => ({
+    name: `settings-${section}` as const,
     route: '/',
-    prepare: async (page) => {
+    prepare: async (page: Page) => {
       await page.click('[data-testid="harness-settings"]');
-      await page.waitForSelector('[data-testid="harness-settings-modal"]');
-      // 等设置内容挂载:分区导航按钮(Provider / Model Groups / Permissions…)
-      await page.waitForSelector('[data-testid="harness-settings-modal"] button[data-active]');
+      await page.waitForSelector('[data-testid="settings-page"]');
+      // 等默认分区(模型设置)挂载完成,再切到目标分区。
+      await page.waitForSelector('[data-testid="settings-section-groups"]');
+      await page.click(`[data-testid="settings-section-${section}"]`);
+      // 分区内容异步加载(嵌入分区要发 IPC):等内容区出现分区标题。
+      await page.waitForSelector(`[data-testid="settings-page"] h2`);
+      await page.waitForTimeout(400);
     },
-  },
+  })),
 ];
 
 function serveStatic(root: string): Promise<{ server: Server; port: number }> {

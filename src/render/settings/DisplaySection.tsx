@@ -1,161 +1,228 @@
 import type { CSSProperties } from 'react';
-import { Image, LayoutPanelLeft, Minimize2, Monitor, Moon, Palette, Sun, Type } from 'lucide-react';
+import { Image, LayoutPanelLeft, Minimize2, Monitor, Moon, Palette, Sun } from 'lucide-react';
 import type { SettingsDisplayProps } from '@/contracts/settingsDisplay';
-import { Card } from '../design-system/Card';
-import { Badge } from '../design-system/Badge';
-import { Button } from '../design-system/Button';
-import { Icon } from '../design-system/Icon';
-import s from './SettingsView.module.css';
+import { GroupCard, Row, SubHead, Select } from './settingsKit';
+import kit from './SettingsPage.module.css';
 const DEFAULT_ACCENT_COLOR = '#5dd1c6';
 const ACCENT_PRESETS = ['#5dd1c6', '#60a5fa', '#a78bfa', '#f472b6', '#fb923c', '#4ade80'];
+
+/**
+ * DisplaySection —— 外观分区（纯展示）。
+ *
+ * 视觉走设置页套件：SubHead 小节头 + GroupCard 行卡 + Row（左文案右控件）。
+ * 测试锚点（h3 标题 / slider 可及名 / checkbox testid）全部保留。
+ */
 export function DisplaySection({ t, prefs, themeMode, backgroundUrl, imageError, fileInput,
   onThemeChange, onUpdate, onLoadImage, onApplyBackgroundUrl, onClearBackground, onBackgroundUrlChange }: SettingsDisplayProps) {
   return (
-    <div className={s.displayCards}>
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}><Icon icon={Monitor} size={16} /> {t('settings.display.theme')}</h3>
-        <p className={s.cardDesc}>{t('settings.display.themeHelp')}</p>
-        <div className={s.segmented} role="group" aria-label={t('settings.display.theme')}>
-          {([
-            ['system', Monitor, 'settings.display.system'],
-            ['dark', Moon, 'settings.display.dark'],
-            ['light', Sun, 'settings.display.light'],
-          ] as const).map(([mode, icon, label]) => (
-            <button key={mode} type="button" data-active={themeMode === mode || undefined} onClick={() => onThemeChange(mode)}>
-              <Icon icon={icon} size={14} /> {t(label)}
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}><Icon icon={Palette} size={16} /> {t('settings.display.accentColor')}</h3>
-        <p className={s.cardDesc}>{t('settings.display.accentColorHelp')}</p>
-        <div className={s.colorRow}>
-          {ACCENT_PRESETS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              className={s.colorSwatch}
-              data-active={prefs.accentColor === color || undefined}
-              style={{ '--swatch-color': color } as CSSProperties}
-              aria-label={color}
-              onClick={() => onUpdate({ accentColor: color })}
+    <div className={kit.secBody}>
+      <SubHead title={<><Monitor size={16} strokeWidth={1.5} aria-hidden /> {t('settings.display.theme')}</>} description={t('settings.display.themeHelp')} />
+      <GroupCard>
+        <Row label={t('settings.display.theme')}>
+          <span className={kit.seg} role="group" aria-label={t('settings.display.theme')}>
+            {([
+              ['system', Monitor, 'settings.display.system'],
+              ['dark', Moon, 'settings.display.dark'],
+              ['light', Sun, 'settings.display.light'],
+            ] as const).map(([mode, icon, label]) => {
+              const IconComp = icon;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  className={kit.segBtn}
+                  data-active={themeMode === mode || undefined}
+                  aria-pressed={themeMode === mode}
+                  onClick={() => onThemeChange(mode)}
+                >
+                  <IconComp size={14} strokeWidth={1.5} aria-hidden /> {t(label)}
+                </button>
+              );
+            })}
+          </span>
+        </Row>
+        <Row label={t('settings.display.fontScale')} description={t('settings.display.fontScaleHelp')}>
+          <span className={kit.rangeCtl}>
+            <input
+              type="range"
+              min={0.85}
+              max={1.2}
+              step={0.05}
+              value={prefs.fontScale}
+              aria-label={t('settings.display.fontScale')}
+              onChange={(event) => onUpdate({ fontScale: Number.parseFloat(event.target.value) })}
             />
-          ))}
-          <input
-            className={s.colorPicker}
-            type="color"
-            value={prefs.accentColor}
-            aria-label={t('settings.display.customAccent')}
-            onChange={(event) => onUpdate({ accentColor: event.target.value })}
+            <span className={kit.rangeVal}>{Math.round(prefs.fontScale * 100)}%</span>
+          </span>
+        </Row>
+        <Row label={t('settings.display.compactDensity')}>
+          <Select
+            value={prefs.compactDensity}
+            ariaLabel={t('settings.display.compactDensity')}
+            onChange={(v) => onUpdate({ compactDensity: v as 'comfortable' | 'compact' })}
+            options={[
+              { value: 'comfortable', label: t('settings.display.comfortable') },
+              { value: 'compact', label: t('settings.display.compact') },
+            ]}
           />
-          <code className={s.colorValue}>{prefs.accentColor}</code>
-          <Button variant="tertiary" size="sm" onClick={() => onUpdate({ accentColor: DEFAULT_ACCENT_COLOR })}>
-            {t('common.reset')}
-          </Button>
-        </div>
-      </Card>
+        </Row>
+      </GroupCard>
 
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}><Icon icon={Minimize2} size={16} /> {t('settings.display.transparency')}</h3>
-        <p className={s.cardDesc}>{t('settings.display.transparencyHelp')}</p>
-        <label className={s.row}>
-          <span>{t('settings.display.surfaceOpacity')}</span>
+      <SubHead title={<><Palette size={16} strokeWidth={1.5} aria-hidden /> {t('settings.display.accentColor')}</>} description={t('settings.display.accentColorHelp')} />
+      <GroupCard>
+        <Row label={t('settings.display.accentColor')} detail={(
+          <div className={kit.colorRow}>
+            {ACCENT_PRESETS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                className={kit.colorSwatch}
+                data-active={prefs.accentColor === color || undefined}
+                style={{ '--swatch-color': color } as CSSProperties}
+                aria-label={color}
+                onClick={() => onUpdate({ accentColor: color })}
+              />
+            ))}
+            <input
+              className={kit.colorPicker}
+              type="color"
+              value={prefs.accentColor}
+              aria-label={t('settings.display.customAccent')}
+              onChange={(event) => onUpdate({ accentColor: event.target.value })}
+            />
+            <code className={kit.colorValue}>{prefs.accentColor}</code>
+            <button type="button" className={kit.btn} onClick={() => onUpdate({ accentColor: DEFAULT_ACCENT_COLOR })}>
+              {t('common.reset')}
+            </button>
+          </div>
+        )}>
+          <span />
+        </Row>
+      </GroupCard>
+
+      <SubHead title={<><Minimize2 size={16} strokeWidth={1.5} aria-hidden /> {t('settings.display.transparency')}</>} description={t('settings.display.transparencyHelp')} />
+      <GroupCard>
+        <Row label={t('settings.display.surfaceOpacity')}>
+          <span className={kit.rangeCtl}>
+            <input
+              type="range"
+              min={50}
+              max={100}
+              step={1}
+              disabled={prefs.reduceTransparency}
+              value={Math.round(prefs.surfaceOpacity * 100)}
+              aria-label={t('settings.display.surfaceOpacity')}
+              onChange={(event) => onUpdate({ surfaceOpacity: Number(event.target.value) / 100 })}
+            />
+            <span className={kit.rangeVal}>{prefs.reduceTransparency ? '100%' : `${Math.round(prefs.surfaceOpacity * 100)}%`}</span>
+          </span>
+        </Row>
+        <Row label={t('settings.display.reduceTransparency')}>
           <input
-            type="range"
-            min={50}
-            max={100}
-            step={1}
-            disabled={prefs.reduceTransparency}
-            value={Math.round(prefs.surfaceOpacity * 100)}
-            onChange={(event) => onUpdate({ surfaceOpacity: Number(event.target.value) / 100 })}
+            type="checkbox"
+            className={kit.checkbox}
+            checked={prefs.reduceTransparency}
+            aria-label={t('settings.display.reduceTransparency')}
+            onChange={(event) => onUpdate({ reduceTransparency: event.target.checked })}
           />
-          <span className={s.subtle}>{prefs.reduceTransparency ? '100%' : `${Math.round(prefs.surfaceOpacity * 100)}%`}</span>
-        </label>
-        <label className={s.row}>
-          <input type="checkbox" checked={prefs.reduceTransparency} onChange={(event) => onUpdate({ reduceTransparency: event.target.checked })} />
-          <span>{t('settings.display.reduceTransparency')}</span>
-        </label>
-      </Card>
+        </Row>
+      </GroupCard>
 
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}><Icon icon={Image} size={16} /> {t('settings.display.backgroundImage')}</h3>
-        <p className={s.cardDesc}>{t('settings.display.backgroundImageHelp')}</p>
-        <input ref={fileInput} type="file" accept="image/*" className={s.hiddenInput} onChange={(event) => onLoadImage(event.target.files?.[0])} />
-        <div className={s.backgroundActions}>
-          <Button variant="secondary" size="sm" onClick={() => fileInput.current?.click()}>{t('settings.display.chooseImage')}</Button>
-          {prefs.backgroundImage && <Button variant="tertiary" size="sm" onClick={onClearBackground}>{t('common.clear')}</Button>}
-        </div>
-        <div className={s.urlRow}>
-          <input type="url" value={backgroundUrl} placeholder="https://…" aria-label={t('settings.display.backgroundUrl')} onChange={(event) => onBackgroundUrlChange(event.target.value)} />
-          <Button variant="tertiary" size="sm" disabled={!backgroundUrl.trim()} onClick={onApplyBackgroundUrl}>{t('common.apply')}</Button>
-        </div>
-        {imageError && <p className={s.fieldError}>{imageError}</p>}
+      <SubHead title={<><Image size={16} strokeWidth={1.5} aria-hidden /> {t('settings.display.backgroundImage')}</>} description={t('settings.display.backgroundImageHelp')} />
+      <GroupCard>
+        <Row label={t('settings.display.chooseImage')}>
+          <input ref={fileInput} type="file" accept="image/*" className={kit.hiddenInput} onChange={(event) => onLoadImage(event.target.files?.[0])} />
+          <button type="button" className={kit.btn} onClick={() => fileInput.current?.click()}>{t('settings.display.chooseImage')}</button>
+          {prefs.backgroundImage && (
+            <button type="button" className={kit.btn} onClick={onClearBackground}>{t('common.clear')}</button>
+          )}
+        </Row>
+        <Row label={t('settings.display.backgroundUrl')} detail={(
+          <div className={kit.urlRow}>
+            <input
+              type="url"
+              className={kit.input}
+              value={backgroundUrl}
+              placeholder="https://…"
+              aria-label={t('settings.display.backgroundUrl')}
+              onChange={(event) => onBackgroundUrlChange(event.target.value)}
+            />
+            <button
+              type="button"
+              className={`${kit.btn} ${kit.outline}`}
+              disabled={!backgroundUrl.trim()}
+              onClick={onApplyBackgroundUrl}
+            >
+              {t('common.apply')}
+            </button>
+          </div>
+        )}>
+          <span />
+        </Row>
+        {imageError ? <div className={kit.notice}><span>{imageError}</span></div> : null}
         {prefs.backgroundImage && (
-          <>
-            <div className={s.backgroundPreview} style={{ backgroundImage: `url(${JSON.stringify(prefs.backgroundImage)})` }} />
-            <label className={s.row}>
-              <span>{t('settings.display.backgroundStrength')}</span>
-              <input type="range" min={0} max={100} value={Math.round(prefs.backgroundImageOpacity * 100)} onChange={(event) => onUpdate({ backgroundImageOpacity: Number(event.target.value) / 100 })} />
-              <span className={s.subtle}>{Math.round(prefs.backgroundImageOpacity * 100)}%</span>
-            </label>
-          </>
+          <Row label={t('settings.display.backgroundStrength')}>
+            <span className={kit.rangeCtl}>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(prefs.backgroundImageOpacity * 100)}
+                aria-label={t('settings.display.backgroundStrength')}
+                onChange={(event) => onUpdate({ backgroundImageOpacity: Number(event.target.value) / 100 })}
+              />
+              <span className={kit.rangeVal}>{Math.round(prefs.backgroundImageOpacity * 100)}%</span>
+            </span>
+          </Row>
         )}
-      </Card>
+        {prefs.backgroundImage && (
+          <div className={kit.row}>
+            <div className={kit.backgroundPreview} style={{ backgroundImage: `url(${JSON.stringify(prefs.backgroundImage)})` }} />
+          </div>
+        )}
+      </GroupCard>
 
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}><Icon icon={LayoutPanelLeft} size={16} /> {t('settings.display.title')}</h3>
-        <p className={s.cardDesc}>{t('settings.display.compactDensityHelp')}</p>
-        <label className={s.row}>
-          <input type="checkbox" checked={prefs.chatDiffSplit} onChange={(event) => onUpdate({ chatDiffSplit: event.target.checked })} />
-          <span>{t('settings.display.chatDiffSplit')}</span>
-          {prefs.chatDiffSplit && <Badge variant="info">on</Badge>}
-        </label>
-        <label className={s.row}>
-          <span>{t('settings.display.compactDensity')}</span>
-          <select value={prefs.compactDensity} onChange={(event) => onUpdate({ compactDensity: event.target.value as 'comfortable' | 'compact' })}>
-            <option value="comfortable">{t('settings.display.comfortable')}</option>
-            <option value="compact">{t('settings.display.compact')}</option>
-          </select>
-        </label>
-        <label className={s.row}>
-          <input
-            type="checkbox"
-            checked={prefs.activityBarMode === 'full'}
-            onChange={(event) => onUpdate({ activityBarMode: event.target.checked ? 'full' : 'simple' })}
-            data-testid="settings-advanced-views"
-          />
-          <span>{t('settings.display.advancedViews')}</span>
-          {prefs.activityBarMode === 'full' && <Badge variant="info">on</Badge>}
-        </label>
-        <p className={s.subtle}>{t('settings.display.advancedViewsHelp')}</p>
-      </Card>
-
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}><Icon icon={Type} size={16} /> {t('settings.display.editor')}</h3>
-        <p className={s.cardDesc}>{t('settings.display.sendOnEnterHelp')}</p>
-        <label className={s.row}>
-          <input
-            type="checkbox"
-            checked={prefs.sendOnEnter}
-            onChange={(event) => onUpdate({ sendOnEnter: event.target.checked })}
-            data-testid="settings-send-on-enter"
-          />
-          <span>{t('settings.display.sendOnEnter')}</span>
-          {!prefs.sendOnEnter && <Badge variant="info">lock</Badge>}
-        </label>
-      </Card>
-
-      <Card level="flat" padding="lg">
-        <h3 className={s.cardTitle}><Icon icon={Type} size={16} /> {t('settings.display.fontScale')}</h3>
-        <p className={s.cardDesc}>{t('settings.display.fontScaleHelp')}</p>
-        <label className={s.row}>
-          <span>{t('settings.display.fontScale')}</span>
-          <input type="range" min={0.85} max={1.2} step={0.05} value={prefs.fontScale} onChange={(event) => onUpdate({ fontScale: Number.parseFloat(event.target.value) })} />
-          <span className={s.subtle}>{Math.round(prefs.fontScale * 100)}%</span>
-        </label>
-      </Card>
+      <SubHead title={<><LayoutPanelLeft size={16} strokeWidth={1.5} aria-hidden /> {t('settings.display.title')}</>} description={t('settings.display.compactDensityHelp')} />
+      <GroupCard>
+        <Row label={t('settings.display.chatDiffSplit')}>
+          <span className={kit.rowCtl}>
+            <input
+              type="checkbox"
+              className={kit.checkbox}
+              checked={prefs.chatDiffSplit}
+              aria-label={t('settings.display.chatDiffSplit')}
+              onChange={(event) => onUpdate({ chatDiffSplit: event.target.checked })}
+            />
+            {prefs.chatDiffSplit ? <span className={kit.badge}>on</span> : null}
+          </span>
+        </Row>
+        <Row label={t('settings.display.advancedViews')} description={t('settings.display.advancedViewsHelp')}>
+          <span className={kit.rowCtl}>
+            <input
+              type="checkbox"
+              className={kit.checkbox}
+              checked={prefs.activityBarMode === 'full'}
+              aria-label={t('settings.display.advancedViews')}
+              onChange={(event) => onUpdate({ activityBarMode: event.target.checked ? 'full' : 'simple' })}
+              data-testid="settings-advanced-views"
+            />
+            {prefs.activityBarMode === 'full' ? <span className={kit.badge}>on</span> : null}
+          </span>
+        </Row>
+        <Row label={t('settings.display.sendOnEnter')} description={t('settings.display.sendOnEnterHelp')}>
+          <span className={kit.rowCtl}>
+            <input
+              type="checkbox"
+              className={kit.checkbox}
+              checked={prefs.sendOnEnter}
+              aria-label={t('settings.display.sendOnEnter')}
+              onChange={(event) => onUpdate({ sendOnEnter: event.target.checked })}
+              data-testid="settings-send-on-enter"
+            />
+            {!prefs.sendOnEnter ? <span className={kit.badge}>lock</span> : null}
+          </span>
+        </Row>
+      </GroupCard>
     </div>
   );
 }

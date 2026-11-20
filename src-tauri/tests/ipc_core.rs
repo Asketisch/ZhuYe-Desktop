@@ -44,6 +44,27 @@ fn config_round_trips_through_real_backend() {
 }
 
 #[test]
+fn user_instructions_round_trip_and_land_in_data_dir() {
+    let _guard = common::state_lock();
+    // 初始态：文件可能不存在 → 空串（正常初始态，不是错误）。
+    let before = invoke_ok("zhuye_get_user_instructions", json!({}));
+    assert!(
+        before.is_string(),
+        "user instructions 必须是字符串: {before}"
+    );
+    // 写 → 读回 → 文件落在 `<数据目录>/AGENTS.md`（与会话首轮注入同源）。
+    let content = "# 自定义指令\n\n- 回复保持简洁\n";
+    invoke_ok(
+        "zhuye_save_user_instructions",
+        json!({ "content": content }),
+    );
+    let read = invoke_ok("zhuye_get_user_instructions", json!({}));
+    assert_eq!(read.as_str(), Some(content), "保存后必须原样读回");
+    // 清理（还原初始态，避免影响其它用例）。
+    invoke_ok("zhuye_save_user_instructions", json!({ "content": "" }));
+}
+
+#[test]
 fn config_info_points_at_a_real_file() {
     let v = invoke_ok("zhuye_config_info", json!({}));
     assert!(v["issues"].is_array(), "健康诊断必须为数组: {v}");

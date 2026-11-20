@@ -4,6 +4,71 @@
 
 ## 未发布
 
+- **设置页重建为全屏两栏布局 + 14 分区**：设置从 harness 弹窗改为全屏
+  覆盖层（268px 分组导航 + 圆角内容面板 + 896px 内容列，窄窗口收 68px
+  图标栏），分区按「基础设置 / Agent 能力 / 数据与统计」三组组织：常规 /
+  外观 / 模型设置 / 远程设备 / 个性化 / 行为与工具 / 记忆 / 子智能体 /
+  插件 / MCP 服务器 / 技能 / 钩子 / 使用统计 / 高级。路由页内容
+  （远程 / 记忆 / 子智能体 / 插件 / MCP / 技能 / 钩子 / 用量）经
+  `SettingsSlots` 嵌入对应分区（PageShell 壳自动折叠），权限内容并入
+  「行为与工具」，语言选择与通知移入「常规」，结构化 TOML 表单与原始
+  编辑器、配置健康 / 注入防护 / 安全扫描 / 更新检查收进「高级」。
+  **新增「个性化」分区**（用户级自定义指令）与两条命令
+  `zhuye_get_user_instructions` / `zhuye_save_user_instructions`
+  （读写 `<数据目录>/AGENTS.md`，与会话首轮注入同源，保存即对后续所有
+  会话生效），payload 契约样本与 fakeBackend 替身同步。⌘K 分区搜索弹层。
+- **会话区右上角浮动状态面板**：任务 / 目标从 composer 上方 chips 行
+  迁出，与「计划」合并为浮动状态面板（目标 / 计划 / 进程 三节，
+  mini 胶囊 ↔ 320px 展开卡两态，容器查询 ≥1280px 自动展开，可手动
+  收起）；「计划」行点击直接打开右侧检查器的计划页签
+  （`shellUi.inspectorTab` 新增编程切换入口）；设目标表单保留在面板
+  目标节（空闲可用）。composer 上方 chips 行只留子代理 / 建议 / 排队。
+- **输入框对齐**：输入卡改为抬升实心底 + 半像素发丝边 + 16px 圆角，
+  悬停 / 聚焦边框提亮；工具行基线对齐（左「+」/ 命令 / @，右上下文环 /
+  模型 / 语音 / 圆形发送），宽度上限对齐内容列（896px）。
+- **右侧检查器计划面板对齐**：页签头改 48px 高左对齐页签 + 底部发丝边；
+  计划正文改文档流排版（去盒装框与高度裁剪，宽 dock 限宽居中），
+  接近右侧 plan 详情面板的阅读形态。
+
+- **品牌名彻底清理 + 导入源收敛**：全仓（前端 / Rust / 文档 / 测试 / 注释 /
+  i18n 键 / testid）移除参考产品品牌字样——`shell/zcode/` 目录更名为
+  `shell/session/`（`ZDock` → `SessionDock`、`ZRail` → `ViewRail`、
+  `zcode.module.css` → `session.module.css`），i18n 命名空间键 `zcode.*`
+  去前缀（rail / dock / traj / approval…），testid `zcode-*` →
+  `session-*`；会话导入命令面只保留 `claude_code` / `codex` 两种来源
+  （`zhuye_import_discover/sessions` 对其余 kind fail-fast，协议文档与
+  能力覆盖矩阵同步），对应导入选项与文案一并移除。
+
+- **上游 0.1.16 门控型 bundled 插件接线**：submodule 升到 `8da90e56`
+  （门控基建 + `zhuye-kms` 归位 integrations）。引擎侧新增
+  `[plugins].disabled_plugins` 显式禁用表与统一判定
+  （`bundled_plugin_enabled`：显式禁用 > 显式启用 > 默认开关；默认开
+  web-search / notebook，默认关 verify-hooks / lsp / goal-queue）。桌面端
+  按三条装配路径同源接线：启动注册内置工具走
+  `register_builtin_tools_with_gates`（关闭的工具不进注册表）；
+  `zhuye_toggle_plugin` 语义对齐 CLI（bundled 插件停用写禁用表、启用清
+  禁用表，否则默认开插件停用是 no-op），保存后
+  `apply_bundled_tool_gates` 即时差量同步共享工具表（web_search /
+  notebook_edit register/unregister，无需重启）；verify-hooks 插件启用 =
+  线程构造时注入 verification / test_runner 内置 hook；LSP 手动开启在
+  `[plugins].disabled_plugins` 含 lsp 时显性报错。设置页插件编辑器补
+  `disabled_plugins` 按行编辑。
+
+- **模型组设置页改版为主从布局（模型设置页改版）**：旧的「状态横幅 +
+  默认组卡片平铺 + 大表单」单列堆叠换成 页头（内联就绪状态点 + 添加按钮）→
+  左列组列表（展示名首字头像 + 线格式 / 凭据数元信息 + **凭据池健康点**
+  （绿 = 全可用 / 橙 = 有冷却，数据来自 `zhuye_credential_pool_status`），
+  选中即进入右侧详情）+ 全局开关（额度耗尽自动切换 / 自动压缩翻新为
+  switch）→ 右列详情面板（详情头带「设为默认」开关写 `[active].group` 与
+  删除；连接配置（线格式 / Base URL / API Key）→ 模型列表（自动拉取清单
+  渲染成行式能力徽标：上下文窗口 / 输出上限 / 视觉 / 思考，点选即设为组
+  默认模型）→ 折叠「高级参数」与「组内凭据」）。数据模型与 TOML 手术层
+  零改动，保存即落盘语义、组内凭据池与自动拉模型行为全部保留；组件拆为
+  `GroupNav` / `GroupDetail` / `GroupModelList` / `GroupAdvancedFields`
+  （替换旧 `GroupForm` / `GroupList`）。顺带修正
+  `CredentialPoolStatus` 前端类型与后端出线不一致的问题（`provider` →
+  `group` + `endpoint`，此前 Inspector 凭据池面板因此显示 undefined）。
+
 - **移除「提供商方案」，配置面只保留模型组**：模型接入从「内置端口 + 编码
   套餐」两层收敛为**模型组唯一**一层。引擎侧（`zhuye-agent` 子模块）先把
   配置模型改成 `[[model_group]]`（组 id 即模型 spec 前缀与 registry 池名），
@@ -17,7 +82,7 @@
   健康度改为遍历模型组（顺带修好旧实现漏掉自定义组的问题）。协议层事件
   字段（如 `TokenCountEvent.provider`）保持不变，IPC 向后兼容。
 
-- **会话流默认折叠工具调用与思考（对标 zcode / codex）**：连续的工具调用
+- **会话流默认折叠工具调用与思考（工具折叠聚合改版）**：连续的工具调用
   聚合成一行摘要（`ToolGroup`：写明用到的工具 + 次数），展开后逐条列出；
   思考块（含模型把推理混进正文的 `<think>` 段）默认收起 —— 会话里默认只看
   到模型的真实输出，工具的参数与输出留在折叠层内（含 diff 的工具组仍默认
@@ -30,7 +95,7 @@
   类工具（`exit_plan_mode` / `plan_write`）的参数也折叠成一句提示，不再
   把整篇计划塞进消息流。
 
-- **主工作区聊天栏改版（对标 zcode + minimax code）**：输入卡片底栏左侧是
+- **主工作区聊天栏改版（聊天栏改版）**：输入卡片底栏左侧是
   一个「+」入口菜单（添加文件或图片 / 技能 / 插件 / 压缩 / 目标 / 计划，
   技能与插件是二级子菜单），右侧是模型选择器、语音输入与圆形发送按钮；
   模型选择器从卡片外的控制条移进卡片底栏（仍走 `zhuye_set_model`），
@@ -399,7 +464,7 @@
   (`reflect_status_server_start/state/stop`),tailnet 设备浏览器可达;
   `remote_config.auth_token` 非空时端点强制 token 校验(401/200)。
 - **外部 Agent 会话导入**(D9):`/import` 路由全链 —— Claude Code /
-  Codex / ZCode 三 adapter(`reflect_import_discover` /
+  Codex 两 adapter(`reflect_import_discover` /
   `reflect_import_sessions`),支持 dry-run 预演、成功/失败逐条展示,
   导入的会话在会话列表照常可开。
 - **编辑历史消息**(F7+D6):消息列表每轮 hover 编辑入口
@@ -413,9 +478,9 @@
 
 ## 0.0.4 — 2026-11-14
 
-### 重设计 — v2 工作台(redesign/zcode-shell)
+### 重设计 — v2 工作台(壳层改版)
 
-界面框架整体对齐 ZCode 设计语言(布局照抄 WorkspaceShellLayout 实测口径):
+界面框架按工作区壳层参考实现整体改版(布局按其实测口径):
 
 - **主题**:设计 token 全量重写为 Zai Dark / Zai Light 实测色板
   (neutral-900/950/800 + sky 品牌色),token 名不变,组件零改动换肤;
@@ -426,7 +491,7 @@
   ≤920 收侧栏、≤640 收 rail,四档宽度实测零横向溢出。
 - **轨迹主视图**(view-ring:对话 | 轨迹):三泳道 Timing 总览
   (输入 / 模型 / 工具)+ 密排事件账本(轮次边界打点、工具行
-  args → 输出摘要、思考紫 / 工具琥珀 / 助手青角色色,取自 ZCode
+  args → 输出摘要、思考紫 / 工具琥珀 / 助手青角色色,取自参考设计
   trajectory-role 实测值)+ 记录检查器(层级 / 状态 / 参数 / 结果 /
   计时);数据源为既有 store turns + compactions 推导,零新增 IPC。
 - **交互接管**:工具 / Hook 审批、agent 提问、自由输入以 composer
@@ -441,7 +506,7 @@
 
 ### 测试
 
-- 新增 `tests/zcode-shell.test.tsx`(10 用例:dock chips、审批接管卡
+- 新增 `tests/session-shell.test.tsx`(10 用例:dock chips、审批接管卡
   决策链、轨迹账本推导与折叠、检查器联动)。
 - 既有套件同步:AppShell testid 断言、审批断言切接管卡、侧栏标题
   断言范围化、view-ring tablist a11y(aria-required-children)。
@@ -2793,7 +2858,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 
 - **P1 会话组织与导航**：
   - 会话置顶：localStorage 持久化（`sessions/utils/pins.ts` 新，有序 id +
-    pub/sub），侧边栏顶部「已置顶」区（对标 ZCode），会话菜单加 置顶/取消置顶，
+    pub/sub），侧边栏顶部「已置顶」区（会话置顶改版），会话菜单加 置顶/取消置顶，
     删除/归档自动摘除置顶；置顶会话从项目分组中上移不重复。
   - 侧边栏归档区：底部可折叠「已归档」，菜单「恢复」直走 unarchive
     （此前归档列表只在 /sessions 底部）。
@@ -2855,7 +2920,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   快捷模板 chips（探索代码 / 构建新功能 / 审查改动 / 修复问题，
   点击**预填**草稿不自动发送，经 `useComposerDraft` 新增的模块级 prefill
   总线）；首条消息发出后同一 Composer 实例自然落回底部常规布局。
-  （对标 Codex/ZCode：欢迎页即空对话态。）
+  （欢迎页即空对话态。）
 - **Composer 内联控制条**（`ComposerControls.tsx` 新）：输入框卡片内
   新增 模型选择器（选项与 Models 页的 coding plans 同源）+ 思考深度
   （low/medium/high）+ 权限模式分段（计划/询问/自动/Yolo，完整 7 段仍在

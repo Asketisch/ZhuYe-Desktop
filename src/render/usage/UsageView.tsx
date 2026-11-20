@@ -5,10 +5,7 @@ import { Gauge } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { ModelUsage, UsageViewProps } from '@/contracts/usage';
 import { PageShell } from '../shell/PageShell';
-import { Button } from '../design-system/Button';
-import { Card } from '../design-system/Card';
-import { EmptyState } from '../design-system/EmptyState';
-import { Icon } from '../design-system/Icon';
+import kit from '../settings/SettingsPage.module.css';
 import s from './UsageView.module.css';
 
 const ICONS: Record<string, ComponentType> = { gauge: Gauge };
@@ -24,15 +21,15 @@ export function UsageView({
 }: UsageViewProps) {
   return (
     <PageShell icon={ICONS[iconName]} title={title} subtitle={subtitle} width={width}
-      actions={<Button size="sm" variant="ghost" onClick={onRefresh}>{labels.refresh}</Button>}>
+      actions={<button type="button" className={kit.btn} onClick={onRefresh}>{labels.refresh}</button>}>
       <section className={s.section} aria-label={labels.currentSession}>
         <h3 className={s.sectionTitle}>{labels.currentSession}</h3>
         {!sessionId ? (
-          <Card level="flat" padding="none"><EmptyState size="sm" icon={<Icon icon={Gauge} />} title={labels.noSession} description={labels.noSessionHint} /></Card>
+          <div className={kit.emptyBox}>{labels.noSession} —— {labels.noSessionHint}</div>
         ) : statsError ? (
-          <Card level="flat" padding="sm"><p className={s.error}>{statsError}</p></Card>
+          <div className={kit.notice}><span>{statsError}</span></div>
         ) : !stats ? (
-          <Card level="flat" padding="none"><EmptyState size="sm" icon={<Icon icon={Gauge} />} title={labels.noStats} description={labels.emptyHint} /></Card>
+          <div className={kit.emptyBox}>{labels.noStats} —— {labels.emptyHint}</div>
         ) : (
           <>
             <div className={s.stats} data-testid="usage-session-stats">
@@ -62,9 +59,9 @@ export function UsageView({
         <h3 className={s.sectionTitle}>{labels.live}</h3>
         <p className={s.hint}>{labels.liveHint}</p>
         {live.length === 0 ? (
-          <Card level="flat" padding="none"><EmptyState size="sm" icon={<Icon icon={Gauge} />} title={labels.liveEmpty} description={labels.liveEmptyHint} /></Card>
+          <div className={kit.emptyBox}>{labels.liveEmpty} —— {labels.liveEmptyHint}</div>
         ) : (
-          <div data-testid="usage-live-table">
+          <div className={kit.tableWrap} data-testid="usage-live-table">
             <table className={s.table}>
               <thead><tr><th>{labels.model}</th><th className={s.num}>{labels.calls}</th><th className={s.num}>{labels.input}</th><th className={s.num}>{labels.output}</th><th className={s.num}>{labels.cached}</th><th className={s.num}>{labels.total}</th><th className={s.num}>{labels.cost}</th></tr></thead>
               <tbody>{live.map((m) => (
@@ -84,9 +81,9 @@ export function UsageView({
       <section className={s.section} aria-label={labels.empty}>
         <h3 className={s.sectionTitle}>{labels.empty}</h3>
         {modelsError ? (
-          <Card level="flat" padding="sm"><p className={s.error}>{modelsError}</p></Card>
+          <div className={kit.notice}><span>{modelsError}</span></div>
         ) : models.length === 0 && !modelsLoading ? (
-          <Card level="flat" padding="none"><EmptyState size="sm" icon={<Icon icon={Gauge} />} title={labels.empty} description={labels.emptyHint} /></Card>
+          <div className={kit.emptyBox}>{labels.empty} —— {labels.emptyHint}</div>
         ) : <ModelTable models={models} labels={labels} />}
       </section>
     </PageShell>

@@ -14,7 +14,7 @@ const composer: Record<string, StringEntry> = {
   'composer.toolbar.attachImage':            { en: 'Attach image',                                  'zh-CN': '附加图片' },
   'composer.toolbar.mentionSkill':           { en: 'Mention skill',                                 'zh-CN': '提及技能' },
   'composer.toolbar.mentionFile':            { en: 'Mention file',                                  'zh-CN': '提及文件' },
-  // 「+」入口菜单（zcode 式）：附件 / 技能 / 插件 / 压缩 / 目标 / 计划。
+  // 「+」入口菜单（v3 壳层风格）：附件 / 技能 / 插件 / 压缩 / 目标 / 计划。
   'composer.plus.hint':                      { en: 'More actions',                                  'zh-CN': '更多操作' },
   'composer.plus.attach':                    { en: 'Add file or image',                             'zh-CN': '添加文件或图片' },
   'composer.plus.skills':                    { en: 'Skills',                                        'zh-CN': '技能' },

@@ -15,7 +15,7 @@ export interface ComposerSlots {
   ContextUsage: ComponentType;
   ComposerControls: ComponentType;
   ComposerContextBar: ComponentType;
-  /** 卡片底栏左侧的「+」入口菜单（zcode 式）。 */
+  /** 卡片底栏左侧的「+」入口菜单（v3 壳层风格）。 */
   ComposerPlusMenu: ComponentType<ComponentProps<typeof ComposerPlusMenu>>;
   /** 卡片底栏右侧的模型选择器。 */
   ModelPicker: ComponentType<ComponentProps<typeof ModelPicker>>;

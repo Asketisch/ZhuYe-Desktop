@@ -1,10 +1,13 @@
-//! v1.11 D9:外部 Agent 导入 —— 三种外部 harness 会话一键导入。
+//! v1.11 D9:外部 Agent 导入 —— 外部 harness 会话一键导入。
 //!
-//! 引擎侧 `zhuye-import` 三个 adapter 早已齐备(gap-report D9:
+//! 引擎侧 `zhuye-import` 的 adapter 已齐备(gap-report D9:
 //! 「引擎有,GUI 无」),本命令把它们接进 Tauri 表:
 //! - `zhuye_import_discover` —— 按种类列出可导入来源(不入库);
 //! - `zhuye_import_sessions` —— 批量导入到本机 rollout base
 //!   (`zhuye_rollout::path::default_base()`),`dry_run` 可预演。
+//!
+//! GUI 只暴露 claude_code / codex 两种来源;引擎其余 HarnessKind
+//! 不在桌面端命令面开放。
 //!
 //! 导入后既有会话列表(zhuye_list_sessions / replay)自然看到新会话,
 //! 无需额外注册动作。
@@ -17,9 +20,8 @@ fn parse_kind(kind: &str) -> CommandResult<zhuye_import::HarnessKind> {
     match kind {
         "claude_code" => Ok(zhuye_import::HarnessKind::ClaudeCode),
         "codex" => Ok(zhuye_import::HarnessKind::Codex),
-        "zcode" => Ok(zhuye_import::HarnessKind::Zcode),
         other => Err(CommandError {
-            msg: format!("unknown harness kind `{other}`; expected claude_code | codex | zcode"),
+            msg: format!("unknown harness kind `{other}`; expected claude_code | codex"),
         }),
     }
 }

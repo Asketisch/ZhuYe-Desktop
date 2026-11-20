@@ -23,13 +23,13 @@ export function summarizeDiff(diff: string): GitSummary {
 /** git 变更摘要(15s stale,chat 头右上角 +N −N)。 */
 export function useGitSummary(enabled: boolean): GitSummary | null {
   const status = useQuery({
-    queryKey: ['zcode-git-status'],
+    queryKey: ['session-git-status'],
     queryFn: zhuye_git_status,
     enabled,
     staleTime: 15_000,
   });
   const diff = useQuery({
-    queryKey: ['zcode-git-diff-stat'],
+    queryKey: ['session-git-diff-stat'],
     queryFn: () => zhuye_git_diff(false),
     enabled,
     staleTime: 15_000,

@@ -262,26 +262,32 @@
 }
 
 /* ===== plan 文档(v1.x:终稿 + 草稿预览)===== */
-/* 正文是 markdown —— 由 Markdown 组件渲染成结构化文档，
-   这里只负责外框、滚动与排版（不再用 mono/pre 排版原文）。 */
+/* 正文是 markdown —— 由 Markdown 组件渲染成结构化文档。
+   参考右侧 plan 详情面：文档流排版（无盒装框），面板自身滚动，
+   宽 dock 下正文限宽居中。 */
 .planDoc {
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  margin: 0 0 var(--space-2);
-  max-height: 420px;
-  overflow: auto;
-  color: var(--text-secondary);
-  line-height: var(--lh-normal);
+  max-width: 896px;
+  margin: 0 auto var(--space-3);
+  color: var(--text-primary);
+  line-height: 1.7;
   font-size: var(--fs-sm);
+  word-break: break-word;
 }
 
 .planDoc h1,
 .planDoc h2,
 .planDoc h3 {
   color: var(--text-primary);
-  margin: 0 0 var(--space-2);
+  font-weight: 600;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.planDoc h1 {
+  font-size: var(--fs-xl);
+}
+
+.planDoc h2 {
+  font-size: var(--fs-lg);
 }
 
 .planDoc p {
@@ -373,7 +379,7 @@
   color: var(--text-primary);
 }
 
-/* ===== v2 补充(redesign/zcode-shell):计划 / Git tab ===== */
+/* ===== v2 补充(v2-shell-redesign):计划 / Git tab ===== */
 .gitBranchRow {
   display: flex;
   align-items: center;

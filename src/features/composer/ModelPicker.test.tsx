@@ -115,7 +115,7 @@ describe('ModelPicker 模型组', () => {
       endpoint: 'anthropic',
       models: [
         { id: 'demo/model-a', display_name: 'Auto', supports_vision: null, is_free: null, context_window: 200000, max_output_tokens: null, supports_reasoning: null },
-        { id: 'zcode/GLM-5.3-Flash-Trial', display_name: '', supports_vision: null, is_free: true, context_window: 1000000, max_output_tokens: null, supports_reasoning: null },
+        { id: 'starter/GLM-5.3-Flash-Trial', display_name: '', supports_vision: null, is_free: true, context_window: 1000000, max_output_tokens: null, supports_reasoning: null },
       ],
     });
   });
@@ -143,7 +143,7 @@ describe('ModelPicker 模型组', () => {
     // 避免跨用例的 act 刷新时序假失败。
     await waitFor(() => {
       expect(
-        screen.getByRole('option', { name: /zcode\/GLM-5.3-Flash-Trial/ }),
+        screen.getByRole('option', { name: /starter\/GLM-5.3-Flash-Trial/ }),
       ).toBeTruthy();
     });
     expect(vi.mocked(zhuye_list_provider_models)).toHaveBeenCalledWith(
@@ -185,15 +185,15 @@ describe('ModelPicker 模型组', () => {
     renderPicker();
     await waitFor(() => {
       expect(
-        screen.getByRole('option', { name: /zcode\/GLM-5.3-Flash-Trial/ }),
+        screen.getByRole('option', { name: /starter\/GLM-5.3-Flash-Trial/ }),
       ).toBeTruthy();
     });
     const select = screen.getByTestId('composer-model-select') as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'model:zcode/GLM-5.3-Flash-Trial' } });
+    fireEvent.change(select, { target: { value: 'model:starter/GLM-5.3-Flash-Trial' } });
     await waitFor(() =>
       expect(vi.mocked(zhuye_set_model)).toHaveBeenCalledWith(
         'demo',
-        'zcode/GLM-5.3-Flash-Trial',
+        'starter/GLM-5.3-Flash-Trial',
       ),
     );
   });

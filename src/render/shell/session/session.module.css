@@ -1,6 +1,6 @@
-/* zcode —— v2 工作台重设计 chrome 样式(redesign/zcode-shell)。
+/* 会话壳层 —— v2 工作台重设计 chrome 样式(v2-shell-redesign)。
  *
- * 布局对齐 ZCode WorkspaceShellLayout 实测口径:
+ * 布局对齐工作区壳层实测口径:
  *   rail 48 / sidebar 264 / frame 圆角 12 + 0.5px 描边 / 底部三分屏。
  * 全部消费 tokens.css(单一事实来源),组件零硬编码色值。
  * 响应式断点:<=1180 收右栏;<=920 收侧栏;<=640 收 rail。
@@ -687,4 +687,223 @@
   .split { padding: 0 var(--space-2); }
   .bottom { height: 150px; }
   .tjInsp { width: 320px; }
+}
+
+/* ===== 会话区右上角浮动状态面板 ===== */
+/* 容器上下文由 ChatView 的 .chatpane 提供（container-name: conversation）。 */
+.statusWrap {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  z-index: 20;
+  padding-top: 16px;
+  pointer-events: none;
+}
+
+/* mini 胶囊：单行优先级链（进行中 todo → 目标 → 计划 → 完成计数）。 */
+.statusPill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  max-width: 320px;
+  height: 34px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: #2b2b2b;
+  color: var(--text-primary);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
+  cursor: pointer;
+  padding: 0;
+}
+:global([data-theme='light']) .statusPill {
+  background: #ffffff;
+  border-color: rgba(13, 13, 13, 0.1);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 10%);
+}
+.statusMetric {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 12px 0 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.statusMetric + .statusMetric {
+  border-left: 1px solid var(--border-subtle);
+}
+.statusMetricTxt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.statusDone {
+  color: var(--success);
+}
+.statusExpandIcon {
+  margin: 0 8px 0 2px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.statusPill:hover .statusExpandIcon {
+  opacity: 1;
+}
+
+/* 展开面板：w-80 圆角卡片，分节可折叠。 */
+.statusPanel {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  max-height: min(64vh, 32rem);
+  width: 320px;
+  max-width: calc(100% - 32px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: #2b2b2b;
+  color: var(--text-primary);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
+}
+:global([data-theme='light']) .statusPanel {
+  background: #ffffff;
+  border-color: rgba(13, 13, 13, 0.1);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 10%);
+}
+
+.statusPanelCtl {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.statusPanelBtn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.statusPanelBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.statusSection {
+  min-width: 0;
+  flex: none;
+  padding: 8px 8px 4px;
+}
+.statusSection + .statusSection {
+  border-top: 1px solid var(--border-subtle);
+}
+.statusSectionHead {
+  display: flex;
+  height: 32px;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.statusSectionHead:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.statusSectionTitle {
+  font-size: 13px;
+}
+.statusSide {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.statusSide[data-state='done'] {
+  color: var(--success);
+}
+
+.statusRows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  max-height: 12rem;
+  padding: 2px 0 4px;
+}
+.statusRow,
+.statusRowBtn {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: default;
+}
+.statusRowBtn {
+  width: 100%;
+  cursor: pointer;
+}
+.statusRowBtn:hover,
+.statusRow:hover {
+  background: var(--bg-hover);
+}
+.statusRowIcon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-muted);
+}
+.statusRow[data-status='completed'] .statusRowIcon,
+.statusOk {
+  color: var(--success);
+}
+.statusRowTxt {
+  min-width: 0;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* auto 态：容器 ≥1280px 用面板，否则胶囊（容器查询）。 */
+.statusAutoMini,
+.statusAutoPanel {
+  display: contents;
+}
+@container conversation (max-width: 1279px) {
+  .statusAutoPanel {
+    display: none;
+  }
+}
+@container conversation (min-width: 1280px) {
+  .statusAutoMini {
+    display: none;
+  }
 }

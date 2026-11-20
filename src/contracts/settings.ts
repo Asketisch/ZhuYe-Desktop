@@ -3,8 +3,38 @@ import type { I18nContextValue } from '@/utils/i18n/context';
 export type { UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import type { UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 
-export type SettingsSection = 'groups' | 'permissions' | 'display' | 'notifications' | 'advanced';
+export type SettingsSection =
+  | 'general'
+  | 'appearance'
+  | 'groups'
+  | 'remote'
+  | 'personalization'
+  | 'behavior'
+  | 'memory'
+  | 'agents'
+  | 'plugins'
+  | 'mcp'
+  | 'skills'
+  | 'hooks'
+  | 'usage'
+  | 'advanced';
 export type SettingsPermissionMode = 'auto' | 'prompt' | 'deny' | 'plan' | 'accept_edits' | 'bubble' | 'bypass';
+
+/** 设置分区元信息（搜索弹层与分区导航共用）。 */
+export interface SettingsSectionMeta {
+  id: SettingsSection;
+  labelKey: string;
+  groupKey: string;
+}
+
+/** 分区搜索弹层状态（logic 层 useSettingsSearch 的产出，渲染层只消费）。 */
+export interface SettingsSearchState {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  query: string;
+  setQuery: (query: string) => void;
+  jump: (id: SettingsSection) => void;
+}
 
 export interface SettingsSlots {
   ConfigInfoLine: ComponentType;
@@ -25,6 +55,17 @@ export interface SettingsSlots {
   GuardStatsCard: ComponentType;
   SecurityScanCard: ComponentType;
   UpdatesSection: ComponentType;
+  /* —— 嵌入分区（路由页内容复用；标题由分区骨架统一出） —— */
+  RemoteSection: ComponentType;
+  MemorySection: ComponentType;
+  AgentsSection: ComponentType;
+  PluginsSection: ComponentType;
+  McpSection: ComponentType;
+  SkillsSection: ComponentType;
+  HooksSection: ComponentType;
+  UsageSection: ComponentType;
+  /** 个性化：用户级自定义指令，读写落盘由分区内部负责。 */
+  PersonalizationSection: ComponentType;
 }
 
 export interface SettingsViewProps {
@@ -51,5 +92,7 @@ export interface SettingsViewProps {
   onPermission: (mode: SettingsPermissionMode) => void;
   onSave: () => void;
   onClose?: () => void;
+  /** 分区搜索弹层状态（⌘K；logic 层 useSettingsSearch 产出）。 */
+  search: SettingsSearchState;
   slots: SettingsSlots;
 }

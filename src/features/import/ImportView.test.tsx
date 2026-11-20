@@ -32,7 +32,7 @@ describe('ImportView — external harness import', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders three adapter kinds, defaults to claude_code, and shows discovered count', async () => {
+  it('renders the adapter kinds, defaults to claude_code, and shows discovered count', async () => {
     const discoverCalls: string[] = [];
     mockInvoke('zhuye_import_discover', async (_cmd: string, args: { kind: string }) => {
       discoverCalls.push(args.kind);
@@ -41,9 +41,9 @@ describe('ImportView — external harness import', () => {
     render(wrap(<ImportView />));
     const select = screen.getByTestId('import-kind-select') as HTMLSelectElement;
     expect(select.value).toBe('claude_code');
-    // 三个 adapter 都在下拉里。
+    // 两个 adapter 都在下拉里。
     const options = Array.from(select.options).map((o) => o.value);
-    expect(options).toEqual(['claude_code', 'codex', 'zcode']);
+    expect(options).toEqual(['claude_code', 'codex']);
     // 发现数量徽标照实渲染。
     expect(await screen.findByTestId('import-source-count')).toBeDefined();
     expect(screen.getByTestId('import-source-count').textContent).toBe('2');
@@ -58,9 +58,9 @@ describe('ImportView — external harness import', () => {
     });
     render(wrap(<ImportView />));
     await screen.findByTestId('import-source-count');
-    fireEvent.change(screen.getByTestId('import-kind-select'), { target: { value: 'zcode' } });
+    fireEvent.change(screen.getByTestId('import-kind-select'), { target: { value: 'codex' } });
     await waitFor(() => {
-      expect(discoverCalls).toContain('zcode');
+      expect(discoverCalls).toContain('codex');
     });
   });
 

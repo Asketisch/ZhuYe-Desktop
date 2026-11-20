@@ -2,7 +2,7 @@
  * SessionChips.module.css —— 会话内 chips 行的四个内容体样式。
  *
  * 归属：composer 上方的会话内 chips 行（任务 / 目标 / 子代理 / 建议），
- * 由 `features/shell/zcode/ZDock.tsx` 渲染。此前这些内容挂在窗口右上
+ * 由 `features/shell/session/SessionDock.tsx` 渲染。此前这些内容挂在窗口右上
  * 角的 fixed 浮层（CornerStack），在所有路由都飘着 —— v3 起并入会话区。
  *
  * 全部颜色/圆角/字号走 tokens.css 变量，不硬编码色值（设计系统红线）。

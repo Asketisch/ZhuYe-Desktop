@@ -348,7 +348,7 @@ describe('Settings save flow', () => {
   it('clicking permission button triggers zhuye_set_permission_mode mutation', async () => {
     render(wrap(<SettingsView />));
     // 权限快捷控件只在 Permissions 页显示（v1.x:不再每个设置页签重复）。
-    fireEvent.click(screen.getByText('Permissions'));
+    fireEvent.click(screen.getByTestId('settings-section-behavior'));
 
     // permission 按钮(auto/prompt/deny/plan)直接 mutate。
     const planBtn = await screen.findByText('plan', { selector: 'button' });

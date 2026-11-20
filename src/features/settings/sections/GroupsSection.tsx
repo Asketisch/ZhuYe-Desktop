@@ -1,22 +1,21 @@
 /**
- * 模型组设置页 —— 唯一的模型接入管理面。
+ * 模型组设置页 —— 唯一的模型接入管理面（主从布局）。
  *
- * 两层内容：
- * 1. **默认模型组**：全部 `[[model_group]]` 平铺成卡片，点击即把
- *    `[active].group` 切过去（组 id 直接注册为引擎的凭证池名）。
- * 2. **模型组管理**（GroupForm：增删改 + 组内凭据池 + 自动拉模型），
- *    外加 **额度耗尽自动切换 / 自动压缩** 开关。
+ * 页头（内联状态点 + 添加按钮）→ 左列 GroupNav（组列表 + 凭据池健康点
+ * + 全局开关）→ 右列 GroupDetail（选中组的编辑面板；null = 新增模式）。
+ * 「设为默认」（`[active].group`）收进详情头的开关，替代旧「默认组卡片
+ * 平铺」—— 组多了以后平铺既占屏又没有详情入口。
  *
  * 旧「提供商方案（coding plan）」层已移除 —— 多凭据 / 配额声明下沉为
- * 组内凭据（`[[model_group.credentials]]`），由 GroupForm 编辑。
+ * 组内凭据（`[[model_group.credentials]]`），由 GroupDetail 编辑。
  *
  * 与 ConfigForm 共享同一份 rawToml buffer（props 传入），每个完整意图
  * （保存/删除/设为默认）经 onCommit 即时落盘 —— 模型选择器读到的
  * 永远是新配置。
  */
-import { useState } from 'react';
-import { CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Badge, Icon } from '@/features/design-system';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
+import { Button, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
   AUTO_FAILOVER_PREF_KEY,
@@ -27,12 +26,13 @@ import {
   isAutoCompactEnabled,
 } from '@/stores/agent/autoCompact';
 import {
-  groupDisplayLabel,
   listGroups,
   readActiveGroup,
+  removeGroup,
   setActiveGroup,
 } from '../config/groups';
-import { GroupForm } from './GroupForm';
+import { GroupNav } from './GroupNav';
+import { GroupDetail } from './GroupDetail';
 import s from '@/render/settings/SettingsView.module.css';
 
 export interface GroupsSectionProps {
@@ -56,6 +56,27 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
   const activeGroup = readActiveGroup(rawToml);
   const hasModel = Boolean(status?.has_model);
 
+  // 选中组 id;null = 新增模式(空表单)。初始选中默认组,否则第一组。
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    groups.length > 0 ? activeGroup ?? groups[0].id : null,
+  );
+  const selectedGroup = selectedId != null ? groups.find((g) => g.id === selectedId) ?? null : null;
+
+  // 选中组被删除(本页删除 / 手改 TOML)后回落:默认组 > 第一组 > 新增模式。
+  useEffect(() => {
+    if (selectedId != null && !selectedGroup) {
+      setSelectedId(
+        groups.find((g) => g.id === activeGroup)?.id ?? groups[0]?.id ?? null,
+      );
+    }
+  }, [selectedId, selectedGroup, groups, activeGroup]);
+
+  // 凭据池健康查询签名:组集合 / 凭据数 / 组级 key 变化才换 key 重查。
+  const poolSignature = useMemo(
+    () => groups.map((g) => `${g.id}:${g.credentials.length}:${g.apiKey ? 1 : 0}`).join('|'),
+    [groups],
+  );
+
   const onToggleAutoFailover = (enabled: boolean) => {
     setAutoFailover(enabled);
     try {
@@ -75,80 +96,104 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
   };
 
   return (
-    <section data-testid="groups-section">
-      {/* 状态徽标 —— 契约 'Agent ready'。模型接入的就绪状态,只在本页显示。 */}
-      <div className={s.statusBar} data-ok={hasModel || undefined}>
-        <Icon icon={hasModel ? CheckCircle2 : AlertTriangle} size={14} />
-        <span>
-          {loading
-            ? t('settings.loading')
-            : hasModel
-              ? <>{t('settings.status.ready', { model: status?.model ?? '' })} <code className={s.codeInline}>{status?.model}</code></>
-              : <>{t('settings.status.degraded', { reason: status?.degraded_reason ?? t('settings.status.noProvider') })} {t('settings.status.noProviderHint')}</>}
+    <section data-testid="groups-section" className={s.groupsPage}>
+      {/* 页头:内联状态点 + 添加按钮 */}
+      <div className={s.groupsHeader}>
+        <span className={s.groupsStatus} data-ok={hasModel || undefined}>
+          <Icon icon={hasModel ? CheckCircle2 : AlertTriangle} size={14} />
+          <span>
+            {loading
+              ? t('settings.loading')
+              : hasModel
+                ? <>{t('settings.status.ready', { model: status?.model ?? '' })} <code className={s.codeInline}>{status?.model}</code></>
+                : <>{t('settings.status.degraded', { reason: status?.degraded_reason ?? t('settings.status.noProvider') })} {t('settings.status.noProviderHint')}</>}
+          </span>
         </span>
+        <span className={s.groupsHeaderSpacer} />
+        <Button
+          variant="secondary"
+          size="sm"
+          data-testid="groups-add"
+          onClick={() => setSelectedId(null)}
+        >
+          <Icon icon={Plus} size={12} /> {t('settings.groups.addTitle')}
+        </Button>
       </div>
-      <h3 className={s.sectionTitle}>{t('settings.groups.title')}</h3>
       <p className={s.sectionDesc}>{t('settings.groups.desc')}</p>
 
-      {/* 默认模型组（[active].group）—— 全部模型组平铺 */}
-      <h4 className={s.sectionTitle}>{t('settings.groups.defaultGroup')}</h4>
-      {groups.length === 0 && <p className={s.sectionDesc}>{t('settings.groups.empty')}</p>}
-      <div className={s.permGrid}>
-        {groups.map((group) => (
-          <button
-            key={group.id}
-            className={s.permCard}
-            data-active={group.id === activeGroup || undefined}
-            data-testid={`group-default-${group.id}`}
-            onClick={() => {
-              const next = setActiveGroup(rawToml, group.id);
-              onChange(next);
-              onCommit?.(next);
-            }}
-          >
-            <div className={s.permCardHeader}>
-              <Badge variant={group.id === activeGroup ? 'success' : 'neutral'} solid>
-                {group.id === activeGroup ? t('settings.groups.defaultBadge') : groupDisplayLabel(group)}
-              </Badge>
-              {group.id !== activeGroup && <span className={s.providerName}>{group.endpoint}</span>}
-            </div>
-            <p className={s.permDesc}>
-              {t('settings.groups.groupDesc', {
-                count: group.credentials.length,
-                endpoint: group.endpoint,
-              })}
-            </p>
-          </button>
-        ))}
+      {/* 主从布局:左列表 + 右详情 */}
+      <div className={s.groupsLayout}>
+        <div className={s.groupsNavCol}>
+          <GroupNav
+            groups={groups}
+            activeId={activeGroup}
+            selectedId={selectedId}
+            poolSignature={poolSignature}
+            onSelect={setSelectedId}
+          />
+          {/* 全局开关(非组级偏好)挂左列底部 */}
+          <div className={s.groupsNavFoot}>
+            <span className={s.gSwitchRow}>
+              <span
+                className={s.gSwitchLabel}
+                title={`${t('settings.groups.autoFailoverLabel')} ${t('settings.groups.autoFailoverDesc')}`}
+              >
+                {t('settings.groups.autoFailover')}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoFailover}
+                aria-label={t('settings.groups.autoFailover')}
+                data-testid="groups-auto-failover"
+                className={`sw${autoFailover ? ' on' : ''}`}
+                onClick={() => onToggleAutoFailover(!autoFailover)}
+              >
+                <span />
+              </button>
+            </span>
+            <span className={s.gSwitchRow}>
+              <span
+                className={s.gSwitchLabel}
+                title={t('settings.groups.autoCompactDesc')}
+              >
+                {t('settings.groups.autoCompactLabel')}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoCompact}
+                aria-label={t('settings.groups.autoCompactLabel')}
+                data-testid="groups-auto-compact"
+                className={`sw${autoCompact ? ' on' : ''}`}
+                onClick={() => onToggleAutoCompact(!autoCompact)}
+              >
+                <span />
+              </button>
+            </span>
+          </div>
+        </div>
+
+        <GroupDetail
+          group={selectedGroup}
+          rawToml={rawToml}
+          onChange={onChange}
+          onCommit={onCommit}
+          activeGroup={activeGroup}
+          onSetDefault={(id) => {
+            const next = setActiveGroup(rawToml, id);
+            onChange(next);
+            onCommit?.(next);
+          }}
+          onDelete={(id) => {
+            const next = removeGroup(rawToml, id);
+            onChange(next);
+            onCommit?.(next);
+            // 选中回落由上方 reconcile effect 处理。
+          }}
+          onSaved={setSelectedId}
+        />
       </div>
-
-      {/* 模型组管理（列表 + 增删改 + 组内凭据 + 自动拉模型） */}
-      <GroupForm rawToml={rawToml} onChange={onChange} onCommit={onCommit} />
-
-      {/* 额度耗尽自动切换 */}
-      <h4 className={s.sectionTitle}>{t('settings.groups.autoFailover')}</h4>
-      <label className={s.fieldRow}>
-        <input
-          type="checkbox"
-          checked={autoFailover}
-          onChange={(e) => onToggleAutoFailover(e.target.checked)}
-          data-testid="groups-auto-failover"
-        />
-        <span className={s.fieldLabel}>{t('settings.groups.autoFailoverLabel')}</span>
-      </label>
-      <p className={s.sectionDesc}>{t('settings.groups.autoFailoverDesc')}</p>
-
-      {/* 按最大上下文自动压缩 */}
-      <label className={s.fieldRow}>
-        <input
-          type="checkbox"
-          checked={autoCompact}
-          onChange={(e) => onToggleAutoCompact(e.target.checked)}
-          data-testid="groups-auto-compact"
-        />
-        <span className={s.fieldLabel}>{t('settings.groups.autoCompactLabel')}</span>
-      </label>
-      <p className={s.sectionDesc}>{t('settings.groups.autoCompactDesc')}</p>
     </section>
   );
 }

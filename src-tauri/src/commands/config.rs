@@ -31,6 +31,39 @@ pub async fn zhuye_get_config(agent: State<'_, MinimalAgent>) -> CommandResult<S
     Ok(toml)
 }
 
+/// 用户级自定义指令文件路径（`<用户数据目录>/AGENTS.md`）。
+///
+/// 与会话首轮注入的 `AgentsMdHook` 同源：app-core 的
+/// `read_agents_md_merged` 会合并用户级与项目级 AGENTS.md 注入首轮上下文，
+/// 设置页「个性化」编辑的就是这一份（对所有会话生效）。
+fn user_instructions_path() -> CommandResult<std::path::PathBuf> {
+    Ok(zhuye_config::data_path_or_relative(&[]).join("AGENTS.md"))
+}
+
+/// 读取用户级自定义指令（文件不存在 → 空串，属正常初始态）。
+#[tauri::command]
+pub async fn zhuye_get_user_instructions() -> CommandResult<String> {
+    let path = user_instructions_path()?;
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    std::fs::read_to_string(&path).map_err(|e| CommandError {
+        msg: format!("read user instructions: {e}"),
+    })
+}
+
+/// 保存用户级自定义指令（原子写，UTF-8）。
+#[tauri::command]
+pub async fn zhuye_save_user_instructions(content: String) -> CommandResult<()> {
+    let path = user_instructions_path()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    crate::persistence::write_atomic(&path, content.as_bytes())?;
+    tracing::info!(path = %path.display(), "user instructions saved");
+    Ok(())
+}
+
 /// 新配置写盘 + 热替换共享 cfg(校验由调用方完成)。返回旧快照供调用方
 /// 做变更检测(`hot_reload_provider_stack` 需要 old/new 对比)。
 ///

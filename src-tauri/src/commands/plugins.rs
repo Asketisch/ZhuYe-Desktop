@@ -182,8 +182,14 @@ fn marketplace_kind_str(k: zhuye_config::schema::PluginMarketplaceKind) -> &'sta
 
 /// 启用 / 停用一个插件。
 ///
-/// 写 config 的 `[plugins] enabled_plugins` → 落盘 → 核心
-/// `reload_plugins` diff 同步(挂/卸插件,不打断运行中的会话)。
+/// 写 config 的 `[plugins]` 两个列表 → 落盘 → 核心 `reload_plugins`
+/// diff 同步(挂/卸插件,不打断运行中的会话)。门控语义与 CLI
+/// `plugin enable/disable` 对齐(上游 0.1.16):
+/// - enable:加入 `enabled_plugins`,同时从 `disabled_plugins` 移除 ——
+///   否则此前被显式禁用的默认开门控插件(web-search 等)启用仍无效;
+/// - disable:移出 `enabled_plugins`;**仅门控型 bundled 插件**
+///   (`is_bundled_plugin`)写入 `disabled_plugins` —— 默认开插件不依赖
+///   enabled 列表,只移出是 no-op;marketplace 插件保持旧语义。
 #[tauri::command]
 pub async fn zhuye_toggle_plugin(
     agent: State<'_, MinimalAgent>,
@@ -193,24 +199,49 @@ pub async fn zhuye_toggle_plugin(
     let id = PluginId::parse_user_input(&id)
         .map(|id| id.to_string())
         .unwrap_or(id);
+    // 门控判定取 `@` 前的裸名;解析失败时退回原串(裸名形态可直接命中)。
+    let bare_name = PluginId::parse_user_input(&id)
+        .map(|parsed| parsed.name().to_string())
+        .unwrap_or_else(|_| id.clone());
+    let is_bundled = zhuye_plugin::is_bundled_plugin(&bare_name);
     let _config_write = agent.inner.config_write_lock.lock().await;
     let mut cfg = agent.inner.cfg.read().clone();
-    let list = &mut cfg.plugins.enabled_plugins;
     let matches_id = |value: &String| match PluginId::parse_user_input(value) {
         Ok(value) => value.as_str() == id,
         Err(_) => value == &id,
     };
-    let had = list.iter().any(matches_id);
-    if enabled && !had {
-        list.push(id.clone());
+    // enabled 列表:enable 加入 / disable 移出(两语义共用一个判定)。
+    let had = cfg.plugins.enabled_plugins.iter().any(matches_id);
+    let enabled_changed = if enabled && !had {
+        cfg.plugins.enabled_plugins.push(id.clone());
+        true
     } else if !enabled && had {
-        list.retain(|value| !matches_id(value));
+        cfg.plugins
+            .enabled_plugins
+            .retain(|value| !matches_id(value));
+        true
     } else {
+        false
+    };
+    // disabled 列表:enable 时清禁用痕迹;disable 时仅 bundled 插件写入。
+    let before_disabled = cfg.plugins.disabled_plugins.len();
+    if enabled {
+        cfg.plugins
+            .disabled_plugins
+            .retain(|value| !matches_id(value));
+    } else if is_bundled && !cfg.plugins.disabled_plugins.iter().any(matches_id) {
+        cfg.plugins.disabled_plugins.push(id.clone());
+    }
+    let disabled_changed = cfg.plugins.disabled_plugins.len() != before_disabled;
+    if !enabled_changed && !disabled_changed {
         // 状态没变 —— 幂等返回(不重复落盘)。
         return Ok(());
     }
     // 落盘 + 换内存快照。
     crate::commands::config::persist_config(&agent, cfg.clone())?;
+    // 门控工具门(web_search / notebook_edit)随新配置即时同步到共享
+    // 注册表 —— 工具表进程级共享,不 here 同步则要等重启应用才生效。
+    crate::state::plugins::apply_bundled_tool_gates(&agent);
     // diff 同步挂/卸(与模型接入栈热重载的 plugins 分支同语义)。
     let _mount = agent.inner.plugin_mount_lock.lock().await;
     crate::state::plugins::reload_enabled_plugins(&agent, &cfg.plugins.enabled_plugins)
@@ -283,140 +314,11 @@ pub async fn zhuye_install_plugin(
     Ok(())
 }
 
-// ── v1.11 桌面#2:插件市场浏览 + 一键安装 ─────────────────────────────
-
-/// 市场内一个可安装插件的展示信息(camelCase 出线)。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MarketplacePluginInfo {
-    pub name: String,
-    pub description: String,
-    pub version: Option<String>,
-    pub category: Option<String>,
-    pub tags: Vec<String>,
-    /// 分发源描述(与 MarketplaceSource 序列化形态一致)。
-    pub source: String,
-}
-
-/// 读 `known_marketplaces.json`(文件缺失 → 空表 —— 用户还没加过市场
-/// 是正常状态,不是错误)。
-fn load_known_marketplaces() -> CommandResult<zhuye_plugin::KnownMarketplacesFile> {
-    let Some(path) = zhuye_plugin::default_marketplaces_path() else {
-        return Err(CommandError {
-            msg: "no HOME dir for marketplaces.json".into(),
-        });
-    };
-    if !path.exists() {
-        return Ok(zhuye_plugin::KnownMarketplacesFile::new());
-    }
-    let text = std::fs::read_to_string(&path).map_err(|e| CommandError {
-        msg: format!("read marketplaces.json failed: {e}"),
-    })?;
-    serde_json::from_str(&text).map_err(|e| CommandError {
-        msg: format!("parse marketplaces.json failed: {e}"),
-    })
-}
-
-/// v1.11 桌面#2:浏览一个 marketplace 的可安装插件清单。
-///
-/// 读 known_marketplaces.json 里该市场的缓存目录,解析
-/// `.claude-plugin/marketplace.json` manifest,逐条返回插件元信息。
-/// 市场未注册 / 缓存未物化 → 显性报错(提示先 `marketplace add` /
-/// CLI refresh)。
-#[tauri::command]
-pub async fn zhuye_browse_marketplace(name: String) -> CommandResult<Vec<MarketplacePluginInfo>> {
-    let mkt = MarketplaceName::parse(&name).map_err(|e| CommandError {
-        msg: format!("invalid marketplace name: {e}"),
-    })?;
-    let known = load_known_marketplaces()?;
-    let entry = known.marketplaces.get(&mkt).ok_or_else(|| CommandError {
-        msg: format!(
-            "marketplace '{name}' not registered; add it via `zhuye plugin marketplace add` first"
-        ),
-    })?;
-    let manifest_path = zhuye_plugin::MarketplaceManifest::find_in_dir(&entry.install_location)
-        .ok_or_else(|| CommandError {
-            msg: format!(
-                "marketplace manifest not found under {} (run `zhuye plugin marketplace refresh --name {name}`)",
-                entry.install_location.display()
-            ),
-        })?;
-    let manifest =
-        zhuye_plugin::MarketplaceManifest::from_json_path(&manifest_path).map_err(|e| {
-            CommandError {
-                msg: format!("parse marketplace manifest failed: {e}"),
-            }
-        })?;
-    Ok(manifest
-        .plugins
-        .into_iter()
-        .map(|p| MarketplacePluginInfo {
-            name: p.manifest.name,
-            description: p.manifest.description.unwrap_or_default(),
-            version: p.manifest.version,
-            category: p.category,
-            tags: p.tags,
-            source: serde_json::to_string(&p.source).unwrap_or_default(),
-        })
-        .collect())
-}
-
-/// v1.11 桌面#2:从 marketplace 一键安装插件(含依赖 DFS 解析)。
-///
-/// 复用 CLI 同款链路:known_marketplaces.json 取 cache root →
-/// `PluginManager::install_from_marketplace`(DepResolver 后序装依赖)
-/// → save → 运行时 refresh(挂载能力)。
-#[tauri::command]
-pub async fn zhuye_install_from_marketplace(
-    agent: State<'_, MinimalAgent>,
-    marketplace: String,
-    plugin: String,
-) -> CommandResult<()> {
-    let mkt = MarketplaceName::parse(&marketplace).map_err(|e| CommandError {
-        msg: format!("invalid marketplace name: {e}"),
-    })?;
-    let known = load_known_marketplaces()?;
-    let entry = known.marketplaces.get(&mkt).ok_or_else(|| CommandError {
-        msg: format!(
-            "marketplace '{marketplace}' not registered; add it via `zhuye plugin marketplace add` first"
-        ),
-    })?;
-    let cache_root = entry.install_location.clone();
-    let _config_write = agent.inner.config_write_lock.lock().await;
-    let _mount = agent.inner.plugin_mount_lock.lock().await;
-    let mut manager = load_plugin_manager()?;
-    let report = manager
-        .install_from_marketplace(&known, &cache_root, &mkt, &plugin, PluginScope::User)
-        .map_err(|e| CommandError {
-            msg: format!("install from marketplace failed: {e}"),
-        })?;
-    if !report.is_success() {
-        // 依赖解析失败逐条显性化(与 CLI render_install_report 同语义)。
-        let failed: Vec<String> = report
-            .failed
-            .iter()
-            .map(|f| format!("{}: {}", f.target, f.error))
-            .collect();
-        return Err(CommandError {
-            msg: format!("install failed: {}", failed.join("; ")),
-        });
-    }
-    manager.save().map_err(|e| CommandError {
-        msg: format!("save plugin state failed: {e}"),
-    })?;
-    crate::state::plugins::refresh_installed_plugins(&agent)
-        .await
-        .map_err(|e| CommandError {
-            msg: format!("plugin installed, but runtime refresh failed: {e:#}"),
-        })?;
-    Ok(())
-}
-
 /// 加载插件管理器(读 `installed_plugins.json`)。
 ///
 /// 读不到(HOME 缺失 / 文件不存在)→ 空管理器(不是错误 —— 用户还没装过
 /// 任何插件是正常状态)。
-fn load_plugin_manager() -> CommandResult<PluginManager> {
+pub(crate) fn load_plugin_manager() -> CommandResult<PluginManager> {
     let Some(root) = zhuye_plugin::default_plugins_root() else {
         return Err(CommandError {
             msg: "no HOME dir for plugins root".into(),

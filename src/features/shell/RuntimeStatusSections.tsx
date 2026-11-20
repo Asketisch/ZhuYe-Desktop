@@ -39,8 +39,8 @@ export function CredentialPoolSection() {
         {pools.map((p) => {
           const cooling = p.total - p.healthy;
           return (
-            <li key={p.provider} className={s.row}>
-              <span className={s.name}>{p.provider}</span>
+            <li key={p.group} className={s.row}>
+              <span className={s.name}>{p.group}</span>
               <span className={s.value}>
                 {p.healthy} / {p.total}
               </span>

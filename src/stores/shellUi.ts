@@ -16,6 +16,9 @@ export type DockMode = 'inspector' | 'browser' | 'files' | 'agents' | 'usage';
 /** 任务中心页签。 */
 export type InboxTab = 'todo' | 'done';
 
+/** 检查器（右 dock inspector 档）的页签。 */
+export type InspectorTab = 'overview' | 'files' | 'changes' | 'plan' | 'git';
+
 interface ShellUiPersist {
   rail: boolean;
   dockMode: DockMode;
@@ -61,6 +64,8 @@ interface ShellUiState extends ShellUiPersist {
   /** 任务中心是否打开（非持久：每次启动收起）。 */
   inboxOpen: boolean;
   inboxTab: InboxTab;
+  /** 检查器当前页签（非持久：面板重开回落到概览）。 */
+  inspectorTab: InspectorTab;
   /** 设置弹窗是否打开。 */
   settingsOpen: boolean;
   /** 命令面板（⌘K）开关 —— 标题条按钮与快捷键共用同一状态。 */
@@ -91,6 +96,7 @@ interface ShellUiState extends ShellUiPersist {
   closeInbox: () => void;
   toggleInbox: () => void;
   setInboxTab: (tab: InboxTab) => void;
+  setInspectorTab: (tab: InspectorTab) => void;
   setSettingsOpen: (open: boolean) => void;
   setPaletteOpen: (open: boolean) => void;
   togglePalette: () => void;
@@ -112,6 +118,7 @@ export const useShellUi = create<ShellUiState>((set, get) => ({
   dockWidth: persisted.dockWidth ?? null,
   inboxOpen: false,
   inboxTab: 'todo',
+  inspectorTab: 'overview',
   settingsOpen: false,
   paletteOpen: false,
   moreMenuOpen: false,
@@ -162,6 +169,7 @@ export const useShellUi = create<ShellUiState>((set, get) => ({
   closeInbox: () => set({ inboxOpen: false }),
   toggleInbox: () => set((s) => ({ inboxOpen: !s.inboxOpen })),
   setInboxTab: (tab) => set({ inboxTab: tab }),
+  setInspectorTab: (tab) => set({ inspectorTab: tab }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setPaletteOpen: (open) => set({ paletteOpen: open }),
   togglePalette: () => set((s) => ({ paletteOpen: !s.paletteOpen })),

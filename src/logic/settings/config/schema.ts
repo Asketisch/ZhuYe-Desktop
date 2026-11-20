@@ -106,6 +106,9 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   { section: 'prompt_guard', key: 'enabled', labelKey: 'settings.config.field.prompt_guard.enabled', kind: 'boolean' },
 
   { section: 'plugins', key: 'enabled_plugins', labelKey: 'settings.config.field.plugins.enabled_plugins', kind: 'textarea' },
+  // 门控型 bundled 插件显式禁用表(上游 0.1.16):条目 `name@marketplace`
+  // 或裸 `name`,写即关闭对应工具(web_search / notebook_edit 等)。
+  { section: 'plugins', key: 'disabled_plugins', labelKey: 'settings.config.field.plugins.disabled_plugins', kind: 'textarea' },
 
   { section: 'config_version', key: 'version', labelKey: 'settings.config.field.config_version.version', kind: 'integer' },
 ];
@@ -146,6 +149,7 @@ export const STRUCTURED_SECTIONS: readonly string[] = Array.from(
  */
 const LIST_FIELDS = new Set([
   'plugins.enabled_plugins',
+  'plugins.disabled_plugins',
   'model_discovery.always_free',
   'model_discovery.free_id_patterns',
 ]);

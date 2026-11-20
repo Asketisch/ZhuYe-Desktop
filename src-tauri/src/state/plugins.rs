@@ -55,6 +55,47 @@ pub(crate) fn canonical_enabled(enabled: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// 把门控型 bundled 插件工具门(web_search / notebook_edit)同步到共享
+/// ToolRegistry —— 按**当前配置**即时 register/unregister。
+///
+/// 上游门控在装配时判定、不热重载(重启会话生效);桌面端工具表是
+/// 进程级共享、应用长期驻留,这里按同一判定源
+/// (`zhuye_plugin::bundled_tool_gates`)做差量同步,让设置变更立即生效
+/// 而不必重启。调用点:配置保存后的 plugins 段变更、`zhuye_toggle_plugin`。
+pub(crate) fn apply_bundled_tool_gates(agent: &MinimalAgent) {
+    let cfg = agent.inner.cfg.read().clone();
+    let gates = zhuye_plugin::bundled_tool_gates(
+        &cfg.plugins.enabled_plugins,
+        &cfg.plugins.disabled_plugins,
+    );
+    let tools = agent.tools();
+    sync_gated_tool(&tools, "web_search", gates.web_search, || {
+        Arc::new(zhuye_tools::builtins::WebSearchTool::new())
+    });
+    sync_gated_tool(&tools, "notebook_edit", gates.notebook_edit, || {
+        Arc::new(zhuye_tools::builtins::NotebookEditTool)
+    });
+}
+
+/// 单个门控工具的差量同步:门开且未注册 → 注册;门关且在表 → 反注册。
+fn sync_gated_tool<F>(tools: &Arc<zhuye_tools::ToolRegistry>, name: &str, gate_on: bool, make: F)
+where
+    F: FnOnce() -> Arc<dyn zhuye_tools::Tool>,
+{
+    let present = tools.get(name).is_some();
+    match (gate_on, present) {
+        (true, false) => {
+            tools.register(make());
+            tracing::info!("[zhuye-gui] gated tool `{name}` registered (plugin gate on)");
+        }
+        (false, true) => {
+            tools.unregister(name);
+            tracing::info!("[zhuye-gui] gated tool `{name}` unregistered (plugin gate off)");
+        }
+        _ => {}
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct PluginRuntimeContext {
     tools: Arc<zhuye_tools::ToolRegistry>,

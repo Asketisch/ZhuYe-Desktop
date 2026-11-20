@@ -88,7 +88,7 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
           className={s.textarea}
           autoFocus
         />
-        {/* 卡片底栏：左「+」入口与 @ 引用，右模型 / 语音 / 发送（zcode 式）。 */}
+        {/* 卡片底栏：左「+」入口与 @ 引用，右模型 / 语音 / 发送（v3 壳层风格）。 */}
         <div className={s.bottomBar}>
           <div className={s.bottomLeft}>
             <ComposerPlusMenu

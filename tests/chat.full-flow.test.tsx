@@ -109,12 +109,12 @@ describe('chat full conversation flow (real app mount)', () => {
     await waitFor(() => expect(log.textContent).toContain('bash'));
 
     // 5. 审批以 composer 接管卡出现(v2),agent 在 gate 处暂停(未收到决策)。
-    const card = await screen.findByTestId('zcode-approval');
+    const card = await screen.findByTestId('session-approval');
     expect(within(card).getByText(/bash/)).toBeDefined();
     expect(backend.agent.toolApprovals.length).toBe(0);
 
     // 6. 用户点 允许一次 —— 决策以 'approve' 线格式发往后端。
-    fireEvent.click(within(card).getByTestId('zcode-approval-allow'));
+    fireEvent.click(within(card).getByTestId('session-approval-allow'));
     await waitFor(() => expect(backend.agent.toolApprovals.length).toBe(1));
     expect(backend.agent.toolApprovals[0]).toEqual({ id: 'apr-run', decision: 'approve' });
 

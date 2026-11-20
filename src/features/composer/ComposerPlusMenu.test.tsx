@@ -1,5 +1,5 @@
 /**
- * Vitest — ComposerPlusMenu「+」入口菜单（zcode 式）。
+ * Vitest — ComposerPlusMenu「+」入口菜单（v3 壳层风格）。
  *
  * 覆盖：
  * 1. 默认收起，点击「+」展开菜单
