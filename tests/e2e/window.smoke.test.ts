@@ -370,6 +370,12 @@ describe('window smoke (real process, real backend, local model stub)', () => {
 
   it('creates a task through the real backend and reloads it after navigation', async () => {
     await openMorePage('Tasks');
+    // 诊断:菜单项点击后必须真正落在 /tasks,否则 tasks-add-btn 的等待
+    // 只会超时且没有现场(窗口冒烟 CI 上曾出现 30s 无信息超时)。
+    await driver!.wait(async () => {
+      const path = new URL(await driver!.getCurrentUrl()).pathname;
+      return path === '/tasks';
+    }, 30_000);
     await driver!.wait(until.elementLocated(By.css('[data-testid="tasks-add-btn"]')), 30_000);
     await driver!.findElement(By.css('[data-testid="tasks-add-btn"]')).click();
     await driver!.findElement(By.css('[data-testid="task-create-subject"]')).sendKeys('Runtime integration task');
