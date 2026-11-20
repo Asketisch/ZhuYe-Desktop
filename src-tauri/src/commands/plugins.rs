@@ -16,9 +16,9 @@
 //! 读写与校验;启停走 config 的 `enabled_plugins` + 核心的
 //! `reload_plugins` diff 同步(不打断运行中的会话)。
 
-use zhuye_plugin::{MarketplaceName, PluginId, PluginManager, PluginScope};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use zhuye_plugin::{MarketplaceName, PluginId, PluginManager, PluginScope};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -85,9 +85,7 @@ pub async fn zhuye_list_plugin_commands(
 ///
 /// 启用状态取自配置；runtime 仅表示当前线程实际加载成功的插件。
 #[tauri::command]
-pub async fn zhuye_list_plugins(
-    agent: State<'_, MinimalAgent>,
-) -> CommandResult<Vec<PluginInfo>> {
+pub async fn zhuye_list_plugins(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<PluginInfo>> {
     let _config = agent.inner.config_write_lock.lock().await;
     let _transition = agent.inner.session_transition_lock.lock().await;
     let _mount = agent.inner.plugin_mount_lock.lock().await;

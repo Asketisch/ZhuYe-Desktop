@@ -33,12 +33,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use tracing::warn;
 use zhuye_core::AgentConfig;
 use zhuye_permissions::{
     ChainedPermissionStore, FilePermissionStore, HeuristicYoloClassifier, InMemoryPermissionStore,
     PermissionResolver, PermissionStore, RuleMatch, evaluate_with_context,
 };
-use tracing::warn;
 
 /// 桌面端权限兜底：读取失败或规则集不完整时一律要求人工确认。
 ///

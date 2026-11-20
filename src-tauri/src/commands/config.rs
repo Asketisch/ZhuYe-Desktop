@@ -65,10 +65,7 @@ pub(crate) fn persist_config(
 /// 运行中的会话生效。hooks 段变更也会重绑当前会话；其余段落仍只热更新 cfg,
 /// 由各自的重载机制接管。
 #[tauri::command]
-pub async fn zhuye_save_config(
-    agent: State<'_, MinimalAgent>,
-    toml: String,
-) -> CommandResult<()> {
+pub async fn zhuye_save_config(agent: State<'_, MinimalAgent>, toml: String) -> CommandResult<()> {
     let _config_write = agent.inner.config_write_lock.lock().await;
     // 1. 校验:能否解析回 ReflectConfig。
     let mut new_cfg = load_from_str(&toml)?;

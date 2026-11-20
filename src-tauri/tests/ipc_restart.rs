@@ -161,8 +161,7 @@ fn persistent_state_survives_a_process_restart() {
     }
 
     // 父进程:共享基目录 → 起子进程跑阶段一 → 自己以同一 HOME 跑阶段二。
-    let shared =
-        std::env::temp_dir().join(format!("zhuye-desktop-restart-{}", std::process::id()));
+    let shared = std::env::temp_dir().join(format!("zhuye-desktop-restart-{}", std::process::id()));
     std::fs::create_dir_all(&shared).expect("create shared restart home base");
 
     let exe = std::env::current_exe().expect("locate test binary");

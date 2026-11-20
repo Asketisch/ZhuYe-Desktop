@@ -11,9 +11,9 @@
 //!   IPC 接口先就位,driver 留作后续。
 //! - 自动 connect / 自动 start daemon on launch:同样依赖上述 binary。
 
-use zhuye_app_core::tailscale::{self, TailscaleStatus};
 use serde::Serialize;
 use tauri::State;
+use zhuye_app_core::tailscale::{self, TailscaleStatus};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::{MinimalAgent, RemoteConfig, RemoteStatus};

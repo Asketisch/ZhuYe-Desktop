@@ -5,9 +5,9 @@
 //! Activity timeline / @mention 搜索消费。上游实现已收编为单一事实源,
 //! 这里不再有独立错误类型(`list` / `search_mentions` 无失败态)。
 
-use zhuye_app_core::activity::{ActivityEvent, ActivityFilter};
 use serde::Deserialize;
 use tauri::State;
+use zhuye_app_core::activity::{ActivityEvent, ActivityFilter};
 
 use super::CommandResult;
 use crate::state::MinimalAgent;

@@ -3,11 +3,11 @@
 //! 现在用 **真实 backend** (`image` crate + `xcap` + `enigo`),
 //! 由 `media_backend::{RealImageBackend, RealComputerBackend}` 提供。
 
+use tauri::State;
 use zhuye_app_core::media::{
     BackendCapability, ComputerBackend, ComputerUseAction, ImageBackend, ImageProcessResult,
     ImageProcessSpec, MediaAsset, MediaError, scan_dir_for_assets,
 };
-use tauri::State;
 
 use super::CommandResult;
 use crate::media_backend::{RealComputerBackend, RealImageBackend};

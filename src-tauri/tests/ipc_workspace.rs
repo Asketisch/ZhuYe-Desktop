@@ -198,10 +198,7 @@ fn interactive_pty_can_start_resize_write_and_close() {
     set_workspace(&workspace);
     let marker = std::path::Path::new(&workspace).join("pty-marker");
     let id = "ipc-interactive-pty";
-    invoke_ok(
-        "zhuye_pty_start",
-        json!({"id": id, "cols": 80, "rows": 24}),
-    );
+    invoke_ok("zhuye_pty_start", json!({"id": id, "cols": 80, "rows": 24}));
     invoke_ok(
         "zhuye_pty_resize",
         json!({"id": id, "cols": 100, "rows": 30}),
@@ -381,10 +378,7 @@ fn path_escape_outside_workspace_is_rejected() {
     let ws = temp_workspace("files-escape");
     set_workspace(&ws);
     // 越界路径必须被拒 —— 这是能力覆盖层要盯住的安全不变量。
-    let e = invoke_err(
-        "zhuye_read_file",
-        json!({ "path": "../../../etc/passwd" }),
-    );
+    let e = invoke_err("zhuye_read_file", json!({ "path": "../../../etc/passwd" }));
     assert!(!e.is_null(), "越界读取必须返回错误");
 }
 
@@ -465,10 +459,7 @@ fn shell_session_runs_and_registers() {
     let ws = temp_workspace("shell");
     set_workspace(&ws);
 
-    let session = invoke_ok(
-        "zhuye_run_shell",
-        json!({ "cmd": "echo capability-probe" }),
-    );
+    let session = invoke_ok("zhuye_run_shell", json!({ "cmd": "echo capability-probe" }));
     let id = session["id"]
         .as_str()
         .expect("shell 会话缺少 id")
@@ -733,10 +724,7 @@ fn git_full_flow_in_temp_repo() {
     invoke_ok("zhuye_git_stage", json!({ "paths": ["probe.txt"] }));
 
     // commit
-    let commit = invoke_ok(
-        "zhuye_git_commit",
-        json!({ "message": "capability probe" }),
-    );
+    let commit = invoke_ok("zhuye_git_commit", json!({ "message": "capability probe" }));
     assert!(commit.is_string(), "git commit 应为字符串: {commit}");
 
     // log

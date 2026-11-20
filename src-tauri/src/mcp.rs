@@ -18,12 +18,12 @@
 
 use std::sync::Arc;
 
+use tokio::sync::broadcast;
 use zhuye_config::ReflectConfig;
 use zhuye_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
 use zhuye_mcp::{McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter};
 use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg};
 use zhuye_tools::{ToolRegistry, ToolSource};
-use tokio::sync::broadcast;
 
 /// 仅记录每个服务实际注册的工具，避免卸载时误删同名或已替换的工具。
 #[derive(Default)]

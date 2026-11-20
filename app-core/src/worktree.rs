@@ -15,7 +15,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 
 /// 一个 git worktree（camelCase 出线，与前端契约对齐）。
@@ -60,7 +60,12 @@ pub fn validate_worktree_name(name: &str) -> Result<()> {
     if trimmed.is_empty() || trimmed != name {
         return Err(anyhow!("worktree 名称不能为空或含首尾空白: {name:?}"));
     }
-    if name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.contains('\0') {
+    if name == "."
+        || name == ".."
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains('\0')
+    {
         return Err(anyhow!("worktree 名称必须是单一路径组件: {name:?}"));
     }
     Ok(())
@@ -111,7 +116,10 @@ pub fn worktree_add(
             run_git(repo, &["worktree", "add", &target.to_string_lossy(), b])?;
         }
         None => {
-            run_git(repo, &["worktree", "add", "-b", name, &target.to_string_lossy()])?;
+            run_git(
+                repo,
+                &["worktree", "add", "-b", name, &target.to_string_lossy()],
+            )?;
         }
     }
     Ok(target)
@@ -204,9 +212,22 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let repo = dir.path().join("proj");
         std::fs::create_dir_all(&repo).unwrap();
-        StdCommand::new("git").args(["init", "-q"]).current_dir(&repo).output().unwrap();
         StdCommand::new("git")
-            .args(["-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-qm", "init"])
+            .args(["init", "-q"])
+            .current_dir(&repo)
+            .output()
+            .unwrap();
+        StdCommand::new("git")
+            .args([
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "--allow-empty",
+                "-qm",
+                "init",
+            ])
             .current_dir(&repo)
             .output()
             .unwrap();
@@ -258,7 +279,11 @@ mod tests {
         // 干净树可直接删除；再次删除报错（git 侧已不存在）。
         worktree_remove(&repo, &created, false).unwrap();
         let list_after = worktree_list(&repo).unwrap();
-        assert!(list_after.iter().all(|w| w.path != created.to_string_lossy()));
+        assert!(
+            list_after
+                .iter()
+                .all(|w| w.path != created.to_string_lossy())
+        );
 
         // prune 不炸（幂等）。
         worktree_prune(&repo).unwrap();
@@ -269,7 +294,10 @@ mod tests {
         let (_guard, repo) = init_repo();
         let created = worktree_add(&repo, "dirty-wt", None, None).unwrap();
         std::fs::write(created.join("edit.txt"), "change").unwrap();
-        assert!(worktree_remove(&repo, &created, false).is_err(), "脏树默认拒绝");
+        assert!(
+            worktree_remove(&repo, &created, false).is_err(),
+            "脏树默认拒绝"
+        );
         assert!(created.is_dir());
         worktree_remove(&repo, &created, true).unwrap();
         assert!(!created.exists());

@@ -22,10 +22,10 @@ mod common;
 
 use std::time::Duration;
 
-use zhuye_desktop_lib::state::MinimalAgent;
-use zhuye_protocol::{Event, EventMsg, Op, Submission, UserInputItem};
 use tokio::sync::broadcast;
 use tokio::time::timeout;
+use zhuye_desktop_lib::state::MinimalAgent;
+use zhuye_protocol::{Event, EventMsg, Op, Submission, UserInputItem};
 
 fn isolated_agent() -> MinimalAgent {
     common::init_isolated_env();

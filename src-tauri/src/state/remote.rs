@@ -19,12 +19,12 @@ use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::Arc;
 
-use zhuye_protocol::{Event, ThreadId};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
+use zhuye_protocol::{Event, ThreadId};
 
 use super::MinimalAgent;
 

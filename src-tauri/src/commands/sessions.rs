@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
 use zhuye_llm::{
     ChatEvent, ChatMessage, ChatRequest, ContentBlock, ModelRegistry, SystemBlock, SystemBlocks,
     UserContent,
@@ -23,7 +24,6 @@ use zhuye_protocol::{
     MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId, TurnId, derive_title,
 };
 use zhuye_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
-use serde::Serialize;
 
 use crate::commands::error::{CommandError, CommandResult};
 mod name;

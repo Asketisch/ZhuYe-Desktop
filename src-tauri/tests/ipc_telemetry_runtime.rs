@@ -144,10 +144,9 @@ fn model_turn_writes_activity_trace_and_span_records() {
         "{spans:?}"
     );
 
-    let activity: Vec<Value> =
-        wait_for("zhuye_list_activity", json!({}), |events: &Vec<Value>| {
-            events.iter().any(|event| event["kind"] == "turn_complete")
-        });
+    let activity: Vec<Value> = wait_for("zhuye_list_activity", json!({}), |events: &Vec<Value>| {
+        events.iter().any(|event| event["kind"] == "turn_complete")
+    });
     assert!(
         activity.iter().any(|event| event["kind"] == "turn_started"),
         "{activity:?}"

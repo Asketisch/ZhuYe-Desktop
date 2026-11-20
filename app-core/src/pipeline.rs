@@ -15,14 +15,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use tokio_util::sync::CancellationToken;
 use zhuye_pipeline::{FailurePolicy, Pipeline, PipelineContext, PipelineReport};
 use zhuye_protocol::ThreadId;
 use zhuye_subagent::SubAgentFactory;
 use zhuye_task::{FileTaskStore, FileTeamStore, TaskManager};
 use zhuye_tools::Tool as _;
 use zhuye_tools::ToolRegistry;
-use serde::{Deserialize, Serialize};
-use tokio_util::sync::CancellationToken;
 
 /// 流水线运行错误。
 #[derive(Debug)]
@@ -269,24 +269,24 @@ impl DesktopShellNodeRunner {
         params: &toml::Value,
         inputs: HashMap<String, String>,
     ) -> Option<Self> {
-        let parsed: zhuye_pipeline::nodes::shell::ShellNodeParams =
-            match params.clone().try_into() {
-                Ok(parsed) => parsed,
-                Err(e) => {
-                    tracing::warn!(
-                        "pipeline shell node `{name}` has invalid params ({e}); node dropped"
-                    );
-                    return None;
-                }
-            };
-        let runner =
-            match zhuye_pipeline::nodes::shell::ShellNodeRunner::from_params(name, &parsed) {
-                Ok(runner) => runner,
-                Err(e) => {
-                    tracing::warn!("pipeline shell node `{name}` rejected ({e}); node dropped");
-                    return None;
-                }
-            };
+        let parsed: zhuye_pipeline::nodes::shell::ShellNodeParams = match params.clone().try_into()
+        {
+            Ok(parsed) => parsed,
+            Err(e) => {
+                tracing::warn!(
+                    "pipeline shell node `{name}` has invalid params ({e}); node dropped"
+                );
+                return None;
+            }
+        };
+        let runner = match zhuye_pipeline::nodes::shell::ShellNodeRunner::from_params(name, &parsed)
+        {
+            Ok(runner) => runner,
+            Err(e) => {
+                tracing::warn!("pipeline shell node `{name}` rejected ({e}); node dropped");
+                return None;
+            }
+        };
         Some(Self {
             name: runner.name,
             command: runner.command,

@@ -15,9 +15,9 @@
 
 use std::path::Path;
 
-use zhuye_config::SubagentSpecConfig;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use zhuye_config::SubagentSpecConfig;
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;

@@ -7,10 +7,10 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use zhuye_app_core::pipeline::PipelineRunError;
-use zhuye_pipeline::PipelineReport;
 use serde::Serialize;
 use tauri::State;
+use zhuye_app_core::pipeline::PipelineRunError;
+use zhuye_pipeline::PipelineReport;
 
 use super::CommandResult;
 use crate::state::MinimalAgent;
@@ -118,8 +118,7 @@ pub async fn zhuye_save_pipeline_config(
     }
     // 校验(与运行同一条路径)—— 不合法不落盘。
     let summary =
-        zhuye_app_core::pipeline::validate_pipeline_config(agent.task_manager(), &toml_src)
-            .await?;
+        zhuye_app_core::pipeline::validate_pipeline_config(agent.task_manager(), &toml_src).await?;
     if !summary.valid {
         return Err(super::error::CommandError {
             msg: format!(

@@ -26,10 +26,10 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use zhuye_agent_def::{AgentDefinition, load_agents_dir, parse_agent_str};
-use zhuye_memory::MemoryScope;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use zhuye_agent_def::{AgentDefinition, load_agents_dir, parse_agent_str};
+use zhuye_memory::MemoryScope;
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -291,10 +291,8 @@ fn resolve_active_def(name: &str, workspace: &Path) -> (bool, Vec<String>) {
     ))
     .unwrap_or_default();
     agents.extend(
-        zhuye_agent_def::load_agents_dir(&zhuye_config::paths::data_path_or_relative(&[
-            "agents",
-        ]))
-        .unwrap_or_default(),
+        zhuye_agent_def::load_agents_dir(&zhuye_config::paths::data_path_or_relative(&["agents"]))
+            .unwrap_or_default(),
     );
     match agents.remove(name) {
         Some(def) => (true, def.memory.iter().map(|s| s.to_string()).collect()),

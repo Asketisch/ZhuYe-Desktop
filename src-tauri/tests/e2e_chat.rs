@@ -5,9 +5,9 @@ mod common;
 
 use std::time::Duration;
 
+use tokio::time::timeout;
 use zhuye_desktop_lib::state::MinimalAgent;
 use zhuye_protocol::{EventMsg, Op, Submission, UserInputItem};
-use tokio::time::timeout;
 
 fn isolated_agent() -> MinimalAgent {
     common::init_isolated_env();

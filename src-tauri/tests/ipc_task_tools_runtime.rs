@@ -242,10 +242,7 @@ fn run_task_lifecycle() {
                 9 => {
                     assert!(model_result.to_string().contains("runtime task output"));
                     assert_eq!(
-                        common::invoke_ok(
-                            "zhuye_get_task_output",
-                            json!({"list":session,"id":id})
-                        ),
+                        common::invoke_ok("zhuye_get_task_output", json!({"list":session,"id":id})),
                         "runtime task output"
                     );
                 }

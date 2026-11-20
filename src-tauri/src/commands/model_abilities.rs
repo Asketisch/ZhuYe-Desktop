@@ -32,9 +32,7 @@ pub struct ModelAbilitiesResult {
 /// 供模型卡片展示与 composer 发送前的视觉检查:当前活跃模型不在最近
 /// 拉取的清单里时,这里是唯一的能力来源。纯目录查询,不发网络请求。
 #[tauri::command]
-pub async fn zhuye_lookup_model_abilities(
-    model_id: String,
-) -> CommandResult<ModelAbilitiesResult> {
+pub async fn zhuye_lookup_model_abilities(model_id: String) -> CommandResult<ModelAbilitiesResult> {
     let id = model_id.trim();
     if id.is_empty() {
         return Err(CommandError {
@@ -79,9 +77,8 @@ mod tests {
         // (CI windows 实证)。持目录测试锁并恢复内嵌快照,与执行顺序
         // 无关。
         zhuye_llm::with_snapshot_catalog(|| {
-            let result =
-                futures::executor::block_on(zhuye_lookup_model_abilities("gpt-4o".into()))
-                    .expect("查询不应失败");
+            let result = futures::executor::block_on(zhuye_lookup_model_abilities("gpt-4o".into()))
+                .expect("查询不应失败");
             assert!(
                 result.context_window.is_some()
                     || result.max_output_tokens.is_some()

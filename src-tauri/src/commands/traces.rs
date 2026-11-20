@@ -3,8 +3,8 @@
 //! 薄包装 `zhuye_app_core::traces`,GUI 对应 CLI `zhuye traces ls / show`:
 //! 只读查询 `~/.zhuye/traces/model-io/` 的脱敏 JSONL。
 
-use zhuye_app_core::traces::{SpanLogFile, TraceError, TraceSessionSummary};
 use tauri::State;
+use zhuye_app_core::traces::{SpanLogFile, TraceError, TraceSessionSummary};
 
 use super::CommandResult;
 use crate::state::MinimalAgent;

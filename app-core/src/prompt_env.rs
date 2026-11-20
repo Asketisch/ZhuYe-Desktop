@@ -137,7 +137,8 @@ impl Hook for AgentsMdHook {
         if self.injected.swap(true, Ordering::Relaxed) {
             return Ok(HookDecision::Allow);
         }
-        let content = read_agents_md_merged(&self.workspace, self.user_data_dir.clone(), self.max_bytes);
+        let content =
+            read_agents_md_merged(&self.workspace, self.user_data_dir.clone(), self.max_bytes);
         if content.trim().is_empty() {
             return Ok(HookDecision::Allow);
         }

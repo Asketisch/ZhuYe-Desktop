@@ -15,11 +15,11 @@
 
 use std::sync::Arc;
 
+use tracing::warn;
 use zhuye_core::{AgentConfig, AgentThread};
 use zhuye_llm::{ChatMessage, ModelRegistry, SharedModelRegistry};
 use zhuye_protocol::{PermissionMode, ThreadId};
 use zhuye_tools::Sanitizer;
-use tracing::warn;
 
 use super::MinimalAgent;
 
@@ -140,8 +140,7 @@ pub(crate) fn construct_thread(
     // 会对每个 turn 跑 `cargo test`,无 toolchain 环境注入假失败并否决完成,
     // 纯问候也被迫连答数轮。需要 hook 的用户在 config 显式写
     // `[hooks] enabled = [...]`(或对应子段)。
-    let mut hooks_cfg =
-        zhuye_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
+    let mut hooks_cfg = zhuye_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
     if hooks_cfg.enabled.is_none() {
         hooks_cfg.enabled = Some(Vec::new());
     }
@@ -334,10 +333,7 @@ pub(crate) fn construct_thread(
                 Ok(side_thread)
             },
         );
-        zhuye_core::side_channel::SideChannelDriver::new(
-            agent.inner.side_channels.clone(),
-            factory,
-        )
+        zhuye_core::side_channel::SideChannelDriver::new(agent.inner.side_channels.clone(), factory)
     };
     cfg = cfg.with_side_channel_driver(side_driver);
 

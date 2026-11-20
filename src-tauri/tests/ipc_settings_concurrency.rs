@@ -1,9 +1,9 @@
 //! 设置并发读改写回归:同一 app 内两个异步配置入口不得互相丢写。
 mod common;
 
+use tauri::Manager;
 use zhuye_desktop_lib::commands::{zhuye_get_config, zhuye_save_config, zhuye_set_model};
 use zhuye_desktop_lib::state::MinimalAgent;
-use tauri::Manager;
 
 #[test]
 fn concurrent_model_switches_preserve_both_provider_sections() {

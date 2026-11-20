@@ -8,8 +8,8 @@
 //! - 写盘语义([`write_export`],tempfile + rename **替换** symlink,
 //!   与上游 `write_atomic` 的"写穿 symlink"语义刻意不同)。
 
-use zhuye_protocol::ThreadId;
 use serde::{Deserialize, Serialize};
+use zhuye_protocol::ThreadId;
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::commands::sessions::replay_for_export;
@@ -32,9 +32,7 @@ pub async fn zhuye_export_session_markdown(id: ThreadId) -> CommandResult<Markdo
     // v1.x:文末「Usage」段(模型级 token 统计 + 压缩节省 + 记忆访问)。
     // 聚合与渲染都走上游;统计缺省(会话尚无落盘记录)→ 空串。
     let stats = zhuye_rollout::index::session_stats(&zhuye_rollout::path::default_base(), id);
-    out.push_str(&zhuye_rollout::export::render_usage_section(
-        stats.as_ref(),
-    ));
+    out.push_str(&zhuye_rollout::export::render_usage_section(stats.as_ref()));
 
     let export_dir = crate::commands::sessions::exports_dir()?;
     let dest = export_dir.join(format!("{id}.md"));

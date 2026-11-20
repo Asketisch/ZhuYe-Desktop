@@ -28,11 +28,11 @@
 //! 装配见 `state/permissions.rs` —— 与 CLI `zhuye-exec` 的
 //! `apply_permission_layers` 同构。
 
+use serde::{Deserialize, Serialize};
+use tauri::State;
 use zhuye_permissions::{
     FilePermissionStore, InMemoryPermissionStore, PermissionAction, PermissionRule, PermissionStore,
 };
-use serde::{Deserialize, Serialize};
-use tauri::State;
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;

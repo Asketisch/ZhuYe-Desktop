@@ -3,8 +3,8 @@
 //! 基于 grep 的 wiki + /dream 会话挖掘。
 //! 包装 `zhuye_kms::KnowledgeManager`。
 
-use zhuye_kms::{DreamResult, KmsError, Page, SearchResult, WikiInfo};
 use tauri::State;
+use zhuye_kms::{DreamResult, KmsError, Page, SearchResult, WikiInfo};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;

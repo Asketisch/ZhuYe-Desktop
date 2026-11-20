@@ -26,8 +26,8 @@
 
 use std::collections::BTreeMap;
 
-use zhuye_protocol::EventMsg;
 use serde_json::Value;
+use zhuye_protocol::EventMsg;
 
 /// 注册表事件变体下限(当前 50)—— 新增变体由 L1 event-parity 三方奇偶
 /// 精确守卫,这里只防样本表被意外清空 / 大规模回退。

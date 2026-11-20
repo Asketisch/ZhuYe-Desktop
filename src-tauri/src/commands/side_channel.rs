@@ -18,9 +18,9 @@
 
 use std::time::Duration;
 
-use zhuye_protocol::{Event, EventMsg, Op, SideChannelEvent, SideChannelInfo};
 use serde::Serialize;
 use tauri::State;
+use zhuye_protocol::{Event, EventMsg, Op, SideChannelEvent, SideChannelInfo};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;

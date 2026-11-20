@@ -3,10 +3,8 @@
 use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
-use zhuye_protocol::{
-    RolloutError, RolloutRecord, RolloutRecorder, SessionInfo, ThreadId, TurnId,
-};
 use tokio::sync::RwLock;
+use zhuye_protocol::{RolloutError, RolloutRecord, RolloutRecorder, SessionInfo, ThreadId, TurnId};
 
 use super::MinimalAgent;
 

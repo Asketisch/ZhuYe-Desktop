@@ -11,8 +11,8 @@
 //! 的 `build_quota_tracker` 保持一致(该文件为 headless 参考实现;桌面端
 //! 不依赖 zhuye-exec,故在此平移)。submodule 不动。
 
-use zhuye_llm::SharedQuotaTracker;
 use tracing::info;
+use zhuye_llm::SharedQuotaTracker;
 
 use crate::state::MinimalAgent;
 
@@ -23,10 +23,10 @@ use crate::state::MinimalAgent;
 pub(crate) fn make_provider(
     src: &zhuye_config::QuotaSource,
 ) -> Option<std::sync::Arc<dyn zhuye_llm::QuotaProvider>> {
+    use std::sync::Arc as StdArc;
     use zhuye_llm::{
         KimiQuotaProvider, MinimaxQuotaProvider, ZenmuxQuotaProvider, ZhipuQuotaProvider,
     };
-    use std::sync::Arc as StdArc;
     match src {
         zhuye_config::QuotaSource::Kimi => {
             Some(StdArc::new(KimiQuotaProvider) as StdArc<dyn zhuye_llm::QuotaProvider>)
@@ -49,9 +49,7 @@ pub(crate) fn make_provider(
 /// 遍历 config 所有 provider 的 credentials,收集声明了 `quota` 的条目并
 /// 注册到 `QuotaTracker`。任一 provider 有 quota 声明 → `Some(tracker)`;
 /// 全无 → `None`(向后兼容:不配 quota 时零开销)。
-pub(crate) fn build_quota_tracker(
-    cfg: &zhuye_config::ReflectConfig,
-) -> Option<SharedQuotaTracker> {
+pub(crate) fn build_quota_tracker(cfg: &zhuye_config::ReflectConfig) -> Option<SharedQuotaTracker> {
     let tracker = std::sync::Arc::new(zhuye_llm::QuotaTracker::new());
     let mut any = false;
 
@@ -64,9 +62,7 @@ pub(crate) fn build_quota_tracker(
                 zhuye_config::QuotaSource::Minimax => zhuye_llm::QuotaSource::Minimax,
                 zhuye_config::QuotaSource::Zenmux => zhuye_llm::QuotaSource::Zenmux,
                 zhuye_config::QuotaSource::Volcengine => zhuye_llm::QuotaSource::Volcengine,
-                zhuye_config::QuotaSource::AnthropicUsage => {
-                    zhuye_llm::QuotaSource::AnthropicUsage
-                }
+                zhuye_config::QuotaSource::AnthropicUsage => zhuye_llm::QuotaSource::AnthropicUsage,
                 zhuye_config::QuotaSource::OpenAIUsage => zhuye_llm::QuotaSource::OpenAIUsage,
             });
             let rt = zhuye_llm::QuotaConfig {

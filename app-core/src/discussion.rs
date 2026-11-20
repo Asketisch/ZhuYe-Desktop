@@ -19,6 +19,8 @@ use crate::discussion_events::{emit_discussion_message, message_key};
 
 pub use crate::discussion_events::{DiscussionSessionInfo, list_discussions};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
+use tokio_util::sync::CancellationToken;
 use zhuye_discussion::cli::DiscussionToml;
 use zhuye_discussion::llm::{build_context, prompt_for_closure};
 use zhuye_discussion::message_bus::MessageBus;
@@ -31,8 +33,6 @@ use zhuye_protocol::{
 };
 use zhuye_subagent::SubAgentFactory;
 use zhuye_tools::ToolRegistry;
-use serde::{Deserialize, Serialize};
-use tokio_util::sync::CancellationToken;
 
 /// Collab 事件出口:调用方注入(Desktop 侧包成 `Event` 推 session broadcast)。
 pub type DiscussionEventSink = Arc<dyn Fn(EventMsg) + Send + Sync>;

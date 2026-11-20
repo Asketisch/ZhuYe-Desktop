@@ -24,10 +24,10 @@
 //! - Schedule(cron)命令(Phase 1 第 2 项,见 `zhuye-agent/crates/integrations/zhuye-stream/cron.rs`)
 //! - Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,但「启用 + 重启 agent」更重)
 
-use zhuye_task::{Task, TaskId, TaskPatch, TaskStatus, TeamFile};
 use serde::Serialize;
 use tauri::State;
 use tokio::io::AsyncReadExt;
+use zhuye_task::{Task, TaskId, TaskPatch, TaskStatus, TeamFile};
 
 use crate::commands::error::CommandResult;
 use crate::state::MinimalAgent;
@@ -323,10 +323,7 @@ pub async fn zhuye_get_team(
 
 /// 物理删除 team 文件(不级联删 task,由后续清理命令统一处理)。
 #[tauri::command]
-pub async fn zhuye_delete_team(
-    agent: State<'_, MinimalAgent>,
-    name: String,
-) -> CommandResult<()> {
+pub async fn zhuye_delete_team(agent: State<'_, MinimalAgent>, name: String) -> CommandResult<()> {
     agent
         .task_manager()
         .delete_team(&name)
@@ -344,8 +341,8 @@ mod tests {
     //! Tauri `State` 注入本身由框架保证,无需在此覆盖。
 
     use super::*;
-    use zhuye_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager, TaskStatus};
     use std::sync::Arc;
+    use zhuye_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager, TaskStatus};
 
     fn mgr() -> TaskManager {
         TaskManager::new(

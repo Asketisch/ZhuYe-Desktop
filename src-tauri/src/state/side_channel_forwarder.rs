@@ -81,9 +81,7 @@ pub fn spawn_side_channel_forwarder<R: Runtime>(
                         msg,
                     };
                     if let Err(e) = app.emit("zhuye_event", &event) {
-                        tracing::error!(
-                            "[zhuye-gui] emit side-channel terminal event failed: {e}"
-                        );
+                        tracing::error!("[zhuye-gui] emit side-channel terminal event failed: {e}");
                     }
                 }
                 Err(broadcast::error::RecvError::Lagged(n)) => {

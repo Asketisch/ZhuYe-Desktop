@@ -3,9 +3,9 @@
 //! 薄包装 `zhuye_task::SquadManager`,在 TaskManager 之上提供
 //! leader 委派语义层。
 
+use tauri::State;
 use zhuye_task::Task;
 use zhuye_task::{SquadError, SquadSpec};
-use tauri::State;
 
 use super::CommandResult;
 use crate::state::MinimalAgent;
@@ -43,10 +43,7 @@ pub async fn zhuye_get_squad(
 
 /// 删除 squad(team 文件物理删除;task 不级联)。
 #[tauri::command]
-pub async fn zhuye_delete_squad(
-    agent: State<'_, MinimalAgent>,
-    name: String,
-) -> CommandResult<()> {
+pub async fn zhuye_delete_squad(agent: State<'_, MinimalAgent>, name: String) -> CommandResult<()> {
     agent.squad_manager().delete_squad(&name).await?;
     Ok(())
 }

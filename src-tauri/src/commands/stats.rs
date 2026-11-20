@@ -4,10 +4,10 @@
 //! 只读扫描 rollout JSONL(`~/.zhuye/sessions/`)聚合出 token 用量、
 //! 模型级拆分、压缩节省与记忆访问次数。
 
+use tauri::State;
 use zhuye_app_core::stats::{ModelUsage, SessionStats};
 use zhuye_llm::providers::RateCard;
 use zhuye_protocol::ThreadId;
-use tauri::State;
 
 use super::CommandResult;
 use crate::state::MinimalAgent;

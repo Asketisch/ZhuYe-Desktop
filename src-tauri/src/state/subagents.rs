@@ -27,12 +27,12 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use tokio_util::sync::CancellationToken;
 use zhuye_core::config::M4Deps;
 use zhuye_llm::SharedModelRegistry;
 use zhuye_protocol::ThreadId;
 use zhuye_subagent::{CallSubAgentTool, SubAgentFactory, SubAgentSpec};
 use zhuye_tools::{ToolRegistry, ToolSource};
-use tokio_util::sync::CancellationToken;
 
 /// 注册任务工具(任务板的操作面)。
 ///
@@ -58,9 +58,8 @@ pub(crate) fn expose_task_tools(m4: &M4Deps, task_manager: Arc<zhuye_task::TaskM
 /// `commands/notes.rs` 的读取面同源。**每个会话一个 store**(路径含
 /// thread id),所以 rebind 时要重新注册(同名覆盖)。
 pub(crate) fn register_note_tool(tools: &Arc<ToolRegistry>, m4: &M4Deps) {
-    let tool: Arc<dyn zhuye_tools::Tool> = Arc::new(zhuye_notes::AddSessionNoteTool::new(
-        m4.note_store.clone(),
-    ));
+    let tool: Arc<dyn zhuye_tools::Tool> =
+        Arc::new(zhuye_notes::AddSessionNoteTool::new(m4.note_store.clone()));
     tools.register_with_source(ToolSource::Runtime, tool);
 }
 

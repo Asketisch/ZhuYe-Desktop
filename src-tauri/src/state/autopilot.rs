@@ -5,8 +5,8 @@
 
 use std::time::Duration;
 
-use zhuye_protocol::{EventMsg, Op, SideChannelEvent, Submission};
 use tokio_util::sync::CancellationToken;
+use zhuye_protocol::{EventMsg, Op, SideChannelEvent, Submission};
 
 use super::MinimalAgent;
 use fs2::FileExt;

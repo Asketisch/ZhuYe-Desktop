@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use zhuye_core::AgentThread;
-use zhuye_hooks::{Hook, HookDecision, HookEngine, HookError, HookEvent, HookEventKind};
-use zhuye_protocol::ThreadId;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicU8, Ordering};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
+use zhuye_core::AgentThread;
+use zhuye_hooks::{Hook, HookDecision, HookEngine, HookError, HookEvent, HookEventKind};
+use zhuye_protocol::ThreadId;
 
 pub(crate) const FORWARDER_NAME: &str = "desktop_plugin_hook_forwarder";
 

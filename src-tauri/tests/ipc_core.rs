@@ -181,10 +181,7 @@ fn memory_add_list_remove_round_trip() {
     assert_eq!(hit["value"], "updated");
 
     // 删除是**删块**:整段 `## <key>` 被摘掉。
-    invoke_ok(
-        "zhuye_remove_memory",
-        json!({ "scope": scope, "key": key }),
-    );
+    invoke_ok("zhuye_remove_memory", json!({ "scope": scope, "key": key }));
     let after = invoke_ok("zhuye_list_memory", json!({}));
     let still = after
         .as_array()
@@ -691,10 +688,7 @@ fn agent_definitions_crud() {
     let saved = invoke_ok("zhuye_save_agent_def", json!({ "def": def }));
     assert_eq!(saved["name"], "capability-probe", "保存后名称不符: {saved}");
 
-    let got = invoke_ok(
-        "zhuye_get_agent_def",
-        json!({ "name": "capability-probe" }),
-    );
+    let got = invoke_ok("zhuye_get_agent_def", json!({ "name": "capability-probe" }));
     assert_eq!(got["name"], "capability-probe", "读回名称不符: {got}");
 
     let list = invoke_ok("zhuye_list_agent_defs", json!({}));
@@ -759,10 +753,7 @@ fn active_agent_is_readable_and_settable() {
 fn autopilot_config_round_trips() {
     let before = invoke_ok("zhuye_get_autopilot_config", json!({}));
     assert!(before.is_object(), "autopilot 配置应为对象: {before}");
-    invoke_ok(
-        "zhuye_update_autopilot_config",
-        json!({ "config": before }),
-    );
+    invoke_ok("zhuye_update_autopilot_config", json!({ "config": before }));
     let history = invoke_ok("zhuye_autopilot_history", json!({}));
     assert!(history.is_array(), "autopilot 历史应为数组: {history}");
 }

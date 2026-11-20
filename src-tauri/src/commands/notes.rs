@@ -12,10 +12,10 @@ use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use zhuye_notes::NoteStore;
-use zhuye_protocol::ThreadId;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use zhuye_notes::NoteStore;
+use zhuye_protocol::ThreadId;
 
 use crate::commands::error::CommandResult;
 use crate::state::MinimalAgent;

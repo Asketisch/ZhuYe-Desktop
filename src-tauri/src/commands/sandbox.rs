@@ -24,9 +24,9 @@
 //! `envOverride` 非空 = 用户用进程 env 覆盖了配置(此时在 Settings 里
 //! 拨开关看不到变化,属预期行为)。
 
-use zhuye_sandbox::{OsSandbox, OsSandboxStatus};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use zhuye_sandbox::{OsSandbox, OsSandboxStatus};
 
 use crate::commands::error::CommandResult;
 use crate::state::MinimalAgent;
@@ -53,9 +53,7 @@ pub struct SandboxStatus {
 
 /// 查询当前生效的 OS 沙箱状态。
 #[tauri::command]
-pub async fn zhuye_sandbox_status(
-    agent: State<'_, MinimalAgent>,
-) -> CommandResult<SandboxStatus> {
+pub async fn zhuye_sandbox_status(agent: State<'_, MinimalAgent>) -> CommandResult<SandboxStatus> {
     // load/save 两条路径都已归一成 Some(有效值);unwrap_or(true) 兜底 = 基线。
     let os_level = agent.inner.cfg.read().sandbox.os_level.unwrap_or(true);
     let env_override = crate::state::sandbox::env_override();

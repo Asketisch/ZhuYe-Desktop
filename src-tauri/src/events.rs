@@ -10,8 +10,8 @@
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::broadcast;
 
-use zhuye_protocol::{Event, ThreadId};
 use serde::Serialize;
+use zhuye_protocol::{Event, ThreadId};
 
 /// Forward task —— 在 Tauri setup 阶段 spawn 一次,持续到 AppHandle drop。
 ///

@@ -218,8 +218,8 @@ fn turn_failure_is_reported_on_the_same_channel() {
 /// `zhuye_event`,就证明转发器没死。
 #[test]
 fn forwarder_survives_a_lagged_receiver() {
-    use zhuye_protocol::{Event, EventMsg};
     use tokio::sync::broadcast;
+    use zhuye_protocol::{Event, EventMsg};
 
     let rx_events = collect_events();
     let app_handle = {

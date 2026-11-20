@@ -26,10 +26,10 @@
 
 use std::collections::HashSet;
 
-use zhuye_protocol::Op;
-use zhuye_skills::{bundled_skills, scan_skills_dirs};
 use serde::Serialize;
 use tauri::State;
+use zhuye_protocol::Op;
+use zhuye_skills::{bundled_skills, scan_skills_dirs};
 
 use crate::commands::error::CommandResult;
 use crate::state::MinimalAgent;

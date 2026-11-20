@@ -194,8 +194,8 @@ mod tests {
 
     #[test]
     fn concurrent_toggles_preserve_both_preferences() {
-        use zhuye_hooks::builtins::SearchBudgetHook;
         use std::sync::Arc;
+        use zhuye_hooks::builtins::SearchBudgetHook;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("state.json");
         let store = Arc::new(HookStore {

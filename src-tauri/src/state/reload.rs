@@ -124,9 +124,7 @@ pub(crate) async fn hot_reload_provider_stack(
         let (resolved_spec, resolve_error) =
             super::model_spec::resolve_model_spec_with_discovery(new, &registry).await;
         if let Some(ref err) = resolve_error {
-            warn!(
-                "[zhuye-gui] model spec resolution failed ({err}); keeping previous model spec"
-            );
+            warn!("[zhuye-gui] model spec resolution failed ({err}); keeping previous model spec");
             *agent.inner.degraded_reason.lock() = Some(err.clone());
             *agent.inner.pending_model_discovery_error.lock() = Some(err.clone());
             // 解析失败 → 不动 model spec(保留旧 model),但**不**把占位串当模型。

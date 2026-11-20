@@ -149,8 +149,7 @@ pub(crate) async fn submit_op(
     // 远端 stdin;submission id 由远端回执事件按 id 关联(无本地 per-turn
     // 通道,泵统一分流)。
     if let Some(sid) = super::remote::foreground_remote(agent) {
-        let submission =
-            zhuye_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
+        let submission = zhuye_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
         let id = submission.id.clone();
         super::remote::submit_to_session(agent, &sid, submission).await?;
         return Ok(id);
@@ -284,13 +283,8 @@ mod tests {
         assert!(futures::poll!(&mut user).is_pending());
         assert!(futures::poll!(&mut op).is_pending());
 
-        super::super::rebind::rebind_session(
-            &agent,
-            zhuye_protocol::ThreadId::new(),
-            vec![],
-            None,
-        )
-        .unwrap();
+        super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
+            .unwrap();
         drop(transition);
         assert!(
             user.await
@@ -312,13 +306,8 @@ mod tests {
         *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
         agent.install_agent_thread().await;
         let mount = agent.inner.plugin_mount_lock.lock().await;
-        super::super::rebind::rebind_session(
-            &agent,
-            zhuye_protocol::ThreadId::new(),
-            vec![],
-            None,
-        )
-        .unwrap();
+        super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
+            .unwrap();
         let pending = super::submit(&agent, user_input_submission());
         tokio::pin!(pending);
         assert!(futures::poll!(&mut pending).is_pending());
@@ -328,13 +317,8 @@ mod tests {
         )
         .await
         .expect("plugin wait must not hold the transition lock");
-        super::super::rebind::rebind_session(
-            &agent,
-            zhuye_protocol::ThreadId::new(),
-            vec![],
-            None,
-        )
-        .unwrap();
+        super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
+            .unwrap();
         drop(transition);
         let error = tokio::time::timeout(std::time::Duration::from_secs(2), pending)
             .await

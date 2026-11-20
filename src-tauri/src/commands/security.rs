@@ -9,9 +9,9 @@
 
 use std::path::PathBuf;
 
-use zhuye_integration::security_scan::SecurityScanReport;
 use serde::Serialize;
 use tauri::State;
+use zhuye_integration::security_scan::SecurityScanReport;
 
 use super::CommandResult;
 use crate::state::MinimalAgent;

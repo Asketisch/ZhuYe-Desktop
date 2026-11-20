@@ -21,10 +21,10 @@
 
 use std::path::PathBuf;
 
-use zhuye_browser::chrome;
 use serde::Serialize;
 use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
+use zhuye_browser::chrome;
 
 mod nav;
 

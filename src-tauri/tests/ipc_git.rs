@@ -10,7 +10,7 @@ mod common;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// 建一个带初始 commit 的临时 git 仓库（worktree add 需要至少一个 commit）。
 fn init_repo(tag: &str) -> PathBuf {
@@ -18,12 +18,25 @@ fn init_repo(tag: &str) -> PathBuf {
     let repo = PathBuf::from(&dir).join("proj");
     std::fs::create_dir_all(&repo).unwrap();
     let run = |args: &[&str]| {
-        let out = StdCommand::new("git").args(args).current_dir(&repo).output().unwrap();
+        let out = StdCommand::new("git")
+            .args(args)
+            .current_dir(&repo)
+            .output()
+            .unwrap();
         assert!(out.status.success(), "git {args:?} failed");
     };
     run(&["init", "-q"]);
     StdCommand::new("git")
-        .args(["-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-qm", "init"])
+        .args([
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "init",
+        ])
         .current_dir(&repo)
         .output()
         .unwrap();
@@ -59,7 +72,11 @@ fn worktree_create_list_remove_roundtrip() {
     let list: Value = common::invoke_ok("zhuye_list_worktrees", json!({}));
     let items = list.as_array().unwrap();
     assert_eq!(items.len(), 2, "主工作树 + 新建隔离 worktree");
-    assert!(items.iter().any(|w| w["path"] == json!(created_path) && w["isolated"] == json!(true)));
+    assert!(
+        items
+            .iter()
+            .any(|w| w["path"] == json!(created_path) && w["isolated"] == json!(true))
+    );
     assert!(items.iter().all(|w| w["stranded"] == json!(false)));
 
     // 指定已有分支。
@@ -79,12 +96,24 @@ fn worktree_create_list_remove_roundtrip() {
         "zhuye_create_worktree",
         json!({ "name": "fix-bug", "branch": null, "path": null }),
     );
-    assert!(err.to_string().contains("already exists") || err.to_string().contains("已存在"), "got {err}");
+    assert!(
+        err.to_string().contains("already exists") || err.to_string().contains("已存在"),
+        "got {err}"
+    );
 
     // 干净树删除成功；再删报错（git 侧已不存在）。
-    common::invoke_ok("zhuye_remove_worktree", json!({ "path": created_path, "force": false }));
+    common::invoke_ok(
+        "zhuye_remove_worktree",
+        json!({ "path": created_path, "force": false }),
+    );
     let list_after: Value = common::invoke_ok("zhuye_list_worktrees", json!({}));
-    assert!(!list_after.as_array().unwrap().iter().any(|w| w["path"] == json!(created_path)));
+    assert!(
+        !list_after
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|w| w["path"] == json!(created_path))
+    );
 
     // prune 幂等。
     common::invoke_ok("zhuye_prune_worktrees", json!({}));
@@ -112,7 +141,10 @@ fn worktree_dirty_refuses_remove_without_force() {
     assert!(Path::new(&path).exists(), "脏树拒绝后目录必须保留");
 
     // force 才删。
-    common::invoke_ok("zhuye_remove_worktree", json!({ "path": path, "force": true }));
+    common::invoke_ok(
+        "zhuye_remove_worktree",
+        json!({ "path": path, "force": true }),
+    );
     assert!(!Path::new(&path).exists());
 }
 

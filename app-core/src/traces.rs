@@ -12,10 +12,10 @@
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use zhuye_telemetry::{
     ModelIoRecord, UsageSnapshot, list_model_io_files, read_model_io_file, resolve_traces_dir,
 };
-use serde::{Deserialize, Serialize};
 
 /// 默认列出的 session 数(与 CLI `traces ls` 默认 limit 一致)。
 pub const DEFAULT_LIMIT: usize = 20;

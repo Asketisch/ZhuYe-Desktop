@@ -45,10 +45,7 @@ fn append_commands_preserve_existing_zhuye_data() {
 
     // 整份写回是 `zhuye_save_config` 的契约:保存后读回同一份内容。
     let own_config = "[active]\nprovider = \"desktop-provider\"\n";
-    common::invoke_ok(
-        "zhuye_save_config",
-        serde_json::json!({"toml": own_config}),
-    );
+    common::invoke_ok("zhuye_save_config", serde_json::json!({"toml": own_config}));
     let read = common::invoke_ok("zhuye_get_config", serde_json::json!({}));
     assert!(read.as_str().unwrap().contains("desktop-provider"));
 }

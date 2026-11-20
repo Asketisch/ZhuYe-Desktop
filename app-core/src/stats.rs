@@ -19,8 +19,8 @@
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use zhuye_protocol::ThreadId;
 use serde::{Deserialize, Serialize};
+use zhuye_protocol::ThreadId;
 
 /// 单会话统计(camelCase 出线,桌面端 DTO 约定)。
 #[derive(Debug, Clone, Serialize, Deserialize)]

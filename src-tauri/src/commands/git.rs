@@ -91,10 +91,13 @@ pub async fn zhuye_create_worktree(
         branch.as_deref(),
         path.as_deref().map(std::path::Path::new),
     )
-    .map_err(|e| CommandError { msg: format!("{e}") })?;
+    .map_err(|e| CommandError {
+        msg: format!("{e}"),
+    })?;
     // 回读统一形态（dirty/isolated/stranded 由列表统一判定）。
-    let list = zhuye_app_core::worktree::worktree_list(&repo)
-        .map_err(|e| CommandError { msg: format!("{e}") })?;
+    let list = zhuye_app_core::worktree::worktree_list(&repo).map_err(|e| CommandError {
+        msg: format!("{e}"),
+    })?;
     list.into_iter()
         .find(|w| same_worktree_path(&w.path, &created))
         .ok_or_else(|| CommandError {
@@ -106,16 +109,20 @@ pub async fn zhuye_create_worktree(
 #[tauri::command]
 pub async fn zhuye_remove_worktree(path: String, force: bool) -> CommandResult<()> {
     let repo = worktree_repo()?;
-    zhuye_app_core::worktree::worktree_remove(&repo, std::path::Path::new(&path), force)
-        .map_err(|e| CommandError { msg: format!("{e}") })
+    zhuye_app_core::worktree::worktree_remove(&repo, std::path::Path::new(&path), force).map_err(
+        |e| CommandError {
+            msg: format!("{e}"),
+        },
+    )
 }
 
 /// 清理失效的 worktree 行政登记（目录已被手工删除等）。
 #[tauri::command]
 pub async fn zhuye_prune_worktrees() -> CommandResult<()> {
     let repo = worktree_repo()?;
-    zhuye_app_core::worktree::worktree_prune(&repo)
-        .map_err(|e| CommandError { msg: format!("{e}") })
+    zhuye_app_core::worktree::worktree_prune(&repo).map_err(|e| CommandError {
+        msg: format!("{e}"),
+    })
 }
 
 fn git_in_workspace() -> Option<PathBuf> {

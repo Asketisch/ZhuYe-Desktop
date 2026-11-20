@@ -10,8 +10,8 @@
 //! - `zhuye_update_autopilot_config(config)` — 写入新配置
 //! - `zhuye_autopilot_history` — 拉取最近 run 历史
 
-use zhuye_stream::autopilot::{AutopilotConfig, AutopilotRun};
 use tauri::State;
+use zhuye_stream::autopilot::{AutopilotConfig, AutopilotRun};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;

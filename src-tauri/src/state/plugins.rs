@@ -259,10 +259,7 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
         *inner.plugin_runtime_context.lock() = Some(context);
         *inner.mounted_plugin_bridge.lock() = Some(bridge);
         ready.send_replace(true);
-        tracing::debug!(
-            "[zhuye-gui] plugin runtime mounted (enabled={:?})",
-            enabled
-        );
+        tracing::debug!("[zhuye-gui] plugin runtime mounted (enabled={:?})", enabled);
     });
 }
 
@@ -341,8 +338,8 @@ fn replace_first_text(submission: &mut Submission, body: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zhuye_plugin::{CommandRegistry, LoadedCommand};
     use std::path::PathBuf;
+    use zhuye_plugin::{CommandRegistry, LoadedCommand};
 
     fn submission_with_text(text: &str) -> Submission {
         Submission::user_input(text.to_string())

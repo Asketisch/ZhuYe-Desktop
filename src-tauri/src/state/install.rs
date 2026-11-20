@@ -177,11 +177,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
 
 /// 与上游运行时共用内置工具清单，AST 实现由桌面侧注入。
 fn register_builtin_tools(tools: &Arc<ToolRegistry>, max_questions: Option<u32>) {
-    zhuye_tools::register_builtin_tools(
-        tools,
-        max_questions,
-        Arc::new(zhuye_ast::AstTool::new()),
-    );
+    zhuye_tools::register_builtin_tools(tools, max_questions, Arc::new(zhuye_ast::AstTool::new()));
 }
 
 #[cfg(test)]
@@ -246,8 +242,8 @@ mod tests {
     /// 注册)。
     #[test]
     fn task_tools_are_registered() {
-        use zhuye_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager};
         use std::sync::Arc;
+        use zhuye_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager};
 
         let tools = Arc::new(ToolRegistry::new());
         let mgr = Arc::new(TaskManager::new(

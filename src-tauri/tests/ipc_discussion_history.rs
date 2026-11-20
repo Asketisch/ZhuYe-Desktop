@@ -2,8 +2,8 @@
 mod common;
 
 use chrono::Utc;
-use zhuye_protocol::{RolloutRecord, ThreadId};
 use serde_json::json;
+use zhuye_protocol::{RolloutRecord, ThreadId};
 
 #[test]
 fn discussion_history_filters_out_ordinary_sessions() {

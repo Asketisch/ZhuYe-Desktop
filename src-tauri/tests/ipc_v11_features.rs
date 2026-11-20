@@ -195,10 +195,7 @@ fn status_server_start_state_stop_roundtrip() {
 #[test]
 fn import_discover_rejects_unknown_kind() {
     let _guard = common::state_lock();
-    let err = common::invoke_err(
-        "zhuye_import_discover",
-        json!({ "kind": "not-a-harness" }),
-    );
+    let err = common::invoke_err("zhuye_import_discover", json!({ "kind": "not-a-harness" }));
     let msg = err["msg"].as_str().expect("错误应带 msg");
     assert!(
         msg.contains("unknown harness kind"),

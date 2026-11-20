@@ -122,8 +122,8 @@ async fn hot_reload_detects_sandbox_section_change() {
 
     let base = "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n";
     let old = zhuye_config::load_from_str(base).unwrap();
-    let new = zhuye_config::load_from_str(&format!("{base}\n[sandbox]\nallow_network = true\n"))
-        .unwrap();
+    let new =
+        zhuye_config::load_from_str(&format!("{base}\n[sandbox]\nallow_network = true\n")).unwrap();
     assert_ne!(old.sandbox, new.sandbox, "测试前提:两边的沙箱段确实不同");
     let _ = hot_reload_provider_stack(&agent, &old, &new).await;
 

@@ -221,9 +221,7 @@ pub async fn zhuye_set_permission_mode(
 }
 
 #[tauri::command]
-pub async fn zhuye_cycle_permission_mode(
-    agent: State<'_, MinimalAgent>,
-) -> CommandResult<String> {
+pub async fn zhuye_cycle_permission_mode(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.submit_op(Op::CyclePermissionMode).await?)
 }
 

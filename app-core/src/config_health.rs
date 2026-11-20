@@ -1,7 +1,7 @@
 //! 桌面端配置健康提示，基于应用当前生效的配置快照。
 
-use zhuye_config::ReflectConfig;
 use serde::{Deserialize, Serialize};
+use zhuye_config::ReflectConfig;
 
 /// 配置健康问题的稳定标识与严重程度。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

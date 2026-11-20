@@ -9,9 +9,9 @@
 //! - **配置位置与分析健康度** —— 手改 `config.toml` 后不知道应用读的是
 //!   哪个文件、分析上报是否正常。
 
-use zhuye_protocol::ThreadId;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use zhuye_protocol::ThreadId;
 
 use crate::commands::error::CommandResult;
 use crate::state::MinimalAgent;

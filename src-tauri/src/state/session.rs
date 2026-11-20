@@ -8,9 +8,9 @@
 //! - 后台线程 → `background_tx`(带 session id,前端维护运行徽标 /
 //!   待确认交互;切回该会话时 bind→promote,事件自然回到前台通道)。
 
-use zhuye_protocol::{Event, ThreadId};
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use zhuye_protocol::{Event, ThreadId};
 
 use super::MinimalAgent;
 
@@ -43,8 +43,7 @@ fn track_running(inner: &super::agent::MinimalAgentInner, sid: Option<ThreadId>,
         zhuye_protocol::EventMsg::TurnStarted(_) => {
             running.insert(sid);
         }
-        zhuye_protocol::EventMsg::TurnComplete(_)
-        | zhuye_protocol::EventMsg::TurnAborted(_) => {
+        zhuye_protocol::EventMsg::TurnComplete(_) | zhuye_protocol::EventMsg::TurnAborted(_) => {
             running.remove(&sid);
         }
         _ => {}
@@ -124,13 +123,8 @@ mod tests {
         route_event(&agent.inner, &old, Some(old_sid), event());
         assert!(foreground.try_recv().is_ok());
         // 换绑到新会话:旧线程降级后台(不 cancel)。
-        super::super::rebind::rebind_session(
-            &agent,
-            zhuye_protocol::ThreadId::new(),
-            vec![],
-            None,
-        )
-        .unwrap();
+        super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
+            .unwrap();
         while foreground.try_recv().is_ok() {}
         assert!(!old.cancel_token().is_cancelled(), "降级线程不得被 cancel");
         // 旧(后台)线程事件:不进前台通道,带 sid 进后台通道。

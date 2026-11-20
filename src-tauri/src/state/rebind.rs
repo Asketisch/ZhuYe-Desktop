@@ -19,9 +19,9 @@
 
 use std::sync::Arc;
 
+use tracing::{debug, warn};
 use zhuye_llm::ChatMessage;
 use zhuye_protocol::{PermissionMode, ThreadId};
-use tracing::{debug, warn};
 
 use super::MinimalAgent;
 use super::thread_factory::construct_thread;

@@ -1,8 +1,8 @@
 //! 会话提示词选择、重扫和正文预览命令。
 
-use zhuye_protocol::{Op, PromptAction};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use zhuye_protocol::{Op, PromptAction};
 
 use super::CommandResult;
 use crate::state::MinimalAgent;

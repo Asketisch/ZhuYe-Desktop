@@ -89,8 +89,7 @@ fn at<'a>(value: &'a Value, path: Option<&str>) -> Option<&'a Value> {
 /// 落在 os error 123(文件名语法不正确)。Windows 的 temp_dir 本就是
 /// 绝对无符号链接路径,跳过规范化即可。
 fn prepare_tmp() -> String {
-    let dir =
-        std::env::temp_dir().join(format!("zhuye-desktop-roundtrip-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("zhuye-desktop-roundtrip-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create roundtrip tmp dir");
     #[cfg(not(windows))]
     let dir = std::fs::canonicalize(&dir).unwrap_or(dir);
