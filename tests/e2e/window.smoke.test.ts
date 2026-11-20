@@ -46,9 +46,12 @@ let chatSessionPath = '';
 async function openMorePage(label: string) {
   // v3 harness:侧栏「更多」菜单(plain button,无 role=menuitem)。
   // 「更多」按钮是开关:若上一用例失败把菜单留在打开态,直接点会把它
-  // 关掉 —— 先 Esc 走壳层的 Esc 关闭链,保证从闭合态出发。
-  await driver!.findElement(By.css('body')).sendKeys(Key.ESCAPE);
-  await driver!.findElement(By.css('[data-testid="harness-nav-more"]')).click();
+  // 关掉 —— 按 DOM 当前态决定,不再发 Esc(Windows WebView2 上给 body
+  // 发 Esc 可能触发系统级关闭动作,CI 实证窗口被关)。
+  const alreadyOpen = (await driver!.findElements(By.css('[data-testid="harness-more-menu"]'))).length > 0;
+  if (!alreadyOpen) {
+    await driver!.findElement(By.css('[data-testid="harness-nav-more"]')).click();
+  }
   const menu = await driver!.wait(until.elementLocated(By.css('[data-testid="harness-more-menu"]')), 10_000);
   const inViewport = await driver!.executeScript<boolean>(
     'const r = arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;', menu,
