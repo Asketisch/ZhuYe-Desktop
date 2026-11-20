@@ -380,7 +380,10 @@ describe.each(SURFACES)('visual surface $name', ({ name, route, prepare }) => {
     // 交互面:打开弹窗(路由基线拍不到这一面)。
     await prepare?.(page);
     await captureAndCompare(page, `${name}--${theme}.png`);
-  }, 30_000);
+    // 90s:settings v3 重建后单面要挂载 14 个分区,Windows runner 的
+    // WebView2 冷启动 + 全分区 IPC 拉取在 30s 内跑不完(ubuntu/macOS
+    // 无此压力);放宽到 90s 只影响慢环境,不影响基线比对本身。
+  }, 90_000);
 });
 
 afterAll(() => {

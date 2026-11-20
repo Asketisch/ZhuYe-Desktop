@@ -367,27 +367,50 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     // 直接 URL 导航到 /tasks:本用例断言的是 task CRUD + 跨导航留存,
     // 不是「更多菜单点击」(那条链路已被单独的 mounts 用例覆盖),
     // 去掉菜单开关态/滚动容器点击的耦合后,用例只测该测的东西。
-    await driver!.get(new URL('/tasks', await driver!.getCurrentUrl()).toString());
-    await driver!.wait(until.elementLocated(By.css('[data-testid="tasks-add-btn"]')), 30_000);
-    await driver!.findElement(By.css('[data-testid="tasks-add-btn"]')).click();
-    await driver!.findElement(By.css('[data-testid="task-create-subject"]')).sendKeys('Runtime integration task');
-    await driver!.findElement(By.css('[data-testid="task-create-submit"]')).click();
-    const task = By.xpath('//*[starts-with(@data-testid,"task-row-") and contains(.,"Runtime integration task")]');
-    const created = await driver!.wait(until.elementLocated(task), 30_000);
-    await created.findElement(By.css('button[title="Start"]')).click();
-    const complete = await driver!.wait(until.elementLocated(By.css('[data-testid^="task-complete-"]')), 30_000);
-    await complete.click();
-    await driver!.wait(async () => (await (await driver!.findElement(task)).getText()).includes('Completed'), 30_000);
-    // 跨导航回读:切到轻量路由 /settings 再切回 /tasks,验证 task 状态
-    // 持久化。不用 /terminal —— 它加载 xterm.js,与壳层常驻的终端 dock
-    // 双实例在低端 WebView(Linux GTK / Windows WebView2)上竞争,拖慢
-    // 导航导致 30s 超时(macOS 未暴露)。菜单点击链路已由 mounts 覆盖。
-    await driver!.get(new URL('/settings', await driver!.getCurrentUrl()).toString());
-    await driver!.wait(until.elementLocated(By.css('h1, h2')), 30_000);
-    await driver!.get(new URL('/tasks', await driver!.getCurrentUrl()).toString());
-    const restored = await driver!.wait(until.elementLocated(task), 30_000);
-    expect(await restored.getAttribute('textContent')).toContain('Runtime integration task');
-    expect(await restored.getAttribute('textContent')).toContain('Completed');
+    // 每个等待点都带诊断消息:CI 上超时能直接定位卡在哪一步,
+    // 失败时另转储页面源片段(见下方 catch),不用再盲猜。
+    const diag = (step: string) => `creates-a-task 卡在:${step}`;
+    try {
+      await driver!.get(new URL('/tasks', await driver!.getCurrentUrl()).toString());
+      await driver!.wait(until.elementLocated(By.css('[data-testid="tasks-add-btn"]')), 30_000,
+        diag('tasks-add-btn 未出现(/tasks 路由未挂载)'));
+      await driver!.findElement(By.css('[data-testid="tasks-add-btn"]')).click();
+      await driver!.findElement(By.css('[data-testid="task-create-subject"]')).sendKeys('Runtime integration task');
+      await driver!.findElement(By.css('[data-testid="task-create-submit"]')).click();
+      const task = By.xpath('//*[starts-with(@data-testid,"task-row-") and contains(.,"Runtime integration task")]');
+      const created = await driver!.wait(until.elementLocated(task), 30_000,
+        diag('任务行未出现(创建 IPC 失败或列表未刷新)'));
+      await created.findElement(By.css('button[title="Start"]')).click();
+      const complete = await driver!.wait(until.elementLocated(By.css('[data-testid^="task-complete-"]')), 30_000,
+        diag('complete 按钮未出现(start 未生效)'));
+      await complete.click();
+      await driver!.wait(async () => (await (await driver!.findElement(task)).getText()).includes('Completed'), 30_000,
+        diag('任务状态未变为 Completed'));
+      // 跨导航回读:切到轻量路由 /settings 再切回 /tasks,验证 task 状态
+      // 持久化。不用 /terminal —— 它加载 xterm.js,与壳层常驻的终端 dock
+      // 双实例在低端 WebView(Linux GTK / Windows WebView2)上竞争,拖慢
+      // 导航导致 30s 超时(macOS 未暴露)。菜单点击链路已由 mounts 覆盖。
+      await driver!.get(new URL('/settings', await driver!.getCurrentUrl()).toString());
+      await driver!.wait(until.elementLocated(By.css('h1, h2')), 30_000,
+        diag('/settings 标题未出现'));
+      await driver!.get(new URL('/tasks', await driver!.getCurrentUrl()).toString());
+      const restored = await driver!.wait(until.elementLocated(task), 30_000,
+        diag('跨导航后任务行未恢复(持久化失败)'));
+      expect(await restored.getAttribute('textContent')).toContain('Runtime integration task');
+      expect(await restored.getAttribute('textContent')).toContain('Completed');
+    } catch (e) {
+      // 失败时转储当前页面源与可见按钮清单,CI 日志直接可见。
+      try {
+        const src = await driver!.getPageSource();
+        const testids = [...src.matchAll(/data-testid="([^"]+)"/g)].map((m) => m[1]);
+        console.error(`[e2e-diag] 当前 URL: ${await driver!.getCurrentUrl()}`);
+        console.error(`[e2e-diag] 页面 data-testid 清单: ${testids.slice(0, 60).join(', ')}`);
+        console.error(`[e2e-diag] 页面源片段: ${src.slice(0, 2000)}`);
+      } catch {
+        console.error('[e2e-diag] 页面源转储失败(WebView 可能已崩溃)');
+      }
+      throw e;
+    }
   }, 100_000);
 
   it('captures a screenshot artifact', async () => {
