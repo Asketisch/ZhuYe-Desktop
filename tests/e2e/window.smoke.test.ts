@@ -54,7 +54,16 @@ async function openMorePage(label: string) {
     'const r = arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;', menu,
   );
   expect(inViewport, 'navigation flyout must remain inside the window').toBe(true);
-  await menu.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`)).click();
+  const item = await menu.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`));
+  // 菜单 30+ 项在 50vh 容器里滚动:「Tasks」等靠后的项恰在滚动边界附近,
+  // WebKitGTK 对视口外元素的 click 有抖动 —— 先滚到视野中央,点击失败
+  // 再用 JS click 兜底(绕过 overlay 命中测试)。
+  await driver!.executeScript('arguments[0].scrollIntoView({ block: "center" });', item);
+  try {
+    await item.click();
+  } catch {
+    await driver!.executeScript('arguments[0].click();', item);
+  }
 }
 
 /** 等待弹窗出现;超时时先截图并转储 body 文本再抛出原错误。
