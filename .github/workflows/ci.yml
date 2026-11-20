@@ -110,8 +110,12 @@ jobs:
       # 只检查本仓库自有 crate(app-core + src-tauri):
       # zhuye-agent/ submodule 的格式由上游 ZhuYe 仓库的 CI 负责,
       # 避免上游格式状态阻塞本仓库。
+      # app-core 是独立 workspace(根 Cargo.toml members 只有 src-tauri),
+      # 不能用 -p 跨 workspace 指定 —— 分别 cd 进去跑。
       - name: cargo fmt --check (own crates)
-        run: cargo fmt -p reflect-app-core -p reflect-desktop -- --check
+        run: |
+          cargo fmt --manifest-path app-core/Cargo.toml -- --check
+          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
   clippy:
     name: rust clippy (${{ matrix.os }})
