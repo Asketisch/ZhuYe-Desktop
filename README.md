@@ -72,16 +72,16 @@
 
 - 显示（主题：亮色 / 暗色 / 系统跟随、强调色、透明度、壁纸）
 - 编辑器（Vim 模式 / 输出样式切换）
-- 提供商（默认提供商 + API 密钥占位符）
+- 模型组（唯一接入层：`[[model_group]]`，组内可挂多条凭据）
 - `ConfigForm` 覆盖 `zhuye-agent/crates/resources/zhuye-config/src/schema/` 中的每个部分；高级原始 TOML 编辑器保留为出口
 
-### Coding Plan 与额度自动切换
+### 模型组与额度自动切换
 
-- 多计划配置：每个供应商可挂多条 `[[<provider>.credentials]]` 计划（label / api_key / base_url / model / 配额窗口声明），在 设置 → 编码计划 或 Models 页增删改
-- 默认供应商一键切换（`[active].provider`）：保存后热重建凭证池并强制重绑当前会话，上下文保留、无需重启
-- 同供应商池内 401 / 429 / 5xx / 网络错误由凭证池自动轮转，`routing` 事件在状态栏可见切换过程
-- 额度耗尽自动跨供应商切换：监听 `quota_exhausted` 与耗尽特征错误 → 自动切到下一个有可用计划的供应商并 toast 告知（设置中可关闭，60s 防抖）
-- 配额查询支持官方用量 API：zhipu / kimi / minimax / zenmux；其余供应商退化为本地 token 统计
+- 模型组是唯一接入单元：每个模型组可挂多条 `[[<组id>.credentials]]` 凭据（label / api_key / base_url / model / 配额窗口声明），在 设置 → 模型组 或 Models 页增删改
+- 默认模型组一键切换（`[active].group`）：保存后热重建凭证池并强制重绑当前会话，上下文保留、无需重启
+- 同组池内 401 / 429 / 5xx / 网络错误由凭证池自动轮转，`routing` 事件在状态栏可见切换过程
+- 额度耗尽自动跨模型组切换：监听 `quota_exhausted` 与耗尽特征错误 → 自动切到下一个有可用凭据的模型组并 toast 告知（设置中可关闭，60s 防抖）
+- 配额查询支持官方用量 API：zhipu / kimi / minimax / zenmux；其余端点退化为本地 token 统计
 
 ---
 

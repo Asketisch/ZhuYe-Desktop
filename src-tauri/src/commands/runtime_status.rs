@@ -16,13 +16,15 @@ use zhuye_protocol::ThreadId;
 use crate::commands::error::CommandResult;
 use crate::state::MinimalAgent;
 
-/// 单个 provider 的凭证池健康度(camelCase 出线)。
+/// 单个**模型组**的凭证池健康度(camelCase 出线)。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialPoolStatus {
-    /// provider 名(`anthropic` / `openai` / `ollama`)。
-    pub provider: String,
-    /// 池内凭证总数(含顶层 `api_key` 的隐式条目)。
+    /// 模型组 id(`[[model_group]]` 的 `id`,同时是 registry 池名)。
+    pub group: String,
+    /// 组的接入端点(`openai` / `anthropic` / `ollama`)。
+    pub endpoint: String,
+    /// 池内凭证总数(含组级 `api_key` 的隐式条目)。
     pub total: usize,
     /// 当前**未处于冷却**的凭证数。
     pub healthy: usize,
@@ -30,20 +32,14 @@ pub struct CredentialPoolStatus {
     pub healthy_labels: Vec<String>,
 }
 
-/// provider 段的三选一视图 —— 三个 provider 的配置段形状一致
-/// (隐式 `api_key` + `credentials` 列表),所以按「哪个段存在」来区分。
-type ProviderSection<'a> = (
-    &'a str,
-    Option<&'a zhuye_config::AnthropicSection>,
-    Option<&'a zhuye_config::OpenAISection>,
-    Option<&'a zhuye_config::OllamaSection>,
-);
-
-/// 查询各 provider 的凭证池健康度。
+/// 查询各模型组的凭证池健康度。
 ///
 /// 「总数 − 健康数」= 处于冷却中的凭证数(核心的 cooldown 集合是私有
 /// 字段,只能从健康集合反推)。冷却原因(429 / 401 / 5xx)在核心内不公开,
 /// 此处不编造。
+///
+/// 遍历**全部模型组**(`[[model_group]]`)—— 组 id 即 registry 池名,
+/// 因此池健康度按组 id 查询;组内没有凭据的组不出现。
 #[tauri::command]
 pub async fn zhuye_credential_pool_status(
     agent: State<'_, MinimalAgent>,
@@ -52,35 +48,31 @@ pub async fn zhuye_credential_pool_status(
     let registry = agent.inner.model_registry.lock().clone();
 
     let mut out: Vec<CredentialPoolStatus> = Vec::new();
-    // provider 段是 `Option<Section>` —— 未配置时整段为空。
-    let sections: [ProviderSection; 3] = [
-        ("anthropic", cfg.anthropic.as_ref(), None, None),
-        ("openai", None, cfg.openai.as_ref(), None),
-        ("ollama", None, None, cfg.ollama.as_ref()),
-    ];
-    for (provider, anthropic, openai, ollama) in sections {
-        // 各 provider 段形状一致(隐式 api_key + credentials 列表)。
-        let (has_key, creds): (bool, usize) = match (anthropic, openai, ollama) {
-            (Some(s), _, _) => (s.api_key.is_some(), s.credentials.len()),
-            (_, Some(s), _) => (s.api_key.is_some(), s.credentials.len()),
-            (_, _, Some(s)) => (s.api_key.is_some(), s.credentials.len()),
-            _ => (false, 0),
-        };
-        // 顶层 `api_key` 隐式条目的 label 固定为 "default"(见 builder)。
-        let total = usize::from(has_key) + creds;
+    for group in &cfg.model_group {
+        let id = group.id.trim();
+        if id.is_empty() {
+            continue;
+        }
+        // 组级 `api_key` 隐式条目的 label 固定为 "default"(见 builder)。
+        let has_key = group
+            .api_key
+            .as_deref()
+            .is_some_and(|key| !key.trim().is_empty());
+        let total = usize::from(has_key) + group.credentials.len();
         if total == 0 {
             continue;
         }
         let healthy_labels: Vec<String> = match registry.as_ref() {
             Some(reg) => reg
-                .healthy_clients(&format!("{provider}/any"))
+                .healthy_clients(&format!("{id}/any"))
                 .into_iter()
                 .map(|c| c.label)
                 .collect(),
             None => Vec::new(),
         };
         out.push(CredentialPoolStatus {
-            provider: provider.to_string(),
+            group: id.to_string(),
+            endpoint: group.endpoint.trim().to_string(),
             total,
             healthy: healthy_labels.len(),
             healthy_labels,

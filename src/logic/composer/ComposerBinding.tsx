@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import type { ComposerSlots, ComposerViewProps } from '@/contracts/composer';
-import { TIER_A_TOOLBAR, filterSlashCommands } from './slashCommands';
+import { filterSlashCommands } from './slashCommands';
 import { usePromptHistory } from './usePromptHistory';
 import { useComposerInput } from './useComposerInput';
 import { useComposerDraft } from './useComposerDraft';
@@ -9,6 +9,7 @@ import { useComposerSubmission, type SendMode } from './useComposerSubmission';
 import { useComposerFileEntries } from './useComposerFileEntries';
 import { usePluginCommands } from './usePluginCommands';
 import { useBangShell } from './useBangShell';
+import { useDictation } from '@/logic/dictation/useDictation';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { useActiveSession } from '@/logic/sessions/useSessions';
 import { useModelAbilities } from '@/logic/models/useModelAbilities';
@@ -18,7 +19,7 @@ import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 
 /** 输入、附件和发送状态到渲染组件的绑定。 */
 export function ComposerBinding({ view: View, slots }: { view: ComponentType<ComposerViewProps>; slots: ComposerSlots }) {
-  const { t } = useI18n();
+  const { t, dictationLang } = useI18n();
   // v1.11 桌面#4：锁定发送 —— uiPrefs.sendOnEnter=false 时 Enter 只换行,
   // 发送走 ⌘/Ctrl+Enter / 按钮(防误发)。
   const { sendOnEnter } = useUiPrefs()[0];
@@ -61,7 +62,7 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
   usePluginCommands();
 
   const focus = useCallback(() => textareaRef.current?.focus(), []);
-  const doSubmit = useComposerSubmission({
+  const { send: doSubmit, runSlash } = useComposerSubmission({
     text,
     attachments,
     history,
@@ -218,27 +219,52 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
       : t('composer.mode.queueHint')
     : sendHint;
 
+  // 语音输入：卡片右下角的麦克风按钮。识别到的最终文本追加进输入框。
+  const dictation = useDictation({ lang: dictationLang, continuous: false });
+  const onToggleDictation = useCallback(() => {
+    if (dictation.isListening) {
+      dictation.stop();
+      return;
+    }
+    dictation.start();
+  }, [dictation]);
+  useEffect(() => {
+    const spoken = dictation.finalTranscript.trim();
+    if (!spoken) return;
+    setText((prev) => `${prev}${prev && !/\s$/.test(prev) ? ' ' : ''}${spoken}`);
+    dictation.reset();
+    focus();
+    // dictation 对象每次渲染都是新引用 —— 只跟最终文本走。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dictation.finalTranscript]);
+
   return <View
     t={t} text={text} busy={busy} canSend={canSend} sendLabel={sendLabel} sendMode={sendMode}
     isTurnRunning={isTurnRunning} slashVisible={slashVisible} slashQuery={slashQuery}
     slashActiveIdx={slashActiveIdx} mentionVisible={mentionVisible} mentionQuery={mentionQuery}
-    workspaceLabel={workspaceLabel} toolbar={TIER_A_TOOLBAR.map((command) => ({
-      name: command.name, summary: t(command.summaryKey as Parameters<typeof t>[0]),
-    }))}
+    workspaceLabel={workspaceLabel}
     attachments={attachments.attachments} visionBlocked={visionBlocked} dragActive={drop.dragActive} bangRuns={bang.runs}
     textareaRef={textareaRef} fileInputRef={fileInputRef} imageInputRef={imageInputRef}
     onChange={onChange} onKeyDown={onKeyDown} onPaste={onPaste} onDrop={onDrop} onDragOver={onDragOver}
     onPickFile={onPickFile} onPickImage={onPickImage} onSlashActiveChange={setSlashActiveIdx} onSlashSelect={onSlashSelect}
-    onToolbarCommand={(command) => {
-      setText((previous) => `${previous}${previous && !previous.endsWith(' ') ? ' ' : ''}/${command} `);
-      setSlashVisible(false);
-      focus();
-    }}
     onOpenSlash={() => { setText((value) => value.startsWith('/') ? value : `/${value}`); focus(); }}
-    onAttachFile={onAttachFile} onAttachImage={() => imageInputRef.current?.click()}
+    onAttachFile={onAttachFile}
     onMention={onMentionButton} onPickMention={onPickMention} onCloseMention={() => setMentionVisible(false)}
     onRemoveAttachment={attachments.remove} onRetryAttachment={ingest.retry}
     onDismissBang={bang.dismiss} onKillBang={(id) => { void bang.kill(id); }}
-    onSendModeChange={setSendMode} onInterrupt={handleInterrupt} onSend={() => { void doSubmit(); }} slots={slots}
+    onSendModeChange={setSendMode} onInterrupt={handleInterrupt} onSend={() => { void doSubmit(); }}
+    onRunSlash={(command) => { void runSlash(command); }}
+    onFillSlash={(command) => {
+      setText((previous) => `${previous}${previous && !previous.endsWith(' ') ? ' ' : ''}/${command} `);
+      focus();
+    }}
+    onInsertText={(value) => {
+      setText((previous) => `${previous}${previous && !/\s$/.test(previous) ? ' ' : ''}${value}`);
+      focus();
+    }}
+    dictationSupported={dictation.isSupported}
+    dictationListening={dictation.isListening}
+    onToggleDictation={onToggleDictation}
+    slots={slots}
   />;
 }

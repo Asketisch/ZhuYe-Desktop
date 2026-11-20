@@ -1,5 +1,5 @@
 import type { SettingsPermissionMode, SettingsViewProps, UserApprovalPolicy } from '@/contracts/settings';
-import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '../design-system/Button';
 import { Textarea } from '../design-system/Textarea';
 import { Badge } from '../design-system/Badge';
@@ -13,7 +13,6 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
   onSave, onClose, slots }: SettingsViewProps) {
   const { ConfigInfoLine, ConfigForm, GroupsSection, PermissionRulesSection, DisplaySection,
     NotificationsSection, ConfigHealthBanner, GuardStatsCard, SecurityScanCard, UpdatesSection } = slots;
-  const hasModel = Boolean(status?.has_model);
   return (
     <div className={s.root}>
       <aside className={s.nav}>
@@ -22,9 +21,6 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
             需要知道「应用读的是哪个文件」;这些信息此前完全没有出口。 */}
         <ConfigInfoLine />
         <nav className={s.navList}>
-          <NavBtn active={section === 'provider'} onClick={() => onSectionChange('provider')}>
-            {t('settings.provider')}
-          </NavBtn>
           <NavBtn active={section === 'groups'} onClick={() => onSectionChange('groups')}>
             {t('settings.nav.groups')}
           </NavBtn>
@@ -41,6 +37,20 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
             {t('settings.advanced')}
           </NavBtn>
         </nav>
+        {/* 语言选择 —— 全局偏好，挂在侧栏底部（不占内容页的位置）。 */}
+        <div className={s.fieldRow}>
+          <label className={s.fieldLabel} htmlFor="settings-locale">{t('settings.language')}</label>
+          <Select
+            id="settings-locale"
+            size="sm"
+            value={locale}
+            aria-label={t('settings.language')}
+            onChange={(e) => onLocaleChange(e.target.value as 'en' | 'zh-CN')}
+          >
+            <option value="en">{t('settings.english')}</option>
+            <option value="zh-CN">{t('settings.chinese')}</option>
+          </Select>
+        </div>
         {onClose && (
           <Button variant="ghost" size="sm" onClick={onClose} className={s.closeBtn}>
             {t('common.close')}
@@ -56,52 +66,6 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
           </div>
         )}
 
-        {section === 'provider' && (
-          <section>
-            {/* 状态徽标 —— 契约 'Agent ready'。只在该页显示:它反映的是
-                provider 配置的就绪状态,与其他设置页无关。 */}
-            <div className={s.statusBar} data-ok={hasModel || undefined}>
-              <Icon icon={hasModel ? CheckCircle2 : AlertTriangle} size={14} />
-              <span>
-                {loading
-                  ? t('settings.loading')
-                  : hasModel
-                    ? <>{t('settings.status.ready', { model: status?.model ?? '' })} <code className={s.codeInline}>{status?.model}</code></>
-                    : <>{t('settings.status.degraded', { reason: status?.degraded_reason ?? t('settings.status.noProvider') })} {t('settings.status.noProviderHint')}</>}
-              </span>
-            </div>
-            <h3 className={s.sectionTitle}>{t('settings.provider')}</h3>
-            <Button onClick={onOpenPrompts}>
-              {t('promptLayers.title')}
-            </Button>
-            <p className={s.sectionDesc}>
-              {t('settings.providerDescription', { path: t('settings.providerPath') })}{' '}
-              <code className={s.codeInline}>{t('settings.providerPath')}</code>.
-            </p>
-
-            <div className={s.fieldRow}>
-              <label className={s.fieldLabel}>{t('settings.language')}</label>
-              <Select
-                value={locale}
-                aria-label={t('settings.language')}
-                onChange={(e) => onLocaleChange(e.target.value as 'en' | 'zh-CN')}
-              >
-                <option value="en">{t('settings.english')}</option>
-                <option value="zh-CN">{t('settings.chinese')}</option>
-              </Select>
-            </div>
-
-            <h4 className={s.sectionTitle}>{t('settings.configFields')}</h4>
-            <p className={s.sectionDesc}>{t('settings.configHelp')}</p>
-            <ConfigForm
-              rawToml={rawToml}
-              onChange={onTomlChange}
-              showSecrets={showSecrets}
-              onToggleSecret={onToggleSecret}
-            />
-          </section>
-        )}
-
         {section === 'groups' && (
           <GroupsSection
             rawToml={rawToml}
@@ -109,6 +73,8 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
             // 模型组页操作即时落盘：仅改内存 state 的话，后端 config 不变，
             // 模型选择器 / 状态徽标读到的仍是旧配置（「保存了却选不到」）。
             onCommit={onCommit}
+            status={status}
+            loading={loading}
           />
         )}
 
@@ -164,16 +130,32 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
 
         {section === 'advanced' && (
           <section>
-            <h3 className={s.sectionTitle}>{t('settings.advancedRawToml', { title: t('settings.advanced') })}</h3>
+            <h3 className={s.sectionTitle}>{t('settings.advanced')}</h3>
+            <Button onClick={onOpenPrompts}>
+              {t('promptLayers.title')}
+            </Button>
+            {/* 结构化配置字段 —— 模型接入（[[model_group]] / [active].group）
+                已由「模型组」页承载，这里只剩其余 ZhuyeConfig 分区。 */}
+            <h4 className={s.sectionTitle}>{t('settings.configFields')}</h4>
             <p className={s.sectionDesc}>
-              {t('settings.advancedDescription', { fn: t('settings.advancedValidationFn') })}{' '}
-              <code className={s.codeInline}>{t('settings.advancedValidationFn')}</code>.
+              {t('settings.config.description', { path: t('settings.config.path') })}{' '}
+              <code className={s.codeInline}>{t('settings.config.path')}</code>.
             </p>
+            <p className={s.sectionDesc}>{t('settings.configHelp')}</p>
+            <ConfigForm
+              rawToml={rawToml}
+              onChange={onTomlChange}
+              showSecrets={showSecrets}
+              onToggleSecret={onToggleSecret}
+            />
+            <h4 className={s.sectionTitle}>{t('settings.advancedRawToml', { title: t('settings.advanced') })}</h4>
+            <p className={s.sectionDesc}>{t('settings.advancedDescription', { fn: t('settings.advancedValidationFn') })} <code className={s.codeInline}>{t('settings.advancedValidationFn')}</code>.</p>
             <Textarea
               value={rawToml}
               onChange={(e) => onTomlChange(e.target.value)}
               className={s.rawEditor}
               spellCheck={false}
+              aria-label={t('settings.advancedRawToml', { title: t('settings.advanced') })}
             />
           </section>
         )}

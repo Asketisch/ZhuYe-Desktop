@@ -1,5 +1,8 @@
 /**
- * Models —— 当前模型卡片、coding plan 切换与 reasoning effort 控件。
+ * Models —— 当前模型卡片、模型组切换与 reasoning effort 控件。
+ *
+ * 模型页按「模型组」列出（配置里只剩模型组一层）：组 id 才是接入目标，
+ * 「设为默认」写 `[active].group`。
  */
 import { Cpu, Folder, AlertTriangle, CheckCircle2, Zap } from 'lucide-react';
 import type { ModelsViewProps } from '@/contracts/models';
@@ -11,8 +14,8 @@ import { EmptyState } from '../design-system/EmptyState';
 import { SegmentedControl } from '../design-system/SegmentedControl';
 import s from './ModelsView.module.css';
 
-export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace, degradedReason, plans,
-  effort, effortOptions, effortAdjusted, effortEffective, saved, onGoSettings, onSwitchPlan,
+export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace, degradedReason, groups,
+  effort, effortOptions, effortAdjusted, effortEffective, saved, onGoSettings, onSwitchGroup,
   onEffortChange, onApplyEffort }: ModelsViewProps) {
   return (
     <div className={s.root}>
@@ -51,8 +54,8 @@ export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace
           <Card level="outlined" padding="lg">
             <EmptyState
               icon={<Icon icon={AlertTriangle} />}
-              title={t('models.noProvider')}
-              description={<>{degradedReason ?? t('models.noProviderDesc')} {t('models.configureHint')}</>}
+              title={t('models.noGroup')}
+              description={<>{degradedReason ?? t('models.noGroupDesc')} {t('models.configureHint')}</>}
               action={<Button variant="primary" size="sm" onClick={onGoSettings}>{t('palette.item.goSettings')}</Button>}
             />
           </Card>
@@ -60,36 +63,36 @@ export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace
       </section>
 
       <section>
-        <h2 className={s.sectionTitle}>{t('models.plans')}</h2>
-        {plans.length === 0 ? (
-          <Card level="outlined" padding="lg"><p className={s.loading}>{t('models.plansEmpty')}</p></Card>
+        <h2 className={s.sectionTitle}>{t('models.groups')}</h2>
+        {groups.length === 0 ? (
+          <Card level="outlined" padding="lg"><p className={s.loading}>{t('models.groupsEmpty')}</p></Card>
         ) : (
-          <div className={s.planList}>
-            {plans.map((plan) => (
-              <Card key={`${plan.provider}/${plan.label}`} level="outlined" padding="md" className={s.planCard}>
-                <div className={s.planMain}>
-                  <div className={s.planTitleRow}>
-                    <code className={s.planLabel}>{plan.label}</code>
-                    <Badge variant={plan.isDefault ? 'success' : 'info'}>{plan.provider}</Badge>
-                    {plan.quota?.checkVia && <Badge variant="warning"><Icon icon={Zap} size={10} /> {plan.quota.checkVia}</Badge>}
+          <div className={s.groupList}>
+            {groups.map((group) => (
+              <Card key={group.id} level="outlined" padding="md" className={s.groupCard}>
+                <div className={s.groupMain}>
+                  <div className={s.groupTitleRow}>
+                    <code className={s.groupLabel}>{group.label}</code>
+                    <Badge variant={group.isDefault ? 'success' : 'info'}>{group.id}</Badge>
+                    <Badge variant="info">{group.endpoint}</Badge>
                   </div>
-                  <div className={s.planMetaRow}>
-                    <span>{plan.apiKey}</span>
-                    {plan.model && <span>{plan.model}</span>}
-                    {plan.baseUrl && <span>{plan.baseUrl}</span>}
+                  <div className={s.groupMetaRow}>
+                    {group.model && <span>{group.model}</span>}
+                    <span>{t('models.groupCredentials', { count: group.credentialCount })}</span>
+                    {group.pinnedCredential && <span>● {group.pinnedCredential}</span>}
                   </div>
                 </div>
-                <Button variant={plan.isDefault ? 'ghost' : 'primary'} size="sm"
-                  disabled={plan.isDefault || plan.switching}
-                  loading={plan.switching}
-                  onClick={() => onSwitchPlan(plan)}>
-                  {plan.isDefault ? t('models.planIsDefault') : t('models.planSetDefault')}
+                <Button variant={group.isDefault ? 'ghost' : 'primary'} size="sm"
+                  disabled={group.isDefault || group.switching}
+                  loading={group.switching}
+                  onClick={() => onSwitchGroup(group)}>
+                  {group.isDefault ? t('models.groupIsDefault') : t('models.groupSetDefault')}
                 </Button>
               </Card>
             ))}
           </div>
         )}
-        <p className={s.note}>{t('models.plansHint')}</p>
+        <p className={s.note}>{t('models.groupsHint')}</p>
       </section>
 
       <section>
@@ -113,7 +116,7 @@ export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace
               </span>
             )}
           </div>
-          <p className={s.note}>{t('models.settingsHint', { path: t('settings.provider') })}</p>
+          <p className={s.note}>{t('models.settingsHint', { path: t('settings.groups.title') })}</p>
         </Card>
       </section>
     </div>

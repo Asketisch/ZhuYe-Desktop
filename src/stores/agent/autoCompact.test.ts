@@ -11,9 +11,10 @@ import {
 } from './autoCompact';
 
 const TOML = `[active]
-provider = "openai"
+group = "openai"
 
-[openai]
+[[model_group]]
+id = "openai"
 api_key = "sk-1"
 model = "glm-4.7"
 
@@ -74,7 +75,7 @@ describe('autoCompact controller', () => {
 
   it('未设置 [context_windows] 时不触发', async () => {
     const { controller, compacts } = makeController({
-      toml: '[active]\nprovider = "openai"\n\n[openai]\napi_key = "sk-1"\nmodel = "glm-4.7"\n',
+      toml: '[active]\ngroup = "openai"\n\n[[model_group]]\nid = "openai"\napi_key = "sk-1"\nmodel = "glm-4.7"\n',
     });
     await controller(999_999);
     expect(compacts).toHaveLength(0);
@@ -89,7 +90,7 @@ describe('autoCompact controller', () => {
   });
 
   it('无模型配置时使用会话上报的上下文窗口', async () => {
-    const { controller, compacts } = makeController({ toml: '[active]\nprovider = "openai"\n' });
+    const { controller, compacts } = makeController({ toml: '[active]\ngroup = "openai"\n' });
     await controller(8_000, 'unknown', 10_000);
     expect(compacts).toHaveLength(1);
   });

@@ -315,20 +315,23 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 
 ---
 
-### 3.37 模型组（`[[provider_group]]`，上游 `feat/provider-group` ∪ main `26e0d04` + 桌面接线）
+### 3.37 模型组唯一（`[[model_group]]`，上游 `feat/model-group-only` + 桌面接线）
 
-模型配置从「anthropic / openai 两个内置端口」升级为「任意多个命名模型组」（provider 分组模型惯例）：
+模型配置从「anthropic / openai 两个内置端口」升级为「**模型组是唯一接入单元**」：
+固定接入段（`[anthropic]` / `[openai]` / `[ollama]`）整层移除，所有端点一律
+是命名模型组（provider 分组模型惯例）。
 
 | 维度 | 落点 |
 |---|---|
-| schema | `zhuye-config::schema::provider_group`：组 id（= 模型 spec 前缀与 registry 池名）/ endpoint（openai\|anthropic）/ base_url / api_key / model / responses_api / timeout / 嵌套 credentials |
-| builder | 组 id 直接 `register_pool`；内置段与组共用 entries helper；非法 / 重复 id、未知 endpoint warn 跳过不阻断 |
-| active 解析 | `active_provider` 由 `&'static str` 改 `Option<String>`：env 与 `[active].provider` 均可点名组 id；fallback 探测追加首个可用组 |
+| schema | `zhuye-config::schema::model_group`：组 id（= 模型 spec 前缀与 registry 池名）/ label / endpoint（openai\|anthropic\|ollama）/ base_url / api_key / model / responses_api / timeout / temperature / max_tokens / ollama 三项 / 嵌套 credentials |
+| builder | 组 id 直接 `register_pool`；非法 / 重复 id、未知 endpoint warn 跳过不阻断；池名即组 id |
+| active 解析 | `[active].group`（旧 `[active].provider` 由 serde alias 读入）：env 与配置均可点名组 id；fallback 探测追加首个可用组 |
+| 迁移 | `CURRENT_CONFIG_VERSION = 2`；`load_from_str` / `load_from_file` / `load_default` **都跑** v1→v2 迁移：旧固定段就地转成等价模型组（组 id = 段名，credentials 原样下沉），已有同 id 的组不被覆盖，迁移幂等，写回不含旧段 |
 | 清单发现 | `AnthropicClient::list_models`（404/405 诚实降级）—— anthropic 格式端点的 `model = "free"` 与 `zhuye models list` 自此可用 |
-| 桌面命令 | `zhuye_set_model` 的 `provider` 值域扩展为「内置段名或已声明组 id」（命令与负载结构不变）；热重载 diff 纳入 `provider_group` 段 |
-| 桌面 UI | 设置页「模型组」统一页（内置端口 plan 与自定义组平铺选默认；组保存后自动拉取组内模型清单，前端 5min TTL memo）；Composer 模型选择器把组作为与 plan 平级的可切换目标 |
+| 桌面命令 | `zhuye_set_model` 的入参由 `provider` 改名为 `group`，值域收敛为「已声明的模型组 id」；热重载 diff 纳入 `model_group` 段；凭证池健康度改为遍历模型组（旧实现漏掉自定义组，本次一并修好） |
+| 桌面 UI | 设置页只留「模型组」页（组卡片 + 组内凭据编辑，默认组 = 点卡片写 `[active].group`）；「提供商」分区与「编码套餐」子面板整体删除（多 key / 配额下沉到组内凭据）；Composer 模型选择器只列模型组 |
 
-旧配置零迁移、内置三段行为不变。详见 `docs/protocol-bridge.md` §2 与上游 `docs/configuration.md`「模型组」段。
+旧配置**自动迁移**（读入即转组，写回即新格式），用户无感。详见 `docs/protocol-bridge.md` §2 与上游 `docs/configuration.md`「模型组」段。
 ### 3.38 受控浏览器显示通道（F39 桌面半边）
 
 上游 `zhuye-browser` crate + `plugins/browser` 落地后,桌面接线**显示通道**:

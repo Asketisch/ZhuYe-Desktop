@@ -97,7 +97,7 @@ describe('permission mode controls', () => {
 describe('config editing & save round-trip', () => {
   it('editing raw TOML and saving persists via zhuye_save_config', async () => {
     const app = await openSettings();
-    fireEvent.click(screen.getByText('Advanced'));
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
 
     const textarea = await screen.findByDisplayValue(
       (v: string) => v.includes('provider = "anthropic"'),
@@ -123,7 +123,7 @@ describe('config editing & save round-trip', () => {
   it('save failure does not show success feedback', async () => {
     backend.state.failures['zhuye_save_config'] = new Error('disk full');
     const app = await openSettings();
-    fireEvent.click(screen.getByText('Advanced'));
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
 
     const saveBtn = await screen.findByText('Save', { exact: false });
     fireEvent.click(saveBtn);
@@ -138,8 +138,8 @@ describe('config editing & save round-trip', () => {
 describe('settings i18n', () => {
   it('switching language to zh-CN re-renders settings chrome', async () => {
     await openSettings();
-    // 语言下拉在 Provider 页（默认页）；顺带断言该页 chrome 已渲染。
-    await waitFor(() => expect(document.body.textContent).toContain('Configuration fields'));
+    // 语言下拉在设置侧栏；顺带断言该页 chrome 已渲染（模型组是默认页）。
+    await waitFor(() => expect(document.body.textContent).toContain('Model Groups'));
 
     // Language 下拉无关联 label；页面有多个 combobox，按含 en/zh-CN 选项定位。
     const select = screen

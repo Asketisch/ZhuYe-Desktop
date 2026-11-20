@@ -98,14 +98,14 @@ pub(crate) struct MinimalAgentInner {
     /// 提供 leader 委派语义层。
     pub(crate) squad_manager: Arc<zhuye_task::SquadManager>,
     /// v1.x 会话持久化:`install_agent_thread` 一次性构造好的共享 ModelRegistry。
-    /// `rebind_session` 重建 AgentThread 时复用(provider clients 昂贵,
+    /// `rebind_session` 重建 AgentThread 时复用(model clients 昂贵,
     /// 不每次重建);注册到 inner 后 `construct_thread` 直接读。
-    /// v1.x coding plan:`zhuye_save_config` 保存 provider 相关段变更时
+    /// v1.x coding plan:`zhuye_save_config` 保存模型组相关段变更时
     /// 会整体重建并热替换(见 `state/reload.rs`),新计划无需重启生效。
     pub(crate) model_registry: ParkingMutex<Option<SharedModelRegistry>>,
-    /// coding plan 配额追踪器:遍历 config `[[<provider>.credentials]].quota`
+    /// coding plan 配额追踪器:遍历 config `[[<组id>.credentials]].quota`
     /// 声明构建(见 `state/quota.rs`)。`None` = 未声明任何配额(向后兼容)。
-    /// 与 `model_registry` 同生命周期:install 时构建,provider 段变更时重建。
+    /// 与 `model_registry` 同生命周期:install 时构建,模型组段变更时重建。
     pub(crate) quota_tracker: ParkingMutex<Option<zhuye_llm::SharedQuotaTracker>>,
     /// 当前绑定 session id;`None` 表示 install 后的占位 thread。
     /// rebind_session 比较短路;命令层通过 `bound_session_id()` 读取。
@@ -175,9 +175,9 @@ pub(crate) struct MinimalAgentInner {
 pub struct AgentStatus {
     /// AgentThread 是否已安装(setup 异步安装完成前为 false)。
     pub ready: bool,
-    /// 是否检测到可用 provider(读到了 API key / 配置)。
+    /// 是否检测到可用模型组(读到了 API key / 配置)。
     pub has_model: bool,
-    /// 当前 provider 的 model spec(`anthropic/claude-...`),降级时为 `stub/test`。
+    /// 当前模型组的 model spec(`<组id>/<model>`),降级时为 `stub/test`。
     pub model: String,
     /// 当前工作区根。
     pub workspace: String,
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn agent_status_reports_degraded_when_no_provider() {
-        // 测试环境无 API key/env,active_provider() 应为 None。
+        // 测试环境无 API key/env,active_group() 应为 None。
         let agent = MinimalAgent::new_empty();
         let status = agent.agent_status();
         assert!(!status.ready, "thread not installed yet");
@@ -299,13 +299,13 @@ mod tests {
         let agent = MinimalAgent::new_empty();
         let cfg_handle = agent.cfg();
         let cfg = cfg_handle.read();
-        // active_provider() 要么从 [active] provider 读到 "anthropic" 等,
+        // active_group() 要么从 [active].group 读到已声明的模型组 id,
         // 要么从 env(OPENAI_API_KEY / ANTHROPIC_API_KEY)推断。
         // CI 无配置时为 None,本地开发机通常有 ~/.zhuye/config.toml。
-        let providers_count = cfg.active_provider().is_some() as u32;
+        let groups_count = cfg.active_group().is_some() as u32;
         assert!(
-            providers_count <= 1,
-            "active_provider should be Some or None, got multiple"
+            groups_count <= 1,
+            "active_group should be Some or None, got multiple"
         );
     }
 
@@ -316,13 +316,13 @@ mod tests {
         let agent = MinimalAgent::new_empty();
         let status = agent.agent_status();
         assert!(!status.ready, "pre-install: ready must be false");
-        // model_spec 在 install 前为 "stub/test";install 后为 provider/model 字符串。
+        // model_spec 在 install 前为 "stub/test";install 后为 <组id>/<model> 字符串。
         assert!(!status.model.is_empty(), "model must not be empty");
         assert!(
             !status.workspace.is_empty(),
             "workspace path must not be empty"
         );
-        // degraded_reason 在 install 前是 None(install 时根据 provider 决定)。
+        // degraded_reason 在 install 前是 None(install 时根据模型组决定)。
         assert!(status.degraded_reason.is_none() || status.degraded_reason.is_some());
     }
 }

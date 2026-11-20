@@ -510,71 +510,71 @@ describe('Composer inline controls', () => {
     expect(group.textContent).not.toContain('accept_edits');
   });
 
-  it('lists coding plans and switches model via zhuye_set_model', async () => {
+  it('lists model groups and switches model via zhuye_set_model', async () => {
     mockInvoke(
       'zhuye_get_config',
       async () =>
-        '[active]\nprovider = "openai"\n\n[openai]\nmodel = "gpt-5"\napi_key = "sk-1"\n\n[[openai.credentials]]\nlabel = "plan-a"\nmodel = "gpt-5-mini"\n',
+        '[active]\ngroup = "demo"\n\n[[model_group]]\nid = "demo"\nlabel = "示例网关"\nendpoint = "openai"\nmodel = "gpt-5"\napi_key = "sk-1"\n\n[[model_group.credentials]]\nlabel = "plan-a"\nmodel = "gpt-5-mini"\n',
     );
     mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: true,
-      model: 'openai/gpt-5',
+      model: 'demo/gpt-5',
       workspace: '/tmp',
       degraded_reason: null,
     }));
-    const calls: Array<{ provider: string; model: string; label: string }> = [];
+    const calls: Array<{ group: string; model: string; label: string }> = [];
     mockInvoke(
       'zhuye_set_model',
-      async (_cmd: string, args?: { provider: string; model: string; label?: string }) => {
-        calls.push({ provider: args?.provider ?? '', model: args?.model ?? '', label: args?.label ?? '' });
-        return 'openai/gpt-5-mini';
+      async (_cmd: string, args?: { group: string; model: string; label?: string }) => {
+        calls.push({ group: args?.group ?? '', model: args?.model ?? '', label: args?.label ?? '' });
+        return 'demo/gpt-5-mini';
       },
     );
     renderComposer();
 
     const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
     await waitFor(() => expect(select.options.length).toBeGreaterThan(0));
-    fireEvent.change(select, { target: { value: 'openai/plan-a' } });
-    // v1.5:切换必须携带 plan label —— 后端据此写 [active].credential 钉住。
+    fireEvent.change(select, { target: { value: 'cred:demo:plan-a' } });
+    // 切换必须携带组内凭据 label —— 后端据此写 [active].credential 钉住。
     await waitFor(() =>
-      expect(calls).toEqual([{ provider: 'openai', model: 'gpt-5-mini', label: 'plan-a' }]),
+      expect(calls).toEqual([{ group: 'demo', model: 'gpt-5-mini', label: 'plan-a' }]),
     );
   });
 
-  it('pins selection via [active].credential and passes label when switching plans', async () => {
-    // 回归(用户实际配置):同 provider 两个空 model plan。修复前选中态靠
-    // spec 后缀匹配 + 空 model 兜底链,切到 MiniMax 会弹回 default;
-    // 修复后选中态单一事实源是 [active].credential 钉住。
+  it('pins selection via [active].credential and passes label when switching credentials', async () => {
+    // 回归(用户实际配置):同一模型组下的组级默认模型与一条钉住的凭据。
+    // 修复前选中态靠 spec 后缀匹配 + 空 model 兜底链,切到 MiniMax 会弹回
+    // default;修复后选中态单一事实源是 [active].credential 钉住。
     mockInvoke(
       'zhuye_get_config',
       async () =>
-        '[active]\nprovider = "anthropic"\ncredential = "MiniMax"\n\n[anthropic]\napi_key = "sk-top"\n\n[[anthropic.credentials]]\nlabel = "MiniMax"\napi_key = "sk-mm"\n',
+        '[active]\ngroup = "demo"\ncredential = "MiniMax"\n\n[[model_group]]\nid = "demo"\nendpoint = "anthropic"\napi_key = "sk-top"\nmodel = "demo/top"\n\n[[model_group.credentials]]\nlabel = "MiniMax"\napi_key = "sk-mm"\n',
     );
     mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: false,
       model: 'stub/test',
       workspace: '/tmp',
-      degraded_reason: 'provider configured but no model — pick a plan/model in Settings → Models',
+      degraded_reason: 'model group configured but no model — pick a model in Settings → Models',
     }));
-    const calls: Array<{ provider: string; model: string; label: string }> = [];
+    const calls: Array<{ group: string; model: string; label: string }> = [];
     mockInvoke(
       'zhuye_set_model',
-      async (_cmd: string, args?: { provider: string; model: string; label?: string }) => {
-        calls.push({ provider: args?.provider ?? '', model: args?.model ?? '', label: args?.label ?? '' });
+      async (_cmd: string, args?: { group: string; model: string; label?: string }) => {
+        calls.push({ group: args?.group ?? '', model: args?.model ?? '', label: args?.label ?? '' });
         return '';
       },
     );
     renderComposer();
 
     const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
-    // 钉住 MiniMax → 选中态必须落在 MiniMax(而非兜底链挤回第一个 plan)。
-    await waitFor(() => expect(select.value).toBe('anthropic/MiniMax'));
-    // 切回顶层隐式 default plan:label='default' 必须原样传给后端。
-    fireEvent.change(select, { target: { value: 'anthropic/default' } });
+    // 钉住 MiniMax → 选中态必须落在 MiniMax(而非兜底链挤回第一个选项)。
+    await waitFor(() => expect(select.value).toBe('cred:demo:MiniMax'));
+    // 切回组级默认模型:不钉凭据 —— label 必须为空串传给后端。
+    fireEvent.change(select, { target: { value: 'group:demo' } });
     await waitFor(() =>
-      expect(calls).toEqual([{ provider: 'anthropic', model: '', label: 'default' }]),
+      expect(calls).toEqual([{ group: 'demo', model: 'demo/top', label: '' }]),
     );
     // has_model=false → "stub/test" 占位不得展示(诚实显示"未配置模型")。
     expect(screen.queryByText(/stub\/test/)).toBeNull();
@@ -584,12 +584,12 @@ describe('Composer inline controls', () => {
     mockInvoke(
       'zhuye_get_config',
       async () =>
-        '[active]\nprovider = "openai"\n\n[openai]\napi_key = "sk-1"\nbase_url = "https://api.example.com/v1"\n',
+        '[active]\ngroup = "demo"\n\n[[model_group]]\nid = "demo"\nendpoint = "openai"\napi_key = "sk-1"\nbase_url = "https://api.example.com/v1"\nmodel = "gpt-5"\n',
     );
     mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: true,
-      model: 'openai/gpt-5',
+      model: 'demo/gpt-5',
       workspace: '/tmp',
       degraded_reason: null,
     }));
@@ -610,16 +610,16 @@ describe('Composer inline controls', () => {
       },
     );
     const switchCalls: string[] = [];
-    mockInvoke('zhuye_set_model', async (_cmd: string, args?: { provider: string; model: string }) => {
+    mockInvoke('zhuye_set_model', async (_cmd: string, args?: { group: string; model: string }) => {
       switchCalls.push(args?.model ?? '');
-      return 'openai/gpt-4o';
+      return 'demo/gpt-4o';
     });
     renderComposer();
 
-    // 按钮 disabled={fetchingModels || !hasPlans}:hasPlans 随 agent_status
+    // 按钮 disabled={fetchingModels || !hasGroups}:hasGroups 随 get_config
     // 异步加载,慢 CI 上 findByTestId 返回时仍是 disabled,click 静默无效
     // (仅 ubuntu 实测)—— 先等按钮可用再点。
-    // plans 经异步 get_config 加载后组件重渲染。用 queryAll + 原生
+    // 模型组经异步 get_config 加载后组件重渲染。用 queryAll + 原生
     // disabled 属性轮询(不用 jest-dom 的 toBeDisabled —— 它在本组件
     // 的 label>select+button 结构上行为异常,慢 CI 上偶发永不通过)。
     await waitFor(() => {
@@ -628,9 +628,17 @@ describe('Composer inline controls', () => {
       expect(btn?.disabled).toBe(false);
     });
     fireEvent.click(screen.getByTestId('composer-fetch-models'));
-    await waitFor(() =>
-      expect(listCalls).toEqual([{ baseUrl: 'https://api.example.com/v1', apiKey: 'sk-1', endpoint: 'openai' }]),
-    );
+    // active 组挂载时已自动拉过一次；刷新按钮再拉一次（强制绕过 TTL 缓存）
+    // —— 断言调用参数，不锁死调用次数。
+    await waitFor(() => expect(listCalls.length).toBeGreaterThanOrEqual(1));
+    expect(
+      listCalls.every(
+        (c) =>
+          c.baseUrl === 'https://api.example.com/v1' &&
+          c.apiKey === 'sk-1' &&
+          c.endpoint === 'openai',
+      ),
+    ).toBe(true);
     // eslint-disable-next-line no-console
     console.log('STEP5: listCalls ok');
     // 拉取结果进入下拉(带能力标记);选择后以该 model id 走 zhuye_set_model。
@@ -803,6 +811,71 @@ describe('Composer context bar (workspace + git branch)', () => {
     await waitFor(() =>
       expect(screen.queryByTestId('composer-branch')).toBeNull(),
     );
+  });
+
+  it('shows the runtime segment (本地 / 远端主机) in the context row', async () => {
+    mockInvoke('zhuye_remote_sessions', async () => []);
+    renderComposer();
+
+    const runtime = await screen.findByTestId('composer-runtime');
+    expect(runtime.textContent).toContain('Local');
+
+    // 有远端会话时显示主机名而不是「本地」。
+    resetMockInvoke();
+    mockInvoke('zhuye_remote_sessions', async () => [
+      { sid: 's1', host: 'dev-box', cwd: '/w', isForeground: true },
+    ]);
+    mockInvoke('zhuye_git_status', async () => ({
+      branch: 'main', upstream: null, ahead: 0, behind: 0, entries: [], raw: '', is_repo: true,
+    }));
+    renderComposer();
+    await waitFor(() =>
+      expect(screen.getAllByTestId('composer-runtime').some((el) => el.textContent?.includes('dev-box'))).toBe(true),
+    );
+  });
+
+  it('上下文行紧贴输入卡片下方，控制行再往下（minimax 式底部布局）', async () => {
+    renderComposer();
+
+    const contextBar = await screen.findByTestId('composer-context-bar');
+    const card = await screen.findByTestId('composer-card');
+    const controls = await screen.findByTestId('composer-effort-select');
+
+    // DOM 顺序：卡片 → 上下文行 → 控制行。
+    const cardBottom = card.compareDocumentPosition(contextBar);
+    expect(cardBottom & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const barToControls = contextBar.compareDocumentPosition(controls);
+    expect(barToControls & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('Composer zcode 式聊天栏', () => {
+  it('卡片底栏内含「+」入口与模型选择器', async () => {
+    mockInvoke('zhuye_get_config', async () => '[active]\nprovider = "openai"\n\n[openai]\nmodel = "gpt-5"\napi_key = "sk-1"\n');
+    mockInvoke('zhuye_agent_status', async () => ({
+      model: 'openai/gpt-5', has_model: true, degraded_reason: null, ready: true, workspace: '.',
+    }));
+    renderComposer();
+
+    const card = await screen.findByTestId('composer-card');
+    // 「+」入口与模型选择器都在卡片内部（不再是卡片外的独立控制条）。
+    expect(card.querySelector('[data-testid="composer-plus"]')).not.toBeNull();
+    expect(card.querySelector('[data-testid="composer-model-picker"]')).not.toBeNull();
+    // 发送按钮在卡片内。
+    expect(card.querySelector('[data-testid="composer-send"]')).not.toBeNull();
+  });
+
+  it('「+」菜单的压缩入口走 slash 管线（不把 /compact 当普通文本发给模型）', async () => {
+    let compactCalled = false;
+    mockInvoke('zhuye_compact', async () => {
+      compactCalled = true;
+      return 'ok';
+    });
+    renderComposer();
+
+    fireEvent.click(await screen.findByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-compact'));
+    await waitFor(() => expect(compactCalled).toBe(true));
   });
 });
 

@@ -501,7 +501,7 @@
       "level": "high"
     },
     "zhuye_set_model": {
-      "provider": "anthropic",
+      "group": "anthropic",
       "model": "claude-sonnet-4-5"
     },
     "zhuye_set_permission_mode": {

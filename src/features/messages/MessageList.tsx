@@ -1,7 +1,7 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { MessageListBinding } from '@/logic/messages/MessageListBinding';
 import { MessageList as DefaultView } from '@/render/messages/MessageList';
-import { ToolCell, ToolOutputBody } from './ToolCells';
+import { ToolCell, ToolOutputBody, ToolGroup } from './ToolCells';
 import { QueuedMessages } from './QueuedMessages';
 import { UserAttachments } from './UserAttachments';
 import { Collapsible } from './Collapsible';
@@ -19,5 +19,5 @@ export interface MessageListProps {
 export function MessageList(props: MessageListProps = {}) {
   const View = useRenderView('MessageList', DefaultView);
   return <MessageListBinding view={View} {...props}
-    slots={{ ToolCell, ToolOutputBody, QueuedMessages, UserAttachments, Collapsible, Markdown, CopyButton }} />;
+    slots={{ ToolCell, ToolOutputBody, ToolGroup, QueuedMessages, UserAttachments, Collapsible, Markdown, CopyButton }} />;
 }

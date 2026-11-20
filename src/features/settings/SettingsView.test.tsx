@@ -2,12 +2,12 @@
  * Vitest — SettingsView 组件测试(阶段 4:真实 config 持久化)。
  *
  * 验证:
- * 1. 渲染 Provider / Permissions / Advanced sections
+ * 1. 渲染 Model Groups / Permissions / Advanced sections
  * 2. 显示 agent 状态徽标(从 zhuye_agent_status)
  * 3. permission 按钮点击调 zhuye_set_permission_mode
  * 4. Save 按钮调 zhuye_save_config
  * 5. 全量结构化表单为所有 ZhuyeConfig 段提供直接输入框
- * 6. Ollama / Anthropic / OpenAI provider 都有显式输入
+ * 6. 「提供商方案」层已移除 —— 结构化表单不再承载 anthropic / openai 段
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
@@ -34,15 +34,17 @@ function renderSettingsView() {
 }
 
 const SAMPLE_TOML = `[active]
-provider = "anthropic"
+group = "demo"
 
-[anthropic]
-api_key = "sk-ant-existing"
-model = "claude-3-5-sonnet-latest"
-
-[openai]
+[[model_group]]
+id = "demo"
+label = "示例组"
+endpoint = "openai"
 api_key = "sk-existing"
 model = "gpt-4o"
+
+[compact]
+trigger_tokens = 1024
 
 [mcp_servers.filesystem]
 type = "stdio"
@@ -71,11 +73,13 @@ describe('SettingsView', () => {
   });
   afterEach(() => cleanup());
 
-  it('renders Provider / Permissions / Advanced sections', async () => {
+  it('renders Model Groups / Permissions / Advanced sections', async () => {
     renderSettingsView();
     expect(screen.getByText('Settings')).toBeDefined();
     // nav + section 都有同名标题，用 getAllByText。
-    expect(screen.getAllByText('Provider').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Model Groups').length).toBeGreaterThanOrEqual(1);
+    // 「提供商」导航项已随提供商方案层删除。
+    expect(screen.queryByText('Provider')).toBeNull();
     expect(screen.getAllByText('Permissions').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Advanced/).length).toBeGreaterThanOrEqual(1);
   });
@@ -114,8 +118,8 @@ describe('SettingsView', () => {
     });
     mockInvoke('zhuye_get_config', async () => { reads += 1; return saved; });
     renderSettingsView();
-    fireEvent.click(screen.getByText('Advanced'));
-    const editor = await screen.findByRole('textbox') as HTMLTextAreaElement;
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
+    const editor = await screen.findByRole('textbox', { name: 'Advanced (raw TOML)' }) as HTMLTextAreaElement;
     await waitFor(() => expect(editor.value).toBe(SAMPLE_TOML));
     const first = `${SAMPLE_TOML}\n# saved edit`;
     const second = `${first}\n# later edit`;
@@ -147,24 +151,22 @@ describe('SettingsView', () => {
 
     fireEvent.click(screen.getByText('Save to ~/.zhuye/config.toml'));
     await waitFor(() => expect(savedToml).not.toBeNull(), { timeout: 2000 });
-    // 合并后的 TOML 应保留 active + anthropic 段(SAMPLE_TOML 的内容)。
+    // 合并后的 TOML 应保留 active + model_group 段(SAMPLE_TOML 的内容)。
     expect(savedToml).toContain('[active]');
-    expect(savedToml).toContain('provider = "anthropic"');
-    expect(savedToml).toContain('[anthropic]');
-    expect(savedToml).toContain('sk-ant-existing');
+    expect(savedToml).toContain('group = "demo"');
+    expect(savedToml).toContain('[[model_group]]');
+    expect(savedToml).toContain('sk-existing');
   });
 
   it('renders direct structured inputs for every ZhuyeConfig section', async () => {
     renderSettingsView();
-    // Anthropic
-    expect(screen.getByLabelText(/Anthropic API key/)).toBeDefined();
-    expect(screen.getByLabelText(/Anthropic model/)).toBeDefined();
-    // OpenAI
-    expect(screen.getByLabelText(/OpenAI API key/)).toBeDefined();
-    expect(screen.getByLabelText(/OpenAI model/)).toBeDefined();
-    // active provider 下拉(渲染在结构化表单内;仅 anthropic / openai 两种接入端口)
-    const providerSelects = screen.getAllByLabelText(/^Active provider$/);
-    expect(providerSelects.length).toBeGreaterThanOrEqual(1);
+    // 结构化表单挂在「高级」页（模型接入已由「模型组」页承载）。
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
+    // 提供商方案层已移除 —— 结构化表单不再有 anthropic / openai 段与
+    // active.provider 下拉（模型组页统一承载）。
+    expect(screen.queryByLabelText(/Anthropic API key/)).toBeNull();
+    expect(screen.queryByLabelText(/OpenAI API key/)).toBeNull();
+    expect(screen.queryByLabelText(/^Active provider$/)).toBeNull();
     // Compact / token_budget
     expect(screen.getByLabelText(/Compact trigger tokens/)).toBeDefined();
     expect(screen.getByLabelText(/Session total token budget/)).toBeDefined();
@@ -218,12 +220,11 @@ describe('SettingsView', () => {
 
   it('preserves preloaded values for structured fields', async () => {
     renderSettingsView();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
     await waitFor(() => {
-      const input = screen.getByLabelText(/Anthropic API key/) as HTMLInputElement;
-      expect(input.value).toBe('sk-ant-existing');
+      const input = screen.getByLabelText(/Compact trigger tokens/) as HTMLInputElement;
+      expect(input.value).toBe('1024');
     });
-    const openaiKey = screen.getByLabelText(/OpenAI API key/) as HTMLInputElement;
-    expect(openaiKey.value).toBe('sk-existing');
   });
 
   it('renders the Display screen with all four primary cards (theme / accent / transparency / background)', () => {
@@ -267,27 +268,26 @@ describe('SettingsView', () => {
 
 describe('configSchema helpers', () => {
   it('readField returns existing scalar values', () => {
-    expect(readField(SAMPLE_TOML, 'anthropic', 'api_key')).toBe('sk-ant-existing');
-    expect(readField(SAMPLE_TOML, 'openai', 'model')).toBe('gpt-4o');
+    expect(readField(SAMPLE_TOML, 'compact', 'trigger_tokens')).toBe('1024');
     expect(readField(SAMPLE_TOML, 'hooks.search_budget', 'max_calls')).toBe('25');
   });
 
   it('applyField writes scalar text into existing sections', () => {
-    const next = applyField(SAMPLE_TOML, 'anthropic', 'api_key', 'sk-new', 'text');
-    expect(next).toContain('api_key = "sk-new"');
+    const next = applyField(SAMPLE_TOML, 'compact', 'model_hint', 'sk-new', 'text');
+    expect(next).toContain('model_hint = "sk-new"');
     expect(next).toContain('[mcp_servers.filesystem]');
   });
 
   it('applyField creates new sections when missing', () => {
-    const next = applyField('', 'anthropic', 'api_key', 'sk-new', 'text');
-    expect(next).toContain('[anthropic]');
-    expect(next).toContain('api_key = "sk-new"');
+    const next = applyField('', 'compact', 'model_hint', 'sk-new', 'text');
+    expect(next).toContain('[compact]');
+    expect(next).toContain('model_hint = "sk-new"');
   });
 
   it('applyField removes empty values from existing sections', () => {
-    const next = applyField(SAMPLE_TOML, 'anthropic', 'api_key', '', 'text');
-    expect(next).not.toContain('api_key = "sk-ant-existing"');
-    expect(next).toContain('[anthropic]');
+    const next = applyField(SAMPLE_TOML, 'compact', 'trigger_tokens', '', 'text');
+    expect(next).not.toContain('trigger_tokens = 1024');
+    expect(next).toContain('[compact]');
   });
 
   it('applyField encodes boolean and integer values without quotes', () => {

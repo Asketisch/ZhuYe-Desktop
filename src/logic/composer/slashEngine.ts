@@ -134,9 +134,9 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     }
     case 'model':
     case 'provider':
-      // 计划/供应商切换入口:Models 页(编码计划一键设默认)与 Settings → 编码计划;
-      // 额度耗尽时前端 planFailover 控制器还会自动切换。
-      return { kind: 'no-op', message: `Open Models (Coding Plans) or Settings → Coding Plans to change ${cmd.name}.` };
+      // 模型组切换入口:Models 页(模型组一键设默认)与 Settings → 模型组;
+      // 额度耗尽时前端 failover 控制器还会自动切换模型组。
+      return { kind: 'no-op', message: `Open Models (Model Groups) or Settings → Model Groups to change ${cmd.name}.` };
     case 'status':
       return { kind: 'no-op', message: 'See StatusBar at the bottom of the window.' };
     case 'help':

@@ -1,4 +1,10 @@
 //! Config + tool registry 命令。
+//!
+//! 配置口径随上游「模型组是唯一接入单元」对齐：模型组
+//! (`[[model_group]]`)是唯一的接入目标，组 id 即模型 spec 前缀
+//! (`<组id>/<model>`)与 registry 池名。旧的固定段(`[anthropic]` /
+//! `[openai]` / `[ollama]`)在读入时被上游的 v1→v2 迁移就地转成等价
+//! 模型组，写回只有新格式。
 
 use serde::Serialize;
 use tauri::State;
@@ -59,15 +65,20 @@ pub(crate) fn persist_config(
 /// 写回 `~/.zhuye/config.toml`。写盘前用 `load_from_str` 校验合法性,
 /// 防止坏 TOML 损坏配置;校验通过才覆盖,并热更新共享 cfg。
 ///
-/// provider 相关段(`active` / `anthropic` / `openai` / `ollama` / `routing`)
+/// `load_from_str` **自带 v1→v2 迁移**(上游保证):旧的固定段
+/// (`[anthropic]` / `[openai]` / `[ollama]`)与 `[active].provider`
+/// 读入即就地转成等价模型组(`[[model_group]]` + `[active].group`),
+/// 迁移幂等 —— 已是新格式的配置读入后不变。写回只输出新格式。
+///
+/// 模型组相关段(`active` / `model_group` / `routing` / `model_discovery`)
 /// 变化时,进一步重建 ModelRegistry + QuotaTracker 并强制重绑当前会话
 /// (见 `state/reload.rs`)—— coding plan 的新增/切换**无需重启**即对
-/// 运行中的会话生效。hooks 段变更也会重绑当前会话；其余段落仍只热更新 cfg,
+/// 运行中的会话生效。hooks 段变更也会重绑当前会话;其余段落仍只热更新 cfg,
 /// 由各自的重载机制接管。
 #[tauri::command]
 pub async fn zhuye_save_config(agent: State<'_, MinimalAgent>, toml: String) -> CommandResult<()> {
     let _config_write = agent.inner.config_write_lock.lock().await;
-    // 1. 校验:能否解析回 ReflectConfig。
+    // 1. 校验:能否解析回 ReflectConfig(顺带跑上游的 v1→v2 迁移)。
     let mut new_cfg = load_from_str(&toml)?;
     // 1.5 `[sandbox].os_level` 归一:核心 schema 是 `Option<bool>`,解析后
     //     即可区分「没写」(None)与「写了 false」(Some(false))。没写
@@ -78,65 +89,76 @@ pub async fn zhuye_save_config(agent: State<'_, MinimalAgent>, toml: String) -> 
     ));
     // 2. 写盘 + 热更新共享 cfg(保留旧快照供变更检测)。
     let old_cfg = persist_config(&agent, new_cfg.clone())?;
-    // 3. provider 栈变化 → 重建 registry/tracker + 重绑当前会话。
+    // 3. 模型组栈变化 → 重建 registry/tracker + 重绑当前会话。
     //    模型解析失败(`model = "free"` 这类动态值挑不到模型)时,配置**已
     //    写盘**(保存本身成功),失败原因进 `agent_status.degraded_reason`
     //    —— 状态栏黄点可见。这里不把保存报成失败(那会误导用户重试)。
     if let Some(err) =
         crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await
     {
-        tracing::warn!("[zhuye-gui] provider reload failed after save: {err}");
+        tracing::warn!("[zhuye-gui] model group reload failed after save: {err}");
     }
     Ok(())
 }
 
-/// 运行中切换模型 / 钉住 coding plan(spec = `{provider}/{model}`)。
+/// 运行中切换模型 / 钉住模型组内的 coding plan(spec = `{组id}/{model}`)。
 ///
 /// 协议 `Op` 没有 SetModel —— 模型 spec 在配置层解析
-/// (`resolved_model_spec()` = env > 被钉住条目 model > 段级 model),
-/// 因此走与 ModelsView 切 coding plan 相同的路径:改 `[active].provider`
-/// + `[active].credential` + 条目/段级 model → 写盘 →
+/// (`resolved_model_spec()` = env > 被钉住条目 model > 组级 model),
+/// 因此走与 ModelsView 切 coding plan 相同的路径:改 `[active].group`
+/// + `[active].credential` + 条目/组级 model → 写盘 →
 /// `hot_reload_provider_stack`(重建 registry + 强制重绑当前会话),
 /// 下一个 turn 立即生效。
 ///
-/// `provider` 值域:内置段名(`anthropic` / `openai` / `ollama`)或
-/// 模型组 id(`[[provider_group]]` 中已声明的 `id`)。
+/// `group` 值域:**必须是已声明的模型组 id**(`[[model_group]]` 的 `id`)——
+/// 模型组是唯一的接入单元,组 id 直接注册为 registry 池名。未知组 id
+/// 报错并列出当前可用组 id。
 ///
-/// `label` = 要钉住的 plan(内置段为 `[[<provider>.credentials]]` 的
-/// label;模型组为组内 credentials 的 label):
+/// `label` = 要钉住的组内凭据(`[[<组id>.credentials]]` 的 label):
 /// - `Some(非空)`:写入 `[active].credential`;model 写入该条目自身的
-///   `model` 字段(与前端 plan 编辑器同源,条目 model 优先于段级)。
+///   `model` 字段(与前端 plan 编辑器同源,条目 model 优先于组级)。
 ///   条目不存在时报错,防止钉住指向空处静默失效。
-/// - `None`/空串:不钉住(清除 `[active].credential`),model 写段级
-///   `[<provider>].model`(模型组写组级 `model`)。
+/// - `None`/空串:不钉住(清除 `[active].credential`),model 写组级
+///   `model`。
 ///
 /// `model` 传空串 = 清除对应位置的 model 覆盖。返回解析后的完整 spec;
 /// 无任何显式 model 时返回空串(诚实缺失,由 UI 显示"未配置模型")。
 #[tauri::command]
 pub async fn zhuye_set_model(
     agent: State<'_, MinimalAgent>,
-    provider: String,
+    group: String,
     model: String,
     label: Option<String>,
 ) -> CommandResult<String> {
     let _config_write = agent.inner.config_write_lock.lock().await;
-    let provider = provider.trim().to_string();
-    // 值域校验:内置段名,或配置中已存在的模型组 id(组 id 直接注册为
-    // 池名,切换语义与内置段完全一致)。
-    let is_group = {
+    let group = group.trim().to_string();
+    // 值域校验:必须是已声明的模型组 id(组 id 直接注册为池名)。
+    let declared: Vec<String> = {
         let cfg_lock = agent.cfg();
         let cfg = cfg_lock.read();
-        cfg.provider_group.iter().any(|g| g.id.trim() == provider)
+        cfg.model_group
+            .iter()
+            .map(|g| g.id.trim().to_string())
+            .filter(|id| !id.is_empty())
+            .collect()
     };
-    if !matches!(provider.as_str(), "anthropic" | "openai" | "ollama") && !is_group {
+    if !declared.iter().any(|id| id == &group) {
         return Err(CommandError {
-            msg: format!(
-                "unknown provider: {provider} (expected anthropic | openai | ollama | an existing [[provider_group]] id)"
-            ),
+            msg: if declared.is_empty() {
+                format!(
+                    "unknown model group: '{group}' (no model group declared in [[model_group]])"
+                )
+            } else {
+                format!(
+                    "unknown model group: '{group}' (available model groups: {}; \
+                     declare groups in [[model_group]])",
+                    declared.join(", ")
+                )
+            },
         });
     }
     let mut new_cfg = agent.cfg().read().clone();
-    apply_model_switch(&mut new_cfg, &provider, &model, label.as_deref())?;
+    apply_model_switch(&mut new_cfg, &group, &model, label.as_deref())?;
     let old_cfg = persist_config(&agent, new_cfg.clone())?;
     // 模型解析失败(`model = "free"` 这类动态值挑不到模型)→ 如实报错给
     // 前端(配置已写盘,但请求会用不了这个模型)。
@@ -144,11 +166,11 @@ pub async fn zhuye_set_model(
         crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await
     {
         return Err(CommandError {
-            msg: format!("provider reload failed: {err}"),
+            msg: format!("model group reload failed: {err}"),
         });
     }
     // 返回**已解析**的 spec —— `model = "free"` 这类动态值在热重载阶段已
-    // 解析成真实 id(不是占位串 `"provider/free"`)。没配 model 时返回空串
+    // 解析成真实 id(不是占位串 `"<组id>/free"`)。没配 model 时返回空串
     // (诚实缺失,由 UI 显示"未配置模型")。
     let spec = match agent.model_spec().as_str() {
         "stub/test" => String::new(),
@@ -159,59 +181,40 @@ pub async fn zhuye_set_model(
 }
 
 /// `zhuye_set_model` 的纯函数核心(便于无 Tauri State 单测)。
+///
+/// 组语义:写 `[active].group`;model 写组级 `model` 或被钉住条目的
+/// `model`;`label` 缺省 → 清掉 `[active].credential`(不钉凭据)。
 fn apply_model_switch(
     cfg: &mut zhuye_config::ReflectConfig,
-    provider: &str,
+    group: &str,
     model: &str,
     label: Option<&str>,
 ) -> CommandResult<()> {
-    cfg.active.provider = Some(provider.to_string());
+    let group_id = group.trim();
+    cfg.active.group = Some(group_id.to_string());
     let label = label.map(str::trim).filter(|l| !l.is_empty());
     cfg.active.credential = label.map(str::to_string);
     let model_opt = (!model.trim().is_empty()).then(|| model.trim().to_string());
-    match provider {
-        "anthropic" => {
-            let s = cfg.anthropic.get_or_insert_with(Default::default);
-            apply_section_model(&mut s.credentials, &mut s.model, label, model_opt)
-        }
-        "openai" => {
-            let s = cfg.openai.get_or_insert_with(Default::default);
-            apply_section_model(&mut s.credentials, &mut s.model, label, model_opt)
-        }
-        "ollama" => {
-            let s = cfg.ollama.get_or_insert_with(Default::default);
-            apply_section_model(&mut s.credentials, &mut s.model, label, model_opt)
-        }
-        // 模型组:provider 已由调用方校验为配置中存在的组 id。
-        // label 命中组内 credentials → 写条目 model(与内置段同语义);
-        // 显式钉住却找不到条目 → 报错;未钉住 → 写组级 model。
-        _ => {
-            let group = cfg
-                .provider_group
-                .iter_mut()
-                .find(|g| g.id.trim() == provider)
-                .ok_or_else(|| CommandError {
-                    msg: format!("provider group '{provider}' not found"),
-                })?;
-            if let Some(entry) =
-                label.and_then(|l| group.credentials.iter_mut().find(|c| c.label.trim() == l))
-            {
-                entry.model = model_opt;
-                return Ok(());
-            }
-            if let Some(l) = label {
-                return Err(CommandError {
-                    msg: format!("credential label '{l}' not found in provider group '{provider}'"),
-                });
-            }
-            group.model = model_opt;
-            Ok(())
-        }
-    }
+    // 模型组:组 id 已由调用方校验为配置中存在的组 id。
+    // label 命中组内 credentials → 写条目 model;
+    // 显式钉住却找不到条目 → 报错;未钉住 → 写组级 model。
+    let section = cfg
+        .model_group
+        .iter_mut()
+        .find(|g| g.id.trim() == group_id)
+        .ok_or_else(|| CommandError {
+            msg: format!("model group '{group_id}' not found"),
+        })?;
+    apply_section_model(
+        &mut section.credentials,
+        &mut section.model,
+        label,
+        model_opt,
+    )
 }
 
-/// 把 model 写到正确的层级:钉住条目(`label` 命中 credentials)写条目
-/// 自身;顶层隐式 plan(label = "default" 无数组条目)或未传 label 写段级。
+/// 把 model 写到正确的层级:钉住条目(`label` 命中组内 credentials)写条目
+/// 自身;组级隐式凭据(label = "default" 无数组条目)或未传 label 写组级。
 /// 显式钉住却找不到条目 → 报错,避免 `[active].credential` 指向空处静默失效。
 fn apply_section_model(
     credentials: &mut [zhuye_config::CredentialConfig],
@@ -226,12 +229,12 @@ fn apply_section_model(
     if let Some(l) = label {
         if l != "default" {
             return Err(CommandError {
-                msg: format!("credential label '{l}' not found in credentials"),
+                msg: format!("credential label '{l}' not found in model group"),
             });
         }
-        // "default" = 顶层 `[provider].api_key` 隐式 plan(无数组条目):
+        // "default" = 组级 `api_key` 隐式凭据(无数组条目):
         // builder 把它 wrap 成 label="default" 的池条目,钉住依然成立,
-        // model 走段级。
+        // model 走组级。
     }
     *section_model = model_opt;
     Ok(())
@@ -315,7 +318,11 @@ fn make_quota_provider(
 /// MiniMax `/coding_plan/remains`、ZenMux base_url)。查询本体在
 /// `zhuye_llm` 的 `QuotaProvider` 实现里,与运行时 failover 判定共用。
 ///
-/// 传显式 `base_url` / `api_key` 而非 (provider, label):前端编辑中的未保存
+/// 配额声明挂在**模型组内的凭据条目**上(`[[<组id>.credentials]]` 的
+/// `[quota]` 子表)—— 组 id 即 registry 池名,运行时按「组 id → 组内
+/// 凭据 → quota 配置」收集(见 `state/quota.rs::build_quota_tracker`)。
+///
+/// 传显式 `base_url` / `api_key` 而非 (组 id, label):前端编辑中的未保存
 /// 表单也能直接试查,无需先落盘。网络瞬时失败同样折叠为
 /// `success=false`——对手动查询而言展示层处理方式相同。
 #[tauri::command]

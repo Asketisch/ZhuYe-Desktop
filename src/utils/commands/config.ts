@@ -38,22 +38,27 @@ export async function zhuye_save_config(toml: string): Promise<void> {
 }
 
 /**
- * 运行中切换模型 / 钉住 coding plan(热重载 provider 栈,下一个 turn 生效)。
+ * 运行中切换模型 / 钉住组内凭据(热重载模型栈,下一个 turn 生效)。
  *
- * `label` = 要钉住的 plan(`[[<provider>.credentials]]` 的 label):
- * - 传非空:写入 `[active].credential` 钉住该凭证(model 写入条目自身);
- * - 传 `undefined` / '' / 'default'(且无同名条目):不钉条目,model 写段级。
+ * `group` = **模型组 id**(`[[model_group]]` 的 id)—— 配置里只剩「模型组」
+ * 一层,组 id 才是接入目标(不再是 provider 名):
+ * - 写 `[active].group` = 组 id;
+ * - `model` 写组级默认模型(spec = `<组id>/<model>`)。
+ *
+ * `label` = 组内被钉住的凭据(`[[model_group.credentials]]` 的 label):
+ * - 传非空:写入 `[active].credential` 钉住该凭据(model 写入条目自身);
+ * - 传 `undefined` / '' :不钉凭据,model 写组级。
  * `model` 传空串 = 清除对应位置的 model 覆盖。
  *
- * 返回解析后的完整 spec(如 `openai/gpt-4o`);无任何显式 model 时返回
+ * 返回解析后的完整 spec(如 `demo/gpt-4o`);无任何显式 model 时返回
  * 空串(后端不再编造内置默认,由 UI 如实显示"未配置模型")。
  */
 export async function zhuye_set_model(
-  provider: string,
+  group: string,
   model: string,
   label?: string,
 ): Promise<string> {
-  return invoke<string>('zhuye_set_model', { provider, model, label: label ?? '' });
+  return invoke<string>('zhuye_set_model', { group, model, label: label ?? '' });
 }
 
 /** 列出当前 ToolRegistry 中所有工具(name + description)。 */

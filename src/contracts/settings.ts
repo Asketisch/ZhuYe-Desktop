@@ -3,14 +3,21 @@ import type { I18nContextValue } from '@/utils/i18n/context';
 export type { UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import type { UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 
-export type SettingsSection = 'provider' | 'groups' | 'permissions' | 'display' | 'notifications' | 'advanced';
+export type SettingsSection = 'groups' | 'permissions' | 'display' | 'notifications' | 'advanced';
 export type SettingsPermissionMode = 'auto' | 'prompt' | 'deny' | 'plan' | 'accept_edits' | 'bubble' | 'bypass';
 
 export interface SettingsSlots {
   ConfigInfoLine: ComponentType;
   ConfigForm: ComponentType<{ rawToml: string; onChange: (value: string) => void; showSecrets: Record<string, boolean>; onToggleSecret: (key: string) => void }>;
-  /** 模型组页:统一管理内置端口 plan 与自定义 [[provider_group]]。 */
-  GroupsSection: ComponentType<{ rawToml: string; onChange: (value: string) => void; onCommit: (value: string) => void }>;
+  /** 模型组页:统一管理 [[model_group]] 模型组与其组内凭据池。
+   *  status / loading = agent 状态徽标(模型接入就绪状态)。 */
+  GroupsSection: ComponentType<{
+    rawToml: string;
+    onChange: (value: string) => void;
+    onCommit: (value: string) => void;
+    status?: { model: string; degraded_reason?: string | null; has_model: boolean };
+    loading?: boolean;
+  }>;
   PermissionRulesSection: ComponentType;
   DisplaySection: ComponentType;
   NotificationsSection: ComponentType;

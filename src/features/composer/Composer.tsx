@@ -8,8 +8,20 @@ import { ContextUsage } from './ContextUsage';
 import { ComposerControls } from './ComposerControls';
 import { ComposerContextBar } from './ComposerContextBar';
 import { BangRunsPanel } from './BangRunsPanel';
+import { ComposerPlusMenu } from './ComposerPlusMenu';
+import { ModelPicker } from './ModelPicker';
 
-const slots = { SlashPopup, AttachmentBar, MentionPicker, ContextUsage, ComposerControls, ComposerContextBar, BangRunsPanel };
+const slots = {
+  SlashPopup,
+  AttachmentBar,
+  MentionPicker,
+  ContextUsage,
+  ComposerControls,
+  ComposerContextBar,
+  BangRunsPanel,
+  ComposerPlusMenu,
+  ModelPicker,
+};
 
 export function Composer() {
   const renderer = useRenderer();

@@ -969,18 +969,15 @@ fn deleting_a_previous_session_does_not_cancel_the_current_session() {
 // ============================================================================
 
 #[test]
-fn set_model_rejects_unknown_provider() {
+fn set_model_rejects_unknown_group() {
     let _guard = common::state_lock();
-    // 未知 provider → 结构化错误(错误信息里带期望值)。
+    // 未知模型组 id → 结构化错误(错误信息里指向模型组口径)。
     let e = invoke_err(
         "zhuye_set_model",
-        json!({ "provider": "not-a-provider", "model": "x" }),
+        json!({ "group": "not-a-group", "model": "x" }),
     );
     let msg = e.to_string();
-    assert!(
-        msg.contains("anthropic") && msg.contains("ollama"),
-        "错误信息应列出受支持的 provider: {msg}"
-    );
+    assert!(msg.contains("model group"), "错误信息应指向模型组: {msg}");
 }
 
 // ============================================================================

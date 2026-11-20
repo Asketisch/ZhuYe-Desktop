@@ -3,10 +3,10 @@
  *
  * 覆盖 zhuye-agent/crates/resources/zhuye-config/src/schema.rs 暴露的每个分区
  * （25+ 个分区，包括 mcp_servers / lsp_servers / hooks / routing /
- * subagent_providers / coordinator / postgres_session / sse_redis /
+ * subagent_models / coordinator / postgres_session / sse_redis /
  * voice / dap / acp / feature_flags / ask_user_question / sanitize /
  * plugins / analytics / notifications / bridge / token_budget /
- * compact / sandbox / model / subagent providers）。
+ * compact / sandbox / model / subagent models）。
  *
  * 纯工具：通过 `readField` / `applyField` 读写 TOML 字符串，
  * 未知键保持不变，高级 TOML 编辑器仍作为出口闸阀。后端校验仍
@@ -22,7 +22,7 @@ import type { LocaleKey } from '@/utils/i18n';
 export type FieldKind = 'text' | 'number' | 'integer' | 'boolean' | 'select' | 'textarea';
 
 export interface FieldSpec {
-  /** 分区 key，如 'anthropic' 或 'compact'。 */
+  /** 分区 key，如 'compact' 或 'sandbox'。 */
   section: string;
   /** 分区内的字段 key。 */
   key: string;
@@ -38,26 +38,11 @@ export interface FieldSpec {
 }
 
 const SIMPLE_FIELDS: FieldSpec[] = [
-  // provider = 接入端口（API 协议端点），仅 anthropic / openai 两种。
-  // Ollama 走 OpenAI 兼容端口：base_url 指向本地服务即可，不再是独立选项。
-  { section: 'active', key: 'provider', labelKey: 'settings.config.field.active.provider', kind: 'select', options: ['anthropic', 'openai'] },
+  // 模型接入（[[model_group]] / [active].group）由「模型组」页统一管理 ——
+  // 结构化表单不再重复承载 provider 段。
   // 内置 skill 包开关（上游 0.1.8 起默认关闭）：核心 bootstrap 与
   // `zhuye_list_skills` 同按此开关决定是否合入 15 个编译期内置技能。
   { section: 'active', key: 'bundled_skills', labelKey: 'settings.config.field.active.bundled_skills', kind: 'boolean' },
-
-  { section: 'anthropic', key: 'api_key', labelKey: 'settings.config.field.anthropic.api_key', kind: 'text', secret: true, placeholderKey: 'settings.config.placeholder.anthropic.api_key' },
-  { section: 'anthropic', key: 'base_url', labelKey: 'settings.config.field.anthropic.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.anthropic.base_url' },
-  { section: 'anthropic', key: 'model', labelKey: 'settings.config.field.anthropic.model', kind: 'text', placeholderKey: 'settings.config.placeholder.anthropic.model' },
-  { section: 'anthropic', key: 'timeout_secs', labelKey: 'settings.config.field.anthropic.timeout_secs', kind: 'integer' },
-  // provider 段输出上限:请求未显式给 max_tokens 时的默认值,优先于
-  // 引擎自适应预算(引擎 apply_request_param_defaults 三级:请求 > 段配置 > 自适应)。
-  { section: 'anthropic', key: 'max_tokens', labelKey: 'settings.config.field.anthropic.max_tokens', kind: 'integer' },
-
-  { section: 'openai', key: 'api_key', labelKey: 'settings.config.field.openai.api_key', kind: 'text', secret: true, placeholderKey: 'settings.config.placeholder.openai.api_key' },
-  { section: 'openai', key: 'base_url', labelKey: 'settings.config.field.openai.base_url', kind: 'text', placeholderKey: 'settings.config.placeholder.openai.base_url' },
-  { section: 'openai', key: 'model', labelKey: 'settings.config.field.openai.model', kind: 'text', placeholderKey: 'settings.config.placeholder.openai.model' },
-  { section: 'openai', key: 'timeout_secs', labelKey: 'settings.config.field.openai.timeout_secs', kind: 'integer' },
-  { section: 'openai', key: 'max_tokens', labelKey: 'settings.config.field.openai.max_tokens', kind: 'integer' },
 
   { section: 'compact', key: 'trigger_tokens', labelKey: 'settings.config.field.compact.trigger_tokens', kind: 'integer' },
 
@@ -136,7 +121,7 @@ export const SIMPLE_FIELDS_BY_SECTION: Record<string, FieldSpec[]> = SIMPLE_FIEL
 );
 
 export const COMPLEX_SECTIONS = [
-  'subagent_providers',
+  'subagent_models',
   'routing',
   'mcp_servers',
   'lsp_servers',

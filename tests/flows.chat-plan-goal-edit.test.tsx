@@ -134,8 +134,8 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     // 2. plan 就绪弹窗出现;agent 在 gate 暂停,尚未收到任何决策。
     const planTitle = await screen.findByText('Plan Ready');
     const dialog = planTitle.closest('[role="dialog"]') as HTMLDivElement;
-    // 模态展示协议中的计划正文，审批命令仍使用 plan_id。
-    expect(dialog.textContent).toContain('# Migration plan');
+    // 模态展示协议中的计划正文（按 markdown 渲染成结构化文档），审批命令仍使用 plan_id。
+    expect(within(dialog).getByRole('heading', { level: 1 }).textContent).toBe('Migration plan');
     expect(backend.agent.planChoices.length).toBe(0);
 
     // 3. 用户选 Auto Mode(主按钮)→ 线格式 choice='auto_mode'。

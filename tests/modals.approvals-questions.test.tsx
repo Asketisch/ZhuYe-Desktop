@@ -272,7 +272,7 @@ describe('PlanReadyModal', () => {
     stagePlan();
     await screen.findByText('Plan Ready');
     expect(screen.getByText((_, element) =>
-      element?.tagName === 'PRE' && element.textContent === '# Migration\n1. backup\n2. switch',
+      element?.tagName === 'H1' && element.textContent === 'Migration',
     )).toBeDefined();
 
     fireEvent.click(screen.getByText('Approve plan'));

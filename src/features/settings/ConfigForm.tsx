@@ -2,7 +2,7 @@
  * ZhuyeConfig 的综合结构化配置表单。
  *
  * 为每个 核心 crate schema 分区的 FieldSpec 渲染一个输入框，
- * 并附带分类的复杂分区编辑器（subagent_providers /
+ * 并附带分类的复杂分区编辑器（subagent_models /
  * routing / mcp_servers / lsp_servers / hooks / feature_flags /
  * plugins）。通过 `./config` 中的纯辅助函数读写原始 TOML，
  * 使未知键保持完整，高级 TOML 编辑器仍为高级字段的权威来源。

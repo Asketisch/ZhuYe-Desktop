@@ -1,5 +1,5 @@
 /**
- * 复杂分区编辑器：subagent_providers / routing /
+ * 复杂分区编辑器：subagent_models / routing /
  * mcp_servers / lsp_servers / hooks / feature_flags / plugins。
  *
  * 每个编辑器通过 `config/toml.ts` 中的纯辅助函数写回原始 TOML，
@@ -28,7 +28,7 @@ const COMPLEX_DESCRIPTIONS: Record<string, LocaleKey> = {
   lsp_servers: 'settings.config.section.lspDesc',
   hooks: 'settings.config.section.hooksDesc',
   routing: 'settings.config.section.routingDesc',
-  subagent_providers: 'settings.config.section.subagentDesc',
+  subagent_models: 'settings.config.section.subagentDesc',
   feature_flags: 'settings.config.section.featureFlagsDesc',
   plugins: 'settings.config.section.pluginsDesc',
 };

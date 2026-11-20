@@ -134,9 +134,9 @@
   box-shadow: var(--shadow-focus);
 }
 
+/* plan 正文（markdown 渲染后的容器） */
 .planBlock {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -144,8 +144,6 @@
   margin: 0 0 var(--space-2);
   max-height: 320px;
   overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
   color: var(--text-secondary);
   line-height: var(--lh-normal);
 }

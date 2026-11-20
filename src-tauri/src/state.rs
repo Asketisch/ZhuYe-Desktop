@@ -1,5 +1,5 @@
 //! `AppState` —— 真后端 facade:嵌入 `zhuye_core::AgentThread`,接真实 LLM
-//! provider 与内置工具集。
+//! 模型接入(模型组)与内置工具集。
 //!
 //! 真正的实现位于 [`state::agent`] / [`state::install`] / [`state::session`] /
 //! [`state::submit`];本文件只暴露 `MinimalAgent` 顶壳与 thin 委托方法。
@@ -70,7 +70,7 @@ impl MinimalAgent {
 
     /// 第二阶段:在 Tauri setup 闭包内调用,真构造 AgentThread + 启动 forwarder。
     ///
-    /// `async`:model spec 的解析可能要打 provider 的模型清单端点
+    /// `async`:model spec 的解析可能要打模型组的模型清单端点
     /// (`model = "free"` 这类动态值),那是网络 I/O。
     pub async fn install_agent_thread(&self) {
         install::install_agent_thread(self).await;
@@ -285,7 +285,7 @@ impl MinimalAgent {
         *self.inner.bound_session_id.lock()
     }
 
-    /// v1.x:共享 ModelRegistry 是否已构建(provider/degraded 分支后)。
+    /// v1.x:共享 ModelRegistry 是否已构建(模型组/degraded 分支后)。
     /// 命令层(尤其 `zhuye_bind_session`)必须先看此再 rebind。
     pub(crate) fn model_registry_ready(&self) -> bool {
         self.inner.model_registry.lock().is_some()

@@ -90,7 +90,7 @@ export function useComposerSubmission({
     [activeId, pushToast, rename, t, ensureSessionReady, currentWorkspace, qc, navigate],
   );
 
-  return useCallback(async (options?: { reverseMode?: boolean }) => {
+  const send = useCallback(async (options?: { reverseMode?: boolean }) => {
     const value = text.trim();
     if (!value && attachments.attachments.length === 0) return;
 
@@ -215,4 +215,29 @@ export function useComposerSubmission({
     t,
     text,
   ]);
+
+  /**
+   * 直接执行一条 slash 命令（不经输入框）。
+   *
+   * 「+」菜单里的「压缩」等无参命令走这里：和发送路径同一套
+   * slashEngine → dispatchSubmission 管线，避免把 "/compact" 当普通
+   * 文本发给模型。
+   */
+  const runSlash = useCallback(
+    async (command: string, args: string[] = []) => {
+      const raw = `/${command}${args.length ? ` ${args.join(' ')}` : ''}`;
+      const parsed = dispatch(raw, { activeSessionId: activeId, now: () => new Date() });
+      if (!('kind' in parsed)) return;
+      if (parsed.kind === 'submit_with_submission' && parsed.submission) {
+        await runSubmission(parsed.submission, args);
+      } else if (parsed.kind === 'reject') {
+        pushToast({ kind: 'error', message: parsed.message ?? t('composer.commandRejected') });
+      } else if (parsed.kind === 'no-op') {
+        pushToast({ kind: 'info', message: parsed.message ?? t('composer.commandHandled') });
+      }
+    },
+    [activeId, pushToast, runSubmission, t],
+  );
+
+  return { send, runSlash };
 }

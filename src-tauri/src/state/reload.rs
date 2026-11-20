@@ -1,44 +1,47 @@
-//! provider 栈热重载 —— coding plan 切换的"立即生效"闭环。
+//! 模型接入栈热重载 —— coding plan 切换的"立即生效"闭环。
 //!
 //! 背景:`zhuye_save_config` 长期以来只热更新共享 cfg,**不**重建
 //! `ModelRegistry`(memoized 于 `inner.model_registry`)。用户在设置里
-//! 添加/切换 coding plan(凭证池 / `[active].provider`)后必须重启应用
-//! 才生效 —— 对"额度耗尽自动切换备用计划"的体验是致命断点。
+//! 添加/切换 coding plan(模型组凭据池 / `[active].group`)后必须重启
+//! 应用才生效 —— 对"额度耗尽自动切换备用计划"的体验是致命断点。
 //!
 //! 本模块在保存配置后:
-//! 1. 检测 provider 相关段(`active` / `anthropic` / `openai` / `ollama` /
-//!    `routing`)或 hooks 是否变化;无关段(显示、MCP…)变更不打扰运行中的
-//!    会话。例外:`[plugins]` 段变更走轻量 diff 同步(挂/卸插件,不动线程,
-//!    见 `hot_reload_provider_stack` 步骤 0)。
-//! 2. provider 变化时重建 ModelRegistry + QuotaTracker 并热替换 inner。
-//! 3. provider 或 hooks 变化且当前有绑定会话时,replay 历史后 `rebind_session_forced` ——
-//!    运行中的线程换到新 registry 上,对话上下文经 preload 保留。
-//!    回放失败时保留旧线程，避免丢失活跃上下文。
+//! 1. 检测模型接入相关段(`active` / `model_group` / `routing` /
+//!    `model_discovery`)或 hooks 是否变化;无关段(显示、MCP…)变更不打扰
+//!    运行中的会话。例外:`[plugins]` 段变更走轻量 diff 同步(挂/卸插件,
+//!    不动线程,见 `hot_reload_provider_stack` 步骤 0)。
+//! 2. 模型接入栈变化时重建 ModelRegistry + QuotaTracker 并热替换 inner。
+//! 3. 模型接入栈或 hooks 变化且当前有绑定会话时,replay 历史后
+//!    `rebind_session_forced` —— 运行中的线程换到新 registry 上,对话
+//!    上下文经 preload 保留。回放失败时保留旧线程，避免丢失活跃上下文。
 
 use tracing::{info, warn};
 
 use super::MinimalAgent;
 
-/// 判断 provider 相关段是否发生变化(决定是否值得打断当前线程重建)。
+/// 判断模型组相关段是否发生变化(决定是否值得打断当前线程重建)。
+///
+/// 比对段:`model_group`(模型组本身)+ `active`(活跃组 / 钉住的凭据)+
+/// `routing`(路由策略)+ `model_discovery`(模型清单发现规则)。
+/// 上游已删除固定的 `[anthropic]` / `[openai]` / `[ollama]` 段,旧的
+/// 三个固定段在读入时已被迁移成等价模型组 —— 改它们必然改
+/// `model_group`,无需单列。
 fn provider_stack_changed(
     old: &zhuye_config::ReflectConfig,
     new: &zhuye_config::ReflectConfig,
 ) -> bool {
     old.active != new.active
-        || old.anthropic != new.anthropic
-        || old.openai != new.openai
-        || old.ollama != new.ollama
-        // 模型组(`[[provider_group]]`)变更也触发重建 —— 组 id 注册为
+        // 模型组(`[[model_group]]`)变更也触发重建 —— 组 id 注册为
         // 池名,增删改组都要重建 registry 才能生效。
-        || old.provider_group != new.provider_group
+        || old.model_group != new.model_group
         || old.routing != new.routing
         // `[model_discovery]` 段变更也必须触发重载 —— 它决定 `model = "free"`
         // 从清单里挑哪个模型(开关 / 偏好 / 免费判定规则)。不改这段,
-        // 用户改了发现规则却要等下次切 provider 才生效。
+        // 用户改了发现规则却要等下次切模型组才生效。
         || old.model_discovery != new.model_discovery
 }
 
-/// 保存配置后的 provider 栈热重载(见模块文档)。
+/// 保存配置后的模型接入栈热重载(见模块文档)。
 ///
 /// 必须在 tokio 上下文调用(replay 是 async;`rebind_session_forced` 内部
 /// `AgentThread::new` 会 `tokio::spawn`)。失败只记日志、不回滚配置 ——
@@ -66,7 +69,7 @@ pub(crate) async fn hot_reload_provider_stack(
             ));
     }
     // 0. 插件段变更:不打断会话,直接 diff 同步挂/卸(exec handle_reload
-    //    的 plugins 分支同语义)。provider 栈变更触发的 rebind 会走
+    //    的 plugins 分支同语义)。模型接入栈变更触发的 rebind 会走
     //    spawn_mount 全量重挂,不依赖这里;此分支覆盖「只改了 [plugins]」
     //    的场景。无绑定会话时挂载目标线程尚未重建,下次 rebind 自然生效。
     if old.plugins.enabled_plugins != new.plugins.enabled_plugins
@@ -106,21 +109,21 @@ pub(crate) async fn hot_reload_provider_stack(
         return finish_reload(agent, reload_errors);
     }
     if provider_changed {
-        info!("[zhuye-gui] provider stack changed; rebuilding registry + quota tracker");
+        info!("[zhuye-gui] model group stack changed; rebuilding registry + quota tracker");
 
         // 1. 重建模型注册表，内置工具仍由共享工具表管理。
         zhuye_config::discovery::clear_catalog_cache();
         let registry = super::thread_factory::build_registry(new);
 
         // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
-        //    model 解析诚实化后,provider 在但无显式 model 也是降级态
+        //    model 解析诚实化后,模型组在但无显式 model 也是降级态
         //    (状态栏黄点 + tooltip 指引),不再编造默认模型名。
         //
         //    `model = "free"` 这类**运行时才知道**的值在这里重新解析 ——
-        //    改的可能是 `[model_discovery]` 规则,或 provider 换了(清单跟着变)。
+        //    改的可能是 `[model_discovery]` 规则,或模型组换了(清单跟着变)。
         //    解析失败 → **保留旧 model**(与上游 `handle_reload` 同语义),失败
-        //    原因如实写进降级原因。绝不把占位串 `"provider/free"` 当成真模型 ——
-        //    它会被发给 provider,表现为难诊断的「模型不存在」。
+        //    原因如实写进降级原因。绝不把占位串 `"<组id>/free"` 当成真模型 ——
+        //    它会被发给模型组,表现为难诊断的「模型不存在」。
         let (resolved_spec, resolve_error) =
             super::model_spec::resolve_model_spec_with_discovery(new, &registry).await;
         if let Some(ref err) = resolve_error {

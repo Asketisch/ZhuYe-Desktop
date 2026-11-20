@@ -9,7 +9,7 @@ async fn successful_model_reload_preserves_unresolved_rebind_diagnostic() {
     *agent.inner.pending_rebind_error.lock() = Some("rebind failed".into());
     *agent.inner.degraded_reason.lock() = Some("rebind failed".into());
     let old = zhuye_config::ReflectConfig::default();
-    let new = cfg_with_provider("openai");
+    let new = cfg_with_group("openai");
     *agent.inner.cfg.write() = new.clone();
     assert!(
         hot_reload_provider_stack(&agent, &old, &new)
@@ -55,20 +55,24 @@ fn unrelated_reload_keeps_existing_initialization_failure() {
     );
 }
 
-fn cfg_with_provider(provider: &str) -> zhuye_config::ReflectConfig {
+fn cfg_with_group(group: &str) -> zhuye_config::ReflectConfig {
     zhuye_config::load_from_str(&format!(
-        "[active]\nprovider = \"{provider}\"\n\n[{provider}]\nmodel = \"test-model\"\n"
+        "[[model_group]]\nid = \"{group}\"\nendpoint = \"openai\"\nmodel = \"test-model\"\n\n\
+         [active]\ngroup = \"{group}\"\n"
     ))
     .expect("config parses")
 }
 
-/// 无 model 配置的 provider 快照(诚实化:spec 为 stub,降级原因给出指引)。
-fn cfg_with_provider_no_model(provider: &str) -> zhuye_config::ReflectConfig {
-    zhuye_config::load_from_str(&format!("[active]\nprovider = \"{provider}\"\n"))
-        .expect("config parses")
+/// 无 model 配置的模型组快照(诚实化:spec 为 stub,降级原因给出指引)。
+fn cfg_with_group_no_model(group: &str) -> zhuye_config::ReflectConfig {
+    zhuye_config::load_from_str(&format!(
+        "[[model_group]]\nid = \"{group}\"\nendpoint = \"openai\"\n\n\
+         [active]\ngroup = \"{group}\"\n"
+    ))
+    .expect("config parses")
 }
 
-/// 无关段变化不触发重载;provider 段变化触发(rebind 已绑定会话)。
+/// 无关段变化不触发重载;模型组段变化触发(rebind 已绑定会话)。
 #[tokio::test]
 async fn hot_reload_rebuilds_registry_and_rebinds() {
     let agent = MinimalAgent::new_empty();
@@ -78,23 +82,23 @@ async fn hot_reload_rebuilds_registry_and_rebinds() {
     let thread_before = agent.inner.thread.lock().clone().unwrap();
     let registry_before = agent.inner.model_registry.lock().clone().unwrap();
 
-    // provider 未变 → 不重建。
-    let unchanged = cfg_with_provider("anthropic");
+    // 模型组未变 → 不重建。
+    let unchanged = cfg_with_group("anthropic");
     let _ = hot_reload_provider_stack(&agent, &unchanged, &unchanged).await;
     let registry_after_same = agent.inner.model_registry.lock().clone().unwrap();
     assert!(
         std::sync::Arc::ptr_eq(&registry_before, &registry_after_same),
-        "provider 段未变时不得重建 registry"
+        "模型组段未变时不得重建 registry"
     );
 
     // anthropic → openai → registry 重建 + 会话强制重绑(thread Arc 换新)。
-    let changed = cfg_with_provider("openai");
+    let changed = cfg_with_group("openai");
     let _ = hot_reload_provider_stack(&agent, &unchanged, &changed).await;
     let registry_after = agent.inner.model_registry.lock().clone().unwrap();
     let thread_after = agent.inner.thread.lock().clone().unwrap();
     assert!(
         !std::sync::Arc::ptr_eq(&registry_before, &registry_after),
-        "provider 段变化必须重建 registry"
+        "模型组段变化必须重建 registry"
     );
     assert!(
         !std::sync::Arc::ptr_eq(&thread_before, &thread_after),
@@ -104,13 +108,13 @@ async fn hot_reload_rebuilds_registry_and_rebinds() {
     assert_eq!(
         agent.model_spec(),
         "openai/test-model",
-        "model spec 随 provider 更新"
+        "model spec 随模型组更新"
     );
 }
 
 /// workspace-write:`[sandbox]` 段变更(allow_network / writable_dirs)
 /// 必须触发强制重绑 —— 线程配置在 bind 时快照,不重绑则设置页拨动
-/// 网络开关对当前会话不生效。provider 段未变 → registry 不得重建。
+/// 网络开关对当前会话不生效。模型组段未变 → registry 不得重建。
 #[tokio::test]
 async fn hot_reload_detects_sandbox_section_change() {
     let agent = MinimalAgent::new_empty();
@@ -120,7 +124,8 @@ async fn hot_reload_detects_sandbox_section_change() {
     let thread_before = agent.inner.thread.lock().clone().unwrap();
     let registry_before = agent.inner.model_registry.lock().clone().unwrap();
 
-    let base = "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n";
+    let base = "[[model_group]]\nid = \"anthropic\"\nendpoint = \"anthropic\"\nmodel = \"m\"\n\n\
+        [active]\ngroup = \"anthropic\"\n";
     let old = zhuye_config::load_from_str(base).unwrap();
     let new =
         zhuye_config::load_from_str(&format!("{base}\n[sandbox]\nallow_network = true\n")).unwrap();
@@ -135,20 +140,20 @@ async fn hot_reload_detects_sandbox_section_change() {
     );
     assert!(
         std::sync::Arc::ptr_eq(&registry_before, &registry_after),
-        "provider 段未变时不得重建 registry"
+        "模型组段未变时不得重建 registry"
     );
     assert_eq!(agent.bound_session_id(), Some(sid), "会话 id 保持不变");
 }
 
-/// 诚实化回归:provider 段变化但无任何显式 model → spec 保持 stub,
-/// 降级原因给出「有 provider 但没 model」的可行动指引(而非编造
+/// 诚实化回归:模型组段变化但无任何显式 model → spec 保持 stub,
+/// 降级原因给出「有模型组但没 model」的可行动指引(而非编造
 /// `openai/gpt-4o` 之类的默认模型名)。
 #[tokio::test]
 async fn hot_reload_without_model_reports_degraded_reason() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
-    let old = cfg_with_provider("anthropic");
-    let new = cfg_with_provider_no_model("openai");
+    let old = cfg_with_group("anthropic");
+    let new = cfg_with_group_no_model("openai");
     *agent.inner.cfg.write() = new.clone();
     let _ = hot_reload_provider_stack(&agent, &old, &new).await;
     assert_eq!(agent.model_spec(), "stub/test");
@@ -159,31 +164,33 @@ async fn hot_reload_without_model_reports_degraded_reason() {
     );
 }
 
-/// provider 与 model 都齐全 → 降级原因清空。
+/// 模型组与 model 都齐全 → 降级原因清空。
 #[tokio::test]
 async fn hot_reload_with_model_clears_degraded_reason() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
-    let old = cfg_with_provider_no_model("anthropic");
-    let new = cfg_with_provider("openai");
+    let old = cfg_with_group_no_model("anthropic");
+    let new = cfg_with_group("openai");
     *agent.inner.cfg.write() = new.clone();
     let _ = hot_reload_provider_stack(&agent, &old, &new).await;
     assert_eq!(agent.model_spec(), "openai/test-model");
     assert!(agent.inner.degraded_reason.lock().is_none());
 }
 
-/// v1.5:仅 `[active].credential` 变化(同 provider 下切 coding plan)
+/// v1.5:仅 `[active].credential` 变化(同模型组下切 coding plan)
 /// 也必须触发热重载 —— 否则 GUI 的 plan 切换对运行中会话不生效。
 #[tokio::test]
 async fn hot_reload_detects_credential_pin_change() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
     let old = zhuye_config::load_from_str(
-        "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n",
+        "[[model_group]]\nid = \"anthropic\"\nendpoint = \"anthropic\"\nmodel = \"m\"\n\n\
+         [active]\ngroup = \"anthropic\"\n",
     )
     .unwrap();
     let new = zhuye_config::load_from_str(
-        "[active]\nprovider = \"anthropic\"\ncredential = \"MiniMax\"\n\n[anthropic]\nmodel = \"m\"\n",
+        "[[model_group]]\nid = \"anthropic\"\nendpoint = \"anthropic\"\nmodel = \"m\"\n\n\
+         [active]\ngroup = \"anthropic\"\ncredential = \"MiniMax\"\n",
     )
     .unwrap();
     let registry_before = agent.inner.model_registry.lock().clone().unwrap();
@@ -201,20 +208,21 @@ async fn hot_reload_without_bound_session_only_swaps_registry() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
     assert!(agent.bound_session_id().is_none());
-    let old = cfg_with_provider("anthropic");
-    let new = cfg_with_provider("openai");
+    let old = cfg_with_group("anthropic");
+    let new = cfg_with_group("openai");
     let _ = hot_reload_provider_stack(&agent, &old, &new).await;
     assert_eq!(agent.model_spec(), "openai/test-model");
 }
 
 /// `[model_discovery]` 段变更也必须触发重载 —— 它决定 `model = "free"`
 /// 从清单里挑哪个模型(开关 / 偏好 / 免费判定规则)。漏掉这一条,
-/// 用户改了发现规则却要等下次切 provider 才生效。
+/// 用户改了发现规则却要等下次切模型组才生效。
 #[tokio::test]
 async fn hot_reload_detects_model_discovery_change() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
-    let base = "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"gpt-4o\"\n";
+    let base = "[[model_group]]\nid = \"openai\"\nendpoint = \"openai\"\nmodel = \"gpt-4o\"\n\n\
+        [active]\ngroup = \"openai\"\n";
     let old = zhuye_config::load_from_str(base).unwrap();
     let new =
         zhuye_config::load_from_str(&format!("{base}\n[model_discovery]\nprefer = \"code\"\n"))
@@ -269,7 +277,9 @@ async fn discovery_retries_unchanged_config_and_refreshes_changed_endpoint() {
         .await;
     let config = |url: &str| {
         zhuye_config::load_from_str(&format!(
-        "[active]\nprovider = \"openai\"\n[openai]\nmodel = \"free\"\napi_key = \"test\"\nbase_url = \"{url}\"\n[model_discovery]\nalways_free = [\"first-free\", \"second-free\"]\n"
+        "[[model_group]]\nid = \"openai\"\nendpoint = \"openai\"\nmodel = \"free\"\napi_key = \"test\"\nbase_url = \"{url}\"\n\n\
+         [active]\ngroup = \"openai\"\n\n\
+         [model_discovery]\nalways_free = [\"first-free\", \"second-free\"]\n"
     )).unwrap()
     };
     let agent = MinimalAgent::new_empty();

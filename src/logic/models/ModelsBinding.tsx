@@ -1,5 +1,8 @@
 /**
- * Models —— 当前模型卡片、reasoning effort 与 coding plan 切换的绑定。
+ * Models —— 当前模型卡片、reasoning effort 与模型组切换的绑定。
+ *
+ * 模型页按「模型组」列出（配置里只剩模型组一层）：每组一张卡片，
+ * 「设为默认」写 `[active].group` —— 组 id 才是接入目标。
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,9 +16,14 @@ import {
 import { zhuye_get_effort } from '@/utils/commands/permissions';
 import { ALL_EFFORTS, useEffortCapability, type Effort } from '@/logic/composer/useEffortCapability';
 import { useModelAbilities } from '@/logic/models/useModelAbilities';
+import {
+  groupDisplayLabel,
+  listGroups,
+  readActiveCredential,
+  readActiveGroup,
+} from '@/logic/models/modelGroups';
 import { useI18n } from '@/utils/i18n';
 import { formatTokens } from '@/utils/formatTokens';
-import { listPlans, maskKey, readActiveCredential, readActiveProvider, type PlanEntry } from '@/logic/settings/config/plans';
 import type { ModelsViewProps } from '@/contracts/models';
 
 const REASONING_EFFORTS = ALL_EFFORTS;
@@ -54,9 +62,10 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
     },
   });
 
-  const switchProviderMutation = useMutation({
-    mutationFn: async ({ provider, model, label }: Pick<PlanEntry, 'provider' | 'model' | 'label'>) =>
-      zhuye_set_model(provider, model, label).then((spec) => spec),
+  // 切换默认模型组：写 `[active].group` = 组 id（组级默认模型）。
+  const switchGroupMutation = useMutation({
+    mutationFn: async ({ group, model }: { group: string; model: string }) =>
+      zhuye_set_model(group, model).then((spec) => spec),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agent-status'] });
       qc.invalidateQueries({ queryKey: ['config'] });
@@ -64,8 +73,8 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
   });
 
   const toml = configQuery.data ?? '';
-  const plans = listPlans(toml);
-  const activeProvider = readActiveProvider(toml);
+  const groups = listGroups(toml);
+  const activeGroupId = readActiveGroup(toml);
   const activeCredential = readActiveCredential(toml);
 
   const status = statusQuery.data;
@@ -93,20 +102,18 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
     }
   }
 
-  const isDefaultPlan = (plan: PlanEntry): boolean => {
-    if (plan.provider !== activeProvider) return false;
-    return activeCredential
-      ? plan.label === activeCredential
-      : plan.topLevel && plan.label === 'default';
-  };
-
-  const modelPlans = plans.map((plan) => ({
-    ...plan,
-    apiKey: maskKey(plan.apiKey),
-    isDefault: isDefaultPlan(plan),
-    switching: switchProviderMutation.isPending
-      && switchProviderMutation.variables?.label === plan.label
-      && switchProviderMutation.variables.provider === plan.provider,
+  const modelGroups = groups.map((group) => ({
+    id: group.id,
+    label: groupDisplayLabel(group),
+    endpoint: group.endpoint,
+    model: group.model,
+    credentialCount: group.credentials.length,
+    // 钉住凭据只在当前组内有效 —— 别组显示的钉住标记一律为空。
+    pinnedCredential:
+      group.id === activeGroupId && activeCredential ? activeCredential : null,
+    isDefault: group.id === activeGroupId,
+    switching:
+      switchGroupMutation.isPending && switchGroupMutation.variables?.group === group.id,
   }));
   const effortHints: Record<Effort, string> = {
     low: t('models.effort.lowDesc'),
@@ -124,14 +131,14 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
     abilityTags={abilityTags}
     workspace={status?.workspace}
     degradedReason={status?.degraded_reason ?? null}
-    plans={modelPlans}
+    groups={modelGroups}
     effort={effort}
     effortOptions={effortOptions.map((level) => ({ value: level, label: level, hint: effortHints[level] }))}
     effortAdjusted={capability.adjusted}
     effortEffective={capability.effective}
     saved={saved}
     onGoSettings={() => window.location.assign('#/settings')}
-    onSwitchPlan={(plan) => switchProviderMutation.mutate({ provider: plan.provider, model: plan.model, label: plan.label })}
+    onSwitchGroup={(group) => switchGroupMutation.mutate({ group: group.id, model: group.model })}
     onEffortChange={setEffort}
     onApplyEffort={() => effortMutation.mutate(effort)}
   />;

@@ -8,7 +8,6 @@
     "app-core/src/traces.rs",
     "src-tauri/src/commands/sessions.rs",
     "src-tauri/src/commands/tasks.rs",
-    "src/features/settings/sections/PlansSection.tsx",
     "src/features/shell/Inspector.tsx",
     "src/stores/agent/reducer.ts",
     "src/types/protocol/event.ts"

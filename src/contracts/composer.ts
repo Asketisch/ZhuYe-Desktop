@@ -4,6 +4,8 @@ import type { StagedAttachment } from '@/logic/composer/useAttachments';
 import type { BangRun } from '@/logic/composer/useBangShell';
 import type { SlashPopup } from '@/features/composer/SlashPopup';
 import type { MentionPicker } from '@/features/composer/MentionPicker';
+import type { ComposerPlusMenu } from '@/features/composer/ComposerPlusMenu';
+import type { ModelPicker } from '@/features/composer/ModelPicker';
 
 export interface ComposerSlots {
   SlashPopup: ComponentType<ComponentProps<typeof SlashPopup>>;
@@ -13,6 +15,10 @@ export interface ComposerSlots {
   ContextUsage: ComponentType;
   ComposerControls: ComponentType;
   ComposerContextBar: ComponentType;
+  /** 卡片底栏左侧的「+」入口菜单（zcode 式）。 */
+  ComposerPlusMenu: ComponentType<ComponentProps<typeof ComposerPlusMenu>>;
+  /** 卡片底栏右侧的模型选择器。 */
+  ModelPicker: ComponentType<ComponentProps<typeof ModelPicker>>;
 }
 
 export interface ComposerViewProps {
@@ -29,7 +35,6 @@ export interface ComposerViewProps {
   mentionVisible: boolean;
   mentionQuery: string;
   workspaceLabel?: string;
-  toolbar: Array<{ name: string; summary: string }>;
   attachments: StagedAttachment[];
   /** 视觉降级警示：当前模型**明确**不支持视觉且附件含图片（未知不警示）。 */
   visionBlocked: boolean;
@@ -47,10 +52,8 @@ export interface ComposerViewProps {
   onPickImage: (files: FileList | null) => void;
   onSlashActiveChange: (index: number) => void;
   onSlashSelect: (command: string) => void;
-  onToolbarCommand: (command: string) => void;
   onOpenSlash: () => void;
   onAttachFile: () => void;
-  onAttachImage: () => void;
   onMention: () => void;
   onPickMention: (path: string) => void;
   onCloseMention: () => void;
@@ -61,5 +64,15 @@ export interface ComposerViewProps {
   onSendModeChange: (mode: 'queue' | 'steer') => void;
   onInterrupt: () => void;
   onSend: () => void;
+  /** 「+」菜单：立即执行的会话命令（如压缩）。 */
+  onRunSlash: (command: string) => void;
+  /** 「+」菜单：需要补参数的命令 —— 把 `/cmd ` 填进输入框。 */
+  onFillSlash: (command: string) => void;
+  /** 「+」菜单：把文本追加到输入框（如技能名）。 */
+  onInsertText: (text: string) => void;
+  /** 语音输入：是否正在识别。 */
+  dictationSupported: boolean;
+  dictationListening: boolean;
+  onToggleDictation: () => void;
   slots: ComposerSlots;
 }

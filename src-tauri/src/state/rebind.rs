@@ -51,7 +51,7 @@ pub(crate) fn rebind_session(
 /// 强制重绑:跳过同 id 短路,无条件重建线程。
 ///
 /// coding plan 热切换路径(`state/reload.rs::hot_reload_provider_stack`)
-/// 使用:provider 相关配置变更后,当前绑定会话必须换到新 registry/tracker
+/// 使用:模型组相关配置变更后,当前绑定会话必须换到新 registry/tracker
 /// 上,否则新计划要到下次切换会话才生效。`initial_mode` 传旧线程当前
 /// 模式,保证热重载不重置权限模式。
 pub(crate) fn rebind_session_forced(
@@ -151,7 +151,7 @@ fn rebind_session_with(
     }
     drop(old_thread); // drop guard
     if force {
-        // 热重载换掉了 provider 栈(model_registry/quota_tracker):后台
+        // 热重载换掉了模型接入栈(model_registry/quota_tracker):后台
         // 线程还攥着旧 registry,继续跑会与前台配置分叉 —— 全部清场
         // (cancel),让下次 bind 走重建。
         clear_background(agent);
@@ -257,7 +257,7 @@ fn demote_background(agent: &MinimalAgent, sid: ThreadId, thread: Arc<zhuye_core
     }
 }
 
-/// 清空后台表(forced 热重载专用):provider 栈已重建,后台线程攥着旧
+/// 清空后台表(forced 热重载专用):模型接入栈已重建,后台线程攥着旧
 /// registry/model clients,继续跑会与前台配置分叉 —— 全部 cancel。
 fn clear_background(agent: &MinimalAgent) {
     let drained: Vec<(ThreadId, Arc<zhuye_core::AgentThread>)> =

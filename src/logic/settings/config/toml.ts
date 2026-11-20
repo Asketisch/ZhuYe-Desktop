@@ -8,7 +8,10 @@
  *    以便 UI 提示用户使用高级 TOML 编辑器
  *  - 子分区编辑保持其他分区内的未知键不变
  *  - feature flags 以 `flags = { ... }` 内联表形式存储
+ *  - `[context_windows]` 段的最大上下文读写
  */
+
+import { applyField } from './schema';
 
 export interface SubSectionEntry {
   name: string;
@@ -231,4 +234,50 @@ export function findUnknownSections(toml: string, knownTopLevel: Set<string>): s
     if (!knownTopLevel.has(key) && !knownTopLevel.has(top)) sections.add(key);
   }
   return Array.from(sections);
+}
+
+// ====== 最大上下文（[context_windows] 段，运行时官方机制） ======
+//
+// 「某模型的最大上下文」落在 config.toml 的 `[context_windows]` 段
+// （key = 模型名）。该段被 runtime 消费：`session_configured` 的
+// `context_window_size` 由此级联（优先级高于内置静态表），进而驱动
+// Inspector 上下文仪表与 `get_context_remaining` 工具；前端的自动压缩
+// （`stores/agent/autoCompact.ts`）也以此为阈值来源。
+//
+// 归属说明：这两个函数此前住在 `plans.ts`（编码套餐层）—— 该层已随
+// 「提供商方案」一起移除，但 `[context_windows]` 与模型组/套餐无关，
+// 故迁到本文件（纯 TOML 辅助层）继续对外提供。
+
+/** `[context_windows]` 段中读取 model 对应的窗口 token 数（未设置为 ''）。 */
+export function readContextWindowForModel(toml: string, model: string): string {
+  if (!model.trim()) return '';
+  const escaped = model.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // key 可能以 bare 或 "quoted" 形式写入,两种都认。
+  const re = new RegExp(`^"?${escaped}"?\\s*=\\s*(\\d+)`);
+  let inSection = false;
+  for (const raw of toml.split('\n')) {
+    const line = raw.trim();
+    if (/^\[([^\]]+)\]$/.test(line)) {
+      inSection = line === '[context_windows]';
+      continue;
+    }
+    if (!inSection) continue;
+    const m = re.exec(line);
+    if (m) return m[1];
+  }
+  return '';
+}
+
+/** 写入/清除 model 的最大上下文（tokens 为空串 = 删除该 key）。 */
+export function setContextWindowForModel(toml: string, model: string, tokens: string): string {
+  const trimmed = model.trim();
+  if (!trimmed) return toml;
+  // 手写的既有键可能是 bare 形式（readContextWindowForModel 两种都认），
+  // 而 setSectionKey 只按写入形式（quoted）查找 —— 先把两种形式都删掉
+  // 再写入，否则 bare 残留 + quoted 追加构成 TOML duplicate key
+  //（`m` 与 `"m"` 同键），整份配置会被后端 load_from_str 拒绝。
+  let next = applyField(toml, 'context_windows', `"${trimmed}"`, '', 'integer');
+  next = applyField(next, 'context_windows', trimmed, '', 'integer');
+  if (!tokens.trim()) return next; // 空值 = 仅清除
+  return applyField(next, 'context_windows', `"${trimmed}"`, tokens, 'integer');
 }

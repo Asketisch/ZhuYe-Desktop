@@ -211,7 +211,7 @@ pub async fn zhuye_toggle_plugin(
     }
     // 落盘 + 换内存快照。
     crate::commands::config::persist_config(&agent, cfg.clone())?;
-    // diff 同步挂/卸(与 provider 热重载的 plugins 分支同语义)。
+    // diff 同步挂/卸(与模型接入栈热重载的 plugins 分支同语义)。
     let _mount = agent.inner.plugin_mount_lock.lock().await;
     crate::state::plugins::reload_enabled_plugins(&agent, &cfg.plugins.enabled_plugins)
         .await

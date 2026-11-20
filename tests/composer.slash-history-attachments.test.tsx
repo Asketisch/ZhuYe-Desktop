@@ -107,7 +107,8 @@ describe('slash commands (real dispatch → backend)', () => {
     await send('/model');
     await waitFor(() =>
       expect(
-        useAgentStore.getState().toasts.some((t) => t.message.includes('Coding Plans')),
+        // 「编码套餐」层已删除 —— 提示语指向模型组。
+        useAgentStore.getState().toasts.some((t) => t.message.includes('Model Groups')),
       ).toBe(true),
     );
     expect(backend.agent.submissions.length).toBe(0);

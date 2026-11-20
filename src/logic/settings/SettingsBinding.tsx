@@ -10,7 +10,7 @@ import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from
 /** 设置草稿、保存并发和权限动作的绑定。 */
 export function SettingsBinding({ view: View, slots, onClose }: { view: ComponentType<SettingsViewProps>; slots: SettingsSlots; onClose?: () => void }) {
   const qc = useQueryClient();
-  const [section, setSection] = useState<SettingsSection>('provider');
+  const [section, setSection] = useState<SettingsSection>('groups');
   const [rawToml, setRawToml] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);

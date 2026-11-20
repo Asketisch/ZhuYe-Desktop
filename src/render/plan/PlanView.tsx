@@ -18,7 +18,8 @@ function PlanStepBadge({ status }: { status: string }) {
   return <Badge variant={variant} data-status={status}>{status}</Badge>;
 }
 
-export function PlanView({ t, planText, taskLabel, steps, planSteps, pendingPlan, onApprove }: PlanViewProps) {
+export function PlanView({ t, planText, taskLabel, steps, planSteps, pendingPlan, onApprove, slots }: PlanViewProps) {
+  const { Markdown } = slots;
   return (
     <PageShell icon={ClipboardList} title={t('plan.title')} subtitle={t('plan.subtitle')} width="md">
       {planSteps.length > 0 && (
@@ -34,7 +35,11 @@ export function PlanView({ t, planText, taskLabel, steps, planSteps, pendingPlan
           <Card level="outlined" padding="lg" className={s.planCard} data-status="pending">
             <div className={s.header}><div className={s.titleRow}><PlanStatusBadge status="pending" /><span className={s.task}>{taskLabel}</span></div></div>
             {steps.length > 0 && <ol className={s.steps}>{steps.map((step, i) => <li key={i} className={s.step}><span className={s.stepNum}>{i + 1}</span><span className={s.stepText}>{step}</span></li>)}</ol>}
-            {steps.length === 0 && planText && <pre className={s.planText}>{planText}</pre>}
+            {steps.length === 0 && planText && (
+              <div className={s.planText}>
+                <Markdown text={planText} />
+              </div>
+            )}
             <div className={s.actions}>
               {pendingPlan.kind === 'request' ? (
                 <>

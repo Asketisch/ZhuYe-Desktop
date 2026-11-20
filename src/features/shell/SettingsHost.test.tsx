@@ -53,15 +53,15 @@ describe('SettingsHost · 设置弹窗', () => {
     expect(screen.getByTestId('harness-settings-modal')).toBeTruthy();
     // 内容区存在（v3 回归时这里被 200px 窄列挤没了）。
     await waitFor(() => {
-      expect(screen.getByTestId('harness-settings-modal').textContent).toContain('Provider');
+      expect(screen.getByTestId('harness-settings-modal').textContent).toContain('Model Groups');
     });
   });
 
-  it('分区导航的六个入口都在（提供商 / 模型组 / 权限 / 显示 / 通知 / 高级）', async () => {
+  it('分区导航的五个入口都在（模型组 / 权限 / 显示 / 通知 / 高级）', async () => {
     renderHost();
     await waitFor(() => {
       const modal = screen.getByTestId('harness-settings-modal');
-      for (const label of ['Provider', 'Groups', 'Permissions', 'Display', 'Notifications', 'Advanced']) {
+      for (const label of ['Model Groups', 'Permissions', 'Display', 'Notifications', 'Advanced']) {
         expect(modal.textContent, `缺少分区:${label}`).toContain(label);
       }
     });

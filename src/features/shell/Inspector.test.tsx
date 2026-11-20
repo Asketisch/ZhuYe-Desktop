@@ -268,7 +268,11 @@ describe('Inspector — plan tab renders plan content', () => {
     });
     await openPlanTab();
     expect(screen.getByTestId('inspector-plan-final').textContent).toContain('/w/.zhuye/plan/p1.md');
-    expect(screen.getByTestId('inspector-plan').textContent).toContain('## 官网建设计划');
+    // 正文按 markdown 渲染（结构化文档），不是原文倾泻。
+    const body = screen.getByTestId('inspector-plan-body');
+    expect(body.querySelector('h2')?.textContent).toBe('官网建设计划');
+    expect(body.querySelector('li')?.textContent).toContain('初始化 Hexo');
+    expect(body.textContent).not.toContain('## 官网建设计划');
   });
 
   it('falls back to the live draft when no final plan exists', async () => {
@@ -278,7 +282,7 @@ describe('Inspector — plan tab renders plan content', () => {
     });
     await openPlanTab();
     expect(screen.getByTestId('inspector-plan-draft')).toBeDefined();
-    expect(screen.getByTestId('inspector-plan').textContent).toContain('草稿:搭建 Hexo 骨架');
+    expect(screen.getByTestId('inspector-plan-draft-body').textContent).toContain('草稿:搭建 Hexo 骨架');
   });
 
   it('final plan takes precedence over draft', async () => {

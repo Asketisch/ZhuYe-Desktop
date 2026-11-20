@@ -10,7 +10,7 @@
 
 | 模块（`src/`） | 一句话职责 | 备注 |
 |---|---|---|
-| `config_health.rs` | 配置健康问题代码与级别 | 供配置状态命令返回 |
+| `config_health.rs` | 配置健康问题代码与级别（模型组口径：没有活跃组 / 活跃组无凭据 → `no-provider`） | 供配置状态命令返回 |
 | `media.rs` | Media Studio / Computer Use 的 trait + enum 抽象层 | 真实实现落 `src-tauri/src/media_backend.rs` |
 | `pipeline.rs` | DAG 流水线（GUI 对应 CLI `zhuye pipeline`） | |
 | `traces.rs` | LLM 调用记录只读查询（数据源 telemetry model-io JSONL） | |

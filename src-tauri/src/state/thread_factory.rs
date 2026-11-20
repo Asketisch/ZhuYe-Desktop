@@ -78,11 +78,11 @@ fn build_telemetry_sink(
 }
 
 /// 构造共享 `ModelRegistry`。逻辑原 `install.rs:47-70` 整体搬过来:
-/// provider 配置齐 → `cfg.to_registry()`;否则降级到空 registry,
+/// 模型组配置齐 → `cfg.to_registry()`;否则降级到空 registry,
 /// 让命令层不依赖 API key 也能启动(但实际 chat 跑不动)。
 pub(crate) fn build_registry(cfg_snapshot: &zhuye_config::ReflectConfig) -> SharedModelRegistry {
-    let has_provider = cfg_snapshot.active_provider().is_some();
-    if has_provider {
+    let has_group = cfg_snapshot.active_group().is_some();
+    if has_group {
         match cfg_snapshot.to_registry() {
             Ok(r) => Arc::new(r),
             Err(e) => {
@@ -95,8 +95,8 @@ pub(crate) fn build_registry(cfg_snapshot: &zhuye_config::ReflectConfig) -> Shar
         }
     } else {
         warn!(
-            "[zhuye-gui] no provider configured (set OPENAI_API_KEY / ANTHROPIC_API_KEY \
-             or edit ~/.zhuye/config.toml); running in degraded mode"
+            "[zhuye-gui] no model group configured (declare a [[model_group]] or set \
+             OPENAI_API_KEY / ANTHROPIC_API_KEY); running in degraded mode"
         );
         Arc::new(ModelRegistry::new())
     }
@@ -121,9 +121,9 @@ pub(crate) fn construct_thread(
     // model spec 用 **已解析** 的值(安装 / 热重载时写入 `inner.model_spec`)。
     //
     // 此前这里重新跑同步的 `resolve_model_spec_with_fallback` —— 对
-    // `model = "free"` 这类动态值只会拿到**占位串** `"provider/free"`,
-    // 它会被 routing 的 main slot 当成真模型发给 provider(表现为「模型
-    // 不存在」)。动态值的解析在安装 / 热重载阶段完成(要打 provider 的
+    // `model = "free"` 这类动态值只会拿到**占位串** `"<组id>/free"`,
+    // 它会被 routing 的 main slot 当成真模型发给模型组(表现为「模型
+    // 不存在」)。动态值的解析在安装 / 热重载阶段完成(要打模型组的
     // 模型清单端点),这里只消费结果。
     let model_spec = agent.inner.model_spec.read().clone();
     let registry = agent
@@ -189,7 +189,7 @@ pub(crate) fn construct_thread(
                 .as_ref()
                 .and_then(|section| section.session_total_tokens),
         ))
-        // coding plan 配额追踪:config 声明了 `[[<provider>.credentials]].quota`
+        // coding plan 配额追踪:config 声明了 `[[<组id>.credentials]].quota`
         // 时为 Some;model_call 节点据此在调用后记录用量,窗口耗尽 → 冷却 +
         // `QuotaExhausted` 事件 + 池内 failover(与 TUI/headless 行为对齐)。
         .with_quota_tracker(agent.inner.quota_tracker.lock().clone())

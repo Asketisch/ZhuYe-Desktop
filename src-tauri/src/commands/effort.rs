@@ -67,7 +67,7 @@ fn parse_effort(s: &str) -> CommandResult<ReasoningEffortMirror> {
 /// 到 high)。「运行时已验证结论」层待上游合入后叠加。
 #[derive(Debug, Clone, Serialize)]
 pub struct EffortCapability {
-    /// 当前模型 spec(`provider/model`);未配置模型时为空串。
+    /// 当前模型 spec(`<模型组id>/<model>`);未配置模型时为空串。
     pub model: String,
     /// 已知支持的档位;`known = false` 时为空数组(能力未知)。
     pub supported: Vec<String>,

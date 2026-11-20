@@ -2,7 +2,7 @@ import type { ComponentProps, ComponentType, RefObject } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { Turn } from '@/stores/agent/types';
 export type { Turn, TurnItem } from '@/stores/agent/types';
-import type { ToolCell, ToolOutputBody } from '@/features/messages/ToolCells';
+import type { ToolCell, ToolOutputBody, ToolGroup } from '@/features/messages/ToolCells';
 import type { QueuedMessages } from '@/features/messages/QueuedMessages';
 import type { UserAttachments } from '@/features/messages/UserAttachments';
 import type { Collapsible } from '@/features/messages/Collapsible';
@@ -12,6 +12,8 @@ import type { CopyButtonProps } from '@/contracts/copyButton';
 export interface MessageListSlots {
   ToolCell: ComponentType<ComponentProps<typeof ToolCell>>;
   ToolOutputBody: ComponentType<ComponentProps<typeof ToolOutputBody>>;
+  /** 连续工具调用的聚合组（zcode / codex 式摘要行）。 */
+  ToolGroup: ComponentType<ComponentProps<typeof ToolGroup>>;
   QueuedMessages: ComponentType<ComponentProps<typeof QueuedMessages>>;
   UserAttachments: ComponentType<ComponentProps<typeof UserAttachments>>;
   Collapsible: ComponentType<ComponentProps<typeof Collapsible>>;

@@ -8,7 +8,7 @@
  * 作为 `output` 传入,展开后在 raw args 下方渲染输出正文 / unified diff,
  * 不再是独立的「输出」折叠框。
  */
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   Terminal,
   FileText,
@@ -53,6 +53,8 @@ export interface ToolCellProps {
   output?: ToolCellOutput;
   /** 初始展开（输出含 diff 时 MessageList 会传 true,让改动直接可见）。 */
   defaultOpen?: boolean;
+  /** 组内扁平行：去掉卡片边框/底色，缩进在聚合组的竖线之下。 */
+  flat?: boolean;
 }
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -71,6 +73,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
 function pickIcon(name: string): LucideIcon {
   return ICON_MAP[name] ?? Wrench;
 }
+
+/** 计划类工具：参数里带整篇 plan markdown，正文改由右侧面板渲染。 */
+const PLAN_TOOLS = new Set(['exit_plan_mode', 'plan_write', 'plan_update']);
 
 function parseArgs(args: string): Record<string, unknown> | null {
   try {
@@ -121,7 +126,7 @@ export function ToolOutputBody({ text, diff, isError }: ToolCellOutput) {
   return <pre className={`${s.output} ${isError ? s.outputError : ''}`}>{text}</pre>;
 }
 
-export function ToolCell({ toolName, argsSummary, argsStream, status, output, defaultOpen = false }: ToolCellProps) {
+export function ToolCell({ toolName, argsSummary, argsStream, status, output, defaultOpen = false, flat = false }: ToolCellProps) {
   const { t } = useI18n();
   const Icon2 = pickIcon(toolName);
   // 流式 provider 的 begin 携带 args:null —— 参数文本只能来自累积的
@@ -139,10 +144,11 @@ export function ToolCell({ toolName, argsSummary, argsStream, status, output, de
       : summary;
   const [open, setOpen] = useState(defaultOpen);
   const accent = status === 'error' ? 'danger' : status === 'done' ? 'success' : 'warning';
+  const isPlanTool = PLAN_TOOLS.has(toolName);
 
   return (
     <div
-      className={s.cell}
+      className={flat ? `${s.cell} ${s.flat}` : s.cell}
       data-tool={toolName}
       data-status={status}
       data-testid={`tool-cell-${toolName}`}
@@ -174,9 +180,17 @@ export function ToolCell({ toolName, argsSummary, argsStream, status, output, de
       </button>
       {open && (
         <>
-          <pre className={s.args} data-testid={`tool-args-${toolName}`}>
-            {rawArgs || t('chat.tool.emptyArgs')}
-          </pre>
+          {isPlanTool ? (
+            /* 计划类工具的 args 里塞的是整篇 plan markdown —— 原文只在
+               右侧面板渲染,会话里不再倾泻（见 chat.tool.planBodyHint）。 */
+            <pre className={s.args} data-testid={`tool-args-${toolName}`}>
+              {t('chat.tool.planBodyHint')}
+            </pre>
+          ) : (
+            <pre className={s.args} data-testid={`tool-args-${toolName}`}>
+              {rawArgs || t('chat.tool.emptyArgs')}
+            </pre>
+          )}
           {output && (
             <div className={s.outputSection} data-testid="tool-cell-output">
               <div className={s.outputLabel}>
@@ -186,6 +200,56 @@ export function ToolCell({ toolName, argsSummary, argsStream, status, output, de
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+/** 计划类工具：参数里带整篇 plan markdown，正文改由右侧面板渲染。 */
+
+export interface ToolGroupProps {
+  /** 组内工具名（去重保序）—— 摘要行展示。 */
+  toolNames: string[];
+  /** 组内工具调用总次数 —— 摘要行右侧的计数徽标。 */
+  count: number;
+  /** 初始展开（组内有 diff 输出时由 MessageList 传 true）。 */
+  defaultOpen?: boolean;
+  /** 组内工具单元（ToolCell）。 */
+  children: ReactNode;
+}
+
+/**
+ * 工具调用聚合组 —— 连续的工具调用折叠成一行摘要（zcode / codex 式）。
+ *
+ * 会话默认只露出「模型动过什么」的一行摘要，具体参数与输出留在折叠层内；
+ * 思考过程同理默认折叠，会话里默认只显示模型的真实输出。
+ */
+export function ToolGroup({ toolNames, count, defaultOpen = false, children }: ToolGroupProps) {
+  const { t, isZh } = useI18n();
+  const [open, setOpen] = useState(defaultOpen);
+  // 流式期间输出是后到的：组内出现 diff 输出后要自动展开 ——
+  // 改动内容不该被折叠藏起来（与单个工具格的 defaultOpen 语义一致）。
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
+  const joined = toolNames.join(isZh ? ' 和 ' : ' and ');
+  return (
+    <div className={s.group} data-testid="tool-group" data-open={open || undefined}>
+      <button
+        type="button"
+        className={s.groupHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <Icon icon={ChevronRight} size={12} className={s.caret} />
+        <Icon icon={Terminal} size={13} className={s.groupIcon} />
+        <span className={s.groupLabel}>{t('chat.toolGroup.summary', { tools: joined })}</span>
+        <span className={s.groupCount}>{count}</span>
+      </button>
+      {open && (
+        <div className={s.groupBody} data-testid="tool-group-body">
+          {children}
+        </div>
       )}
     </div>
   );

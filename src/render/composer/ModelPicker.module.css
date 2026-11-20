@@ -1,0 +1,81 @@
+/* ModelPicker —— 输入卡片右下角的模型选择器（zcode 式紧凑触发器）。 */
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.modelRow {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 触发器本身：原生 select 伪装成无边框文字按钮 + 下拉箭头。 */
+.modelTrigger {
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 220px;
+  padding: 4px 18px 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.modelTrigger:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.modelTrigger:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+/* 下拉箭头叠在 select 右侧。 */
+.caret {
+  position: absolute;
+  right: 6px;
+  pointer-events: none;
+  color: var(--text-muted);
+}
+
+.fetchBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.fetchBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.fetchBtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.fetchSpin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

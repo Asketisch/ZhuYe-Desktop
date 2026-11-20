@@ -6,7 +6,7 @@ use zhuye_desktop_lib::commands::{zhuye_get_config, zhuye_save_config, zhuye_set
 use zhuye_desktop_lib::state::MinimalAgent;
 
 #[test]
-fn concurrent_model_switches_preserve_both_provider_sections() {
+fn concurrent_model_switches_preserve_both_model_groups() {
     let harness = common::harness();
     let agent = harness.app.state::<MinimalAgent>();
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -17,7 +17,13 @@ fn concurrent_model_switches_preserve_both_provider_sections() {
     runtime
         .block_on(zhuye_save_config(
             agent.clone(),
-            "# 设置并发测试基线\n[hooks]\nenabled = []\n".to_string(),
+            // 设置并发测试基线:两个模型组(`zhuye_set_model` 的组 id 必须是
+            // 已声明的模型组)。
+            "# 设置并发测试基线\n\
+             [[model_group]]\nid = \"anthropic\"\nendpoint = \"anthropic\"\n\n\
+             [[model_group]]\nid = \"openai\"\nendpoint = \"openai\"\n\n\
+             [hooks]\nenabled = []\n"
+                .to_string(),
         ))
         .expect("初始化配置失败");
 

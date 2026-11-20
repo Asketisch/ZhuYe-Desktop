@@ -10,7 +10,7 @@
  * 4. 渲染 tool_call + error items
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MessageList } from '@/features/messages/MessageList';
 import { createTestQueryClient } from '@/test/setup.tsx';
@@ -197,7 +197,12 @@ describe('MessageList', () => {
       ],
     });
     render(wrap(<MessageList />));
-    // 每对 call+output 一个框,共 2 个（而非 2 调用 + 2 输出 = 4 个盒子）。
+    // 连续两次调用聚合成组,默认折叠 —— 组内逐条单元不渲染。
+    const group = screen.getByTestId('tool-group');
+    expect(group).toBeDefined();
+    expect(document.querySelectorAll('[data-tool="bash"]')).toHaveLength(0);
+    // 展开组后,每对 call+output 一个框,共 2 个（而非 2 调用 + 2 输出 = 4 个盒子）。
+    fireEvent.click(group.querySelector('button')!);
     const cells = document.querySelectorAll('[data-tool="bash"]');
     expect(cells).toHaveLength(2);
     fireEvent.click(cells[0].querySelector('button')!);
@@ -206,6 +211,73 @@ describe('MessageList', () => {
     expect(section!.textContent).toContain('file-a');
     // 未展开的第二个框不显示输出。
     expect(cells[1].querySelector('[data-testid="tool-cell-output"]')).toBeNull();
+  });
+
+  it('groups consecutive tool calls into one collapsed summary row', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't7',
+          status: 'done',
+          items: [
+            { kind: 'tool_call', toolName: 'shell', callId: 'g1', argsSummary: '{"command":"ls"}', status: 'done' },
+            { kind: 'tool_call', toolName: 'read_file', callId: 'g2', argsSummary: '{"path":"/a.ts"}', status: 'done' },
+            { kind: 'tool_call', toolName: 'shell', callId: 'g3', argsSummary: '{"command":"pwd"}', status: 'done' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    // 摘要行写明用到的工具（去重保序）。
+    const group = screen.getByTestId('tool-group');
+    expect(group.textContent).toContain('shell');
+    expect(group.textContent).toContain('read_file');
+    // 默认折叠：只有一行摘要,组内单元不渲染。
+    expect(document.querySelectorAll('[data-tool]')).toHaveLength(0);
+    expect(screen.queryByTestId('tool-group-body')).toBeNull();
+  });
+
+  it('组内出现 diff 输出后自动展开（改动不被折叠藏起来）', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't8',
+          status: 'streaming',
+          items: [
+            { kind: 'tool_call', toolName: 'write_file', callId: 'd1', argsSummary: '{"path":"a.ts"}', status: 'done' },
+            { kind: 'tool_call', toolName: 'write_file', callId: 'd2', argsSummary: '{"path":"b.ts"}', status: 'done' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    expect(screen.queryByTestId('tool-group-body')).toBeNull();
+
+    // 输出后到：其中一条带 diff → 组自动展开。
+    act(() => {
+      useAgentStore.setState({
+        turns: [
+          {
+            id: 't8',
+            status: 'streaming',
+            items: [
+              { kind: 'tool_call', toolName: 'write_file', callId: 'd1', argsSummary: '{"path":"a.ts"}', status: 'done' },
+              { kind: 'tool_call', toolName: 'write_file', callId: 'd2', argsSummary: '{"path":"b.ts"}', status: 'done' },
+              {
+                kind: 'tool_output',
+                callId: 'd1',
+                text: '',
+                diff: '--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new',
+                path: 'a.ts',
+                isError: false,
+              },
+            ],
+          },
+        ],
+      });
+    });
+    expect(screen.getByTestId('tool-group-body')).toBeDefined();
+    expect(document.querySelector('[data-testid="diff-viewer"]')).not.toBeNull();
   });
 
   it('defaults merged diff outputs to open without a click', () => {

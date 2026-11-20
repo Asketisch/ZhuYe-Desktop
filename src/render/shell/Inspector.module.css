@@ -261,21 +261,42 @@
   overflow-wrap: anywhere;
 }
 
-/* ===== plan 文档(v1.x:终稿 + 草稿预览,样式对齐 modals 的 planBlock)===== */
+/* ===== plan 文档(v1.x:终稿 + 草稿预览)===== */
+/* 正文是 markdown —— 由 Markdown 组件渲染成结构化文档，
+   这里只负责外框、滚动与排版（不再用 mono/pre 排版原文）。 */
 .planDoc {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: var(--space-2);
+  padding: var(--space-3);
   margin: 0 0 var(--space-2);
-  max-height: 320px;
+  max-height: 420px;
   overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
   color: var(--text-secondary);
   line-height: var(--lh-normal);
+  font-size: var(--fs-sm);
+}
+
+.planDoc h1,
+.planDoc h2,
+.planDoc h3 {
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
+}
+
+.planDoc p {
+  margin: 0 0 var(--space-2);
+}
+
+.planDoc ul,
+.planDoc ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-4);
+}
+
+.planDoc code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
 }
 .planMeta {
   display: flex;

@@ -7,30 +7,11 @@
   margin: 0 auto;
 }
 
-.toolbar {
-  display: flex;
-  gap: var(--space-1);
-  margin-bottom: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.toolBtn {
-  padding: 3px 8px;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast),
-    border-color var(--transition-fast);
-}
-
-.toolBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-default);
+/* 圆形发送按钮（minimax / zcode 式）：实心圆 + 居中箭头。
+   双类名提高特异性 —— IconButton 的 .btn 来自另一个 CSS Module，
+   加载顺序不保证，圆形必须赢。 */
+.sendCircle.sendCircle {
+  border-radius: 999px;
 }
 
 .card {
@@ -105,6 +86,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
 }
 
@@ -113,6 +95,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 /* 上下文用量指示：圆形进度，≥80% 转 warning 色。 */
@@ -158,4 +141,10 @@
 .modeBtn[data-active] {
   background: var(--accent-subtle);
   color: var(--accent);
+}
+
+/* 语音输入进行中：麦克风按钮点亮（minimax 的转圈指示这里用静态高亮）。 */
+.dictationOn {
+  color: var(--accent);
+  background: var(--accent-subtle);
 }

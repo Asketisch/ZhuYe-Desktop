@@ -1,4 +1,4 @@
-import { ArrowUp, SlashSquare, Image as ImageIcon, FileText, AtSign, Square, ListPlus, CornerDownRight } from 'lucide-react';
+import { ArrowUp, SlashSquare, AtSign, Square, ListPlus, CornerDownRight, Mic } from 'lucide-react';
 import type { ComposerViewProps } from '@/contracts/composer';
 import { Icon } from '../design-system/Icon';
 import { IconButton } from '../design-system/IconButton';
@@ -6,13 +6,14 @@ import { Tooltip } from '../design-system/Tooltip';
 import s from './Composer.module.css';
 
 export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRunning, slashVisible,
-  slashQuery, slashActiveIdx, mentionVisible, mentionQuery, workspaceLabel, toolbar, attachments,
+  slashQuery, slashActiveIdx, mentionVisible, mentionQuery, workspaceLabel, attachments,
   visionBlocked, dragActive, bangRuns, textareaRef, fileInputRef, imageInputRef, onChange, onKeyDown, onPaste,
-  onDrop, onDragOver, onPickFile, onPickImage, onSlashActiveChange, onSlashSelect, onToolbarCommand,
-  onOpenSlash, onAttachFile, onAttachImage, onMention, onPickMention, onCloseMention,
+  onDrop, onDragOver, onPickFile, onPickImage, onSlashActiveChange, onSlashSelect,
+  onOpenSlash, onAttachFile, onMention, onPickMention, onCloseMention,
   onRemoveAttachment, onRetryAttachment, onDismissBang, onKillBang, onSendModeChange, onInterrupt,
-  onSend, slots }: ComposerViewProps) {
-  const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerControls, ComposerContextBar } = slots;
+  onSend, onRunSlash, onFillSlash, onInsertText, dictationSupported, dictationListening,
+  onToggleDictation, slots }: ComposerViewProps) {
+  const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerControls, ComposerContextBar, ComposerPlusMenu, ModelPicker } = slots;
   const SendIcon = isTurnRunning ? (sendMode === 'steer' ? CornerDownRight : ListPlus) : ArrowUp;
   return (
     <div className={s.wrap}>
@@ -48,20 +49,6 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
         data-testid="composer-image-input"
         onChange={(event) => onPickImage(event.target.files)}
       />
-
-      <div className={s.toolbar}>
-        {toolbar.map((command) => (
-          <button
-            key={command.name}
-            type="button"
-            onClick={() => onToolbarCommand(command.name)}
-            title={command.summary}
-            className={s.toolBtn}
-          >
-            /{command.name}
-          </button>
-        ))}
-      </div>
 
       <div
         className={s.card}
@@ -101,8 +88,15 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
           className={s.textarea}
           autoFocus
         />
+        {/* 卡片底栏：左「+」入口与 @ 引用，右模型 / 语音 / 发送（zcode 式）。 */}
         <div className={s.bottomBar}>
           <div className={s.bottomLeft}>
+            <ComposerPlusMenu
+              onAttachFile={onAttachFile}
+              onRunSlash={onRunSlash}
+              onFillSlash={onFillSlash}
+              onInsertText={onInsertText}
+            />
             <Tooltip label={t('composer.toolbar.slashCommands')} side="top">
               <IconButton
                 label={t('composer.toolbar.slashCommands')}
@@ -110,26 +104,6 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
                 onClick={onOpenSlash}
               >
                 <Icon icon={SlashSquare} size={14} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip label={t('composer.toolbar.attachFile')} side="top">
-              <IconButton
-                label={t('composer.toolbar.attachFile')}
-                size="sm"
-                onClick={onAttachFile}
-                data-testid="composer-attach-file"
-              >
-                <Icon icon={FileText} size={14} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip label={t('composer.toolbar.attachImage')} side="top">
-              <IconButton
-                label={t('composer.toolbar.attachImage')}
-                size="sm"
-                onClick={onAttachImage}
-                data-testid="composer-attach-image"
-              >
-                <Icon icon={ImageIcon} size={14} />
               </IconButton>
             </Tooltip>
             <Tooltip label={t('composer.toolbar.mentionFile')} side="top">
@@ -145,6 +119,22 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
           </div>
           <div className={s.bottomRight}>
             <ContextUsage />
+            <ModelPicker />
+            <Tooltip
+              label={dictationSupported ? t('composer.dictation.hint') : t('composer.dictation.unsupported')}
+              side="top"
+            >
+              <IconButton
+                label={t('composer.dictation.hint')}
+                size="sm"
+                onClick={onToggleDictation}
+                disabled={!dictationSupported}
+                className={dictationListening ? s.dictationOn : undefined}
+                data-testid="composer-dictation"
+              >
+                <Icon icon={Mic} size={14} />
+              </IconButton>
+            </Tooltip>
             {isTurnRunning && (
               <>
                 <div className={s.modeSwitch} role="radiogroup" aria-label={t('composer.mode.label')} data-testid="composer-mode-switch">
@@ -191,6 +181,7 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
                 size="md"
                 disabled={!canSend}
                 onClick={onSend}
+                className={s.sendCircle}
                 data-testid="composer-send"
               >
                 <Icon icon={SendIcon} size={isTurnRunning ? 14 : 16} />
@@ -200,10 +191,10 @@ export function Composer({ t, text, busy, canSend, sendLabel, sendMode, isTurnRu
         </div>
       </div>
 
-      {/* 模型 / 思考深度 / 权限模式：输入卡片下方的独立控制条。 */}
-      <ComposerControls />
-      {/* 打开的目录 + git 分支：对话框侧上下文（自 StatusBar 移入）。 */}
+      {/* 打开的目录 + 运行位置 + git 分支：紧贴输入卡片下方的上下文行。 */}
       <ComposerContextBar />
+      {/* 思考深度 / 审批策略 / 权限模式：上下文行下方的控制行。 */}
+      <ComposerControls />
     </div>
   );
 }

@@ -128,3 +128,70 @@
   color: #b91c1c;
   border-color: rgba(220, 38, 38, 0.35);
 }
+
+/* ====== 工具调用聚合组（zcode / codex 式）====== */
+/* 一行摘要 + 展开后的逐条列表；会话默认只露摘要。 */
+.group {
+  margin: 0.3rem 0;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.3rem 0.25rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-secondary, #b9bec7);
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.groupHeader:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.03));
+}
+
+.groupIcon {
+  color: var(--text-muted, #888);
+}
+
+.groupLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groupCount {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted, #888);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 展开时箭头朝下（ChevronRight 旋转 90°）。 */
+.group[data-open] .caret {
+  transform: rotate(90deg);
+}
+
+/* 组内列表：左侧一条竖线串起各条工具调用。 */
+.groupBody {
+  margin-left: 0.5rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+/* 组内扁平行：去掉卡片边框与底色。 */
+.flat {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  margin: 0;
+}
+
+.flat .header {
+  padding: 0.28rem 0.2rem;
+}

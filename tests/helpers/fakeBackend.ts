@@ -844,12 +844,15 @@ export function installFakeBackend(): FakeBackend {
       backend.state.configToml = String(args?.toml ?? '');
     }),
   );
-  // 模型热切换：镜像后端「改 active/provider 段 → resolved spec 变化」，
+  // 模型热切换：镜像后端「改 active.group 段 → resolved spec 变化」，
   // 这里仅同步 agentStatus.model（真实 TOML 手术在后端）。
+  // 线格式首个参数是**模型组 id**（新契约键名 group）；后端尚未落地新键名
+  // 时仍收 provider —— 两种键名都认，避免替身与真实后端走样。
   handle(
     'zhuye_set_model',
     handler((args) => {
-      const spec = `${String(args?.provider)}/${String(args?.model ?? '')}`;
+      const group = String(args?.group ?? args?.provider ?? '');
+      const spec = `${group}/${String(args?.model ?? '')}`;
       backend.state.agentStatus = {
         ...backend.state.agentStatus,
         model: spec,

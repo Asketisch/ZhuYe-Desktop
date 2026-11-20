@@ -7,7 +7,12 @@ import s from './MessageList.module.css';
 
 type ToolCallItem = Extract<TurnItem, { kind: 'tool_call' }>;
 type ToolOutputItem = Extract<TurnItem, { kind: 'tool_output' }>;
-type RenderNode = { kind: 'item'; item: TurnItem } | { kind: 'tool'; call: ToolCallItem; output?: ToolOutputItem };
+/** 一条工具调用（call + 可选配对的 output）。 */
+type ToolEntry = { call: ToolCallItem; output?: ToolOutputItem };
+type RenderNode =
+  | { kind: 'item'; item: TurnItem }
+  | { kind: 'tool'; call: ToolCallItem; output?: ToolOutputItem }
+  | { kind: 'toolGroup'; entries: ToolEntry[] };
 
 function groupToolNodes(items: TurnItem[]): RenderNode[] {
   const nodes: RenderNode[] = [];
@@ -28,7 +33,29 @@ function groupToolNodes(items: TurnItem[]): RenderNode[] {
       nodes.push({ kind: 'item', item });
     }
   }
-  return nodes;
+  // 连续的工具调用聚合成组（zcode / codex 式）：会话默认只露一行摘要，
+  // 逐条调用收在折叠层里；单条调用保持独立行（不必再套一层壳）。
+  const out: RenderNode[] = [];
+  let buffer: ToolEntry[] = [];
+  const flush = () => {
+    if (buffer.length === 0) return;
+    if (buffer.length === 1) {
+      out.push({ kind: 'tool', call: buffer[0].call, output: buffer[0].output });
+    } else {
+      out.push({ kind: 'toolGroup', entries: buffer });
+    }
+    buffer = [];
+  };
+  for (const node of nodes) {
+    if (node.kind === 'tool') {
+      buffer.push({ call: node.call, output: node.output });
+    } else {
+      flush();
+      out.push(node);
+    }
+  }
+  flush();
+  return out;
 }
 
 export function MessageList({ t, turns, scrollRef, onForkTurn, onRewindTurn, onEditTurn,
@@ -185,7 +212,45 @@ function TurnView({
 }
 
 function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus: Turn['status']; t: MessageListViewProps['t']; slots: MessageListSlots }) {
-  const { ToolCell, ToolOutputBody, UserAttachments, Collapsible } = slots;
+  const { ToolCell, ToolOutputBody, UserAttachments, Collapsible, ToolGroup } = slots;
+
+  if (node.kind === 'toolGroup') {
+    // 连续工具调用的聚合组：摘要行写明用了哪些工具，展开后逐条列出。
+    const names: string[] = [];
+    for (const entry of node.entries) {
+      if (!names.includes(entry.call.toolName)) names.push(entry.call.toolName);
+    }
+    // 组内有 diff 输出时默认展开 —— 改动内容不该被折叠藏起来。
+    const hasDiff = node.entries.some((entry) => Boolean(entry.output?.diff));
+    return (
+      <ToolGroup toolNames={names} count={node.entries.length} defaultOpen={hasDiff}>
+        {node.entries.map((entry) => (
+          <ToolCell
+            // diff 输出到达时重挂载,让 defaultOpen 生效（流式期间 output
+            // 是后到的,同一节点从无到有）。
+            key={`${entry.call.callId}-${entry.output?.diff ? 'diff' : 'flat'}`}
+            flat
+            toolName={entry.call.toolName}
+            argsSummary={entry.call.argsSummary}
+            argsStream={entry.call.argsStream}
+            status={entry.call.status}
+            output={
+              entry.output
+                ? {
+                    text: entry.output.text,
+                    diff: entry.output.diff,
+                    path: entry.output.path,
+                    isError: entry.output.isError,
+                    guardVerdict: entry.output.guardVerdict,
+                  }
+                : undefined
+            }
+            defaultOpen={Boolean(entry.output?.diff)}
+          />
+        ))}
+      </ToolGroup>
+    );
+  }
 
   if (node.kind === 'tool') {
     return (
@@ -318,7 +383,6 @@ function AssistantBubble({ text, streaming, t, slots }: { text: string; streamin
           <ThinkingCollapsible
             key={content ? 'with-content' : 'thinking-only'}
             text={thinking}
-            defaultOpen={streaming && !content}
             t={t}
             Collapsible={Collapsible}
           />

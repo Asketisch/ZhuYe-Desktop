@@ -1,31 +1,33 @@
 /**
- * 模型组新增/编辑表单（`[[provider_group]]` 条目）。
+ * 模型组新增/编辑表单（`[[model_group]]` 条目 + 组内凭据池）。
  *
- * 与 PlanEditor（内置端口 plan）平级：组 = 命名端点（id / endpoint /
- * base_url / api_key），保存后**自动拉取**组内模型清单（前端 5 分钟
- * TTL memo，命中缓存零网络），点选模型即写为组默认模型并即时落盘；
- * 手动「刷新模型列表」走 force refresh。
+ * 模型组是**唯一**的模型接入单元：组 = 端点（endpoint）+ 端点配置
+ * （base_url / api_key / model）+ 组内凭据池（`[[model_group.credentials]]`）。
+ * 保存后**自动拉取**组内模型清单（前端 5 分钟 TTL memo，命中缓存零网络），
+ * 点选模型即写为组默认模型并即时落盘；手动「刷新模型列表」走 force refresh。
  *
  * 共享同一份 rawToml buffer（props 传入），与设置页统一的 onCommit
  * 通道一致 —— 每个保存/点选都是完整意图，立即落盘。
  */
 import { useState } from 'react';
 import { RefreshCw, Plus } from 'lucide-react';
-import { Badge, Button, Icon, Input, Select } from '@/features/design-system';
+import { Button, Icon, Input, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_test_provider_chat, type ProviderModelInfo } from '@/utils/commands';
 import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
 import {
   GROUP_ENDPOINTS,
-  groupDisplayLabel,
   isValidGroupId,
   listGroups,
   removeGroup,
   upsertGroup,
+  type GroupCredentialEntry,
   type GroupEndpoint,
   type GroupEntry,
 } from '../config/groups';
 import { ModelOptionsList } from '../components/ModelOptionsList';
+import { GroupCredentialsEditor } from './GroupCredentialsEditor';
+import { GroupList } from './GroupList';
 import s from '@/render/settings/SettingsView.module.css';
 
 export interface GroupFormProps {
@@ -38,12 +40,19 @@ export interface GroupFormProps {
 interface FormState {
   id: string;
   label: string;
-  endpoint: GroupEndpoint;
+  /** 线格式（openai / anthropic / ollama）—— 存量配置里的未知端点原样保留。 */
+  endpoint: string;
   apiKey: string;
   baseUrl: string;
   model: string;
   responsesApi: boolean;
   timeoutSecs: string;
+  temperature: string;
+  maxTokens: string;
+  keepAliveSecs: string;
+  numCtx: string;
+  numGpu: string;
+  credentials: GroupCredentialEntry[];
   /** 正在编辑的原始 id（区分「编辑既有组」与「新增」）。 */
   editingId: string | null;
 }
@@ -57,8 +66,22 @@ const EMPTY_FORM: FormState = {
   model: '',
   responsesApi: false,
   timeoutSecs: '',
+  temperature: '',
+  maxTokens: '',
+  keepAliveSecs: '',
+  numCtx: '',
+  numGpu: '',
+  credentials: [],
   editingId: null,
 };
+
+/** 表单字符串 → 数值（空串 = 未设置）。 */
+function numOrNull(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
 
 export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
   const { t } = useI18n();
@@ -77,14 +100,14 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
 
   const hasEndpoint = () => form.baseUrl.trim().length > 0;
-  // openai 兼容端点可免 Key（空 key 不发 Authorization 头）；anthropic 协议没有免 Key 形态。
+  // openai 兼容端点可免 Key（空 key 不发 Authorization 头）；anthropic / ollama 需要 key。
   const keylessAllowed = form.endpoint === 'openai';
   const hasCredentials = () => form.apiKey.trim().length > 0 || keylessAllowed;
 
   /** 拉取组端点的模型清单（force = 绕过 TTL 缓存）。显式传端点三元组：
    * 「编辑既有组」的自动拉取发生在 setForm 生效之前,不能读闭包里的
    * 旧 form。 */
-  const fetchFor = async (baseUrl: string, apiKey: string, endpoint: GroupEndpoint, force = false) => {
+  const fetchFor = async (baseUrl: string, apiKey: string, endpoint: string, force = false) => {
     if (!baseUrl.trim() || (apiKey.trim() === '' && endpoint !== 'openai') || fetchingModels) return;
     setFetchingModels(true);
     setModelsError(null);
@@ -101,6 +124,24 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
 
   const onFetchModels = (force = false) => fetchFor(form.baseUrl, form.apiKey, form.endpoint, force);
 
+  /** 表单状态 → 组条目（数值字段空 = 未设置）。 */
+  const toGroup = (id: string, model = form.model): GroupEntry => ({
+    id,
+    label: form.label.trim(),
+    endpoint: form.endpoint,
+    apiKey: form.apiKey.trim(),
+    baseUrl: form.baseUrl.trim(),
+    model: model.trim(),
+    responsesApi: form.responsesApi,
+    timeoutSecs: numOrNull(form.timeoutSecs),
+    temperature: numOrNull(form.temperature),
+    maxTokens: numOrNull(form.maxTokens),
+    keepAliveSecs: numOrNull(form.keepAliveSecs),
+    numCtx: numOrNull(form.numCtx),
+    numGpu: numOrNull(form.numGpu),
+    credentials: form.credentials,
+  });
+
   /** 保存组 → 即时落盘 → 自动拉取模型清单。 */
   const onSaveGroup = () => {
     const id = form.id.trim();
@@ -114,6 +155,11 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
       setIdError(t('settings.groups.duplicateId', { id }));
       return;
     }
+    // 组内凭据的 label 必填(引擎侧 CredentialConfig.label 必填)。
+    if (form.credentials.some((c) => !c.label.trim())) {
+      setIdError(t('settings.groups.credentialLabelRequired'));
+      return;
+    }
     setIdError(null);
     let next = rawToml;
     // 编辑中改名:upsert 按「新 id」定位,找不到旧块会追加新条目导致
@@ -121,16 +167,7 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
     if (form.editingId && form.editingId !== id) {
       next = removeGroup(next, form.editingId);
     }
-    next = upsertGroup(next, {
-      id,
-      label: form.label.trim(),
-      endpoint: form.endpoint,
-      apiKey: form.apiKey.trim(),
-      baseUrl: form.baseUrl.trim(),
-      model: form.model.trim(),
-      responsesApi: form.responsesApi,
-      timeoutSecs: form.timeoutSecs.trim(),
-    });
+    next = upsertGroup(next, toGroup(id));
     onChange(next);
     onCommit?.(next);
     patch({ editingId: id, id });
@@ -141,21 +178,9 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
   /** 点选模型 → 写为组默认模型并即时落盘。组尚未保存时只填表单字段
    * （避免把半截表单提前 upsert 成一条残缺的组条目）。 */
   const onPickModel = (modelId: string) => {
-    if (!form.editingId) {
-      patch({ model: modelId });
-      return;
-    }
     patch({ model: modelId });
-    const next = upsertGroup(rawToml, {
-      id: form.id.trim(),
-      label: form.label.trim(),
-      endpoint: form.endpoint,
-      apiKey: form.apiKey.trim(),
-      baseUrl: form.baseUrl.trim(),
-      model: modelId,
-      responsesApi: form.responsesApi,
-      timeoutSecs: form.timeoutSecs.trim(),
-    });
+    if (!form.editingId) return;
+    const next = upsertGroup(rawToml, toGroup(form.id.trim(), modelId));
     onChange(next);
     onCommit?.(next);
   };
@@ -169,7 +194,13 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
       baseUrl: group.baseUrl,
       model: group.model,
       responsesApi: group.responsesApi,
-      timeoutSecs: group.timeoutSecs,
+      timeoutSecs: group.timeoutSecs == null ? '' : String(group.timeoutSecs),
+      temperature: group.temperature == null ? '' : String(group.temperature),
+      maxTokens: group.maxTokens == null ? '' : String(group.maxTokens),
+      keepAliveSecs: group.keepAliveSecs == null ? '' : String(group.keepAliveSecs),
+      numCtx: group.numCtx == null ? '' : String(group.numCtx),
+      numGpu: group.numGpu == null ? '' : String(group.numGpu),
+      credentials: group.credentials.map((c) => ({ ...c })),
       editingId: group.id,
     });
     setIdError(null);
@@ -209,40 +240,17 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
   };
 
   const groups = listGroups(rawToml);
+  // 端点下拉：标准三选一 + 存量配置里的未知端点（避免保存时被静默改写）。
+  const endpointOptions = GROUP_ENDPOINTS.includes(form.endpoint as GroupEndpoint)
+    ? GROUP_ENDPOINTS
+    : [form.endpoint, ...GROUP_ENDPOINTS];
 
   return (
     <section data-testid="groups-editor">
       {/* 组列表 */}
       <h4 className={s.sectionTitle}>{t('settings.groups.list')}</h4>
       {groups.length === 0 && <p className={s.sectionDesc}>{t('settings.groups.empty')}</p>}
-      <div className={s.providerFields}>
-        {groups.map((group) => (
-          <div key={group.id} className={s.providerCard}>
-            <div className={s.providerHeader}>
-              <span className={s.providerName}>{groupDisplayLabel(group)}</span>
-              <Badge variant="info">{group.endpoint}</Badge>
-              {group.responsesApi && <Badge variant="neutral">responses</Badge>}
-            </div>
-            <div className={s.planMeta}>
-              {group.apiKey ? (
-                <code>{maskKey(group.apiKey)}</code>
-              ) : (
-                <Badge variant="neutral">{t('settings.plans.keylessBadge')}</Badge>
-              )}
-              {group.model && <span>{group.model}</span>}
-              {group.baseUrl && <span className={s.planUrl}>{group.baseUrl}</span>}
-            </div>
-            <div className={s.planActions}>
-              <Button variant="ghost" size="sm" onClick={() => onEdit(group)} data-testid={`group-edit-${group.id}`}>
-                <Icon icon={RefreshCw} size={12} /> {t('settings.plans.edit')}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => onDelete(group)} data-testid={`group-delete-${group.id}`}>
-                {t('settings.plans.delete')}
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <GroupList groups={groups} onEdit={onEdit} onDelete={onDelete} />
 
       {/* 新增 / 编辑表单 */}
       <h4 className={s.sectionTitle}>
@@ -255,6 +263,7 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
             value={form.id}
             onChange={(e) => patch({ id: e.target.value.replace(/\s/g, '') })}
             placeholder="bigmodel"
+            aria-label={t('settings.groups.id')}
             aria-invalid={idError ? true : undefined}
           />
         </div>
@@ -269,20 +278,21 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
             value={form.label}
             onChange={(e) => patch({ label: e.target.value })}
             placeholder={t('settings.groups.labelPlaceholder')}
+            aria-label={t('settings.groups.label')}
           />
         </div>
         <div className={s.fieldRow}>
-          <label className={s.fieldLabel}>{t('settings.plans.provider')}</label>
+          <label className={s.fieldLabel}>{t('settings.groups.endpoint')}</label>
           <Select
             value={form.endpoint}
-            aria-label={t('settings.plans.provider')}
+            aria-label={t('settings.groups.endpoint')}
             onChange={(e) => {
-              patch({ endpoint: e.target.value as GroupEndpoint });
+              patch({ endpoint: e.target.value });
               setFormModels(null);
               setModelsError(null);
             }}
           >
-            {GROUP_ENDPOINTS.map((p) => (
+            {endpointOptions.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>
@@ -290,35 +300,38 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
           </Select>
         </div>
         <div className={s.fieldRow}>
-          <label className={s.fieldLabel}>{t('settings.plans.apiKey')}</label>
+          <label className={s.fieldLabel}>{t('settings.groups.apiKey')}</label>
           <Input
             type={showKey ? 'text' : 'password'}
             value={form.apiKey}
             onChange={(e) => patch({ apiKey: e.target.value })}
             placeholder="sk-…"
+            aria-label={t('settings.groups.apiKey')}
           />
           <Button variant="ghost" size="sm" onClick={() => setShowKey((v) => !v)}>
             {showKey ? t('settings.config.hide') : t('settings.config.show')}
           </Button>
           {keylessAllowed && (
-            <span className={s.fieldHint}>{t('settings.plans.apiKeyKeylessHint')}</span>
+            <span className={s.fieldHint}>{t('settings.groups.apiKeyKeylessHint')}</span>
           )}
         </div>
         <div className={s.fieldRow}>
-          <label className={s.fieldLabel}>{t('settings.plans.baseUrl')}</label>
+          <label className={s.fieldLabel}>{t('settings.groups.baseUrl')}</label>
           <Input
             value={form.baseUrl}
             onChange={(e) => patch({ baseUrl: e.target.value })}
             placeholder="https://open.bigmodel.cn/api/paas/v4"
+            aria-label={t('settings.groups.baseUrl')}
           />
         </div>
         <div className={s.fieldRow}>
-          <label className={s.fieldLabel}>{t('settings.plans.model')}</label>
+          <label className={s.fieldLabel}>{t('settings.groups.model')}</label>
           <span className={s.modelFetchRow}>
             <Input
               value={form.model}
               onChange={(e) => patch({ model: e.target.value })}
               placeholder="GLM-5.3-Flash / claude-sonnet-4 …"
+              aria-label={t('settings.groups.model')}
             />
             <Button
               variant="ghost"
@@ -329,12 +342,12 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
               onClick={() => void onFetchModels(true)}
             >
               <Icon icon={RefreshCw} size={12} />{' '}
-              {fetchingModels ? t('settings.plans.fetchingModels') : t('settings.plans.fetchModels')}
+              {fetchingModels ? t('settings.groups.fetchingModels') : t('settings.groups.fetchModels')}
             </Button>
           </span>
           {formModels && !modelsError && (
             <span className={s.fetchHint}>
-              {t('settings.plans.modelsFetched', { count: String(formModels.length) })}
+              {t('settings.groups.modelsFetched', { count: String(formModels.length) })}
             </span>
           )}
           {modelsError && <span className={s.fetchHint} data-failed>{modelsError}</span>}
@@ -367,31 +380,79 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
               inputMode="numeric"
               aria-label={t('settings.groups.timeoutSecs')}
             />
+            <Input
+              value={form.temperature}
+              onChange={(e) => patch({ temperature: e.target.value.replace(/[^0-9.]/g, '') })}
+              placeholder="0.7"
+              inputMode="decimal"
+              aria-label={t('settings.groups.temperature')}
+            />
+            <Input
+              value={form.maxTokens}
+              onChange={(e) => patch({ maxTokens: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="8192"
+              inputMode="numeric"
+              aria-label={t('settings.groups.maxTokens')}
+            />
           </span>
         </div>
+        {/* Ollama 专属三项 */}
+        {form.endpoint === 'ollama' && (
+          <div className={s.fieldRow}>
+            <label className={s.fieldLabel}>{t('settings.groups.ollamaOptions')}</label>
+            <span className={s.modelFetchRow}>
+              <Input
+                value={form.keepAliveSecs}
+                onChange={(e) => patch({ keepAliveSecs: e.target.value.replace(/[^0-9-]/g, '') })}
+                placeholder="300"
+                inputMode="numeric"
+                aria-label={t('settings.groups.keepAliveSecs')}
+              />
+              <Input
+                value={form.numCtx}
+                onChange={(e) => patch({ numCtx: e.target.value.replace(/[^0-9]/g, '') })}
+                placeholder="32768"
+                inputMode="numeric"
+                aria-label={t('settings.groups.numCtx')}
+              />
+              <Input
+                value={form.numGpu}
+                onChange={(e) => patch({ numGpu: e.target.value.replace(/[^0-9]/g, '') })}
+                placeholder="99"
+                inputMode="numeric"
+                aria-label={t('settings.groups.numGpu')}
+              />
+            </span>
+          </div>
+        )}
+        {/* 组内凭据池（原「编码套餐」层下沉到这里） */}
+        <GroupCredentialsEditor
+          credentials={form.credentials}
+          onChange={(credentials) => patch({ credentials })}
+        />
         <div className={s.fieldRow}>
-          <label className={s.fieldLabel}>{t('settings.plans.testChat')}</label>
+          <label className={s.fieldLabel}>{t('settings.groups.testChat')}</label>
           <span className={s.modelFetchRow}>
             <Button
               variant="ghost"
               size="sm"
               disabled={testingChat || !hasCredentials() || !hasEndpoint() || !form.model.trim()}
               data-testid="groups-test-chat"
-              title={t('settings.plans.testChatHint')}
+              title={t('settings.groups.testChatHint')}
               onClick={() => void onTestChat()}
             >
-              {testingChat ? t('settings.plans.testing') : t('settings.plans.testChat')}
+              {testingChat ? t('settings.groups.testing') : t('settings.groups.testChat')}
             </Button>
           </span>
         </div>
         {chatReply != null && (
           <p className={s.fetchHint} data-testid="groups-chat-reply">
-            {t('settings.plans.testChatReply', { reply: chatReply || '…' })}
+            {t('settings.groups.testChatReply', { reply: chatReply || '…' })}
           </p>
         )}
         {chatError && (
           <p className={s.fetchHint} data-failed>
-            {t('settings.plans.testChatFailed', { error: chatError })}
+            {t('settings.groups.testChatFailed', { error: chatError })}
           </p>
         )}
         <div className={s.planActions}>
@@ -407,11 +468,4 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
       </div>
     </section>
   );
-}
-
-/** 密钥展示遮罩：保留末 4 位（与 plans.ts 的 maskKey 同口径 —— 此处
- * 直接内联,避免纯函数层引入展示细节）。 */
-function maskKey(key: string): string {
-  if (key.length <= 4) return '••••';
-  return `••••${key.slice(-4)}`;
 }

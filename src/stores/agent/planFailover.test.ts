@@ -1,3 +1,9 @@
+/**
+ * Vitest —— 跨模型组自动 failover。
+ *
+ * 新契约：候选目标来自 `[[model_group]]`（组 id 即接入目标），切换写
+ * `[active].group`。
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTO_FAILOVER_PREF_KEY,
@@ -14,7 +20,7 @@ function makeDeps(overrides: Partial<PlanFailoverDeps> = {}) {
     switched: [],
   };
   const deps: PlanFailoverDeps = {
-    getConfig: vi.fn(async () => CONFIG_TWO_PROVIDERS),
+    getConfig: vi.fn(async () => CONFIG_TWO_GROUPS),
     saveConfig: vi.fn(async (toml: string) => {
       calls.saved.push(toml);
     }),
@@ -23,63 +29,71 @@ function makeDeps(overrides: Partial<PlanFailoverDeps> = {}) {
     }),
     isEnabled: () => true,
     onSwitched: (from, to) => calls.switched.push([from, to]),
-    currentProvider: () => 'anthropic',
+    currentGroup: () => 'demo',
     ...overrides,
   };
   return { deps, calls };
 }
 
-const CONFIG_TWO_PROVIDERS = `
+const CONFIG_TWO_GROUPS = `
 [active]
-provider = "anthropic"
+group = "demo"
 
-[anthropic]
+[[model_group]]
+id = "demo"
+label = "示例网关"
+endpoint = "anthropic"
 api_key = "sk-a"
+model = "demo/model-a"
 
-[[anthropic.credentials]]
+[[model_group.credentials]]
 label = "glm"
 api_key = "sk-glm"
-quota = { window_secs = 3600, max_tokens = 1000, check_via = "zhipu" }
+quota = { window_secs = 3600, max_tokens = 1000 }
 
-[openai]
-api_key = "sk-oai"
+[[model_group]]
+id = "backup"
+label = "备用网关"
+endpoint = "openai"
+api_key = "sk-b"
+model = "backup/model-b"
 `;
 
 describe('extractExhaustionSignal', () => {
   it('quota_exhausted 事件直接判定为耗尽', () => {
     const signal = extractExhaustionSignal(
-      { type: 'quota_exhausted', provider: 'anthropic', label: 'glm', message: 'window exhausted' },
-      'anthropic',
+      { type: 'quota_exhausted', provider: 'demo', label: 'glm', message: 'window exhausted' },
+      'demo',
     );
     expect(signal).toEqual({
-      provider: 'anthropic',
+      group: 'demo',
       label: 'glm',
       reason: 'window exhausted',
     });
   });
 
-  it('error 事件命中耗尽特征文本才判定(provider 取自 details)', () => {
+  it('error 事件命中耗尽特征文本才判定(组 id 取自 details)', () => {
     const signal = extractExhaustionSignal(
       {
         type: 'error',
         code: 'RATE_LIMITED',
         message: 'ALL_CREDENTIALS_EXHAUSTED',
-        details: '{"provider":"anthropic","tried":[]}',
+        details: '{"provider":"demo","tried":[]}',
       },
-      'anthropic',
+      'demo',
     );
     expect(signal).not.toBeNull();
-    expect(signal!.provider).toBe('anthropic');
+    expect(signal!.group).toBe('demo');
   });
 
   it('普通 error(网络/认证)不判定为耗尽', () => {
     expect(
-      extractExhaustionSignal({ type: 'error', code: 'AUTH_FAILED', message: 'invalid api key' }, 'anthropic'),
+      extractExhaustionSignal({ type: 'error', code: 'AUTH_FAILED', message: 'invalid api key' }, 'demo'),
     ).toBeNull();
     expect(
-      extractExhaustionSignal({ type: 'error', code: 'NETWORK', message: 'connection reset' }, 'anthropic'),
+      extractExhaustionSignal({ type: 'error', code: 'NETWORK', message: 'connection reset' }, 'demo'),
     ).toBeNull();
-    expect(extractExhaustionSignal({ type: 'stream_error' }, 'anthropic')).toBeNull();
+    expect(extractExhaustionSignal({ type: 'stream_error' }, 'demo')).toBeNull();
   });
 });
 
@@ -89,25 +103,38 @@ describe('createPlanFailoverController', () => {
     vi.restoreAllMocks();
   });
 
-  it('耗尽时切换到备用 provider 并落盘 + toast + 记录', async () => {
+  it('耗尽时切换到备用模型组并落盘 + toast + 记录', async () => {
     const { deps, calls } = makeDeps();
     const controller = createPlanFailoverController(deps);
-    await controller.handle({ provider: 'anthropic', reason: 'quota' });
+    await controller.handle({ group: 'demo', reason: 'quota' });
     expect(calls.saved).toHaveLength(1);
-    expect(calls.saved[0]).toContain('provider = "openai"');
-    expect(calls.switched).toEqual([['anthropic', 'openai']]);
+    // 组 id 才是切换目标 —— 写 [active].group。
+    expect(calls.saved[0]).toContain('group = "backup"');
+    expect(calls.switched).toEqual([['demo', 'backup']]);
     expect(calls.toasts[0].kind).toBe('success');
   });
 
-  it('无备用计划时只弹提示,不改配置', async () => {
+  it('无备用模型组时只弹提示,不改配置', async () => {
     const { deps, calls } = makeDeps({
-      getConfig: vi.fn(async () => '[anthropic]\napi_key = "sk-a"\n'),
+      getConfig: vi.fn(async () => '[[model_group]]\nid = "demo"\napi_key = "sk-a"\n'),
     });
     const controller = createPlanFailoverController(deps);
-    await controller.handle({ provider: 'anthropic', reason: 'quota' });
+    await controller.handle({ group: 'demo', reason: 'quota' });
     expect(calls.saved).toHaveLength(0);
     expect(calls.toasts[0].kind).toBe('error');
     expect(calls.switched).toEqual([]);
+  });
+
+  it('无凭据的组不会被选作备用目标', async () => {
+    const { deps, calls } = makeDeps({
+      getConfig: vi.fn(async () =>
+        '[active]\ngroup = "demo"\n\n[[model_group]]\nid = "demo"\napi_key = "sk-a"\n\n[[model_group]]\nid = "empty"\nlabel = "空组"\n',
+      ),
+    });
+    const controller = createPlanFailoverController(deps);
+    await controller.handle({ group: 'demo', reason: 'quota' });
+    expect(calls.saved).toHaveLength(0);
+    expect(calls.toasts[0].kind).toBe('error');
   });
 
   it('防抖窗口内不重复切换', async () => {
@@ -115,14 +142,14 @@ describe('createPlanFailoverController', () => {
     try {
       const { deps, calls } = makeDeps();
       const controller = createPlanFailoverController(deps);
-      await controller.handle({ provider: 'anthropic', reason: 'quota' });
+      await controller.handle({ group: 'demo', reason: 'quota' });
       expect(calls.saved).toHaveLength(1);
       // 同一防抖窗口内再次耗尽 → 不切换。
-      await controller.handle({ provider: 'openai', reason: 'quota' });
+      await controller.handle({ group: 'backup', reason: 'quota' });
       expect(calls.saved).toHaveLength(1);
       // 超过防抖窗口后可再次切换。
       vi.setSystemTime(Date.now() + FAILOVER_DEBOUNCE_MS + 1);
-      await controller.handle({ provider: 'anthropic', reason: 'quota' });
+      await controller.handle({ group: 'demo', reason: 'quota' });
       expect(calls.saved).toHaveLength(2);
     } finally {
       vi.useRealTimers();
@@ -132,7 +159,7 @@ describe('createPlanFailoverController', () => {
   it('开关关闭时不做任何事', async () => {
     const { deps, calls } = makeDeps({ isEnabled: () => false });
     const controller = createPlanFailoverController(deps);
-    await controller.handle({ provider: 'anthropic', reason: 'quota' });
+    await controller.handle({ group: 'demo', reason: 'quota' });
     expect(calls.saved).toHaveLength(0);
     expect(calls.toasts).toHaveLength(0);
   });
@@ -140,9 +167,9 @@ describe('createPlanFailoverController', () => {
   it('reset 清空防抖状态', async () => {
     const { deps, calls } = makeDeps();
     const controller = createPlanFailoverController(deps);
-    await controller.handle({ provider: 'anthropic', reason: 'quota' });
+    await controller.handle({ group: 'demo', reason: 'quota' });
     controller.reset();
-    await controller.handle({ provider: 'anthropic', reason: 'quota' });
+    await controller.handle({ group: 'demo', reason: 'quota' });
     expect(calls.saved).toHaveLength(2);
   });
 
@@ -153,7 +180,7 @@ describe('createPlanFailoverController', () => {
       }),
     });
     const controller = createPlanFailoverController(deps);
-    await controller.handle({ provider: 'anthropic', reason: 'quota' });
+    await controller.handle({ group: 'demo', reason: 'quota' });
     expect(calls.toasts[0].kind).toBe('error');
     expect(calls.switched).toEqual([]);
   });

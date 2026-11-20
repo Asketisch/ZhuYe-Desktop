@@ -53,7 +53,7 @@ const slash: Record<string, StringEntry> = {
   'slash.goal.desc':           { en: 'Enter goal mode (/goal clear to exit)', 'zh-CN': '进入目标模式（/goal clear 退出）' },
   'slash.effort.desc':         { en: 'Set reasoning effort',                 'zh-CN': '设置 reasoning effort' },
   'slash.mode.desc':           { en: 'Cycle permission mode',                'zh-CN': '切换权限模式' },
-  'slash.provider.desc':       { en: 'Switch provider',                      'zh-CN': '切换 provider' },
+  'slash.provider.desc':       { en: 'Switch model group',                   'zh-CN': '切换模型组' },
   'slash.resume.desc':         { en: 'Resume the last session',              'zh-CN': '恢复上一会话' },
   'slash.share.desc':          { en: 'Share a session link',                 'zh-CN': '分享会话链接' },
   'slash.session.desc':        { en: 'Session subcommands',                  'zh-CN': '会话管理子命令' },

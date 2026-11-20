@@ -38,13 +38,14 @@ describe('home view', () => {
 });
 
 describe('models view', () => {
-  it('plan card set-default action wires zhuye_set_model with the plan identity', async () => {
-    // plans 从 configToml 解析(顶层 provider 段有 api_key/base_url 即成
-    // plan);默认 fixture 是最小 TOML,这里注入一条 anthropic plan。
-    // credential 钉在别的 label 上 —— 否则该 plan 被判为当前默认,按钮
-    // 是 disabled 的「Default」而不是可点的「Set as default」。
+  it('model group card set-default action wires zhuye_set_model with the group identity', async () => {
+    // 模型组从 configToml 解析（[[model_group]] 条目）；默认 fixture 是
+    // 最小 TOML，这里注入一个组。active 指向别的组 —— 否则该组被判为
+    // 当前默认，按钮是 disabled 的「Default」而不是可点的「Set as default」。
+    // 组 id 即接入目标 —— 「设为默认」写 [active].group = 组 id，model 写
+    // 组级默认模型。
     backend.state.configToml =
-      '[active]\nprovider = "anthropic"\nmodel = "claude-sonnet-4"\ncredential = "pinned-elsewhere"\n\n[anthropic]\napi_key = "sk-test-contract"\nmodel = "claude-sonnet-4"\n';
+      '[active]\ngroup = "other"\n\n[[model_group]]\nid = "demo"\nlabel = "示例网关"\nendpoint = "anthropic"\napi_key = "sk-test-contract"\nmodel = "claude-sonnet-4"\n';
     const app = renderApp();
     await app.navigate('/models');
     const setBtn = await screen.findByRole('button', { name: /set as default/i }, { timeout: 8000 });
@@ -52,8 +53,8 @@ describe('models view', () => {
     await waitFor(() => expect(backend.callsOf('zhuye_set_model').length).toBeGreaterThanOrEqual(1));
     const args = backend.lastArgsOf('zhuye_set_model') as Record<string, unknown> | undefined;
     expect(args).toBeTruthy();
-    // 线格式:provider / model / label 三参来自被点 plan 卡。
-    expect(String(args!['provider'])).toBe('anthropic');
+    // 线格式：group / model 两参来自被点模型组卡片。
+    expect(String(args!['group'])).toBe('demo');
     expect(String(args!['model'])).toBe('claude-sonnet-4');
   });
 

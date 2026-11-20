@@ -338,7 +338,7 @@ pub async fn zhuye_get_active_agent(
 
 /// 设置当前活跃 agent 并**立即重绑**当前会话(新定义立刻生效)。
 ///
-/// 重绑语义与 provider 热重载一致:replay 当前会话历史 → 强制重建线程 →
+/// 重绑语义与模型接入栈热重载一致:replay 当前会话历史 → 强制重建线程 →
 /// 保留会话级权限模式。重绑失败时尝试恢复旧 agent，恢复失败会一并报告。
 #[tauri::command]
 pub async fn zhuye_set_active_agent(

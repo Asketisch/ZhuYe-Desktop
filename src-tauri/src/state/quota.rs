@@ -1,11 +1,12 @@
 //! QuotaTracker 构建器 —— 把 config 中声明的 coding plan 配额接线到运行时。
 //!
 //! "Coding plan"(编码计划订阅,如 GLM Coding Plan / Kimi / MiniMax)在
-//! config 里表现为 `[[<provider>.credentials]]` 条目上的可选 `[quota]`
-//! 子表。本模块遍历三个 provider 段,收集所有声明了 quota 的凭证,注册到
-//! 共享 `QuotaTracker`;tracker 随 `AgentConfig::with_quota_tracker` 进入
-//! model_call 节点 —— 调用成功后记录用量,窗口耗尽 → `QuotaExhausted`
-//! 事件 + credential 冷却,graph 层自动 failover 到池中下一个凭证。
+//! config 里表现为**模型组内凭据条目**上的可选 `[quota]` 子表
+//! (`[[<组id>.credentials]]` → `[quota]`)。本模块遍历所有模型组,收集
+//! 所有声明了 quota 的凭据,注册到共享 `QuotaTracker`;tracker 随
+//! `AgentConfig::with_quota_tracker` 进入 model_call 节点 —— 调用成功后
+//! 记录用量,窗口耗尽 → `QuotaExhausted` 事件 + credential 冷却,graph
+//! 层自动 failover 到池中下一个凭据。
 //!
 //! 逻辑与 `zhuye-agent/crates/runtime/zhuye-exec/src/runtime_config.rs`
 //! 的 `build_quota_tracker` 保持一致(该文件为 headless 参考实现;桌面端
@@ -46,14 +47,17 @@ pub(crate) fn make_provider(
     }
 }
 
-/// 遍历 config 所有 provider 的 credentials,收集声明了 `quota` 的条目并
-/// 注册到 `QuotaTracker`。任一 provider 有 quota 声明 → `Some(tracker)`;
+/// 遍历 config 所有模型组的 credentials,收集声明了 `quota` 的条目并
+/// 注册到 `QuotaTracker`。任一模型组有 quota 声明 → `Some(tracker)`;
 /// 全无 → `None`(向后兼容:不配 quota 时零开销)。
+///
+/// 组 id 即 registry 池名 —— 配额按「组 id → 组内凭据 → quota 配置」
+/// 收集,池名与模型组一一对应。
 pub(crate) fn build_quota_tracker(cfg: &zhuye_config::ReflectConfig) -> Option<SharedQuotaTracker> {
     let tracker = std::sync::Arc::new(zhuye_llm::QuotaTracker::new());
     let mut any = false;
 
-    let mut register_provider = |provider: &str, creds: &[zhuye_config::CredentialConfig]| {
+    let mut register_group = |group: &str, creds: &[zhuye_config::CredentialConfig]| {
         for c in creds {
             let Some(q) = &c.quota else { continue };
             let rt_source = q.check_via.as_ref().map(|s| match s {
@@ -70,20 +74,20 @@ pub(crate) fn build_quota_tracker(cfg: &zhuye_config::ReflectConfig) -> Option<S
                 max_tokens: q.max_tokens,
                 check_via: rt_source,
             };
-            tracker.register(provider, &c.label, rt);
-            // 注册凭证的 base_url + api_key(厂商用量 API 查询需要)。
+            tracker.register(group, &c.label, rt);
+            // 注册凭据的 base_url + api_key(厂商用量 API 查询需要)。
             let base_url = c
                 .base_url
                 .clone()
-                .unwrap_or_else(|| format!("https://{provider}"));
-            tracker.register_credential(provider, &c.label, &base_url, &c.api_key);
+                .unwrap_or_else(|| format!("https://{group}"));
+            tracker.register_credential(group, &c.label, &base_url, &c.api_key);
             if let Some(src) = &q.check_via {
                 if let Some(p) = make_provider(src) {
-                    tracker.register_provider(provider, &c.label, p);
+                    tracker.register_provider(group, &c.label, p);
                 }
             }
             info!(
-                provider,
+                group,
                 label = %c.label,
                 window_secs = q.window_secs,
                 max_tokens = q.max_tokens,
@@ -94,14 +98,12 @@ pub(crate) fn build_quota_tracker(cfg: &zhuye_config::ReflectConfig) -> Option<S
         }
     };
 
-    if let Some(s) = &cfg.anthropic {
-        register_provider("anthropic", &s.credentials);
-    }
-    if let Some(s) = &cfg.openai {
-        register_provider("openai", &s.credentials);
-    }
-    if let Some(s) = &cfg.ollama {
-        register_provider("ollama", &s.credentials);
+    for group in &cfg.model_group {
+        let id = group.id.trim();
+        if id.is_empty() {
+            continue;
+        }
+        register_group(id, &group.credentials);
     }
     if any { Some(tracker) } else { None }
 }
@@ -124,28 +126,31 @@ mod tests {
         assert!(build_quota_tracker(&cfg).is_none());
     }
 
-    /// 带 quota 的 credential → Some(tracker),且 (provider,label) 可追踪;
+    /// 带 quota 的 credential → Some(tracker),且 (组 id,label) 可追踪;
     /// check_via 指向已实现厂商时,provider 实例也应注册。
     #[test]
     fn quota_section_registers_credential() {
         let toml = r#"
-[active]
-provider = "anthropic"
-
-[anthropic]
+[[model_group]]
+id = "anthropic"
+endpoint = "anthropic"
 api_key = "sk-top"
 
-[[anthropic.credentials]]
+[[model_group.credentials]]
 label = "glm-plan"
 api_key = "sk-glm"
 base_url = "https://open.bigmodel.cn/api/anthropic"
 
-[anthropic.credentials.quota]
+[model_group.credentials.quota]
 window_secs = 3600
 max_tokens = 120000
 check_via = "zhipu"
 
-[[openai.credentials]]
+[[model_group]]
+id = "openai"
+endpoint = "openai"
+
+[[model_group.credentials]]
 label = "no-quota"
 api_key = "sk-oai"
 "#;
@@ -154,7 +159,34 @@ api_key = "sk-oai"
         assert!(tracker.is_tracked("anthropic", "glm-plan"));
         assert!(
             !tracker.is_tracked("openai", "no-quota"),
-            "未声明 quota 的凭证不注册"
+            "未声明 quota 的凭据不注册"
+        );
+    }
+
+    /// 配额按**模型组 id** 注册(组 id 即 registry 池名)—— 同一个组里的
+    /// 凭据不能串到别的组上。
+    #[test]
+    fn quota_is_registered_under_model_group_id() {
+        let toml = r#"
+[[model_group]]
+id = "my-glm"
+endpoint = "openai"
+
+[[model_group.credentials]]
+label = "plan-a"
+api_key = "sk-a"
+
+[model_group.credentials.quota]
+window_secs = 3600
+max_tokens = 1000
+check_via = "zhipu"
+"#;
+        let cfg = zhuye_config::load_from_str(toml).expect("config parses");
+        let tracker = build_quota_tracker(&cfg).expect("quota declared → tracker");
+        assert!(tracker.is_tracked("my-glm", "plan-a"));
+        assert!(
+            !tracker.is_tracked("anthropic", "plan-a"),
+            "配额只属于声明它的模型组"
         );
     }
 }

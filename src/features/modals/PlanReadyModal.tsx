@@ -14,6 +14,7 @@
  */
 import { useAgentStore, type PendingPlan } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
+import { Markdown } from '@/components/Markdown';
 import { ModalShell } from './ModalShell';
 import s from '@/render/modals/index.module.css';
 
@@ -41,7 +42,10 @@ export function PlanReadyModal({ plan }: { plan: PendingPlan }) {
         autoFocus: true,
       }}
     >
-      <pre className={s.planBlock}>{planText}</pre>
+      {/* 计划正文是 markdown —— 渲染成结构化文档，不再倾泻原文。 */}
+      <div className={s.planBlock}>
+        <Markdown text={planText} />
+      </div>
       <p className={s.hint}>
         {t('modal.planReady.hint')}
       </p>

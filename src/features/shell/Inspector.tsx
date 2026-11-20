@@ -23,6 +23,7 @@ import { zhuye_list_dir, type ZhuyeDirEntry } from '@/utils/commands/files';
 import { zhuye_git_diff } from '@/utils/commands/git';
 import { FileTree } from '@/features/files/FileTree';
 import { DiffViewer } from '@/features/git/DiffViewer';
+import { Markdown } from '@/components/Markdown';
 import { useContextRatio } from './useContextRatio';
 import { CredentialPoolSection, SubagentCallsSection } from './RuntimeStatusSections';
 import { TodoPanel } from './TodoPanel';
@@ -581,7 +582,10 @@ function PlanTab() {
             {plan.status === 'rejected' && <span>{t('zcode.inspector.plan.rejected')}</span>}
             {plan.path && <code title={plan.path}>{plan.path}</code>}
           </p>
-          <pre className={s.planDoc}>{plan.markdown}</pre>
+          {/* plan 正文是 markdown —— 渲染成结构化文档，而不是倾泻原文。 */}
+          <div className={s.planDoc} data-testid="inspector-plan-body">
+            <Markdown text={plan.markdown} />
+          </div>
         </>
       )}
       {!plan && planDraft && (
@@ -590,7 +594,9 @@ function PlanTab() {
             <span>{t('zcode.inspector.plan.draft')}</span>
             {planDraft.path && <code title={planDraft.path}>{planDraft.path}</code>}
           </p>
-          <pre className={s.planDoc}>{planDraft.markdown}</pre>
+          <div className={s.planDoc} data-testid="inspector-plan-draft-body">
+            <Markdown text={planDraft.markdown} />
+          </div>
         </>
       )}
       {todos.length === 0 && !plan && !planDraft && (

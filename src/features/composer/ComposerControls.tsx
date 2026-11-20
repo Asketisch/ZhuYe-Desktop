@@ -1,17 +1,11 @@
 /**
- * ComposerControls —— Composer 控制条（模型 / 思考深度 / 权限模式）。
+ * ComposerControls —— 输入卡片下方的控制行（思考深度 / 审批策略 / 权限模式）。
  *
  * 渲染在输入卡片**下方**的独立一行（不在卡片内部），对标成熟 agent
  * 桌面端：选择器贴近输入框，不必跳设置页或拼斜杠命令。
  *
- * - 模型：选项来自 coding plans（`zhuye_get_config` 解析，与 ModelsView
- *   同源）；切换走 `zhuye_set_model(provider, model, label)` —— 后端写
- *   `[active].provider` + `[active].credential`（钉住该凭证）+ 条目/段级
- *   model → 热重载 provider 栈，协议不动。同 provider 的两个 plan 也能
- *   真正切换（v1.5 起 `active.credential` 钉住语义）。
- * - 选中态单一事实源是 `[active].credential`（后端钉住），不再靠
- *   "spec 后缀匹配 plan.model" 猜 —— 两个同 provider 空 model 的 plan
- *   以前会被兜底链挤回同一个选项，看起来「切换不生效」。
+ * - 模型选择器已独立成 `ModelPicker`（渲染在卡片内底栏右侧，见
+ *   `features/composer/ModelPicker.tsx`）—— 本行不再重复。
  * - 思考深度：`zhuye_get_effort` 回读 + `zhuye_set_effort` 设置
  *   （乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新）。
  * - 工作模式由 agentStore 回读；审批策略按会话单独保存并在发送时传入。
@@ -20,16 +14,9 @@
  * 不引入 QueryClient 依赖，保证 Composer 在任意测试挂载环境可用。
  */
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { zhuye_agent_status, zhuye_get_config, zhuye_set_model } from '@/utils/commands/config';
-import { zhuye_list_provider_models, type ProviderModelInfo } from '@/utils/commands/models';
 import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/permissions';
-import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
-import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
-import { groupDisplayLabel, listGroups, type GroupEntry } from '@/features/settings/config/groups';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { formatTokens } from '@/utils/formatTokens';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import { ALL_EFFORTS, useEffortCapability } from './useEffortCapability';
 import s from '@/render/composer/ComposerControls.module.css';
@@ -61,43 +48,11 @@ export function ComposerControls() {
   // (轮次 / token / 状态),数据来自 zhuye_goal_snapshot 读口。
   const goalSnapshot = useAgentStore((st) => st.goalSnapshot);
   const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
-  const pushToast = useAgentStore((st) => st.pushToast);
 
-  const [plans, setPlans] = useState<PlanEntry[]>([]);
-  // 自定义模型组([[provider_group]]):与内置 plan 平级的可切换目标。
-  const [groups, setGroups] = useState<GroupEntry[]>([]);
-  const [activeProvider, setActiveProvider] = useState('');
-  const [activeCredential, setActiveCredential] = useState('');
-  const [currentSpec, setCurrentSpec] = useState('');
-  const [switching, setSwitching] = useState(false);
   const [effort, setEffort] = useState<Effort>('low');
-  // 接口拉取的模型列表(挂在目标 key 上)+ 拉取状态。
-  const [apiModels, setApiModels] = useState<ProviderModelInfo[]>([]);
-  const [apiModelsFor, setApiModelsFor] = useState('');
-  const [fetchingModels, setFetchingModels] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
 
-  // 配置 + 当前模型快照。`refresh` 在切换成功后再调 —— 配置已被后端
-  // 改写(条目 model / active.credential / 组 model),本地 plans/groups 必须重读。
   useEffect(() => {
     let cancelled = false;
-    const refresh = async () => {
-      const toml = await zhuye_get_config();
-      if (cancelled) return;
-      setPlans(listPlans(toml));
-      setGroups(listGroups(toml));
-      setActiveProvider(readActiveProvider(toml));
-      setActiveCredential(readActiveCredential(toml));
-    };
-    refresh().catch(() => {/* 配置不可读时隐藏模型选择 */});
-    zhuye_agent_status()
-      .then((status) => {
-        if (cancelled) return;
-        // 后端诚实化:has_model=false(无 provider 或无显式 model)时
-        // status.model 是 "stub/test" 占位 —— 不展示,显示"未配置模型"。
-        setCurrentSpec(status.has_model ? status.model : '');
-      })
-      .catch(() => {/* 状态不可读时显示占位 */});
     zhuye_get_effort()
       .then((level) => {
         if (!cancelled) setEffort(normalizeEffort(level));
@@ -107,155 +62,6 @@ export function ComposerControls() {
       cancelled = true;
     };
   }, []);
-
-  const onSwitchModel = async (value: string) => {
-    if (switching) return;
-    // 'model:<id>' = 从接口拉取的模型:active 是自定义组时写组默认模型,
-    // 否则挂到当前选中 plan 的端口上。
-    if (value.startsWith('model:')) {
-      const modelId = value.slice('model:'.length);
-      if (activeGroup) {
-        setSwitching(true);
-        try {
-          // 组切换不钉凭据(组级 model = 默认模型)。
-          const spec = await zhuye_set_model(activeGroup.id, modelId);
-          setCurrentSpec(spec);
-          setActiveProvider(activeGroup.id);
-          setActiveCredential('');
-          await refreshPlans();
-        } catch (e) {
-          // 静默吞错会让「点了没反应」无法诊断 —— 后端拒绝(如未知
-          // provider / 配置非法)必须可见。
-          pushToast({
-            kind: 'error',
-            message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
-          });
-        } finally {
-          setSwitching(false);
-        }
-        return;
-      }
-      const target = selectedPlan;
-      if (!target) return;
-      setSwitching(true);
-      try {
-        const spec = await zhuye_set_model(target.provider, modelId, target.label);
-        setCurrentSpec(spec);
-        setActiveProvider(target.provider);
-        setActiveCredential(target.label);
-        await refreshPlans();
-      } catch (e) {
-        // 静默吞错会让「点了没反应」无法诊断 —— 后端拒绝(如未知
-        // provider / 配置非法)必须可见。
-        pushToast({
-          kind: 'error',
-          message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
-        });
-      } finally {
-        setSwitching(false);
-      }
-      return;
-    }
-    // 'group:<id>' = 切换到自定义模型组(以组当前默认模型生效)。
-    if (value.startsWith('group:')) {
-      const group = groups.find((g) => g.id === value.slice('group:'.length));
-      if (!group) return;
-      setSwitching(true);
-      try {
-        const spec = await zhuye_set_model(group.id, group.model.trim());
-        setCurrentSpec(spec);
-        setActiveProvider(group.id);
-        setActiveCredential('');
-        await refreshPlans();
-        // 切到组但没有默认模型:请求仍无模型可用 —— 明示而非静默。
-        if (!group.model.trim()) {
-          pushToast({
-            kind: 'warn',
-            message: t('composer.controls.pinnedNoModel', { label: groupDisplayLabel(group) }),
-          });
-        }
-      } catch (e) {
-        pushToast({
-          kind: 'error',
-          message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
-        });
-      } finally {
-        setSwitching(false);
-      }
-      return;
-    }
-    const plan = plans.find((p) => planKey(p) === value);
-    if (!plan) return;
-    setSwitching(true);
-    try {
-      const spec = await zhuye_set_model(plan.provider, plan.model, plan.label);
-      setCurrentSpec(spec);
-      setActiveProvider(plan.provider);
-      setActiveCredential(plan.label);
-      await refreshPlans();
-      // 钉住成功但该 plan 没有 model:请求仍无模型可用 —— 明示而非静默。
-      if (!plan.model.trim()) {
-        pushToast({
-          kind: 'warn',
-          message: t('composer.controls.pinnedNoModel', { label: plan.label }),
-        });
-      }
-    } catch (e) {
-      pushToast({
-        kind: 'error',
-        message: t('composer.controls.switchFailed', { msg: e instanceof Error ? e.message : String(e) }),
-      });
-    } finally {
-      setSwitching(false);
-    }
-  };
-
-  /** 切换成功后重读配置(后端已改写 active.credential / 条目 model / 组 model)。 */
-  const refreshPlans = async () => {
-    const toml = await zhuye_get_config();
-    setPlans(listPlans(toml));
-    setGroups(listGroups(toml));
-    setActiveProvider(readActiveProvider(toml));
-    setActiveCredential(readActiveCredential(toml));
-  };
-
-  /** 对当前选中 plan 的 base_url + api_key 拉取可用模型列表;
-   * active 是自定义组时对组端点强制刷新(绕过 TTL 缓存)。 */
-  const onFetchModels = async () => {
-    if (activeGroup) {
-      if (!activeGroup.baseUrl.trim() || fetchingModels) return;
-      setFetchingModels(true);
-      setModelsError(null);
-      try {
-        const models = await fetchProviderModels(
-          activeGroup.baseUrl,
-          activeGroup.apiKey,
-          activeGroup.endpoint,
-          { refresh: true },
-        );
-        setApiModels(models);
-        setApiModelsFor(`group:${activeGroup.id}`);
-      } catch (e) {
-        setModelsError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setFetchingModels(false);
-      }
-      return;
-    }
-    const plan = selectedPlan;
-    if (!plan || !plan.apiKey.trim() || fetchingModels) return;
-    setFetchingModels(true);
-    setModelsError(null);
-    try {
-      const res = await zhuye_list_provider_models(plan.baseUrl.trim(), plan.apiKey.trim(), plan.provider);
-      setApiModels(res.models);
-      setApiModelsFor(planKey(plan));
-    } catch (e) {
-      setModelsError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setFetchingModels(false);
-    }
-  };
 
   // 可选档位 = 模型支持的档位 ∪ 用户当前选择(偏好保留,即使当前模型不支持)。
   const effortOptions = useMemo(() => {
@@ -271,123 +77,9 @@ export function ComposerControls() {
     });
   };
 
-  const hasPlans = plans.length > 0 || groups.length > 0;
-  // active.provider 是自定义组 id 时,组本身成为选中态(与内置 plan 平级)。
-  const activeGroup = groups.find((g) => g.id === activeProvider) ?? null;
-  // 选中态单一事实源:`[active].credential` 钉住的 plan;未钉住时回落
-  // 顶层隐式 default plan,再回落该 provider 首个 plan。
-  const selectedPlan =
-    (activeCredential
-      ? plans.find((p) => p.provider === activeProvider && p.label === activeCredential)
-      : undefined) ??
-    plans.find((p) => p.provider === activeProvider && p.topLevel) ??
-    plans.find((p) => p.provider === activeProvider);
-  // 选中目标的 key(组 or plan):接口模型列表的归属判定用。
-  const selectedKey = activeGroup
-    ? `group:${activeGroup.id}`
-    : selectedPlan
-      ? planKey(selectedPlan)
-      : '';
-  // 接口模型列表只在归属目标仍被选中时显示(避免展示别的目标的列表)。
-  const showApiModels = apiModels.length > 0 && selectedKey !== '' && apiModelsFor === selectedKey;
-
-  // active 是自定义组 → 挂载/切换后自动拉取组内模型清单(前端 TTL memo,
-  // 命中缓存零网络),填进既有的 optgroup。
-  useEffect(() => {
-    const group = activeGroup;
-    if (!group || !group.baseUrl.trim()) return;
-    let cancelled = false;
-    fetchProviderModels(group.baseUrl, group.apiKey, group.endpoint)
-      .then((models) => {
-        if (cancelled) return;
-        setApiModels(models);
-        setApiModelsFor(`group:${group.id}`);
-      })
-      .catch(() => {
-        // 自动拉取失败保持静默:手动刷新按钮仍可用,错误在那里可见。
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeGroup?.id, activeGroup?.baseUrl, activeGroup?.apiKey, activeGroup?.endpoint]);
-
-  /** 能力标记后缀:接口返回了明确信息才标注,未返回由用户自行判断。 */
-  const visionSuffix = (v: boolean | null) =>
-    v === true ? ` · ${t('common.visionTag')}` : v === false ? ` · ${t('common.noVisionTag')}` : '';
-
-  /** 数值能力标记:窗口 / 输出上限(200K 上下文 · 32K 输出),未披露不标。 */
-  const ctxSuffix = (v: number | null) =>
-    v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.ctxTag')}` : '';
-  const outSuffix = (v: number | null) =>
-    v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.outTag')}` : '';
-
-  /**
-   * 免费标记后缀 —— 只在**已判定为免费**时标注。
-   *
-   * `null`(厂商没表态 + 规则没命中)不加标记:那是「未知」,不是「免费」。
-   */
-  const freeSuffix = (v: boolean | null) => (v === true ? ` · ${t('common.freeTag')}` : '');
-
   return (
     <div className={s.controlsBar}>
       <div className={s.left}>
-        <label className={s.control}>
-          <span className={s.controlLabel}>{t('composer.controls.model')}</span>
-          <span className={s.modelRow}>
-            <select
-              className={s.controlSelect}
-              value={selectedKey}
-              disabled={!hasPlans || switching}
-              onChange={(event) => void onSwitchModel(event.target.value)}
-              aria-label={t('composer.controls.modelAria')}
-              data-testid="composer-model-select"
-              title={currentSpec || t('composer.controls.modelConfigureHint')}
-            >
-              {!hasPlans && <option value="">{currentSpec || t('composer.controls.modelNone')}</option>}
-              {hasPlans && !selectedKey && (
-                <option value="">
-                  {currentSpec
-                    ? t('composer.controls.modelCurrent', { spec: currentSpec })
-                    : t('composer.controls.modelNone')}
-                </option>
-              )}
-              {plans.map((plan) => (
-                <option key={planKey(plan)} value={planKey(plan)}>
-                  {plan.label} · {plan.model || plan.provider}
-                </option>
-              ))}
-              {groups.map((group) => (
-                <option key={`group:${group.id}`} value={`group:${group.id}`}>
-                  {groupDisplayLabel(group)} · {group.model || group.endpoint}
-                </option>
-              ))}
-              {showApiModels && (
-                <optgroup label={t('composer.controls.apiModelsGroup')}>
-                  {apiModels.map((m) => (
-                    <option key={m.id} value={`model:${m.id}`}>
-                      {m.id}
-                      {ctxSuffix(m.context_window)}
-                      {outSuffix(m.max_output_tokens)}
-                      {visionSuffix(m.supports_vision)}
-                      {freeSuffix(m.is_free)}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            <button
-              type="button"
-              className={s.fetchBtn}
-              onClick={() => void onFetchModels()}
-              disabled={fetchingModels || !hasPlans}
-              title={modelsError ?? t('composer.controls.fetchModelsHint')}
-              data-testid="composer-fetch-models"
-            >
-              <RefreshCw size={12} className={fetchingModels ? s.fetchSpin : undefined} />
-            </button>
-          </span>
-        </label>
-
         <label className={s.control}>
           <span className={s.controlLabel}>{t('composer.controls.effort')}</span>
           <select
@@ -469,11 +161,6 @@ export function ComposerControls() {
       </div>
     </div>
   );
-}
-
-/** plan 的稳定 option key（provider + label 组合唯一）。 */
-function planKey(plan: PlanEntry): string {
-  return `${plan.provider}/${plan.label}`;
 }
 
 function normalizeEffort(value: string): Effort {

@@ -273,7 +273,7 @@ async fn in_place_rebuild_cancels_old_thread() {
     );
 }
 
-/// forced(热重载)清空后台表:provider 栈已重建,后台线程攥旧 registry。
+/// forced(热重载)清空后台表:模型接入栈已重建,后台线程攥旧 registry。
 #[tokio::test]
 async fn forced_rebind_clears_background_threads() {
     let agent = MinimalAgent::new_empty();

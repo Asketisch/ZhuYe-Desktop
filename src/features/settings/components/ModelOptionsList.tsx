@@ -46,7 +46,7 @@ export function ModelOptionsList({
     <div
       className={s.modelOptions}
       role="listbox"
-      aria-label={t('settings.plans.modelsGroup')}
+      aria-label={t('settings.groups.modelsGroup')}
       data-testid={testId}
     >
       {models.map((m) => (

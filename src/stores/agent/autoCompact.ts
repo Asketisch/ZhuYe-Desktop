@@ -11,12 +11,11 @@
  * 依赖注入（getConfig/compact）使控制器可脱离 zustand 与 Tauri IPC 单测。
  */
 import {
-  listPlans,
+  listGroups,
   readActiveCredential,
-  readActiveProvider,
-  readContextWindowForModel,
-} from '@/logic/settings/config/plans';
-import { readField } from '@/logic/settings/config/schema';
+  readActiveGroup,
+} from '@/logic/models/modelGroups';
+import { readContextWindowForModel } from '@/logic/settings/config/toml';
 
 export const AUTO_COMPACT_PREF_KEY = 'zhuye.autoCompact';
 
@@ -54,14 +53,16 @@ export function createAutoCompactController(deps: AutoCompactDeps) {
     } catch {
       return null; // 配置不可读 → 不做任何事
     }
-    const provider = readActiveProvider(toml);
-    if (!provider) return null;
-    // 模型名：`[<provider>].model` 段级覆盖优先，回落到该 provider 下第一个有 model 的 plan。
+    const groupId = readActiveGroup(toml);
+    if (!groupId) return null;
+    // 模型名：spec 前缀（`<组id>/`）去掉后是裸模型名；没给 spec 时回落到
+    // 钉住凭据的 model → 组级默认 model → 组内任一有 model 的凭据。
+    const group = listGroups(toml).find((g) => g.id === groupId);
     const credential = readActiveCredential(toml);
-    const plans = listPlans(toml).filter((p) => p.provider === provider);
-    const model = (modelUsed?.startsWith(`${provider}/`) ? modelUsed.slice(provider.length + 1) : modelUsed) ||
-      plans.find((p) => p.label === credential)?.model ||
-      readField(toml, provider, 'model') || plans.find((p) => p.model)?.model || '';
+    const model = (modelUsed?.startsWith(`${groupId}/`) ? modelUsed.slice(groupId.length + 1) : modelUsed) ||
+      group?.credentials.find((c) => c.label === credential)?.model ||
+      group?.model ||
+      group?.credentials.find((c) => c.model)?.model || '';
     const raw = readContextWindowForModel(toml, model);
     const parsed = Number(raw);
     return raw && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
