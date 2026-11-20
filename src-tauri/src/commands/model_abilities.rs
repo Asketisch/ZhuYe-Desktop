@@ -74,13 +74,20 @@ mod tests {
     /// (内嵌快照含 1 万+模型,gpt-4o 必有窗口数据)。
     #[test]
     fn lookup_known_model_returns_abilities() {
-        let result = futures::executor::block_on(reflect_lookup_model_abilities("gpt-4o".into()))
-            .expect("查询不应失败");
-        assert!(
-            result.context_window.is_some()
-                || result.max_output_tokens.is_some()
-                || result.supports_vision.is_some(),
-            "gpt-4o 至少有一个能力维度来自目录"
-        );
+        // zhuye-llm 的 reasoning_effort 等测试会向进程级全局目录装极简
+        // fixture 且不恢复 —— 并发窗口下本测试会读到 fixture 而误报
+        // (CI windows 实证)。持目录测试锁并恢复内嵌快照,与执行顺序
+        // 无关。
+        reflect_llm::with_snapshot_catalog(|| {
+            let result =
+                futures::executor::block_on(reflect_lookup_model_abilities("gpt-4o".into()))
+                    .expect("查询不应失败");
+            assert!(
+                result.context_window.is_some()
+                    || result.max_output_tokens.is_some()
+                    || result.supports_vision.is_some(),
+                "gpt-4o 至少有一个能力维度来自目录"
+            );
+        });
     }
 }

@@ -376,8 +376,10 @@ mod tests {
     /// 名避免与其它用例(读真实目录)串扰。
     #[test]
     fn enrich_fills_gaps_from_catalog() {
-        use reflect_llm::{DevCatalog, ModelAbilities, install_catalog};
-        install_catalog(DevCatalog::from_entries([(
+        // fixture 经持锁钩子安装:与 with_snapshot_catalog / 其他目录
+        // 测试互斥,进程级全局不再被并发重置(CI windows 实证竞态)。
+        use reflect_llm::{DevCatalog, ModelAbilities, with_test_catalog};
+        let fixture = DevCatalog::from_entries([(
             "zzenrich-model".to_string(),
             ModelAbilities {
                 context_window: Some(200_000),
@@ -386,35 +388,36 @@ mod tests {
                 supports_reasoning: Some(true),
                 effort_levels: None,
             },
-        )]));
-        let mut models = vec![
-            // live 已披露窗口与视觉 → 保留;输出与思考由目录补。
-            ProviderModelInfo {
-                id: "zzenrich-model".into(),
-                display_name: "zzenrich-model".into(),
-                supports_vision: Some(false),
-                is_free: None,
-                context_window: Some(8_000),
-                max_output_tokens: None,
-                supports_reasoning: None,
-            },
-            // 目录没有的模型 → 字段原样(全 None)。
-            ProviderModelInfo {
-                id: "zzenrich-other".into(),
-                display_name: "zzenrich-other".into(),
-                supports_vision: None,
-                is_free: None,
-                context_window: None,
-                max_output_tokens: None,
-                supports_reasoning: None,
-            },
-        ];
-        enrich_with_catalog(&mut models);
-        assert_eq!(models[0].context_window, Some(8_000), "live 窗口优先");
-        assert_eq!(models[0].supports_vision, Some(false), "live 视觉优先");
-        assert_eq!(models[0].max_output_tokens, Some(32_768), "目录补输出");
-        assert_eq!(models[0].supports_reasoning, Some(true), "思考只来自目录");
-        assert_eq!(models[1].supports_reasoning, None, "目录没有 → 未知");
-        install_catalog(DevCatalog::default());
+        )]);
+        with_test_catalog(fixture, || {
+            let mut models = vec![
+                // live 已披露窗口与视觉 → 保留;输出与思考由目录补。
+                ProviderModelInfo {
+                    id: "zzenrich-model".into(),
+                    display_name: "zzenrich-model".into(),
+                    supports_vision: Some(false),
+                    is_free: None,
+                    context_window: Some(8_000),
+                    max_output_tokens: None,
+                    supports_reasoning: None,
+                },
+                // 目录没有的模型 → 字段原样(全 None)。
+                ProviderModelInfo {
+                    id: "zzenrich-other".into(),
+                    display_name: "zzenrich-other".into(),
+                    supports_vision: None,
+                    is_free: None,
+                    context_window: None,
+                    max_output_tokens: None,
+                    supports_reasoning: None,
+                },
+            ];
+            enrich_with_catalog(&mut models);
+            assert_eq!(models[0].context_window, Some(8_000), "live 窗口优先");
+            assert_eq!(models[0].supports_vision, Some(false), "live 视觉优先");
+            assert_eq!(models[0].max_output_tokens, Some(32_768), "目录补输出");
+            assert_eq!(models[0].supports_reasoning, Some(true), "思考只来自目录");
+            assert_eq!(models[1].supports_reasoning, None, "目录没有 → 未知");
+        });
     }
 }
