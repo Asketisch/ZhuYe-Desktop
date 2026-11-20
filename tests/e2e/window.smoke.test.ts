@@ -45,28 +45,23 @@ let chatSessionPath = '';
 
 async function openMorePage(label: string) {
   // v3 harness:侧栏「更多」菜单(plain button,无 role=menuitem)。
-  // 「更多」按钮是开关:若上一用例失败把菜单留在打开态,直接点会把它
-  // 关掉 —— 按 DOM 当前态决定,不再发 Esc(Windows WebView2 上给 body
-  // 发 Esc 可能触发系统级关闭动作,CI 实证窗口被关)。
-  const alreadyOpen = (await driver!.findElements(By.css('[data-testid="harness-more-menu"]'))).length > 0;
-  if (!alreadyOpen) {
+  // 菜单是开关:先确认闭合态再点(用 DOM 检查,不用 Esc —— Windows
+  // WebView2 上给 body 发 Esc 会被系统级 shortcut 关窗)。
+  if ((await driver!.findElements(By.css('[data-testid="harness-more-menu"]'))).length > 0) {
     await driver!.findElement(By.css('[data-testid="harness-nav-more"]')).click();
+    await driver!.wait(async () =>
+      (await driver!.findElements(By.css('[data-testid="harness-more-menu"]'))).length === 0, 5000);
   }
+  await driver!.findElement(By.css('[data-testid="harness-nav-more"]')).click();
   const menu = await driver!.wait(until.elementLocated(By.css('[data-testid="harness-more-menu"]')), 10_000);
   const inViewport = await driver!.executeScript<boolean>(
     'const r = arguments[0].getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;', menu,
   );
   expect(inViewport, 'navigation flyout must remain inside the window').toBe(true);
   const item = await menu.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`));
-  // 菜单 30+ 项在 50vh 容器里滚动:「Tasks」等靠后的项恰在滚动边界附近,
-  // WebKitGTK 对视口外元素的 click 有抖动 —— 先滚到视野中央,点击失败
-  // 再用 JS click 兜底(绕过 overlay 命中测试)。
+  // 菜单项在 50vh 滚动容器里:先滚到视野中央再点(WebKitGTK 抖动)。
   await driver!.executeScript('arguments[0].scrollIntoView({ block: "center" });', item);
-  try {
-    await item.click();
-  } catch {
-    await driver!.executeScript('arguments[0].click();', item);
-  }
+  await item.click();
 }
 
 /** 等待弹窗出现;超时时先截图并转储 body 文本再抛出原错误。
@@ -369,13 +364,10 @@ describe('window smoke (real process, real backend, local model stub)', () => {
   }, 100_000);
 
   it('creates a task through the real backend and reloads it after navigation', async () => {
-    await openMorePage('Tasks');
-    // 诊断:菜单项点击后必须真正落在 /tasks,否则 tasks-add-btn 的等待
-    // 只会超时且没有现场(窗口冒烟 CI 上曾出现 30s 无信息超时)。
-    await driver!.wait(async () => {
-      const path = new URL(await driver!.getCurrentUrl()).pathname;
-      return path === '/tasks';
-    }, 30_000);
+    // 直接 URL 导航到 /tasks:本用例断言的是 task CRUD + 跨导航留存,
+    // 不是「更多菜单点击」(那条链路已被单独的 mounts 用例覆盖),
+    // 去掉菜单开关态/滚动容器点击的耦合后,用例只测该测的东西。
+    await driver!.get(new URL('/tasks', await driver!.getCurrentUrl()).toString());
     await driver!.wait(until.elementLocated(By.css('[data-testid="tasks-add-btn"]')), 30_000);
     await driver!.findElement(By.css('[data-testid="tasks-add-btn"]')).click();
     await driver!.findElement(By.css('[data-testid="task-create-subject"]')).sendKeys('Runtime integration task');
@@ -386,9 +378,11 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const complete = await driver!.wait(until.elementLocated(By.css('[data-testid^="task-complete-"]')), 30_000);
     await complete.click();
     await driver!.wait(async () => (await (await driver!.findElement(task)).getText()).includes('Completed'), 30_000);
-    await openMorePage('Terminal');
+    // 跨导航回读:直接 URL 切到 /terminal 再切回 /tasks,验证 task 状态
+    // 持久化(不耦合菜单开关态)。
+    await driver!.get(new URL('/terminal', await driver!.getCurrentUrl()).toString());
     await driver!.wait(until.elementLocated(By.css('[data-testid="terminal-input"]')), 30_000);
-    await openMorePage('Tasks');
+    await driver!.get(new URL('/tasks', await driver!.getCurrentUrl()).toString());
     const restored = await driver!.wait(until.elementLocated(task), 30_000);
     expect(await restored.getAttribute('textContent')).toContain('Runtime integration task');
     expect(await restored.getAttribute('textContent')).toContain('Completed');
