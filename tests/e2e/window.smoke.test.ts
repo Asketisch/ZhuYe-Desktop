@@ -378,10 +378,12 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const complete = await driver!.wait(until.elementLocated(By.css('[data-testid^="task-complete-"]')), 30_000);
     await complete.click();
     await driver!.wait(async () => (await (await driver!.findElement(task)).getText()).includes('Completed'), 30_000);
-    // 跨导航回读:直接 URL 切到 /terminal 再切回 /tasks,验证 task 状态
-    // 持久化(不耦合菜单开关态)。
-    await driver!.get(new URL('/terminal', await driver!.getCurrentUrl()).toString());
-    await driver!.wait(until.elementLocated(By.css('[data-testid="terminal-input"]')), 30_000);
+    // 跨导航回读:切到轻量路由 /settings 再切回 /tasks,验证 task 状态
+    // 持久化。不用 /terminal —— 它加载 xterm.js,与壳层常驻的终端 dock
+    // 双实例在低端 WebView(Linux GTK / Windows WebView2)上竞争,拖慢
+    // 导航导致 30s 超时(macOS 未暴露)。菜单点击链路已由 mounts 覆盖。
+    await driver!.get(new URL('/settings', await driver!.getCurrentUrl()).toString());
+    await driver!.wait(until.elementLocated(By.css('h1, h2')), 30_000);
     await driver!.get(new URL('/tasks', await driver!.getCurrentUrl()).toString());
     const restored = await driver!.wait(until.elementLocated(task), 30_000);
     expect(await restored.getAttribute('textContent')).toContain('Runtime integration task');
