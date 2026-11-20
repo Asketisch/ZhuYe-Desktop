@@ -64,7 +64,7 @@ const backendSrc = backendFiles.map((f) => read(f)).join('\n');
 
 // 后端命令体:`#[tauri::command]` 标注的 `pub fn` / `pub async fn`。
 const backendCommands = new Set(
-  [...backendSrc.matchAll(/pub (?:async )?fn (reflect_\w+)/g)].map((m) => m[1]),
+  [...backendSrc.matchAll(/pub (?:async )?fn (zhuye_\w+)/g)].map((m) => m[1]),
 );
 
 // 生产命令文件内的 `#[cfg(test)]` 单元测试同样属于命令测试证据;
@@ -73,7 +73,7 @@ const commandUnitTested = new Set();
 for (const file of backendFiles) {
   const source = read(file);
   if (!source.includes('#[cfg(test)]')) continue;
-  for (const match of source.matchAll(/"(reflect_\w+)"/g)) {
+  for (const match of source.matchAll(/"(zhuye_\w+)"/g)) {
     commandUnitTested.add(match[1]);
   }
 }
@@ -88,22 +88,22 @@ const handlerMatch = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]\)/);
 if (!handlerMatch) {
   fail('registry-parse', 'lib.rs / commands_registry.rs 里找不到 generate_handler! 注册表');
 } else {
-  // 注册表里既有命令也有注释(`// Task/Team 管理命令(…,包装 reflect_task::TaskManager)`)。
-  // 必须先剥掉行注释,否则 `reflect_task` / `reflect_stream` 这类**注释里
+  // 注册表里既有命令也有注释(`// Task/Team 管理命令(…,包装 zhuye_task::TaskManager)`)。
+  // 必须先剥掉行注释,否则 `zhuye_task` / `zhuye_stream` 这类**注释里
   // 提到的 crate 名**会被当成"已注册但前端没包装"的孤儿命令。
   const handlerBody = handlerMatch[1]
     .split('\n')
     .map((line) => line.replace(/\/\/.*$/, ''))
     .join('\n');
   const registered = new Set(
-    [...handlerBody.matchAll(/\b(ping|reflect_\w+)\b/g)].map((m) => m[1]),
+    [...handlerBody.matchAll(/\b(ping|zhuye_\w+)\b/g)].map((m) => m[1]),
   );
 
   // 1a. 注册了但前端没有消费面 —— AGENTS.md 定义的"半接线"。
   const frontendFiles = readdirSync(join(ROOT, 'src/utils/commands')).filter((f) => f.endsWith('.ts'));
   const frontendSrc = frontendFiles.map((f) => read(`src/utils/commands/${f}`)).join('\n');
   const frontendCommands = new Set(
-    [...frontendSrc.matchAll(/export (?:async )?function (ping|reflect_\w+)/g)].map((m) => m[1]),
+    [...frontendSrc.matchAll(/export (?:async )?function (ping|zhuye_\w+)/g)].map((m) => m[1]),
   );
   const orphans = [...registered].filter((c) => !frontendCommands.has(c)).sort();
   if (orphans.length === 0) {
@@ -134,7 +134,7 @@ if (!handlerMatch) {
   const fakePath = 'tests/helpers/fakeBackend.ts';
   const fakeSrc = existsSync(join(ROOT, fakePath)) ? read(fakePath) : '';
   const fakeHandled = new Set(
-    [...fakeSrc.matchAll(/handle\(\s*'(ping|reflect_\w+)'/g)].map((m) => m[1]),
+    [...fakeSrc.matchAll(/handle\(\s*'(ping|zhuye_\w+)'/g)].map((m) => m[1]),
   );
   const fakeMissing = [...registered].filter((c) => !fakeHandled.has(c)).sort();
   if (fakeSrc === '') {
@@ -166,8 +166,8 @@ if (!handlerMatch) {
     } catch (e) {
       fail('payload-sample-complete', `${payloadsPath} 解析失败:${e.message}`);
     }
-    const reflectRegistered = [...registered].filter((c) => c.startsWith('reflect_'));
-    const noSample = reflectRegistered.filter((c) => !sampled.has(c)).sort();
+    const zhuyeRegistered = [...registered].filter((c) => c.startsWith('zhuye_'));
+    const noSample = zhuyeRegistered.filter((c) => !sampled.has(c)).sort();
     const stale = [...sampled].filter((c) => !registered.has(c)).sort();
     if (sampled.size > 0 && noSample.length === 0 && stale.length === 0) {
       pass('payload-sample-complete', `${sampled.size} 条命令全部有线格式契约样本`);
@@ -321,7 +321,7 @@ let capInvoked = new Set();
 if (existsSync(capDir)) {
   const scan = (path) => {
     const src = readFileSync(path, 'utf8');
-    for (const m of src.matchAll(/"(reflect_\w+)"/g)) capInvoked.add(m[1]);
+    for (const m of src.matchAll(/"(zhuye_\w+)"/g)) capInvoked.add(m[1]);
   };
   for (const f of readdirSync(capDir)) {
     // `ipc_*.rs` 包含能力层、契约和实模型测试。

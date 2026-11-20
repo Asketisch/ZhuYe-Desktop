@@ -11,7 +11,7 @@
 #
 # `src-tauri/tests/ipc_*.rs` 用 `tauri::test` 的 mock runtime 建 app,
 # 对**生产同一份** `generate_handler!` 注册表
-# (`reflect_desktop_lib::configure`)注入 JSON 负载,断言真命令体返回的真结果。
+# (`zhuye_desktop_lib::configure`)注入 JSON 负载,断言真命令体返回的真结果。
 # 不经前端 `invoke` 包装,不经 `tests/helpers/fakeBackend.ts`。
 #
 # 为什么必须有这一层:前端测试的后端是**模拟**的 —— 模拟后端的 bug 会把
@@ -82,7 +82,7 @@ tcase_log "cargo metadata(submodule 跨 workspace 解析)" \
 # 的格式由上游 ZhuYe 仓库的 CI 负责,不该阻塞本仓库。
 tcase_log "cargo fmt --check(自有 crate)" \
     "$RESULT_DIR/backend-fmt.log" \
-    cargo fmt -p reflect-app-core -p reflect-desktop -- --check
+    cargo fmt -p zhuye-app-core -p zhuye-desktop -- --check
 
 # ── 2. clippy ────────────────────────────────────────────────────────────
 tcase_log "cargo clippy --workspace --all-targets" \

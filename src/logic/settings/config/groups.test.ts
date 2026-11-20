@@ -31,7 +31,7 @@ api_key = "sk-glm"
 model = "GLM-5.3-Flash"
 
 [[provider_group]]
-id = "magpie"
+id = "demo"
 endpoint = "anthropic"
 base_url = "http://127.0.0.1:3425"
 
@@ -57,7 +57,7 @@ describe('groups.ts 纯函数', () => {
       responsesApi: false,
     });
     // 第二个组没有 api_key/model 字段 → 空串(免 Key 组)。
-    expect(groups[1].id).toBe('magpie');
+    expect(groups[1].id).toBe('demo');
     expect(groups[1].apiKey).toBe('');
     expect(groups[1].model).toBe('');
   });
@@ -85,14 +85,14 @@ describe('groups.ts 纯函数', () => {
   it('groupDisplayLabel:显式 label 优先,缺省回退 id', () => {
     const groups = listGroups(SAMPLE_TOML);
     expect(groupDisplayLabel(groups[0])).toBe('智谱 GLM');
-    expect(groupDisplayLabel(groups[1])).toBe('magpie');
+    expect(groupDisplayLabel(groups[1])).toBe('demo');
   });
 
   it('readActiveGroup:active.provider 命中组 id 返回该组,内置名返回 null', () => {
     const groups = listGroups(SAMPLE_TOML);
     expect(readActiveGroup(SAMPLE_TOML, groups)).toBeNull();
-    const switched = setActiveGroup(SAMPLE_TOML, 'magpie');
-    expect(readActiveGroup(switched, groups)?.id).toBe('magpie');
+    const switched = setActiveGroup(SAMPLE_TOML, 'demo');
+    expect(readActiveGroup(switched, groups)?.id).toBe('demo');
     // 内置端口名不属于任何组。
     expect(readActiveGroup(setActiveGroup(SAMPLE_TOML, 'openai'), groups)).toBeNull();
   });
@@ -116,31 +116,31 @@ describe('groups.ts 纯函数', () => {
 
   it('upsertGroup 更新既有组:仅替换该组 kv 行,嵌套 credentials 保留', () => {
     const next = upsertGroup(SAMPLE_TOML, {
-      id: 'magpie',
-      label: 'Magpie 网关',
+      id: 'demo',
+      label: '示例网关',
       endpoint: 'anthropic',
       apiKey: '',
       baseUrl: 'http://127.0.0.1:9999',
-      model: 'cursor/auto',
+      model: 'demo/model-a',
       responsesApi: false,
       timeoutSecs: '60',
     });
     expect(next).toContain('base_url = "http://127.0.0.1:9999"');
-    expect(next).toContain('model = "cursor/auto"');
+    expect(next).toContain('model = "demo/model-a"');
     expect(next).toContain('timeout_secs = 60');
     // 嵌套 credentials(手写的高级形态)必须原样保留。
     expect(next).toContain('[[provider_group.credentials]]');
     expect(next).toContain('label = "backup"');
     // 解析回读一致。
     const groups = listGroups(next);
-    expect(groups[1]).toMatchObject({ id: 'magpie', baseUrl: 'http://127.0.0.1:9999', model: 'cursor/auto' });
+    expect(groups[1]).toMatchObject({ id: 'demo', baseUrl: 'http://127.0.0.1:9999', model: 'demo/model-a' });
   });
 
   it('改名 = removeGroup(旧 id) + upsertGroup(新 id),不残留旧条目', () => {
     // GUI 编辑路径(与 GroupForm.onSaveGroup 一致):先摘旧块再写新块。
-    const removed = removeGroup(SAMPLE_TOML, 'magpie');
+    const removed = removeGroup(SAMPLE_TOML, 'demo');
     const next = upsertGroup(removed, {
-      id: 'magpie-v2',
+      id: 'demo-v2',
       label: '',
       endpoint: 'anthropic',
       apiKey: '',
@@ -149,12 +149,12 @@ describe('groups.ts 纯函数', () => {
       responsesApi: false,
       timeoutSecs: '',
     });
-    expect(next).not.toContain('id = "magpie"');
-    expect(listGroups(next).map((g) => g.id)).toEqual(['bigmodel', 'magpie-v2']);
+    expect(next).not.toContain('id = "demo"');
+    expect(listGroups(next).map((g) => g.id)).toEqual(['bigmodel', 'demo-v2']);
   });
 
   it('removeGroup 清除整组归属(含嵌套 credentials)', () => {
-    const next = removeGroup(SAMPLE_TOML, 'magpie');
+    const next = removeGroup(SAMPLE_TOML, 'demo');
     expect(listGroups(next)).toHaveLength(1);
     expect(next).not.toContain('[[provider_group.credentials]]');
     expect(next).not.toContain('label = "backup"');

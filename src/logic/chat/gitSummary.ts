@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { reflect_git_diff, reflect_git_status } from '@/utils/commands/git';
+import { zhuye_git_diff, zhuye_git_status } from '@/utils/commands/git';
 
 export interface GitSummary {
   files: number;
@@ -24,13 +24,13 @@ export function summarizeDiff(diff: string): GitSummary {
 export function useGitSummary(enabled: boolean): GitSummary | null {
   const status = useQuery({
     queryKey: ['zcode-git-status'],
-    queryFn: reflect_git_status,
+    queryFn: zhuye_git_status,
     enabled,
     staleTime: 15_000,
   });
   const diff = useQuery({
     queryKey: ['zcode-git-diff-stat'],
-    queryFn: () => reflect_git_diff(false),
+    queryFn: () => zhuye_git_diff(false),
     enabled,
     staleTime: 15_000,
   });

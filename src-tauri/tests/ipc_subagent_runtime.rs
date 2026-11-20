@@ -96,16 +96,16 @@ fn model_delegates_child_result_and_queries_completed_status() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    common::invoke_ok("reflect_set_permission_mode", json!({"mode":"prompt"}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    common::invoke_ok("zhuye_set_permission_mode", json!({"mode":"prompt"}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"delegate-turn", "op":{
             "type":"user_input", "items":[{"type":"text","text":"delegate-parent-marker"}]
         }}}),
@@ -115,7 +115,7 @@ fn model_delegates_child_result_and_queries_completed_status() {
         e["msg"]["type"] == "approval_request" && e["msg"]["kind"]["tool_name"] == "call_explorer"
     });
     common::invoke_ok(
-        "reflect_tool_approval",
+        "zhuye_tool_approval",
         json!({"id":approval["msg"]["request_id"], "decision":"approve"}),
     );
     wait_for(&rx, &mut seen, |e| {
@@ -145,7 +145,7 @@ fn model_delegates_child_result_and_queries_completed_status() {
             .iter()
             .any(|tool| tool["name"] == "call_explorer")
     );
-    let query = common::invoke_ok("reflect_query_subagents", json!({"childId": child}));
+    let query = common::invoke_ok("zhuye_query_subagents", json!({"childId": child}));
     let snapshot = wait_for(&rx, &mut seen, |e| {
         e["id"] == query && e["msg"]["type"] == "subagent_status"
     });
@@ -159,9 +159,9 @@ fn model_delegates_child_result_and_queries_completed_status() {
                 && entry["state"] == "completed"),
         "{snapshot}"
     );
-    let next_session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id": next_session}));
-    let query = common::invoke_ok("reflect_query_subagents", json!({"childId": child}));
+    let next_session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id": next_session}));
+    let query = common::invoke_ok("zhuye_query_subagents", json!({"childId": child}));
     let other_session = wait_for(&rx, &mut seen, |event| {
         event["id"] == query && event["msg"]["type"] == "subagent_status"
     });

@@ -18,10 +18,10 @@ import {
 } from 'react';
 import {
   onTerminalOutput,
-  reflect_kill_shell,
-  reflect_run_shell,
-  type ReflectShellOutputChunk,
-  type ReflectShellSession,
+  zhuye_kill_shell,
+  zhuye_run_shell,
+  type ZhuyeShellOutputChunk,
+  type ZhuyeShellSession,
 } from '@/utils/commands';
 
 import type { TerminalLine, TerminalLineStream, TerminalSession, TerminalState } from '@/contracts/terminal';
@@ -122,16 +122,16 @@ export interface TerminalController {
    * 追加一个输出块 —— 用于测试和回放缓冲输出。
    * 传入 `onTerminalOutput` 返回的原始块结构。
    */
-  appendChunk: (chunk: ReflectShellOutputChunk) => void;
+  appendChunk: (chunk: ZhuyeShellOutputChunk) => void;
 }
 
 export interface UseTerminalControllerOptions {
   /** 供测试覆盖。 */
-  runShell?: typeof reflect_run_shell;
+  runShell?: typeof zhuye_run_shell;
   /** 供测试覆盖。 */
-  killShell?: typeof reflect_kill_shell;
+  killShell?: typeof zhuye_kill_shell;
   /** 供测试覆盖。 */
-  subscribe?: (handler: (chunk: ReflectShellOutputChunk) => void) => Promise<() => void>;
+  subscribe?: (handler: (chunk: ZhuyeShellOutputChunk) => void) => Promise<() => void>;
 }
 
 /**
@@ -143,8 +143,8 @@ export interface UseTerminalControllerOptions {
  * 都通过将 unlisten 暂存到 ref 并在拆除时清理来处理。
  */
 export function useTerminalController(opts: UseTerminalControllerOptions = {}): TerminalController {
-  const runShell = opts.runShell ?? reflect_run_shell;
-  const killShell = opts.killShell ?? reflect_kill_shell;
+  const runShell = opts.runShell ?? zhuye_run_shell;
+  const killShell = opts.killShell ?? zhuye_kill_shell;
   const subscribe = opts.subscribe ?? onTerminalOutput;
 
   const [state, dispatch] = useReducer(terminalReducer, initialTerminalState);
@@ -152,10 +152,10 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
   const mountedRef = useRef(true);
   const listenerReady = useRef<Promise<void> | null>(null);
   const knownSessions = useRef(new Set<string>());
-  const earlyOutput = useRef(new Map<string, ReflectShellOutputChunk[]>());
+  const earlyOutput = useRef(new Map<string, ZhuyeShellOutputChunk[]>());
   const starting = useRef(0);
 
-  const appendChunk = useCallback((chunk: ReflectShellOutputChunk) => {
+  const appendChunk = useCallback((chunk: ZhuyeShellOutputChunk) => {
     dispatch({
       type: 'session/appendLine', session_id: chunk.session_id,
       line: { seq: chunk.seq, stream: coerceStream(chunk.stream), text: chunk.data },
@@ -174,7 +174,7 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
     mountedRef.current = true;
     let cancelled = false;
 
-    const handler = (chunk: ReflectShellOutputChunk) => {
+    const handler = (chunk: ZhuyeShellOutputChunk) => {
       if (!mountedRef.current) return;
       if (knownSessions.current.has(chunk.session_id)) {
         appendChunk(chunk);
@@ -237,7 +237,7 @@ export function useTerminalController(opts: UseTerminalControllerOptions = {}): 
         await ready;
         if (!mountedRef.current) return;
         starting.current += 1;
-        let sess: ReflectShellSession;
+        let sess: ZhuyeShellSession;
         try {
           sess = await runShell(effectiveCmd, sshHost);
           if (!mountedRef.current) return;

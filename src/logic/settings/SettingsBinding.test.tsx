@@ -18,8 +18,8 @@ describe('设置绑定', () => {
   it('应用可注入替代界面并通过原有控制器保存草稿', async () => {
     resetMockInvoke();
     const save = vi.fn(async (..._args: unknown[]) => undefined);
-    mockInvoke('reflect_get_config', async () => '[active]\nprovider = "openai"');
-    mockInvoke('reflect_save_config', save);
+    mockInvoke('zhuye_get_config', async () => '[active]\nprovider = "openai"');
+    mockInvoke('zhuye_save_config', save);
     render(<QueryClientProvider client={createTestQueryClient()}>
       <RendererProvider renderer={{ ...renderer, SettingsView: AlternateSettings }}><SettingsView /></RendererProvider>
     </QueryClientProvider>);

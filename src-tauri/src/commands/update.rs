@@ -33,7 +33,7 @@ const DEFAULT_UPDATE_URL: &str =
 const UPDATE_RESPONSE_MAX: u64 = 16 * 1024 * 1024;
 
 #[tauri::command]
-pub async fn reflect_check_update() -> CommandResult<UpdateInfo> {
+pub async fn zhuye_check_update() -> CommandResult<UpdateInfo> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs() as i64);
@@ -113,7 +113,7 @@ fn compare_versions(latest: &str, current: &str) -> bool {
 
 // ===== 自更新（OTA）:tauri-plugin-updater 命令面 =====
 
-/// `reflect_update_progress` 事件负载（tag = "type",camelCase 出线）。
+/// `zhuye_update_progress` 事件负载（tag = "type",camelCase 出线）。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum UpdateProgressPayload {
@@ -144,12 +144,12 @@ pub struct UpdateInstallOutcome {
 
 /// 检查 → 下载 → 安装更新（一条命令走完整回路）。
 ///
-/// 进度经 `reflect_update_progress` 事件推前端（Started / Progress / Finished）；
-/// 安装成功后由前端引导调用 `reflect_relaunch_app` 生效。签名校验由
+/// 进度经 `zhuye_update_progress` 事件推前端（Started / Progress / Finished）；
+/// 安装成功后由前端引导调用 `zhuye_relaunch_app` 生效。签名校验由
 /// tauri-plugin-updater 按 `tauri.conf.json > plugins.updater.pubkey` 强制 ——
 /// 未配置密钥或端点时返回结构化错误（不 panic、不静默）。
 #[tauri::command]
-pub async fn reflect_download_install_update(
+pub async fn zhuye_download_install_update(
     agent: tauri::State<'_, crate::state::MinimalAgent>,
 ) -> CommandResult<UpdateInstallOutcome> {
     // 应用句柄从托管状态取（而非直接当参数）—— 与其他 OS 交互命令同款：
@@ -174,7 +174,7 @@ pub async fn reflect_download_install_update(
         });
     };
 
-    let _ = app.emit("reflect_update_progress", UpdateProgressPayload::Started);
+    let _ = app.emit("zhuye_update_progress", UpdateProgressPayload::Started);
     let mut downloaded: u64 = 0;
     let progress_app = app.clone();
     let finish_app = app.clone();
@@ -183,12 +183,12 @@ pub async fn reflect_download_install_update(
             move |chunk, total| {
                 downloaded = downloaded.saturating_add(chunk as u64);
                 let _ = progress_app.emit(
-                    "reflect_update_progress",
+                    "zhuye_update_progress",
                     UpdateProgressPayload::Progress { downloaded, total },
                 );
             },
             move || {
-                let _ = finish_app.emit("reflect_update_progress", UpdateProgressPayload::Finished);
+                let _ = finish_app.emit("zhuye_update_progress", UpdateProgressPayload::Finished);
             },
         )
         .await
@@ -209,7 +209,7 @@ pub async fn reflect_download_install_update(
 /// 事件循环退出，进程由 run loop 干净替换 —— 比 `restart()` 更适合命令层
 /// （`restart()` 在非主线程会 `sleep(Duration::MAX)` 永久阻塞工作线程）。
 #[tauri::command]
-pub async fn reflect_relaunch_app(
+pub async fn zhuye_relaunch_app(
     agent: tauri::State<'_, crate::state::MinimalAgent>,
 ) -> CommandResult<()> {
     let app = agent.app_handle().ok_or_else(|| CommandError {

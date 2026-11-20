@@ -1,5 +1,5 @@
 import { Plus, Users, Trash2, Zap, X } from 'lucide-react';
-import type { ReflectSquadMember, SquadController, SquadViewProps } from '@/contracts/squad';
+import type { ZhuyeSquadMember, SquadController, SquadViewProps } from '@/contracts/squad';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Icon } from '../design-system/Icon';
@@ -187,7 +187,7 @@ function SquadDetail({ ctrl, t, SquadTaskRow }: { ctrl: SquadController; t: Squa
 
 // ── MemberEditor（用于创建表单）────────────────────────────────
 
-function MemberEditor({ members, onChange, squadName, t }: { members: ReflectSquadMember[]; onChange: (ms: ReflectSquadMember[]) => void; squadName: string; t: SquadViewProps['t'] }) {
+function MemberEditor({ members, onChange, squadName, t }: { members: ZhuyeSquadMember[]; onChange: (ms: ZhuyeSquadMember[]) => void; squadName: string; t: SquadViewProps['t'] }) {
   function addRow() {
     onChange([
       ...members,

@@ -12,7 +12,7 @@
 
 ## 1. 历史背景
 
-M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC ratatui+crossterm、47 slash 命令、22 段状态栏）但 GUI 缺位。本目录沉淀 Reflect GUI 方案蓝图，为后续 `crates/reflect-gui/` 实施提供设计依据。
+M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC ratatui+crossterm、47 slash 命令、22 段状态栏）但 GUI 缺位。本目录沉淀 ZhuYe GUI 方案蓝图，为后续 `crates/zhuye-gui/` 实施提供设计依据。
 
 终端形态天然局限：
 
@@ -33,7 +33,7 @@ M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC rata
 
 | 维度 | 选型 | 主要依据 |
 |---|---|---|
-| **桌面框架** | **Tauri 2** | 与 Rust reflect-* crate 同生态；体积 < 15MB（vs Electron >100MB）；复用 `reflect-protocol` EventMsg/Op 作为 IPC payload 零序列化 |
+| **桌面框架** | **Tauri 2** | 与 Rust zhuye-* crate 同生态；体积 < 15MB（vs Electron >100MB）；复用 `zhuye-protocol` EventMsg/Op 作为 IPC payload 零序列化 |
 | **前端** | React 19 + Vite + TypeScript | 社区验证 |
 | **状态管理** | Zustand | 轻量；TS 友好（实施中，部分 feature 仍 local state） |
 | **样式** | Tailwind + Radix UI | 待落地（当前直接 CSS） |
@@ -46,8 +46,8 @@ M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC rata
 
 ## 3. 接入核心思想（4 个一句话总结）
 
-1. **协议即 IPC**：`reflect-protocol` 的 `EventMsg` + `Op` 已经是稳定、serde 友好、additive 演化的消息总线 —— 直接拿来做 Tauri commands/events 的载荷，零序列化成本、零侵入。详见 [`../../protocol-bridge.md`](../../protocol-bridge.md)。
-2. **后端单例化**：`reflect-core::AgentThread` 通过 `Arc` 共享，TUI 已经这么用 —— GUI 后端也是同一份（当前 M2.x stub，M3.x 真后端）。
+1. **协议即 IPC**：`zhuye-protocol` 的 `EventMsg` + `Op` 已经是稳定、serde 友好、additive 演化的消息总线 —— 直接拿来做 Tauri commands/events 的载荷，零序列化成本、零侵入。详见 [`../../protocol-bridge.md`](../../protocol-bridge.md)。
+2. **后端单例化**：`zhuye-core::AgentThread` 通过 `Arc` 共享，TUI 已经这么用 —— GUI 后端也是同一份（当前 M2.x stub，M3.x 真后端）。
 3. **Services bundle 共享**：TUI 已有的 `Services { skills_catalog, task_manager, memory_store, ... }` 可以原封不动注入到 GUI 的 `AgentThread`。
 4. **状态机直接复用**：`PendingApproval` / `PendingQuestion` / `PlanModeState` 等 TUI 内部 Rust 类型本身就是 UI-agnostic，**GUI 直接持有同一份类型**。
 
@@ -71,8 +71,8 @@ M1 启动时（2026-06）ZhuYe 已稳定 v1.0.0-rc1，TUI 成熟（~18k LoC rata
 实施时按以下顺序推进（**截至 M2.x 末**）：
 
 1. ✅ **M1.1–M1.8**：scaffold + protocol bridge + 三栏 + composer + modal + statusbar → 已完成
-2. ✅ **M2.x**：真后端（`reflect_core::AgentThread` + stub model + `EchoTool`）+ 4 product linkages（tray/menu/shortcut/dock）+ macOS close-to-tray
+2. ✅ **M2.x**：真后端（`zhuye_core::AgentThread` + stub model + `EchoTool`）+ 4 product linkages（tray/menu/shortcut/dock）+ macOS close-to-tray
 3. 🔧 **M3.x**：接 22 builtin tools + 真 model registry + Streamdown 流式 + 多 session LRU + cost ring
-4. 📅 **C4 阶段**：独立 `reflect-agent-gui` binary + dual-binary install
+4. 📅 **C4 阶段**：独立 `zhuye-agent-gui` binary + dual-binary install
 
 每阶段产物落地后，更新 [`../../changelog.md`](../../changelog.md)。

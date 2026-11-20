@@ -69,7 +69,7 @@ describe('UsageView', () => {
   beforeEach(() => {
     resetMockInvoke();
     useAgentStore.setState({ loadedSessionId: null });
-    mockInvoke('reflect_all_model_usage', async () => []);
+    mockInvoke('zhuye_all_model_usage', async () => []);
   });
 
   afterEach(() => {
@@ -85,7 +85,7 @@ describe('UsageView', () => {
 
   it('renders session stats and the per-model table when a session is bound', async () => {
     useAgentStore.setState({ loadedSessionId: SESSION_ID });
-    mockInvoke('reflect_session_stats', async () => STATS);
+    mockInvoke('zhuye_session_stats', async () => STATS);
 
     render(wrap(<UsageView />));
 
@@ -103,7 +103,7 @@ describe('UsageView', () => {
   });
 
   it('renders the all-sessions model table', async () => {
-    mockInvoke('reflect_all_model_usage', async () => MODELS);
+    mockInvoke('zhuye_all_model_usage', async () => MODELS);
 
     render(wrap(<UsageView />));
 
@@ -114,7 +114,7 @@ describe('UsageView', () => {
 
   it('surfaces stats errors without crashing', async () => {
     useAgentStore.setState({ loadedSessionId: SESSION_ID });
-    mockInvoke('reflect_session_stats', async () => {
+    mockInvoke('zhuye_session_stats', async () => {
       throw new Error('rollout dir unreadable');
     });
 
@@ -140,7 +140,7 @@ describe('UsageView', () => {
         },
       },
     });
-    mockInvoke('reflect_all_model_usage', async () => []);
+    mockInvoke('zhuye_all_model_usage', async () => []);
 
     render(wrap(<UsageView />));
 
@@ -152,9 +152,9 @@ describe('UsageView', () => {
 
   it('renders the rate card so costs are explainable', async () => {
     useAgentStore.setState({ loadedSessionId: SESSION_ID });
-    mockInvoke('reflect_session_stats', async () => STATS);
-    mockInvoke('reflect_all_model_usage', async () => []);
-    mockInvoke('reflect_model_rate_cards', async () => [
+    mockInvoke('zhuye_session_stats', async () => STATS);
+    mockInvoke('zhuye_all_model_usage', async () => []);
+    mockInvoke('zhuye_model_rate_cards', async () => [
       {
         model: 'openai/gpt-4o',
         priced: true,

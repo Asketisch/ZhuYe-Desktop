@@ -5,7 +5,7 @@ import type {
 } from '@/types/protocol';
 import type { RiskLevel } from '@/types/protocol/enums';
 import type { GoalSnapshotPayload } from '@/utils/commands/goal';
-import type { PlanApprovalChoice, ReflectRolloutRecord, ReviewDecision } from '@/utils/types';
+import type { PlanApprovalChoice, ZhuyeRolloutRecord, ReviewDecision } from '@/utils/types';
 import type { TokenSnapshot } from './tokenTypes';
 
 // token 计量类型已拆到 `./tokenTypes`(本文件逼近 500 行预算)。
@@ -349,7 +349,7 @@ export interface AgentState {
   lastError: string | null;
   subscribed: boolean;
   loadedSessionId?: string | null;
-  hydrateSession?: (id: string, records: ReflectRolloutRecord[]) => void;
+  hydrateSession?: (id: string, records: ZhuyeRolloutRecord[]) => void;
   clearSession?: () => void;
   tokens: TokenSnapshot | null;
   /** 当前会话的 context window 大小(来自 session_configured),未知时为 null。 */
@@ -366,7 +366,7 @@ export interface AgentState {
   compactions: CompactionStats;
   toasts: Toast[];
   goalActive: boolean;
-  /** v1.7 后端快照(`reflect_goal_snapshot`):goalActive 投影的校准源,未挂载为 null。 */
+  /** v1.7 后端快照(`zhuye_goal_snapshot`):goalActive 投影的校准源,未挂载为 null。 */
   goalSnapshot: GoalSnapshotPayload | null;
   /** 子代理可观测(v1.4 C1)—— 会话作用域,见 SubagentsState。 */
   subagents: SubagentsState;
@@ -414,7 +414,7 @@ export interface AgentState {
   subscribe: () => () => void;
   /**
    * v1.x：第二个可选参数 `workspace` —— 当前激活工作区(绝对路径)。
-   * 注入到 `ReflectSubmission.workspace`，后端据此把该 session 归属到
+   * 注入到 `ZhuyeSubmission.workspace`，后端据此把该 session 归属到
    * 指定 workspace 并在 `session_meta.workspace` 字段落盘。
    * `undefined` / `null` 表示不指定(CLI / 测试场景)。
    */

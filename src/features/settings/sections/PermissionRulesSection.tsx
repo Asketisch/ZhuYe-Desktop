@@ -20,7 +20,7 @@ import { ShieldCheck, ShieldAlert, ShieldQuestion, RefreshCw } from 'lucide-reac
 import { Badge, Card, EmptyState, Icon, IconButton } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
-  reflect_list_permission_rules,
+  zhuye_list_permission_rules,
   type PermissionRuleInfo,
 } from '@/utils/commands/permissions';
 import s from '@/render/settings/sections/PermissionRulesSection.module.css';
@@ -35,7 +35,7 @@ export function PermissionRulesSection() {
   const { t } = useI18n();
   const q = useQuery({
     queryKey: ['permission-rules'],
-    queryFn: () => reflect_list_permission_rules(),
+    queryFn: () => zhuye_list_permission_rules(),
     staleTime: 10_000,
   });
 

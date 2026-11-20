@@ -66,7 +66,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
         provider.uri()
     ));
     let (tx, rx) = std::sync::mpsc::channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -78,10 +78,10 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
         "---\nname: autopilot-runner\ndescription: Autopilot runtime fixture\nspawnable: true\n---\nAUTOPILOT_AGENT_SYSTEM_MARKER\n",
     )
     .unwrap();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled": true,
             "schedule": "* * * * *",
@@ -115,7 +115,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
         std::thread::sleep(Duration::from_millis(20));
     }
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"unrelated-turn","op":{"type":"user_input","items":[{"type":"text","text":"unrelated manual chat"}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -127,7 +127,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
             break;
         }
     }
-    let pending = common::invoke_ok("reflect_autopilot_history", json!({}));
+    let pending = common::invoke_ok("zhuye_autopilot_history", json!({}));
     assert_eq!(
         pending[0]["status"], "inProgress",
         "unrelated turn must not finalize autopilot: {pending}"
@@ -143,7 +143,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
     );
     std::fs::write(&history_path, serde_json::to_vec_pretty(&seeded).unwrap()).unwrap();
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled":true,"schedule":"* * * * *","taskTemplate":"autopilot-concurrent-fast-marker",
             "agent":"autopilot-runner","maxConcurrent":2
@@ -151,7 +151,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
     );
     let deadline = Instant::now() + Duration::from_secs(6);
     let fast_id = loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         if let Some(run) = history.as_array().unwrap().iter().find(|run| {
             run["id"].as_str().is_some_and(|id| id != first_id) && run["status"] == "success"
         }) {
@@ -175,7 +175,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
     };
     let deadline = Instant::now() + Duration::from_secs(15);
     let history = loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         if history.as_array().is_some_and(|runs| {
             runs.iter()
                 .any(|run| run["id"] == first_id && run["status"] == "success")
@@ -189,7 +189,7 @@ fn selected_agent_runs_in_side_channel_and_finalizes_history() {
         std::thread::sleep(Duration::from_millis(50));
     };
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled": false,
             "schedule": "* * * * *",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useI18n } from '@/utils/i18n';
-import { reflect_search_files, reflect_search_sessions, type ReflectFileSearchHit, type ReflectSessionSearchHit, type SearchRank } from '@/utils/commands';
+import { zhuye_search_files, zhuye_search_sessions, type ZhuyeFileSearchHit, type ZhuyeSessionSearchHit, type SearchRank } from '@/utils/commands';
 import type { SearchTab, SearchViewProps } from '@/contracts/search';
 
 export function SearchBinding({ view: View }: { view: ComponentType<SearchViewProps> }) {
@@ -11,8 +11,8 @@ export function SearchBinding({ view: View }: { view: ComponentType<SearchViewPr
   const [tab, setTab] = useState<SearchTab>('sessions');
   const [query, setQuery] = useState('');
   const [rank, setRank] = useState<SearchRank>('substring');
-  const [sessionHits, setSessionHits] = useState<ReflectSessionSearchHit[]>([]);
-  const [fileHits, setFileHits] = useState<ReflectFileSearchHit[]>([]);
+  const [sessionHits, setSessionHits] = useState<ZhuyeSessionSearchHit[]>([]);
+  const [fileHits, setFileHits] = useState<ZhuyeFileSearchHit[]>([]);
   const [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +24,8 @@ export function SearchBinding({ view: View }: { view: ComponentType<SearchViewPr
     const seq = ++sequence.current;
     setLoading(true);
     try {
-      if (which === 'sessions') { const response = await reflect_search_sessions(trimmed, 30); if (seq !== sequence.current) return; setSessionHits(response); setTruncated(false); }
-      else { const response = await reflect_search_files(trimmed, null, 200, currentRank); if (seq !== sequence.current) return; setFileHits(response?.hits ?? []); setTruncated(response?.truncated ?? false); }
+      if (which === 'sessions') { const response = await zhuye_search_sessions(trimmed, 30); if (seq !== sequence.current) return; setSessionHits(response); setTruncated(false); }
+      else { const response = await zhuye_search_files(trimmed, null, 200, currentRank); if (seq !== sequence.current) return; setFileHits(response?.hits ?? []); setTruncated(response?.truncated ?? false); }
       setError(null);
     } catch (cause) {
       if (seq !== sequence.current) return;

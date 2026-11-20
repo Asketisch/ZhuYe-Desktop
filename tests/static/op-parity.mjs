@@ -23,14 +23,14 @@ const variants = new Set([...segment(rust, 'pub enum Op {', '\n}')
   .matchAll(/^    ([A-Z]\w+)\s*(?:\{|,)/gm)].map((match) => snake(match[1])));
 const names = new Set([...segment(ts, 'export type OpType =', ';')
   .matchAll(/'([a-z_]+)'/g)].map((match) => match[1]));
-const union = new Set([...segment(ts, 'export type ReflectSubmissionOp =', ';\n')
+const union = new Set([...segment(ts, 'export type ZhuyeSubmissionOp =', ';\n')
   .matchAll(/^\s*\|\s*\{\s*type:\s*'([a-z_]+)'/gm)].map((match) => match[1]));
 const samplesFile = process.argv[4] ?? join(root, 'tests/contracts/ops.json');
 const samples = JSON.parse(readFileSync(samplesFile, 'utf8')).ops;
 const sampleNames = new Set(Object.keys(samples));
 const failures = [];
 if (variants.size < 26) failures.push(`Rust Op 解析到 ${variants.size} 项，低于已知下限 26`);
-for (const [label, values] of [['OpType', names], ['ReflectSubmissionOp', union], ['ops.json', sampleNames]]) {
+for (const [label, values] of [['OpType', names], ['ZhuyeSubmissionOp', union], ['ops.json', sampleNames]]) {
   const missing = [...variants].filter((name) => !values.has(name));
   const extra = [...values].filter((name) => !variants.has(name));
   if (missing.length) failures.push(`${label} 缺少: ${missing.join(', ')}`);
@@ -43,5 +43,5 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exitCode = 1;
 } else {
-  console.log(`提交操作一致: ${variants.size} 个 Rust Op = OpType = ReflectSubmissionOp = ops.json`);
+  console.log(`提交操作一致: ${variants.size} 个 Rust Op = OpType = ZhuyeSubmissionOp = ops.json`);
 }

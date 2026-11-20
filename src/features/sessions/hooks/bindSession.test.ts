@@ -1,12 +1,12 @@
 import { expect, it, vi } from 'vitest';
 import { mockInvoke } from '@/test/setup';
-import { reflect_bind_session } from '@/utils/commands/sessions';
-import { reflect_set_workspace } from '@/utils/commands/workspaces';
+import { zhuye_bind_session } from '@/utils/commands/sessions';
+import { zhuye_set_workspace } from '@/utils/commands/workspaces';
 
 it('serializes backend binds and continues after a failure', async () => {
   const calls: string[] = [];
   let finish!: () => void;
-  mockInvoke('reflect_bind_session', async (_command, args) => {
+  mockInvoke('zhuye_bind_session', async (_command, args) => {
     const id = (args as { id: string }).id;
     calls.push(id);
     if (id === 'first') {
@@ -15,9 +15,9 @@ it('serializes backend binds and continues after a failure', async () => {
     }
     return 'auto';
   });
-  const first = reflect_bind_session('first');
+  const first = zhuye_bind_session('first');
   const failure = expect(first).rejects.toThrow('bind failed');
-  const second = reflect_bind_session('second');
+  const second = zhuye_bind_session('second');
   await vi.waitFor(() => expect(calls).toEqual(['first']));
   finish();
   await failure;
@@ -28,13 +28,13 @@ it('serializes backend binds and continues after a failure', async () => {
 it('waits for queued workspace switches before binding', async () => {
   const calls: string[] = [];
   let finish!: () => void;
-  mockInvoke('reflect_set_workspace', async () => {
+  mockInvoke('zhuye_set_workspace', async () => {
     calls.push('switch');
     await new Promise<void>((resolve) => { finish = resolve; });
   });
-  mockInvoke('reflect_bind_session', async () => { calls.push('bind'); return 'auto'; });
-  const switching = reflect_set_workspace('/project');
-  const binding = reflect_bind_session('session');
+  mockInvoke('zhuye_bind_session', async () => { calls.push('bind'); return 'auto'; });
+  const switching = zhuye_set_workspace('/project');
+  const binding = zhuye_bind_session('session');
   await Promise.resolve();
   await Promise.resolve();
   expect(calls).toEqual(['switch']);

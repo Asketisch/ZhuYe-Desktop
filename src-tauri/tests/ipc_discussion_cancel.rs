@@ -60,7 +60,7 @@ fn cancel_discussion_stops_participant_and_emits_cancelled_terminal_event() {
         provider.uri()
     ));
     let (tx, rx) = channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -79,7 +79,7 @@ system_prompt = "ROLE_CANCEL participant"
     .unwrap();
     let worker = std::thread::spawn(|| {
         common::invoke(
-            "reflect_run_discussion",
+            "zhuye_run_discussion",
             json!({"configPath":"discussion-cancel.toml"}),
         )
     });
@@ -95,7 +95,7 @@ system_prompt = "ROLE_CANCEL participant"
         }
         events.push(event);
     };
-    let cancelled_count = common::invoke_ok("reflect_cancel_discussions", json!({}));
+    let cancelled_count = common::invoke_ok("zhuye_cancel_discussions", json!({}));
     assert_eq!(cancelled_count, 1);
 
     let discussion_id = started["msg"]["id"].clone();

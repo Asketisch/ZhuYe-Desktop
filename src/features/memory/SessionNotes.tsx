@@ -1,7 +1,7 @@
 /**
  * SessionNotes —— 会话笔记面板(agent 写下的持久笔记)。
  *
- * agent 运行时经 `AddSessionNoteTool`(`reflect-notes`)把结论写进
+ * agent 运行时经 `AddSessionNoteTool`(`zhuye-notes`)把结论写进
  * `<notes_home>/session-notes/<thread_id>.jsonl`。这条链路此前**只有写、
  * 没有读** —— 用户看不到 agent 记了什么。本面板补上读取侧。
  *
@@ -15,8 +15,8 @@ import { Card, EmptyState, Icon, Select, Spinner } from '@/features/design-syste
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import {
-  reflect_list_note_sessions,
-  reflect_list_session_notes,
+  zhuye_list_note_sessions,
+  zhuye_list_session_notes,
 } from '@/utils/commands/notes';
 import s from '@/render/memory/MemoryView.module.css';
 
@@ -27,7 +27,7 @@ export function SessionNotes() {
 
   const sessionsQ = useQuery({
     queryKey: ['note-sessions'],
-    queryFn: () => reflect_list_note_sessions(),
+    queryFn: () => zhuye_list_note_sessions(),
     staleTime: 10_000,
     refetchInterval: 10_000,
   });
@@ -36,7 +36,7 @@ export function SessionNotes() {
   const target = picked ?? boundSessionId;
   const notesQ = useQuery({
     queryKey: ['session-notes', target],
-    queryFn: () => reflect_list_session_notes(target as string),
+    queryFn: () => zhuye_list_session_notes(target as string),
     enabled: !!target,
     staleTime: 5_000,
     refetchInterval: 5_000,

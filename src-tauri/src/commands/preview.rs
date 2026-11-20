@@ -69,7 +69,7 @@ pub fn probe_port(port: u16) -> bool {
     .is_ok()
 }
 
-/// 扫描本地端口(`reflect_scan_local_ports` 命令体)。
+/// 扫描本地端口(`zhuye_scan_local_ports` 命令体)。
 pub fn scan_ports(candidates: &[u16], extra_from_output: &[u16]) -> Vec<PortProbe> {
     let mut all: std::collections::BTreeSet<u16> = candidates.iter().copied().collect();
     all.extend(extra_from_output.iter().copied());
@@ -89,7 +89,7 @@ pub fn scan_ports(candidates: &[u16], extra_from_output: &[u16]) -> Vec<PortProb
 /// `recent_output` 提供时从中提取 agent 最近提到的端口一并探测。
 /// 仅回环 —— 不做任意主机扫描。
 #[tauri::command]
-pub async fn reflect_scan_local_ports(
+pub async fn zhuye_scan_local_ports(
     _agent: State<'_, MinimalAgent>,
     ports: Option<Vec<u16>>,
     recent_output: Option<String>,
@@ -161,8 +161,8 @@ mod tests {
     /// 命令名 → 探测函数映射锁定(命令面静态门禁据此认定有测试引用)。
     #[test]
     fn scan_ports_command_maps_to_probe() {
-        let op = "reflect_scan_local_ports";
-        assert!(op.starts_with("reflect_"));
+        let op = "zhuye_scan_local_ports";
+        assert!(op.starts_with("zhuye_"));
         // 命令体是 scan_ports 的薄包装(参数:ports + recent_output)。
         let results = scan_ports(&[u16::MAX], &[]);
         assert_eq!(results.len(), 1);

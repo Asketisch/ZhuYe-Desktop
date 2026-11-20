@@ -19,11 +19,11 @@
 
 1. 前端调用点：`src/features/**`（hooks/controllers/组件）
 2. 前端 IPC API：`src/utils/commands/{domain}.ts`（兼容 re-export 位于 `src/utils/tauri.ts` 和 `src/utils/commands.ts`）
-3. Tauri 命令注册：`src-tauri/src/lib.rs`（`invoke_handler` 枚举每个 `reflect_*` 命令）
+3. Tauri 命令注册：`src-tauri/src/lib.rs`（`invoke_handler` 枚举每个 `zhuye_*` 命令）
 4. Tauri 命令主体：`src-tauri/src/commands/mod.rs` 从 `src-tauri/src/commands/<domain>.rs` re-export
 5. 应用状态（AgentThread 宿主）：`src-tauri/src/state.rs`（加上私有辅助 `hook_store.rs` / `memory_store.rs` / `shell_sessions.rs` / `workspace_state.rs`）
 6. 事件转发器：`src-tauri/src/events.rs`
-7. Reflect 协议类型：`zhuye-agent/crates/protocol/zhuye-protocol/src/{event.rs,event_msg/mod.rs,op.rs,item.rs}`
+7. 上游协议类型：`zhuye-agent/crates/protocol/zhuye-protocol/src/{event.rs,event_msg/mod.rs,op.rs,item.rs}`
 
 如果行为也需要在无头（CLI/TUI）中运行，该变更优先放在 ZhuYe 仓库（submodule），再升级 submodule 引用。
 
@@ -47,7 +47,7 @@
 | 增删命令面板条目 | `src/features/command-palette/registry.ts`（条目表）、`src/features/command-palette/CommandPalette.tsx`（props 透传）、`src/features/shell/hooks/usePaletteActions.ts`（动作实现）、`src/logic/shell/ShellBinding.tsx`（接线） |
 | 渲染 plan 执行进度 / 插件挂载 | `src/stores/agent/reducer.ts`（`plan_step` / `plugin_loaded` 分支）、`src/stores/agent/types.ts`（`PlanStepState` / `PluginLoadedInfo`）、`src/features/plan/PlanView.tsx`、`src/features/collaboration/PluginsPanel.tsx` |
 | 改动任务板 / 团队管理 | `src/features/tasks-board/{TasksBoardView,useTasksBoardController,TeamEditor}.tsx/ts`、`src/utils/commands/teams.ts`（团队 CRUD 包装 + `SystemTime` 形态） |
-| 改动审批弹窗的「始终允许」 | `src/features/modals/ApprovalModal.tsx`、`src/features/modals/allowRule.ts`（规则推导，纯函数）、`src-tauri/src/commands/permissions.rs`（`reflect_add_permission_rule` → 核心用户级权限文件）、`src/stores/agent/types.ts`（`PendingApproval.args` 原始参数） |
+| 改动审批弹窗的「始终允许」 | `src/features/modals/ApprovalModal.tsx`、`src/features/modals/allowRule.ts`（规则推导，纯函数）、`src-tauri/src/commands/permissions.rs`（`zhuye_add_permission_rule` → 核心用户级权限文件）、`src/stores/agent/types.ts`（`PendingApproval.args` 原始参数） |
 | 更改主题 / 设计令牌 | `src/render/styles/tokens.css`、`src/features/design-system/DesignSystemView.tsx` |
 | 添加托盘图标 / 菜单 / 快捷键 | `src-tauri/src/{tray,menu,shortcut}.rs`、`src-tauri/src/lib.rs` |
 | macOS dock 徽标 | `src-tauri/src/dock.rs` |
@@ -121,10 +121,10 @@
 
 ## 后端导航
 
-- 命令注册表（前端可调用的）：`src-tauri/src/lib.rs`（`tauri::generate_handler!` 枚举每个 `reflect_*` 命令）
+- 命令注册表（前端可调用的）：`src-tauri/src/lib.rs`（`tauri::generate_handler!` 枚举每个 `zhuye_*` 命令）
 - 命令主体（按域）：`src-tauri/src/commands/{agent,allowlist,config,export,files,git,hooks,memory,search,sessions,shell,skills,update,workspaces}.rs`；共享错误辅助位于 `src-tauri/src/commands/error.rs`（`CommandError` / `CommandResult`）
 - 命令桶文件：`src-tauri/src/commands/mod.rs`（每个 `<domain>.rs` 的薄 re-export）
-- 应用状态：`src-tauri/src/state.rs`（`MinimalAgent` 存根 → `reflect_core::AgentThread`）
+- 应用状态：`src-tauri/src/state.rs`（`MinimalAgent` 存根 → `zhuye_core::AgentThread`）
 - 状态支持模块：`src-tauri/src/{hook_store,memory_store,shell_sessions,workspace_state}.rs`
 - 事件转发器：`src-tauri/src/events.rs`（`forward_agent_events`）
 - 托盘 / 菜单 / 快捷键 / dock：`src-tauri/src/{tray,menu,shortcut,dock}.rs`
@@ -139,26 +139,26 @@
 
 | 领域 | 代表命令（完整集合见 `commands/<domain>.rs`）|
 | --- | --- |
-| `agent` | `ping`、`reflect_agent_status`、`reflect_submit`（另见：批准 / 问答 / 计划 / 努力级别 / 权限 / 压缩 / 关闭等变体）|
-| `config` | `reflect_get_config`, `reflect_save_config` |
-| `sessions` | `reflect_list_sessions`, `reflect_rename_session`, `reflect_delete_session`, `reflect_replay_session`, `reflect_export_session`, `reflect_export_session_markdown` |
-| `workspaces` | `reflect_list_workspaces`, `reflect_set_workspace`, `reflect_current_workspace` |
-| `skills` | `reflect_list_skills` |
-| `memory` | `reflect_list_memory`, `reflect_add_memory`, `reflect_remove_memory` |
-| `hooks` | `reflect_list_hooks`, `reflect_toggle_hook` |
-| `git` | `reflect_git_status`, `reflect_git_diff`, `reflect_git_log` |
-| `shell` | `reflect_run_shell`, `reflect_kill_shell`, `reflect_list_shell_sessions` |
-| `files` | `reflect_list_dir`, `reflect_read_file` |
-| `search` | `reflect_search_files` |
-| `allowlist` | `reflect_load_allowlist`, `reflect_save_allowlist`, `reflect_check_allowlist` |
-| `update` | `reflect_check_update` |
-| `tools` | `reflect_list_tools`（见 `commands/agent.rs`）|
-| Dock（macOS）| `reflect_set_dock_badge` |
+| `agent` | `ping`、`zhuye_agent_status`、`zhuye_submit`（另见：批准 / 问答 / 计划 / 努力级别 / 权限 / 压缩 / 关闭等变体）|
+| `config` | `zhuye_get_config`, `zhuye_save_config` |
+| `sessions` | `zhuye_list_sessions`, `zhuye_rename_session`, `zhuye_delete_session`, `zhuye_replay_session`, `zhuye_export_session`, `zhuye_export_session_markdown` |
+| `workspaces` | `zhuye_list_workspaces`, `zhuye_set_workspace`, `zhuye_current_workspace` |
+| `skills` | `zhuye_list_skills` |
+| `memory` | `zhuye_list_memory`, `zhuye_add_memory`, `zhuye_remove_memory` |
+| `hooks` | `zhuye_list_hooks`, `zhuye_toggle_hook` |
+| `git` | `zhuye_git_status`, `zhuye_git_diff`, `zhuye_git_log` |
+| `shell` | `zhuye_run_shell`, `zhuye_kill_shell`, `zhuye_list_shell_sessions` |
+| `files` | `zhuye_list_dir`, `zhuye_read_file` |
+| `search` | `zhuye_search_files` |
+| `allowlist` | `zhuye_load_allowlist`, `zhuye_save_allowlist`, `zhuye_check_allowlist` |
+| `update` | `zhuye_check_update` |
+| `tools` | `zhuye_list_tools`（见 `commands/agent.rs`）|
+| Dock（macOS）| `zhuye_set_dock_badge` |
 
 推送事件（单一通道，按 `msg.type` 分发）：
 
-- `reflect_event` —— 负载为 `reflect_protocol::Event`（snake_case JSON）
-- `reflect_terminal_output` —— 负载为 `ReflectShellOutputChunk`（B8-01 流式 shell）
+- `zhuye_event` —— 负载为 `zhuye_protocol::Event`（snake_case JSON）
+- `zhuye_terminal_output` —— 负载为 `ZhuyeShellOutputChunk`（B8-01 流式 shell）
 
 ---
 
@@ -172,12 +172,12 @@
 
 ## 事件映射（后端 → 前端）
 
-- 后端通过 `src-tauri/src/events.rs::forward_agent_events` 发出 → `app.emit("reflect_event", &event)`。
+- 后端通过 `src-tauri/src/events.rs::forward_agent_events` 发出 → `app.emit("zhuye_event", &event)`。
 - 前端扇出枢纽：`src/services/agentEventBus.ts`（引用计数的单一订阅）→ `src/stores/agent/reducer.ts`。`src/services/agent.ts` 是旧版兼容再导出，转发到 store hook。
-- 解析守卫：`src/utils/tauri.ts::onReflectEvent`。
+- 解析守卫：`src/utils/tauri.ts::onZhuyeEvent`。
 - 类型契约：`zhuye-agent/crates/protocol/zhuye-protocol/src/event_msg/mod.rs`（Rust）↔ `src/types/protocol.ts`（TS）。
 
-若事件负载格式变更，用 reflect-protocol 的模式导出重新生成 `src/types/protocol.ts`（`cargo run -p reflect-protocol --example dump_schema` → `npx json2ts`）。
+若事件负载格式变更，用 zhuye-protocol 的模式导出重新生成 `src/types/protocol.ts`（`cargo run -p zhuye-protocol --example dump_schema` → `npx json2ts`）。
 
 ---
 
@@ -222,7 +222,7 @@ bash tests/run_all.sh frontend    # 前端行为：typecheck + vitest 全量
 bash tests/run_all.sh backend     # 真后端能力覆盖：fmt + clippy + cargo test
 bash tests/run_all.sh artifact    # 发布产物审查：.app 结构 / Info.plist / 签名
 bash tests/run_all.sh e2e         # 视觉回归 + 真窗口冒烟（依赖缺失时跳过）
-REFLECT_LIVE=1 bash tests/run_all.sh live   # 实模型演练（真免费模型，默认跳过）
+ZHUYE_LIVE=1 bash tests/run_all.sh live   # 实模型演练（真免费模型，默认跳过）
 ```
 
 覆盖口径（哪个能力域由哪层验、哪些显式排除及理由）见
@@ -244,5 +244,5 @@ git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 ```bash
 pnpm tauri build --bundles app
 bash scripts/install.sh
-# → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
+# → /usr/local/bin/zhuye-desktop + ~/Applications/ZhuYe.app
 ```

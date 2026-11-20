@@ -2,7 +2,7 @@
  * theme —— 主题切换基础设施。
  *
  * 三态：'light' | 'dark' | 'system'。
- * - 持久化到 localStorage（key: `reflect-theme`）。
+ * - 持久化到 localStorage（key: `zhuye-theme`）。
  * - 写 `document.documentElement.dataset.theme`，tokens.css 据此切换。
  * - 'system' 时清除 data-theme，由 `prefers-color-scheme` 媒体查询决定。
  *
@@ -13,7 +13,7 @@ import type { ThemeMode } from '@/contracts/appearance';
 export type { ThemeMode } from '@/contracts/appearance';
 import { applyThemeAppearance } from '@/logic/webview/appearance';
 
-const STORAGE_KEY = 'reflect-theme';
+const STORAGE_KEY = 'zhuye-theme';
 const listeners = new Set<(resolved: 'light' | 'dark') => void>();
 
 function resolveSystem(): 'light' | 'dark' {

@@ -374,3 +374,63 @@
   flex: 1;
   min-width: 0;
 }
+
+/* ===== worktree 管理操作（新建 / 开会话 / 删除）===== */
+.worktreeAddBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--fg-2);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.worktreeAddBtn:hover { background: var(--bg-hover); }
+
+.worktreeForm {
+  display: flex;
+  gap: 6px;
+  padding: 8px 0;
+  flex-wrap: wrap;
+}
+.worktreeInput {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-input);
+  color: var(--fg);
+  font-size: 12px;
+}
+.worktreeInput:focus { outline: 1px solid var(--accent); }
+
+.worktreeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--fg-2);
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease;
+}
+.worktreeBtn:hover { background: var(--bg-hover); }
+.worktreeBtn:disabled { opacity: 0.5; cursor: default; }
+.worktreeBtnDanger { color: var(--danger); }
+
+.worktreeActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}

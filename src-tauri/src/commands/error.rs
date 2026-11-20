@@ -40,26 +40,26 @@ impl From<std::io::Error> for CommandError {
     }
 }
 
-impl From<reflect_config::ConfigError> for CommandError {
-    fn from(e: reflect_config::ConfigError) -> Self {
+impl From<zhuye_config::ConfigError> for CommandError {
+    fn from(e: zhuye_config::ConfigError) -> Self {
         Self { msg: e.to_string() }
     }
 }
 
-impl From<reflect_task::TaskError> for CommandError {
-    fn from(e: reflect_task::TaskError) -> Self {
+impl From<zhuye_task::TaskError> for CommandError {
+    fn from(e: zhuye_task::TaskError) -> Self {
         Self { msg: e.to_string() }
     }
 }
 
-impl From<reflect_stream::cron::CronParseError> for CommandError {
-    fn from(e: reflect_stream::cron::CronParseError) -> Self {
+impl From<zhuye_stream::cron::CronParseError> for CommandError {
+    fn from(e: zhuye_stream::cron::CronParseError) -> Self {
         Self { msg: e.to_string() }
     }
 }
 
-impl From<reflect_agent_def::AgentDefError> for CommandError {
-    fn from(e: reflect_agent_def::AgentDefError) -> Self {
+impl From<zhuye_agent_def::AgentDefError> for CommandError {
+    fn from(e: zhuye_agent_def::AgentDefError) -> Self {
         Self { msg: e.to_string() }
     }
 }

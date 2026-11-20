@@ -1,5 +1,5 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ReflectFileSearchHit, ReflectSessionSearchHit, SearchRank } from '@/utils/commands';
+import type { ZhuyeFileSearchHit, ZhuyeSessionSearchHit, SearchRank } from '@/utils/commands';
 export type SearchTab = 'sessions' | 'files';
 export interface SearchViewProps {
   t: I18nContextValue['t'];
@@ -7,8 +7,8 @@ export interface SearchViewProps {
   tab: SearchTab;
   query: string;
   rank: SearchRank;
-  sessionHits: ReflectSessionSearchHit[];
-  fileHits: ReflectFileSearchHit[];
+  sessionHits: ZhuyeSessionSearchHit[];
+  fileHits: ZhuyeFileSearchHit[];
   truncated: boolean;
   loading: boolean;
   error: string | null;

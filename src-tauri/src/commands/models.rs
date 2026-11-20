@@ -8,7 +8,7 @@
 //! 解析后再经 models.dev 目录补缺空缺字段(Anthropic 官方端口从此
 //! 也有窗口 / 输出 / 视觉 / 思考能力);本模块只负责命令层:拼 URL /
 //! 发请求 / 组装响应。不依赖实拉的**单模型能力查询**在
-//! `super::model_abilities`(命令 `reflect_lookup_model_abilities`)。
+//! `super::model_abilities`(命令 `zhuye_lookup_model_abilities`)。
 
 use serde::Serialize;
 use serde_json::Value;
@@ -49,7 +49,7 @@ async fn read_bounded_body(resp: reqwest::Response, limit: u64) -> Result<Vec<u8
 ///
 /// **空 `api_key` = 免 Key 端点** → **不发** Authorization 头。
 /// 免 Key 的 OpenAI 兼容端点(免费模型池)对「空 Bearer」宽容、对「非空
-/// 无效 token」严格 —— 少发一个头更稳。与 `reflect-llm` 的 `OpenAIClient`
+/// 无效 token」严格 —— 少发一个头更稳。与 `zhuye-llm` 的 `OpenAIClient`
 /// 同口径(那边也是空 key 不发头)。
 fn apply_auth(
     req: reqwest::RequestBuilder,
@@ -101,7 +101,7 @@ pub(crate) fn build_models_url(base_url: &str, endpoint: &str) -> Result<String,
 
 /// 拉取指定 base_url + api_key 下的可用模型列表。
 ///
-/// 与 `reflect_query_plan_quota` 同风格:鉴权失败 / HTTP 错误 / 解析失败
+/// 与 `zhuye_query_plan_quota` 同风格:鉴权失败 / HTTP 错误 / 解析失败
 /// 报 `Err` 给前端展示;成功返回模型数组(可能为空)。
 ///
 /// **空 `api_key` = 免 Key 端点**(免费模型池就是这种端点):不发
@@ -115,7 +115,7 @@ pub(crate) fn build_models_url(base_url: &str, endpoint: &str) -> Result<String,
 /// 免费判定规则取自**当前生效的** `[model_discovery]` 段(内存快照,热重载
 /// 后即生效)—— 与引擎跑 `model = "free"` 用的是同一套规则。
 #[tauri::command]
-pub async fn reflect_list_provider_models(
+pub async fn zhuye_list_provider_models(
     agent: tauri::State<'_, crate::state::MinimalAgent>,
     base_url: String,
     api_key: String,
@@ -171,7 +171,7 @@ pub async fn reflect_list_provider_models(
     // 顺带后台刷新目录缓存(TTL 内立即返回;失败静默用旧数据)。
     // 不 await —— 刷新是 30s 超时的网络调用,不能拖住清单命令。
     tokio::spawn(async {
-        if let Err(e) = reflect_llm::refresh_if_stale().await {
+        if let Err(e) = zhuye_llm::refresh_if_stale().await {
             tracing::warn!("models.dev 目录刷新失败(继续用旧数据): {e}");
         }
     });
@@ -267,10 +267,10 @@ pub(crate) fn parse_chat_test_reply(endpoint: &str, body: &[u8]) -> Result<Strin
 /// 厂商造成无效消耗;`max_tokens` 压到 32。只测连通,不用于生产对话。
 ///
 /// **空 `api_key` = 免 Key 端点**:不发 Authorization 头(与
-/// `reflect_list_provider_models` 同口径,也与 `reflect-llm` 的 OpenAIClient
+/// `zhuye_list_provider_models` 同口径,也与 `zhuye-llm` 的 OpenAIClient
 /// 一致)。Anthropic 协议仍要求 key。
 #[tauri::command]
-pub async fn reflect_test_provider_chat(
+pub async fn zhuye_test_provider_chat(
     base_url: String,
     api_key: String,
     endpoint: String,

@@ -142,11 +142,11 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     await driver!.wait(async () => {
       const value = await select.getAttribute('value');
       const text = await select.getText();
-      return (value ?? '').includes('claude-mock') || (text ?? '').includes('claude-mock');
+      return (value ?? '').includes('mock-model') || (text ?? '').includes('mock-model');
     }, 30_000);
     const value = await select.getAttribute('value');
     const text = await select.getText();
-    expect((value ?? '') + (text ?? '')).toContain('claude-mock');
+    expect((value ?? '') + (text ?? '')).toContain('mock-model');
   }, 40_000);
 
   it('sends a message through the real agent and renders the streamed reply', async () => {

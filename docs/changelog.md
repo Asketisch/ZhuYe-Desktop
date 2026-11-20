@@ -4,6 +4,25 @@
 
 ## 未发布
 
+- **全仓更名 reflect → zhuye**：仓库内部命名（Cargo 别名 / crate 名 / 命令面
+  / 事件通道 / localStorage 键 / Tauri identifier）统一切到 `zhuye`。上游
+  crate 本就叫 `zhuye-*`，桌面侧此前的 `reflect-*` 别名层已删除；`~/.zhuye`
+  数据目录下 `reflect.*` 旧键首次启动自动迁移到 `zhuye.*`（草稿/偏好不丢）。
+  对外 Tauri identifier 改为 `com.asketisch.zhuyedesktop`。历史 changelog
+  条目保留当时的 `reflect_*` 命令名（史实记录，不改写已发布事实）。
+- **右上角交互栈**：主窗口右上角新增常驻可折叠的「任务清单 / 目标 / 子代理
+  / 建议」四组件（事件驱动实时刷新）：清单逐条显示 TodoWrite 进度；目标可
+  内联进入/退出/刷新快照（含逐轮 verdict）；子代理可刷新状态、逐 child 中断、
+  跳检查器；建议点击预填 composer 草稿。与检查器 TodoPanel 同源（`store.todos`）。
+- **Worktree 完整管理**：git worktree 原语（列表/创建/删除/清理判脏）下沉
+  `app-core::worktree`，命令层新增 `zhuye_create_worktree` / `zhuye_remove_worktree`
+  / `zhuye_prune_worktrees`。Git 视图 WorktreePanel 升级为可操作面板：内联新建
+  （同名新分支或指定已有分支）、一键「在此开会话」（切 workspace → 建会话 →
+  导航）、脏树 confirmDialog 后 force 删除；保留「改动滞留」告警。
+- **AGENTS.md 注入不再静默截断**：桌面自有 `AgentsMdHook` 缺省**完整注入**
+  `<data_dir>/AGENTS.md` + `<workspace>/AGENTS.md`（合并顺序不变）。需要限
+  制上下文占用时可在 `~/.zhuye/desktop.json` 设 `agents_md_max_bytes`，超限
+  按字符边界截断（不切碎 UTF-8）并附可见提示 + `tracing::warn`。
 - **harness 全新界面（v3 重设计）**：桌面端 UI 整体切换到「harness」设计稿
   （黑白单色主色 + 发丝线层次，语义色可经 ⌘⇧M 一键中和为灰阶；亮/暗主题
   保留）。壳层重构：标题条（任务中心角标 / 终端 / dock / 命令面板 / 单色 /
@@ -3672,10 +3691,9 @@ ReflectDesktop 实例提供建设基础。
 
 ### 新增 — Phase 1 多 agent 命令面（Task / Team）
 
-后端 `vendor/reflect-task` 早已实现完整的 `TaskManager` API
+后端 `vendor/zhuye-task` 早已实现完整的 `TaskManager` API
 （Task/Team CRUD + 原子认领 + 依赖跟踪），但它既不是 Tauri 应用的
-依赖也未暴露为命令。本次落地多 agent 桌面路线图
-（`docs/reference-projects-survey.md` §10 Phase 1 第 1 项）的
+依赖也未暴露为命令。本次落地多 agent 桌面路线图的
 第一个切片：把 `TaskManager` 接入 `MinimalAgentInner` 并暴露
 10 个命令，让前端可以观察 / 驱动多 agent 协同。
 

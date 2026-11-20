@@ -4,11 +4,11 @@
 //! 所有 Tauri command / webview 共享同一个 `broadcast::Sender<Event>`;
 //! `start_forwarder` 把 `AgentThread::subscribe_session()` 的 mpsc 流
 //! 持续 `recv().await` 并按线程归属分流:
-//! - 前台(当前槽内)线程 → `session_tx`(前端唯一订阅点 `reflect_event`,线格式不变);
+//! - 前台(当前槽内)线程 → `session_tx`(前端唯一订阅点 `zhuye_event`,线格式不变);
 //! - 后台线程 → `background_tx`(带 session id,前端维护运行徽标 /
 //!   待确认交互;切回该会话时 bind→promote,事件自然回到前台通道)。
 
-use reflect_protocol::{Event, ThreadId};
+use zhuye_protocol::{Event, ThreadId};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -19,7 +19,7 @@ use super::MinimalAgent;
 /// 仍丢弃,与旧行为一致)。检查和发送之间持有槽锁,避免重绑时混入旧事件。
 pub(crate) fn route_event(
     inner: &super::agent::MinimalAgentInner,
-    thread: &Arc<reflect_core::AgentThread>,
+    thread: &Arc<zhuye_core::AgentThread>,
     sid: Option<ThreadId>,
     event: Event,
 ) {
@@ -40,11 +40,11 @@ fn track_running(inner: &super::agent::MinimalAgentInner, sid: Option<ThreadId>,
     let Some(sid) = sid else { return };
     let mut running = inner.background_running.lock();
     match &event.msg {
-        reflect_protocol::EventMsg::TurnStarted(_) => {
+        zhuye_protocol::EventMsg::TurnStarted(_) => {
             running.insert(sid);
         }
-        reflect_protocol::EventMsg::TurnComplete(_)
-        | reflect_protocol::EventMsg::TurnAborted(_) => {
+        zhuye_protocol::EventMsg::TurnComplete(_)
+        | zhuye_protocol::EventMsg::TurnAborted(_) => {
             running.remove(&sid);
         }
         _ => {}
@@ -68,7 +68,7 @@ fn track_running(inner: &super::agent::MinimalAgentInner, sid: Option<ThreadId>,
 pub(crate) fn start_forwarder(agent: &MinimalAgent, sid: Option<ThreadId>) {
     let thread_lock = agent.inner.thread.lock();
     let Some(thread) = thread_lock.clone() else {
-        tracing::error!("[reflect-gui] start called before install_agent_thread");
+        tracing::error!("[zhuye-gui] start called before install_agent_thread");
         return;
     };
     drop(thread_lock);
@@ -79,12 +79,12 @@ pub(crate) fn start_forwarder(agent: &MinimalAgent, sid: Option<ThreadId>) {
         .forwarder_count
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     tauri::async_runtime::spawn(async move {
-        tracing::info!("[reflect-gui] session forward task started");
+        tracing::info!("[zhuye-gui] session forward task started");
         while let Some(event) = session_rx.recv().await {
             track_running(&inner, sid, &event);
             route_event(&inner, &thread, sid, event);
         }
-        tracing::warn!("[reflect-gui] session forward task exited (AgentThread closed)");
+        tracing::warn!("[zhuye-gui] session forward task exited (AgentThread closed)");
     });
 }
 
@@ -93,7 +93,7 @@ pub(crate) fn subscribe_session(agent: &MinimalAgent) -> broadcast::Receiver<Eve
     agent.inner.session_tx.subscribe()
 }
 
-/// 订阅后台会话 broadcast(前端 `reflect_session_event` 通道的来源)。
+/// 订阅后台会话 broadcast(前端 `zhuye_session_event` 通道的来源)。
 pub(crate) fn subscribe_background(agent: &MinimalAgent) -> broadcast::Receiver<(ThreadId, Event)> {
     agent.inner.background_tx.subscribe()
 }
@@ -106,16 +106,16 @@ pub(crate) fn session_tx(agent: &MinimalAgent) -> broadcast::Sender<Event> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reflect_protocol::EventMsg;
+    use zhuye_protocol::EventMsg;
 
     #[tokio::test]
     async fn background_thread_events_route_to_background_channel() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
         agent.install_agent_thread().await;
         // 先绑到 old_sid(install 占位线程被取消 —— 无会话可保活,旧行为),
         // 再切到新会话:old_sid 线程降级后台(不 cancel)。
-        let old_sid = reflect_protocol::ThreadId::new();
+        let old_sid = zhuye_protocol::ThreadId::new();
         super::super::rebind::rebind_session(&agent, old_sid, vec![], None).unwrap();
         let old = agent.inner.thread.lock().clone().unwrap();
         let mut foreground = agent.inner.session_tx.subscribe();
@@ -126,7 +126,7 @@ mod tests {
         // 换绑到新会话:旧线程降级后台(不 cancel)。
         super::super::rebind::rebind_session(
             &agent,
-            reflect_protocol::ThreadId::new(),
+            zhuye_protocol::ThreadId::new(),
             vec![],
             None,
         )
@@ -156,11 +156,11 @@ mod tests {
     /// complete/aborted 移除),promote 时移除表项。
     #[tokio::test]
     async fn background_running_tracks_turn_lifecycle() {
-        use reflect_protocol::{TurnId, TurnStartedEvent};
+        use zhuye_protocol::{TurnId, TurnStartedEvent};
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
         agent.install_agent_thread().await;
-        let sid = reflect_protocol::ThreadId::new();
+        let sid = zhuye_protocol::ThreadId::new();
         track_running(
             &agent.inner,
             Some(sid),
@@ -178,9 +178,9 @@ mod tests {
             Some(sid),
             &Event::new(
                 "",
-                EventMsg::TurnAborted(reflect_protocol::TurnAbortedEvent {
+                EventMsg::TurnAborted(zhuye_protocol::TurnAbortedEvent {
                     turn_id: TurnId::new(),
-                    reason: reflect_protocol::AbortReason::Shutdown,
+                    reason: zhuye_protocol::AbortReason::Shutdown,
                 }),
             ),
         );

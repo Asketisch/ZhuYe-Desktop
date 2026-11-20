@@ -7,18 +7,18 @@
  * - rename / fork 用内联表单轻量处理（避免引入新 modal 原语）；
  * - archive / delete 二次确认（应用内 ConfirmDialog —— window.confirm
  *   在 Tauri WKWebView 不弹窗且恒返回 false，不能用作确认）；
- * - export 调 `reflect_export_session` 并短暂展示导出路径；
- * - fork 调 `reflect_fork_session` 复制历史到新子会话（分支名经内联
+ * - export 调 `zhuye_export_session` 并短暂展示导出路径；
+ * - fork 调 `zhuye_fork_session` 复制历史到新子会话（分支名经内联
  *   表单输入,默认 `manual`,与 CLI 一致）。
  */
 import { useState } from 'react';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/features/modals/ConfirmDialog';
 import s from '@/render/sessions/components/SessionItemMenu.module.css';
 
 export interface SessionItemMenuProps {
-  session: ReflectSessionInfo;
+  session: ZhuyeSessionInfo;
   onRename: (newName: string) => Promise<void>;
   onDelete: () => Promise<void>;
   onExport: () => Promise<string | null>;
@@ -40,7 +40,7 @@ export function SessionItemMenu({ session, onRename, onDelete, onExport, onFork,
   const [renameOpen, setRenameOpen] = useState(false);
   // 预填充当前标题(自定义名或派生值;无标题的空会话为空串)。
   const [renameValue, setRenameValue] = useState(session.title ?? '');
-  // fork 分支名表单（默认 manual,与 CLI `reflect session fork` 一致）。
+  // fork 分支名表单（默认 manual,与 CLI `zhuye session fork` 一致）。
   const [forkOpen, setForkOpen] = useState(false);
   const [forkValue, setForkValue] = useState('manual');
   const [pending, setPending] = useState(false);

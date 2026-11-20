@@ -27,8 +27,8 @@ function entry(name: string, path: string, kind: 'dir' | 'file', depth = 0) {
 
 /** 安装本套件的默认命令桩（setup.tsx 的全局桩之后执行，逐条覆写）。 */
 function installDefaultMocks() {
-  mockInvoke('reflect_current_workspace', async () => WS);
-  mockInvoke('reflect_list_dir', async (_cmd: string, args?: { path?: string | null }) => {
+  mockInvoke('zhuye_current_workspace', async () => WS);
+  mockInvoke('zhuye_list_dir', async (_cmd: string, args?: { path?: string | null }) => {
     const root = args?.path ?? WS;
     if (root === WS) {
       return {
@@ -53,7 +53,7 @@ function installDefaultMocks() {
     }
     return { root, truncated: false, entries: [] };
   });
-  mockInvoke('reflect_git_status', async () => ({
+  mockInvoke('zhuye_git_status', async () => ({
     branch: 'main',
     upstream: null,
     ahead: 0,
@@ -65,7 +65,7 @@ function installDefaultMocks() {
       { path: 'src/lib.rs', status: '??', staged: false, old_path: null },
     ],
   }));
-  mockInvoke('reflect_read_file', async (_cmd: string, args?: { path?: string }) => ({
+  mockInvoke('zhuye_read_file', async (_cmd: string, args?: { path?: string }) => ({
     path: args?.path ?? '',
     content: args?.path?.endsWith('README.md') ? '# hello' : 'const x = 1;\n',
     size: 16,
@@ -132,7 +132,7 @@ describe('FilesDock', () => {
   });
 
   it('git 不可用时隐藏过滤器行', async () => {
-    mockInvoke('reflect_git_status', async () => ({
+    mockInvoke('zhuye_git_status', async () => ({
       branch: null,
       upstream: null,
       ahead: 0,

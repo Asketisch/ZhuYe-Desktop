@@ -22,9 +22,9 @@
 //! - 状态查询用**同一份**有效开关 + 同一个 `OsSandbox::with_enabled`
 //!   构造器计算，报出来的就是真正在跑的那个沙箱。
 //!
-//! 口径细节（env 优先 / 未表态走基线）见 `reflect_app_core::sandbox`。
+//! 口径细节（env 优先 / 未表态走基线）见 `zhuye_app_core::sandbox`。
 
-use reflect_app_core::sandbox;
+use zhuye_app_core::sandbox;
 
 /// 进程 env `ZHUYE_SANDBOX_OS_LEVEL` 的原始值（若用户显式设过）。
 ///

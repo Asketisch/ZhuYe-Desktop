@@ -1,13 +1,13 @@
 /**
  * pins —— 会话置顶（localStorage 持久化 + pub/sub）。
  *
- * 置顶是本机 UI 组织偏好（对标 ZCode 侧边栏「已置顶」区），不入后端
- * 会话元数据：localStorage `reflect.sessionPins.v1` 存有序 id 列表
+ * 置顶是本机 UI 组织偏好（侧边栏「已置顶」区惯例），不入后端
+ * 会话元数据：localStorage `zhuye.sessionPins.v1` 存有序 id 列表
  * （置顶顺序即展示顺序）。跨设备同步留待账号体系。
  */
 import { useCallback, useSyncExternalStore } from 'react';
 
-const KEY = 'reflect.sessionPins.v1';
+const KEY = 'zhuye.sessionPins.v1';
 const listeners = new Set<() => void>();
 let cached: string[] | null = null;
 

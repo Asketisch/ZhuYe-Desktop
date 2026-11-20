@@ -30,10 +30,10 @@ function record(cmd: string, args: unknown): void {
 
 /** 安装默认 mock:三源固定数据 + 突变命令记录参数。 */
 function installDefaultMocks() {
-  mockInvoke('reflect_list_mcp_servers', async () => [
+  mockInvoke('zhuye_list_mcp_servers', async () => [
     { name: 'web-search', transport: 'stdio', command: 'npx', args: ['-y', 'web-mcp'], url: null, running: true },
   ]);
-  mockInvoke('reflect_list_plugins', async () => [
+  mockInvoke('zhuye_list_plugins', async () => [
     {
       id: 'demo-plugin',
       version: '1.2.0',
@@ -45,34 +45,34 @@ function installDefaultMocks() {
       gitCommitSha: null,
     },
   ]);
-  mockInvoke('reflect_list_marketplaces', async () => [
+  mockInvoke('zhuye_list_marketplaces', async () => [
     { name: 'official', source: 'directory', installLocation: '/tmp/marketplaces', autoUpdate: false },
   ]);
-  mockInvoke('reflect_browse_marketplace', async () => [
+  mockInvoke('zhuye_browse_marketplace', async () => [
     { name: 'extra-mcp', description: 'Demo plugin from fake marketplace', version: '0.9.0', category: null, tags: ['hook'], source: '{}' },
   ]);
-  mockInvoke('reflect_list_skills', async () => [
+  mockInvoke('zhuye_list_skills', async () => [
     { name: 'code-review', description: 'Review code carefully', path: '/skills/code-review', tools: [], triggers: [], version: '2.0.0' },
   ]);
-  mockInvoke('reflect_search_skill_market', async (_cmd: string, args: { query: string }) => {
-    record('reflect_search_skill_market', args);
+  mockInvoke('zhuye_search_skill_market', async (_cmd: string, args: { query: string }) => {
+    record('zhuye_search_skill_market', args);
     return [{ id: 'owner/repo/summarize', source: 'owner/repo', slug: 'summarize', official: true }];
   });
 
-  mockInvoke('reflect_delete_mcp_server', async (_cmd: string, args: unknown) => {
-    record('reflect_delete_mcp_server', args);
+  mockInvoke('zhuye_delete_mcp_server', async (_cmd: string, args: unknown) => {
+    record('zhuye_delete_mcp_server', args);
   });
-  mockInvoke('reflect_toggle_plugin', async (_cmd: string, args: unknown) => {
-    record('reflect_toggle_plugin', args);
+  mockInvoke('zhuye_toggle_plugin', async (_cmd: string, args: unknown) => {
+    record('zhuye_toggle_plugin', args);
   });
-  mockInvoke('reflect_uninstall_plugin', async (_cmd: string, args: unknown) => {
-    record('reflect_uninstall_plugin', args);
+  mockInvoke('zhuye_uninstall_plugin', async (_cmd: string, args: unknown) => {
+    record('zhuye_uninstall_plugin', args);
   });
-  mockInvoke('reflect_install_from_marketplace', async (_cmd: string, args: unknown) => {
-    record('reflect_install_from_marketplace', args);
+  mockInvoke('zhuye_install_from_marketplace', async (_cmd: string, args: unknown) => {
+    record('zhuye_install_from_marketplace', args);
   });
-  mockInvoke('reflect_install_skill_from_market', async (_cmd: string, args: unknown) => {
-    record('reflect_install_skill_from_market', args);
+  mockInvoke('zhuye_install_skill_from_market', async (_cmd: string, args: unknown) => {
+    record('zhuye_install_skill_from_market', args);
     return 'sub-fake';
   });
 }
@@ -151,25 +151,25 @@ describe('MarketView', () => {
     expect(screen.getByTestId('market-card-skill:code-review')).toBeDefined();
 
     // 同时触发 skills.sh 市场搜索(≥2 字符),市场结果进网格。
-    await waitFor(() => expect(calls.reflect_search_skill_market?.length).toBeGreaterThanOrEqual(1));
-    expect((calls.reflect_search_skill_market[0] as { query: string }).query).toBe('code');
+    await waitFor(() => expect(calls.zhuye_search_skill_market?.length).toBeGreaterThanOrEqual(1));
+    expect((calls.zhuye_search_skill_market[0] as { query: string }).query).toBe('code');
     await waitFor(() => expect(screen.getByTestId('market-card-skmarket:owner/repo/summarize')).toBeDefined());
   });
 
-  it('market skill entry installs via reflect_install_skill_from_market', async () => {
+  it('market skill entry installs via zhuye_install_skill_from_market', async () => {
     renderView();
     fireEvent.change(screen.getByTestId('market-search'), { target: { value: 'summarize' } });
     const installBtn = await screen.findByTestId('market-action-skmarket:owner/repo/summarize');
     fireEvent.click(installBtn);
     await waitFor(() =>
-      expect(calls.reflect_install_skill_from_market?.[0]).toEqual({ source: 'owner/repo/summarize' }),
+      expect(calls.zhuye_install_skill_from_market?.[0]).toEqual({ source: 'owner/repo/summarize' }),
     );
   });
 
-  it('uninstalling an MCP card wires reflect_delete_mcp_server', async () => {
+  it('uninstalling an MCP card wires zhuye_delete_mcp_server', async () => {
     renderView();
     fireEvent.click(await screen.findByTestId('market-action-mcp:web-search'));
-    await waitFor(() => expect(calls.reflect_delete_mcp_server?.[0]).toEqual({ name: 'web-search' }));
+    await waitFor(() => expect(calls.zhuye_delete_mcp_server?.[0]).toEqual({ name: 'web-search' }));
   });
 
   it('installed plugin toggles enable/disable and uninstalls with its scope', async () => {
@@ -179,20 +179,20 @@ describe('MarketView', () => {
     // 已启用的插件:主按钮 = 停用;副按钮 = 卸载。
     fireEvent.click(screen.getByTestId('market-action-plugin:demo-plugin'));
     await waitFor(() =>
-      expect(calls.reflect_toggle_plugin?.[0]).toEqual({ id: 'demo-plugin', enabled: false }),
+      expect(calls.zhuye_toggle_plugin?.[0]).toEqual({ id: 'demo-plugin', enabled: false }),
     );
 
     fireEvent.click(screen.getByTestId('market-action-plugin:demo-plugin-uninstall'));
     await waitFor(() =>
-      expect(calls.reflect_uninstall_plugin?.[0]).toEqual({ id: 'demo-plugin', scope: 'user' }),
+      expect(calls.zhuye_uninstall_plugin?.[0]).toEqual({ id: 'demo-plugin', scope: 'user' }),
     );
   });
 
-  it('marketplace entry installs via reflect_install_from_marketplace', async () => {
+  it('marketplace entry installs via zhuye_install_from_marketplace', async () => {
     renderView();
     fireEvent.click(await screen.findByTestId('market-action-market:official:extra-mcp'));
     await waitFor(() =>
-      expect(calls.reflect_install_from_marketplace?.[0]).toEqual({ marketplace: 'official', plugin: 'extra-mcp' }),
+      expect(calls.zhuye_install_from_marketplace?.[0]).toEqual({ marketplace: 'official', plugin: 'extra-mcp' }),
     );
   });
 

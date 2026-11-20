@@ -138,7 +138,7 @@ fn model_requests_mcp_tool_approval_and_receives_actual_result() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
@@ -146,16 +146,16 @@ fn model_requests_mcp_tool_approval_and_receives_actual_result() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../tests/fixtures/mcp-stdio-server.mjs");
     common::invoke_ok(
-        "reflect_upsert_mcp_server",
+        "zhuye_upsert_mcp_server",
         json!({
             "name": "desktop_fixture",
             "entry": { "type": "stdio", "command": "node", "args": [fixture],
                 "env": { "TEST_GREETING": "model-roundtrip" } }
         }),
     );
-    common::invoke_ok("reflect_set_permission_mode", json!({ "mode": "prompt" }));
+    common::invoke_ok("zhuye_set_permission_mode", json!({ "mode": "prompt" }));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({
             "submission": { "id": "mcp-agent-submission", "op": { "type": "user_input",
                 "items": [{ "type": "text", "text": "mock-mcp-agent-turn" }] } }
@@ -180,7 +180,7 @@ fn model_requests_mcp_tool_approval_and_receives_actual_result() {
             .any(|tool| tool["name"] == "mcp__desktop_fixture__echo")
     );
     common::invoke_ok(
-        "reflect_tool_approval",
+        "zhuye_tool_approval",
         json!({
             "id": approval["msg"]["request_id"], "decision": "approve"
         }),
@@ -218,7 +218,7 @@ fn model_requests_mcp_tool_approval_and_receives_actual_result() {
         "{result}"
     );
     common::invoke_ok(
-        "reflect_delete_mcp_server",
+        "zhuye_delete_mcp_server",
         json!({ "name": "desktop_fixture" }),
     );
 }

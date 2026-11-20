@@ -2,13 +2,13 @@
  * UsageDock 控制器 —— 右 dock「用量」面板的数据面。
  *
  * 数据源与选型（跨会话成本对比唯一方案,已定）：
- * - 会话统计：`reflect_session_stats(activeId)` —— rollout JSONL 聚合,
+ * - 会话统计：`zhuye_session_stats(activeId)` —— rollout JSONL 聚合,
  *   仅在路由上有活动会话时启用;
- * - **跨会话成本对比走 `reflect_list_sessions`**（经 `useSessions` 缓存,
+ * - **跨会话成本对比走 `zhuye_list_sessions`**（经 `useSessions` 缓存,
  *   与侧栏同源）：每条会话自带 `cost_usd` 累计,一次轻量查询即可拿到
- *   全部会话的费用,无需逐会话 `reflect_session_stats`（那是每会话一次
+ *   全部会话的费用,无需逐会话 `zhuye_session_stats`（那是每会话一次
  *   全量 JSONL 扫描,成本不必要）;
- * - 模型费率：`reflect_model_rate_cards`,对「本会话统计涉及的模型集」
+ * - 模型费率：`zhuye_model_rate_cards`,对「本会话统计涉及的模型集」
  *   反解单价,让费用构成可解释。
  *
  * 刷新策略：活动会话变化由 queryKey 变化自动重拉;手动刷新按钮
@@ -18,12 +18,12 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useActiveSession, useSessions, SESSIONS_QUERY_KEY } from '@/logic/sessions/useSessions';
 import {
-  reflect_model_rate_cards,
-  reflect_session_stats,
+  zhuye_model_rate_cards,
+  zhuye_session_stats,
   type RateCard,
   type SessionStats,
 } from '@/utils/commands/stats';
-import type { ReflectSessionInfo } from '@/utils/types';
+import type { ZhuyeSessionInfo } from '@/utils/types';
 
 /** 跨会话成本对比最多展示的会话条数。 */
 export const USAGE_DOCK_COST_TOP_N = 8;
@@ -42,7 +42,7 @@ export interface UsageDockCostRow {
  * 当前会话若不在 top N 内则不出现（规格即 top 8 by cost）。
  */
 export function buildCostRows(
-  sessions: ReflectSessionInfo[],
+  sessions: ZhuyeSessionInfo[],
   activeId: string | null,
 ): UsageDockCostRow[] {
   if (!Array.isArray(sessions)) return [];
@@ -120,7 +120,7 @@ export function useUsageDock(): UsageDockData {
 
   const statsQ = useQuery({
     queryKey: ['usageDock', 'stats', activeId],
-    queryFn: () => reflect_session_stats(activeId as string),
+    queryFn: () => zhuye_session_stats(activeId as string),
     enabled: !!activeId,
     staleTime: 15_000,
   });
@@ -146,7 +146,7 @@ export function useUsageDock(): UsageDockData {
 
   const ratesQ = useQuery({
     queryKey: ['usageDock', 'rates', modelNames],
-    queryFn: () => reflect_model_rate_cards(modelNames),
+    queryFn: () => zhuye_model_rate_cards(modelNames),
     enabled: modelNames.length > 0,
     staleTime: 300_000,
   });

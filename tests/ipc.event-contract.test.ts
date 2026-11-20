@@ -4,7 +4,7 @@
  * `tests/contracts/events.json` 为协议 `EventMsg` 的**全部变体**各给出一份
  * 最小合法样本。同一份样本被三层消费(L1 event-parity / L3
  * `ipc_event_contract.rs` / 本文件)。真后端侧由 L3 驱动协议 serde,这里
- * 驱动**前端事件链路**:样本经真实 `reflect_event` 总线语义
+ * 驱动**前端事件链路**:样本经真实 `zhuye_event` 总线语义
  * (emitEvent → agentEventBus → store.subscribe → reduceEvent)进入
  * reducer。
  *
@@ -29,7 +29,7 @@ import { readFileSync } from 'node:fs';
 import { installFakeBackend, emitEvent, type FakeBackend } from './helpers/fakeBackend';
 import { useAgentStore } from '@/stores/agentStore';
 import { reduceEvent } from '@/stores/agent';
-import type { EventMsgType, ReflectEventMsg } from '@/types/protocol';
+import type { EventMsgType, ZhuyeEventMsg } from '@/types/protocol';
 
 const doc = JSON.parse(readFileSync('tests/contracts/events.json', 'utf8')) as {
   events: Record<string, { type: string }>;
@@ -99,7 +99,7 @@ describe('event contract · sample table', () => {
         : st();
       const patch = reduceEvent(state, {
         id: ty === 'session_configured' || ty === 'shutdown_complete' ? '' : 'sub-contract',
-        msg: sample as ReflectEventMsg,
+        msg: sample as ZhuyeEventMsg,
       });
       if (Object.keys(patch).length === 0 && !NO_PATCH_WHITELIST.has(ty)) {
         empties.push(ty);
@@ -114,15 +114,15 @@ describe('event contract · sample table', () => {
 
 describe('event contract · full-bus smoke', () => {
   it('session_configured sample projects into the store through the real bus', () => {
-    emitEvent('', doc.events.session_configured as ReflectEventMsg);
+    emitEvent('', doc.events.session_configured as ZhuyeEventMsg);
     expect(st().session).toEqual({ model: 'claude-opus-4.7', provider: 'anthropic' });
   });
 
   it('turn lifecycle samples project turns through the real bus', () => {
-    emitEvent('sub-contract', doc.events.turn_started as ReflectEventMsg);
-    emitEvent('sub-contract', doc.events.agent_message_delta as ReflectEventMsg);
+    emitEvent('sub-contract', doc.events.turn_started as ZhuyeEventMsg);
+    emitEvent('sub-contract', doc.events.agent_message_delta as ZhuyeEventMsg);
     expect(st().turns.find((turn) => turn.id === 'sub-contract')).toBeTruthy();
-    emitEvent('sub-contract', doc.events.turn_complete as ReflectEventMsg);
+    emitEvent('sub-contract', doc.events.turn_complete as ZhuyeEventMsg);
     expect(st().turns.find((turn) => turn.id === 'sub-contract')?.status).toBe('done');
   });
 });
@@ -131,14 +131,14 @@ describe('event contract · wire drift detectors (self-test)', () => {
   it('a renamed variant would be caught by the non-empty-patch assertion', () => {
     // 模拟"上游新增/改名变体后样本未跟"的历史场景:未知 type 必须判为
     // 空 patch —— 这是本契约的探针语义,失效即空转。
-    const unknown = { type: 'definitely_not_a_real_event_v1' } as unknown as ReflectEventMsg;
+    const unknown = { type: 'definitely_not_a_real_event_v1' } as unknown as ZhuyeEventMsg;
     const patch = reduceEvent(st(), { id: 'sub-probe', msg: unknown });
     expect(Object.keys(patch).length).toBe(0);
   });
 
   it('backend fixtures remain untouched by contract emissions', () => {
     const callsBefore = backend.calls.length;
-    emitEvent('sub-contract', doc.events.agent_message as ReflectEventMsg);
+    emitEvent('sub-contract', doc.events.agent_message as ZhuyeEventMsg);
     expect(backend.calls.length).toBe(callsBefore);
   });
 });

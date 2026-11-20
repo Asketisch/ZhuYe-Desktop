@@ -1,6 +1,6 @@
 /**
- * 模型组设置页 —— 统一的模型接入管理面（对标 ZCode / Magpie 的
- * provider 分组模型选择）。
+ * 模型组设置页 —— 统一的模型接入管理面（provider 分组模型选择惯例）.
+ *
  *
  * 三层内容：
  * 1. **默认模型组**：内置端口（anthropic / openai，凡有可用 plan）与
@@ -48,7 +48,7 @@ import s from '@/render/settings/SettingsView.module.css';
 export interface GroupsSectionProps {
   rawToml: string;
   onChange: (next: string) => void;
-  /** 把变更立即落盘（reflect_save_config → 后端校验 + 热重载 provider 栈）。
+  /** 把变更立即落盘（zhuye_save_config → 后端校验 + 热重载 provider 栈）。
    *  本页每个操作都是完整意图，不应要求用户再去点页面底部的总保存按钮
    *  —— 否则模型选择器读到的仍是旧配置。 */
   onCommit?: (next: string) => void;

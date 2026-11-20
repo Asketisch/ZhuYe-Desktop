@@ -1,12 +1,12 @@
 [package]
-name = "reflect-desktop"
+name = "zhuye-desktop"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "烛夜（ZhuYe）：烛夜 agent 引擎的 Tauri 2 桌面 GUI（二进制：reflect-desktop）"
+description = "烛夜（ZhuYe）：烛夜 agent 引擎的 Tauri 2 桌面 GUI（二进制：zhuye-desktop）"
 
 # 子目录 workspace 成员；必须显式发现 tauri-build。
 build = "build.rs"
@@ -15,11 +15,11 @@ build = "build.rs"
 workspace = true
 
 [lib]
-name = "reflect_desktop_lib"
+name = "zhuye_desktop_lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "reflect-desktop"
+name = "zhuye-desktop"
 path = "src/main.rs"
 
 [dependencies]
@@ -45,74 +45,74 @@ tracing                     = { workspace = true }
 tracing-subscriber          = { workspace = true }
 parking_lot                 = { workspace = true }
 fs2                         = "0.4"
-reflect-protocol            = { workspace = true }
-reflect-core                = { workspace = true }
-reflect-app-core            = { workspace = true }
-reflect-telemetry           = { workspace = true }
-reflect-config              = { workspace = true }
-reflect-rollout             = { workspace = true }
-# v1.11 D9:外部 Agent 导入入口(Claude Code / Codex / ZCode 会话 → 烛夜 rollout)。
-reflect-import              = { workspace = true }
-reflect-skills              = { workspace = true }
+zhuye-protocol            = { workspace = true }
+zhuye-core                = { workspace = true }
+zhuye-app-core            = { workspace = true }
+zhuye-telemetry           = { workspace = true }
+zhuye-config              = { workspace = true }
+zhuye-rollout             = { workspace = true }
+# v1.11 D9:外部 Agent 导入入口(三种外部 harness 会话 → 烛夜 rollout)。
+zhuye-import              = { workspace = true }
+zhuye-skills              = { workspace = true }
 # 会话笔记只读查询(agent 经 AddSessionNoteTool 写入,这里只读展示)
-reflect-notes               = { workspace = true }
+zhuye-notes               = { workspace = true }
 # OS 沙箱状态查询(Seatbelt / Landlock 是否真的生效)
-reflect-sandbox             = { workspace = true }
+zhuye-sandbox             = { workspace = true }
 # 提示词库(按模型匹配的外置层)—— 查询当前模型实际生效的 prompt 正文
-reflect-prompt              = { workspace = true }
-reflect-memory              = { workspace = true }
+zhuye-prompt              = { workspace = true }
+zhuye-memory              = { workspace = true }
 # KMS 本地知识库(实现收编上游 zhuye-kms;GUI 查询/编辑命令面在 commands/kms.rs)
-reflect-kms                 = { workspace = true }
+zhuye-kms                 = { workspace = true }
 # 常驻 shell 会话池(收编自桌面 shell_sessions.rs + commands/shell.rs 的 pump 细节)
-reflect-shell               = { workspace = true }
-reflect-permissions         = { workspace = true }
-reflect-tools               = { workspace = true }
-reflect-ast                 = { workspace = true }
-reflect-llm                 = { workspace = true }
-reflect-hooks               = { workspace = true }
+zhuye-shell               = { workspace = true }
+zhuye-permissions         = { workspace = true }
+zhuye-tools               = { workspace = true }
+zhuye-ast                 = { workspace = true }
+zhuye-llm                 = { workspace = true }
+zhuye-hooks               = { workspace = true }
 # 阶段 3d:MCP / LSP 运行时接入。
-reflect-mcp                 = { workspace = true }
+zhuye-mcp                 = { workspace = true }
 # 安全扫描(cargo audit)—— 核心的真实实现,GUI 此前没有这个面
-reflect-integration         = { workspace = true }
+zhuye-integration         = { workspace = true }
 # MCP 资源 / prompt 浏览:直接问 rmcp peer(与核心 ListMcp*Tool 同源)
 rmcp                        = { workspace = true }
-reflect-lsp                 = { workspace = true }
-# LSP 预热:file:// URI 构造(url)与 lsp_types::Uri(与 reflect-lsp 同版本)。
+zhuye-lsp                 = { workspace = true }
+# LSP 预热:file:// URI 构造(url)与 lsp_types::Uri(与 zhuye-lsp 同版本)。
 url                         = { workspace = true }
 lsp-types                   = { workspace = true }
-# v1.x 会话持久化:`reflect::m4_bootstrap::build_default_m4` 给 GUI 接
+# v1.x 会话持久化:`zhuye::m4_bootstrap::build_default_m4` 给 GUI 接
 # 完整 M4(skills/memory/compaction/notes),与 CLI/TUI 行为对齐。仅依赖
 # tokio,无 pyo3/hyper 等重 crate。
-reflect                     = { workspace = true }
-# 多 agent 协调:Task/Team/Coordinator(zhuye-agent/crates/orchestration/reflect-task 已实现 TaskManager 全套 API)。
+zhuye                        = { workspace = true }
+# 多 agent 协调:Task/Team/Coordinator(zhuye-agent/crates/orchestration/zhuye-task 已实现 TaskManager 全套 API)。
 # Phase 1 暴露命令面;UI 与 hook/event_sink 注入留后续阶段。
-reflect-task                = { workspace = true }
-# Schedule(cron):zhuye-agent/crates/integrations/reflect-stream 的 CronScheduler(create/update/delete/tick)。
+zhuye-task                = { workspace = true }
+# Schedule(cron):zhuye-agent/crates/integrations/zhuye-stream 的 CronScheduler(create/update/delete/tick)。
 # Phase 1 第 2 项暴露命令面;后台 driver 与全局 schedules.json 持久化已接线。
-reflect-stream              = { workspace = true }
+zhuye-stream              = { workspace = true }
 # Agent definitions:zhuye-agent/crates/abilities/zhuye-agent-def 的 Markdown + frontmatter 解析/加载。
 # Phase 1 第 3 项:agent profile 管理页(列表/创建/编辑/删除)。
-reflect-agent-def           = { workspace = true }
+zhuye-agent-def           = { workspace = true }
 # 插件系统(v1.x):[plugins] enabled_plugins 挂载(skills/agents/mcp/commands)
 # + `/plugin:ns:name` 用户输入展开。挂载入口 state/plugins.rs,与 exec/serve 同源。
-reflect-plugin              = { workspace = true }
+zhuye-plugin              = { workspace = true }
 # 插件 agents 能力的宿主:SubAgentFactory(仅作 loader 挂载点,桌面端
 # 不注册内置子代理 spec —— 内置 call_* 工具是独立 feature)。
-reflect-subagent            = { workspace = true }
+zhuye-subagent            = { workspace = true }
 # 受控浏览器(收编上游 zhuye-browser):chrome.rs 的发现/启动契约 +
 # a11y 快照类型;real feature 启用 CDP(ws 栈)。
-reflect-browser             = { workspace = true, features = ["real"] }
+zhuye-browser             = { workspace = true, features = ["real"] }
 futures-util                = { workspace = true }
-# 多 agent 讨论编排(CLI `reflect discussion` 的 GUI 对应;逻辑在 app-core,
-# 这里仅 PipelineReport/类型直传需要 reflect-pipeline)。
-reflect-discussion          = { workspace = true }
-# DAG 流水线(CLI `reflect pipeline` 的 GUI 对应;命令签名直传 PipelineReport)。
-reflect-pipeline            = { workspace = true }
-# 目标模式状态快照(reflect_goal_snapshot 直传 GoalState;v1.7 上游补了
+# 多 agent 讨论编排(CLI `zhuye discussion` 的 GUI 对应;逻辑在 app-core,
+# 这里仅 PipelineReport/类型直传需要 zhuye-pipeline)。
+zhuye-discussion          = { workspace = true }
+# DAG 流水线(CLI `zhuye pipeline` 的 GUI 对应;命令签名直传 PipelineReport)。
+zhuye-pipeline            = { workspace = true }
+# 目标模式状态快照(zhuye_goal_snapshot 直传 GoalState;v1.7 上游补了
 # GoalController::snapshot() 读口,GUI 不再靠前端投影猜目标模式状态)。
-reflect-goal                = { workspace = true }
+zhuye-goal                = { workspace = true }
 # 阶段 1:真实 agent 集成所需 — sanitizer / 工具输出脱敏(默认 10 pattern)。
-# Sanitizer::with_defaults() 直接可用,无需 reflect-config 的 SanitizeSection 转换。
+# Sanitizer::with_defaults() 直接可用,无需 zhuye-config 的 SanitizeSection 转换。
 uuid                        = { workspace = true }
 futures                     = { workspace = true }
 dirs                        = "5"

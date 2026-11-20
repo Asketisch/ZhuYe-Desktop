@@ -1,5 +1,5 @@
 import { Package, FolderOpen, Trash2, Power } from 'lucide-react';
-import type { PluginsPanelProps, ReflectPluginScope } from '@/contracts/pluginsPanel';
+import type { PluginsPanelProps, ZhuyePluginScope } from '@/contracts/pluginsPanel';
 import { pluginErrorMessage } from './pluginErrorMessage';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';
@@ -11,7 +11,7 @@ import { Select } from '../design-system/Select';
 import { Spinner } from '../design-system/Spinner';
 import s from './CollaborationView.module.css';
 
-const SCOPES: ReflectPluginScope[] = ['user', 'project', 'local', 'managed'];
+const SCOPES: ZhuyePluginScope[] = ['user', 'project', 'local', 'managed'];
 
 export function PluginsPanel({ t, ctrl, MarketplaceRow }: PluginsPanelProps) {
   const { showInstall, setShowInstall, path, setPath, marketplace, setMarketplace, scope, setScope,
@@ -60,7 +60,7 @@ export function PluginsPanel({ t, ctrl, MarketplaceRow }: PluginsPanelProps) {
             />
             <Select
               value={scope}
-              onChange={(e) => setScope(e.target.value as ReflectPluginScope)}
+              onChange={(e) => setScope(e.target.value as ZhuyePluginScope)}
               aria-label={t('collaboration.pluginScope')}
               data-testid="plugin-scope-select"
             >

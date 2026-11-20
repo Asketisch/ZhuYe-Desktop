@@ -1,7 +1,7 @@
 /**
  * SessionsDashboard —— F50 多会话 Dashboard。
  *
- * 聚合 `reflect_list_sessions` 全量元数据:总会话数 / 总消息数 / 总 token、
+ * 聚合 `zhuye_list_sessions` 全量元数据:总会话数 / 总消息数 / 总 token、
  * 按天活跃分布(最近 7 天条形)、最活跃会话 Top5。与 Sidebar(单列表导航)
  * 互补 —— Dashboard 回答「我的会话库整体什么状态」。
  *
@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard } from 'lucide-react';
 import { Badge, Card, Icon } from '@/features/design-system';
-import { reflect_list_sessions } from '@/utils/commands/sessions';
+import { zhuye_list_sessions } from '@/utils/commands/sessions';
 import s from '@/render/sessions/SessionsDashboard.module.css';
 
 /** 最近 N 天活跃分布的天数窗口。 */
@@ -72,7 +72,7 @@ export function aggregate(
 export function SessionsDashboard() {
   const sessionsQ = useQuery({
     queryKey: ['dashboard-sessions'],
-    queryFn: () => reflect_list_sessions({ limit: 500 }),
+    queryFn: () => zhuye_list_sessions({ limit: 500 }),
     staleTime: 30_000,
   });
 

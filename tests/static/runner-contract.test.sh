@@ -83,7 +83,7 @@ case "$FAKE_CARGO_MODE" in
         printf 'test live_free_model_practice ... LIVE_CASE\tfree-model-resolution\tPASS\tmodel\n'
         printf 'LIVE_CASE\tfull-chain-protocol-shape\tPASS\tcomplete\n'
         printf 'test live_capability_matrix ... LIVE_CASE\tlive-capability-matrix\tPASS\tmodel\n'
-        awk '/^const SCENARIOS:.*= &\[/ { active=1; next } active && /^\];/ { exit } active && /^[[:space:]]*\("/ { line=$0; sub(/^[[:space:]]*\("/, "", line); sub(/".*/, "", line); status = (ENVIRON["REFLECT_LIVE_SCENARIOS"] == "tool-call" && line != "tool-call") ? "SKIP" : "PASS"; printf "LIVE_CASE\t%s\t%s\tcomplete\n", line, status }' "$FIXTURE/src-tauri/tests/ipc_live_capabilities.rs"
+        awk '/^const SCENARIOS:.*= &\[/ { active=1; next } active && /^\];/ { exit } active && /^[[:space:]]*\("/ { line=$0; sub(/^[[:space:]]*\("/, "", line); sub(/".*/, "", line); status = (ENVIRON["ZHUYE_LIVE_SCENARIOS"] == "tool-call" && line != "tool-call") ? "SKIP" : "PASS"; printf "LIVE_CASE\t%s\t%s\tcomplete\n", line, status }' "$FIXTURE/src-tauri/tests/ipc_live_capabilities.rs"
         if [ "$FAKE_CARGO_MODE" = duplicate_scene ]; then printf 'LIVE_CASE\tagent-loop\tPASS\tduplicate\n'; fi
         ;;
     missing_scene)
@@ -104,8 +104,8 @@ chmod +x "$TMP/bin/uname"
 cat > "$TMP/bin/mktemp" <<'MKTEMP'
 #!/usr/bin/env bash
 case "${FAKE_MKTEMP_FAIL:-}:$*" in
-    home:*reflect-desktop-test-home*) exit 1 ;;
-    cwd:*reflect-desktop-test-cwd*) exit 1 ;;
+    home:*zhuye-desktop-test-home*) exit 1 ;;
+    cwd:*zhuye-desktop-test-cwd*) exit 1 ;;
 esac
 exec /usr/bin/mktemp "$@"
 MKTEMP
@@ -168,13 +168,13 @@ if FAKE_UNAME=Darwin VISUAL_UPDATE=1 GATE_STRICT=1 bash "$FIXTURE/tests/run_all.
 FAKE_UNAME=Darwin E2E_SKIP_WINDOW=1 bash "$FIXTURE/tests/run_all.sh" e2e > "$TMP/e2e.log" 2>&1 || fail "本地首次生成基线在普通模式应记录跳过"
 grep -q $'^SKIP\t视觉基线比对' "$RESULT_DIR/e2e.cases" || fail "本地首次生成也不得视为比较通过"
 
-REFLECT_LIVE=1 FAKE_CARGO_MODE=pass bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1 || { cat "$TMP/live.log"; fail "完整实模型结果应通过"; }
+ZHUYE_LIVE=1 FAKE_CARGO_MODE=pass bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1 || { cat "$TMP/live.log"; fail "完整实模型结果应通过"; }
 grep -q $'^PASS\tfree-model-resolution\t' "$RESULT_DIR/live.cases" || fail "libtest 前缀吞掉了首条结果"
 for mode in incomplete malformed empty crash missing_scene duplicate_scene; do
-    if REFLECT_LIVE=1 FAKE_CARGO_MODE="$mode" bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1; then fail "$mode 不应放行"; fi
+    if ZHUYE_LIVE=1 FAKE_CARGO_MODE="$mode" bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1; then fail "$mode 不应放行"; fi
     if [ "$mode" = empty ]; then grep -q 'cargo diagnostic preserved' "$RESULT_DIR/live-test.log" || fail "无结果时不能覆盖原始日志"; fi
 done
-REFLECT_LIVE=1 REFLECT_LIVE_SCENARIOS=tool-call FAKE_CARGO_MODE=pass bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1 || fail "筛选场景应标记跳过但允许普通模式通过"
+ZHUYE_LIVE=1 ZHUYE_LIVE_SCENARIOS=tool-call FAKE_CARGO_MODE=pass bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1 || fail "筛选场景应标记跳过但允许普通模式通过"
 grep -q $'^SKIP\tagent-loop\t' "$RESULT_DIR/live.cases" || fail "筛选场景必须逐项标明未覆盖"
-if REFLECT_LIVE=1 REFLECT_LIVE_SCENARIOS=tool-call FAKE_CARGO_MODE=pass GATE_STRICT=1 bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1; then fail "严格模式应拒绝筛选后的不完整场景"; fi
+if ZHUYE_LIVE=1 ZHUYE_LIVE_SCENARIOS=tool-call FAKE_CARGO_MODE=pass GATE_STRICT=1 bash "$FIXTURE/tests/run_all.sh" live > "$TMP/live.log" 2>&1; then fail "严格模式应拒绝筛选后的不完整场景"; fi
 echo "runner-contract.test.sh self-test: ok"

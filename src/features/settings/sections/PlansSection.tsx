@@ -8,7 +8,7 @@
  * 自动切换见 `stores/agent/planFailover.ts`（开关在 GroupsSection）。
  *
  * 与 ConfigForm 共享同一份 rawToml buffer（props 传入），由设置页统一的
- * Save 按钮落盘；后端 `reflect_save_config` 校验 + 热重载 provider 栈，
+ * Save 按钮落盘；后端 `zhuye_save_config` 校验 + 热重载 provider 栈，
  * 新计划无需重启生效。
  */
 import { useState } from 'react';
@@ -16,9 +16,9 @@ import { Plus, Trash2, Pencil, Zap, Gauge, RefreshCw } from 'lucide-react';
 import { Badge, Button, Icon, Input, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
-  reflect_query_plan_quota,
-  reflect_list_provider_models,
-  reflect_test_provider_chat,
+  zhuye_query_plan_quota,
+  zhuye_list_provider_models,
+  zhuye_test_provider_chat,
   type PlanQuotaSnapshot,
   type ProviderModelInfo,
 } from '@/utils/commands';
@@ -42,7 +42,7 @@ import s from '@/render/settings/SettingsView.module.css';
 export interface PlansSectionProps {
   rawToml: string;
   onChange: (next: string) => void;
-  /** 把变更立即落盘（reflect_save_config → 后端校验 + 热重载 provider 栈）。
+  /** 把变更立即落盘（zhuye_save_config → 后端校验 + 热重载 provider 栈）。
    *  Plans 页的每个操作（保存/删除/设为默认）都是完整意图，不应要求用户
    *  再去点页面底部的总保存按钮 —— 否则模型选择器读到的仍是旧配置。 */
   onCommit?: (next: string) => void;
@@ -115,7 +115,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
    * 该接入端口是否允许**留空 api_key**（免 Key 端点）。
    *
    * OpenAI 兼容端点可以免 Key —— 免费模型池就是这种端点：空 key 时后端
-   * **不发** Authorization 头（与 `reflect-llm` 的 OpenAIClient 同口径）。
+   * **不发** Authorization 头（与 `zhuye-llm` 的 OpenAIClient 同口径）。
    * Anthropic 协议没有免 Key 形态，仍要求 key。
    */
   const keylessAllowed = form.provider === 'openai';
@@ -195,7 +195,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
     setQuotaQueries((prev) => ({ ...prev, [key]: { loading: true, snapshot: null } }));
     let snapshot: PlanQuotaSnapshot;
     try {
-      snapshot = await reflect_query_plan_quota(plan.baseUrl, plan.apiKey, checkVia);
+      snapshot = await zhuye_query_plan_quota(plan.baseUrl, plan.apiKey, checkVia);
     } catch (e) {
       // invoke 本身被拒（命令缺失 / 后端异常）→ 与查询失败同形展示。
       snapshot = { success: false, error: String(e), utilization: null, remaining_tokens: null, max_tokens: null, resets_at: null };
@@ -209,7 +209,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
     setFetchingModels(true);
     setModelsError(null);
     try {
-      const res = await reflect_list_provider_models(form.baseUrl.trim(), form.apiKey.trim(), form.provider);
+      const res = await zhuye_list_provider_models(form.baseUrl.trim(), form.apiKey.trim(), form.provider);
       setFormModels(res.models);
       setFormModelsProvider(form.provider);
     } catch (e) {
@@ -226,7 +226,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
     setTestingConnection(true);
     setConnectionOk(null);
     try {
-      const res = await reflect_list_provider_models(form.baseUrl.trim(), form.apiKey.trim(), form.provider);
+      const res = await zhuye_list_provider_models(form.baseUrl.trim(), form.apiKey.trim(), form.provider);
       setConnectionOk(true);
       setFormModels(res.models);
       setFormModelsProvider(form.provider);
@@ -244,7 +244,7 @@ export function PlansSection({ rawToml, onChange, onCommit }: PlansSectionProps)
     setChatReply(null);
     setChatError(null);
     try {
-      const res = await reflect_test_provider_chat(
+      const res = await zhuye_test_provider_chat(
         form.baseUrl.trim(),
         form.apiKey.trim(),
         form.provider,

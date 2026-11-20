@@ -2,7 +2,7 @@
  * Side-channel controller hook（阶段 2 任务 1）。
  *
  * 封装查询 / 突变编排：
- *   - TanStack `useQuery` 用于 `reflect_list_side_channels`（实时更新
+ *   - TanStack `useQuery` 用于 `zhuye_list_side_channels`（实时更新
  *     依赖 broadcast 事件流，目前为焦点恢复 + 每次 mutation 后的快照刷新）。
  *   - 两个 mutation：start / cancel，带 toast + cache 失效。
  *
@@ -11,11 +11,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_cancel_side_channel,
-  reflect_list_side_channels,
-  reflect_start_side_channel,
-  type ReflectSideChannelInfo,
-  type ReflectStartSideChannelResult,
+  zhuye_cancel_side_channel,
+  zhuye_list_side_channels,
+  zhuye_start_side_channel,
+  type ZhuyeSideChannelInfo,
+  type ZhuyeStartSideChannelResult,
 } from '@/utils/commands';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { useI18n } from '@/utils/i18n';
@@ -32,7 +32,7 @@ function errorMessage(error: unknown): string {
 
 export interface SideChannelController {
   // 查询
-  channels: ReflectSideChannelInfo[];
+  channels: ZhuyeSideChannelInfo[];
   runningCount: number;
   loading: boolean;
   error: unknown;
@@ -64,7 +64,7 @@ export function useSideChannelController(): SideChannelController {
 
   const channelsQ = useQuery({
     queryKey: [...SIDECHANNEL_QUERY_KEY],
-    queryFn: () => reflect_list_side_channels(),
+    queryFn: () => zhuye_list_side_channels(),
     staleTime: SIDECHANNEL_STALE_MS,
     refetchInterval: SIDECHANNEL_STALE_MS,
   });
@@ -89,8 +89,8 @@ export function useSideChannelController(): SideChannelController {
 
   const startMut = useMutation({
     mutationFn: (args: { agent_name: string; prompt: string }) =>
-      reflect_start_side_channel(args),
-    onSuccess: (res: ReflectStartSideChannelResult) => {
+      zhuye_start_side_channel(args),
+    onSuccess: (res: ZhuyeStartSideChannelResult) => {
       void invalidate();
       pushToast({
         kind: 'success',
@@ -100,7 +100,7 @@ export function useSideChannelController(): SideChannelController {
   });
 
   const cancelMut = useMutation({
-    mutationFn: (id: string) => reflect_cancel_side_channel(id),
+    mutationFn: (id: string) => zhuye_cancel_side_channel(id),
     onSuccess: (ok: boolean, id: string) => {
       void invalidate();
       pushToast({

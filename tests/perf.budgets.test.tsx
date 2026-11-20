@@ -19,7 +19,7 @@ import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
 import { useAgentStore } from '@/stores/agentStore';
 import { reduceEvent } from '@/stores/agent';
 import { bucketSessions } from '@/features/sessions/utils/buckets';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 
 /** 宽松预算(默认,防数量级回归)/ 严格预算(PERF_STRICT=1,本地性能迭代用)。 */
 const B = (loose: number, strict: number) => (process.env.PERF_STRICT === '1' ? strict : loose);
@@ -70,7 +70,7 @@ describe('perf budgets', () => {
       token_total: 0,
       cwd: '/tmp',
       display_name: null,
-    })) as unknown as ReflectSessionInfo[];
+    })) as unknown as ZhuyeSessionInfo[];
     const t0 = performance.now();
     const buckets = bucketSessions(sessions);
     const elapsed = performance.now() - t0;

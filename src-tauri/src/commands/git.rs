@@ -42,99 +42,80 @@ pub struct GitLogEntry {
     pub subject: String,
 }
 
-/// 一个 git worktree(camelCase 出线)。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorktreeInfo {
-    /// worktree 绝对路径。
-    pub path: String,
-    /// HEAD 指向的分支名(detached HEAD 时为空串)。
-    pub branch: String,
-    /// HEAD commit sha。
-    pub head: String,
-    /// 是否有未提交改动。
-    pub dirty: bool,
-    /// true = 隔离 worktree(非主工作树)—— agent 的 `EnterWorktree` 会建这种。
-    pub isolated: bool,
-    /// true = 隔离 worktree 且有未提交改动 → 改动**还没落回主分支**（丢工风险）。
-    pub stranded: bool,
+/// worktree 域类型 —— 实现（列表解析 / 判脏 / 增删）下沉 `app-core::
+/// worktree`，本层只做 workspace 取径 + 薄封装。
+pub use zhuye_app_core::worktree::WorktreeInfo;
+
+/// 当前 workspace 路径（worktree 命令的 repo 根）。
+fn worktree_repo() -> Result<PathBuf, CommandError> {
+    git_in_workspace().ok_or_else(|| CommandError {
+        msg: "no workspace".into(),
+    })
+}
+
+/// 路径等价比较（canonicalize 失败回退字符串直比）。
+fn same_worktree_path(a: &str, b: &std::path::Path) -> bool {
+    let a_path = std::path::Path::new(a);
+    match (std::fs::canonicalize(a_path), std::fs::canonicalize(b)) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => a_path == b,
+    }
 }
 
 /// 列出仓库的 worktree,标出「改动被困在隔离 worktree」的风险。
 ///
-/// 核心的 worktree 状态存在 `ToolContext` 里（进程内），GUI 读不到；
-/// 但 worktree 本身是**文件系统可见**的 —— `git worktree list --porcelain`
-/// 列出全部工作树，配合核心的 `reflect_tools::worktree::worktree_dirty`
-/// 判脏。
-///
 /// 关键价值：agent 经 `EnterWorktree` 进隔离工作树后，GUI 此前完全不知情 ——
-/// 用户的改动可能滞留在那里、没落回主分支。现在明确标出 `stranded`。
+/// 用户的改动可能滞留在那里、没落回主分支。`stranded` 明确标出。
 #[tauri::command]
-pub async fn reflect_list_worktrees() -> CommandResult<Vec<WorktreeInfo>> {
-    let out = run_git(&["worktree", "list", "--porcelain"])?;
-    if !out.status.success() {
-        // 不是 git 仓库 / 无 worktree 支持 → 空列表(不报错)。
-        return Ok(Vec::new());
-    }
-    let raw = String::from_utf8_lossy(&out.stdout).to_string();
+pub async fn zhuye_list_worktrees() -> CommandResult<Vec<WorktreeInfo>> {
+    let repo = worktree_repo()?;
+    // 非 git 仓库 / 无 worktree 支持 → 空列表(不报错)。
+    Ok(zhuye_app_core::worktree::worktree_list(&repo).unwrap_or_default())
+}
 
-    // porcelain 格式:空行分隔的块,每块含 worktree/HEAD/branch 行。
-    let mut blocks: Vec<Vec<String>> = Vec::new();
-    let mut current: Vec<String> = Vec::new();
-    for line in raw.lines() {
-        if line.trim().is_empty() {
-            if !current.is_empty() {
-                blocks.push(std::mem::take(&mut current));
-            }
-            continue;
-        }
-        current.push(line.to_string());
-    }
-    if !current.is_empty() {
-        blocks.push(current);
-    }
+/// 创建 linked worktree。
+///
+/// `branch` 缺省 → `-b <name>` 建同名新分支；指定则检出已有分支。
+/// `path` 缺省 → `<repo 父目录>/<repo 名>-worktrees/<name>/`。
+/// 返回创建出的 worktree 信息（含 isolated/stranded 判定）。
+#[tauri::command]
+pub async fn zhuye_create_worktree(
+    name: String,
+    branch: Option<String>,
+    path: Option<String>,
+) -> CommandResult<WorktreeInfo> {
+    let repo = worktree_repo()?;
+    let created = zhuye_app_core::worktree::worktree_add(
+        &repo,
+        &name,
+        branch.as_deref(),
+        path.as_deref().map(std::path::Path::new),
+    )
+    .map_err(|e| CommandError { msg: format!("{e}") })?;
+    // 回读统一形态（dirty/isolated/stranded 由列表统一判定）。
+    let list = zhuye_app_core::worktree::worktree_list(&repo)
+        .map_err(|e| CommandError { msg: format!("{e}") })?;
+    list.into_iter()
+        .find(|w| same_worktree_path(&w.path, &created))
+        .ok_or_else(|| CommandError {
+            msg: format!("worktree 已创建但未出现在列表: {}", created.display()),
+        })
+}
 
-    let mut infos: Vec<WorktreeInfo> = Vec::new();
-    for block in blocks {
-        let mut path = String::new();
-        let mut head = String::new();
-        let mut branch = String::new();
-        for line in &block {
-            if let Some(p) = line.strip_prefix("worktree ") {
-                path = p.trim().to_string();
-            } else if let Some(h) = line.strip_prefix("HEAD ") {
-                head = h.trim().to_string();
-            } else if let Some(b) = line.strip_prefix("branch ") {
-                // `refs/heads/<name>` → `<name>`
-                branch = b
-                    .trim()
-                    .strip_prefix("refs/heads/")
-                    .unwrap_or(b.trim())
-                    .to_string();
-            }
-        }
-        if path.is_empty() {
-            continue;
-        }
-        // 判脏走核心的实现(与 agent 侧同款语义)。
-        let dirty =
-            reflect_tools::worktree::worktree_dirty(std::path::Path::new(&path)).unwrap_or(false);
-        infos.push(WorktreeInfo {
-            path,
-            branch,
-            head,
-            dirty,
-            isolated: false, // 下面统一回填
-            stranded: false,
-        });
-    }
-    // 第一个条目是主工作树;其余为隔离 worktree。
-    let main_path = infos.first().map(|w| w.path.clone()).unwrap_or_default();
-    for w in infos.iter_mut() {
-        w.isolated = !w.path.is_empty() && w.path != main_path;
-        w.stranded = w.isolated && w.dirty;
-    }
-    Ok(infos)
+/// 删除 linked worktree。脏树默认拒绝（`force = true` 才连带丢弃改动）。
+#[tauri::command]
+pub async fn zhuye_remove_worktree(path: String, force: bool) -> CommandResult<()> {
+    let repo = worktree_repo()?;
+    zhuye_app_core::worktree::worktree_remove(&repo, std::path::Path::new(&path), force)
+        .map_err(|e| CommandError { msg: format!("{e}") })
+}
+
+/// 清理失效的 worktree 行政登记（目录已被手工删除等）。
+#[tauri::command]
+pub async fn zhuye_prune_worktrees() -> CommandResult<()> {
+    let repo = worktree_repo()?;
+    zhuye_app_core::worktree::worktree_prune(&repo)
+        .map_err(|e| CommandError { msg: format!("{e}") })
 }
 
 fn git_in_workspace() -> Option<PathBuf> {
@@ -165,7 +146,7 @@ fn run_git(args: &[&str]) -> Result<std::process::Output, CommandError> {
 
 /// `git status --porcelain=v1 --branch` → 结构化 status。
 #[tauri::command]
-pub async fn reflect_git_status() -> CommandResult<GitStatus> {
+pub async fn zhuye_git_status() -> CommandResult<GitStatus> {
     // 首先确认这是否真的是 git 仓库。
     let probe = run_git(&["rev-parse", "--is-inside-work-tree"])?;
     let is_repo = String::from_utf8_lossy(&probe.stdout).trim() == "true";
@@ -213,7 +194,7 @@ pub async fn reflect_git_status() -> CommandResult<GitStatus> {
 
 /// `git diff --no-color` → unified diff 文本(`staged=true` 时为 staged diff)。
 #[tauri::command]
-pub async fn reflect_git_diff(staged: Option<bool>) -> CommandResult<String> {
+pub async fn zhuye_git_diff(staged: Option<bool>) -> CommandResult<String> {
     let args: Vec<&str> = if staged.unwrap_or(false) {
         vec!["diff", "--no-color", "--staged"]
     } else {
@@ -230,7 +211,7 @@ pub async fn reflect_git_diff(staged: Option<bool>) -> CommandResult<String> {
 
 /// `git log --pretty=format:... -n N` → 结构化 entry 列表。
 #[tauri::command]
-pub async fn reflect_git_log(limit: Option<usize>) -> CommandResult<Vec<GitLogEntry>> {
+pub async fn zhuye_git_log(limit: Option<usize>) -> CommandResult<Vec<GitLogEntry>> {
     let n = limit.unwrap_or(20).to_string();
     let fmt = "%H%x1f%h%x1f%an%x1f%at%x1f%s";
     let out = run_git(&["log", &format!("--pretty=format:{fmt}"), "-n", &n])?;
@@ -265,7 +246,7 @@ pub async fn reflect_git_log(limit: Option<usize>) -> CommandResult<Vec<GitLogEn
 
 /// stage 文件（`git add -- <paths>`）。空 paths = add -A（全量）。
 #[tauri::command]
-pub async fn reflect_git_stage(paths: Vec<String>) -> CommandResult<()> {
+pub async fn zhuye_git_stage(paths: Vec<String>) -> CommandResult<()> {
     let output = if paths.is_empty() {
         run_git(&["add", "--all"])
     } else {
@@ -287,7 +268,7 @@ pub async fn reflect_git_stage(paths: Vec<String>) -> CommandResult<()> {
 
 /// unstage 文件（`git reset HEAD -- <paths>`；路径为空 = 全量 reset）。
 #[tauri::command]
-pub async fn reflect_git_unstage(paths: Vec<String>) -> CommandResult<()> {
+pub async fn zhuye_git_unstage(paths: Vec<String>) -> CommandResult<()> {
     let output = if paths.is_empty() {
         run_git(&["reset", "HEAD"])
     } else {
@@ -308,7 +289,7 @@ pub async fn reflect_git_unstage(paths: Vec<String>) -> CommandResult<()> {
 
 /// 提交（`git commit -m <message>`）。要求非空 message；返回新 commit 短 hash。
 #[tauri::command]
-pub async fn reflect_git_commit(message: String) -> CommandResult<String> {
+pub async fn zhuye_git_commit(message: String) -> CommandResult<String> {
     let trimmed = message.trim();
     if trimmed.is_empty() {
         return Err(CommandError {
@@ -354,7 +335,7 @@ pub struct GhPullRequest {
 /// 失败语义:gh 未安装、非 git 仓库、未登录 gh → 返回 `Err` 带原因(由
 /// PROTOCOL_BRIDGE.md §git 约定)。前端在空态中展示 `msg`。
 #[tauri::command]
-pub async fn reflect_gh_pr_list(limit: Option<usize>) -> CommandResult<Vec<GhPullRequest>> {
+pub async fn zhuye_gh_pr_list(limit: Option<usize>) -> CommandResult<Vec<GhPullRequest>> {
     let limit = limit.unwrap_or(20).clamp(1, 50);
     let cwd = git_in_workspace().ok_or_else(|| CommandError {
         msg: "no workspace".into(),

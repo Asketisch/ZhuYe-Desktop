@@ -78,13 +78,13 @@ describe('SessionsDashboard 组件', () => {
   afterEach(() => cleanup());
 
   it('hidden when no sessions', () => {
-    mockInvoke('reflect_list_sessions', async () => []);
+    mockInvoke('zhuye_list_sessions', async () => []);
     render(wrap(<SessionsDashboard />));
     expect(screen.queryByTestId('sessions-dashboard')).toBeNull();
   });
 
   it('renders stats grid and top list', async () => {
-    mockInvoke('reflect_list_sessions', async () => [
+    mockInvoke('zhuye_list_sessions', async () => [
       { thread_id: 'a', name: 'Alpha', created_at: 0, updated_at: Date.now(), message_count: 12, token_total: 100 },
     ]);
     render(wrap(<SessionsDashboard />));

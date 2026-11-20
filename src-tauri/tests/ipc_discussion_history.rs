@@ -2,13 +2,13 @@
 mod common;
 
 use chrono::Utc;
-use reflect_protocol::{RolloutRecord, ThreadId};
+use zhuye_protocol::{RolloutRecord, ThreadId};
 use serde_json::json;
 
 #[test]
 fn discussion_history_filters_out_ordinary_sessions() {
     common::init_isolated_env();
-    let base = reflect_rollout::path::default_base().join("2026/06/18");
+    let base = zhuye_rollout::path::default_base().join("2026/06/18");
     std::fs::create_dir_all(&base).unwrap();
     let discussion = uuid::Uuid::new_v4();
     let discussed_session = ThreadId::new();
@@ -35,7 +35,7 @@ fn discussion_history_filters_out_ordinary_sessions() {
             .collect::<String>();
         std::fs::write(base.join(format!("{session}.jsonl")), body).unwrap();
     }
-    let history = common::invoke_ok("reflect_list_discussions", json!({}));
+    let history = common::invoke_ok("zhuye_list_discussions", json!({}));
     let ids: Vec<_> = history
         .as_array()
         .unwrap()
@@ -44,7 +44,7 @@ fn discussion_history_filters_out_ordinary_sessions() {
         .collect();
     assert_eq!(ids, vec![discussed_session.to_string()], "{history}");
     let filtered = common::invoke_ok(
-        "reflect_list_discussions",
+        "zhuye_list_discussions",
         json!({ "discussionId": discussion.to_string() }),
     );
     assert_eq!(filtered.as_array().unwrap().len(), 1, "{filtered}");

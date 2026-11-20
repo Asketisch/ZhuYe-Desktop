@@ -3,7 +3,7 @@
 //! 现在用 **真实 backend** (`image` crate + `xcap` + `enigo`),
 //! 由 `media_backend::{RealImageBackend, RealComputerBackend}` 提供。
 
-use reflect_app_core::media::{
+use zhuye_app_core::media::{
     BackendCapability, ComputerBackend, ComputerUseAction, ImageBackend, ImageProcessResult,
     ImageProcessSpec, MediaAsset, MediaError, scan_dir_for_assets,
 };
@@ -21,7 +21,7 @@ impl From<MediaError> for super::error::CommandError {
 
 /// 列出目录下的图片资产(浅扫描,仅根目录)。
 #[tauri::command]
-pub async fn reflect_list_media(dir: String) -> CommandResult<Vec<MediaAsset>> {
+pub async fn zhuye_list_media(dir: String) -> CommandResult<Vec<MediaAsset>> {
     Ok(scan_dir_for_assets(std::path::Path::new(&dir))?)
 }
 
@@ -29,7 +29,7 @@ pub async fn reflect_list_media(dir: String) -> CommandResult<Vec<MediaAsset>> {
 ///
 /// 用 `RealImageBackend`(`image` crate):完整 png/jpeg/gif/webp/bmp 处理。
 #[tauri::command]
-pub async fn reflect_image_process(spec: ImageProcessSpec) -> CommandResult<ImageProcessResult> {
+pub async fn zhuye_image_process(spec: ImageProcessSpec) -> CommandResult<ImageProcessResult> {
     let backend = RealImageBackend::new();
     Ok(backend.process(&spec)?)
 }
@@ -39,7 +39,7 @@ pub async fn reflect_image_process(spec: ImageProcessSpec) -> CommandResult<Imag
 /// 用 `RealComputerBackend` + xcap:失败(权限/无显示)返回
 /// `MediaError::Unavailable`。
 #[tauri::command]
-pub async fn reflect_screenshot(_agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_screenshot(_agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     let backend = RealComputerBackend::new();
     screenshot_base64_with(&backend)
 }
@@ -56,7 +56,7 @@ pub(crate) fn screenshot_base64_with(backend: &dyn ComputerBackend) -> CommandRe
 /// 用 `RealComputerBackend` + enigo:截屏以外的 6 种动作都路由到
 /// `Enigo::button / move_mouse / text / key / scroll`。
 #[tauri::command]
-pub async fn reflect_computer_use(action: ComputerUseAction) -> CommandResult<()> {
+pub async fn zhuye_computer_use(action: ComputerUseAction) -> CommandResult<()> {
     let backend = RealComputerBackend::new();
     backend.execute(&action)?;
     Ok(())
@@ -64,7 +64,7 @@ pub async fn reflect_computer_use(action: ComputerUseAction) -> CommandResult<()
 
 /// 媒体能力描述(诊断用)。
 #[tauri::command]
-pub async fn reflect_media_capabilities() -> CommandResult<MediaCapabilities> {
+pub async fn zhuye_media_capabilities() -> CommandResult<MediaCapabilities> {
     let image_backend: BackendCapability = RealImageBackend::new().capability();
     let computer_backend: BackendCapability = RealComputerBackend::new().capability();
     Ok(MediaCapabilities {
@@ -126,7 +126,7 @@ pub(crate) fn base64_encode(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    const TESTED_COMMANDS: &[&str] = &["reflect_screenshot"];
+    const TESTED_COMMANDS: &[&str] = &["zhuye_screenshot"];
 
     struct FakeComputerBackend {
         result: Result<Vec<u8>, MediaError>,
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn screenshot_command_encodes_backend_bytes_as_base64() {
-        assert_eq!(TESTED_COMMANDS, &["reflect_screenshot"]);
+        assert_eq!(TESTED_COMMANDS, &["zhuye_screenshot"]);
         let backend = FakeComputerBackend {
             result: Ok(vec![0x89, b'P', b'N', b'G']),
         };

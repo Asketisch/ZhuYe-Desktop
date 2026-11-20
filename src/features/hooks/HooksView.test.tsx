@@ -18,11 +18,11 @@ it('serializes toggles and refreshes the actual backend state', async () => {
   let enabled = true;
   let finish!: () => void;
   let calls = 0;
-  mockInvoke('reflect_list_hooks', async () => [
+  mockInvoke('zhuye_list_hooks', async () => [
     { name: 'one', kind: 'builtin', enabled, config_summary: '' },
     { name: 'two', kind: 'builtin', enabled: true, config_summary: '' },
   ]);
-  mockInvoke('reflect_toggle_hook', () => {
+  mockInvoke('zhuye_toggle_hook', () => {
     calls += 1;
     return new Promise<void>((resolve) => { finish = () => { enabled = false; resolve(); }; });
   });
@@ -38,8 +38,8 @@ it('serializes toggles and refreshes the actual backend state', async () => {
 });
 
 it('displays serialized backend errors without changing the toggle', async () => {
-  mockInvoke('reflect_list_hooks', async () => [{ name: 'one', kind: 'builtin', enabled: true, config_summary: '' }]);
-  mockInvoke('reflect_toggle_hook', async () => { throw { msg: 'write failed' }; });
+  mockInvoke('zhuye_list_hooks', async () => [{ name: 'one', kind: 'builtin', enabled: true, config_summary: '' }]);
+  mockInvoke('zhuye_toggle_hook', async () => { throw { msg: 'write failed' }; });
   renderHooks();
   fireEvent.click(await screen.findByTestId('hook-toggle-one'));
   await waitFor(() => expect(useAgentStore.getState().toasts.at(-1)?.message).toBe('write failed'));
@@ -47,8 +47,8 @@ it('displays serialized backend errors without changing the toggle', async () =>
 });
 
 it('labels notification-only events instead of offering ineffective decisions', async () => {
-  mockInvoke('reflect_list_hooks', async () => []);
-  mockInvoke('reflect_list_hook_events', async () => [{ kind: 'task_created', description: 'Task created', decisions: [] }]);
+  mockInvoke('zhuye_list_hooks', async () => []);
+  mockInvoke('zhuye_list_hook_events', async () => [{ kind: 'task_created', description: 'Task created', decisions: [] }]);
   renderHooks();
   fireEvent.click(screen.getByTestId('hooks-events-toggle'));
   expect(await screen.findByText('Notification only')).toBeDefined();

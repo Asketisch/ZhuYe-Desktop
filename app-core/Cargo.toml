@@ -1,5 +1,5 @@
 [package]
-name = "reflect-app-core"
+name = "zhuye-app-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,29 +12,29 @@ description = "Reflect Desktop 领域服务层：activity / kms / media / squad 
 workspace = true
 
 [lib]
-name = "reflect_app_core"
+name = "zhuye_app_core"
 path = "src/lib.rs"
 
 [dependencies]
 # Reflect crates（仅保留保留模块实际使用的）
-reflect-protocol  = { workspace = true }
-reflect-task      = { workspace = true }
+zhuye-protocol  = { workspace = true }
+zhuye-task      = { workspace = true }
 # traces:只读查询 telemetry model-io JSONL + rollout 标题映射
-reflect-telemetry = { workspace = true }
-reflect-rollout   = { workspace = true }
-# discussion:多 agent 讨论编排(CLI `reflect discussion` 的 GUI 对应)
-reflect-discussion = { workspace = true }
+zhuye-telemetry = { workspace = true }
+zhuye-rollout   = { workspace = true }
+# discussion:多 agent 讨论编排(CLI `zhuye discussion` 的 GUI 对应)
+zhuye-discussion = { workspace = true }
 # discussion/pipeline 组装:模型注册表 / 工具注册表 / 子代理工厂 / 配置
-reflect-llm        = { workspace = true }
-reflect-tools      = { workspace = true }
-reflect-subagent   = { workspace = true }
-reflect-config     = { workspace = true }
-# pipeline:DAG 流水线 + team 四阶段预设(CLI `reflect pipeline` 的 GUI 对应)
-reflect-pipeline   = { workspace = true }
+zhuye-llm        = { workspace = true }
+zhuye-tools      = { workspace = true }
+zhuye-subagent   = { workspace = true }
+zhuye-config     = { workspace = true }
+# pipeline:DAG 流水线 + team 四阶段预设(CLI `zhuye pipeline` 的 GUI 对应)
+zhuye-pipeline   = { workspace = true }
 # prompt_env:内置上下文注入 hooks(Hook trait / HookDecision / SystemMessage)
-reflect-hooks      = { workspace = true }
+zhuye-hooks      = { workspace = true }
 # prompt_env:AGENTS.md 段格式生成(append_agents_md_section,与 exec/TUI 同源)
-reflect-prompt     = { workspace = true }
+zhuye-prompt     = { workspace = true }
 async-trait        = { workspace = true }
 
 # 通用
@@ -50,7 +50,7 @@ anyhow      = { workspace = true }
 # pipeline TOML 校验(结构摘要:只读顶层 `nodes` 表,字段语义交核心校验)
 toml        = { workspace = true }
 # OS 沙箱解析(env>config>基线)已收编上游;桌面侧仅保留协议映射胶水
-reflect-sandbox = { workspace = true }
+zhuye-sandbox = { workspace = true }
 tempfile    = "3"
 uuid        = { workspace = true }
 

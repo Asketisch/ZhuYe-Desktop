@@ -3,11 +3,11 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// 我们模拟 @/utils/commands 以捕获 onReflectEvent 订阅调用。
+// 我们模拟 @/utils/commands 以捕获 onZhuyeEvent 订阅调用。
 const subscribeMock = vi.fn();
 const unlistenMock = vi.fn();
 vi.mock('@/utils/commands', () => ({
-  onReflectEvent: (h: (e: unknown) => void) => {
+  onZhuyeEvent: (h: (e: unknown) => void) => {
     subscribeMock(h);
     return Promise.resolve(unlistenMock);
   },

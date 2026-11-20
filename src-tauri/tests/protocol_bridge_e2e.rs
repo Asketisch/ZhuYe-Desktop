@@ -1,4 +1,4 @@
-//! M2.x 协议桥端到端集成测试 —— 嵌入真实 `reflect_core::AgentThread`。
+//! M2.x 协议桥端到端集成测试 —— 嵌入真实 `zhuye_core::AgentThread`。
 //!
 //! 任务规格:`docs/todo/21-gui/02-protocol-bridge.md` 验收 #1 端到端通路 + M2.x 新增测试。
 //!
@@ -22,8 +22,8 @@ mod common;
 
 use std::time::Duration;
 
-use reflect_desktop_lib::state::MinimalAgent;
-use reflect_protocol::{Event, EventMsg, Op, Submission, UserInputItem};
+use zhuye_desktop_lib::state::MinimalAgent;
+use zhuye_protocol::{Event, EventMsg, Op, Submission, UserInputItem};
 use tokio::sync::broadcast;
 use tokio::time::timeout;
 
@@ -189,7 +189,7 @@ async fn model_spec_and_workspace_accessors() {
     );
     // set_workspace 之后访问器必须返回覆盖值,而不是启动时捕获的原 cwd。
     let original = ws;
-    let override_path = std::path::PathBuf::from("/tmp/reflect-workspace-override-test");
+    let override_path = std::path::PathBuf::from("/tmp/zhuye-workspace-override-test");
     std::fs::create_dir_all(&override_path).expect("create override dir");
     agent.set_workspace(override_path.clone());
     assert_eq!(agent.workspace(), override_path);

@@ -22,7 +22,7 @@ import {
   type AgentNotifyOptions,
 } from '@/utils/notify';
 
-const STORAGE_KEY = 'reflect.notify.options';
+const STORAGE_KEY = 'zhuye.notify.options';
 
 describe('notify options', () => {
   beforeEach(() => {

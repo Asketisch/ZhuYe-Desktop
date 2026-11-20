@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_agent_status, reflect_list_sessions, reflect_sandbox_status } from '@/utils/commands';
+import { zhuye_agent_status, zhuye_list_sessions, zhuye_sandbox_status } from '@/utils/commands';
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/logic/preferences/theme';
 import { useContextRatio } from './useContextRatio';
 import { isUsableModelSpec } from './modelLabel';
@@ -15,9 +15,9 @@ export function useStatusBarController() {
   const lastError = useAgentStore((state) => state.lastError);
   const clearError = useAgentStore((state) => state.clearError);
   const tokens = useAgentStore((state) => state.tokens);
-  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: reflect_agent_status, staleTime: 30_000 });
-  const sessionsQuery = useQuery({ queryKey: ['sessions'], queryFn: () => reflect_list_sessions(), staleTime: 60_000 });
-  const sandboxQuery = useQuery({ queryKey: ['sandbox-status'], queryFn: reflect_sandbox_status, staleTime: 60_000 });
+  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: zhuye_agent_status, staleTime: 30_000 });
+  const sessionsQuery = useQuery({ queryKey: ['sessions'], queryFn: () => zhuye_list_sessions(), staleTime: 60_000 });
+  const sandboxQuery = useQuery({ queryKey: ['sandbox-status'], queryFn: zhuye_sandbox_status, staleTime: 60_000 });
   const ctx = useContextRatio();
   const [resolved, setResolved] = useState<'light' | 'dark'>(() => getResolvedTheme());
   const [mode, setMode] = useState<ThemeMode>(() => getTheme());

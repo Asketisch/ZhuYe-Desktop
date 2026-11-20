@@ -42,7 +42,7 @@ fn reply(text: &str) -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -52,7 +52,7 @@ fn listen() -> Receiver<Value> {
 
 fn submit_and_wait(rx: &Receiver<Value>, id: &str, prompt: &str) -> Vec<Value> {
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":id,"op":{"type":"user_input","items":[{"type":"text","text":prompt}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -72,8 +72,8 @@ fn submit_and_wait(rx: &Receiver<Value>, id: &str, prompt: &str) -> Vec<Value> {
 fn chat_history_replays_in_a_new_process() {
     if std::env::var(PHASE).as_deref() == Ok("child") {
         let rx = listen();
-        let session = common::invoke_ok("reflect_create_session", json!({}));
-        common::invoke_ok("reflect_bind_session", json!({"id":session}));
+        let session = common::invoke_ok("zhuye_create_session", json!({}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":session}));
         submit_and_wait(&rx, "chat-before-restart", "first-process-prompt");
         let file = std::path::PathBuf::from(std::env::var_os(BASE).unwrap()).join("session-id");
         std::fs::write(file, session.as_str().unwrap()).unwrap();
@@ -134,8 +134,8 @@ fn chat_history_replays_in_a_new_process() {
     }
     let session = std::fs::read_to_string(shared.path().join("session-id")).unwrap();
     let rx = listen();
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    let replay = common::invoke_ok("reflect_replay_session", json!({"id":session}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    let replay = common::invoke_ok("zhuye_replay_session", json!({"id":session}));
     let replay_text = replay.to_string();
     assert!(
         replay_text.contains("first-process-prompt")

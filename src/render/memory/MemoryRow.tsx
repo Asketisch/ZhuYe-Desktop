@@ -6,13 +6,13 @@ import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';
 import { Icon } from '../design-system/Icon';
 import type { MemoryViewProps } from '@/contracts/memory';
-import type { ReflectMemoryEntry } from '@/contracts/memory';
+import type { ZhuyeMemoryEntry } from '@/contracts/memory';
 import s from './MemoryView.module.css';
 
 export interface MemoryRowProps {
   t: MemoryViewProps['t'];
-  entryKey: (entry: ReflectMemoryEntry) => string;
-  entry: ReflectMemoryEntry;
+  entryKey: (entry: ZhuyeMemoryEntry) => string;
+  entry: ZhuyeMemoryEntry;
   isEditing: boolean;
   hasDraft?: boolean;
   removeTitle?: string;

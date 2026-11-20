@@ -14,12 +14,12 @@ function wrap(node: React.ReactNode) {
 describe('MediaView', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_media_capabilities', async () => ({
+    mockInvoke('zhuye_media_capabilities', async () => ({
       imageBackend: 'metadata-only',
       computerBackend: 'unavailable',
       note: 'no native bindings',
     }));
-    mockInvoke('reflect_list_media', async (_dir: string) => []);
+    mockInvoke('zhuye_list_media', async (_dir: string) => []);
   });
   afterEach(() => cleanup());
 
@@ -29,7 +29,7 @@ describe('MediaView', () => {
   });
 
   it('renders asset when returned', async () => {
-    mockInvoke('reflect_list_media', async (_dir: string) => [
+    mockInvoke('zhuye_list_media', async (_dir: string) => [
       {
         path: '/tmp/x.png',
         filename: 'x.png',

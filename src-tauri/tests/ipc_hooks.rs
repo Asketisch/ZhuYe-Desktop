@@ -5,7 +5,7 @@ use serde_json::json;
 #[test]
 fn hook_commands_control_the_live_engine_and_survive_rebind() {
     common::set_config_before_install("[hooks]\nenabled = [\"search_budget\"]\n");
-    let events = common::invoke_ok("reflect_list_hook_events", json!({}));
+    let events = common::invoke_ok("zhuye_list_hook_events", json!({}));
     let events = events.as_array().unwrap();
     for name in [
         "post_tool_use",
@@ -33,7 +33,7 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
             .unwrap()
             .contains(&json!("deny"))
     );
-    let list = common::invoke_ok("reflect_list_hooks", json!({}));
+    let list = common::invoke_ok("zhuye_list_hooks", json!({}));
     let hooks = list.as_array().unwrap();
     // v1.x:工厂恒驻注册 plan_mode_gate(GUI Plan 只读边界)+ 首轮上下文
     // 注入对 agents-md-inject / env-context-inject(`[active] agents_md`
@@ -51,14 +51,14 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
     let budget = hooks.iter().find(|h| h["name"] == "search_budget").unwrap();
     assert_eq!(budget["enabled"], true);
     common::invoke_err(
-        "reflect_toggle_hook",
+        "zhuye_toggle_hook",
         json!({ "name": "not_registered", "enabled": false }),
     );
     common::invoke_ok(
-        "reflect_toggle_hook",
+        "zhuye_toggle_hook",
         json!({ "name": "search_budget", "enabled": false }),
     );
-    let list = common::invoke_ok("reflect_list_hooks", json!({}));
+    let list = common::invoke_ok("zhuye_list_hooks", json!({}));
     let budget_after = list
         .as_array()
         .unwrap()
@@ -67,25 +67,25 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         .expect("search_budget 仍在列表");
     assert_eq!(budget_after["enabled"], false);
     common::invoke_ok(
-        "reflect_bind_session",
+        "zhuye_bind_session",
         json!({ "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
     );
-    let after = common::invoke_ok("reflect_list_hooks", json!({}));
+    let after = common::invoke_ok("zhuye_list_hooks", json!({}));
     assert_eq!(after[0]["name"], "search_budget");
     assert_eq!(after[0]["enabled"], false);
     common::invoke_ok(
-        "reflect_toggle_hook",
+        "zhuye_toggle_hook",
         json!({ "name": "search_budget", "enabled": true }),
     );
     assert_eq!(
-        common::invoke_ok("reflect_list_hooks", json!({}))[0]["enabled"],
+        common::invoke_ok("zhuye_list_hooks", json!({}))[0]["enabled"],
         true
     );
     common::invoke_ok(
-        "reflect_save_config",
+        "zhuye_save_config",
         json!({ "toml": "[hooks]\nenabled = [\"test_runner\"]\n" }),
     );
-    let reconfigured = common::invoke_ok("reflect_list_hooks", json!({}));
+    let reconfigured = common::invoke_ok("zhuye_list_hooks", json!({}));
     // v1.x:重配置后 engine = 重启用的 test_runner + 恒驻的 plan_mode_gate
     // + 上下文注入对,共 4 个。
     let reconfigured = reconfigured.as_array().unwrap();
@@ -138,31 +138,31 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         );
         std::fs::write(fixture.path().join("hooks.json"), json!({ "hooks": { "TaskCreated": [{ "hooks": [{ "type": "command", "command": command }] }], "SessionStart": [{ "hooks": [{ "type": "command", "command": start_command }] }], "SessionEnd": [{ "hooks": [{ "type": "command", "command": end_command }] }], "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": prompt_command }] }] } }).to_string()).unwrap();
         common::invoke_ok(
-            "reflect_install_plugin",
+            "zhuye_install_plugin",
             json!({ "path": fixture.path(), "marketplace": "localtest", "scope": "user" }),
         );
-        assert!(common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"].is_null());
+        assert!(common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"].is_null());
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": true }),
         );
-        let plugin = &common::invoke_ok("reflect_list_plugins", json!({}))[0];
+        let plugin = &common::invoke_ok("zhuye_list_plugins", json!({}))[0];
         assert_eq!(plugin["runtime"]["plugin"], "task-probe@localtest");
         assert_eq!(plugin["runtime"]["command_count"], 1);
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": false }),
         );
-        assert!(common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"].is_null());
+        assert!(common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"].is_null());
         let manifest =
             std::path::PathBuf::from(plugin["installPath"].as_str().unwrap()).join("plugin.toml");
         let original_manifest = std::fs::read(&manifest).unwrap();
         std::fs::write(&manifest, "invalid = [").unwrap();
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": true }),
         );
-        let failed = &common::invoke_ok("reflect_list_plugins", json!({}))[0];
+        let failed = &common::invoke_ok("zhuye_list_plugins", json!({}))[0];
         assert_eq!(failed["enabled"], true);
         assert!(
             failed["runtime"].is_null(),
@@ -170,31 +170,31 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         );
         std::fs::write(manifest, original_manifest).unwrap();
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": false }),
         );
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": true }),
         );
         assert_eq!(
-            common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"]["command_count"],
+            common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"]["command_count"],
             1
         );
         common::invoke_ok(
-            "reflect_save_config",
+            "zhuye_save_config",
             json!({ "toml": "[hooks]\nenabled = [\"test_runner\"]\n[plugins]\nenabled_plugins = []\n" }),
         );
-        assert!(common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"].is_null());
+        assert!(common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"].is_null());
         common::invoke_ok(
-            "reflect_save_config",
+            "zhuye_save_config",
             json!({ "toml": "[hooks]\nenabled = [\"test_runner\"]\n[plugins]\nenabled_plugins = [\"task-probe@localtest\"]\n" }),
         );
         assert_eq!(
-            common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"]["command_count"],
+            common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"]["command_count"],
             1
         );
-        let commands = common::invoke_ok("reflect_list_plugin_commands", json!({}));
+        let commands = common::invoke_ok("zhuye_list_plugin_commands", json!({}));
         assert!(
             commands
                 .as_array()
@@ -204,29 +204,29 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
             "newly installed plugin must load in the current session: {commands}"
         );
         common::invoke_ok(
-            "reflect_save_config",
+            "zhuye_save_config",
             json!({ "toml": "[hooks]\nenabled = [\"test_runner\"]\n[plugins]\nenabled_plugins = [\"Task-Probe@localtest\", \"task-probe@localtest\"]\n" }),
         );
-        let alias = &common::invoke_ok("reflect_list_plugins", json!({}))[0];
+        let alias = &common::invoke_ok("zhuye_list_plugins", json!({}))[0];
         assert_eq!(alias["enabled"], true);
         assert_eq!(alias["runtime"]["plugin"], "task-probe@localtest");
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": false }),
         );
-        let disabled = &common::invoke_ok("reflect_list_plugins", json!({}))[0];
+        let disabled = &common::invoke_ok("zhuye_list_plugins", json!({}))[0];
         assert_eq!(disabled["enabled"], false);
         assert!(disabled["runtime"].is_null());
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": true }),
         );
         common::invoke_ok(
-            "reflect_bind_session",
+            "zhuye_bind_session",
             json!({ "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" }),
         );
         common::invoke_ok(
-            "reflect_submit",
+            "zhuye_submit",
             json!({ "submission": { "id": "first-plugin-input", "op": { "type": "user_input", "items": [{ "type": "text", "text": "/task-probe:hello world" }] } } }),
         );
         let prompt_event: serde_json::Value = (0..100)
@@ -243,7 +243,7 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         assert_eq!(prompt_event["text"], "expanded greeting world");
         let hook_name = (0..100)
             .find_map(|_| {
-                let hooks = common::invoke_ok("reflect_list_hooks", json!({}));
+                let hooks = common::invoke_ok("zhuye_list_hooks", json!({}));
                 let name = hooks
                     .as_array()
                     .unwrap()
@@ -277,12 +277,12 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
             "session start hook must run once after plugin mount"
         );
         common::invoke_ok(
-            "reflect_create_task",
+            "zhuye_create_task",
             json!({ "list": "hook-probe", "subject": "first", "description": "" }),
         );
         assert_eq!(std::fs::read_to_string(&marker).unwrap().lines().count(), 1);
         common::invoke_ok(
-            "reflect_toggle_hook",
+            "zhuye_toggle_hook",
             json!({ "name": hook_name, "enabled": false }),
         );
         let preferences = std::path::PathBuf::from(std::env::var_os("HOME").unwrap())
@@ -290,23 +290,23 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         let saved_preferences = std::fs::read(&preferences).unwrap();
         std::fs::write(&preferences, "invalid json").unwrap();
         common::invoke_err(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": false }),
         );
         assert!(
-            common::invoke_ok("reflect_list_plugin_commands", json!({}))
+            common::invoke_ok("zhuye_list_plugin_commands", json!({}))
                 .as_array()
                 .unwrap()
                 .is_empty(),
             "failed preference restore must unload plugins"
         );
-        assert!(common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"].is_null());
+        assert!(common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"].is_null());
         std::fs::write(&preferences, saved_preferences).unwrap();
         common::invoke_ok(
-            "reflect_toggle_plugin",
+            "zhuye_toggle_plugin",
             json!({ "id": "task-probe@localtest", "enabled": true }),
         );
-        let hooks = common::invoke_ok("reflect_list_hooks", json!({}));
+        let hooks = common::invoke_ok("zhuye_list_hooks", json!({}));
         assert!(
             hooks
                 .as_array()
@@ -315,11 +315,11 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
                 .any(|hook| hook["name"] == hook_name && hook["enabled"] == false)
         );
         common::invoke_ok(
-            "reflect_bind_session",
+            "zhuye_bind_session",
             json!({ "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc" }),
         );
         let restored = (0..100).any(|_| {
-            let hooks = common::invoke_ok("reflect_list_hooks", json!({}));
+            let hooks = common::invoke_ok("zhuye_list_hooks", json!({}));
             let found = hooks
                 .as_array()
                 .unwrap()
@@ -349,24 +349,24 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
             "previous session end hook must run once before plugin unload"
         );
         common::invoke_ok(
-            "reflect_create_task",
+            "zhuye_create_task",
             json!({ "list": "hook-probe", "subject": "second", "description": "" }),
         );
         assert_eq!(std::fs::read_to_string(&marker).unwrap().lines().count(), 1);
         common::invoke_ok(
-            "reflect_toggle_hook",
+            "zhuye_toggle_hook",
             json!({ "name": hook_name, "enabled": true }),
         );
         common::invoke_ok(
-            "reflect_create_task",
+            "zhuye_create_task",
             json!({ "list": "hook-probe", "subject": "third", "description": "" }),
         );
         assert_eq!(std::fs::read_to_string(&marker).unwrap().lines().count(), 2);
         assert_eq!(std::fs::read_to_string(&starts).unwrap().lines().count(), 2);
-        common::invoke_ok("reflect_shutdown", json!({}));
-        assert!(common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"].is_null());
+        common::invoke_ok("zhuye_shutdown", json!({}));
+        assert!(common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"].is_null());
         common::invoke_ok(
-            "reflect_bind_session",
+            "zhuye_bind_session",
             json!({ "id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd" }),
         );
         let third_start = (0..100).any(|_| {
@@ -391,37 +391,37 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         let saved_preferences = std::fs::read(&preferences).unwrap();
         std::fs::write(&preferences, "invalid json").unwrap();
         common::invoke_err(
-            "reflect_uninstall_plugin",
+            "zhuye_uninstall_plugin",
             json!({ "id": "task-probe@localtest", "scope": "user" }),
         );
         assert!(
-            common::invoke_ok("reflect_list_plugins", json!({}))
+            common::invoke_ok("zhuye_list_plugins", json!({}))
                 .as_array()
                 .unwrap()
                 .is_empty()
         );
         assert!(
-            common::invoke_ok("reflect_list_plugin_commands", json!({}))
+            common::invoke_ok("zhuye_list_plugin_commands", json!({}))
                 .as_array()
                 .unwrap()
                 .is_empty()
         );
         common::invoke_ok(
-            "reflect_create_task",
+            "zhuye_create_task",
             json!({ "list": "hook-probe", "subject": "after uninstall", "description": "" }),
         );
         assert_eq!(std::fs::read_to_string(&marker).unwrap().lines().count(), 2);
         std::fs::write(&preferences, saved_preferences).unwrap();
         common::invoke_ok(
-            "reflect_install_plugin",
+            "zhuye_install_plugin",
             json!({ "path": fixture.path(), "marketplace": "localtest", "scope": "user" }),
         );
         assert_eq!(
-            common::invoke_ok("reflect_list_plugins", json!({}))[0]["runtime"]["command_count"],
+            common::invoke_ok("zhuye_list_plugins", json!({}))[0]["runtime"]["command_count"],
             1
         );
         assert!(
-            common::invoke_ok("reflect_list_plugin_commands", json!({}))
+            common::invoke_ok("zhuye_list_plugin_commands", json!({}))
                 .as_array()
                 .unwrap()
                 .iter()
@@ -430,10 +430,10 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         let saved_preferences = std::fs::read(&preferences).unwrap();
         std::fs::write(&preferences, "invalid json").unwrap();
         common::invoke_ok(
-            "reflect_save_config",
+            "zhuye_save_config",
             json!({ "toml": "[active]\nprovider = \"openai\"\n[openai]\nmodel = \"test-model\"\n[hooks]\nenabled = [\"test_runner\"]\n[plugins]\nenabled_plugins = []\n" }),
         );
-        let status = common::invoke_ok("reflect_agent_status", json!({}));
+        let status = common::invoke_ok("zhuye_agent_status", json!({}));
         assert_eq!(status["model"], "stub/test");
         assert_eq!(common::agent().model_spec(), "openai/test-model");
         let reason = status["degraded_reason"].as_str().unwrap();
@@ -441,10 +441,10 @@ fn hook_commands_control_the_live_engine_and_survive_rebind() {
         assert!(reason.contains("session rebind failed"), "{reason}");
         std::fs::write(preferences, saved_preferences).unwrap();
         common::invoke_ok(
-            "reflect_save_config",
+            "zhuye_save_config",
             json!({ "toml": "[active]\nprovider = \"openai\"\n[openai]\nmodel = \"test-model\"\n[hooks]\nenabled = [\"test_runner\"]\n[plugins]\nenabled_plugins = []\n" }),
         );
-        let retried = common::invoke_ok("reflect_agent_status", json!({}));
+        let retried = common::invoke_ok("zhuye_agent_status", json!({}));
         assert_eq!(retried["model"], "openai/test-model");
         assert!(retried["degraded_reason"].is_null(), "{retried}");
     }

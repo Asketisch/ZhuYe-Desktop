@@ -1,6 +1,6 @@
 /**
  * editorStore 单元测试 —— pending 变更累计 / Accept / Reject(inverse-patch
- * + reflect_write_file 落盘)。
+ * + zhuye_write_file 落盘)。
  */
 import { describe, expect, it, beforeEach } from 'vitest';
 import { useEditorStore } from './editorStore';
@@ -18,7 +18,7 @@ function resetStore() {
 
 describe('editorStore', () => {
   beforeEach(() => {
-    mockInvoke('reflect_write_file', async () => '/ws/file.ts');
+    mockInvoke('zhuye_write_file', async () => '/ws/file.ts');
     resetStore();
   });
 
@@ -57,7 +57,7 @@ describe('editorStore', () => {
     expect(useEditorStore.getState().contentVersion['file.ts']).toBeUndefined();
   });
 
-  it('rejectHunk:inverse-patch → reflect_write_file → 清除该块', async () => {
+  it('rejectHunk:inverse-patch → zhuye_write_file → 清除该块', async () => {
     useEditorStore.getState().recordEdit('file.ts', DIFF);
     const next = await useEditorStore.getState().rejectHunk('file.ts', 0, 'AA\nb\n');
     expect(next).toBe('a\nb\n');
@@ -82,7 +82,7 @@ describe('editorStore', () => {
   });
   it('rejectAll 写入期间新增的变更仍保留待审核', async () => {
     let finish!: (value: string) => void;
-    mockInvoke('reflect_write_file', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_write_file', () => new Promise<string>((resolve) => { finish = resolve; }));
     useEditorStore.getState().recordEdit('file.ts', DIFF);
     const pending = useEditorStore.getState().rejectAll('file.ts', 'AA\nb\n');
     useEditorStore.getState().recordEdit('file.ts', DIFF);

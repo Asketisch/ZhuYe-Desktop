@@ -7,7 +7,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use reflect_protocol::{Op, ReasoningEffortMirror};
+use zhuye_protocol::{Op, ReasoningEffortMirror};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -16,7 +16,7 @@ use crate::state::MinimalAgent;
 ///
 /// wire 上 `level` 是字符串,这里转成 `ReasoningEffortMirror`。
 #[tauri::command]
-pub async fn reflect_set_effort(
+pub async fn zhuye_set_effort(
     agent: State<'_, MinimalAgent>,
     level: String,
 ) -> CommandResult<String> {
@@ -28,7 +28,7 @@ pub async fn reflect_set_effort(
 /// 回读事件,这里从线程内槽直读)。前端 Composer/Models 控件初始化用。
 /// 线程未安装(pre-install)时回落默认 `low`。
 #[tauri::command]
-pub async fn reflect_get_effort(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_get_effort(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     let guard = agent.inner.thread.lock();
     let Some(thread) = guard.as_ref() else {
         return Ok("low".to_string());
@@ -86,12 +86,12 @@ pub struct EffortCapability {
 /// 前端据此决定**能选哪些档**,并把「用户选择」与「实际生效」分开显示 ——
 /// 用户偏好始终保留,换模型后自动按新模型重算。
 ///
-/// 能力来源:静态能力表(`reflect_llm::reasoning_effort`,v1.10 功能4)——
+/// 能力来源:静态能力表(`zhuye_llm::reasoning_effort`,v1.10 功能4)——
 /// 与引擎发 wire 前的实际钳制**同一份函数**,UI 展示与引擎行为天然一致。
 /// 「运行时已验证结论」层(按端点 + 模型隔离的 effort_cache)依赖的上游
 /// 提交尚未合入 ZhuYe,待上游提供后在此叠加为第一优先级。
 #[tauri::command]
-pub async fn reflect_effort_capability(
+pub async fn zhuye_effort_capability(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<EffortCapability> {
     // 当前模型 spec(钳制按完整 spec 归一化,引擎侧同口径)。
@@ -107,21 +107,21 @@ pub async fn reflect_effort_capability(
             None => ReasoningEffortMirror::Low,
         }
     };
-    let desired = reflect_llm::ReasoningEffort::from(requested);
+    let desired = zhuye_llm::ReasoningEffort::from(requested);
 
     // 静态能力表:支持档位阶梯 + 与引擎一致的钳制结果。未知模型走上游
     // 保守默认(Low..=High),与引擎实际会发出的档位严格一致。
-    let supported: Vec<String> = reflect_llm::reasoning_effort::supported_efforts_for_model(&model)
+    let supported: Vec<String> = zhuye_llm::reasoning_effort::supported_efforts_for_model(&model)
         .iter()
-        .map(|level| reflect_llm::reasoning_effort::effort_wire_str(*level).to_string())
+        .map(|level| zhuye_llm::reasoning_effort::effort_wire_str(*level).to_string())
         .collect();
-    let effective = reflect_llm::reasoning_effort::clamp_effort_for_model(desired, &model);
+    let effective = zhuye_llm::reasoning_effort::clamp_effort_for_model(desired, &model);
 
     Ok(EffortCapability {
         supported,
         known: true,
         requested: effort_name(requested).to_string(),
-        effective: Some(reflect_llm::reasoning_effort::effort_wire_str(effective).to_string()),
+        effective: Some(zhuye_llm::reasoning_effort::effort_wire_str(effective).to_string()),
         adjusted: effective != desired,
         model,
     })

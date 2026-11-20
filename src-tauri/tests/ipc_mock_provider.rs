@@ -10,8 +10,8 @@
 //! 2. 工具调用:bash tool_use → 审批门(`prompt` 模式)→ approve →
 //!    工具真实执行(echo)→ 第二次请求带 tool_result → 最终回复;
 //!    并断言恰好两次 HTTP 请求、非官方 base_url 走 `Authorization: Bearer`;
-//! 3. HTTP 500:error 事件走同一 `reflect_event` 通道,turn 有终态;
-//! 4. 流中中断:服务端延迟响应,`reflect_interrupt` 后 turn 终止且无 delta。
+//! 3. HTTP 500:error 事件走同一 `zhuye_event` 通道,turn 有终态;
+//! 4. 流中中断:服务端延迟响应,`zhuye_interrupt` 后 turn 终止且无 delta。
 //! 5. 旁路代理:真实线程经本地模型返回摘要,另一个请求发出后取消并验证终态。
 //!
 //! 各场景经互斥锁**串行**(共享一个 AgentThread,`interrupt` 是全局的,
@@ -28,7 +28,7 @@ use wiremock::matchers::{body_string_contains, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ============================================================================
-// SSE 构造 —— 事件形状与 `reflect-llm/src/providers/anthropic.rs` 的解析器对齐
+// SSE 构造 —— 事件形状与 `zhuye-llm/src/providers/anthropic.rs` 的解析器对齐
 // ============================================================================
 
 fn sse(events: &[(&str, Value)]) -> String {
@@ -254,7 +254,7 @@ fn world() -> std::sync::MutexGuard<'static, World> {
 
 fn collect_events() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(v) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(v);
         }
@@ -274,7 +274,7 @@ fn event_id(e: &Value) -> &str {
 
 fn submit(submission_id: &str, text: &str) {
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({
             "submission": {
                 "id": submission_id,
@@ -380,7 +380,7 @@ fn scene_one_plain_text() {
 fn scene_two_tool_use(w: &World) {
     // 「prompt」模式确保工具执行前有审批门 —— 全链路里最常被模拟层遮住的一段。
     // (默认是 auto:见 session_configured.approval_policy。)
-    common::invoke_ok("reflect_set_permission_mode", json!({ "mode": "prompt" }));
+    common::invoke_ok("zhuye_set_permission_mode", json!({ "mode": "prompt" }));
 
     let rx = collect_events();
     let id = "mock-provider-sub-2";
@@ -420,7 +420,7 @@ fn scene_two_tool_use(w: &World) {
 
     // 2) 放行。
     common::invoke_ok(
-        "reflect_tool_approval",
+        "zhuye_tool_approval",
         json!({ "id": request_id, "decision": "approve" }),
     );
 
@@ -495,10 +495,10 @@ fn scene_two_tool_use(w: &World) {
     assert!(complete["msg"]["turn_id"].is_string());
 
     // 还原全局审批策略,别影响后续场景。
-    common::invoke_ok("reflect_set_permission_mode", json!({ "mode": "auto" }));
+    common::invoke_ok("zhuye_set_permission_mode", json!({ "mode": "auto" }));
 }
 
-/// 场景三:HTTP 500 —— error 事件走同一 `reflect_event` 通道;核心对
+/// 场景三:HTTP 500 —— error 事件走同一 `zhuye_event` 通道;核心对
 /// 异常取消(error / cancel)走「静默丢弃分支」(submission_loop.rs 注释
 /// 明示),即 **error 之后没有 turn 终态事件** —— 这里照实断言该口径,
 /// 并验证 agent 循环未被失败卡死(后续提交照常完成)。
@@ -561,7 +561,7 @@ fn scene_three_provider_500() {
     );
 }
 
-/// 场景四:流中中断 —— 25s 延迟的回复被 `reflect_interrupt` 取消;
+/// 场景四:流中中断 —— 25s 延迟的回复被 `zhuye_interrupt` 取消;
 /// 当前核心语义:中断以 `error`(code=CANCELLED)回到同一通道,turn 无
 /// 终态事件(同场景三的静默丢弃分支),且不得有任何 delta 泄出。
 fn scene_four_interrupt() {
@@ -578,7 +578,7 @@ fn scene_four_interrupt() {
         &mut seen,
     )
     .expect("场景四:没有 turn_started");
-    common::invoke_ok("reflect_interrupt", json!({}));
+    common::invoke_ok("zhuye_interrupt", json!({}));
 
     let mut seen2 = Vec::new();
     // 中断的收尾有两条竞态路径(取决于取消信号先落在哪一层):
@@ -653,7 +653,7 @@ fn scene_four_interrupt() {
 fn scene_side_channel(w: &World) {
     let rx = collect_events();
     let started = common::invoke_ok(
-        "reflect_start_side_channel",
+        "zhuye_start_side_channel",
         json!({ "agentName": "desktop-side-test", "prompt": "mock-side-channel-success" }),
     );
     let id = started["id"].as_str().unwrap();
@@ -671,14 +671,14 @@ fn scene_side_channel(w: &World) {
     .unwrap_or_else(|| panic!("旁路 agent 未完成: {}", event_summary(&seen)));
     assert_eq!(event_id(&finished), "");
     assert_eq!(finished["msg"]["summary"], "side channel result verified");
-    let status = common::invoke_ok("reflect_get_side_channel", json!({ "id": id }));
+    let status = common::invoke_ok("zhuye_get_side_channel", json!({ "id": id }));
     assert_eq!(status["status"], "done");
     assert!(messages_requests(w).iter().any(|request| {
         String::from_utf8_lossy(&request.body).contains("mock-side-channel-success")
     }));
 
     let cancelled = common::invoke_ok(
-        "reflect_start_side_channel",
+        "zhuye_start_side_channel",
         json!({ "agentName": "desktop-side-test", "prompt": "mock-side-channel-cancel" }),
     );
     let cancelled_id = cancelled["id"].as_str().unwrap();
@@ -691,7 +691,7 @@ fn scene_side_channel(w: &World) {
         std::thread::sleep(Duration::from_millis(50));
     }
     assert_eq!(
-        common::invoke_ok("reflect_cancel_side_channel", json!({ "id": cancelled_id })),
+        common::invoke_ok("zhuye_cancel_side_channel", json!({ "id": cancelled_id })),
         true
     );
     let mut seen_cancel = Vec::new();
@@ -704,10 +704,10 @@ fn scene_side_channel(w: &World) {
     .unwrap_or_else(|| panic!("旁路取消无终态: {}", event_summary(&seen_cancel)));
     assert_eq!(terminal["msg"]["kind"], "cancelled", "{terminal}");
     assert_eq!(event_id(&terminal), "");
-    let status = common::invoke_ok("reflect_get_side_channel", json!({ "id": cancelled_id }));
+    let status = common::invoke_ok("zhuye_get_side_channel", json!({ "id": cancelled_id }));
     assert_eq!(status["status"], "cancelled");
     assert_eq!(
-        common::invoke_ok("reflect_cancel_side_channel", json!({ "id": cancelled_id })),
+        common::invoke_ok("zhuye_cancel_side_channel", json!({ "id": cancelled_id })),
         false
     );
 }

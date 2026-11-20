@@ -1,5 +1,5 @@
 /**
- * editorStore —— agent 代码编辑的 pending 变更存储(Cursor 式 review)。
+ * editorStore —— agent 代码编辑的 pending 变更存储(逐块 review)。
  *
  * 数据流：agent 的 edit/write 工具完成后,`tool_call_end` 事件携带
  * `ContentBlock::Diff`(before→after 的 unified diff)与目标 path。本 store
@@ -8,14 +8,14 @@
  * 区域,并提供逐块 / 全部的 Accept / Reject:
  *  - Accept  → 保留当前内容,清除该块标记;
  *  - Reject  → 用 inverse-patch 重建原文(`diffHunks.applyInverse*`),
- *              经 `reflect_write_file` 落盘后清除标记。
+ *              经 `zhuye_write_file` 落盘后清除标记。
  *
  * 与 agentStore 分离:编辑 review 状态独立于会话状态,切会话不丢
  * (文件在磁盘上的 pending 变更与会话无关)。
  */
 import { create } from 'zustand';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
-import { reflect_write_file } from '@/utils/commands';
+import { zhuye_write_file } from '@/utils/commands';
 import {
   applyInverseAll,
   applyInverseHunk,
@@ -165,7 +165,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const restored = applyInverseHunk(currentContent, hunk);
     if (restored === null) return null;
     try {
-      await reflect_write_file(path, restored);
+      await zhuye_write_file(path, restored);
     } catch {
       return null; // 写盘失败 → 不清标记,保留 pending 供重试
     }
@@ -180,7 +180,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const restored = applyInverseAll(currentContent, entry.hunks);
     if (restored === null) return null;
     try {
-      await reflect_write_file(path, restored);
+      await zhuye_write_file(path, restored);
     } catch {
       return null;
     }

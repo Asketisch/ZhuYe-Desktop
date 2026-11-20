@@ -5,7 +5,7 @@
  * - 三 adapter 下拉渲染,默认 claude_code;切换 kind → discover 按新 kind 重新请求
  * - 发现数量徽标照实渲染;发现失败 → 警告徽标(不炸视图)
  * - 无来源时导入按钮禁用;dry-run 缺省勾选
- * - 点击导入 → 转发 { dryRun, force: false } 到 reflect_import_sessions
+ * - 点击导入 → 转发 { dryRun, force: false } 到 zhuye_import_sessions
  * - 结果逐条渲染:成功行(来源 + turns/records)/ 失败行(来源 + 原因)
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -34,7 +34,7 @@ describe('ImportView — external harness import', () => {
 
   it('renders three adapter kinds, defaults to claude_code, and shows discovered count', async () => {
     const discoverCalls: string[] = [];
-    mockInvoke('reflect_import_discover', async (_cmd: string, args: { kind: string }) => {
+    mockInvoke('zhuye_import_discover', async (_cmd: string, args: { kind: string }) => {
       discoverCalls.push(args.kind);
       return SOURCES;
     });
@@ -52,7 +52,7 @@ describe('ImportView — external harness import', () => {
 
   it('switching kind re-discovers with the new harness kind', async () => {
     const discoverCalls: string[] = [];
-    mockInvoke('reflect_import_discover', async (_cmd: string, args: { kind: string }) => {
+    mockInvoke('zhuye_import_discover', async (_cmd: string, args: { kind: string }) => {
       discoverCalls.push(args.kind);
       return [];
     });
@@ -65,7 +65,7 @@ describe('ImportView — external harness import', () => {
   });
 
   it('discover failure renders a warning badge instead of crashing', async () => {
-    mockInvoke('reflect_import_discover', async () => {
+    mockInvoke('zhuye_import_discover', async () => {
       throw new Error('db locked');
     });
     render(wrap(<ImportView />));
@@ -78,8 +78,8 @@ describe('ImportView — external harness import', () => {
 
   it('disables run when no sources and forwards dryRun/force on click', async () => {
     const importCalls: Array<Record<string, unknown>> = [];
-    mockInvoke('reflect_import_discover', async () => SOURCES);
-    mockInvoke('reflect_import_sessions', async (_cmd: string, args: Record<string, unknown>) => {
+    mockInvoke('zhuye_import_discover', async () => SOURCES);
+    mockInvoke('zhuye_import_sessions', async (_cmd: string, args: Record<string, unknown>) => {
       importCalls.push(args);
       return {
         imported: [
@@ -112,7 +112,7 @@ describe('ImportView — external harness import', () => {
 
     // 无来源场景:按钮禁用。
     cleanup();
-    mockInvoke('reflect_import_discover', async () => []);
+    mockInvoke('zhuye_import_discover', async () => []);
     render(wrap(<ImportView />));
     await screen.findByTestId('import-source-count');
     expect((screen.getByTestId('import-run-btn') as HTMLButtonElement).disabled).toBe(true);

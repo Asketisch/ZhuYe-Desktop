@@ -21,7 +21,7 @@ describe('invoke', () => {
 
 describe('listen', () => {
   it('returns an unlisten function', async () => {
-    const unlisten = await listen<string>('reflect_event', () => {});
+    const unlisten = await listen<string>('zhuye_event', () => {});
     expect(typeof unlisten).toBe('function');
     expect(() => unlisten()).not.toThrow();
   });

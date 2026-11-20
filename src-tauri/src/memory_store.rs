@@ -3,15 +3,15 @@
 //! 支持两个 scope:
 //! - `project` —— 存储在当前工作区根目录 `.zhuye/agent-memory/<agent>/MEMORY.md`
 //!   （由调用方传入活动工作区,与 shell/git/files 同源 —— 打包成 .app 后
-//!   进程 cwd 不可写,也不再跟随不了 `reflect_set_workspace`）;
+//!   进程 cwd 不可写,也不再跟随不了 `zhuye_set_workspace`）;
 //! - `user` —— 存储在用户主目录 `~/.zhuye/agent-memory/<agent>/MEMORY.md`。
 //!
 //! 每条 entry 以 `## <key>` 标题块形式保存；无法安全拆分的文件作为整份文档编辑。
 //!
 //! ## 路径口径
 //!
-//! 路径**经核心的 [`reflect_memory::resolve_path`] 解析**,与运行时
-//! (`reflect-core` 的 pre_loop 注入)逐字一致 —— 关键是 `<agent>` 这一段
+//! 路径**经核心的 [`zhuye_memory::resolve_path`] 解析**,与运行时
+//! (`zhuye-core` 的 pre_loop 注入)逐字一致 —— 关键是 `<agent>` 这一段
 //! 由**活跃 agent 名**决定(`AgentState::active_agent()`)。此前桌面端
 //! 写死 `agent-memory/reflect/`,而运行时按 agent 定义名读,两边对不上:
 //! GUI 里编辑的记忆,agent 根本读不到。
@@ -21,7 +21,7 @@
 
 use std::path::{Path, PathBuf};
 
-use reflect_memory::{MemoryScope, resolve_path, split_sections};
+use zhuye_memory::{MemoryScope, resolve_path, split_sections};
 
 use crate::agent_state::AgentState;
 use crate::commands::MemoryEntry;
@@ -68,7 +68,7 @@ impl MemoryStore {
     pub(crate) fn sections(
         &self,
         project_root: &Path,
-    ) -> anyhow::Result<Vec<reflect_memory::MemorySection>> {
+    ) -> anyhow::Result<Vec<zhuye_memory::MemorySection>> {
         let mut sections = Vec::new();
         for (scope, path) in self.scopes(project_root)? {
             let content = read_memory_file(&path)?;

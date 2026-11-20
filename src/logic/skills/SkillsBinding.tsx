@@ -9,12 +9,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import {
-  reflect_list_tools,
-  reflect_list_skills,
-  reflect_install_skill,
-  reflect_search_skill_market,
-  reflect_install_skill_from_market,
-  reflect_refresh_skill_market_index,
+  zhuye_list_tools,
+  zhuye_list_skills,
+  zhuye_install_skill,
+  zhuye_search_skill_market,
+  zhuye_install_skill_from_market,
+  zhuye_refresh_skill_market_index,
 } from '@/utils/commands';
 import type { SkillMarketEntry } from '@/utils/commands/skills';
 import { useI18n } from '@/utils/i18n';
@@ -33,8 +33,8 @@ export function SkillsBinding({ view: View }: { view: ComponentType<SkillsViewPr
   const [marketQuery, setMarketQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
-  const skillsQ = useQuery({ queryKey: ['skills'], queryFn: reflect_list_skills, staleTime: 30_000 });
-  const toolsQ = useQuery({ queryKey: ['tools'], queryFn: reflect_list_tools, staleTime: 30_000 });
+  const skillsQ = useQuery({ queryKey: ['skills'], queryFn: zhuye_list_skills, staleTime: 30_000 });
+  const toolsQ = useQuery({ queryKey: ['tools'], queryFn: zhuye_list_tools, staleTime: 30_000 });
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQuery(marketQuery.trim()), SEARCH_DEBOUNCE_MS);
@@ -43,13 +43,13 @@ export function SkillsBinding({ view: View }: { view: ComponentType<SkillsViewPr
 
   const marketQ = useQuery({
     queryKey: ['skill-market', debouncedQuery],
-    queryFn: () => reflect_search_skill_market(debouncedQuery, 50),
+    queryFn: () => zhuye_search_skill_market(debouncedQuery, 50),
     enabled: debouncedQuery.length >= 2,
     staleTime: 60_000,
   });
 
   const installMutation = useMutation({
-    mutationFn: (source: string) => reflect_install_skill_from_market(source),
+    mutationFn: (source: string) => zhuye_install_skill_from_market(source),
     onSuccess: async (_id, source) => {
       pushToast({ kind: 'success', message: t('skills.market.installed', { repo: source }) });
       setMarketQuery('');
@@ -64,7 +64,7 @@ export function SkillsBinding({ view: View }: { view: ComponentType<SkillsViewPr
   });
 
   const refreshMutation = useMutation({
-    mutationFn: () => reflect_refresh_skill_market_index(),
+    mutationFn: () => zhuye_refresh_skill_market_index(),
     onSuccess: (count) => {
       pushToast({ kind: 'success', message: t('skills.market.indexRefreshed', { count }) });
       void queryClient.invalidateQueries({ queryKey: ['skill-market'] });
@@ -82,7 +82,7 @@ export function SkillsBinding({ view: View }: { view: ComponentType<SkillsViewPr
     if (!trimmed || installing) return;
     setInstalling(true);
     try {
-      await reflect_install_skill(trimmed);
+      await zhuye_install_skill(trimmed);
       pushToast({ kind: 'success', message: t('skills.market.installed', { repo: trimmed }) });
       setRepo('');
       await skillsQ.refetch();

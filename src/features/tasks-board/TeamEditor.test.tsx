@@ -12,7 +12,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { TeamEditor } from './TeamEditor';
-import type { ReflectTeam } from '@/utils/commands';
+import type { ZhuyeTeam } from '@/utils/commands';
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router');
@@ -21,7 +21,7 @@ vi.mock('@tanstack/react-router', async () => {
 
 const NOW = { secs_since_epoch: 1_700_000_000, nanos_since_epoch: 0 };
 
-const EXISTING: ReflectTeam = {
+const EXISTING: ZhuyeTeam = {
   name: 'rocket',
   description: 'ship it',
   lead_agent_id: 'team-lead@rocket',
@@ -69,7 +69,7 @@ describe('TeamEditor', () => {
   });
 
   it('新建 → 载荷满足核心规则(lead_agent_id 推导 + SystemTime 形态)', async () => {
-    const onSave = vi.fn(async (_team: ReflectTeam) => {});
+    const onSave = vi.fn(async (_team: ZhuyeTeam) => {});
     render(<TeamEditor teams={[]} onSave={onSave} onDelete={vi.fn()} />);
     fireEvent.click(screen.getByTestId('team-create-btn'));
     fireEvent.change(screen.getByTestId('team-name-input'), { target: { value: 'squad-a' } });
@@ -82,7 +82,7 @@ describe('TeamEditor', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(1);
     });
-    const team = onSave.mock.calls[0][0] as ReflectTeam;
+    const team = onSave.mock.calls[0][0] as ZhuyeTeam;
     expect(team.name).toBe('squad-a');
     expect(team.lead_agent_id).toBe('team-lead@squad-a');
     expect(team.description).toBe('a team');
@@ -96,7 +96,7 @@ describe('TeamEditor', () => {
   });
 
   it('编辑 → 保留原始 created_at / joined_at', async () => {
-    const onSave = vi.fn(async (_team: ReflectTeam) => {});
+    const onSave = vi.fn(async (_team: ZhuyeTeam) => {});
     render(<TeamEditor teams={[EXISTING]} onSave={onSave} onDelete={vi.fn()} />);
     fireEvent.click(screen.getByTestId('team-edit-rocket'));
     fireEvent.change(screen.getByTestId('team-description-input'), { target: { value: 'updated' } });
@@ -105,7 +105,7 @@ describe('TeamEditor', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(1);
     });
-    const team = onSave.mock.calls[0][0] as ReflectTeam;
+    const team = onSave.mock.calls[0][0] as ZhuyeTeam;
     expect(team.description).toBe('updated');
     expect(team.created_at).toEqual(NOW);
     expect(team.members[0].joined_at).toEqual(NOW);

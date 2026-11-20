@@ -42,13 +42,20 @@ struct DesktopPrefs {
     /// 活跃 agent 定义名(缺省 `"default"`)。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     active_agent: Option<String>,
+    /// AGENTS.md 单文件注入字节上限(字节)。
+    ///
+    /// 缺省 `None` = **不截断、完整注入**。此前硬编码 32K 字符静默截断,
+    /// 大型项目的 AGENTS.md 会被砍掉大半且用户无感知。需要限制上下文
+    /// 占用的用户可显式设置该值;截断发生在字符边界并附可见提示。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    agents_md_max_bytes: Option<usize>,
     #[serde(flatten)]
     other: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 /// 桌面端偏好文件路径(`~/.zhuye/desktop.json`)。
 fn prefs_path() -> Option<PathBuf> {
-    reflect_config::paths::data_path(&["desktop.json"])
+    zhuye_config::paths::data_path(&["desktop.json"])
 }
 
 pub(crate) struct AgentState;
@@ -98,6 +105,11 @@ impl AgentState {
             return DesktopPrefs::default();
         };
         serde_json::from_str(&raw).unwrap_or_default()
+    }
+
+    /// AGENTS.md 单文件注入字节上限;未配置 → `None`(不截断,完整注入)。
+    pub(crate) fn agents_md_max_bytes() -> Option<usize> {
+        Self::read_prefs().agents_md_max_bytes
     }
 }
 

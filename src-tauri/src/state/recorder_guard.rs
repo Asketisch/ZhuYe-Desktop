@@ -3,7 +3,7 @@
 use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
-use reflect_protocol::{
+use zhuye_protocol::{
     RolloutError, RolloutRecord, RolloutRecorder, SessionInfo, ThreadId, TurnId,
 };
 use tokio::sync::RwLock;
@@ -51,7 +51,7 @@ pub(crate) fn gate_for(agent: &MinimalAgent, id: ThreadId) -> Arc<RecorderGate> 
 pub(crate) async fn deactivate_session(
     agent: &MinimalAgent,
     id: ThreadId,
-) -> Option<reflect_protocol::PermissionMode> {
+) -> Option<zhuye_protocol::PermissionMode> {
     let mode = if agent.bound_session_id() == Some(id) {
         let mode = agent
             .inner
@@ -170,7 +170,7 @@ mod tests {
         let first = gate_for(&agent, id);
         let second = gate_for(&agent, id);
         assert!(Arc::ptr_eq(&first, &second));
-        let recorder = GuardedRecorder::new(reflect_protocol::NullRecorder, second);
+        let recorder = GuardedRecorder::new(zhuye_protocol::NullRecorder, second);
         let write_in_progress = first.acquire().await.unwrap();
         let deleting = {
             let agent = agent.clone();

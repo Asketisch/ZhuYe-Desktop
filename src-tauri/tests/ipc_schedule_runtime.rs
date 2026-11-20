@@ -53,27 +53,27 @@ fn scheduled_turn_fires_after_rebind_and_disabled_job_stays_idle() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
     });
     let enabled = common::invoke_ok(
-        "reflect_add_schedule",
+        "zhuye_add_schedule",
         json!({ "schedule": "* * * * *", "prompt": "runtime-scheduled-enabled", "name": "enabled" }),
     );
     let disabled = common::invoke_ok(
-        "reflect_add_schedule",
+        "zhuye_add_schedule",
         json!({ "schedule": "* * * * *", "prompt": "runtime-scheduled-disabled", "name": "disabled" }),
     );
     let enabled_id = enabled["id"].as_str().unwrap();
     let disabled_id = disabled["id"].as_str().unwrap();
     common::invoke_ok(
-        "reflect_update_schedule",
+        "zhuye_update_schedule",
         json!({ "id": disabled_id, "enabled": false }),
     );
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({ "id": session }));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({ "id": session }));
 
     let deadline = Instant::now() + Duration::from_secs(105);
     let mut reply_id: Option<String> = None;
@@ -110,7 +110,7 @@ fn scheduled_turn_fires_after_rebind_and_disabled_job_stays_idle() {
     let body = String::from_utf8_lossy(&requests[0].body);
     assert!(body.contains("runtime-scheduled-enabled"));
     assert!(!body.contains("runtime-scheduled-disabled"));
-    let list = common::invoke_ok("reflect_list_schedules", json!({}));
+    let list = common::invoke_ok("zhuye_list_schedules", json!({}));
     let jobs = list.as_array().unwrap();
     let fired = jobs.iter().find(|job| job["id"] == enabled_id).unwrap();
     let idle = jobs.iter().find(|job| job["id"] == disabled_id).unwrap();
@@ -119,15 +119,15 @@ fn scheduled_turn_fires_after_rebind_and_disabled_job_stays_idle() {
     assert!(idle["last_fired"].is_null(), "{idle}");
     assert_eq!(idle["enabled"], false);
     assert_eq!(
-        common::invoke_ok("reflect_remove_schedule", json!({ "id": enabled_id })),
+        common::invoke_ok("zhuye_remove_schedule", json!({ "id": enabled_id })),
         true
     );
     assert_eq!(
-        common::invoke_ok("reflect_remove_schedule", json!({ "id": disabled_id })),
+        common::invoke_ok("zhuye_remove_schedule", json!({ "id": disabled_id })),
         true
     );
     assert_eq!(
-        common::invoke_ok("reflect_get_schedule_status", json!({}))["status"],
+        common::invoke_ok("zhuye_get_schedule_status", json!({}))["status"],
         "idle"
     );
 }

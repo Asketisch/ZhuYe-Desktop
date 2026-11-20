@@ -19,6 +19,6 @@ export interface SecurityScanResult {
 }
 
 /** 在当前工作区跑一次 `cargo audit`(有界超时,可能耗时数十秒)。 */
-export function reflect_run_security_scan(): Promise<SecurityScanResult> {
-  return invoke('reflect_run_security_scan');
+export function zhuye_run_security_scan(): Promise<SecurityScanResult> {
+  return invoke('zhuye_run_security_scan');
 }

@@ -1,4 +1,4 @@
-//! Side-channel 终态事件补发 —— registry 广播 → 协议 `reflect_event` 通道。
+//! Side-channel 终态事件补发 —— registry 广播 → 协议 `zhuye_event` 通道。
 //!
 //! 引擎的 `SideChannelDriver` 在后台 task 里推进 registry 终态
 //! (Done / Cancelled / Error),但只调 `registry.finish`(进程内状态),
@@ -8,7 +8,7 @@
 //!
 //! 桌面端持有进程级共享 registry(`MinimalAgentInner.side_channels`,
 //! 与 driver 同一份 Arc),本模块订阅它的 broadcast,把**终态**事件映射
-//! 成协议信封补发到 `reflect_event` 通道:
+//! 成协议信封补发到 `zhuye_event` 通道:
 //!
 //! - `Started` 跳过 —— submission_loop 已经带 submission id 发过一次,
 //!   补发会造成前端 revision 双计;
@@ -22,8 +22,8 @@
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::broadcast;
 
-use reflect_core::side_channel::SideChannelEvent as RegistryEvent;
-use reflect_protocol::{EVENT_ID_NONE, Event, EventMsg};
+use zhuye_core::side_channel::SideChannelEvent as RegistryEvent;
+use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg};
 
 /// 把 registry 广播事件映射成协议 `EventMsg`(None = 不补发)。
 ///
@@ -35,13 +35,13 @@ fn to_protocol_event(event: &RegistryEvent) -> Option<EventMsg> {
             id,
             finished_at_ms,
             summary,
-        } => reflect_protocol::SideChannelEvent::Done {
+        } => zhuye_protocol::SideChannelEvent::Done {
             id: id.clone(),
             finished_at_ms: *finished_at_ms,
             summary: summary.clone(),
         },
         RegistryEvent::Cancelled { id, finished_at_ms } => {
-            reflect_protocol::SideChannelEvent::Cancelled {
+            zhuye_protocol::SideChannelEvent::Cancelled {
                 id: id.clone(),
                 finished_at_ms: *finished_at_ms,
             }
@@ -50,7 +50,7 @@ fn to_protocol_event(event: &RegistryEvent) -> Option<EventMsg> {
             id,
             finished_at_ms,
             message,
-        } => reflect_protocol::SideChannelEvent::Error {
+        } => zhuye_protocol::SideChannelEvent::Error {
             id: id.clone(),
             finished_at_ms: *finished_at_ms,
             message: message.clone(),
@@ -65,11 +65,11 @@ fn to_protocol_event(event: &RegistryEvent) -> Option<EventMsg> {
 /// 自动 spawn 会跳过)需要显式调它,与 `forward_agent_events` 同待遇。
 pub fn spawn_side_channel_forwarder<R: Runtime>(
     app: AppHandle<R>,
-    registry: &reflect_core::side_channel::SideChannelRegistry,
+    registry: &zhuye_core::side_channel::SideChannelRegistry,
 ) {
     let mut rx = registry.subscribe_events();
     tauri::async_runtime::spawn(async move {
-        tracing::info!("[reflect-gui] side-channel terminal-event forwarder started");
+        tracing::info!("[zhuye-gui] side-channel terminal-event forwarder started");
         loop {
             match rx.recv().await {
                 Ok(event) => {
@@ -80,9 +80,9 @@ pub fn spawn_side_channel_forwarder<R: Runtime>(
                         id: EVENT_ID_NONE.into(),
                         msg,
                     };
-                    if let Err(e) = app.emit("reflect_event", &event) {
+                    if let Err(e) = app.emit("zhuye_event", &event) {
                         tracing::error!(
-                            "[reflect-gui] emit side-channel terminal event failed: {e}"
+                            "[zhuye-gui] emit side-channel terminal event failed: {e}"
                         );
                     }
                 }
@@ -102,7 +102,7 @@ pub fn spawn_side_channel_forwarder<R: Runtime>(
 mod tests {
     use super::*;
 
-    fn map(event: RegistryEvent) -> Option<reflect_protocol::SideChannelEvent> {
+    fn map(event: RegistryEvent) -> Option<zhuye_protocol::SideChannelEvent> {
         to_protocol_event(&event).map(|msg| match msg {
             EventMsg::SideChannelFinished(e) => e,
             other => panic!("应映射为 SideChannelFinished,实际: {other:?}"),
@@ -129,7 +129,7 @@ mod tests {
         };
         let mapped = map(event).expect("Done 应补发");
         match mapped {
-            reflect_protocol::SideChannelEvent::Done {
+            zhuye_protocol::SideChannelEvent::Done {
                 id,
                 finished_at_ms,
                 summary,
@@ -151,7 +151,7 @@ mod tests {
         .expect("Cancelled 应补发");
         assert!(matches!(
             cancelled,
-            reflect_protocol::SideChannelEvent::Cancelled { ref id, finished_at_ms: 7 }
+            zhuye_protocol::SideChannelEvent::Cancelled { ref id, finished_at_ms: 7 }
             if id == "side-00000003"
         ));
 
@@ -162,7 +162,7 @@ mod tests {
         })
         .expect("Error 应补发");
         match error {
-            reflect_protocol::SideChannelEvent::Error { message, .. } => {
+            zhuye_protocol::SideChannelEvent::Error { message, .. } => {
                 assert_eq!(message, "boom");
             }
             other => panic!("应映射为 Error,实际: {other:?}"),
@@ -173,7 +173,7 @@ mod tests {
     fn terminal_events_reach_subscribers_via_registry_broadcast() {
         // 端到端冒烟:注册表广播 → to_protocol_event 映射可用。
         // (AppHandle 的 emit 链路由能力覆盖层 ipc_domains 的真 IPC 断言覆盖。)
-        let registry = reflect_core::side_channel::SideChannelRegistry::new();
+        let registry = zhuye_core::side_channel::SideChannelRegistry::new();
         let mut rx = registry.subscribe_events();
         let (id, _cancel) = registry.start("explorer".into(), "p".into());
         let started = rx.try_recv().expect("start 应广播 Started");
@@ -187,7 +187,7 @@ mod tests {
         assert!(matches!(
             mapped,
             EventMsg::SideChannelFinished(ref e)
-            if matches!(e, reflect_protocol::SideChannelEvent::Cancelled { .. })
+            if matches!(e, zhuye_protocol::SideChannelEvent::Cancelled { .. })
         ));
     }
 }

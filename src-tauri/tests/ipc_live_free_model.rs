@@ -10,7 +10,7 @@
 //! 这一层把**免费模型池**接进同一条真链路:
 //!
 //! ```text
-//! reflect_submit → AgentThread → HTTP → SSE 解析 → reflect_event 通道
+//! zhuye_submit → AgentThread → HTTP → SSE 解析 → zhuye_event 通道
 //! ```
 //!
 //! 与 GUI 点一次「发送」是**同一条链**(同一个 `generate_handler!`
@@ -62,7 +62,7 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 
 /// 事件通道名 —— 与 `src-tauri/src/events.rs` 的 emit 名一致。
-const EVENT_CHANNEL: &str = "reflect_event";
+const EVENT_CHANNEL: &str = "zhuye_event";
 
 /// 默认端点:Kilo 免费池(免 Key、零外部依赖)。
 const DEFAULT_BASE_URL: &str = "https://api.kilo.ai/api/gateway";
@@ -191,7 +191,7 @@ enum Outcome {
 
 /// 从一条错误事件里判断这是限流、能力不支持,还是真失败。
 ///
-/// 引擎的错误码(`reflect-core/src/graph/nodes/retry.rs::error_code`):
+/// 引擎的错误码(`zhuye-core/src/graph/nodes/retry.rs::error_code`):
 /// `RATE_LIMITED` / `ALL_CREDENTIALS_EXHAUSTED` / `AUTH_FAILED` /
 /// `INVALID_REQUEST` / `PROVIDER_ERROR` / `OVERLOADED` / `MAX_ATTEMPTS`。
 /// 限流与环境配额有关 → 跳过;能力不匹配(模型不支持 tools)→ 跳过;
@@ -267,7 +267,7 @@ struct Observed {
     error: Option<(String, String, Option<Value>)>,
 }
 
-/// 解析一条 `reflect_event` 载荷(线格式:`{"id":…,"msg":{"type":…}}`)。
+/// 解析一条 `zhuye_event` 载荷(线格式:`{"id":…,"msg":{"type":…}}`)。
 fn observe(payload: &str, obs: &mut Observed) {
     let Ok(v) = serde_json::from_str::<Value>(payload) else {
         return;
@@ -394,7 +394,7 @@ fn judge(obs: &Observed) -> Outcome {
 
 /// 跑一轮完整链路:注册监听 → 放行工具审批 → 提交 → 收事件 → 判定。
 fn run_chain(turn_seq: u64, drain_timeout: Duration) -> Outcome {
-    // 1. 监听 `reflect_event` —— 与前端 `listen("reflect_event")` 同一条通道。
+    // 1. 监听 `zhuye_event` —— 与前端 `listen("zhuye_event")` 同一条通道。
     let (tx, rx): (Sender<String>, Receiver<String>) = channel();
     common::listen(EVENT_CHANNEL, move |event| {
         let _ = tx.send(event.payload().to_string());
@@ -402,8 +402,8 @@ fn run_chain(turn_seq: u64, drain_timeout: Duration) -> Outcome {
 
     // 2. 权限模式 → `bypass`:工具静默放行,不弹审批框。
     //    否则模型一旦发起工具调用就会停在审批门,事件流永远等不到终态。
-    if let Err(e) = common::invoke("reflect_set_permission_mode", json!({ "mode": "bypass" })) {
-        return Outcome::Failed(format!("reflect_set_permission_mode 失败: {e}"));
+    if let Err(e) = common::invoke("zhuye_set_permission_mode", json!({ "mode": "bypass" })) {
+        return Outcome::Failed(format!("zhuye_set_permission_mode 失败: {e}"));
     }
 
     // 3. 提交一条真实 UserInput —— 与 GUI「发送」完全同形。
@@ -418,8 +418,8 @@ fn run_chain(turn_seq: u64, drain_timeout: Duration) -> Outcome {
             }
         }
     });
-    if let Err(e) = common::invoke("reflect_submit", body) {
-        return Outcome::Failed(format!("reflect_submit 失败: {e}"));
+    if let Err(e) = common::invoke("zhuye_submit", body) {
+        return Outcome::Failed(format!("zhuye_submit 失败: {e}"));
     }
 
     // 4. 收事件直到终态或预算耗尽。

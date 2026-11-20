@@ -35,12 +35,12 @@ fn isolation_probe_child() {
             "Windows 用户目录也必须隔离"
         );
     }
-    let data = reflect_config::paths::data_dir().unwrap();
+    let data = zhuye_config::paths::data_dir().unwrap();
     assert_eq!(data, home.join(".zhuye"));
-    let store = reflect_tools::HumanInputStore::from_env_or_default().unwrap();
+    let store = zhuye_tools::HumanInputStore::from_env_or_default().unwrap();
     store.write_pending("sandbox-probe", "synthetic prompt");
     assert!(data.join("human_input/sandbox-probe.json").exists());
-    reflect_llm::QuotaTracker::new().save_state_if_configured();
+    zhuye_llm::QuotaTracker::new().save_state_if_configured();
     assert!(data.join("quota-state.json").exists());
 }
 
@@ -86,7 +86,7 @@ fn stale_pid_directory_probe_child() {
         return;
     }
     let old_base =
-        std::env::temp_dir().join(format!("reflect-desktop-capability-{}", std::process::id()));
+        std::env::temp_dir().join(format!("zhuye-desktop-capability-{}", std::process::id()));
     let old_data = old_base.join("home/.zhuye");
     std::fs::create_dir_all(&old_data).unwrap();
     std::fs::write(old_data.join("config.toml"), "stale_config_marker = true\n").unwrap();

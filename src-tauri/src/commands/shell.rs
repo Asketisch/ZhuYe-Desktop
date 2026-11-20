@@ -1,8 +1,8 @@
 //! Terminal shell exec —— 流式 stdout/stderr 到前端事件。
 //!
-//! 执行与缓冲已收编进上游 `reflect_shell`(常驻 shell 会话插件):
+//! 执行与缓冲已收编进上游 `zhuye_shell`(常驻 shell 会话插件):
 //! 会话池持有进程 + 输出缓冲,桌面端以适配 task 把上游拉模型
-//! (`read_delta` 游标增量)转回推模型(逐行 `reflect_terminal_output`
+//! (`read_delta` 游标增量)转回推模型(逐行 `zhuye_terminal_output`
 //! 事件),前端 IPC 形状不变。
 
 use std::sync::Arc;
@@ -14,11 +14,11 @@ use tauri::{Emitter, State};
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
 
-/// `reflect_run_shell` 返回给前端的 shell 会话元数据。
+/// `zhuye_run_shell` 返回给前端的 shell 会话元数据。
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ShellSession {
     /// 唯一会话 id(`sh-<8hex>`,上游池分配);用于关联后续
-    /// `reflect_terminal_output` 事件以及调用 `reflect_kill_shell`。
+    /// `zhuye_terminal_output` 事件以及调用 `zhuye_kill_shell`。
     pub id: String,
     /// 已发起的命令。
     pub command: String,
@@ -26,7 +26,7 @@ pub struct ShellSession {
     pub cwd: String,
 }
 
-/// `reflect_terminal_output` 事件载荷。
+/// `zhuye_terminal_output` 事件载荷。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ShellOutputChunk {
     pub session_id: String,
@@ -49,7 +49,7 @@ fn emit_chunk(
     *current = current.saturating_add(1);
     chunk.seq = *current;
     if let Some(app) = app {
-        let _ = app.emit("reflect_terminal_output", chunk);
+        let _ = app.emit("zhuye_terminal_output", chunk);
     }
 }
 
@@ -91,7 +91,7 @@ fn strip_exit_marker(buffer: &str) -> &str {
 }
 
 /// 启动 `cmd`(单条 shell 表达式),把 stdout/stderr 流式转发为带 `session_id`
-/// 的 `reflect_terminal_output` 事件。返回会话 id 供前端匹配 chunk。
+/// 的 `zhuye_terminal_output` 事件。返回会话 id 供前端匹配 chunk。
 ///
 /// 真实 PTY(resize / raw mode)不在范围(上游同样明确不做)—— 走
 /// `tokio::process` 管道化 stdout/stderr,按行输出 chunk,由前端负责
@@ -123,7 +123,7 @@ fn ssh_argv(host: &str, cmd: &str) -> Vec<String> {
 }
 
 #[tauri::command]
-pub async fn reflect_run_shell(
+pub async fn zhuye_run_shell(
     agent: State<'_, MinimalAgent>,
     cmd: String,
     ssh_host: Option<String>,
@@ -191,7 +191,7 @@ pub async fn reflect_run_shell(
 fn spawn_output_pump(
     app: &Option<tauri::AppHandle>,
     agent: &MinimalAgent,
-    session: &std::sync::Arc<reflect_shell::ShellSession>,
+    session: &std::sync::Arc<zhuye_shell::ShellSession>,
     id: String,
 ) {
     let app = app.clone();
@@ -283,7 +283,7 @@ fn windows_shell_argv(cmd: &str) -> Vec<String> {
 
 /// 按 id 终止运行中的 shell 会话。幂等:会话缺失不视为错误。
 #[tauri::command]
-pub async fn reflect_kill_shell(
+pub async fn zhuye_kill_shell(
     agent: State<'_, MinimalAgent>,
     session_id: String,
 ) -> CommandResult<()> {
@@ -295,7 +295,7 @@ pub async fn reflect_kill_shell(
 
 /// 列出当前活动的 shell 会话 id(诊断用)。
 #[tauri::command]
-pub async fn reflect_list_shell_sessions(
+pub async fn zhuye_list_shell_sessions(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<String>> {
     // 与 run/get/remove 同款直通 `shell_sessions`(无转发层)。

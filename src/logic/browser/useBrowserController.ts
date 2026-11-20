@@ -1,21 +1,21 @@
 /**
  * 浏览器面板控制器:状态轮询 + 帧流订阅 + 启停动作。
  *
- * 帧(`reflect_browser_frame`,base64 JPEG)到达即渲染;start/stop 走
+ * 帧(`zhuye_browser_frame`,base64 JPEG)到达即渲染;start/stop 走
  * 后端命令,状态刷新在挂载时做一次(status 无副作用)。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  reflect_browser_start,
-  reflect_browser_status,
-  reflect_browser_stop,
+  zhuye_browser_start,
+  zhuye_browser_status,
+  zhuye_browser_stop,
   listen_browser_frame,
-  type ReflectBrowserStatus,
+  type ZhuyeBrowserStatus,
 } from '@/utils/commands/browser';
 
 export interface BrowserViewState {
   /** 面板状态(null = 尚未查询)。 */
-  status: ReflectBrowserStatus | null;
+  status: ZhuyeBrowserStatus | null;
   /** 当前帧 data URL(`data:image/jpeg;base64,...`;无帧为 null)。 */
   frame: string | null;
   /** start/stop 进行中。 */
@@ -40,7 +40,7 @@ export function useBrowserController() {
 
   const refresh = useCallback(async () => {
     try {
-      const status = await reflect_browser_status();
+      const status = await zhuye_browser_status();
       patch({ status, error: null });
     } catch (cause) {
       patch({
@@ -69,7 +69,7 @@ export function useBrowserController() {
   const start = useCallback(async () => {
     patch({ busy: true, error: null });
     try {
-      const status = await reflect_browser_start();
+      const status = await zhuye_browser_start();
       patch({ status, busy: false });
     } catch (cause) {
       patch({
@@ -82,7 +82,7 @@ export function useBrowserController() {
   const stop = useCallback(async () => {
     patch({ busy: true, error: null });
     try {
-      const status = await reflect_browser_stop();
+      const status = await zhuye_browser_stop();
       patch({ status, frame: null, busy: false });
     } catch (cause) {
       patch({

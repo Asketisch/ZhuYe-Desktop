@@ -4,11 +4,11 @@ use crate::state::MinimalAgent;
 #[tokio::test]
 async fn successful_model_reload_preserves_unresolved_rebind_diagnostic() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
     agent.install_agent_thread().await;
     *agent.inner.pending_rebind_error.lock() = Some("rebind failed".into());
     *agent.inner.degraded_reason.lock() = Some("rebind failed".into());
-    let old = reflect_config::ReflectConfig::default();
+    let old = zhuye_config::ReflectConfig::default();
     let new = cfg_with_provider("openai");
     *agent.inner.cfg.write() = new.clone();
     assert!(
@@ -55,16 +55,16 @@ fn unrelated_reload_keeps_existing_initialization_failure() {
     );
 }
 
-fn cfg_with_provider(provider: &str) -> reflect_config::ReflectConfig {
-    reflect_config::load_from_str(&format!(
+fn cfg_with_provider(provider: &str) -> zhuye_config::ReflectConfig {
+    zhuye_config::load_from_str(&format!(
         "[active]\nprovider = \"{provider}\"\n\n[{provider}]\nmodel = \"test-model\"\n"
     ))
     .expect("config parses")
 }
 
 /// 无 model 配置的 provider 快照(诚实化:spec 为 stub,降级原因给出指引)。
-fn cfg_with_provider_no_model(provider: &str) -> reflect_config::ReflectConfig {
-    reflect_config::load_from_str(&format!("[active]\nprovider = \"{provider}\"\n"))
+fn cfg_with_provider_no_model(provider: &str) -> zhuye_config::ReflectConfig {
+    zhuye_config::load_from_str(&format!("[active]\nprovider = \"{provider}\"\n"))
         .expect("config parses")
 }
 
@@ -73,7 +73,7 @@ fn cfg_with_provider_no_model(provider: &str) -> reflect_config::ReflectConfig {
 async fn hot_reload_rebuilds_registry_and_rebinds() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
-    let sid = reflect_protocol::ThreadId::new();
+    let sid = zhuye_protocol::ThreadId::new();
     super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
     let thread_before = agent.inner.thread.lock().clone().unwrap();
     let registry_before = agent.inner.model_registry.lock().clone().unwrap();
@@ -115,14 +115,14 @@ async fn hot_reload_rebuilds_registry_and_rebinds() {
 async fn hot_reload_detects_sandbox_section_change() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
-    let sid = reflect_protocol::ThreadId::new();
+    let sid = zhuye_protocol::ThreadId::new();
     super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
     let thread_before = agent.inner.thread.lock().clone().unwrap();
     let registry_before = agent.inner.model_registry.lock().clone().unwrap();
 
     let base = "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n";
-    let old = reflect_config::load_from_str(base).unwrap();
-    let new = reflect_config::load_from_str(&format!("{base}\n[sandbox]\nallow_network = true\n"))
+    let old = zhuye_config::load_from_str(base).unwrap();
+    let new = zhuye_config::load_from_str(&format!("{base}\n[sandbox]\nallow_network = true\n"))
         .unwrap();
     assert_ne!(old.sandbox, new.sandbox, "测试前提:两边的沙箱段确实不同");
     let _ = hot_reload_provider_stack(&agent, &old, &new).await;
@@ -178,11 +178,11 @@ async fn hot_reload_with_model_clears_degraded_reason() {
 async fn hot_reload_detects_credential_pin_change() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
-    let old = reflect_config::load_from_str(
+    let old = zhuye_config::load_from_str(
         "[active]\nprovider = \"anthropic\"\n\n[anthropic]\nmodel = \"m\"\n",
     )
     .unwrap();
-    let new = reflect_config::load_from_str(
+    let new = zhuye_config::load_from_str(
         "[active]\nprovider = \"anthropic\"\ncredential = \"MiniMax\"\n\n[anthropic]\nmodel = \"m\"\n",
     )
     .unwrap();
@@ -215,9 +215,9 @@ async fn hot_reload_detects_model_discovery_change() {
     let agent = MinimalAgent::new_empty();
     agent.install_agent_thread().await;
     let base = "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"gpt-4o\"\n";
-    let old = reflect_config::load_from_str(base).unwrap();
+    let old = zhuye_config::load_from_str(base).unwrap();
     let new =
-        reflect_config::load_from_str(&format!("{base}\n[model_discovery]\nprefer = \"code\"\n"))
+        zhuye_config::load_from_str(&format!("{base}\n[model_discovery]\nprefer = \"code\"\n"))
             .unwrap();
     assert_ne!(
         old.model_discovery, new.model_discovery,
@@ -268,18 +268,18 @@ async fn discovery_retries_unchanged_config_and_refreshes_changed_endpoint() {
         .mount(&second)
         .await;
     let config = |url: &str| {
-        reflect_config::load_from_str(&format!(
+        zhuye_config::load_from_str(&format!(
         "[active]\nprovider = \"openai\"\n[openai]\nmodel = \"free\"\napi_key = \"test\"\nbase_url = \"{url}\"\n[model_discovery]\nalways_free = [\"first-free\", \"second-free\"]\n"
     )).unwrap()
     };
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
     agent.install_agent_thread().await;
-    super::super::rebind::rebind_session(&agent, reflect_protocol::ThreadId::new(), vec![], None)
+    super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
         .unwrap();
     let old_thread = agent.inner.thread.lock().clone().unwrap();
     let old_registry = agent.inner.model_registry.lock().clone().unwrap();
-    let old = reflect_config::ReflectConfig::default();
+    let old = zhuye_config::ReflectConfig::default();
     let first_cfg = config(&first.uri());
     *agent.inner.cfg.write() = first_cfg.clone();
     assert!(
@@ -297,7 +297,7 @@ async fn discovery_retries_unchanged_config_and_refreshes_changed_endpoint() {
         &old_registry,
         agent.inner.model_registry.lock().as_ref().unwrap()
     ));
-    super::super::rebind::rebind_session(&agent, reflect_protocol::ThreadId::new(), vec![], None)
+    super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
         .unwrap();
     assert_eq!(agent.agent_status().model, "stub/test");
     available.store(true, Ordering::SeqCst);

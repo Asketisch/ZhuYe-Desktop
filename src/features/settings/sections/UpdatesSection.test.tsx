@@ -3,7 +3,7 @@
  *
  * 验证：
  *   - 初始不显示结果(未探测)
- *   - 点「检查更新」后调用 reflect_check_update
+ *   - 点「检查更新」后调用 zhuye_check_update
  *   - 有新版 → 显示版本徽标 + 发布说明 + 发布页链接
  *   - 探测出错 → 如实展示错误,不静默
  *   - OTA 自更新:点击安装 → 进度事件驱动进度条 → 完成出现重启按钮
@@ -33,7 +33,7 @@ describe('UpdatesSection', () => {
   });
 
   it('已是最新 → 显示当前版本与「已是最新」徽标', async () => {
-    mockInvoke('reflect_check_update', async () => ({
+    mockInvoke('zhuye_check_update', async () => ({
       currentVersion: '0.1.0',
       latestVersion: '0.1.0',
       updateAvailable: false,
@@ -53,7 +53,7 @@ describe('UpdatesSection', () => {
   });
 
   it('有新版 → 显示版本号、发布说明与发布页链接', async () => {
-    mockInvoke('reflect_check_update', async () => ({
+    mockInvoke('zhuye_check_update', async () => ({
       currentVersion: '0.1.0',
       latestVersion: '0.2.0',
       updateAvailable: true,
@@ -77,7 +77,7 @@ describe('UpdatesSection', () => {
   });
 
   it('探测失败 → 如实展示错误', async () => {
-    mockInvoke('reflect_check_update', async () => ({
+    mockInvoke('zhuye_check_update', async () => ({
       currentVersion: '0.1.0',
       latestVersion: null,
       updateAvailable: false,
@@ -96,7 +96,7 @@ describe('UpdatesSection', () => {
   });
 
   it('invoke 抛错 → 同样如实展示,而不是崩掉', async () => {
-    mockInvoke('reflect_check_update', async () => {
+    mockInvoke('zhuye_check_update', async () => {
       throw new Error('bridge down');
     });
     render(<UpdatesSection />);
@@ -111,7 +111,7 @@ describe('UpdatesSection', () => {
 
   /** 探测一个有新版的 update info,为安装流测试铺底。 */
   function mockUpdateAvailable() {
-    mockInvoke('reflect_check_update', async () => ({
+    mockInvoke('zhuye_check_update', async () => ({
       currentVersion: '0.1.0',
       latestVersion: '0.2.0',
       updateAvailable: true,
@@ -132,7 +132,7 @@ describe('UpdatesSection', () => {
     expect(screen.getByTestId('updates-install-start')).toBeDefined();
 
     // 已是最新(installed=false)→ 收起安装区并刷新检查结果。
-    mockInvoke('reflect_download_install_update', async () => ({
+    mockInvoke('zhuye_download_install_update', async () => ({
       installed: false,
       version: null,
       notes: null,
@@ -152,20 +152,20 @@ describe('UpdatesSection', () => {
     });
 
     let relaunchCalls = 0;
-    mockInvoke('reflect_relaunch_app', async () => {
+    mockInvoke('zhuye_relaunch_app', async () => {
       relaunchCalls += 1;
       return undefined;
     });
-    mockInvoke('reflect_download_install_update', async () => {
+    mockInvoke('zhuye_download_install_update', async () => {
       act(() => {
-        emitMockEvent('reflect_update_progress', { type: 'started' });
-        emitMockEvent('reflect_update_progress', { type: 'progress', downloaded: 50, total: 100 });
+        emitMockEvent('zhuye_update_progress', { type: 'started' });
+        emitMockEvent('zhuye_update_progress', { type: 'progress', downloaded: 50, total: 100 });
       });
       await waitFor(() => {
         expect(screen.getByTestId('updates-install-progress').textContent).toContain('50');
       });
       act(() => {
-        emitMockEvent('reflect_update_progress', { type: 'finished' });
+        emitMockEvent('zhuye_update_progress', { type: 'finished' });
       });
       return { installed: true, version: '0.2.0', notes: null };
     });
@@ -187,7 +187,7 @@ describe('UpdatesSection', () => {
       expect(screen.getByTestId('updates-install-start')).toBeDefined();
     });
 
-    mockInvoke('reflect_download_install_update', async () => {
+    mockInvoke('zhuye_download_install_update', async () => {
       throw new Error('updater check failed: offline');
     });
     fireEvent.click(screen.getByTestId('updates-install-start'));

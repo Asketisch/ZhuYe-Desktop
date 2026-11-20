@@ -8,9 +8,9 @@ import {
   displayTitle,
   SESSION_BUCKET_LABELS,
 } from '@/features/sessions/utils/buckets';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 
-function makeSession(overrides: Partial<ReflectSessionInfo> = {}): ReflectSessionInfo {
+function makeSession(overrides: Partial<ZhuyeSessionInfo> = {}): ZhuyeSessionInfo {
   return {
     session_id: 'sess-' + Math.random().toString(36).slice(2, 8),
     model: 'stub/test',

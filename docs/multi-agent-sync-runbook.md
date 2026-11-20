@@ -7,7 +7,7 @@
 ## 何时升级
 
 - ZhuYe 发布新版本（标签 `v*`）。
-- `reflect-protocol` / `reflect-core` / `reflect-rollout` 等落地了影响 GUI 行为的修复。
+- `zhuye-protocol` / `zhuye-core` / `zhuye-rollout` 等落地了影响 GUI 行为的修复。
 - 新增了 `Op` / `EventMsg` 变体（前端类型需要重新生成）。
 
 ## 预检
@@ -30,7 +30,7 @@ git submodule update --remote zhuye-agent
 git diff --submodule zhuye-agent
 git diff zhuye-agent/crates/protocol/zhuye-protocol/src/
 
-# 3. 如果 reflect-protocol 有变更，重新生成前端类型
+# 3. 如果 zhuye-protocol 有变更，重新生成前端类型
 bash scripts/dump-ts-types.sh
 
 # 4. 重建验证
@@ -56,9 +56,9 @@ git commit -m "chore: bump zhuye-agent submodule (<原因>)"
 
 | 症状 | 原因 | 修复 |
 |---|---|---|
-| `cargo check` 报 match 不穷尽 | `reflect-protocol` 新增 `EventMsg` / `RolloutRecord` 变体 | 在 `src-tauri/src/state/activity.rs` 补全 match 分支 |
+| `cargo check` 报 match 不穷尽 | `zhuye-protocol` 新增 `EventMsg` / `RolloutRecord` 变体 | 在 `src-tauri/src/state/activity.rs` 补全 match 分支 |
 | 前端丢弃事件 | 前端 reducer 缺少新变体 | 运行 `bash scripts/dump-ts-types.sh` 后在 reducer 补全 |
-| `invoke('reflect_submit')` 报错 | Tauri 命令签名漂移 | 将 `src-tauri/src/commands/` 与新 `Op` 变体同步 |
+| `invoke('zhuye_submit')` 报错 | Tauri 命令签名漂移 | 将 `src-tauri/src/commands/` 与新 `Op` 变体同步 |
 
 ## 回滚
 

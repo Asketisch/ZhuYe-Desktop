@@ -2,7 +2,7 @@
  * src/stores/backgroundSessions.ts —— 后台会话注册表(v1.x 后台持续运行)。
  *
  * 背景:换绑会话不再杀旧线程(见 `src-tauri/src/state/rebind.rs`),后台
- * 会话的 turn 继续在引擎里跑,其事件经独立通道 `reflect_session_event`
+ * 会话的 turn 继续在引擎里跑,其事件经独立通道 `zhuye_session_event`
  * (载荷 `{ session_id, event }`)送达 —— **主 reducer 不消化这路事件**
  * (它的状态面是「当前前台会话」的投影),本 store 负责轻量投影:
  *
@@ -25,7 +25,7 @@
  * 该会话操作;徽标 + toast 引导用户切回。
  */
 import { create } from 'zustand';
-import { onReflectSessionEvent } from '@/utils/commands';
+import { onZhuyeSessionEvent } from '@/utils/commands';
 import { t } from '@/utils/i18n/lookup';
 import { reduceEvent } from './agent/reducer';
 import { useAgentStore } from './agentStore';
@@ -37,7 +37,7 @@ import type {
   PendingQuestion,
   Turn,
 } from './agent/types';
-import type { ReflectEvent } from '@/types/protocol';
+import type { ZhuyeEvent } from '@/types/protocol';
 
 /** 一次后台会话的待确认交互集合(形状 = 主 store 同名字段的子集)。 */
 export interface BackgroundPending {
@@ -77,7 +77,7 @@ export interface ForegroundProjection {
 interface BackgroundSessionsState {
   sessions: Record<string, BackgroundSessionSnapshot>;
   /** 消化一条后台事件(带 session id)。 */
-  ingest: (sessionId: string, event: ReflectEvent) => void;
+  ingest: (sessionId: string, event: ZhuyeEvent) => void;
   /**
    * 前台 → 后台降级:用前台当前投影播种该会话的 scratch(turns + 待确认
    * 交互)。之后该会话在后台收到的事件继续叠加在同一份 scratch 上 ——
@@ -93,7 +93,7 @@ interface BackgroundSessionsState {
   mergePendingInto: (sessionId: string) => void;
   /** 会话删除 / 离开时清理投影与 scratch。 */
   clearSession: (sessionId: string) => void;
-  /** 幂等订阅 `reflect_session_event`(AppProviders 挂载时调用)。 */
+  /** 幂等订阅 `zhuye_session_event`(AppProviders 挂载时调用)。 */
   subscribe: () => () => void;
 }
 
@@ -224,7 +224,7 @@ export const useBackgroundSessions = create<BackgroundSessionsState>((set, get) 
   subscribe: () => {
     let active = true;
     let unlisten: (() => void) | null = null;
-    void onReflectSessionEvent((payload) => {
+    void onZhuyeSessionEvent((payload) => {
       if (active) get().ingest(payload.session_id, payload.event);
     }).then((un) => {
       if (active) {

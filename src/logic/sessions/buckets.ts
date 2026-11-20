@@ -3,7 +3,7 @@
  *
  * 纯函数，便于测试与跨 feature 复用。
  */
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 
 export const SESSION_BUCKET_LABELS = [
   'Now',
@@ -17,11 +17,11 @@ export type SessionBucketLabel = (typeof SESSION_BUCKET_LABELS)[number];
 
 export interface SessionBucket {
   label: SessionBucketLabel;
-  sessions: ReflectSessionInfo[];
+  sessions: ZhuyeSessionInfo[];
 }
 
 /** 单个 session → 桶标签。 */
-export function bucketFor(session: ReflectSessionInfo, now: number = Date.now()): SessionBucketLabel {
+export function bucketFor(session: ZhuyeSessionInfo, now: number = Date.now()): SessionBucketLabel {
   const t = Date.parse(session.started_at);
   if (Number.isNaN(t)) return 'Older';
   const ageMs = now - t;
@@ -35,9 +35,9 @@ export function bucketFor(session: ReflectSessionInfo, now: number = Date.now())
 }
 
 /** 整列表 → 分桶结构(顺序固定,空桶省略)。 */
-export function bucketSessions(sessions: ReflectSessionInfo[], now: number = Date.now()): SessionBucket[] {
+export function bucketSessions(sessions: ZhuyeSessionInfo[], now: number = Date.now()): SessionBucket[] {
   if (sessions.length === 0) return [];
-  const groups = new Map<SessionBucketLabel, ReflectSessionInfo[]>();
+  const groups = new Map<SessionBucketLabel, ZhuyeSessionInfo[]>();
   for (const s of sessions) {
     const k = bucketFor(s, now);
     let arr = groups.get(k);
@@ -57,7 +57,7 @@ export function bucketSessions(sessions: ReflectSessionInfo[], now: number = Dat
  * 解析显示名:优先用后端派生的会话标题(`SessionInfo.title` ——
  * 自定义名或首条 user 消息预览);无标题时回退 id 前 8 字符。
  */
-export function displayTitle(session: Pick<ReflectSessionInfo, 'session_id' | 'title'>): string {
+export function displayTitle(session: Pick<ZhuyeSessionInfo, 'session_id' | 'title'>): string {
   const title = session.title?.trim();
   return title ? title : session.session_id.slice(0, 8);
 }

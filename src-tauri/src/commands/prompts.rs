@@ -1,6 +1,6 @@
 //! 会话提示词选择、重扫和正文预览命令。
 
-use reflect_protocol::{Op, PromptAction};
+use zhuye_protocol::{Op, PromptAction};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -31,11 +31,11 @@ pub struct EffectivePrompt {
 
 /// 查询当前模型实际生效的提示词内容。
 ///
-/// 与 [`reflect_prompt_command`] 的 `list` 动作互补:后者只报**层文件名**
+/// 与 [`zhuye_prompt_command`] 的 `list` 动作互补:后者只报**层文件名**
 /// (哪些层命中了),本命令报**层解析后的正文** —— 即模型真正吃到的那段
 /// 提示词。用户在 GUI 里就能核对「agent 到底被喂了什么」。
 #[tauri::command]
-pub async fn reflect_get_effective_prompt(
+pub async fn zhuye_get_effective_prompt(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<EffectivePrompt> {
     let model = agent.model_spec();
@@ -44,8 +44,8 @@ pub async fn reflect_get_effective_prompt(
         .as_ref()
         .map(|thread| thread.config().resolve_prompt(&model).set)
         .unwrap_or_else(|| {
-            reflect_prompt::PromptLibrary::embedded()
-                .resolve_selection(&model, &reflect_protocol::PromptSelection::Default)
+            zhuye_prompt::PromptLibrary::embedded()
+                .resolve_selection(&model, &zhuye_protocol::PromptSelection::Default)
                 .set
         });
     let mut sections: Vec<_> = set
@@ -60,7 +60,7 @@ pub async fn reflect_get_effective_prompt(
         if let Some(m4) = &thread.config().m4
             && matches!(
                 m4.active_agent_def.source,
-                reflect_agent_def::SystemPromptSource::Custom
+                zhuye_agent_def::SystemPromptSource::Custom
             )
             && let Some(main) = sections
                 .iter_mut()
@@ -70,11 +70,11 @@ pub async fn reflect_get_effective_prompt(
         }
         let sources = thread.tools().list_with_source();
         for spec in thread.tools().list_specs() {
-            let reflect_tools::ToolSpec::Function {
+            let zhuye_tools::ToolSpec::Function {
                 name, description, ..
             } = spec;
             let builtin = sources.iter().any(|(source_name, source)| {
-                source_name == &name && *source == reflect_tools::ToolSource::Builtin
+                source_name == &name && *source == zhuye_tools::ToolSource::Builtin
             });
             let key = format!("tool.{name}");
             let content = if builtin {
@@ -105,7 +105,7 @@ pub async fn reflect_get_effective_prompt(
 ///
 /// 两个动作都不开 turn;返回的是 submission id,应答走事件通道。
 #[tauri::command]
-pub async fn reflect_prompt_command(
+pub async fn zhuye_prompt_command(
     agent: State<'_, MinimalAgent>,
     action: PromptAction,
 ) -> CommandResult<String> {
@@ -151,7 +151,7 @@ mod tests {
         assert!(matches!(
             selection,
             PromptAction::Select {
-                selection: Some(reflect_protocol::PromptSelection::Manual { profile })
+                selection: Some(zhuye_protocol::PromptSelection::Manual { profile })
             } if profile == "gpt"
         ));
 
@@ -160,7 +160,7 @@ mod tests {
         assert!(matches!(
             save,
             PromptAction::SaveDefault {
-                selection: reflect_protocol::PromptSelection::Auto
+                selection: zhuye_protocol::PromptSelection::Auto
             }
         ));
     }

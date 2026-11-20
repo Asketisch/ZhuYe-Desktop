@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEditorStore } from '@/stores/editorStore';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_read_file, reflect_write_file, type ReflectFileReadResult } from '@/utils/commands';
+import { zhuye_read_file, zhuye_write_file, type ZhuyeFileReadResult } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 
-export function useFileDraftController(selected: string | null, file: ReflectFileReadResult | undefined) {
+export function useFileDraftController(selected: string | null, file: ZhuyeFileReadResult | undefined) {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -42,13 +42,13 @@ export function useFileDraftController(selected: string | null, file: ReflectFil
     try {
       const size = new TextEncoder().encode(snapshot.text).length;
       if (size > 1_048_576) throw new Error(t('files.editor.exceedsLimit', { kb: '1024' }));
-      const disk = await reflect_read_file(target);
+      const disk = await zhuye_read_file(target);
       if (disk.binary || disk.truncated || disk.content !== snapshot.base) {
         throw new Error(t('files.editor.conflict'));
       }
-      await reflect_write_file(target, snapshot.text);
+      await zhuye_write_file(target, snapshot.text);
       markSaved(target, snapshot.text);
-      qc.setQueryData<ReflectFileReadResult>(['files-read', target], (old) => old
+      qc.setQueryData<ZhuyeFileReadResult>(['files-read', target], (old) => old
         ? { ...old, content: snapshot.text, size }
         : old);
       if (mountedRef.current && selectedRef.current === target) setActionError(null);
@@ -67,7 +67,7 @@ export function useFileDraftController(selected: string | null, file: ReflectFil
     rejectingRef.current = true;
     setRejectingPath(target);
     try {
-      const disk = await reflect_read_file(target);
+      const disk = await zhuye_read_file(target);
       if (useEditorStore.getState().drafts[target] !== snapshot) return;
       qc.setQueryData(['files-read', target], disk);
       clearDraft(target);
@@ -91,7 +91,7 @@ export function useFileDraftController(selected: string | null, file: ReflectFil
     rejectingRef.current = true;
     setRejectingPath(target);
     try {
-      const disk = await reflect_read_file(target);
+      const disk = await zhuye_read_file(target);
       if (disk.binary || disk.truncated || disk.content !== expected) {
         reportError(target, t('files.editor.diskChanged'));
         return null;
@@ -104,7 +104,7 @@ export function useFileDraftController(selected: string | null, file: ReflectFil
       if (mountedRef.current && selectedRef.current === target) setActionError(null);
       if (useEditorStore.getState().drafts[target] === originalDraft) clearDraft(target);
       else markSaved(target, next);
-      qc.setQueryData<ReflectFileReadResult>(['files-read', target], (old) =>
+      qc.setQueryData<ZhuyeFileReadResult>(['files-read', target], (old) =>
         old ? { ...old, content: next } : old,
       );
       if (mountedRef.current) setResetVersion((version) => version + 1);

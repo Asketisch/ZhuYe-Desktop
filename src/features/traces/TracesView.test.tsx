@@ -53,14 +53,14 @@ describe('TracesView', () => {
   });
 
   it('renders empty state when no traces exist', async () => {
-    mockInvoke('reflect_list_traces', async () => []);
+    mockInvoke('zhuye_list_traces', async () => []);
     render(wrap(<TracesView />));
     expect(await screen.findByText(/No traces yet/i)).toBeDefined();
   });
 
   it('renders session list and loads call details on select', async () => {
-    mockInvoke('reflect_list_traces', async () => [SESSION]);
-    mockInvoke('reflect_get_trace', async () => CALLS);
+    mockInvoke('zhuye_list_traces', async () => [SESSION]);
+    mockInvoke('zhuye_get_trace', async () => CALLS);
 
     render(wrap(<TracesView />));
     expect(await screen.findByTestId('traces-session-list')).toBeDefined();
@@ -75,7 +75,7 @@ describe('TracesView', () => {
   });
 
   it('surfaces list errors without crashing', async () => {
-    mockInvoke('reflect_list_traces', async () => {
+    mockInvoke('zhuye_list_traces', async () => {
       throw new Error('traces dir unreadable');
     });
     render(wrap(<TracesView />));

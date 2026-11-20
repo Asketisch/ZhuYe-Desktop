@@ -76,7 +76,7 @@ describe('ApprovalModal', () => {
     );
   });
 
-  it('hook approvals route to reflect_hook_approval', async () => {
+  it('hook approvals route to zhuye_hook_approval', async () => {
     emitEvent(TURN, {
       type: 'approval_request',
       request_id: 'hk-apr',

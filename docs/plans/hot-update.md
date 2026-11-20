@@ -11,7 +11,7 @@
 
 ## 1. 现状
 
-- `reflect_check_update`（`src-tauri/src/commands/update.rs`）：curl 探测 GitHub `releases/latest`，纯版本号比较，**只检查不下载不安装**；设置页 UpdatesSection 展示 + 外链浏览器打开 release 页。
+- `zhuye_check_update`（`src-tauri/src/commands/update.rs`）：curl 探测 GitHub `releases/latest`，纯版本号比较，**只检查不下载不安装**；设置页 UpdatesSection 展示 + 外链浏览器打开 release 页。
 - 无 tauri-plugin-updater、无 minisign 签名、无 latest.json 产物；`release.yml` 三平台打包上传 Release 但不产更新元数据。
 - macOS `signingIdentity: "-"`（ad-hoc）；版本四处同步（package.json / 根 Cargo.toml / tauri.conf.json / Cargo.lock）已由 `create_tag.sh` + L1 门禁保证。
 - 断线：原生菜单 `menu-check-updates` 事件前端无消费者。
@@ -24,15 +24,15 @@
 
 | 命令 | 职责 |
 |---|---|
-| `reflect_check_update` | 保留现状（兼容），作为轻量探测 |
-| `reflect_download_install_update` | updater `check()` → `download_and_install()`，进度经 `reflect_update_progress` 事件转发（started/progress/finished） |
-| `reflect_relaunch_app` | 薄封装 process 插件 restart |
+| `zhuye_check_update` | 保留现状（兼容），作为轻量探测 |
+| `zhuye_download_install_update` | updater `check()` → `download_and_install()`，进度经 `zhuye_update_progress` 事件转发（started/progress/finished） |
+| `zhuye_relaunch_app` | 薄封装 process 插件 restart |
 
 **配置**：`tauri.conf.json` 增 `plugins.updater`（endpoint 指 GitHub Releases `latest.json`，pubkey 占位待密钥生成后填入）；`capabilities/main.json` 补 `updater:default`、`process:allow-restart`。
 
 **发布链**：`scripts/gen-update-keys.sh` 生成 minisign 密钥对（私钥仅本地 + GitHub secret `TAURI_SIGNING_PRIVATE_KEY`，公钥入库 `tauri.conf.json`）；`release.yml` 注入签名 env，tauri build 产各平台更新包 + 签名，CI 汇总生成 `latest.json`（platform → { signature, url }）上传 Release。
 
-**前端**：`UpdatesSection` 增「立即更新」按钮 → 进度条（监听 `reflect_update_progress`）→ 完成后「重启应用」引导；自动检查开关（默认关）放同节。
+**前端**：`UpdatesSection` 增「立即更新」按钮 → 进度条（监听 `zhuye_update_progress`）→ 完成后「重启应用」引导；自动检查开关（默认关）放同节。
 
 **顺手修复**：`menu-check-updates` 事件接前端监听（跳设置页并触发检查）。
 

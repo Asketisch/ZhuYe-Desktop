@@ -17,7 +17,7 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
     return await tauriInvoke<T>(cmd, args);
   } catch (e) {
     if (isMissingTauriInvokeError(e)) {
-      console.warn(`[reflect-gui] invoke('${cmd}') outside Tauri context`);
+      console.warn(`[zhuye-gui] invoke('${cmd}') outside Tauri context`);
       return undefined as unknown as T;
     }
     throw e;
@@ -32,7 +32,7 @@ export async function listen<T>(
     return await tauriListen<T>(event, handler);
   } catch (e) {
     if (isMissingTauriInvokeError(e)) {
-      console.warn(`[reflect-gui] listen('${event}') outside Tauri context`);
+      console.warn(`[zhuye-gui] listen('${event}') outside Tauri context`);
       return () => {};
     }
     throw e;

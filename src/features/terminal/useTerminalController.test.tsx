@@ -16,9 +16,9 @@ import {
   type TerminalLineStream,
   type TerminalSession,
 } from './useTerminalController';
-import type { ReflectShellOutputChunk, ReflectShellSession } from '@/utils/commands';
+import type { ZhuyeShellOutputChunk, ZhuyeShellSession } from '@/utils/commands';
 
-type ChunkHandler = (chunk: ReflectShellOutputChunk) => void;
+type ChunkHandler = (chunk: ZhuyeShellOutputChunk) => void;
 
 const handlers: ChunkHandler[] = [];
 
@@ -31,7 +31,7 @@ function makeChunk(
   stream: string,
   data: string,
   seq: number,
-): ReflectShellOutputChunk {
+): ZhuyeShellOutputChunk {
   return { session_id, stream, data, seq };
 }
 
@@ -51,9 +51,9 @@ function makeSubscribe(deferred: boolean) {
 const noopUnlisten = () => {};
 const pendingResolvers: Array<() => void> = [];
 
-function makeRun(sessions: ReflectShellSession[] = [], failWith?: Error) {
+function makeRun(sessions: ZhuyeShellSession[] = [], failWith?: Error) {
   // vi.fn 包装:SSH 路由用例需要断言调用参数(cmd + 可选 host)。
-  return vi.fn(async (cmd: string, sshHost?: string): Promise<ReflectShellSession> => {
+  return vi.fn(async (cmd: string, sshHost?: string): Promise<ZhuyeShellSession> => {
     if (failWith) throw failWith;
     const next = sessions.shift();
     if (next) return next;
@@ -262,12 +262,12 @@ describe('terminal listener readiness and event ownership', () => {
   it('waits for the listener, buffers early events, and drops unrelated sessions', async () => {
     let handler!: ChunkHandler;
     let finishListen!: (unlisten: () => void) => void;
-    let finishRun!: (session: ReflectShellSession) => void;
+    let finishRun!: (session: ZhuyeShellSession) => void;
     const subscribe = (h: ChunkHandler) => {
       handler = h;
       return new Promise<() => void>((resolve) => { finishListen = resolve; });
     };
-    const runShell = vi.fn(() => new Promise<ReflectShellSession>((resolve) => { finishRun = resolve; }));
+    const runShell = vi.fn(() => new Promise<ZhuyeShellSession>((resolve) => { finishRun = resolve; }));
     const { result } = renderHook(() => useTerminalController({ subscribe, runShell }));
     let running!: Promise<void>;
     act(() => { running = result.current.run('cmd'); });

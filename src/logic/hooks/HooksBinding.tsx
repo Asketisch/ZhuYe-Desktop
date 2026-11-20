@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_list_hooks, reflect_toggle_hook, reflect_list_hook_events } from '@/utils/commands';
+import { zhuye_list_hooks, zhuye_toggle_hook, zhuye_list_hook_events } from '@/utils/commands';
 import type { HooksViewProps, HookView } from '@/contracts/hooks';
 
 function errorMessage(error: unknown): string {
@@ -29,7 +29,7 @@ export function HooksBinding({ view: View }: { view: ComponentType<HooksViewProp
     const revision = ++refreshRevision.current;
     setLoading(true);
     setError(null);
-    reflect_list_hooks()
+    zhuye_list_hooks()
       .then((list) => { if (refreshRevision.current === revision) setHooks(list.map((h) => ({ name: h.name, kind: h.kind, enabled: h.enabled, config_summary: h.config_summary }))); })
       .catch((e: unknown) => { if (refreshRevision.current === revision) setError(errorMessage(e)); })
       .finally(() => { if (refreshRevision.current === revision) setLoading(false); });
@@ -42,7 +42,7 @@ export function HooksBinding({ view: View }: { view: ComponentType<HooksViewProp
     pending.current = true;
     setPendingName(hook.name);
     try {
-      await reflect_toggle_hook(hook.name, !hook.enabled);
+      await zhuye_toggle_hook(hook.name, !hook.enabled);
       refresh();
     } catch (e) {
       pushToast({ kind: 'error', message: errorMessage(e) });
@@ -54,7 +54,7 @@ export function HooksBinding({ view: View }: { view: ComponentType<HooksViewProp
 
   const eventsQ = useQuery({
     queryKey: ['hook-events'],
-    queryFn: () => reflect_list_hook_events(),
+    queryFn: () => zhuye_list_hook_events(),
     enabled: eventsOpen,
     staleTime: 300_000,
   });

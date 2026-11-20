@@ -8,7 +8,7 @@
 //! ## 面板帧流
 //!
 //! Page 级 CDP 连接 + `Page.startScreencast`(jpeg,everyNthFrame=2 节流),
-//! 帧经 `reflect_browser_frame` 事件推前端(`<img src=data:...>` 渲染;
+//! 帧经 `zhuye_browser_frame` 事件推前端(`<img src=data:...>` 渲染;
 //! CSP `img-src data:` 已允许)。screencast 连接**只读画面、不注入输入**
 //! —— agent 控制与面板显示是两条独立连接,互不抢输入。
 //!
@@ -21,7 +21,7 @@
 
 use std::path::PathBuf;
 
-use reflect_browser::chrome;
+use zhuye_browser::chrome;
 use serde::Serialize;
 use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
@@ -46,7 +46,7 @@ pub struct BrowserStatusDto {
     pub message: Option<String>,
 }
 
-/// `reflect_browser_frame` 事件负载(base64 JPEG)。
+/// `zhuye_browser_frame` 事件负载(base64 JPEG)。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BrowserFramePayload {
@@ -97,7 +97,7 @@ fn browser_ws_endpoint() -> Result<String, String> {
 /// 浏览器级连接上取第一个 page target(targetInfo 带 url / title /
 /// webSocketDebuggerUrl / targetId)。
 async fn first_page_target_on(
-    conn: &mut reflect_browser::cdp::CdpConnection,
+    conn: &mut zhuye_browser::cdp::CdpConnection,
 ) -> Result<Value, String> {
     let result = conn
         .command("Target.getTargets", json!({}))
@@ -117,7 +117,7 @@ async fn first_page_target_on(
 
 /// 打开短连接解析第一个 page target(每次调用独立连接,用完即断)。
 async fn first_page_target(ws_url: &str) -> Result<Value, String> {
-    let mut conn = reflect_browser::cdp::CdpConnection::connect(ws_url)
+    let mut conn = zhuye_browser::cdp::CdpConnection::connect(ws_url)
         .await
         .map_err(|e| format!("CDP 连接失败: {e}"))?;
     first_page_target_on(&mut conn).await
@@ -365,7 +365,7 @@ async fn run_screencast(
                     }).to_string().into())).await;
                     if let Some(data) = v.pointer("/params/data").and_then(Value::as_str) {
                         let payload = BrowserFramePayload { data: data.to_string() };
-                        let _ = tauri::Emitter::emit(&app, "reflect_browser_frame", &payload);
+                        let _ = tauri::Emitter::emit(&app, "zhuye_browser_frame", &payload);
                     }
                 }
                 Some(Ok(_)) => continue,

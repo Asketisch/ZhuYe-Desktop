@@ -1,20 +1,20 @@
-//! Agent 定义管理命令 —— 包装 `reflect_agent_def` crate。
+//! Agent 定义管理命令 —— 包装 `zhuye_agent_def` crate。
 //!
 //! agent profile 管理 UI 的后端。每个 agent 是位于 `~/.zhuye/agents/<name>.md`
 //! 的 Markdown 文件(带 YAML frontmatter),与 TUI/CLI 共享。
 //!
 //! ## 命令清单
 //!
-//! - `reflect_list_agent_defs` — 列出所有定义(按 name 排序)
-//! - `reflect_get_agent_def(name)` — 单条定义
-//! - `reflect_save_agent_def(def)` — 创建 / 更新(序列化为 `.md`)
-//! - `reflect_delete_agent_def(name)` — 删除文件
-//! - `reflect_parse_agent_md(text)` — 预览 / 校验 markdown 字符串
+//! - `zhuye_list_agent_defs` — 列出所有定义(按 name 排序)
+//! - `zhuye_get_agent_def(name)` — 单条定义
+//! - `zhuye_save_agent_def(def)` — 创建 / 更新(序列化为 `.md`)
+//! - `zhuye_delete_agent_def(name)` — 删除文件
+//! - `zhuye_parse_agent_md(text)` — 预览 / 校验 markdown 字符串
 //!
 //! ## 序列化
 //!
-//! `reflect-agent-def` 只提供 parser(`parse_agent_str`),没有内置
-//! to-markdown 序列化。`reflect_save_agent_def` 在命令层手动构造
+//! `zhuye-agent-def` 只提供 parser(`parse_agent_str`),没有内置
+//! to-markdown 序列化。`zhuye_save_agent_def` 在命令层手动构造
 //! frontmatter(YAML,跳过 `system_prompt`)+ body,保证 round-trip 通过
 //! `parse_agent_str`。
 //!
@@ -26,8 +26,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use reflect_agent_def::{AgentDefinition, load_agents_dir, parse_agent_str};
-use reflect_memory::MemoryScope;
+use zhuye_agent_def::{AgentDefinition, load_agents_dir, parse_agent_str};
+use zhuye_memory::MemoryScope;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -36,7 +36,7 @@ use crate::state::MinimalAgent;
 
 /// `~/.zhuye/agents/` 目录(存 agent 定义 markdown 文件)。
 fn agents_dir() -> CommandResult<PathBuf> {
-    reflect_config::paths::data_path(&["agents"]).ok_or_else(|| CommandError {
+    zhuye_config::paths::data_path(&["agents"]).ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })
 }
@@ -124,7 +124,7 @@ fn path_for(name: &str, dir: &Path) -> CommandResult<PathBuf> {
 /// —— 插件 agent 在运行时已注册进 SubAgentFactory(子代理可 spawn),
 /// 但列表此前只读目录,用户在 Agents 视图里看不到(「装了却看不到」)。
 #[tauri::command]
-pub async fn reflect_list_agent_defs(
+pub async fn zhuye_list_agent_defs(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<AgentDefinition>> {
     let dir = agents_dir()?;
@@ -140,7 +140,7 @@ pub async fn reflect_list_agent_defs(
             }
             let mut def = std::fs::read_to_string(&a.file_path)
                 .ok()
-                .and_then(|raw| reflect_agent_def::parse_agent_str(&raw).ok())
+                .and_then(|raw| zhuye_agent_def::parse_agent_str(&raw).ok())
                 .unwrap_or_else(|| AgentDefinition {
                     name: a.name.clone(),
                     description: a.description.clone().unwrap_or_default(),
@@ -162,7 +162,7 @@ pub async fn reflect_list_agent_defs(
 
 /// 按 name 读取单条 agent 定义。未找到时抛错。
 #[tauri::command]
-pub async fn reflect_get_agent_def(
+pub async fn zhuye_get_agent_def(
     _agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<AgentDefinition> {
@@ -176,7 +176,7 @@ pub async fn reflect_get_agent_def(
 
 /// 创建或更新一条 agent 定义。序列化为 `<agents_dir>/<name>.md`。
 #[tauri::command]
-pub async fn reflect_save_agent_def(
+pub async fn zhuye_save_agent_def(
     _agent: State<'_, MinimalAgent>,
     def: AgentDefinition,
     create_only: Option<bool>,
@@ -212,7 +212,7 @@ pub async fn reflect_save_agent_def(
 
 /// 删除一条 agent 定义文件。删除成功返回 `true`,不存在返回 `false`。
 #[tauri::command]
-pub async fn reflect_delete_agent_def(
+pub async fn zhuye_delete_agent_def(
     _agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<bool> {
@@ -228,7 +228,7 @@ pub async fn reflect_delete_agent_def(
 /// 把 markdown 字符串解析 / 校验为 agent 定义(无副作用)。
 /// 编辑器在保存前做实时预览 / 校验时使用。
 #[tauri::command]
-pub async fn reflect_parse_agent_md(
+pub async fn zhuye_parse_agent_md(
     _agent: State<'_, MinimalAgent>,
     text: String,
 ) -> CommandResult<AgentDefinition> {
@@ -285,13 +285,13 @@ pub struct ActiveAgentInfo {
 /// 解析活跃 agent 的定义(与核心 `m4_bootstrap` 同口径:工作区优先,
 /// 再用户级;都没有则用内置默认定义)。
 fn resolve_active_def(name: &str, workspace: &Path) -> (bool, Vec<String>) {
-    let mut agents = reflect_agent_def::load_agents_dir(&reflect_config::paths::project_data_path(
+    let mut agents = zhuye_agent_def::load_agents_dir(&zhuye_config::paths::project_data_path(
         workspace,
         &["agents"],
     ))
     .unwrap_or_default();
     agents.extend(
-        reflect_agent_def::load_agents_dir(&reflect_config::paths::data_path_or_relative(&[
+        zhuye_agent_def::load_agents_dir(&zhuye_config::paths::data_path_or_relative(&[
             "agents",
         ]))
         .unwrap_or_default(),
@@ -310,7 +310,7 @@ fn active_agent_info(agent: &MinimalAgent) -> ActiveAgentInfo {
     let memory_paths = [MemoryScope::Project, MemoryScope::User]
         .iter()
         .filter_map(|scope| {
-            reflect_memory::resolve_path(*scope, &agent.workspace(), &home, &name)
+            zhuye_memory::resolve_path(*scope, &agent.workspace(), &home, &name)
                 .ok()
                 .map(|p| MemoryScopePath {
                     scope: scope.to_string(),
@@ -322,7 +322,7 @@ fn active_agent_info(agent: &MinimalAgent) -> ActiveAgentInfo {
         name,
         def_found,
         memory_scopes,
-        inject_budget_chars: reflect_memory::MAX_MEMORY_INJECT_CHARS,
+        inject_budget_chars: zhuye_memory::MAX_MEMORY_INJECT_CHARS,
         memory_paths,
     }
 }
@@ -332,7 +332,7 @@ fn active_agent_info(agent: &MinimalAgent) -> ActiveAgentInfo {
 /// 回答「GUI 里编辑的 agent 定义与记忆,agent 到底用不用」——
 /// 此前桌面端硬编码 agent 名,GUI 的 Agents 视图是死胡同。
 #[tauri::command]
-pub async fn reflect_get_active_agent(
+pub async fn zhuye_get_active_agent(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<ActiveAgentInfo> {
     Ok(active_agent_info(&agent))
@@ -343,7 +343,7 @@ pub async fn reflect_get_active_agent(
 /// 重绑语义与 provider 热重载一致:replay 当前会话历史 → 强制重建线程 →
 /// 保留会话级权限模式。重绑失败时尝试恢复旧 agent，恢复失败会一并报告。
 #[tauri::command]
-pub async fn reflect_set_active_agent(
+pub async fn zhuye_set_active_agent(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<ActiveAgentInfo> {
@@ -394,7 +394,7 @@ mod tests {
     //! 不 spin Tauri runtime,直接测核心逻辑(序列化 / 路径校验 / round-trip)。
 
     use super::*;
-    use reflect_agent_def::{AgentDefinition, SystemPromptSource};
+    use zhuye_agent_def::{AgentDefinition, SystemPromptSource};
 
     #[test]
     fn serialize_round_trips_through_parser() {

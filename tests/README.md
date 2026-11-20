@@ -24,7 +24,7 @@ bash tests/run_all.sh frontend    # L2 前端行为
 bash tests/run_all.sh backend     # L3 真后端能力覆盖
 bash tests/run_all.sh artifact    # L4 发布产物审查
 bash tests/run_all.sh e2e         # L5 视觉回归 + 真窗口冒烟（依赖缺失时跳过）
-REFLECT_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认跳过）
+ZHUYE_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认跳过）
 ```
 
 退出码 **0 = 所选套件没有阻断项**，非 0 = 存在阻断项。部分运行或存在跳过
@@ -67,7 +67,7 @@ REFLECT_LIVE=1 bash tests/run_all.sh live   # L6 真免费模型演练（默认�
 | L3 | `backend/` | **真后端**：`cargo fmt` / `clippy` / `cargo test --workspace --all-targets`（含能力覆盖层） | **真**（模型是假的） |
 | L4 | `artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / 签名 | 真产物 |
 | L5 | `e2e/` | 视觉回归（全路由 × dark/light 截图基线）+ 真窗口冒烟（Linux/Windows WebDriver、macOS CoreGraphics）。`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
-| L6 | `live/` | **真免费模型**演练：真实 provider + 真实 SSE + 真实限流。默认跳过，`REFLECT_LIVE=1` 开启 | **真**（模型也是真的） |
+| L6 | `live/` | **真免费模型**演练：真实 provider + 真实 SSE + 真实限流。默认跳过，`ZHUYE_LIVE=1` 开启 | **真**（模型也是真的） |
 
 ### L5 视觉回归与真窗口冒烟
 
@@ -105,7 +105,7 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
 ### L6 实模型演练层（真免费模型）
 
 ```bash
-REFLECT_LIVE=1 bash tests/run_all.sh live    # 真跑
+ZHUYE_LIVE=1 bash tests/run_all.sh live    # 真跑
 bash tests/run_all.sh live                    # 默认跳过（不发起任何网络请求）
 ```
 
@@ -120,7 +120,7 @@ L6 由**两个**测试二进制组成：
 没提问 / 没进 plan，判**跳过**（附理由）而不是失败；这一层测的是
 **产品对模型输出的处理**，不是模型听不听话。上游限流 / 地区门 / 配额
 耗尽同样判跳过。
-使用 `REFLECT_LIVE_SCENARIOS` 筛选场景时，报告会记录未选择的场景，
+使用 `ZHUYE_LIVE_SCENARIOS` 筛选场景时，报告会记录未选择的场景，
 严格模式不会将筛选结果当作完整矩阵。
 配额耗尽时剩余场景也逐项记录为跳过；矩阵初始化成功后，每个场景必须
 恰好产生一条结果，缺失或重复都会使演练失败。
@@ -131,10 +131,10 @@ L6 由**两个**测试二进制组成：
 
 ```bash
 ollama pull qwen2.5:7b
-REFLECT_LIVE=1 \
-REFLECT_LIVE_PROVIDER=ollama \
-REFLECT_LIVE_BASE_URL=http://127.0.0.1:11434 \
-REFLECT_LIVE_MODELS=qwen2.5:7b \
+ZHUYE_LIVE=1 \
+ZHUYE_LIVE_PROVIDER=ollama \
+ZHUYE_LIVE_BASE_URL=http://127.0.0.1:11434 \
+ZHUYE_LIVE_MODELS=qwen2.5:7b \
 bash tests/run_all.sh live
 ```
 
@@ -146,7 +146,7 @@ L3 的后端是真的，但**模型是假的**（wiremock / 本地 mock LLM）�
 接进同一条真链路：
 
 ```
-reflect_submit → AgentThread → HTTP → SSE 解析 → reflect_event 通道
+zhuye_submit → AgentThread → HTTP → SSE 解析 → zhuye_event 通道
 ```
 
 与 GUI 点一次「发送」是**同一条链**（同一个 `generate_handler!` 注册表、
@@ -161,7 +161,7 @@ reflect_submit → AgentThread → HTTP → SSE 解析 → reflect_event 通道
 - **429 判为跳过**而非失败 —— 测的是代码，不是配额。
 - **只用合成 prompt**，不喂真实仓库内容 / 凭据（免费池的模型卡明示
   prompt 可能被上游记录）。
-- 默认**不发任何网络请求**：测试带 `#[ignore]`，运行期还要 `REFLECT_LIVE=1`
+- 默认**不发任何网络请求**：测试带 `#[ignore]`，运行期还要 `ZHUYE_LIVE=1`
   才放行（双保险）。
 
 可用车道见 [`docs/free-model-practice.md`](../docs/free-model-practice.md)
@@ -183,13 +183,13 @@ L2 验前端行为与线格式，但它的后端是**模拟**的
 ### L3 能力覆盖层怎么做到「真」
 
 `src-tauri/tests/common/mod.rs` 用 `tauri::test::mock_builder()` 建 app，
-再挂上**生产同一份**命令注册表 —— `reflect_desktop_lib::configure()`，
+再挂上**生产同一份**命令注册表 —— `zhuye_desktop_lib::configure()`，
 与 `run()` 共用同一个 `generate_handler!`（见 `src-tauri/src/lib.rs`）——
 然后以 `InvokeRequest` 注入 JSON 负载驱动**真实命令体**。
 
 ```rust
 // src-tauri/tests/ipc_core.rs（节选）
-let v = invoke_ok("reflect_list_tools", json!({}));
+let v = invoke_ok("zhuye_list_tools", json!({}));
 assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 ```
 
@@ -230,7 +230,7 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 | `src-tauri/tests/ipc_restart.rs` | **重启恢复**：子进程两阶段（阶段一写 → 进程退出 → 阶段二以同一 `~/.zhuye` 全新 app 读回）—— 配置/记忆/白名单/agent 定义/squad/任务/定时任务/工作区 |
 | `src-tauri/tests/ipc_perf_budgets.rs` | **性能预算（后端侧）**：500 条 rollout 的会话索引 / 5k 行记录回放水合的墙钟上限（`PERF_STRICT=1` 收紧） |
 | `src-tauri/tests/ipc_config_compat.rs` | **配置兼容**：4 份夹具（最小/旧版全量/未知键/当前全量）分别以独立子进程全新启动 —— 已知键生效、未知键不致命、agent 存活（`tests/fixtures/config/`） |
-| `src-tauri/tests/ipc_goal.rs` | **目标模式状态快照（v1.7）**：stub provider 配置下断言 `reflect_goal_snapshot` 全周期 —— 未进入返回 null / 挂载后暴露 GoalState（goal 文本 / status / turn_count）/ 重进覆盖 verify_command 与 token_budget / 退出后回 null |
+| `src-tauri/tests/ipc_goal.rs` | **目标模式状态快照（v1.7）**：stub provider 配置下断言 `zhuye_goal_snapshot` 全周期 —— 未进入返回 null / 挂载后暴露 GoalState（goal 文本 / status / turn_count）/ 重进覆盖 verify_command 与 token_budget / 退出后回 null |
 | `src-tauri/tests/ipc_goal_runtime.rs` | Unix 上以本地模型验证真实 goal 回合：模型判定与验证命令同时成功才退出 |
 | `src-tauri/tests/ipc_plan_runtime.rs` | 本地模型验证进入计划、生成计划、读取计划文件和审批选择的真实状态流转 |
 | `src-tauri/tests/ipc_rewind_runtime.rs` | 本地模型完成两轮后回退第一轮，验证事件、截断数量与回放共同收缩；32 轮后手动压缩，验证下一条模型请求的上下文收缩 |
@@ -238,7 +238,7 @@ assert!(v.as_array().unwrap().iter().any(|t| t["name"] == "bash"));
 | `src-tauri/tests/ipc_discussion_live.rs` / `ipc_discussion_failure.rs` / `ipc_discussion_cancel.rs` / `ipc_discussion_history.rs` | 分别锁定运行中消息、失败终态、运行中取消（cancelled 终态）与无筛选历史排除普通会话 |
 | `src-tauri/tests/ipc_pipeline_runtime.rs` / `ipc_pipeline_input_probe.rs` | shell 节点真实执行、失败传播与自定义输入模板 |
 | `src-tauri/tests/ipc_team_pipeline_runtime.rs` | 本地模型驱动团队流水线的四阶段节点，验证报告、节点顺序、产出和四次模型请求 |
-| `src-tauri/tests/ipc_subagent_runtime.rs` / `ipc_subagent_nested.rs` / `ipc_subagent_cancel.rs` | 本地模型委派子代理、嵌套父→子→孙代理及两次结果回传、状态查询、会话隔离与经 `reflect_interrupt` 的定向取消 |
+| `src-tauri/tests/ipc_subagent_runtime.rs` / `ipc_subagent_nested.rs` / `ipc_subagent_cancel.rs` | 本地模型委派子代理、嵌套父→子→孙代理及两次结果回传、状态查询、会话隔离与经 `zhuye_interrupt` 的定向取消 |
 | `src-tauri/tests/ipc_task_note_runtime.rs` | 本地模型调用任务与会话笔记工具，验证可见性、持久化、错误处理、下一回合注入和会话隔离 |
 | `src-tauri/tests/ipc_autopilot_runtime.rs` / `ipc_autopilot_agent.rs` | 1 秒 tick 的 Autopilot 到期提交本地模型、成功回填历史，验证禁用后不再触发、重绑定会话继续触发，模型失败与用户中断分别回填 `failed`；指定 agent 经 side-channel 执行，验证普通回合及两个自动任务交错时各自回填 |
 | `src-tauri/tests/ipc_autopilot_limit.rs` | 本地模型循环调用工具，真实线程触达配置的迭代上限并回填失败历史 |
@@ -342,7 +342,7 @@ tests/
 │   ├── window.smoke.test.ts                # tauri-driver 真窗口冒烟（Linux/Windows）
 │   └── macos_window_smoke.sh               # macOS CoreGraphics 原生窗口探针
 ├── live/                                   # L6 实模型演练层（真免费模型）
-│   └── run.sh                              # REFLECT_LIVE=1 才真跑（默认跳过）
+│   └── run.sh                              # ZHUYE_LIVE=1 才真跑（默认跳过）
 ├── visual/                                 # 视觉回归（L5 的视觉半边）
 │   ├── run.sh 所用的 spec：visual.spec.ts / vitest.config.ts
 │   ├── main.tsx / index.html               # 浏览器态入口（生产 main.tsx + visual globals）
@@ -379,25 +379,25 @@ tests/
 
 ```
 fakeBackend（ScriptedAgent 按脚本 emit 事件）
-  → vi.mock 的 @tauri-apps/api/event listen('reflect_event')
+  → vi.mock 的 @tauri-apps/api/event listen('zhuye_event')
     → agentEventBus（引用计数扇出）
       → agentStore.subscribe()（AppProviders 中建立，与生产一致）
         → reduceEvent → React 视图
 ```
 
-`reflect_event` 信封保持线上格式 `{ id: string; msg: ReflectEventMsg }`，
+`zhuye_event` 信封保持线上格式 `{ id: string; msg: ZhuyeEventMsg }`，
 `id === ''`（`EVENT_ID_NONE`）表示生命周期事件。用户输入经真实 Composer
-（textarea + Enter）进入 `useComposerSubmission` → `reflect_submit`，
+（textarea + Enter）进入 `useComposerSubmission` → `zhuye_submit`，
 由 fakeBackend 捕获 `Submission` 信封并触发脚本化回复。
 
 ### 基础设施
 
 #### `helpers/fakeBackend.ts` — `installFakeBackend()`
 
-- 实现 `src-tauri/src/lib.rs` `generate_handler!` 中注册的**全部** `reflect_*` 命令
+- 实现 `src-tauri/src/lib.rs` `generate_handler!` 中注册的**全部** `zhuye_*` 命令
   及 `ping`，返回带状态的单例句柄 `FakeBackend`：
   - `calls` / `callsOf(cmd)` / `lastArgsOf(cmd)` — 调用日志，用于断言精确的线格式
-    参数（如 `reflect_rewind { toTurnId }`、`reflect_rename_session { id, newName }`）。
+    参数（如 `zhuye_rewind { toTurnId }`、`zhuye_rename_session { id, newName }`）。
   - `state.*` — 可读写的内存后端状态（sessions、rollouts、config、tasks、git 等），
     测试可直接改写后触发 refetch 观察 UI 变化；所有派生返回值经 `wire()`（JSON
     round-trip）返回，模拟真实 IPC 序列化，避免 React Query 结构共享跳过更新。
@@ -406,15 +406,15 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
     `planChoices`、`questionResponses`、`inputResponses`。
   - `override(cmd, handler)` — 覆盖单条命令返回值。
   - `registeredCommands` — 完整性校验用（见契约测试）。
-- **ScriptedAgent**：`backend.agent.script: ScriptStep[]` 驱动 `reflect_submit`
+- **ScriptedAgent**：`backend.agent.script: ScriptStep[]` 驱动 `zhuye_submit`
   的回复编排：
-  - `{ emit: msg | msg[] }` — 发出一个或多个 `ReflectEventMsg`；
+  - `{ emit: msg | msg[] }` — 发出一个或多个 `ZhuyeEventMsg`；
   - `{ gate: 'tool_approval' | 'hook_approval' | 'plan_approval' | 'question' | 'input' }`
     — 挂起，轮询等待对应回执后才继续，复刻真实 agent 的审批停顿。
   - 新提交会抢占旧脚本（`turnToken`），与真实中断语义一致。
-  - **脚本只绑定 `reflect_submit`**（用户文本提交）。Op 驱动的流
-    （`/plan` → `reflect_enter_plan_mode`、`/goal` →
-    `reflect_enter_goal_mode` 等）不经过 submit，测试中以 `emitEvent(
+  - **脚本只绑定 `zhuye_submit`**（用户文本提交）。Op 驱动的流
+    （`/plan` → `zhuye_enter_plan_mode`、`/goal` →
+    `zhuye_enter_goal_mode` 等）不经过 submit，测试中以 `emitEvent(
     返回的 submission id, msg)` 手动回放 agent 侧事件——与真实语义一致
     （Op 命令返回 submission id，agent 在同一 id 下继续产出事件）。
 - goal 模式状态（`state.goal`）镜像 core 侧 `cfg.goal` 的 GoalController
@@ -433,7 +433,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 
 | 文件 | 测试数 | 覆盖内容 |
 | --- | --- | --- |
-| `ipc.command-contract.test.ts` | 29 | 四方对齐：后端 `pub async fn reflect_*` ↔ 前端 `src/utils/commands/` 包装 ↔ `lib.rs` 注册表 ↔ fakeBackend 实现；逐域线格式参数往返（审批三种决定形态、会话改名、数字任务 id、计划、goal 模式可选字段两形态、定时、边车、工作区、白名单等）；失败传播。`protocol-bridge.md` 覆盖率断言（≥0.85）。 |
+| `ipc.command-contract.test.ts` | 29 | 四方对齐：后端 `pub async fn zhuye_*` ↔ 前端 `src/utils/commands/` 包装 ↔ `lib.rs` 注册表 ↔ fakeBackend 实现；逐域线格式参数往返（审批三种决定形态、会话改名、数字任务 id、计划、goal 模式可选字段两形态、定时、边车、工作区、白名单等）；失败传播。`protocol-bridge.md` 覆盖率断言（≥0.85）。 |
 | `agent.protocol-events.test.ts` | 38 | 全部 `EventMsg` 变体经真实 bus → store 的完整矩阵：生命周期、turn、delta、工具调用对、审批（含 plan 绕过）、协作/MCP/LSP、计划事件、配额耗尽 toast（含数字与时间窗）、未知类型运行安全。 |
 | `chat.full-flow.test.tsx` | 4 | 真实挂载 + 键入发送：thinking → delta → 工具调用 → 审批门 → 完成；提交信封、转录文本、模态标题、审批回执、token 统计、完成标志；中断；旧脚本抢占；turn 级错误项。 |
 | `flows.chat-plan-goal-edit.test.tsx` | 8 | **旗舰回路**：chat → plan 草稿多次更新 → `plan_ready` → 用户三选择（auto_mode / manual_approve / revise，含事件驱动关闭）→ 编辑工具（`write_file` 逐工具审批）→ 完成，断言完整 IPC 时序；`/plan` 斜杠 Op 入口 + `/exit-plan`；**goal 模式**：`/goal <text>` 线格式、agent 零提交自动多轮续作（多 turn 累积/done/转录）、`/goal clear` 退出、裸 `/goal` reject 引导。 |
@@ -446,7 +446,7 @@ fakeBackend（ScriptedAgent 按脚本 emit 事件）
 | `a11y.route-matrix.test.tsx` | 38 | 34 条路由逐挂 axe-core：serious/critical 违规为零（jsdom 无布局，`color-contrast` 关闭留给视觉层）。与路由矩阵共享 `helpers/routeMatrix.ts`。 |
 | `a11y.keyboard.test.tsx` | 3 | 模态键盘可达性：Tab 焦点陷阱（连按不逃出 dialog）；Escape 的**线上回执**（审批 → `deny{dismissed}`、plan → `revise`）；堆叠模态只有栈顶响应。 |
 | `perf.budgets.test.tsx` | 3 | 性能预算（冒烟级，`PERF_STRICT=1` 收紧）：reduceEvent 1 万 delta / bucketSessions 5k 会话 / 2k 记录会话水合渲染。 |
-| `errors.resilience.test.tsx` | 7 | `stream_error` 追加错误项且 turn 仍完成、会话级错误只置 lastError、配额 toast、会话列表失败 + Refresh 恢复、`reflect_submit` 失败 toast、审批 IPC 失败模态仍乐观清除（不卡死 UI）、中断后新 turn。 |
+| `errors.resilience.test.tsx` | 7 | `stream_error` 追加错误项且 turn 仍完成、会话级错误只置 lastError、配额 toast、会话列表失败 + Refresh 恢复、`zhuye_submit` 失败 toast、审批 IPC 失败模态仍乐观清除（不卡死 UI）、中断后新 turn。 |
 | `ipc.payload-contract.test.ts` | 随契约表变化 | 跨运行时线格式契约（fakeBackend 侧）：参数样本被 fake handler 接受、调用参数完整回放、样本表 ↔ 注册表双向无差集。真后端对非排除命令消费同一份样本。 |
 | `ipc.roundtrip-contract.test.ts` | 21 | 持久化往返契约（fakeBackend 侧）：`contracts/roundtrips.json` 的 21 对「写 → 读」与真后端（`ipc_roundtrip_contract.rs`）同表执行 —— 无状态桩（写不进 / 读固定值）会立刻露馅。 |
 

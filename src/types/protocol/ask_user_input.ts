@@ -1,5 +1,5 @@
 /**
- * Reflect protocol —— AskUserInput payload（自由文本提示）。
+ * 上游协议 —— AskUserInput payload（自由文本提示）。
  *
  * 对应 `zhuye-agent/crates/protocol/zhuye-protocol/src/ask_user_input.rs` 的 `AskUserInputEvent`。
  * 区别于 `ask_user_question`（结构化多选）。Rust 端使用 `request_id`

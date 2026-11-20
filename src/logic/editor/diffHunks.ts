@@ -3,7 +3,7 @@
  *
  * agent 的 edit/write 工具以 `ContentBlock::Diff { unified_diff }` 上报
  * before→after 变更;本模块把它解析成 hunk 列表供 CodeMirror 装饰
- * (新增行绿色背景、删除行红色块),并支持 Cursor 式逐块拒绝——
+ * (新增行绿色背景、删除行红色块),并支持 逐块逐块拒绝——
  * 通过内容锚定的 inverse-apply 把 hunk 还原回原文。
  *
  * 全部为纯函数,不触碰 IPC。

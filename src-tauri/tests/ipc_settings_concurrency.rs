@@ -1,8 +1,8 @@
 //! 设置并发读改写回归:同一 app 内两个异步配置入口不得互相丢写。
 mod common;
 
-use reflect_desktop_lib::commands::{reflect_get_config, reflect_save_config, reflect_set_model};
-use reflect_desktop_lib::state::MinimalAgent;
+use zhuye_desktop_lib::commands::{zhuye_get_config, zhuye_save_config, zhuye_set_model};
+use zhuye_desktop_lib::state::MinimalAgent;
 use tauri::Manager;
 
 #[test]
@@ -15,7 +15,7 @@ fn concurrent_model_switches_preserve_both_provider_sections() {
         .expect("构建设置并发测试 runtime");
 
     runtime
-        .block_on(reflect_save_config(
+        .block_on(zhuye_save_config(
             agent.clone(),
             "# 设置并发测试基线\n[hooks]\nenabled = []\n".to_string(),
         ))
@@ -23,13 +23,13 @@ fn concurrent_model_switches_preserve_both_provider_sections() {
 
     let (anthropic, openai) = runtime.block_on(async {
         tokio::join!(
-            reflect_set_model(
+            zhuye_set_model(
                 agent.clone(),
                 "anthropic".to_string(),
                 "concurrent-anthropic".to_string(),
                 None,
             ),
-            reflect_set_model(
+            zhuye_set_model(
                 agent.clone(),
                 "openai".to_string(),
                 "concurrent-openai".to_string(),
@@ -41,7 +41,7 @@ fn concurrent_model_switches_preserve_both_provider_sections() {
     assert!(openai.is_ok(), "openai 设置失败:{openai:?}");
 
     let config = runtime
-        .block_on(reflect_get_config(agent))
+        .block_on(zhuye_get_config(agent))
         .expect("读取并发写入后的配置失败");
     assert!(
         config.contains("concurrent-anthropic"),

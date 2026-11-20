@@ -7,12 +7,12 @@
 import { Plus, Trash2, Save, X } from 'lucide-react';
 import { Card, Badge, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import type { ReflectMemoryEntry } from '@/utils/commands';
+import type { ZhuyeMemoryEntry } from '@/utils/commands';
 import { entryKey } from './useMemoryController';
 import s from '@/render/memory/MemoryView.module.css';
 
 export interface MemoryRowProps {
-  entry: ReflectMemoryEntry;
+  entry: ZhuyeMemoryEntry;
   isEditing: boolean;
   hasDraft?: boolean;
   removeTitle?: string;

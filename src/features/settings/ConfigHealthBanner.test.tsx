@@ -10,7 +10,7 @@ function wrap(node: React.ReactNode) {
 }
 
 function setIssues(issues: ConfigHealthIssue[]) {
-  mockInvoke('reflect_config_info', async () => ({ issues }));
+  mockInvoke('zhuye_config_info', async () => ({ issues }));
 }
 
 describe('配置健康提示', () => {
@@ -44,7 +44,7 @@ describe('配置健康提示', () => {
     setIssues([]);
     const calls: string[] = [];
     mockInvoke('ping', async () => { calls.push('ping'); return { msg: 'ok', version: '1' }; });
-    mockInvoke('reflect_get_config', async () => { calls.push('config'); return ''; });
+    mockInvoke('zhuye_get_config', async () => { calls.push('config'); return ''; });
     render(wrap(<ConfigHealthBanner />));
     await screen.findByTestId('config-drill');
     fireEvent.click(screen.getByText(/Run drill|运行探活/i));

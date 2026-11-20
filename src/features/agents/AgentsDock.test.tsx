@@ -55,7 +55,7 @@ function resetStore() {
 describe('AgentsDock', () => {
   beforeEach(() => {
     resetStore();
-    mockInvoke('reflect_query_subagents', vi.fn(async () => 'sub-1'));
+    mockInvoke('zhuye_query_subagents', vi.fn(async () => 'sub-1'));
   });
 
   afterEach(() => {
@@ -65,7 +65,7 @@ describe('AgentsDock', () => {
 
   it('renders the empty state when no subagent snapshot exists', async () => {
     const handler = vi.fn(async () => 'sub-1');
-    mockInvoke('reflect_query_subagents', handler);
+    mockInvoke('zhuye_query_subagents', handler);
 
     render(<AgentsDock />);
 
@@ -114,7 +114,7 @@ describe('AgentsDock', () => {
 
   it('refresh button triggers another subagent query', async () => {
     const handler = vi.fn(async () => 'sub-1');
-    mockInvoke('reflect_query_subagents', handler);
+    mockInvoke('zhuye_query_subagents', handler);
 
     render(<AgentsDock />);
     await waitFor(() => expect(handler).toHaveBeenCalledTimes(1));

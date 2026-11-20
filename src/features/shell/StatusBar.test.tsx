@@ -34,7 +34,7 @@ describe('StatusBar — token indicator', () => {
 
   it('toggles work mode without cycling through legacy permission modes', async () => {
     const cycle = vi.fn();
-    mockInvoke('reflect_cycle_permission_mode', cycle);
+    mockInvoke('zhuye_cycle_permission_mode', cycle);
     useAgentStore.setState({ permissionMode: 'plan' });
     render(wrap(<StatusBar />));
     fireEvent.click(screen.getByTitle('Switch work mode'));
@@ -127,7 +127,7 @@ describe('StatusBar — 模型降级状态', () => {
   afterEach(() => cleanup());
 
   it('有可用模型但重载失败时显示警告', async () => {
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_agent_status', async () => ({
       ready: true, has_model: true, model: 'openai/old-model',
       workspace: '/tmp', degraded_reason: 'session rebind failed',
     }));
@@ -151,7 +151,7 @@ describe('StatusBar — OS 沙箱徽标', () => {
   afterEach(() => cleanup());
 
   it('显示有效状态(而非配置值)', async () => {
-    mockInvoke('reflect_sandbox_status', async () => ({
+    mockInvoke('zhuye_sandbox_status', async () => ({
       osLevel: true,
       status: 'seatbelt',
       active: true,
@@ -167,7 +167,7 @@ describe('StatusBar — OS 沙箱徽标', () => {
   });
 
   it('沙箱被关闭时徽标显示 disabled', async () => {
-    mockInvoke('reflect_sandbox_status', async () => ({
+    mockInvoke('zhuye_sandbox_status', async () => ({
       osLevel: false,
       status: 'disabled',
       active: false,
@@ -184,7 +184,7 @@ describe('StatusBar — OS 沙箱徽标', () => {
   });
 
   it('env 覆盖生效时在 tooltip 里标注(否则用户在设置里拨开关看不到变化会困惑)', async () => {
-    mockInvoke('reflect_sandbox_status', async () => ({
+    mockInvoke('zhuye_sandbox_status', async () => ({
       osLevel: true,
       status: 'disabled',
       active: false,

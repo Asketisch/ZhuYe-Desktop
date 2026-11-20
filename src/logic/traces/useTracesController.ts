@@ -2,14 +2,14 @@
  * Traces 视图控制器 —— session 列表 + 选中 session 的调用详情。
  *
  * 状态面很小(选中 id + 刷新),数据面全部走 TanStack Query:
- * - `sessions`: `reflect_list_traces`(30s stale,与工具列表同级);
- * - `calls`: `reflect_get_trace`,仅在有选中 session 时启用。
+ * - `sessions`: `zhuye_list_traces`(30s stale,与工具列表同级);
+ * - `calls`: `zhuye_get_trace`,仅在有选中 session 时启用。
  */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_get_trace,
-  reflect_list_traces,
+  zhuye_get_trace,
+  zhuye_list_traces,
   type TraceCall,
   type TraceSessionSummary,
 } from '@/utils/commands/traces';
@@ -41,13 +41,13 @@ export function useTracesController(): TracesController {
 
   const sessionsQ = useQuery({
     queryKey: ['traces', 'sessions'],
-    queryFn: () => reflect_list_traces(50),
+    queryFn: () => zhuye_list_traces(50),
     staleTime: 30_000,
   });
 
   const callsQ = useQuery({
     queryKey: ['traces', 'calls', selectedId],
-    queryFn: () => reflect_get_trace(selectedId as string),
+    queryFn: () => zhuye_get_trace(selectedId as string),
     enabled: selectedId !== null,
     staleTime: 30_000,
   });

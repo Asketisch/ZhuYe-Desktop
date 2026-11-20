@@ -5,9 +5,9 @@ import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/utils/i18n';
-import { reflect_get_active_agent } from '@/utils/commands/agents';
-import { reflect_memory_sections } from '@/utils/commands/runtimeStatus';
-import { reflect_list_note_sessions, reflect_list_session_notes } from '@/utils/commands/notes';
+import { zhuye_get_active_agent } from '@/utils/commands/agents';
+import { zhuye_memory_sections } from '@/utils/commands/runtimeStatus';
+import { zhuye_list_note_sessions, zhuye_list_session_notes } from '@/utils/commands/notes';
 import { useAgentStore } from '@/stores/agentStore';
 import { FILTERS, MEMORY_SECTIONS_QUERY_KEY, SCOPE_KEYS, useMemoryController, entryKey } from './useMemoryController';
 import { memoryEntryKey } from '@/contracts/memory';
@@ -26,7 +26,7 @@ export function MemoryBinding({ view: View }: { view: ComponentType<MemoryViewPr
   const boundSessionId = useAgentStore((st) => st.loadedSessionId ?? null);
   const [picked, setPicked] = useState<string | null>(null);
 
-  const activeQ = useQuery({ queryKey: ['active-agent'], queryFn: () => reflect_get_active_agent(), staleTime: 30_000 });
+  const activeQ = useQuery({ queryKey: ['active-agent'], queryFn: () => zhuye_get_active_agent(), staleTime: 30_000 });
   const scopes = activeQ.data?.memoryScopes ?? [];
   const missingScopes = (['project', 'user'] as const).filter((scope) => !scopes.includes(scope));
   const scopeWarning = activeQ.data && missingScopes.length > 0
@@ -39,7 +39,7 @@ export function MemoryBinding({ view: View }: { view: ComponentType<MemoryViewPr
 
   const sectionsQ = useQuery({
     queryKey: [...MEMORY_SECTIONS_QUERY_KEY, ctrl.context],
-    queryFn: () => reflect_memory_sections(ctrl.context!),
+    queryFn: () => zhuye_memory_sections(ctrl.context!),
     enabled: ctrl.context !== null,
     staleTime: 10_000,
   });
@@ -47,11 +47,11 @@ export function MemoryBinding({ view: View }: { view: ComponentType<MemoryViewPr
   const injectBudget = activeQ.data?.injectBudgetChars ?? 0;
   const usedChars = sections.reduce((sum, x) => sum + x.chars, 0);
 
-  const sessionsQ = useQuery({ queryKey: ['note-sessions'], queryFn: () => reflect_list_note_sessions(), staleTime: 10_000, refetchInterval: 10_000 });
+  const sessionsQ = useQuery({ queryKey: ['note-sessions'], queryFn: () => zhuye_list_note_sessions(), staleTime: 10_000, refetchInterval: 10_000 });
   const target = picked ?? boundSessionId;
   const notesQ = useQuery({
     queryKey: ['session-notes', target],
-    queryFn: () => reflect_list_session_notes(target as string),
+    queryFn: () => zhuye_list_session_notes(target as string),
     enabled: !!target,
     staleTime: 5_000,
     refetchInterval: 5_000,

@@ -4,7 +4,7 @@
  * 返回 `ensureSessionReady()`：
  * - 已有 activeId → 等 `loadedSessionId === activeId`（ChatView bind →
  *   replay → hydrate 完成）后返回该 id；已加载时立即返回。
- * - 无 activeId（首页）→ `reflect_create_session()` 预分配 id → 导航过去
+ * - 无 activeId（首页）→ `zhuye_create_session()` 预分配 id → 导航过去
  *   → 同样等 hydrate 完成。ChatView 挂载的 bind 序列是异步的,轮询
  *   store 的 `loadedSessionId` 是唯一可靠的就绪信号 —— 提交 op 前必须
  *   等 bind,否则 op 会落到 rebind 前的旧线程上（正是 /goal 静默失效
@@ -14,7 +14,7 @@
  * catch 走错误 toast —— 显式失败优于静默把 op 挂错线程。
  */
 import { useCallback } from 'react';
-import { reflect_create_session } from '@/utils/commands';
+import { zhuye_create_session } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { useActiveSession } from './useSessions';
 
@@ -40,7 +40,7 @@ export function useEnsureSession() {
         await waitLoadedSession(activeId);
         return activeId;
       }
-      const id = await reflect_create_session();
+      const id = await zhuye_create_session();
       setActiveId(id);
       await waitLoadedSession(id);
       return id;

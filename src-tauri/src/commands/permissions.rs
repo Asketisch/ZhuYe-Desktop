@@ -9,8 +9,8 @@
 //! | `project` | `<workspace>/.zhuye/permissions.toml` | 否(随工作区签入) |
 //! | `user` | `~/.zhuye/permissions.toml` | 是(`/permissions allow` 落盘处) |
 //!
-//! `reflect_list_permission_rules` 只读:它回答「当前这个会话到底受哪些
-//! 规则约束」。`reflect_add_permission_rule` 往**用户级**文件追加一条
+//! `zhuye_list_permission_rules` 只读:它回答「当前这个会话到底受哪些
+//! 规则约束」。`zhuye_add_permission_rule` 往**用户级**文件追加一条
 //! allow 规则 —— 供审批弹窗的「始终允许这条命令」用。
 //!
 //! ## 为什么写进核心的权限文件,而不是桌面端自己的 allowlist
@@ -25,10 +25,10 @@
 //! 3. **可见** —— 同一份规则会在 Settings → Permissions 的「生效的权限
 //!    规则」列表里显示,用户能核对「我到底放行了什么」。
 //!
-//! 装配见 `state/permissions.rs` —— 与 CLI `reflect-exec` 的
+//! 装配见 `state/permissions.rs` —— 与 CLI `zhuye-exec` 的
 //! `apply_permission_layers` 同构。
 
-use reflect_permissions::{
+use zhuye_permissions::{
     FilePermissionStore, InMemoryPermissionStore, PermissionAction, PermissionRule, PermissionStore,
 };
 use serde::{Deserialize, Serialize};
@@ -79,7 +79,7 @@ async fn list_rules(
 ///
 /// GUI 按规则顺序展示；任何匹配的 deny 均优先于 allow / ask。
 #[tauri::command]
-pub async fn reflect_list_permission_rules(
+pub async fn zhuye_list_permission_rules(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<PermissionRuleInfo>> {
     let cfg_snapshot = agent.inner.cfg.read().clone();
@@ -106,7 +106,7 @@ pub async fn reflect_list_permission_rules(
 
     // 2. 项目级 `<workspace>/.zhuye/permissions.toml`。
     let project_path =
-        reflect_config::paths::project_data_path(&agent.workspace(), &["permissions.toml"]);
+        zhuye_config::paths::project_data_path(&agent.workspace(), &["permissions.toml"]);
     let project_store = FilePermissionStore::with_path(project_path);
     for r in list_rules(&project_store, "project").await? {
         out.push(PermissionRuleInfo {
@@ -142,8 +142,8 @@ pub async fn reflect_list_permission_rules(
 ///
 /// 核心枚举本身不 derive Serialize(它只用于进程内匹配),这里显式映射,
 /// 避免为出线在核心侧加 serde 依赖。
-fn action_str(a: reflect_permissions::PermissionAction) -> String {
-    use reflect_permissions::PermissionAction;
+fn action_str(a: zhuye_permissions::PermissionAction) -> String {
+    use zhuye_permissions::PermissionAction;
     match a {
         PermissionAction::Allow => "allow".into(),
         PermissionAction::Deny => "deny".into(),
@@ -205,7 +205,7 @@ fn guard_readonly_target(path: &std::path::Path) -> CommandResult<()> {
 /// `FilePermissionStore::add` 自动去重。只读的目标文件报权限错误,
 /// 原样保留。
 #[tauri::command]
-pub async fn reflect_add_permission_rule(rule: PermissionRuleInput) -> CommandResult<()> {
+pub async fn zhuye_add_permission_rule(rule: PermissionRuleInput) -> CommandResult<()> {
     let rule = build_permission_rule(rule)?;
     // 用核心自己的 `with_default_home()` 解析路径 —— 与 `state/permissions.rs`
     // 装配 resolver 链时用的是**同一个** store 构造器,杜绝「写的文件和
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn escaped_literal_shell_pattern_matches_only_the_original_command() {
-        use reflect_permissions::{RuleMatch, evaluate_with_context};
+        use zhuye_permissions::{RuleMatch, evaluate_with_context};
         let mut request = input("Bash", "allow");
         request.shell_pattern = Some("echo [*] [?] [[]x[]] [{]a,b[}]".into());
         let rules = [build_permission_rule(request).unwrap()];

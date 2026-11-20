@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
-import { reflect_read_file, reflect_scan_local_ports } from '@/utils/commands';
+import { zhuye_read_file, zhuye_scan_local_ports } from '@/utils/commands';
 import type { HtmlPreviewProps } from '@/contracts/htmlPreview';
 
 /** HTML 预览绑定。 */
@@ -15,13 +15,13 @@ export function HtmlPreviewBinding({ view: View }: { view: ComponentType<HtmlPre
 
   const fileQ = useQuery({
     queryKey: ['html-preview', submitted],
-    queryFn: () => reflect_read_file(submitted),
+    queryFn: () => zhuye_read_file(submitted),
     enabled: submitted.trim().length > 0,
     retry: false,
   });
   const portsQ = useQuery({
     queryKey: ['live-ports'],
-    queryFn: () => reflect_scan_local_ports(),
+    queryFn: () => zhuye_scan_local_ports(),
     refetchInterval: 15_000,
     staleTime: 10_000,
   });

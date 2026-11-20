@@ -66,7 +66,7 @@ describe('QueuedMessages', () => {
 
   it('send-now submits the message immediately and clears it from the queue', async () => {
     const submitted: unknown[] = [];
-    mockInvoke('reflect_submit', async (_cmd, args) => {
+    mockInvoke('zhuye_submit', async (_cmd, args) => {
       submitted.push((args as { submission: unknown }).submission);
       return 'sub-ok';
     });

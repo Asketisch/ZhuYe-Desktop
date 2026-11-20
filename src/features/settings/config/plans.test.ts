@@ -156,7 +156,7 @@ describe('upsertPlan / removePlan', () => {
   it('应用序列化的 credentials = [] 必须先剥离再追加(否则保存被后端拒绝)', () => {
     // `toml::to_string_pretty` 把空 Vec 写成内联 `credentials = []`;
     // TOML 不允许同 key 既是普通数组又被 [[...]] 扩展 —— 不剥离的话
-    // reflect_save_config 的 load_from_str 拒绝整份配置。
+    // zhuye_save_config 的 load_from_str 拒绝整份配置。
     const serialized = `[active]
 provider = "anthropic"
 

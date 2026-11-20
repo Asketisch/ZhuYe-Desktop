@@ -1,10 +1,10 @@
 /**
  * 多 agent 讨论 IPC 包装。
  *
- * 薄包装 `reflect_list_discussions` / `reflect_run_discussion` /
- * `reflect_cancel_discussions` 命令,
- * 对应 CLI `reflect discussion ls / run`。运行期间的 Collab* 事件经
- * `reflect_event` 单一通道转发(collab_* reducer 既有渲染),
+ * 薄包装 `zhuye_list_discussions` / `zhuye_run_discussion` /
+ * `zhuye_cancel_discussions` 命令,
+ * 对应 CLI `zhuye discussion ls / run`。运行期间的 Collab* 事件经
+ * `zhuye_event` 单一通道转发(collab_* reducer 既有渲染),
  * 命令返回值为最终 transcript + 结构化结果。
  */
 import { invoke } from '@/utils/bridge';
@@ -33,21 +33,21 @@ export interface DiscussionRunOutcome {
 }
 
 /** 列出含讨论记录的 session(可按 discussion id 过滤)。 */
-export function reflect_list_discussions(
+export function zhuye_list_discussions(
   discussionId?: string,
 ): Promise<DiscussionSessionInfo[]> {
-  return invoke('reflect_list_discussions', { discussionId: discussionId ?? null });
+  return invoke('zhuye_list_discussions', { discussionId: discussionId ?? null });
 }
 
 /**
  * 运行一次多 agent 讨论(读 TOML 配置文件路径,阻塞至结束;
  * 事件流入事件通道)。
  */
-export function reflect_run_discussion(configPath: string): Promise<DiscussionRunOutcome> {
-  return invoke('reflect_run_discussion', { configPath });
+export function zhuye_run_discussion(configPath: string): Promise<DiscussionRunOutcome> {
+  return invoke('zhuye_run_discussion', { configPath });
 }
 
 /** 取消当前进程内仍在运行的讨论，返回被触发的数量。 */
-export function reflect_cancel_discussions(): Promise<number> {
-  return invoke('reflect_cancel_discussions');
+export function zhuye_cancel_discussions(): Promise<number> {
+  return invoke('zhuye_cancel_discussions');
 }

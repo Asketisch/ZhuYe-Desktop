@@ -1,4 +1,4 @@
-//! Markdown grep / 全仓库查找（`reflect_search_files`）。
+//! Markdown grep / 全仓库查找（`zhuye_search_files`）。
 //!
 //! 复用 `files::should_skip` 来过滤目录。
 
@@ -38,7 +38,7 @@ pub enum SearchRank {
     Bm25,
 }
 
-/// BM25 参数 —— 与核心 `reflect-tools` 的 grep 工具一致。
+/// BM25 参数 —— 与核心 `zhuye-tools` 的 grep 工具一致。
 const BM25_K1: f64 = 1.2;
 const BM25_B: f64 = 0.75;
 
@@ -46,7 +46,7 @@ const BM25_B: f64 = 0.75;
 const BM25_CANDIDATE_LIMIT: usize = 20_000;
 
 #[tauri::command]
-pub async fn reflect_search_files(
+pub async fn zhuye_search_files(
     agent: State<'_, MinimalAgent>,
     query: String,
     path: Option<String>,
@@ -75,10 +75,10 @@ pub async fn reflect_search_files(
     })
 }
 
-/// BM25 相关性搜索 —— 复用核心 `reflect_tools::bm25` 的实现
+/// BM25 相关性搜索 —— 复用核心 `zhuye_tools::bm25` 的实现
 /// (与 agent 的 grep 工具同源,同一份分词 + 排序)。
 fn bm25_search(root: &Path, query: &str, cap: usize) -> FileSearchResult {
-    let terms = reflect_tools::bm25::tokenize(query);
+    let terms = zhuye_tools::bm25::tokenize(query);
     let mut candidates: Vec<(String, usize, String)> = Vec::new();
     if !terms.is_empty() {
         collect_candidates(root, &terms, &mut candidates);
@@ -89,7 +89,7 @@ fn bm25_search(root: &Path, query: &str, cap: usize) -> FileSearchResult {
         .enumerate()
         .map(|(i, (_, _, line))| (i, line.clone()))
         .collect();
-    let ranked = reflect_tools::bm25::rank_lines(&terms, &pairs, BM25_K1, BM25_B);
+    let ranked = zhuye_tools::bm25::rank_lines(&terms, &pairs, BM25_K1, BM25_B);
     let truncated = ranked.len() > cap || candidates.len() >= BM25_CANDIDATE_LIMIT;
     let hits: Vec<FileSearchHit> = ranked
         .into_iter()
@@ -287,7 +287,7 @@ mod tests {
     }
 
     fn tempdir() -> std::path::PathBuf {
-        let base = std::env::temp_dir().join(format!("reflect-test-{}", uuid::Uuid::new_v4()));
+        let base = std::env::temp_dir().join(format!("zhuye-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&base).unwrap();
         base
     }

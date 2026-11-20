@@ -23,7 +23,7 @@ use tauri::{
 };
 
 /// 托盘 ID —— 单一托盘实例。
-pub const TRAY_ID: &str = "reflect-tray";
+pub const TRAY_ID: &str = "zhuye-tray";
 
 /// 菜单项 ID 常量。
 pub const TRAY_SHOW: &str = "tray_show";
@@ -46,14 +46,14 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .on_menu_event(handle_tray_menu_event::<R>)
         .on_tray_icon_event(handle_tray_icon_event::<R>)
         .build(app)?;
-    tracing::info!("[reflect-gui] tray initialized");
+    tracing::info!("[zhuye-gui] tray initialized");
     Ok(())
 }
 
 /// 非 macOS 平台 —— tray 模块整体为 no-op。`lib.rs` 仍调用此函数,不报错。
 #[cfg(not(target_os = "macos"))]
 pub fn build_tray<R: Runtime>(_app: &AppHandle<R>) -> tauri::Result<()> {
-    tracing::debug!("[reflect-gui] tray: skipped (non-macOS platform)");
+    tracing::debug!("[zhuye-gui] tray: skipped (non-macOS platform)");
     Ok(())
 }
 
@@ -63,7 +63,7 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let new_agent = MenuItemBuilder::with_id(TRAY_NEW_AGENT, "New Agent").build(app)?;
     let hide = MenuItemBuilder::with_id(TRAY_HIDE, "Hide Window").build(app)?;
     let separator = PredefinedMenuItem::separator(app)?;
-    let quit = MenuItemBuilder::with_id(TRAY_QUIT, "Quit Reflect").build(app)?;
+    let quit = MenuItemBuilder::with_id(TRAY_QUIT, "Quit ZhuYe").build(app)?;
     Menu::with_items(app, &[&show, &new_agent, &hide, &separator, &quit])
 }
 

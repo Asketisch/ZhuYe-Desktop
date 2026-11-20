@@ -38,7 +38,7 @@ cd "$REPO_ROOT"
 # 默认取宿主目标产物;交叉编译(如 macos-x86_64 在 arm64 runner 上
 # --target)时产物在 target/<triple>/release/ 下,产物门禁经
 # ZHUYE_INSTALL_BIN / ZHUYE_INSTALL_APP 传入与构建同源的路径。
-BIN_SRC="${ZHUYE_INSTALL_BIN:-$REPO_ROOT/target/release/reflect-desktop}"
+BIN_SRC="${ZHUYE_INSTALL_BIN:-$REPO_ROOT/target/release/zhuye-desktop}"
 APP_SRC="${ZHUYE_INSTALL_APP:-$REPO_ROOT/target/release/bundle/macos/ZhuYe.app}"
 
 run() {
@@ -53,7 +53,7 @@ if [ ! -f "$BIN_SRC" ]; then
 fi
 
 run "mkdir -p '$PREFIX'"
-run "install -m 0755 '$BIN_SRC' '$PREFIX/reflect-desktop'"
+run "install -m 0755 '$BIN_SRC' '$PREFIX/zhuye-desktop'"
 
 if [ "$(uname)" = "Darwin" ] && [ -d "$APP_SRC" ]; then
   run "mkdir -p '$APP_DIR'"
@@ -62,5 +62,5 @@ if [ "$(uname)" = "Darwin" ] && [ -d "$APP_SRC" ]; then
   echo "installed .app → $APP_DIR/ZhuYe.app"
 fi
 
-echo "done. launch with: $PREFIX/reflect-desktop"
+echo "done. launch with: $PREFIX/zhuye-desktop"
 echo "                  or open $APP_DIR/ZhuYe.app on macOS"

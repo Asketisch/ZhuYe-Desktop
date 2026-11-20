@@ -41,10 +41,10 @@ const CATALOG = [
 describe('McpManager', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_list_mcp_servers', async () => SERVERS);
-    mockInvoke('reflect_mcp_catalog', async () => CATALOG);
-    mockInvoke('reflect_upsert_mcp_server', async () => undefined);
-    mockInvoke('reflect_delete_mcp_server', async () => undefined);
+    mockInvoke('zhuye_list_mcp_servers', async () => SERVERS);
+    mockInvoke('zhuye_mcp_catalog', async () => CATALOG);
+    mockInvoke('zhuye_upsert_mcp_server', async () => undefined);
+    mockInvoke('zhuye_delete_mcp_server', async () => undefined);
   });
 
   afterEach(() => {
@@ -107,7 +107,7 @@ describe('McpManager', () => {
 
   it('preserves quoted arguments and Windows paths as separate argv values', async () => {
     const invoke = vi.fn(async (_cmd: string, _value: { entry: { args: string[] } }) => undefined);
-    mockInvoke('reflect_upsert_mcp_server', invoke);
+    mockInvoke('zhuye_upsert_mcp_server', invoke);
     render(wrap(<McpManager />));
     fireEvent.click(screen.getByTestId('mcp-add-toggle'));
     fireEvent.change(screen.getByTestId('mcp-name-input'), { target: { value: 'example' } });
@@ -122,7 +122,7 @@ describe('McpManager', () => {
 
   it('rejects unclosed quotes without sending a request', async () => {
     const invoke = vi.fn(async () => undefined);
-    mockInvoke('reflect_upsert_mcp_server', invoke);
+    mockInvoke('zhuye_upsert_mcp_server', invoke);
     render(wrap(<McpManager />));
     fireEvent.click(screen.getByTestId('mcp-add-toggle'));
     fireEvent.change(screen.getByTestId('mcp-name-input'), { target: { value: 'example' } });
@@ -134,8 +134,8 @@ describe('McpManager', () => {
 
   it('displays delete failures and refreshes the list after a partial failure', async () => {
     let present = true;
-    mockInvoke('reflect_list_mcp_servers', async () => present ? SERVERS : []);
-    mockInvoke('reflect_delete_mcp_server', async () => {
+    mockInvoke('zhuye_list_mcp_servers', async () => present ? SERVERS : []);
+    mockInvoke('zhuye_delete_mcp_server', async () => {
       present = false;
       throw { msg: 'stop failed after configuration changed' };
     });

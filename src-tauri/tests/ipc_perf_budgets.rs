@@ -6,9 +6,9 @@
 //! 迭代用)。
 //!
 //! 预算对象:
-//! - `reflect_list_sessions`:500 条真实 rollout 文件的会话索引
+//! - `zhuye_list_sessions`:500 条真实 rollout 文件的会话索引
 //!   (侧栏首屏的代理指标);
-//! - `reflect_replay_session`:5 千行记录的长会话回放水合
+//! - `zhuye_replay_session`:5 千行记录的长会话回放水合
 //!   (打开历史会话的代理指标)。
 
 mod common;
@@ -78,7 +78,7 @@ fn listing_500_sessions_stays_within_budget() {
         seed_rollout_with_lines(&uuid_v4(i), 1, i as u64 % 30);
     }
     let t0 = Instant::now();
-    let v = common::invoke_ok("reflect_list_sessions", json!({}));
+    let v = common::invoke_ok("zhuye_list_sessions", json!({}));
     let elapsed = t0.elapsed();
     let count = v.as_array().map_or(0, |a| a.len());
     assert!(count >= 500, "应索引到 500 条会话,实际 {count}");
@@ -96,7 +96,7 @@ fn replaying_a_5k_record_session_stays_within_budget() {
     let id = uuid_v4(0xF00);
     seed_rollout_with_lines(&id, 5_000, 1);
     let t0 = Instant::now();
-    let v = common::invoke_ok("reflect_replay_session", json!({ "id": id }));
+    let v = common::invoke_ok("zhuye_replay_session", json!({ "id": id }));
     let elapsed = t0.elapsed();
     let records = v.as_array().map_or(0, |a| a.len());
     assert!(records >= 5_000, "回放应含 5000 条记录,实际 {records}");

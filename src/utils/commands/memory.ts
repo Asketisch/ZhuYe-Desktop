@@ -3,7 +3,7 @@
  */
 import { invoke } from '../bridge';
 
-export interface ReflectMemoryEntry {
+export interface ZhuyeMemoryEntry {
   scope: string;
   key: string;
   value: string;
@@ -14,19 +14,19 @@ export interface ReflectMemoryEntry {
 /** 列出所有 scope 下的 memory 条目。 */
 export interface MemoryContext { workspace: string; agent: string }
 
-export async function reflect_list_memory(expectedContext?: MemoryContext): Promise<ReflectMemoryEntry[]> {
-  return invoke<ReflectMemoryEntry[]>('reflect_list_memory', expectedContext ? { expectedContext } : undefined);
+export async function zhuye_list_memory(expectedContext?: MemoryContext): Promise<ZhuyeMemoryEntry[]> {
+  return invoke<ZhuyeMemoryEntry[]>('zhuye_list_memory', expectedContext ? { expectedContext } : undefined);
 }
 
 /** 新增或覆盖一条 memory 条目。 */
-export async function reflect_add_memory(
+export async function zhuye_add_memory(
   scope: string, key: string, value: string,
   options: { replaceDocument?: boolean; createOnly?: boolean; expectedContext?: MemoryContext; expectedValue?: string } = {},
 ): Promise<void> {
-  return invoke<void>('reflect_add_memory', { scope, key, value, ...options });
+  return invoke<void>('zhuye_add_memory', { scope, key, value, ...options });
 }
 
 /** 按 scope+key 删除一条 memory 条目。 */
-export async function reflect_remove_memory(scope: string, key: string, replaceDocument = false, expectedContext?: MemoryContext, expectedValue?: string): Promise<void> {
-  return invoke<void>('reflect_remove_memory', { scope, key, ...(replaceDocument ? { replaceDocument: true } : {}), ...(expectedContext ? { expectedContext } : {}), ...(expectedValue !== undefined ? { expectedValue } : {}) });
+export async function zhuye_remove_memory(scope: string, key: string, replaceDocument = false, expectedContext?: MemoryContext, expectedValue?: string): Promise<void> {
+  return invoke<void>('zhuye_remove_memory', { scope, key, ...(replaceDocument ? { replaceDocument: true } : {}), ...(expectedContext ? { expectedContext } : {}), ...(expectedValue !== undefined ? { expectedValue } : {}) });
 }

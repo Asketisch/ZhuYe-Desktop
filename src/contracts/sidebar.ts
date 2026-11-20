@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
 import type { WorkspaceGroupProps } from '@/features/sessions/components/WorkspaceGroup';
 import type { SessionItemProps } from '@/features/sessions/components/SessionItem';
@@ -30,7 +30,7 @@ export interface SidebarViewProps {
   selectedIds: Set<string>;
   archivedOpen: boolean;
   pinnedIds?: readonly string[];
-  archived?: ReflectSessionInfo[];
+  archived?: ZhuyeSessionInfo[];
   /** harness 会话徽标（运行态点 / 待办旗标 / 未读），键为会话 id。 */
   badges?: Record<string, SessionBadge>;
   /** ===== harness 侧栏交互（状态由 SidebarBinding 持有，视图保持纯展示）===== */

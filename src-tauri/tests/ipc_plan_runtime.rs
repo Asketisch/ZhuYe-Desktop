@@ -21,13 +21,13 @@ fn wait_event(rx: &Receiver<Value>, kind: &str, id: &str) -> Value {
 #[test]
 fn plan_request_and_ready_use_distinct_ids_and_apply_approval() {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
     });
     let enter = common::invoke_ok(
-        "reflect_enter_plan_mode",
+        "zhuye_enter_plan_mode",
         json!({ "task": "Inspect the migration" }),
     );
     let enter_id = enter.as_str().unwrap();
@@ -36,13 +36,13 @@ fn plan_request_and_ready_use_distinct_ids_and_apply_approval() {
     let request_plan_id = request["msg"]["plan_id"].as_str().unwrap();
     assert!(uuid::Uuid::parse_str(request_plan_id).is_ok());
     common::invoke_ok(
-        "reflect_plan_approval",
+        "zhuye_plan_approval",
         json!({ "id": request_plan_id, "choice": "manual_approve" }),
     );
     let entered = wait_event(&rx, "permission_mode_changed", enter_id);
     assert_eq!(entered["msg"]["to"], "plan");
 
-    let exit = common::invoke_ok("reflect_exit_plan_mode", json!({}));
+    let exit = common::invoke_ok("zhuye_exit_plan_mode", json!({}));
     let exit_id = exit.as_str().unwrap();
     let ready = wait_event(&rx, "plan_ready", exit_id);
     let ready_plan_id = ready["msg"]["plan_id"].as_str().unwrap();
@@ -58,18 +58,18 @@ fn plan_request_and_ready_use_distinct_ids_and_apply_approval() {
     );
     assert_eq!(std::fs::read_to_string(&path).unwrap(), markdown);
     common::invoke_ok(
-        "reflect_plan_approval",
+        "zhuye_plan_approval",
         json!({ "id": ready_plan_id, "choice": "revise" }),
     );
     let rejected = wait_event(&rx, "plan_rejected", exit_id);
     assert_eq!(rejected["msg"]["plan_id"], ready_plan_id);
 
-    let second_exit = common::invoke_ok("reflect_exit_plan_mode", json!({}));
+    let second_exit = common::invoke_ok("zhuye_exit_plan_mode", json!({}));
     let second_id = second_exit.as_str().unwrap();
     let second_ready = wait_event(&rx, "plan_ready", second_id);
     let second_plan_id = second_ready["msg"]["plan_id"].as_str().unwrap();
     common::invoke_ok(
-        "reflect_plan_approval",
+        "zhuye_plan_approval",
         json!({ "id": second_plan_id, "choice": "manual_approve" }),
     );
     let mode = wait_event(&rx, "permission_mode_changed", second_id);

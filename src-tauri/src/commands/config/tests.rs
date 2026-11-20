@@ -40,7 +40,7 @@ fn apply_model_switch_pins_credential_and_writes_entry_model() {
         label = "MiniMax"
         api_key = "sk-mm"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     apply_model_switch(&mut cfg, "anthropic", "MiniMax-M3", Some("MiniMax")).unwrap();
     assert_eq!(cfg.active.credential.as_deref(), Some("MiniMax"));
     let entry = cfg.anthropic.as_ref().unwrap().credentials[0]
@@ -66,7 +66,7 @@ fn apply_model_switch_default_label_falls_back_to_section_model() {
         [anthropic]
         api_key = "sk-top"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     apply_model_switch(&mut cfg, "anthropic", "glm-4.6", Some("default")).unwrap();
     assert_eq!(cfg.active.credential.as_deref(), Some("default"));
     assert_eq!(
@@ -86,7 +86,7 @@ fn apply_model_switch_without_label_is_unpinned_section_model() {
         [active]
         provider = "openai"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     apply_model_switch(&mut cfg, "openai", "gpt-4o", None).unwrap();
     assert_eq!(cfg.active.credential, None);
     assert_eq!(
@@ -105,7 +105,7 @@ fn apply_model_switch_rejects_unknown_label() {
         [anthropic]
         api_key = "sk-top"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     let err = apply_model_switch(&mut cfg, "anthropic", "m", Some("ghost")).unwrap_err();
     assert!(err.msg.contains("ghost"), "{err:?}");
 }
@@ -124,7 +124,7 @@ fn apply_model_switch_empty_model_clears_override() {
         api_key = "sk-mm"
         model = "old-model"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     apply_model_switch(&mut cfg, "anthropic", "  ", Some("MiniMax")).unwrap();
     assert_eq!(cfg.active.credential.as_deref(), Some("MiniMax"));
     assert_eq!(cfg.anthropic.as_ref().unwrap().credentials[0].model, None);
@@ -144,7 +144,7 @@ fn apply_model_switch_group_writes_group_model() {
         endpoint = "openai"
         base_url = "https://open.bigmodel.cn/api/paas/v4"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     apply_model_switch(&mut cfg, "my-glm", "GLM-5.3-Flash", None).unwrap();
     assert_eq!(cfg.active.provider.as_deref(), Some("my-glm"));
     assert_eq!(cfg.active.credential, None);
@@ -170,7 +170,7 @@ fn apply_model_switch_group_pins_credential_entry_model() {
         label = "backup"
         api_key = "sk-b"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     apply_model_switch(&mut cfg, "my-glm", "GLM-5.3-Flash", Some("backup")).unwrap();
     assert_eq!(cfg.active.credential.as_deref(), Some("backup"));
     assert_eq!(
@@ -191,7 +191,7 @@ fn apply_model_switch_group_rejects_unknown_label() {
         id = "my-glm"
         endpoint = "openai"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     let err = apply_model_switch(&mut cfg, "my-glm", "m", Some("ghost")).unwrap_err();
     assert!(
         err.msg.contains("ghost") && err.msg.contains("my-glm"),
@@ -207,7 +207,7 @@ fn apply_model_switch_rejects_missing_group() {
         [active]
         provider = "anthropic"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     let err = apply_model_switch(&mut cfg, "no-such-group", "m", None).unwrap_err();
     assert!(err.msg.contains("no-such-group"), "{err:?}");
 }
@@ -221,7 +221,7 @@ fn apply_model_switch_group_empty_model_clears_override() {
         endpoint = "openai"
         model = "old-model"
     "#;
-    let mut cfg = reflect_config::load_from_str(toml).unwrap();
+    let mut cfg = zhuye_config::load_from_str(toml).unwrap();
     apply_model_switch(&mut cfg, "my-glm", "  ", None).unwrap();
     assert_eq!(cfg.provider_group[0].model, None);
     assert_eq!(cfg.resolved_model_spec(), None);

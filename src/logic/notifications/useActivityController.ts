@@ -3,9 +3,9 @@
  * TanStack Query 控制器 (Phase 3 条目 9).
  *
  * 数据源:
- * - `reflect_list_activity` —— 全量 + 过滤(activity tab)。
- * - `reflect_search_activity` —— `@<query>` mention 搜索(mentions tab)。
- * - `reflect_clear_activity` —— 清空内存缓冲(诊断用)。
+ * - `zhuye_list_activity` —— 全量 + 过滤(activity tab)。
+ * - `zhuye_search_activity` —— `@<query>` mention 搜索(mentions tab)。
+ * - `zhuye_clear_activity` —— 清空内存缓冲(诊断用)。
  *
  * 设计:`tab` 选择由父组件(NotificationsView)拥有,本 hook 只持 activity /
  * mentions 两套 query 的数据 + 过滤状态。query 的 `enabled` 由参数
@@ -16,12 +16,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_list_activity,
-  reflect_search_activity,
-  reflect_clear_activity,
-  type ReflectActivityEvent,
-  type ReflectActivityFilter,
-  type ReflectActivityLevel,
+  zhuye_list_activity,
+  zhuye_search_activity,
+  zhuye_clear_activity,
+  type ZhuyeActivityEvent,
+  type ZhuyeActivityFilter,
+  type ZhuyeActivityLevel,
   extractMentions,
 } from '@/utils/commands/activity';
 
@@ -34,15 +34,15 @@ export type ActivityTab = 'inbox' | 'activity' | 'mentions';
 
 export interface ActivityController {
   /** activity tab 的过滤(level:info/warn/error)。 */
-  level: ReflectActivityLevel | 'all';
+  level: ZhuyeActivityLevel | 'all';
   setLevel: (l: ActivityController['level']) => void;
   /** mentions tab 的 @query 字符串。 */
   mentionQuery: string;
   setMentionQuery: (q: string) => void;
   /** activity tab 的事件数组(已是活动方向的最新优先)。 */
-  activityEvents: ReflectActivityEvent[];
+  activityEvents: ZhuyeActivityEvent[];
   /** mentions tab 的事件数组。 */
-  mentionEvents: ReflectActivityEvent[];
+  mentionEvents: ZhuyeActivityEvent[];
   /** activity tab 的 loading / error。 */
   activityLoading: boolean;
   activityError: Error | null;
@@ -64,27 +64,27 @@ export function useActivityController(activeTab: ActivityTab): ActivityControlle
   const [level, setLevel] = useState<ActivityController['level']>('all');
   const [mentionQuery, setMentionQuery] = useState('');
 
-  const activityFilter: ReflectActivityFilter = useMemo(() => {
+  const activityFilter: ZhuyeActivityFilter = useMemo(() => {
     if (level === 'all') return { limit: 200 };
     return { level, limit: 200 };
   }, [level]);
 
   const activityQ = useQuery({
     queryKey: [...ACTIVITY_QUERY_KEY, 'list', activityFilter] as const,
-    queryFn: () => reflect_list_activity(activityFilter),
+    queryFn: () => zhuye_list_activity(activityFilter),
     enabled: activeTab === 'activity',
     staleTime: ACTIVITY_STALE_MS,
   });
 
   const mentionsQ = useQuery({
     queryKey: [...ACTIVITY_MENTIONS_QUERY_KEY, mentionQuery] as const,
-    queryFn: () => reflect_search_activity(mentionQuery),
+    queryFn: () => zhuye_search_activity(mentionQuery),
     enabled: activeTab === 'mentions',
     staleTime: ACTIVITY_STALE_MS,
   });
 
   const clearMut = useMutation({
-    mutationFn: () => reflect_clear_activity(),
+    mutationFn: () => zhuye_clear_activity(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [...ACTIVITY_QUERY_KEY] });
     },

@@ -2,7 +2,7 @@
 //!
 //! 两个职责:
 //!
-//! 1. `reflect_list_plugin_commands` —— composer 斜杠菜单的数据源。
+//! 1. `zhuye_list_plugin_commands` —— composer 斜杠菜单的数据源。
 //!    只读快照:从挂载好的插件运行时(`state/plugins.rs`)取 slash 命令
 //!    注册表。未挂载(占位线程 / 无 enabled 插件 / HOME 缺失)时返回空
 //!    列表,前端弹层自然只显示内置命令。
@@ -16,7 +16,7 @@
 //! 读写与校验;启停走 config 的 `enabled_plugins` + 核心的
 //! `reload_plugins` diff 同步(不打断运行中的会话)。
 
-use reflect_plugin::{MarketplaceName, PluginId, PluginManager, PluginScope};
+use zhuye_plugin::{MarketplaceName, PluginId, PluginManager, PluginScope};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -50,7 +50,7 @@ pub struct PluginInfo {
     /// 是否在 `[plugins] enabled_plugins` 里。
     pub enabled: bool,
     /// 当前线程实际加载成功的插件；未加载时为 null。
-    pub runtime: Option<reflect_protocol::PluginLoadedEvent>,
+    pub runtime: Option<zhuye_protocol::PluginLoadedEvent>,
     /// git 安装的 commit sha(本地目录安装时为 null)。
     pub git_commit_sha: Option<String>,
 }
@@ -70,7 +70,7 @@ pub struct MarketplaceInfo {
 }
 
 #[tauri::command]
-pub async fn reflect_list_plugin_commands(
+pub async fn zhuye_list_plugin_commands(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<PluginCommandInfo>> {
     let runtime = agent.plugin_runtime();
@@ -85,7 +85,7 @@ pub async fn reflect_list_plugin_commands(
 ///
 /// 启用状态取自配置；runtime 仅表示当前线程实际加载成功的插件。
 #[tauri::command]
-pub async fn reflect_list_plugins(
+pub async fn zhuye_list_plugins(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<PluginInfo>> {
     let _config = agent.inner.config_write_lock.lock().await;
@@ -142,7 +142,7 @@ pub async fn reflect_list_plugins(
 
 /// 列出已知 marketplace(config 的 `[plugins].marketplaces`)。
 #[tauri::command]
-pub async fn reflect_list_marketplaces(
+pub async fn zhuye_list_marketplaces(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<MarketplaceInfo>> {
     let cfg = agent.inner.cfg.read().clone();
@@ -172,8 +172,8 @@ pub async fn reflect_list_marketplaces(
 }
 
 /// marketplace kind → 线格式字符串。
-fn marketplace_kind_str(k: reflect_config::schema::PluginMarketplaceKind) -> &'static str {
-    use reflect_config::schema::PluginMarketplaceKind::*;
+fn marketplace_kind_str(k: zhuye_config::schema::PluginMarketplaceKind) -> &'static str {
+    use zhuye_config::schema::PluginMarketplaceKind::*;
     match k {
         Directory => "directory",
         File => "file",
@@ -187,7 +187,7 @@ fn marketplace_kind_str(k: reflect_config::schema::PluginMarketplaceKind) -> &'s
 /// 写 config 的 `[plugins] enabled_plugins` → 落盘 → 核心
 /// `reload_plugins` diff 同步(挂/卸插件,不打断运行中的会话)。
 #[tauri::command]
-pub async fn reflect_toggle_plugin(
+pub async fn zhuye_toggle_plugin(
     agent: State<'_, MinimalAgent>,
     id: String,
     enabled: bool,
@@ -225,7 +225,7 @@ pub async fn reflect_toggle_plugin(
 
 /// 卸载一个插件(按 scope 精确卸载)。
 #[tauri::command]
-pub async fn reflect_uninstall_plugin(
+pub async fn zhuye_uninstall_plugin(
     agent: State<'_, MinimalAgent>,
     id: String,
     scope: PluginScope,
@@ -257,7 +257,7 @@ pub async fn reflect_uninstall_plugin(
 /// `path` 指向含 `plugin.toml` 或 `.claude-plugin/plugin.json` 的目录
 /// (GUI 的文件选择框可提供)。安装后写 `installed_plugins.json`。
 #[tauri::command]
-pub async fn reflect_install_plugin(
+pub async fn zhuye_install_plugin(
     agent: State<'_, MinimalAgent>,
     path: String,
     marketplace: String,
@@ -302,14 +302,14 @@ pub struct MarketplacePluginInfo {
 
 /// 读 `known_marketplaces.json`(文件缺失 → 空表 —— 用户还没加过市场
 /// 是正常状态,不是错误)。
-fn load_known_marketplaces() -> CommandResult<reflect_plugin::KnownMarketplacesFile> {
-    let Some(path) = reflect_plugin::default_marketplaces_path() else {
+fn load_known_marketplaces() -> CommandResult<zhuye_plugin::KnownMarketplacesFile> {
+    let Some(path) = zhuye_plugin::default_marketplaces_path() else {
         return Err(CommandError {
             msg: "no HOME dir for marketplaces.json".into(),
         });
     };
     if !path.exists() {
-        return Ok(reflect_plugin::KnownMarketplacesFile::new());
+        return Ok(zhuye_plugin::KnownMarketplacesFile::new());
     }
     let text = std::fs::read_to_string(&path).map_err(|e| CommandError {
         msg: format!("read marketplaces.json failed: {e}"),
@@ -326,7 +326,7 @@ fn load_known_marketplaces() -> CommandResult<reflect_plugin::KnownMarketplacesF
 /// 市场未注册 / 缓存未物化 → 显性报错(提示先 `marketplace add` /
 /// CLI refresh)。
 #[tauri::command]
-pub async fn reflect_browse_marketplace(name: String) -> CommandResult<Vec<MarketplacePluginInfo>> {
+pub async fn zhuye_browse_marketplace(name: String) -> CommandResult<Vec<MarketplacePluginInfo>> {
     let mkt = MarketplaceName::parse(&name).map_err(|e| CommandError {
         msg: format!("invalid marketplace name: {e}"),
     })?;
@@ -336,7 +336,7 @@ pub async fn reflect_browse_marketplace(name: String) -> CommandResult<Vec<Marke
             "marketplace '{name}' not registered; add it via `zhuye plugin marketplace add` first"
         ),
     })?;
-    let manifest_path = reflect_plugin::MarketplaceManifest::find_in_dir(&entry.install_location)
+    let manifest_path = zhuye_plugin::MarketplaceManifest::find_in_dir(&entry.install_location)
         .ok_or_else(|| CommandError {
             msg: format!(
                 "marketplace manifest not found under {} (run `zhuye plugin marketplace refresh --name {name}`)",
@@ -344,7 +344,7 @@ pub async fn reflect_browse_marketplace(name: String) -> CommandResult<Vec<Marke
             ),
         })?;
     let manifest =
-        reflect_plugin::MarketplaceManifest::from_json_path(&manifest_path).map_err(|e| {
+        zhuye_plugin::MarketplaceManifest::from_json_path(&manifest_path).map_err(|e| {
             CommandError {
                 msg: format!("parse marketplace manifest failed: {e}"),
             }
@@ -369,7 +369,7 @@ pub async fn reflect_browse_marketplace(name: String) -> CommandResult<Vec<Marke
 /// `PluginManager::install_from_marketplace`(DepResolver 后序装依赖)
 /// → save → 运行时 refresh(挂载能力)。
 #[tauri::command]
-pub async fn reflect_install_from_marketplace(
+pub async fn zhuye_install_from_marketplace(
     agent: State<'_, MinimalAgent>,
     marketplace: String,
     plugin: String,
@@ -419,7 +419,7 @@ pub async fn reflect_install_from_marketplace(
 /// 读不到(HOME 缺失 / 文件不存在)→ 空管理器(不是错误 —— 用户还没装过
 /// 任何插件是正常状态)。
 fn load_plugin_manager() -> CommandResult<PluginManager> {
-    let Some(root) = reflect_plugin::default_plugins_root() else {
+    let Some(root) = zhuye_plugin::default_plugins_root() else {
         return Err(CommandError {
             msg: "no HOME dir for plugins root".into(),
         });
@@ -440,7 +440,7 @@ fn scope_str(s: PluginScope) -> &'static str {
 }
 
 /// LoadedCommand → 展示信息(纯映射,单测覆盖)。
-fn command_infos(commands: Vec<reflect_plugin::LoadedCommand>) -> Vec<PluginCommandInfo> {
+fn command_infos(commands: Vec<zhuye_plugin::LoadedCommand>) -> Vec<PluginCommandInfo> {
     commands
         .into_iter()
         .map(|c| PluginCommandInfo {
@@ -458,7 +458,7 @@ mod tests {
     /// 映射保持 name/description,字段一一对应。
     #[test]
     fn maps_loaded_commands_to_infos() {
-        let infos = command_infos(vec![reflect_plugin::LoadedCommand {
+        let infos = command_infos(vec![zhuye_plugin::LoadedCommand {
             name: "demo:hello".into(),
             file_path: PathBuf::from("/tmp/hello.md"),
             description: Some("say hi".into()),

@@ -49,13 +49,13 @@ describe('session list & project groups', () => {
     const sidebar = await screen.findByTestId('harness-sidebar');
     // 等待 query 完成 —— 时间分桶文案不应再出现（已知项目组仍显示，但无会话）。
     await waitFor(() => {
-      expect(backend.callsOf('reflect_list_sessions').length).toBeGreaterThanOrEqual(1);
+      expect(backend.callsOf('zhuye_list_sessions').length).toBeGreaterThanOrEqual(1);
     });
     await waitFor(() => expect(sidebar.textContent).not.toContain('Yesterday'));
   });
 
   it('backend failure shows error UI in sidebar', async () => {
-    backend.state.failures['reflect_list_sessions'] = new Error('rollout dir corrupted');
+    backend.state.failures['zhuye_list_sessions'] = new Error('rollout dir corrupted');
     renderApp();
     const sidebar = await screen.findByTestId('harness-sidebar');
     await waitFor(() => expect(sidebar.textContent).toContain('rollout dir corrupted'));
@@ -67,9 +67,9 @@ describe('session switch & replay hydration', () => {
     const app = renderApp();
     await app.navigate('/chat/sess-alpha');
 
-    // ChatView 调用 reflect_replay_session 水合。
-    await waitFor(() => expect(backend.callsOf('reflect_replay_session').length).toBe(1));
-    expect(backend.lastArgsOf('reflect_replay_session')).toEqual({ id: 'sess-alpha' });
+    // ChatView 调用 zhuye_replay_session 水合。
+    await waitFor(() => expect(backend.callsOf('zhuye_replay_session').length).toBe(1));
+    expect(backend.lastArgsOf('zhuye_replay_session')).toEqual({ id: 'sess-alpha' });
 
     // rollout → turns：user 文本 + assistant 文本进入消息流。
     const log = screen.getByRole('log');
@@ -87,14 +87,14 @@ describe('session switch & replay hydration', () => {
   });
 
   it('replay failure shows error banner with retry that succeeds', async () => {
-    backend.state.failures['reflect_replay_session'] = new Error('rollout unreadable');
+    backend.state.failures['zhuye_replay_session'] = new Error('rollout unreadable');
     const app = renderApp();
     await app.navigate('/chat/sess-gamma');
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('rollout unreadable'));
 
     // 修复后端故障，点击 Retry。
-    delete backend.state.failures['reflect_replay_session'];
+    delete backend.state.failures['zhuye_replay_session'];
     backend.state.rollouts['sess-gamma'] = [
       { type: 'message', turn_id: 'g-1', role: 'user', content: 'hello gamma' },
     ];
@@ -182,9 +182,9 @@ describe('session mutations through the real UI', () => {
     await typeAndSend('/rename My custom title');
 
     await waitFor(() => {
-      expect(backend.callsOf('reflect_rename_session').length).toBe(1);
+      expect(backend.callsOf('zhuye_rename_session').length).toBe(1);
     });
-    expect(backend.lastArgsOf('reflect_rename_session')).toEqual({
+    expect(backend.lastArgsOf('zhuye_rename_session')).toEqual({
       id: 'sess-alpha',
       newName: 'My custom title',
     });
@@ -204,9 +204,9 @@ describe('session mutations through the real UI', () => {
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
     await waitFor(() =>
-      expect(backend.callsOf('reflect_archive_session').length).toBe(1),
+      expect(backend.callsOf('zhuye_archive_session').length).toBe(1),
     );
-    expect(backend.lastArgsOf('reflect_archive_session')).toEqual({ id: 'sess-alpha' });
+    expect(backend.lastArgsOf('zhuye_archive_session')).toEqual({ id: 'sess-alpha' });
     // invalidate 后侧边栏不再显示该会话。
     await waitFor(() => expect(screen.queryByText('Fix login bug')).toBeNull());
     expect(backend.state.archived.find((s) => s.session_id === 'sess-alpha')).toBeDefined();
@@ -221,9 +221,9 @@ describe('session mutations through the real UI', () => {
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
 
     await waitFor(() =>
-      expect(backend.callsOf('reflect_delete_session').length).toBe(1),
+      expect(backend.callsOf('zhuye_delete_session').length).toBe(1),
     );
-    expect(backend.lastArgsOf('reflect_delete_session')).toEqual({ id: 'sess-beta' });
+    expect(backend.lastArgsOf('zhuye_delete_session')).toEqual({ id: 'sess-beta' });
     await waitFor(() => expect(screen.queryByText('Refactor parser')).toBeNull());
   });
 
@@ -248,11 +248,11 @@ describe('session mutations through the real UI', () => {
     const restoreBtn = await screen.findByTestId('archived-restore-sess-archived');
     expect(screen.getByText('Old backlog')).toBeDefined();
     // 进入 /sessions 时已触发过一次 archived list 拉取。
-    const beforeRestore = backend.callsOf('reflect_list_archived_sessions').length;
+    const beforeRestore = backend.callsOf('zhuye_list_archived_sessions').length;
 
     fireEvent.click(restoreBtn);
     await waitFor(() =>
-      expect(backend.callsOf('reflect_unarchive_session').length).toBe(1),
+      expect(backend.callsOf('zhuye_unarchive_session').length).toBe(1),
     );
     // 后端状态正确搬移（unshift → archived 不再含此 id）。
     await waitFor(() => {
@@ -261,7 +261,7 @@ describe('session mutations through the real UI', () => {
     });
     // archived query 被 invalidate 后再次拉取（用于 UI 移除该行）。
     await waitFor(() =>
-      expect(backend.callsOf('reflect_list_archived_sessions').length).toBeGreaterThan(
+      expect(backend.callsOf('zhuye_list_archived_sessions').length).toBeGreaterThan(
         beforeRestore,
       ),
     );
@@ -277,7 +277,7 @@ describe('session mutations through the real UI', () => {
     backend.state.boundSessionId = 'previous-session';
     await typeAndSend('hello new session');
     await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
-    expect(backend.callsOf('reflect_create_session')).toHaveLength(1);
+    expect(backend.callsOf('zhuye_create_session')).toHaveLength(1);
     expect(backend.state.boundSessionId).toBe('sess-new-1');
     expect(useAgentStore.getState().loadedSessionId).toBe('sess-new-1');
     expect(app.pathname()).toBe('/chat/sess-new-1');
@@ -288,11 +288,11 @@ describe('session mutations through the real UI', () => {
     const app = renderApp();
     await screen.findByText('Fix login bug');
 
-    const listCallsBefore = backend.callsOf('reflect_list_sessions').length;
+    const listCallsBefore = backend.callsOf('zhuye_list_sessions').length;
     await typeAndSend('hello there');
 
     await waitFor(() =>
-      expect(backend.callsOf('reflect_list_sessions').length).toBeGreaterThan(listCallsBefore),
+      expect(backend.callsOf('zhuye_list_sessions').length).toBeGreaterThan(listCallsBefore),
     );
   });
 });

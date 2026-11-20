@@ -20,7 +20,7 @@ const exclusions = JSON.parse(
   readFileSync(join(root, 'tests/command-test-exclusions.json'), 'utf8'),
 ).commands;
 for (const [command, entry] of Object.entries(exclusions)) {
-  assert(/^reflect_\w+$/.test(command), `排除项不是命令名:${command}`);
+  assert(/^zhuye_\w+$/.test(command), `排除项不是命令名:${command}`);
   assert(
     typeof entry.reason === 'string' && entry.reason.trim() !== '',
     `排除项缺少原因:${command}`,

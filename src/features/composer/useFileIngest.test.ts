@@ -1,7 +1,7 @@
 /**
  * Vitest — useFileIngest(A1:浏览器字节流文件 → 落盘 → file mention)。
  *
- * 状态机:pending 入列 → reflect_ingest_upload 成功 settle 为真实路径
+ * 状态机:pending 入列 → zhuye_ingest_upload 成功 settle 为真实路径
  * file mention;失败标 error + toast;retry 重跑原始 File。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -21,7 +21,7 @@ function makeFile(name: string, content = 'hello'): File {
 // 这里直接 mock '@/../utils/commands/files' 模块,聚焦状态机本身。
 const uploadMock = vi.hoisted(() => vi.fn());
 vi.mock('@/utils/commands/files', () => ({
-  reflect_ingest_upload: (...args: unknown[]) => uploadMock(...(args as [string, string])),
+  zhuye_ingest_upload: (...args: unknown[]) => uploadMock(...(args as [string, string])),
 }));
 
 function renderIngest() {

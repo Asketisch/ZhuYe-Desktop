@@ -6,11 +6,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use parking_lot::{Mutex as ParkingMutex, RwLock};
-use reflect_config::ReflectConfig;
-use reflect_core::AgentThread;
-use reflect_llm::SharedModelRegistry;
-use reflect_protocol::{Event, ThreadId};
-use reflect_tools::ToolRegistry;
+use zhuye_config::ReflectConfig;
+use zhuye_core::AgentThread;
+use zhuye_llm::SharedModelRegistry;
+use zhuye_protocol::{Event, ThreadId};
+use zhuye_tools::ToolRegistry;
 use serde::Serialize;
 use tokio::sync::broadcast;
 
@@ -64,10 +64,10 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) memory_store: crate::memory_store::MemoryStore,
     pub(crate) hook_store: crate::hook_store::HookStore,
     /// Task/Team 管理器(供多 agent 命令面调用)。
-    /// 复用 zhuye-agent/crates/orchestration/reflect-task 默认 home(`~/.zhuye`),与 TUI/CLI 共享数据。
+    /// 复用 zhuye-agent/crates/orchestration/zhuye-task 默认 home(`~/.zhuye`),与 TUI/CLI 共享数据。
     /// 初始形态:无 hook_engine / event_sink;后续把 TaskCreated/Completed
     /// 事件推前端时再 `with_event_sink`。
-    pub(crate) task_manager: Arc<reflect_task::TaskManager>,
+    pub(crate) task_manager: Arc<zhuye_task::TaskManager>,
     pub(crate) task_hook_target: super::task_hooks::HookTarget,
     pub(crate) plugin_hook_slot: ParkingMutex<Option<super::plugin_hooks::PluginHookSlot>>,
     pub(crate) mounted_plugin_bridge:
@@ -76,37 +76,37 @@ pub(crate) struct MinimalAgentInner {
     /// Cron 调度器。`None` 直到 `install_agent_thread`
     /// 把真 `AgentThread::submission_sender()` 注入(driver 才能真正触发);
     /// 此前 CRUD 仍可用(命令层读 `RwLock`,只是无后台 driver)。
-    pub(crate) cron_scheduler: parking_lot::RwLock<Option<reflect_stream::cron::CronScheduler>>,
+    pub(crate) cron_scheduler: parking_lot::RwLock<Option<zhuye_stream::cron::CronScheduler>>,
     /// Side-channel registry(进程级,引擎 `zhuye-core::side_channel` 的
     /// Arc 共享状态):`thread_factory` 每次 rebind 用它重建 driver,
     /// 在跑的 side-channel 与事件流跨 rebind 存活。命令层经引擎
     /// `Op::Start/Cancel/QuerySideChannels` 走同一份状态。
-    pub(crate) side_channels: reflect_core::side_channel::SideChannelRegistry,
+    pub(crate) side_channels: zhuye_core::side_channel::SideChannelRegistry,
     /// Remote mode config:iOS / 远端 daemon 连接的目标
     /// (host + port + auth_token) 与运行时状态。进程内存储,重启重置
     /// —— 持久化留作后续。
     pub(crate) remote_config: parking_lot::RwLock<RemoteConfig>,
     /// KMS 知识库管理器:grep-based wiki + /dream。
-    pub(crate) kms_manager: reflect_kms::KnowledgeManager,
+    pub(crate) kms_manager: zhuye_kms::KnowledgeManager,
     /// Autopilot 管理器:自动任务调度。
-    pub(crate) autopilot_manager: reflect_stream::autopilot::AutopilotManager,
+    pub(crate) autopilot_manager: zhuye_stream::autopilot::AutopilotManager,
     /// 跨桌面进程的 Autopilot 独占租约，跨会话重绑定保留。
     pub(crate) autopilot_lease: ParkingMutex<Option<std::fs::File>>,
     /// Activity 日志管理器：会话事件审计 timeline。
-    pub(crate) activity_log: Arc<reflect_app_core::activity::ActivityLog>,
+    pub(crate) activity_log: Arc<zhuye_app_core::activity::ActivityLog>,
     /// Squad 管理器:复用 `task_manager` 的 TeamFile 存储,
     /// 提供 leader 委派语义层。
-    pub(crate) squad_manager: Arc<reflect_task::SquadManager>,
+    pub(crate) squad_manager: Arc<zhuye_task::SquadManager>,
     /// v1.x 会话持久化:`install_agent_thread` 一次性构造好的共享 ModelRegistry。
     /// `rebind_session` 重建 AgentThread 时复用(provider clients 昂贵,
     /// 不每次重建);注册到 inner 后 `construct_thread` 直接读。
-    /// v1.x coding plan:`reflect_save_config` 保存 provider 相关段变更时
+    /// v1.x coding plan:`zhuye_save_config` 保存 provider 相关段变更时
     /// 会整体重建并热替换(见 `state/reload.rs`),新计划无需重启生效。
     pub(crate) model_registry: ParkingMutex<Option<SharedModelRegistry>>,
     /// coding plan 配额追踪器:遍历 config `[[<provider>.credentials]].quota`
     /// 声明构建(见 `state/quota.rs`)。`None` = 未声明任何配额(向后兼容)。
     /// 与 `model_registry` 同生命周期:install 时构建,provider 段变更时重建。
-    pub(crate) quota_tracker: ParkingMutex<Option<reflect_llm::SharedQuotaTracker>>,
+    pub(crate) quota_tracker: ParkingMutex<Option<zhuye_llm::SharedQuotaTracker>>,
     /// 当前绑定 session id;`None` 表示 install 后的占位 thread。
     /// rebind_session 比较短路;命令层通过 `bound_session_id()` 读取。
     pub(crate) bound_session_id: ParkingMutex<Option<ThreadId>>,
@@ -116,7 +116,7 @@ pub(crate) struct MinimalAgentInner {
     /// 便于按「空闲优先、最旧兜底」驱逐;promote(bind 回该会话)时移出。
     pub(crate) background: ParkingMutex<Vec<(ThreadId, Arc<AgentThread>)>>,
     /// 后台会话事件通道:`(session_id, Event)`。forwarder 对非前台线程的
-    /// 事件发到这里(前台 `session_tx` → `reflect_event` 线格式不变);
+    /// 事件发到这里(前台 `session_tx` → `zhuye_event` 线格式不变);
     /// 前端据此维护运行徽标 / 待确认交互,切回时由 bind→promote 回到前台通道。
     pub(crate) background_tx: broadcast::Sender<(ThreadId, Event)>,
     /// 后台会话是否有 turn 在跑(forwarder 按 turn 生命周期维护)。
@@ -136,21 +136,21 @@ pub(crate) struct MinimalAgentInner {
     /// 后台化后线程不再被取消,需要显式信号)。
     pub(crate) rebind_generation: tokio::sync::watch::Sender<u64>,
     /// cron driver 句柄;drop 会 abort 任务,rebind 时 stop 后用新 sender 重启。
-    pub(crate) cron_driver: ParkingMutex<Option<reflect_stream::cron::CronDriverHandle>>,
+    pub(crate) cron_driver: ParkingMutex<Option<zhuye_stream::cron::CronDriverHandle>>,
     pub(crate) autopilot_driver: ParkingMutex<Option<super::AutopilotDriverHandle>>,
     /// LSP 连接管理器(按工作区由用户手动开启;None = 未启用)。
-    pub(crate) lsp_manager: ParkingMutex<Option<std::sync::Arc<reflect_lsp::LspConnectionManager>>>,
+    pub(crate) lsp_manager: ParkingMutex<Option<std::sync::Arc<zhuye_lsp::LspConnectionManager>>>,
     /// 启停命令须串行，避免并发创建多个管理器或关错实例。
     pub(crate) lsp_lifecycle_lock: tokio::sync::Mutex<()>,
     /// MCP 连接管理器句柄；安装期间创建，即使没有配置服务也保留空管理器。
-    pub(crate) mcp_manager: ParkingMutex<Option<std::sync::Arc<reflect_mcp::McpConnectionManager>>>,
+    pub(crate) mcp_manager: ParkingMutex<Option<std::sync::Arc<zhuye_mcp::McpConnectionManager>>>,
     pub(crate) mcp_tools: crate::mcp::McpTools,
     pub(crate) mcp_invoked_tx: ParkingMutex<Option<tokio::sync::mpsc::Sender<Event>>>,
     /// 插件运行时句柄(exec/serve 同款 `SharedPluginRuntime`;内层 `None`
     /// = 未挂载:占位线程、HOME 缺失或 plugins 目录不存在)。真实会话
     /// rebind 时由 `state/plugins.rs::spawn_mount` 卸旧装新;submit 边界
     /// 用它展开 `/plugin:*` 命令。
-    pub(crate) plugin_runtime: reflect_plugin::SharedPluginRuntime,
+    pub(crate) plugin_runtime: zhuye_plugin::SharedPluginRuntime,
     /// 插件挂载与配置更新共用的串行锁。
     pub(crate) plugin_mount_lock: Arc<tokio::sync::Mutex<()>>,
     /// 应用句柄(生产运行时由 setup 注入一次)。
@@ -191,30 +191,30 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let (background_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let (rebind_generation, _) = tokio::sync::watch::channel(0u64);
     let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let cfg = reflect_app_core::sandbox::load_config_with_sandbox_baseline();
+    let cfg = zhuye_app_core::sandbox::load_config_with_sandbox_baseline();
     // Task/Team 存储复用核心 crate 默认 home（`$ZHUYE_HOME` > `$HOME/.zhuye`），
     // 与 CLI 共享 `~/.zhuye/tasks/` 与 `~/.zhuye/teams/`。
     // home 解析失败时回退到 cwd 下的 `.zhuye`,保证进程仍可启动(命令会报 I/O 错)。
     let task_store = Arc::new(
-        reflect_task::FileTaskStore::with_default_home()
-            .unwrap_or_else(|_| reflect_task::FileTaskStore::new(".")),
+        zhuye_task::FileTaskStore::with_default_home()
+            .unwrap_or_else(|_| zhuye_task::FileTaskStore::new(".")),
     );
     let team_store = Arc::new(
-        reflect_task::FileTeamStore::with_default_home()
-            .unwrap_or_else(|_| reflect_task::FileTeamStore::new(".")),
+        zhuye_task::FileTeamStore::with_default_home()
+            .unwrap_or_else(|_| zhuye_task::FileTeamStore::new(".")),
     );
     let (task_hook_engine, task_hook_target) = super::task_hooks::task_hook_bridge();
     let task_manager = Arc::new(
-        reflect_task::TaskManager::new(task_store, team_store).with_hook_engine(task_hook_engine),
+        zhuye_task::TaskManager::new(task_store, team_store).with_hook_engine(task_hook_engine),
     );
     let cron_scheduler = parking_lot::RwLock::new(None);
-    let side_channels = reflect_core::side_channel::SideChannelRegistry::new();
+    let side_channels = zhuye_core::side_channel::SideChannelRegistry::new();
     let remote_config = parking_lot::RwLock::new(RemoteConfig::default());
-    let kms_manager = reflect_kms::KnowledgeManager::with_default_home();
-    let autopilot_manager = reflect_stream::autopilot::AutopilotManager::new();
+    let kms_manager = zhuye_kms::KnowledgeManager::with_default_home();
+    let autopilot_manager = zhuye_stream::autopilot::AutopilotManager::new();
     let activity_log = super::activity::build_activity_log();
     // SquadManager 复用 task_manager(team 存储),必须在 task_manager 之后构造。
-    let squad_manager = Arc::new(reflect_task::SquadManager::new(Arc::clone(&task_manager)));
+    let squad_manager = Arc::new(zhuye_task::SquadManager::new(Arc::clone(&task_manager)));
     MinimalAgentInner {
         thread: ParkingMutex::new(None),
         rebind_lock: ParkingMutex::new(()),
@@ -266,7 +266,7 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         mcp_manager: ParkingMutex::new(None),
         mcp_tools: crate::mcp::McpTools::default(),
         mcp_invoked_tx: ParkingMutex::new(None),
-        plugin_runtime: reflect_plugin::empty_plugin_runtime(),
+        plugin_runtime: zhuye_plugin::empty_plugin_runtime(),
         plugin_mount_lock: Arc::new(tokio::sync::Mutex::new(())),
         app_handle: RwLock::new(None),
     }

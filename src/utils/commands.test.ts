@@ -12,123 +12,123 @@ import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import {
   // agent
   ping,
-  reflect_submit,
-  reflect_interrupt,
-  reflect_compact,
-  reflect_rewind,
-  reflect_shutdown,
+  zhuye_submit,
+  zhuye_interrupt,
+  zhuye_compact,
+  zhuye_rewind,
+  zhuye_shutdown,
   // approvals
-  reflect_tool_approval,
-  reflect_hook_approval,
-  reflect_plan_approval,
+  zhuye_tool_approval,
+  zhuye_hook_approval,
+  zhuye_plan_approval,
   // plan
-  reflect_enter_plan_mode,
-  reflect_exit_plan_mode,
+  zhuye_enter_plan_mode,
+  zhuye_exit_plan_mode,
   // permissions
-  reflect_set_effort,
-  reflect_set_permission_mode,
-  reflect_cycle_permission_mode,
+  zhuye_set_effort,
+  zhuye_set_permission_mode,
+  zhuye_cycle_permission_mode,
   // questions
-  reflect_ask_user_question_response,
-  reflect_ask_user_input_response,
+  zhuye_ask_user_question_response,
+  zhuye_ask_user_input_response,
   // config
-  reflect_agent_status,
-  reflect_get_config,
-  reflect_save_config,
-  reflect_list_tools,
+  zhuye_agent_status,
+  zhuye_get_config,
+  zhuye_save_config,
+  zhuye_list_tools,
   // sessions
-  reflect_list_sessions,
-  reflect_create_session,
-  reflect_rename_session,
-  reflect_delete_session,
-  reflect_replay_session,
-  reflect_export_session,
-  reflect_export_session_markdown,
+  zhuye_list_sessions,
+  zhuye_create_session,
+  zhuye_rename_session,
+  zhuye_delete_session,
+  zhuye_replay_session,
+  zhuye_export_session,
+  zhuye_export_session_markdown,
   // events
-  onReflectEvent,
+  onZhuyeEvent,
   // workspaces
-  reflect_list_workspaces,
-  reflect_set_workspace,
-  reflect_current_workspace,
+  zhuye_list_workspaces,
+  zhuye_set_workspace,
+  zhuye_current_workspace,
   // skills
-  reflect_list_skills,
+  zhuye_list_skills,
   // memory
-  reflect_list_memory,
-  reflect_add_memory,
-  reflect_remove_memory,
-  reflect_memory_sections,
+  zhuye_list_memory,
+  zhuye_add_memory,
+  zhuye_remove_memory,
+  zhuye_memory_sections,
   // hooks
-  reflect_list_hooks,
-  reflect_toggle_hook,
+  zhuye_list_hooks,
+  zhuye_toggle_hook,
   // git
-  reflect_git_status,
-  reflect_git_diff,
-  reflect_git_log,
+  zhuye_git_status,
+  zhuye_git_diff,
+  zhuye_git_log,
   // terminal
-  reflect_run_shell,
-  reflect_kill_shell,
-  reflect_list_shell_sessions,
+  zhuye_run_shell,
+  zhuye_kill_shell,
+  zhuye_list_shell_sessions,
   onTerminalOutput,
   // files
-  reflect_list_dir,
-  reflect_read_file,
+  zhuye_list_dir,
+  zhuye_read_file,
   // allowlist
-  reflect_load_allowlist,
-  reflect_save_allowlist,
-  reflect_check_allowlist,
+  zhuye_load_allowlist,
+  zhuye_save_allowlist,
+  zhuye_check_allowlist,
   // updates
-  reflect_check_update,
-  reflect_download_install_update,
-  reflect_relaunch_app,
-  reflect_remote_bind,
-  reflect_remote_disconnect,
-  reflect_remote_hosts,
-  reflect_remote_sessions,
-  reflect_remote_bootstrap,
-  reflect_browser_start,
-  reflect_browser_status,
-  reflect_browser_stop,
-  reflect_browser_env,
+  zhuye_check_update,
+  zhuye_download_install_update,
+  zhuye_relaunch_app,
+  zhuye_remote_bind,
+  zhuye_remote_disconnect,
+  zhuye_remote_hosts,
+  zhuye_remote_sessions,
+  zhuye_remote_bootstrap,
+  zhuye_browser_start,
+  zhuye_browser_status,
+  zhuye_browser_stop,
+  zhuye_browser_env,
   // search
-  reflect_search_files,
+  zhuye_search_files,
   // tasks (Phase 1 multi-agent)
-  reflect_list_tasks,
-  reflect_create_task,
-  reflect_get_task,
-  reflect_update_task,
-  reflect_claim_task,
-  reflect_delete_task,
+  zhuye_list_tasks,
+  zhuye_create_task,
+  zhuye_get_task,
+  zhuye_update_task,
+  zhuye_claim_task,
+  zhuye_delete_task,
   // teams (Phase 1 multi-agent)
-  reflect_list_teams,
-  reflect_upsert_team,
-  reflect_get_team,
-  reflect_delete_team,
+  zhuye_list_teams,
+  zhuye_upsert_team,
+  zhuye_get_team,
+  zhuye_delete_team,
   // schedule (Phase 1 条目 2)
-  reflect_list_schedules,
-  reflect_add_schedule,
-  reflect_update_schedule,
-  reflect_remove_schedule,
-  reflect_get_schedule_status,
+  zhuye_list_schedules,
+  zhuye_add_schedule,
+  zhuye_update_schedule,
+  zhuye_remove_schedule,
+  zhuye_get_schedule_status,
   // agents (Phase 1 条目 3)
-  reflect_list_agent_defs,
-  reflect_get_agent_def,
-  reflect_save_agent_def,
-  reflect_delete_agent_def,
-  reflect_parse_agent_md,
+  zhuye_list_agent_defs,
+  zhuye_get_agent_def,
+  zhuye_save_agent_def,
+  zhuye_delete_agent_def,
+  zhuye_parse_agent_md,
   // side-channel (Phase 2 条目 1)
-  reflect_start_side_channel,
-  reflect_cancel_side_channel,
-  reflect_list_side_channels,
-  reflect_get_side_channel,
+  zhuye_start_side_channel,
+  zhuye_cancel_side_channel,
+  zhuye_list_side_channels,
+  zhuye_get_side_channel,
   // remote (Phase 2 条目 2)
-  reflect_get_remote_config,
-  reflect_update_remote_config,
-  reflect_get_remote_status,
-  reflect_tailscale_status,
-  reflect_tailscale_daemon_command_preview,
-  reflect_tailscale_daemon_start,
-  reflect_tailscale_daemon_stop,
-  reflect_tailscale_daemon_status,
+  zhuye_get_remote_config,
+  zhuye_update_remote_config,
+  zhuye_get_remote_status,
+  zhuye_tailscale_status,
+  zhuye_tailscale_daemon_command_preview,
+  zhuye_tailscale_daemon_start,
+  zhuye_tailscale_daemon_stop,
+  zhuye_tailscale_daemon_status,
 } from '@/utils/commands';
 
 /**
@@ -146,32 +146,32 @@ async function captureCmd<T>(cmd: string, fn: () => Promise<T>): Promise<unknown
 }
 
 describe('commands (forwarding to mock invoke)', () => {
-  it('reflect_interrupt calls invoke("reflect_interrupt")', async () => {
-    // setup.tsx 已 mock reflect_set_permission_mode 等; reflect_interrupt 未注册 → mock 抛错
-    await expect(reflect_interrupt()).rejects.toThrow(/not mocked/);
+  it('zhuye_interrupt calls invoke("zhuye_interrupt")', async () => {
+    // setup.tsx 已 mock zhuye_set_permission_mode 等; zhuye_interrupt 未注册 → mock 抛错
+    await expect(zhuye_interrupt()).rejects.toThrow(/not mocked/);
   });
 
-  it('reflect_compact also un-registered by default', async () => {
-    await expect(reflect_compact()).rejects.toThrow(/not mocked/);
+  it('zhuye_compact also un-registered by default', async () => {
+    await expect(zhuye_compact()).rejects.toThrow(/not mocked/);
   });
 
-  it('reflect_rewind forwards toTurnId argument', async () => {
-    await expect(reflect_rewind('turn-123')).rejects.toThrow(/not mocked/);
-    await expect(reflect_rewind()).rejects.toThrow(/not mocked/);
+  it('zhuye_rewind forwards toTurnId argument', async () => {
+    await expect(zhuye_rewind('turn-123')).rejects.toThrow(/not mocked/);
+    await expect(zhuye_rewind()).rejects.toThrow(/not mocked/);
   });
 
-  it('reflect_tool_approval accepts ReviewDecision', async () => {
-    await expect(reflect_tool_approval('id-1', 'approve')).rejects.toThrow(/not mocked/);
+  it('zhuye_tool_approval accepts ReviewDecision', async () => {
+    await expect(zhuye_tool_approval('id-1', 'approve')).rejects.toThrow(/not mocked/);
     await expect(
-      reflect_tool_approval('id-2', { deny: { reason: 'risky' } }),
+      zhuye_tool_approval('id-2', { deny: { reason: 'risky' } }),
     ).rejects.toThrow(/not mocked/);
     await expect(
-      reflect_tool_approval('id-3', 'approve_for_session'),
+      zhuye_tool_approval('id-3', 'approve_for_session'),
     ).rejects.toThrow(/not mocked/);
   });
 
-  it('reflect_set_permission_mode is mocked by setup and returns undefined', async () => {
-    expect(await reflect_set_permission_mode('default')).toBeUndefined();
+  it('zhuye_set_permission_mode is mocked by setup and returns undefined', async () => {
+    expect(await zhuye_set_permission_mode('default')).toBeUndefined();
   });
 });
 
@@ -194,38 +194,38 @@ describe('commands forwarding (mapping)', () => {
 
   // ----- agent 生命周期 -----
 
-  it('reflect_submit forwards { submission }', async () => {
-    const args = await captureCmd('reflect_submit', () =>
-      reflect_submit({ id: 'sub-1', op: { type: 'interrupt' } } as never),
+  it('zhuye_submit forwards { submission }', async () => {
+    const args = await captureCmd('zhuye_submit', () =>
+      zhuye_submit({ id: 'sub-1', op: { type: 'interrupt' } } as never),
     );
     expectArgs(args, { submission: { id: 'sub-1', op: { type: 'interrupt' } } });
   });
 
-  it('reflect_interrupt / compact / shutdown use bare cmd names', async () => {
+  it('zhuye_interrupt / compact / shutdown use bare cmd names', async () => {
     const seenArgs: Array<{ cmd: string; args: unknown }> = [];
     for (const [cmd, fn] of [
-      ['reflect_interrupt', reflect_interrupt],
-      ['reflect_compact', reflect_compact],
-      ['reflect_shutdown', reflect_shutdown],
+      ['zhuye_interrupt', zhuye_interrupt],
+      ['zhuye_compact', zhuye_compact],
+      ['zhuye_shutdown', zhuye_shutdown],
     ] as const) {
       mockInvoke(cmd, async (c, args) => {
         seenArgs.push({ cmd: c, args });
-        return c === 'reflect_interrupt' ? undefined : `sub-${c}`;
+        return c === 'zhuye_interrupt' ? undefined : `sub-${c}`;
       });
       await fn();
     }
     expect(seenArgs).toEqual([
-      { cmd: 'reflect_interrupt', args: undefined },
-      { cmd: 'reflect_compact', args: undefined },
-      { cmd: 'reflect_shutdown', args: undefined },
+      { cmd: 'zhuye_interrupt', args: undefined },
+      { cmd: 'zhuye_compact', args: undefined },
+      { cmd: 'zhuye_shutdown', args: undefined },
     ]);
   });
 
-  it('reflect_rewind encodes `toTurnId` (camelCase) and normalises undefined → null', async () => {
-    const withId = await captureCmd('reflect_rewind', () => reflect_rewind('turn-xyz'));
+  it('zhuye_rewind encodes `toTurnId` (camelCase) and normalises undefined → null', async () => {
+    const withId = await captureCmd('zhuye_rewind', () => zhuye_rewind('turn-xyz'));
     expectArgs(withId, { toTurnId: 'turn-xyz' });
 
-    const noId = await captureCmd('reflect_rewind', () => reflect_rewind());
+    const noId = await captureCmd('zhuye_rewind', () => zhuye_rewind());
     expectArgs(noId, { toTurnId: null });
   });
 
@@ -233,8 +233,8 @@ describe('commands forwarding (mapping)', () => {
 
   it('tool/hook approval forwards { id, decision } identically', async () => {
     const cases = [
-      ['reflect_tool_approval', reflect_tool_approval],
-      ['reflect_hook_approval', reflect_hook_approval],
+      ['zhuye_tool_approval', zhuye_tool_approval],
+      ['zhuye_hook_approval', zhuye_hook_approval],
     ] as const;
     for (const [cmd, fn] of cases) {
       const captured = await captureCmd(cmd, () => fn('approval-42', 'approve'));
@@ -243,119 +243,119 @@ describe('commands forwarding (mapping)', () => {
   });
 
   it('plan approval forwards { id, choice } (PlanApprovalChoice 三选一)', async () => {
-    const captured = await captureCmd('reflect_plan_approval', () =>
-      reflect_plan_approval('plan-42', 'auto_mode'),
+    const captured = await captureCmd('zhuye_plan_approval', () =>
+      zhuye_plan_approval('plan-42', 'auto_mode'),
     );
     expectArgs(captured, { id: 'plan-42', choice: 'auto_mode' });
   });
 
   // ----- 计划 -----
 
-  it('reflect_enter_plan_mode forwards { task }; exit_plan_mode has none', async () => {
-    const enter = await captureCmd('reflect_enter_plan_mode', () =>
-      reflect_enter_plan_mode('plan this'),
+  it('zhuye_enter_plan_mode forwards { task }; exit_plan_mode has none', async () => {
+    const enter = await captureCmd('zhuye_enter_plan_mode', () =>
+      zhuye_enter_plan_mode('plan this'),
     );
     expectArgs(enter, { task: 'plan this' });
 
-    const exit = await captureCmd('reflect_exit_plan_mode', () => reflect_exit_plan_mode());
+    const exit = await captureCmd('zhuye_exit_plan_mode', () => zhuye_exit_plan_mode());
     expectArgs(exit, undefined);
   });
 
   // ----- 权限 -----
 
-  it('reflect_set_effort forwards { level }; set_permission_mode { mode }; cycle has none', async () => {
-    const effort = await captureCmd('reflect_set_effort', () => reflect_set_effort('high'));
+  it('zhuye_set_effort forwards { level }; set_permission_mode { mode }; cycle has none', async () => {
+    const effort = await captureCmd('zhuye_set_effort', () => zhuye_set_effort('high'));
     expectArgs(effort, { level: 'high' });
 
-    const perm = await captureCmd('reflect_set_permission_mode', () =>
-      reflect_set_permission_mode('auto'),
+    const perm = await captureCmd('zhuye_set_permission_mode', () =>
+      zhuye_set_permission_mode('auto'),
     );
     expectArgs(perm, { mode: 'auto' });
 
-    const cycle = await captureCmd('reflect_cycle_permission_mode', () =>
-      reflect_cycle_permission_mode(),
+    const cycle = await captureCmd('zhuye_cycle_permission_mode', () =>
+      zhuye_cycle_permission_mode(),
     );
     expectArgs(cycle, undefined);
   });
 
   // ----- 提问 -----
 
-  it('reflect_ask_user_question_response forwards { id, answers }', async () => {
-    const args = await captureCmd('reflect_ask_user_question_response', () =>
-      reflect_ask_user_question_response('q-1', { answers: [{ selected: [1] }] }),
+  it('zhuye_ask_user_question_response forwards { id, answers }', async () => {
+    const args = await captureCmd('zhuye_ask_user_question_response', () =>
+      zhuye_ask_user_question_response('q-1', { answers: [{ selected: [1] }] }),
     );
     expectArgs(args, { id: 'q-1', answers: { answers: [{ selected: [1] }] } });
   });
 
-  it('reflect_ask_user_input_response forwards { id, text }', async () => {
-    const args = await captureCmd('reflect_ask_user_input_response', () =>
-      reflect_ask_user_input_response('q-2', 'typed answer'),
+  it('zhuye_ask_user_input_response forwards { id, text }', async () => {
+    const args = await captureCmd('zhuye_ask_user_input_response', () =>
+      zhuye_ask_user_input_response('q-2', 'typed answer'),
     );
     expectArgs(args, { id: 'q-2', text: 'typed answer' });
   });
 
   // ----- 配置 / agent 状态 -----
 
-  it('reflect_agent_status / get_config / list_tools use bare cmd names', async () => {
+  it('zhuye_agent_status / get_config / list_tools use bare cmd names', async () => {
     const seenArgs: Array<{ cmd: string; args: unknown }> = [];
-    for (const cmd of ['reflect_agent_status', 'reflect_get_config', 'reflect_list_tools']) {
+    for (const cmd of ['zhuye_agent_status', 'zhuye_get_config', 'zhuye_list_tools']) {
       mockInvoke(cmd, async (c, args) => {
         seenArgs.push({ cmd: c, args });
-        return c === 'reflect_list_tools' ? [] : '';
+        return c === 'zhuye_list_tools' ? [] : '';
       });
     }
-    await reflect_agent_status();
-    await reflect_get_config();
-    await reflect_list_tools();
+    await zhuye_agent_status();
+    await zhuye_get_config();
+    await zhuye_list_tools();
     expect(seenArgs).toEqual([
-      { cmd: 'reflect_agent_status', args: undefined },
-      { cmd: 'reflect_get_config', args: undefined },
-      { cmd: 'reflect_list_tools', args: undefined },
+      { cmd: 'zhuye_agent_status', args: undefined },
+      { cmd: 'zhuye_get_config', args: undefined },
+      { cmd: 'zhuye_list_tools', args: undefined },
     ]);
   });
 
-  it('reflect_save_config forwards { toml }', async () => {
-    const args = await captureCmd('reflect_save_config', () =>
-      reflect_save_config('foo = 1\n'),
+  it('zhuye_save_config forwards { toml }', async () => {
+    const args = await captureCmd('zhuye_save_config', () =>
+      zhuye_save_config('foo = 1\n'),
     );
     expectArgs(args, { toml: 'foo = 1\n' });
   });
 
   // ----- 会话 -----
 
-  it('reflect_list_sessions normalises missing opts to { workspace: null, limit: null, offset: null }', async () => {
-    const none = await captureCmd('reflect_list_sessions', () => reflect_list_sessions());
+  it('zhuye_list_sessions normalises missing opts to { workspace: null, limit: null, offset: null }', async () => {
+    const none = await captureCmd('zhuye_list_sessions', () => zhuye_list_sessions());
     expectArgs(none, { workspace: null, limit: null, offset: null });
 
-    const some = await captureCmd('reflect_list_sessions', () =>
-      reflect_list_sessions({ workspace: '/tmp/proj', limit: 10, offset: 20 }),
+    const some = await captureCmd('zhuye_list_sessions', () =>
+      zhuye_list_sessions({ workspace: '/tmp/proj', limit: 10, offset: 20 }),
     );
     expectArgs(some, { workspace: '/tmp/proj', limit: 10, offset: 20 });
   });
 
-  it('reflect_create_session forwards no args and resolves to a session id', async () => {
-    mockInvoke('reflect_create_session', async () => 'sess-new-1');
-    const id = await reflect_create_session();
+  it('zhuye_create_session forwards no args and resolves to a session id', async () => {
+    mockInvoke('zhuye_create_session', async () => 'sess-new-1');
+    const id = await zhuye_create_session();
     expect(id).toBe('sess-new-1');
   });
 
-  it('reflect_rename_session encodes newName (camelCase); delete forwards { id } only', async () => {
-    const rename = await captureCmd('reflect_rename_session', () =>
-      reflect_rename_session('sess-1', 'My session'),
+  it('zhuye_rename_session encodes newName (camelCase); delete forwards { id } only', async () => {
+    const rename = await captureCmd('zhuye_rename_session', () =>
+      zhuye_rename_session('sess-1', 'My session'),
     );
     expectArgs(rename, { id: 'sess-1', newName: 'My session' });
 
-    const del = await captureCmd('reflect_delete_session', () =>
-      reflect_delete_session('sess-2'),
+    const del = await captureCmd('zhuye_delete_session', () =>
+      zhuye_delete_session('sess-2'),
     );
     expectArgs(del, { id: 'sess-2' });
   });
 
-  it('reflect_replay_session / export_session / export_session_markdown forward { id }', async () => {
+  it('zhuye_replay_session / export_session / export_session_markdown forward { id }', async () => {
     const cases: Array<[string, (id: string) => Promise<unknown>]> = [
-      ['reflect_replay_session', reflect_replay_session],
-      ['reflect_export_session', reflect_export_session],
-      ['reflect_export_session_markdown', reflect_export_session_markdown],
+      ['zhuye_replay_session', zhuye_replay_session],
+      ['zhuye_export_session', zhuye_export_session],
+      ['zhuye_export_session_markdown', zhuye_export_session_markdown],
     ];
     for (const [cmd, fn] of cases) {
       const args = await captureCmd(cmd, () => fn('sess-9'));
@@ -365,124 +365,124 @@ describe('commands forwarding (mapping)', () => {
 
   // ----- 事件 -----
 
-  it('onReflectEvent listens on "reflect_event" and unwraps .payload', async () => {
-    const unlisten = await onReflectEvent(() => {});
+  it('onZhuyeEvent listens on "zhuye_event" and unwraps .payload', async () => {
+    const unlisten = await onZhuyeEvent(() => {});
     expect(typeof unlisten).toBe('function');
     unlisten();
   });
 
   // ----- 工作区 -----
 
-  it('reflect_set_workspace forwards { path }; other workspace cmds have no args', async () => {
-    const set = await captureCmd('reflect_set_workspace', () =>
-      reflect_set_workspace('/tmp/proj'),
+  it('zhuye_set_workspace forwards { path }; other workspace cmds have no args', async () => {
+    const set = await captureCmd('zhuye_set_workspace', () =>
+      zhuye_set_workspace('/tmp/proj'),
     );
     // v1.x:可选 unhide —— 缺省显式传 null(serde Option ↔ null),
     // unhide: true 用于管理页「恢复」已移除的工作区。
     expectArgs(set, { path: '/tmp/proj', unhide: null });
-    const unhide = await captureCmd('reflect_set_workspace', () =>
-      reflect_set_workspace('/tmp/proj', true),
+    const unhide = await captureCmd('zhuye_set_workspace', () =>
+      zhuye_set_workspace('/tmp/proj', true),
     );
     expectArgs(unhide, { path: '/tmp/proj', unhide: true });
 
     const seenArgs: Array<{ cmd: string; args: unknown }> = [];
-    for (const cmd of ['reflect_list_workspaces', 'reflect_current_workspace']) {
+    for (const cmd of ['zhuye_list_workspaces', 'zhuye_current_workspace']) {
       mockInvoke(cmd, async (c, args) => {
         seenArgs.push({ cmd: c, args });
-        return c === 'reflect_list_workspaces' ? [] : '/tmp/proj';
+        return c === 'zhuye_list_workspaces' ? [] : '/tmp/proj';
       });
     }
-    await reflect_list_workspaces();
-    await reflect_current_workspace();
+    await zhuye_list_workspaces();
+    await zhuye_current_workspace();
     expect(seenArgs).toEqual([
-      { cmd: 'reflect_list_workspaces', args: undefined },
-      { cmd: 'reflect_current_workspace', args: undefined },
+      { cmd: 'zhuye_list_workspaces', args: undefined },
+      { cmd: 'zhuye_current_workspace', args: undefined },
     ]);
   });
 
   // ----- 技能 -----
 
-  it('reflect_list_skills has no args', async () => {
-    const args = await captureCmd('reflect_list_skills', () => reflect_list_skills());
+  it('zhuye_list_skills has no args', async () => {
+    const args = await captureCmd('zhuye_list_skills', () => zhuye_list_skills());
     expectArgs(args, undefined);
   });
 
   // ----- 记忆 -----
 
   it('memory wrappers forward { scope, key, value? }', async () => {
-    const list = await captureCmd('reflect_list_memory', () => reflect_list_memory());
+    const list = await captureCmd('zhuye_list_memory', () => zhuye_list_memory());
     expectArgs(list, undefined);
 
-    const add = await captureCmd('reflect_add_memory', () =>
-      reflect_add_memory('user', 'name', 'Alice'),
+    const add = await captureCmd('zhuye_add_memory', () =>
+      zhuye_add_memory('user', 'name', 'Alice'),
     );
     expectArgs(add, { scope: 'user', key: 'name', value: 'Alice' });
-    const create = await captureCmd('reflect_add_memory', () =>
-      reflect_add_memory('user', 'name', 'Alice', { createOnly: true }),
+    const create = await captureCmd('zhuye_add_memory', () =>
+      zhuye_add_memory('user', 'name', 'Alice', { createOnly: true }),
     );
     expectArgs(create, { scope: 'user', key: 'name', value: 'Alice', createOnly: true });
-    const replace = await captureCmd('reflect_add_memory', () =>
-      reflect_add_memory('user', '(all)', 'document', { replaceDocument: true }),
+    const replace = await captureCmd('zhuye_add_memory', () =>
+      zhuye_add_memory('user', '(all)', 'document', { replaceDocument: true }),
     );
     expectArgs(replace, { scope: 'user', key: '(all)', value: 'document', replaceDocument: true });
 
-    const rm = await captureCmd('reflect_remove_memory', () =>
-      reflect_remove_memory('user', 'name'),
+    const rm = await captureCmd('zhuye_remove_memory', () =>
+      zhuye_remove_memory('user', 'name'),
     );
     expectArgs(rm, { scope: 'user', key: 'name' });
-    const rmDoc = await captureCmd('reflect_remove_memory', () => reflect_remove_memory('user', '(all)', true));
+    const rmDoc = await captureCmd('zhuye_remove_memory', () => zhuye_remove_memory('user', '(all)', true));
     expectArgs(rmDoc, { scope: 'user', key: '(all)', replaceDocument: true });
 
     const context = { workspace: '/workspace', agent: 'default' };
-    const sections = await captureCmd('reflect_memory_sections', () => reflect_memory_sections(context));
+    const sections = await captureCmd('zhuye_memory_sections', () => zhuye_memory_sections(context));
     expectArgs(sections, { expectedContext: context });
-    const oldSections = await captureCmd('reflect_memory_sections', () => reflect_memory_sections());
+    const oldSections = await captureCmd('zhuye_memory_sections', () => zhuye_memory_sections());
     expectArgs(oldSections, undefined);
   });
 
   // ----- 钩子 -----
 
-  it('reflect_toggle_hook forwards { name, enabled }; list_hooks has no args', async () => {
-    const toggle = await captureCmd('reflect_toggle_hook', () =>
-      reflect_toggle_hook('pre-commit', true),
+  it('zhuye_toggle_hook forwards { name, enabled }; list_hooks has no args', async () => {
+    const toggle = await captureCmd('zhuye_toggle_hook', () =>
+      zhuye_toggle_hook('pre-commit', true),
     );
     expectArgs(toggle, { name: 'pre-commit', enabled: true });
 
-    const list = await captureCmd('reflect_list_hooks', () => reflect_list_hooks());
+    const list = await captureCmd('zhuye_list_hooks', () => zhuye_list_hooks());
     expectArgs(list, undefined);
   });
 
   // ----- git -----
 
-  it('reflect_git_status has no args; diff forwards { staged }; log forwards { limit }', async () => {
-    const status = await captureCmd('reflect_git_status', () => reflect_git_status());
+  it('zhuye_git_status has no args; diff forwards { staged }; log forwards { limit }', async () => {
+    const status = await captureCmd('zhuye_git_status', () => zhuye_git_status());
     expectArgs(status, undefined);
 
-    const diff = await captureCmd('reflect_git_diff', () => reflect_git_diff(true));
+    const diff = await captureCmd('zhuye_git_diff', () => zhuye_git_diff(true));
     expectArgs(diff, { staged: true });
 
-    const log = await captureCmd('reflect_git_log', () => reflect_git_log(50));
+    const log = await captureCmd('zhuye_git_log', () => zhuye_git_log(50));
     expectArgs(log, { limit: 50 });
   });
 
   // ----- 终端 -----
 
   it('terminal spawn forwards { cmd }; kill forwards camelCase { sessionId }; list has no args', async () => {
-    const run = await captureCmd('reflect_run_shell', () => reflect_run_shell('ls -la'));
+    const run = await captureCmd('zhuye_run_shell', () => zhuye_run_shell('ls -la'));
     // v1.11 基建#7:sshHost 可选参数未传时线上为 null(显式可选)。
     expectArgs(run, { cmd: 'ls -la', sshHost: null });
 
-    const kill = await captureCmd('reflect_kill_shell', () => reflect_kill_shell('sh-1'));
+    const kill = await captureCmd('zhuye_kill_shell', () => zhuye_kill_shell('sh-1'));
     // Tauri 2 平铺参数按 camelCase 匹配（Rust `session_id` → JS `sessionId`）。
     expectArgs(kill, { sessionId: 'sh-1' });
 
-    const list = await captureCmd('reflect_list_shell_sessions', () =>
-      reflect_list_shell_sessions(),
+    const list = await captureCmd('zhuye_list_shell_sessions', () =>
+      zhuye_list_shell_sessions(),
     );
     expectArgs(list, undefined);
   });
 
-  it('onTerminalOutput listens on "reflect_terminal_output" and unwraps .payload', async () => {
+  it('onTerminalOutput listens on "zhuye_terminal_output" and unwraps .payload', async () => {
     const unlisten = await onTerminalOutput(() => {});
     expect(typeof unlisten).toBe('function');
     unlisten();
@@ -490,112 +490,112 @@ describe('commands forwarding (mapping)', () => {
 
   // ----- 文件 -----
 
-  it('reflect_list_dir forwards { path, maxDepth }; read_file forwards { path }', async () => {
-    const dir = await captureCmd('reflect_list_dir', () => reflect_list_dir(null));
+  it('zhuye_list_dir forwards { path, maxDepth }; read_file forwards { path }', async () => {
+    const dir = await captureCmd('zhuye_list_dir', () => zhuye_list_dir(null));
     expectArgs(dir, { path: null, maxDepth: 4 });
 
-    const dirScoped = await captureCmd('reflect_list_dir', () =>
-      reflect_list_dir('/some/dir', 2),
+    const dirScoped = await captureCmd('zhuye_list_dir', () =>
+      zhuye_list_dir('/some/dir', 2),
     );
     expectArgs(dirScoped, { path: '/some/dir', maxDepth: 2 });
 
-    const read = await captureCmd('reflect_read_file', () => reflect_read_file('/a.ts'));
+    const read = await captureCmd('zhuye_read_file', () => zhuye_read_file('/a.ts'));
     expectArgs(read, { path: '/a.ts' });
   });
 
   // ----- 白名单 -----
 
-  it('reflect_load_allowlist has no args; save_allowlist forwards { list }; check_allowlist forwards { prefix }', async () => {
-    const load = await captureCmd('reflect_load_allowlist', () => reflect_load_allowlist());
+  it('zhuye_load_allowlist has no args; save_allowlist forwards { list }; check_allowlist forwards { prefix }', async () => {
+    const load = await captureCmd('zhuye_load_allowlist', () => zhuye_load_allowlist());
     expectArgs(load, undefined);
 
     const list = { prefixes: ['rm -rf', 'sudo '] };
-    const save = await captureCmd('reflect_save_allowlist', () =>
-      reflect_save_allowlist(list),
+    const save = await captureCmd('zhuye_save_allowlist', () =>
+      zhuye_save_allowlist(list),
     );
     expectArgs(save, { list });
 
-    const check = await captureCmd('reflect_check_allowlist', () =>
-      reflect_check_allowlist('rm '),
+    const check = await captureCmd('zhuye_check_allowlist', () =>
+      zhuye_check_allowlist('rm '),
     );
     expectArgs(check, { prefix: 'rm ' });
   });
 
   // ----- 更新 -----
 
-  it('reflect_check_update has no args', async () => {
-    const args = await captureCmd('reflect_check_update', () => reflect_check_update());
+  it('zhuye_check_update has no args', async () => {
+    const args = await captureCmd('zhuye_check_update', () => zhuye_check_update());
     expectArgs(args, undefined);
   });
 
-  it('reflect_download_install_update has no args', async () => {
-    const args = await captureCmd('reflect_download_install_update', () =>
-      reflect_download_install_update(),
+  it('zhuye_download_install_update has no args', async () => {
+    const args = await captureCmd('zhuye_download_install_update', () =>
+      zhuye_download_install_update(),
     );
     expectArgs(args, undefined);
   });
 
-  it('reflect_relaunch_app has no args', async () => {
-    const args = await captureCmd('reflect_relaunch_app', () => reflect_relaunch_app());
+  it('zhuye_relaunch_app has no args', async () => {
+    const args = await captureCmd('zhuye_relaunch_app', () => zhuye_relaunch_app());
     expectArgs(args, undefined);
   });
 
   // ----- 浏览器面板 -----
 
-  it('reflect_browser_start/stop/status/env have no args', async () => {
-    expectArgs(await captureCmd('reflect_browser_start', () => reflect_browser_start()), undefined);
-    expectArgs(await captureCmd('reflect_browser_stop', () => reflect_browser_stop()), undefined);
-    expectArgs(await captureCmd('reflect_browser_status', () => reflect_browser_status()), undefined);
-    expectArgs(await captureCmd('reflect_browser_env', () => reflect_browser_env()), undefined);
+  it('zhuye_browser_start/stop/status/env have no args', async () => {
+    expectArgs(await captureCmd('zhuye_browser_start', () => zhuye_browser_start()), undefined);
+    expectArgs(await captureCmd('zhuye_browser_stop', () => zhuye_browser_stop()), undefined);
+    expectArgs(await captureCmd('zhuye_browser_status', () => zhuye_browser_status()), undefined);
+    expectArgs(await captureCmd('zhuye_browser_env', () => zhuye_browser_env()), undefined);
   });
 
   // ----- SSH 远程开发 -----
 
-  it('reflect_remote hosts/sessions have no args', async () => {
-    expectArgs(await captureCmd('reflect_remote_hosts', () => reflect_remote_hosts()), undefined);
-    expectArgs(await captureCmd('reflect_remote_sessions', () => reflect_remote_sessions()), undefined);
+  it('zhuye_remote hosts/sessions have no args', async () => {
+    expectArgs(await captureCmd('zhuye_remote_hosts', () => zhuye_remote_hosts()), undefined);
+    expectArgs(await captureCmd('zhuye_remote_sessions', () => zhuye_remote_sessions()), undefined);
   });
 
-  it('reflect_remote bind/disconnect forwards { sid }', async () => {
-    const bind = await captureCmd('reflect_remote_bind', () => reflect_remote_bind('sid-1'));
+  it('zhuye_remote bind/disconnect forwards { sid }', async () => {
+    const bind = await captureCmd('zhuye_remote_bind', () => zhuye_remote_bind('sid-1'));
     expectArgs(bind, { sid: 'sid-1' });
-    const disconnect = await captureCmd('reflect_remote_disconnect', () => reflect_remote_disconnect('sid-1'));
+    const disconnect = await captureCmd('zhuye_remote_disconnect', () => zhuye_remote_disconnect('sid-1'));
     expectArgs(disconnect, { sid: 'sid-1' });
   });
 
-  it('reflect_remote_bootstrap forwards { host }', async () => {
-    const args = await captureCmd('reflect_remote_bootstrap', () => reflect_remote_bootstrap('box'));
+  it('zhuye_remote_bootstrap forwards { host }', async () => {
+    const args = await captureCmd('zhuye_remote_bootstrap', () => zhuye_remote_bootstrap('box'));
     expectArgs(args, { host: 'box' });
   });
 
   // ----- 搜索 -----
 
-  it('reflect_search_files forwards { query, path, maxResults, rank } with defaults', async () => {
-    const none = await captureCmd('reflect_search_files', () => reflect_search_files('foo'));
+  it('zhuye_search_files forwards { query, path, maxResults, rank } with defaults', async () => {
+    const none = await captureCmd('zhuye_search_files', () => zhuye_search_files('foo'));
     expectArgs(none, { query: 'foo', path: null, maxResults: 200, rank: 'substring' });
 
-    const some = await captureCmd('reflect_search_files', () =>
-      reflect_search_files('foo', '/tmp', 50),
+    const some = await captureCmd('zhuye_search_files', () =>
+      zhuye_search_files('foo', '/tmp', 50),
     );
     expectArgs(some, { query: 'foo', path: '/tmp', maxResults: 50, rank: 'substring' });
 
     // BM25 相关性排序(与 agent 的 grep 同款)。
-    const ranked = await captureCmd('reflect_search_files', () =>
-      reflect_search_files('foo', null, 20, 'bm25'),
+    const ranked = await captureCmd('zhuye_search_files', () =>
+      zhuye_search_files('foo', null, 20, 'bm25'),
     );
     expectArgs(ranked, { query: 'foo', path: null, maxResults: 20, rank: 'bm25' });
   });
 
   // ----- 任务（Phase 1 多 agent）-----
 
-  it('reflect_list_tasks forwards { list }', async () => {
-    const args = await captureCmd('reflect_list_tasks', () => reflect_list_tasks('sess-1'));
+  it('zhuye_list_tasks forwards { list }', async () => {
+    const args = await captureCmd('zhuye_list_tasks', () => zhuye_list_tasks('sess-1'));
     expectArgs(args, { list: 'sess-1' });
   });
 
-  it('reflect_create_task forwards { list, subject, description, activeForm, owner, metadata } with null defaults', async () => {
-    const minimal = await captureCmd('reflect_create_task', () =>
-      reflect_create_task({ list: 'L', subject: 's', description: 'd' }),
+  it('zhuye_create_task forwards { list, subject, description, activeForm, owner, metadata } with null defaults', async () => {
+    const minimal = await captureCmd('zhuye_create_task', () =>
+      zhuye_create_task({ list: 'L', subject: 's', description: 'd' }),
     );
     expectArgs(minimal, {
       list: 'L',
@@ -607,8 +607,8 @@ describe('commands forwarding (mapping)', () => {
       metadata: null,
     });
 
-    const full = await captureCmd('reflect_create_task', () =>
-      reflect_create_task({
+    const full = await captureCmd('zhuye_create_task', () =>
+      zhuye_create_task({
         list: 'L',
         subject: 's',
         description: 'd',
@@ -627,37 +627,37 @@ describe('commands forwarding (mapping)', () => {
     });
   });
 
-  it('reflect_get_task / delete_task forward { list, id }', async () => {
-    const get = await captureCmd('reflect_get_task', () => reflect_get_task('L', 7));
+  it('zhuye_get_task / delete_task forward { list, id }', async () => {
+    const get = await captureCmd('zhuye_get_task', () => zhuye_get_task('L', 7));
     expectArgs(get, { list: 'L', id: 7 });
 
-    const del = await captureCmd('reflect_delete_task', () => reflect_delete_task('L', 7));
+    const del = await captureCmd('zhuye_delete_task', () => zhuye_delete_task('L', 7));
     expectArgs(del, { list: 'L', id: 7 });
   });
 
-  it('reflect_update_task forwards { list, id, patch } verbatim', async () => {
+  it('zhuye_update_task forwards { list, id, patch } verbatim', async () => {
     const patch = { status: 'in_progress' as const, add_blocks: [3] };
-    const args = await captureCmd('reflect_update_task', () =>
-      reflect_update_task('L', 1, patch),
+    const args = await captureCmd('zhuye_update_task', () =>
+      zhuye_update_task('L', 1, patch),
     );
     expectArgs(args, { list: 'L', id: 1, patch });
   });
 
-  it('reflect_claim_task forwards { list, claimer }', async () => {
-    const args = await captureCmd('reflect_claim_task', () =>
-      reflect_claim_task('L', 'worker@x'),
+  it('zhuye_claim_task forwards { list, claimer }', async () => {
+    const args = await captureCmd('zhuye_claim_task', () =>
+      zhuye_claim_task('L', 'worker@x'),
     );
     expectArgs(args, { list: 'L', claimer: 'worker@x' });
   });
 
   // ----- 团队（Phase 1 多 agent）-----
 
-  it('reflect_list_teams has no args', async () => {
-    const args = await captureCmd('reflect_list_teams', () => reflect_list_teams());
+  it('zhuye_list_teams has no args', async () => {
+    const args = await captureCmd('zhuye_list_teams', () => zhuye_list_teams());
     expectArgs(args, undefined);
   });
 
-  it('reflect_upsert_team forwards { team }', async () => {
+  it('zhuye_upsert_team forwards { team }', async () => {
     const team = {
       name: 'rocket',
       lead_agent_id: 'team-lead@rocket',
@@ -665,45 +665,45 @@ describe('commands forwarding (mapping)', () => {
       // 核心 `SystemTime` 的 JSON 形态(不是数字)。
       created_at: { secs_since_epoch: 0, nanos_since_epoch: 0 },
     };
-    const args = await captureCmd('reflect_upsert_team', () => reflect_upsert_team(team));
+    const args = await captureCmd('zhuye_upsert_team', () => zhuye_upsert_team(team));
     expectArgs(args, { team });
   });
 
-  it('reflect_get_team / delete_team forward { name }', async () => {
-    const get = await captureCmd('reflect_get_team', () => reflect_get_team('rocket'));
+  it('zhuye_get_team / delete_team forward { name }', async () => {
+    const get = await captureCmd('zhuye_get_team', () => zhuye_get_team('rocket'));
     expectArgs(get, { name: 'rocket' });
 
-    const del = await captureCmd('reflect_delete_team', () => reflect_delete_team('rocket'));
+    const del = await captureCmd('zhuye_delete_team', () => zhuye_delete_team('rocket'));
     expectArgs(del, { name: 'rocket' });
   });
 
   // ----- schedule (Phase 1 条目 2) -----
 
-  it('reflect_list_schedules / get_schedule_status have no args', async () => {
-    const list = await captureCmd('reflect_list_schedules', () => reflect_list_schedules());
+  it('zhuye_list_schedules / get_schedule_status have no args', async () => {
+    const list = await captureCmd('zhuye_list_schedules', () => zhuye_list_schedules());
     expectArgs(list, undefined);
 
-    const status = await captureCmd('reflect_get_schedule_status', () =>
-      reflect_get_schedule_status(),
+    const status = await captureCmd('zhuye_get_schedule_status', () =>
+      zhuye_get_schedule_status(),
     );
     expectArgs(status, undefined);
   });
 
-  it('reflect_add_schedule forwards { schedule, prompt, name } with null default', async () => {
-    const minimal = await captureCmd('reflect_add_schedule', () =>
-      reflect_add_schedule({ schedule: '0 * * * *', prompt: 'standup' }),
+  it('zhuye_add_schedule forwards { schedule, prompt, name } with null default', async () => {
+    const minimal = await captureCmd('zhuye_add_schedule', () =>
+      zhuye_add_schedule({ schedule: '0 * * * *', prompt: 'standup' }),
     );
     expectArgs(minimal, { schedule: '0 * * * *', prompt: 'standup', name: null });
 
-    const full = await captureCmd('reflect_add_schedule', () =>
-      reflect_add_schedule({ schedule: '0 9 * * 1-5', prompt: 'p', name: 'weekday' }),
+    const full = await captureCmd('zhuye_add_schedule', () =>
+      zhuye_add_schedule({ schedule: '0 9 * * 1-5', prompt: 'p', name: 'weekday' }),
     );
     expectArgs(full, { schedule: '0 9 * * 1-5', prompt: 'p', name: 'weekday' });
   });
 
-  it('reflect_update_schedule forwards { id, schedule, prompt, name, enabled } with null defaults', async () => {
-    const args = await captureCmd('reflect_update_schedule', () =>
-      reflect_update_schedule({ id: 'job-1', enabled: false }),
+  it('zhuye_update_schedule forwards { id, schedule, prompt, name, enabled } with null defaults', async () => {
+    const args = await captureCmd('zhuye_update_schedule', () =>
+      zhuye_update_schedule({ id: 'job-1', enabled: false }),
     );
     expectArgs(args, {
       id: 'job-1',
@@ -714,31 +714,31 @@ describe('commands forwarding (mapping)', () => {
     });
   });
 
-  it('reflect_remove_schedule forwards { id }', async () => {
-    const args = await captureCmd('reflect_remove_schedule', () =>
-      reflect_remove_schedule('job-1'),
+  it('zhuye_remove_schedule forwards { id }', async () => {
+    const args = await captureCmd('zhuye_remove_schedule', () =>
+      zhuye_remove_schedule('job-1'),
     );
     expectArgs(args, { id: 'job-1' });
   });
 
   // ----- agents (Phase 1 条目 3) -----
 
-  it('reflect_list_agent_defs has no args', async () => {
-    const args = await captureCmd('reflect_list_agent_defs', () => reflect_list_agent_defs());
+  it('zhuye_list_agent_defs has no args', async () => {
+    const args = await captureCmd('zhuye_list_agent_defs', () => zhuye_list_agent_defs());
     expectArgs(args, undefined);
   });
 
-  it('reflect_get_agent_def / delete_agent_def forward { name }', async () => {
-    const get = await captureCmd('reflect_get_agent_def', () => reflect_get_agent_def('reviewer'));
+  it('zhuye_get_agent_def / delete_agent_def forward { name }', async () => {
+    const get = await captureCmd('zhuye_get_agent_def', () => zhuye_get_agent_def('reviewer'));
     expectArgs(get, { name: 'reviewer' });
 
-    const del = await captureCmd('reflect_delete_agent_def', () =>
-      reflect_delete_agent_def('reviewer'),
+    const del = await captureCmd('zhuye_delete_agent_def', () =>
+      zhuye_delete_agent_def('reviewer'),
     );
     expectArgs(del, { name: 'reviewer' });
   });
 
-  it('reflect_save_agent_def forwards { def }', async () => {
+  it('zhuye_save_agent_def forwards { def }', async () => {
     const def = {
       name: 'reviewer',
       description: 'd',
@@ -753,67 +753,67 @@ describe('commands forwarding (mapping)', () => {
       system_prompt: 'body',
       source: 'custom' as const,
     };
-    const args = await captureCmd('reflect_save_agent_def', () => reflect_save_agent_def(def));
+    const args = await captureCmd('zhuye_save_agent_def', () => zhuye_save_agent_def(def));
     expectArgs(args, { def });
-    const create = await captureCmd('reflect_save_agent_def', () => reflect_save_agent_def(def, true));
+    const create = await captureCmd('zhuye_save_agent_def', () => zhuye_save_agent_def(def, true));
     expectArgs(create, { def, createOnly: true });
   });
 
-  it('reflect_parse_agent_md forwards { text }', async () => {
-    const args = await captureCmd('reflect_parse_agent_md', () =>
-      reflect_parse_agent_md('---\nname: x\ndescription: y\n---\nbody'),
+  it('zhuye_parse_agent_md forwards { text }', async () => {
+    const args = await captureCmd('zhuye_parse_agent_md', () =>
+      zhuye_parse_agent_md('---\nname: x\ndescription: y\n---\nbody'),
     );
     expectArgs(args, { text: '---\nname: x\ndescription: y\n---\nbody' });
   });
 
   // ----- side-channel (Phase 2 条目 1) -----
 
-  it('reflect_list_side_channels has no args; get forwards { id }', async () => {
-    const list = await captureCmd('reflect_list_side_channels', () =>
-      reflect_list_side_channels(),
+  it('zhuye_list_side_channels has no args; get forwards { id }', async () => {
+    const list = await captureCmd('zhuye_list_side_channels', () =>
+      zhuye_list_side_channels(),
     );
     expectArgs(list, undefined);
 
-    const get = await captureCmd('reflect_get_side_channel', () =>
-      reflect_get_side_channel('side-deadbeef'),
+    const get = await captureCmd('zhuye_get_side_channel', () =>
+      zhuye_get_side_channel('side-deadbeef'),
     );
     expectArgs(get, { id: 'side-deadbeef' });
   });
 
-  it('reflect_start_side_channel forwards camelCase { agentName, prompt }', async () => {
-    const args = await captureCmd('reflect_start_side_channel', () =>
-      reflect_start_side_channel({ agent_name: 'default', prompt: 'hello' }),
+  it('zhuye_start_side_channel forwards camelCase { agentName, prompt }', async () => {
+    const args = await captureCmd('zhuye_start_side_channel', () =>
+      zhuye_start_side_channel({ agent_name: 'default', prompt: 'hello' }),
     );
     expectArgs(args, { agentName: 'default', prompt: 'hello' });
   });
 
-  it('reflect_cancel_side_channel forwards { id }', async () => {
-    const args = await captureCmd('reflect_cancel_side_channel', () =>
-      reflect_cancel_side_channel('side-deadbeef'),
+  it('zhuye_cancel_side_channel forwards { id }', async () => {
+    const args = await captureCmd('zhuye_cancel_side_channel', () =>
+      zhuye_cancel_side_channel('side-deadbeef'),
     );
     expectArgs(args, { id: 'side-deadbeef' });
   });
 
   // ----- remote (Phase 2 条目 2) -----
 
-  it('reflect_get_remote_config / get_remote_status / tailscale_status have no args', async () => {
-    const cfg = await captureCmd('reflect_get_remote_config', () => reflect_get_remote_config());
+  it('zhuye_get_remote_config / get_remote_status / tailscale_status have no args', async () => {
+    const cfg = await captureCmd('zhuye_get_remote_config', () => zhuye_get_remote_config());
     expectArgs(cfg, undefined);
 
-    const status = await captureCmd('reflect_get_remote_status', () =>
-      reflect_get_remote_status(),
+    const status = await captureCmd('zhuye_get_remote_status', () =>
+      zhuye_get_remote_status(),
     );
     expectArgs(status, undefined);
 
-    const ts = await captureCmd('reflect_tailscale_status', () => reflect_tailscale_status());
+    const ts = await captureCmd('zhuye_tailscale_status', () => zhuye_tailscale_status());
     expectArgs(ts, undefined);
   });
 
-  it('reflect_update_remote_config forwards { host, port, authToken, autoConnect } with null defaults', async () => {
+  it('zhuye_update_remote_config forwards { host, port, authToken, autoConnect } with null defaults', async () => {
     // 线上键是 camelCase:Tauri 按 camelCase 取 Rust 参数 `auth_token` / `auto_connect`,
     // 发 snake_case 会被当成缺省(静默丢弃)。
-    const minimal = await captureCmd('reflect_update_remote_config', () =>
-      reflect_update_remote_config({ host: 'node.tail.net' }),
+    const minimal = await captureCmd('zhuye_update_remote_config', () =>
+      zhuye_update_remote_config({ host: 'node.tail.net' }),
     );
     expectArgs(minimal, {
       host: 'node.tail.net',
@@ -822,8 +822,8 @@ describe('commands forwarding (mapping)', () => {
       autoConnect: null,
     });
 
-    const full = await captureCmd('reflect_update_remote_config', () =>
-      reflect_update_remote_config({
+    const full = await captureCmd('zhuye_update_remote_config', () =>
+      zhuye_update_remote_config({
         host: 'h',
         port: 5555,
         authToken: 'secret',
@@ -838,12 +838,12 @@ describe('commands forwarding (mapping)', () => {
     });
   });
 
-  it('reflect_tailscale_daemon_command_preview / start / stop / status have no args', async () => {
+  it('zhuye_tailscale_daemon_command_preview / start / stop / status have no args', async () => {
     const cases: Array<[string, () => Promise<unknown>]> = [
-      ['reflect_tailscale_daemon_command_preview', reflect_tailscale_daemon_command_preview],
-      ['reflect_tailscale_daemon_start', reflect_tailscale_daemon_start],
-      ['reflect_tailscale_daemon_stop', reflect_tailscale_daemon_stop],
-      ['reflect_tailscale_daemon_status', reflect_tailscale_daemon_status],
+      ['zhuye_tailscale_daemon_command_preview', zhuye_tailscale_daemon_command_preview],
+      ['zhuye_tailscale_daemon_start', zhuye_tailscale_daemon_start],
+      ['zhuye_tailscale_daemon_stop', zhuye_tailscale_daemon_stop],
+      ['zhuye_tailscale_daemon_status', zhuye_tailscale_daemon_status],
     ];
     for (const [cmd, fn] of cases) {
       const args = await captureCmd(cmd, fn);

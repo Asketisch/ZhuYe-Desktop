@@ -1,4 +1,4 @@
-import type { ReflectRolloutRecord } from '@/utils/types';
+import type { ZhuyeRolloutRecord } from '@/utils/types';
 import type { CompactionStats, PlanDocState, Turn, TurnItem, UserAttachmentMeta } from './agent/types';
 import { summarizeArgs, summarizeToolOutput } from './agent/turns';
 
@@ -10,7 +10,7 @@ import { summarizeArgs, summarizeToolOutput } from './agent/turns';
  * 决策状态(approved/rejected)不在 jsonl 里(plan_approved/rejected 不落盘),
  * 统一按 `ready` 恢复 —— 正文可见性优先,状态标注只在 live 会话内有效。
  */
-export function planFromRollout(records: ReflectRolloutRecord[]): PlanDocState | null {
+export function planFromRollout(records: ZhuyeRolloutRecord[]): PlanDocState | null {
   let plan: PlanDocState | null = null;
   for (const record of records) {
     if (record.type !== 'plan_ready') continue;
@@ -28,10 +28,10 @@ export function planFromRollout(records: ReflectRolloutRecord[]): PlanDocState |
 }
 
 /**
- * 把 `reflect_replay_session` 返回的 rollout record 流构建为转数列表 +
+ * 把 `zhuye_replay_session` 返回的 rollout record 流构建为转数列表 +
  * 压缩聚合统计。
  *
- * 线格式为 `reflect_protocol::RolloutRecord` —— serde tagged union
+ * 线格式为 `zhuye_protocol::RolloutRecord` —— serde tagged union
  * (tag = `type`,snake_case),每条 record 是一个扁平对象:
  *
  * - `{ type: "message", turn_id, role, content }` —— `content` 是纯字符串
@@ -46,7 +46,7 @@ export function planFromRollout(records: ReflectRolloutRecord[]): PlanDocState |
  * turn 按 `turn_id` 分组,顺序 = 文件中首次出现顺序(chronological);
  * 历史 turn 一律 `status: 'done'`。
  */
-export function turnsFromRollout(records: ReflectRolloutRecord[]): {
+export function turnsFromRollout(records: ZhuyeRolloutRecord[]): {
   turns: Turn[];
   compactions: CompactionStats;
 } {

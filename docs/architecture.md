@@ -18,7 +18,7 @@ ZhuYe-Desktop/
 │   ├── features/           # 功能切片：视图 + 控制器/hook + 就近测试（切片速览见 src/features/AGENTS.md）
 │   ├── stores/             # Zustand 状态层（src/stores/AGENTS.md）
 │   ├── utils/              # IPC 包装（commands/ 按领域）、i18n 运行时、桥接降级（src/utils/AGENTS.md）
-│   ├── services/           # agentEventBus（唯一 reflect_event 订阅点）+ agent.ts 兼容层
+│   ├── services/           # agentEventBus（唯一 zhuye_event 订阅点）+ agent.ts 兼容层
 │   ├── types/              # 手写分域协议类型；dump-ts-types.sh 生成物不常驻工作树
 │   ├── styles/             # tokens.css 设计标记单一事实来源
 │   └── components/         # 跨切片通用组件
@@ -42,9 +42,9 @@ ZhuYe-Desktop/
 
 ## 2. IPC 契约
 
-线格式与 `reflect-protocol::Event` / `Submission`（snake_case JSON）完全一致，不自建序列化器。信封结构、`Op` → Tauri 命令映射、事件表见 [protocol-bridge.md](protocol-bridge.md)。
+线格式与 `zhuye-protocol::Event` / `Submission`（snake_case JSON）完全一致，不自建序列化器。信封结构、`Op` → Tauri 命令映射、事件表见 [protocol-bridge.md](protocol-bridge.md)。
 
-命令面（`#[tauri::command]`）在 `src-tauri/src/lib.rs::invoke_handler` 注册，按领域定义于 `src-tauri/src/commands/<domain>.rs`；薄桶模块 `commands/mod.rs` 再导出各领域模块与共享 `error` 类型（`CommandError` / `CommandResult`）。事件侧单一推送通道 `reflect_event` 由 `events::forward_agent_events` 发出；终端输出走独立通道 `reflect_terminal_output`。
+命令面（`#[tauri::command]`）在 `src-tauri/src/lib.rs::invoke_handler` 注册，按领域定义于 `src-tauri/src/commands/<domain>.rs`；薄桶模块 `commands/mod.rs` 再导出各领域模块与共享 `error` 类型（`CommandError` / `CommandResult`）。事件侧单一推送通道 `zhuye_event` 由 `events::forward_agent_events` 发出；终端输出走独立通道 `zhuye_terminal_output`。
 
 具体命令清单不在本文登记：权威口径由四方一致门禁守护——后端注册表 ↔ 前端 `src/utils/commands/` 包装 ↔ `fakeBackend` 实现 ↔ [protocol-bridge.md](protocol-bridge.md) 覆盖率（`tests/static/analyze.mjs` 棘轮下限 + `src-tauri/tests/ipc_*.rs` 真后端契约）。
 
@@ -62,7 +62,7 @@ ZhuYe-Desktop/
         └──────────────┬───────────────┘
                        ▼
             target/release/...
-            ├── reflect-desktop (Mach-O)
+            ├── zhuye-desktop (Mach-O)
             ├── bundle/macos/ZhuYe.app
             └── bundle/{dmg,msi,deb,appimage}/...
 ```
@@ -92,7 +92,7 @@ ZhuYe-Desktop/
 │   │ useAgent（services/agent.ts）—— 兼容再导出                         │
 │   │ 事件扇出：services/agentEventBus.ts（引用计数）                     │
 │   ▼                                                                   │
-│ onReflectEvent → agentEventBus → reducer（agent/reducer.ts）          │
+│ onZhuyeEvent → agentEventBus → reducer（agent/reducer.ts）          │
 └─────────────────────────┬─────────────────────────────────────────┘
                           │ Tauri 2 IPC（invoke / listen）
 ┌─────────────────────────▼─────────────────────────────────────────┐
@@ -106,20 +106,20 @@ ZhuYe-Desktop/
 │     ├─ shell_sessions / hook_store / memory_store / workspace_state │
 │     └─ MinimalAgentInner                                            │
 │                                                                       │
-│      ↔ reflect_core::AgentThread                                     │
+│      ↔ zhuye_core::AgentThread                                     │
 │     + 上游共享内置工具表（Bash/Read/Write/问答/AST/...）               │
 │     + ModelRegistry                                                  │
 │     + ConfigWatcher                                                  │
-│     + reflect-rollout::JsonlRolloutWriter                            │
+│     + zhuye-rollout::JsonlRolloutWriter                            │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 5. 核心子模块
 
 `zhuye-agent/` 是烛夜 agent 引擎 zhuye-* crate 的 **只读**
-git submodule 镜像（桌面端以 `reflect-*` 依赖别名引用）。submodule 模式让 GUI 保持自己的发布节奏，
-不依赖 agent 仓库的 CI，同时仍能获得 reflect-protocol /
-reflect-core 等的 bug 修复。
+git submodule 镜像（桌面端以 `zhuye-*` 依赖别名引用）。submodule 模式让 GUI 保持自己的发布节奏，
+不依赖 agent 仓库的 CI，同时仍能获得 zhuye-protocol /
+zhuye-core 等的 bug 修复。
 
 升级方式：
 
@@ -131,6 +131,6 @@ git add zhuye-agent
 git commit -m "chore: bump zhuye-agent submodule"
 ```
 
-子模块有意排除 GUI 不依赖的部分（如 `reflect` 顶层二进制等 TUI/CLI
+子模块有意排除 GUI 不依赖的部分（如 `zhuye` 顶层二进制等 TUI/CLI
 专用产物）。保持同步的完整 crate 集合见根 `Cargo.toml` 的
 `[workspace.dependencies]` 与 `SUBMODULE.md`。

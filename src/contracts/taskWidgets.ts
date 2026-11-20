@@ -1,17 +1,17 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ReflectTask, ReflectTaskStatus } from '@/utils/commands';
+import type { ZhuyeTask, ZhuyeTaskStatus } from '@/utils/commands';
 import type { TeamData, TeamMemberDraft } from '@/contracts/tasksBoard';
 
 export interface TaskRowViewProps {
-  task: ReflectTask;
+  task: ZhuyeTask;
   labels: Record<'claim' | 'start' | 'complete' | 'stop' | 'release' | 'delete' | 'details' | 'claimedBy', string>;
-  statusLabels: Record<ReflectTaskStatus, string>;
-  onClaim: (task: ReflectTask) => void;
-  onAdvance: (task: ReflectTask, status: ReflectTaskStatus) => void;
-  onRemove: (task: ReflectTask) => void;
-  onSelect: (task: ReflectTask) => void;
-  onStop: (task: ReflectTask) => void;
-  onRelease: (task: ReflectTask) => void;
+  statusLabels: Record<ZhuyeTaskStatus, string>;
+  onClaim: (task: ZhuyeTask) => void;
+  onAdvance: (task: ZhuyeTask, status: ZhuyeTaskStatus) => void;
+  onRemove: (task: ZhuyeTask) => void;
+  onSelect: (task: ZhuyeTask) => void;
+  onStop: (task: ZhuyeTask) => void;
+  onRelease: (task: ZhuyeTask) => void;
 }
 export interface TaskRowBindingProps extends Omit<TaskRowViewProps, 'labels' | 'statusLabels'> { t: I18nContextValue['t'] }
 
@@ -24,10 +24,10 @@ export interface TaskCreateFormViewProps {
 export interface TaskCreateFormBindingProps extends Omit<TaskCreateFormViewProps, 'labels'> { t: I18nContextValue['t'] }
 
 export interface TaskDetailViewProps {
-  task: ReflectTask; output: string; outputLoading: boolean; onClose: () => void;
+  task: ZhuyeTask; output: string; outputLoading: boolean; onClose: () => void;
   labels: { close: string; detailDescription: string; detailOutputPath: string; detailOutput: string; detailOutputEmpty: string };
 }
-export interface TaskDetailBindingProps { task: ReflectTask; onClose: () => void; t: I18nContextValue['t'] }
+export interface TaskDetailBindingProps { task: ZhuyeTask; onClose: () => void; t: I18nContextValue['t'] }
 
 export interface TeamEditorViewProps {
   teams: TeamData[]; editing: string | null; name: string; description: string; members: TeamMemberDraft[];

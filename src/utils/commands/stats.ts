@@ -1,11 +1,11 @@
 /**
  * 会话统计 IPC 包装。
  *
- * 薄包装 `reflect_session_stats` / `reflect_all_model_usage`,只读扫描
+ * 薄包装 `zhuye_session_stats` / `zhuye_all_model_usage`,只读扫描
  * rollout JSONL(`~/.zhuye/sessions/`)聚合出 token 用量、模型级拆分、
- * 压缩节省与记忆访问次数 —— GUI 对应 CLI `reflect session stats`。
+ * 压缩节省与记忆访问次数 —— GUI 对应 CLI `zhuye session stats`。
  *
- * 类型与后端 `reflect_app_core::stats` 的 camelCase 出线对齐。
+ * 类型与后端 `zhuye_app_core::stats` 的 camelCase 出线对齐。
  */
 import { invoke } from '@/utils/bridge';
 
@@ -97,8 +97,8 @@ export interface RateCard {
  * 费率来自核心的静态费率表(读取侧反解),让 GUI 能解释费用构成;
  * 模型不在表内 → `priced: false`,不给编造的数字。
  */
-export function reflect_model_rate_cards(models: string[]): Promise<RateCard[]> {
-  return invoke('reflect_model_rate_cards', { models });
+export function zhuye_model_rate_cards(models: string[]): Promise<RateCard[]> {
+  return invoke('zhuye_model_rate_cards', { models });
 }
 
 /**
@@ -106,11 +106,11 @@ export function reflect_model_rate_cards(models: string[]): Promise<RateCard[]> 
  *
  * 磁盘上还没有该 session 的 JSONL(刚创建未发消息)→ 返回 `null`。
  */
-export function reflect_session_stats(id: string): Promise<SessionStats | null> {
-  return invoke('reflect_session_stats', { id });
+export function zhuye_session_stats(id: string): Promise<SessionStats | null> {
+  return invoke('zhuye_session_stats', { id });
 }
 
 /** 查询全部会话的模型级用量(按总 token 降序)。 */
-export function reflect_all_model_usage(): Promise<ModelUsage[]> {
-  return invoke('reflect_all_model_usage');
+export function zhuye_all_model_usage(): Promise<ModelUsage[]> {
+  return invoke('zhuye_all_model_usage');
 }

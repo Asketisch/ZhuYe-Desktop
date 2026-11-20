@@ -14,7 +14,7 @@ fn wait_until(timeout: Duration, predicate: impl Fn() -> bool) {
 }
 
 fn sessions() -> Vec<String> {
-    common::invoke_ok("reflect_list_shell_sessions", json!({}))
+    common::invoke_ok("zhuye_list_shell_sessions", json!({}))
         .as_array()
         .unwrap()
         .iter()
@@ -26,12 +26,12 @@ fn sessions() -> Vec<String> {
 #[test]
 fn shell_sessions_are_isolated_and_reaped() {
     let first = common::invoke_ok(
-        "reflect_run_shell",
+        "zhuye_run_shell",
         json!({"cmd":"printf first > shell-first-start; sleep 0.8; printf done > shell-first-end"}),
     );
     let first_id = first["id"].as_str().unwrap();
     let second = common::invoke_ok(
-        "reflect_run_shell",
+        "zhuye_run_shell",
         json!({"cmd":"printf second > shell-second-start; sleep 0.1; printf done > shell-second-end"}),
     );
     let second_id = second["id"].as_str().unwrap();
@@ -59,14 +59,14 @@ fn shell_sessions_are_isolated_and_reaped() {
     });
 
     let killed = common::invoke_ok(
-        "reflect_run_shell",
+        "zhuye_run_shell",
         json!({"cmd":"sleep 0.5; printf side-effect > shell-kill-marker"}),
     );
     let killed_id = killed["id"].as_str().unwrap();
     wait_until(Duration::from_secs(3), || {
         sessions().iter().any(|id| id == killed_id)
     });
-    common::invoke_ok("reflect_kill_shell", json!({"sessionId":killed_id}));
+    common::invoke_ok("zhuye_kill_shell", json!({"sessionId":killed_id}));
     std::thread::sleep(Duration::from_millis(650));
     assert!(
         !Path::new("shell-kill-marker").exists(),

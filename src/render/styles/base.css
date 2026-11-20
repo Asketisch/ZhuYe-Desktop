@@ -1,4 +1,4 @@
-/* ReflectDesktop 全局 base —— reset + 排版基础 + 滚动条 + focus。
+/* ZhuYe 全局 base —— reset + 排版基础 + 滚动条 + focus。
  *
  * 必须在 tokens.css 之后 import（消费 token 变量）。
  */

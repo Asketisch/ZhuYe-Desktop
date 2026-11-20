@@ -42,7 +42,7 @@ describe('slash commands (real dispatch → backend)', () => {
     renderApp();
     await send('/compact');
 
-    await waitFor(() => expect(backend.callsOf('reflect_compact').length).toBe(1));
+    await waitFor(() => expect(backend.callsOf('zhuye_compact').length).toBe(1));
     await waitFor(() =>
       expect(useAgentStore.getState().toasts.some((t) => t.message.includes('Compact'))).toBe(true),
     );
@@ -54,8 +54,8 @@ describe('slash commands (real dispatch → backend)', () => {
     renderApp();
     await send('/plan refactor the auth module');
 
-    await waitFor(() => expect(backend.callsOf('reflect_enter_plan_mode').length).toBe(1));
-    expect(backend.lastArgsOf('reflect_enter_plan_mode')).toEqual({
+    await waitFor(() => expect(backend.callsOf('zhuye_enter_plan_mode').length).toBe(1));
+    expect(backend.lastArgsOf('zhuye_enter_plan_mode')).toEqual({
       task: 'refactor the auth module',
     });
   });
@@ -63,7 +63,7 @@ describe('slash commands (real dispatch → backend)', () => {
   it('/effort high / low dispatch set_effort; invalid level rejected with toast', async () => {
     renderApp();
     await send('/effort high');
-    await waitFor(() => expect(backend.lastArgsOf('reflect_set_effort')).toEqual({ level: 'high' }));
+    await waitFor(() => expect(backend.lastArgsOf('zhuye_set_effort')).toEqual({ level: 'high' }));
 
     await send('/effort maximum');
     await waitFor(() =>
@@ -74,21 +74,21 @@ describe('slash commands (real dispatch → backend)', () => {
       ).toBe(true),
     );
     // 非法值不应触发第二次 IPC。
-    expect(backend.callsOf('reflect_set_effort').length).toBe(1);
+    expect(backend.callsOf('zhuye_set_effort').length).toBe(1);
   });
 
   it('/mode plan switches permission mode', async () => {
     renderApp();
     await send('/mode plan');
     await waitFor(() =>
-      expect(backend.lastArgsOf('reflect_set_permission_mode')).toEqual({ mode: 'plan' }),
+      expect(backend.lastArgsOf('zhuye_set_permission_mode')).toEqual({ mode: 'plan' }),
     );
   });
 
-  it('/interrupt aborts via reflect_interrupt', async () => {
+  it('/interrupt aborts via zhuye_interrupt', async () => {
     renderApp();
     await send('/interrupt');
-    await waitFor(() => expect(backend.callsOf('reflect_interrupt').length).toBe(1));
+    await waitFor(() => expect(backend.callsOf('zhuye_interrupt').length).toBe(1));
   });
 
   it('unknown command is rejected with an error toast and no IPC', async () => {

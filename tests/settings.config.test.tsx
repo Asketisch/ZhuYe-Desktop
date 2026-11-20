@@ -2,7 +2,7 @@
  * Settings —— 配置加载/保存、权限模式、agent 状态徽标、i18n 切换。
  *
  * 真实应用挂载 + 路由到 /settings，数据流经 fakeBackend 的
- * reflect_get_config / reflect_save_config / reflect_agent_status。
+ * zhuye_get_config / zhuye_save_config / zhuye_agent_status。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
@@ -48,7 +48,7 @@ describe('settings status badge', () => {
   });
 
   it('config load failure leaves the settings shell functional (no crash)', async () => {
-    backend.state.failures['reflect_get_config'] = new Error('config parse error');
+    backend.state.failures['zhuye_get_config'] = new Error('config parse error');
     await openSettings();
     // 配置区加载失败不阻塞设置页其余功能（状态徽标、权限按钮仍在）。
     await waitFor(() =>
@@ -63,13 +63,13 @@ describe('settings status badge', () => {
     });
     fireEvent.click(planBtn);
     await waitFor(() =>
-      expect(backend.lastArgsOf('reflect_set_permission_mode')).toEqual({ mode: 'plan' }),
+      expect(backend.lastArgsOf('zhuye_set_permission_mode')).toEqual({ mode: 'plan' }),
     );
   });
 });
 
 describe('permission mode controls', () => {
-  it('quick buttons dispatch reflect_set_permission_mode', async () => {
+  it('quick buttons dispatch zhuye_set_permission_mode', async () => {
     await openSettings();
     fireEvent.click(screen.getByText('Permissions'));
     const planBtn = await waitFor(() => {
@@ -79,7 +79,7 @@ describe('permission mode controls', () => {
     });
     fireEvent.click(planBtn);
     await waitFor(() =>
-      expect(backend.lastArgsOf('reflect_set_permission_mode')).toEqual({ mode: 'plan' }),
+      expect(backend.lastArgsOf('zhuye_set_permission_mode')).toEqual({ mode: 'plan' }),
     );
   });
 
@@ -90,12 +90,12 @@ describe('permission mode controls', () => {
     expect(Array.from(select.options).map((option) => option.value)).toEqual(['auto', 'prompt', 'auto_approve', 'full_access']);
     fireEvent.change(select, { target: { value: 'full_access' } });
     expect(select.value).toBe('full_access');
-    expect(backend.lastArgsOf('reflect_set_permission_mode')).toBeUndefined();
+    expect(backend.lastArgsOf('zhuye_set_permission_mode')).toBeUndefined();
   });
 });
 
 describe('config editing & save round-trip', () => {
-  it('editing raw TOML and saving persists via reflect_save_config', async () => {
+  it('editing raw TOML and saving persists via zhuye_save_config', async () => {
     const app = await openSettings();
     fireEvent.click(screen.getByText('Advanced'));
 
@@ -110,7 +110,7 @@ describe('config editing & save round-trip', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() =>
-      expect(backend.lastArgsOf('reflect_save_config')).toEqual({
+      expect(backend.lastArgsOf('zhuye_save_config')).toEqual({
         toml: '[active]\nprovider = "openai"\nmodel = "gpt-5"\n',
       }),
     );
@@ -121,14 +121,14 @@ describe('config editing & save round-trip', () => {
   });
 
   it('save failure does not show success feedback', async () => {
-    backend.state.failures['reflect_save_config'] = new Error('disk full');
+    backend.state.failures['zhuye_save_config'] = new Error('disk full');
     const app = await openSettings();
     fireEvent.click(screen.getByText('Advanced'));
 
     const saveBtn = await screen.findByText('Save', { exact: false });
     fireEvent.click(saveBtn);
 
-    await waitFor(() => expect(backend.callsOf('reflect_save_config').length).toBe(1));
+    await waitFor(() => expect(backend.callsOf('zhuye_save_config').length).toBe(1));
     // 失败时不出现 Saved。
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByText('Saved', { exact: false })).toBeNull();

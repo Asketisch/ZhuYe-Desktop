@@ -56,7 +56,7 @@ fn response(structured: bool) -> String {
 fn wait_snapshot(pred: impl Fn(&Value) -> bool) -> Value {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
-        let snapshot = common::invoke_ok("reflect_goal_snapshot", json!({}));
+        let snapshot = common::invoke_ok("zhuye_goal_snapshot", json!({}));
         if pred(&snapshot) {
             return snapshot;
         }
@@ -119,7 +119,7 @@ fn goal_verification_requires_both_model_verdict_and_command() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
@@ -135,7 +135,7 @@ fn goal_verification_requires_both_model_verdict_and_command() {
     ] {
         let goal = format!("runtime goal {index}");
         common::invoke_ok(
-            "reflect_enter_goal_mode",
+            "zhuye_enter_goal_mode",
             json!({
                 "goal": goal, "verifyCommand": command, "tokenBudget": 10_000
             }),
@@ -143,7 +143,7 @@ fn goal_verification_requires_both_model_verdict_and_command() {
         wait_snapshot(|snapshot| snapshot["goal"] == goal && snapshot["status"] == "active");
         let id = format!("goal-submission-{index}");
         common::invoke_ok(
-            "reflect_submit",
+            "zhuye_submit",
             json!({
                 "submission": { "id": id, "op": { "type": "user_input",
                     "items": [{ "type": "text", "text": "goal-runtime-turn" }] } }
@@ -168,7 +168,7 @@ fn goal_verification_requires_both_model_verdict_and_command() {
             );
             assert!(snapshot["tokens_used"].as_u64().unwrap() > 0);
         }
-        common::invoke_ok("reflect_exit_goal_mode", json!({}));
+        common::invoke_ok("zhuye_exit_goal_mode", json!({}));
         wait_snapshot(Value::is_null);
     }
     let requests = runtime.block_on(provider.received_requests()).unwrap();

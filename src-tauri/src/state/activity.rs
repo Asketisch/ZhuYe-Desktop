@@ -2,30 +2,30 @@
 //!
 //! `install_agent_thread` 调 [`subscribe_activity_logger`],spawn 一个独立
 //! task 拿 `subscribe_session()` 的 receiver,把每个 `Event` 经
-//! `reflect_telemetry::activity::map_event`(上游收编版,剥 tauri)映射成
+//! `zhuye_telemetry::activity::map_event`(上游收编版,剥 tauri)映射成
 //! `ActivityEvent` 写入 `ActivityLogger`。
 //!
 //! 与 [`crate::events::forward_agent_events`] 并行 —— 后者把 Event 推给
-//! Tauri webview(`reflect_event` channel),本 task 把 Event 沉淀成本地审计
+//! Tauri webview(`zhuye_event` channel),本 task 把 Event 沉淀成本地审计
 //! timeline。两者互不阻塞(各自独立的 broadcast receiver)。
 //!
 //! logger 经 `ActivityLog` 句柄逐事件取用:Inbox「清空」原地换新 logger
 //! 后,本 task 自动写进新实例,不需要重启订阅。
 
-use reflect_app_core::activity::map_event;
+use zhuye_app_core::activity::map_event;
 
 use super::MinimalAgent;
 
 /// 按配置构造共享 Activity 日志；关闭 telemetry 时退化为纯内存。
-pub(crate) fn build_activity_log() -> std::sync::Arc<reflect_app_core::activity::ActivityLog> {
-    let enabled = reflect_config::load_default()
+pub(crate) fn build_activity_log() -> std::sync::Arc<zhuye_app_core::activity::ActivityLog> {
+    let enabled = zhuye_config::load_default()
         .telemetry
         .as_ref()
         .is_none_or(|section| section.activity_enabled());
     if enabled {
-        reflect_app_core::activity::ActivityLog::with_default_home()
+        zhuye_app_core::activity::ActivityLog::with_default_home()
     } else {
-        reflect_app_core::activity::ActivityLog::in_memory()
+        zhuye_app_core::activity::ActivityLog::in_memory()
     }
 }
 
@@ -34,7 +34,7 @@ pub(crate) fn subscribe_activity_logger(agent: &MinimalAgent) {
     let log = agent.activity_log();
     let mut rx = agent.subscribe_session();
     tauri::async_runtime::spawn(async move {
-        tracing::info!("[reflect-gui] activity logger subscription started");
+        tracing::info!("[zhuye-gui] activity logger subscription started");
         loop {
             match rx.recv().await {
                 Ok(event) => {

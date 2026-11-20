@@ -27,6 +27,6 @@ export interface SandboxStatus {
 }
 
 /** 查询当前生效的 OS 沙箱状态。 */
-export function reflect_sandbox_status(): Promise<SandboxStatus> {
-  return invoke('reflect_sandbox_status');
+export function zhuye_sandbox_status(): Promise<SandboxStatus> {
+  return invoke('zhuye_sandbox_status');
 }

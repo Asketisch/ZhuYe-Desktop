@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { UserPlus } from 'lucide-react';
-import type { ReflectSquadMember, ReflectTask } from '@/utils/commands';
+import type { ZhuyeSquadMember, ZhuyeTask } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { Card } from '@/features/design-system';
 import { Badge } from '@/features/design-system';
@@ -9,8 +9,8 @@ import { Icon } from '@/features/design-system';
 import s from '@/render/squad/SquadView.module.css';
 
 export function SquadTaskRow(props: {
-  task: ReflectTask;
-  members: ReflectSquadMember[];
+  task: ZhuyeTask;
+  members: ZhuyeSquadMember[];
   squadName: string;
   onAssign: (assignee: string | null) => Promise<void>;
 }) {

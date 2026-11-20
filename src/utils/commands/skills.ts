@@ -1,14 +1,14 @@
 /**
  * Skill 注册表封装 —— 列出 agent 当前可用的 skill 及其触发词。
  *
- * 后端与核心运行时**同源**(`reflect_skills::scan_skills_dirs` +
+ * 后端与核心运行时**同源**(`zhuye_skills::scan_skills_dirs` +
  * `bundled_skills`),目录取唯一出口 `default_skill_dirs`
  * (`.zhuye/skills` ×2 + 业界通用 `.agents/skills` ×2),GUI 列出的与
  * agent 实际加载的一致。另含 skills.sh 市场三条命令(搜索/安装/刷新)。
  */
 import { invoke } from '../bridge';
 
-export interface ReflectSkillInfo {
+export interface ZhuyeSkillInfo {
   name: string;
   description: string;
   path: string;
@@ -29,8 +29,8 @@ export interface ReflectSkillInfo {
 }
 
 /** 列出全部可用 skill(与运行时 catalog 同集)。 */
-export async function reflect_list_skills(): Promise<ReflectSkillInfo[]> {
-  return invoke<ReflectSkillInfo[]>('reflect_list_skills');
+export async function zhuye_list_skills(): Promise<ZhuyeSkillInfo[]> {
+  return invoke<ZhuyeSkillInfo[]>('zhuye_list_skills');
 }
 
 /**
@@ -40,11 +40,11 @@ export async function reflect_list_skills(): Promise<ReflectSkillInfo[]> {
  * 返回 submission id。`commands` 位当前恒回 `false`(上游 commands
  * 索引的运行时重扫尚未接线,命令正文实时读盘)。
  */
-export async function reflect_rescan_extensions(
+export async function zhuye_rescan_extensions(
   skills = true,
   commands = false,
 ): Promise<string> {
-  return invoke<string>('reflect_rescan_extensions', { skills, commands });
+  return invoke<string>('zhuye_rescan_extensions', { skills, commands });
 }
 
 /**
@@ -52,8 +52,8 @@ export async function reflect_rescan_extensions(
  * 不开 turn;结果经 `guard_stats` 事件回推(enabled + 定义/输出两侧
  * block/review 四计数)。返回 submission id。
  */
-export async function reflect_query_guard_stats(): Promise<string> {
-  return invoke<string>('reflect_query_guard_stats');
+export async function zhuye_query_guard_stats(): Promise<string> {
+  return invoke<string>('zhuye_query_guard_stats');
 }
 
 /**
@@ -62,8 +62,8 @@ export async function reflect_query_guard_stats(): Promise<string> {
  * repo 形态:`owner/repo` 或 GitHub URL(仓库根含 SKILL.md)。
  * 返回重扫 submission id。
  */
-export async function reflect_install_skill(repo: string): Promise<string> {
-  return invoke<string>('reflect_install_skill', { repo });
+export async function zhuye_install_skill(repo: string): Promise<string> {
+  return invoke<string>('zhuye_install_skill', { repo });
 }
 
 /** skills.sh 市场条目(搜索结果)。 */
@@ -82,11 +82,11 @@ export interface SkillMarketEntry {
  * 搜索 skills.sh 目录。索引首次访问自动从公开 sitemap 拉取(24h TTL),
  * 后续走本地缓存;query < 2 字符返回空。
  */
-export async function reflect_search_skill_market(
+export async function zhuye_search_skill_market(
   query: string,
   limit = 50,
 ): Promise<SkillMarketEntry[]> {
-  return invoke<SkillMarketEntry[]>('reflect_search_skill_market', { query, limit });
+  return invoke<SkillMarketEntry[]>('zhuye_search_skill_market', { query, limit });
 }
 
 /**
@@ -94,11 +94,11 @@ export async function reflect_search_skill_market(
  * 文件),装完触发运行时重扫(无需重启)。source:`owner/repo[/slug]`、
  * skills.sh 或 GitHub URL。返回重扫 submission id。
  */
-export async function reflect_install_skill_from_market(source: string): Promise<string> {
-  return invoke<string>('reflect_install_skill_from_market', { source });
+export async function zhuye_install_skill_from_market(source: string): Promise<string> {
+  return invoke<string>('zhuye_install_skill_from_market', { source });
 }
 
 /** 强制刷新 skills.sh 目录索引(跳过 TTL),返回条目数。 */
-export async function reflect_refresh_skill_market_index(): Promise<number> {
-  return invoke<number>('reflect_refresh_skill_market_index');
+export async function zhuye_refresh_skill_market_index(): Promise<number> {
+  return invoke<number>('zhuye_refresh_skill_market_index');
 }

@@ -16,9 +16,9 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_list_memory: async () => [],
-    reflect_add_memory: async () => {},
-    reflect_remove_memory: async () => {},
+    zhuye_list_memory: async () => [],
+    zhuye_add_memory: async () => {},
+    zhuye_remove_memory: async () => {},
   };
 });
 
@@ -30,8 +30,8 @@ describe('MemoryView', () => {
   beforeEach(() => {
     cleanup();
     useMemoryDraftStore.setState({ editSessions: {}, formDrafts: {} });
-    mockInvoke('reflect_current_workspace', async () => '/workspace');
-    mockInvoke('reflect_get_active_agent', async () => ({ name: 'default', memoryScopes: [] }));
+    mockInvoke('zhuye_current_workspace', async () => '/workspace');
+    mockInvoke('zhuye_get_active_agent', async () => ({ name: 'default', memoryScopes: [] }));
   });
 
   it('renders the page title', () => {
@@ -68,8 +68,8 @@ describe('MemoryView', () => {
   });
 
   it('refreshes sections for the current workspace and describes the budget accurately', async () => {
-    mockInvoke('reflect_get_active_agent', async () => ({ name: 'default', memoryScopes: ['project'], injectBudgetChars: 8000 }));
-    mockInvoke('reflect_memory_sections', async (_command, args) => {
+    mockInvoke('zhuye_get_active_agent', async () => ({ name: 'default', memoryScopes: ['project'], injectBudgetChars: 8000 }));
+    mockInvoke('zhuye_memory_sections', async (_command, args) => {
       const workspace = (args?.expectedContext as { workspace: string }).workspace;
       return [{ scope: 'project', title: workspace, body: 'text', index: 0, chars: 4 }];
     });
@@ -83,19 +83,19 @@ describe('MemoryView', () => {
   });
 
   it('warns when an agent enables only one persistent scope', async () => {
-    mockInvoke('reflect_get_active_agent', async () => ({ name: 'default', memoryScopes: ['project'], injectBudgetChars: 8000 }));
+    mockInvoke('zhuye_get_active_agent', async () => ({ name: 'default', memoryScopes: ['project'], injectBudgetChars: 8000 }));
     render(wrap(<MemoryView />));
     expect((await screen.findByTestId('memory-scope-warning')).textContent).toContain('does not enable User memory');
   });
 
   it('warns when only session memory is enabled', async () => {
-    mockInvoke('reflect_get_active_agent', async () => ({ name: 'default', memoryScopes: ['session'], injectBudgetChars: 8000 }));
+    mockInvoke('zhuye_get_active_agent', async () => ({ name: 'default', memoryScopes: ['session'], injectBudgetChars: 8000 }));
     render(wrap(<MemoryView />));
     expect((await screen.findByTestId('memory-scope-warning')).textContent).toContain('does not enable Project, User memory');
   });
 
   it('reports a section loading failure', async () => {
-    mockInvoke('reflect_memory_sections', async () => { throw new Error('unavailable'); });
+    mockInvoke('zhuye_memory_sections', async () => { throw new Error('unavailable'); });
     render(wrap(<MemoryView />));
     expect(await screen.findByText('Failed to load memory sections.')).toBeDefined();
   });

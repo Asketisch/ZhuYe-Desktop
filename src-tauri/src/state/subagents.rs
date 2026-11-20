@@ -4,14 +4,14 @@
 //!
 //! 桌面端的工具注册表此前只有 15 个内置工具(Bash / Read / Write / …),
 //! **不包含**:
-//! - 任务工具(`reflect_task::register_task_tools`)—— agent 无法驱动 GUI
+//! - 任务工具(`zhuye_task::register_task_tools`)—— agent 无法驱动 GUI
 //!   里的任务板(只能人手在 GUI 里 CRUD);
-//! - 会话笔记工具(`reflect_notes::AddSessionNoteTool`)—— agent 无法写
+//! - 会话笔记工具(`zhuye_notes::AddSessionNoteTool`)—— agent 无法写
 //!   会话笔记(GUI 的笔记面板因此永远是空的);
 //! - 子代理工具(`call_<role>`)—— agent 无法委派子任务(Inspector 的
 //!   子代理区块因此永远是空的)。
 //!
-//! CLI 三族都注册(`reflect-exec` 的 `bootstrap_m5` + `headless.rs` 的
+//! CLI 三族都注册(`zhuye-exec` 的 `bootstrap_m5` + `headless.rs` 的
 //! `register_task_tools`)。两个前端能力不一致 —— GUI 展示了任务板 /
 //! 子代理 / 笔记,agent 却用不上。
 //!
@@ -27,11 +27,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use reflect_core::config::M4Deps;
-use reflect_llm::SharedModelRegistry;
-use reflect_protocol::ThreadId;
-use reflect_subagent::{CallSubAgentTool, SubAgentFactory, SubAgentSpec};
-use reflect_tools::{ToolRegistry, ToolSource};
+use zhuye_core::config::M4Deps;
+use zhuye_llm::SharedModelRegistry;
+use zhuye_protocol::ThreadId;
+use zhuye_subagent::{CallSubAgentTool, SubAgentFactory, SubAgentSpec};
+use zhuye_tools::{ToolRegistry, ToolSource};
 use tokio_util::sync::CancellationToken;
 
 /// 注册任务工具(任务板的操作面)。
@@ -40,15 +40,15 @@ use tokio_util::sync::CancellationToken;
 /// 建的 task,agent 既看不到也改不了。
 pub(crate) fn register_task_tools(
     tools: &Arc<ToolRegistry>,
-    task_manager: Arc<reflect_task::TaskManager>,
+    task_manager: Arc<zhuye_task::TaskManager>,
 ) {
-    reflect_task::register_task_tools(tools, task_manager);
+    zhuye_task::register_task_tools(tools, task_manager);
 }
 
 /// 将上游任务工具注册结果加入会话可见集，避免复制工具名称清单。
-pub(crate) fn expose_task_tools(m4: &M4Deps, task_manager: Arc<reflect_task::TaskManager>) {
+pub(crate) fn expose_task_tools(m4: &M4Deps, task_manager: Arc<zhuye_task::TaskManager>) {
     let catalog = ToolRegistry::new();
-    reflect_task::register_task_tools(&catalog, task_manager);
+    zhuye_task::register_task_tools(&catalog, task_manager);
     m4.skills.add_always_on_tools(catalog.list());
 }
 
@@ -58,7 +58,7 @@ pub(crate) fn expose_task_tools(m4: &M4Deps, task_manager: Arc<reflect_task::Tas
 /// `commands/notes.rs` 的读取面同源。**每个会话一个 store**(路径含
 /// thread id),所以 rebind 时要重新注册(同名覆盖)。
 pub(crate) fn register_note_tool(tools: &Arc<ToolRegistry>, m4: &M4Deps) {
-    let tool: Arc<dyn reflect_tools::Tool> = Arc::new(reflect_notes::AddSessionNoteTool::new(
+    let tool: Arc<dyn zhuye_tools::Tool> = Arc::new(zhuye_notes::AddSessionNoteTool::new(
         m4.note_store.clone(),
     ));
     tools.register_with_source(ToolSource::Runtime, tool);
@@ -73,18 +73,18 @@ pub(crate) fn bootstrap_subagents(
     model: &str,
     registry: &SharedModelRegistry,
     thread_id: ThreadId,
-    parent_recorder: Option<Arc<dyn reflect_protocol::RolloutRecorder>>,
+    parent_recorder: Option<Arc<dyn zhuye_protocol::RolloutRecorder>>,
     m4: &M4Deps,
     tools: &Arc<ToolRegistry>,
-    cfg: &reflect_config::ReflectConfig,
+    cfg: &zhuye_config::ReflectConfig,
 ) -> Arc<SubAgentFactory> {
     // v1.x 功能 1:从 `[subagent_providers]` 段构建独立 child registry,
     // 让 subagent 用独立的 base_url + api_key + model。`None` = 父子共享。
     let child_registry: Option<SharedModelRegistry> = cfg.to_child_registry().map(Arc::new);
     // 无 recorder(占位线程)→ NullRecorder:子代理的审计记录丢弃,不影响
     // 其执行。
-    let recorder: Arc<dyn reflect_protocol::RolloutRecorder> =
-        parent_recorder.unwrap_or_else(|| Arc::new(reflect_protocol::NullRecorder));
+    let recorder: Arc<dyn zhuye_protocol::RolloutRecorder> =
+        parent_recorder.unwrap_or_else(|| Arc::new(zhuye_protocol::NullRecorder));
     let factory = Arc::new(SubAgentFactory::new(
         thread_id,
         model.to_string(),
@@ -102,25 +102,25 @@ pub(crate) fn bootstrap_subagents(
 
     // 合并 spec(TOML > workspace md > home md)。
     let home_md =
-        reflect_subagent::load_subagents_dir(&reflect_config::paths::data_path_or_relative(&[
+        zhuye_subagent::load_subagents_dir(&zhuye_config::paths::data_path_or_relative(&[
             "subagents",
         ]))
         .unwrap_or_default();
-    let ws_md = reflect_subagent::load_subagents_dir(&reflect_config::paths::project_data_path(
+    let ws_md = zhuye_subagent::load_subagents_dir(&zhuye_config::paths::project_data_path(
         workspace,
         &["subagents"],
     ))
     .unwrap_or_default();
     let toml_specs = cfg.subagents.clone();
-    let mut configs = reflect_subagent::merge_by_priority(vec![home_md, ws_md, toml_specs]);
+    let mut configs = zhuye_subagent::merge_by_priority(vec![home_md, ws_md, toml_specs]);
 
     // 全部源为空 → 回落硬编码 explorer(向后兼容,同 CLI)。
     if configs.is_empty() {
-        configs.push(reflect_config::SubagentSpecConfig {
+        configs.push(zhuye_config::SubagentSpecConfig {
             name: "Explorer".into(),
             role: "explorer".into(),
             model: None,
-            system_prompt: reflect_prompt::library()
+            system_prompt: zhuye_prompt::library()
                 .resolve("")
                 .get_or(
                     "subagent.explorer",
@@ -153,7 +153,7 @@ pub(crate) fn bootstrap_subagents(
             allowed_skills: sc.allowed_skills,
         };
         let role = sc.role;
-        let tool: Arc<dyn reflect_tools::Tool> =
+        let tool: Arc<dyn zhuye_tools::Tool> =
             Arc::new(CallSubAgentTool::new(factory.clone(), spec));
         // v1.3:走 `register_runtime_tool` 应用 Runtime 源安全 floor。
         tools.register_runtime_tool(tool);

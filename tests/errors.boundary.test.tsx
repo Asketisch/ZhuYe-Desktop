@@ -27,7 +27,7 @@ afterEach(async () => {
 
 /** 让 KMS 页面列表带 `tags: null` —— KmsView 的 `page.tags.map` 会在 render 抛错。 */
 function breakKmsPageList() {
-  backend.override('reflect_kms_list_pages', () =>
+  backend.override('zhuye_kms_list_pages', () =>
     JSON.parse(
       JSON.stringify([
         { name: 'broken.md', wiki: 'engineering', content: 'probe', title: null, tags: null, modified_at_ms: 0 },
@@ -60,7 +60,7 @@ describe('view error boundary', () => {
     await screen.findByTestId('view-error-boundary');
 
     // 故障清除后点 Retry —— 视图恢复(回退消失)。
-    backend.override('reflect_kms_list_pages', () =>
+    backend.override('zhuye_kms_list_pages', () =>
       JSON.parse(
         JSON.stringify([
           { name: 'auth.md', wiki: 'engineering', content: '# Auth\nJWT flow', title: 'Auth', tags: ['auth'], modified_at_ms: 0 },
@@ -90,7 +90,7 @@ describe('view error boundary', () => {
     });
     // 故障清除后切回:干净渲染,不再出现边界(测试 QueryClient 的 gcTime=0,
     // 切走时坏缓存已被回收;生产缓存窗口内的致崩由上一条 Retry 用例覆盖)。
-    backend.override('reflect_kms_list_pages', () =>
+    backend.override('zhuye_kms_list_pages', () =>
       JSON.parse(JSON.stringify([{ name: 'auth.md', wiki: 'engineering', content: 'ok', title: null, tags: [], modified_at_ms: 0 }])),
     );
     await app.navigate('/kms');

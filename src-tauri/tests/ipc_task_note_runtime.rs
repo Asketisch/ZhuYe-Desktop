@@ -143,16 +143,16 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    common::invoke_ok("reflect_set_permission_mode", json!({"mode":"auto"}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    common::invoke_ok("zhuye_set_permission_mode", json!({"mode":"auto"}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"task-note-turn-1","op":{"type":"user_input","items":[{"type":"text","text":"task-note-first-turn"}]}}}),
     );
     let mut seen = Vec::new();
@@ -199,7 +199,7 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
         session.as_str().unwrap(),
         "default task list must match the session"
     );
-    let tasks = common::invoke_ok("reflect_list_tasks", json!({"list":list}));
+    let tasks = common::invoke_ok("zhuye_list_tasks", json!({"list":list}));
     assert!(
         tasks
             .as_array()
@@ -222,7 +222,7 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
         })
         .expect("invalid note result");
     assert_eq!(rejected["msg"]["is_error"], true, "{rejected}");
-    let notes = common::invoke_ok("reflect_list_session_notes", json!({"id":session}));
+    let notes = common::invoke_ok("zhuye_list_session_notes", json!({"id":session}));
     assert!(
         notes
             .as_array()
@@ -237,7 +237,7 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
         "invalid note must not be saved: {notes}"
     );
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"task-note-turn-2","op":{"type":"user_input","items":[{"type":"text","text":"task-note-second-turn"}]}}}),
     );
     wait_for(&rx, &mut seen, |event| {
@@ -260,12 +260,12 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
             }),
         "note was not injected into next turn's recovery message: {second_body}"
     );
-    let other_session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":other_session}));
-    let other_notes = common::invoke_ok("reflect_list_session_notes", json!({"id":other_session}));
+    let other_session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":other_session}));
+    let other_notes = common::invoke_ok("zhuye_list_session_notes", json!({"id":other_session}));
     assert_eq!(other_notes, json!([]), "notes crossed session boundaries");
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"other-session-turn","op":{"type":"user_input","items":[{"type":"text","text":"quartz-lantern-epsilon"}]}}}),
     );
     wait_for(&rx, &mut seen, |event| {
@@ -280,7 +280,7 @@ fn model_creates_task_and_note_that_desktop_can_read_and_reuse() {
         !String::from_utf8_lossy(&other_request.body).contains("runtime-note-marker"),
         "note leaked into a different session"
     );
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    let restored = common::invoke_ok("reflect_list_session_notes", json!({"id":session}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    let restored = common::invoke_ok("zhuye_list_session_notes", json!({"id":session}));
     assert_eq!(restored.as_array().unwrap().len(), 1, "{restored}");
 }

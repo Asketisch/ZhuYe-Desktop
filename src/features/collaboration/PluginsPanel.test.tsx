@@ -37,13 +37,13 @@ const MARKETS = [
 describe('PluginsPanel', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_list_plugins', async () => PLUGINS);
-    mockInvoke('reflect_list_marketplaces', async () => MARKETS);
-    mockInvoke('reflect_toggle_plugin', async () => undefined);
-    mockInvoke('reflect_uninstall_plugin', async () => undefined);
-    mockInvoke('reflect_install_plugin', async () => undefined);
+    mockInvoke('zhuye_list_plugins', async () => PLUGINS);
+    mockInvoke('zhuye_list_marketplaces', async () => MARKETS);
+    mockInvoke('zhuye_toggle_plugin', async () => undefined);
+    mockInvoke('zhuye_uninstall_plugin', async () => undefined);
+    mockInvoke('zhuye_install_plugin', async () => undefined);
     // v1.11 桌面#2:插件市场(浏览 + 一键安装)。
-    mockInvoke('reflect_browse_marketplace', async () => [
+    mockInvoke('zhuye_browse_marketplace', async () => [
       {
         name: 'demo',
         description: 'Demo plugin from fake marketplace',
@@ -53,7 +53,7 @@ describe('PluginsPanel', () => {
         source: '{"type":"directory","path":"/tmp/marketplaces/demo"}',
       },
     ]);
-    mockInvoke('reflect_install_from_marketplace', async () => undefined);
+    mockInvoke('zhuye_install_from_marketplace', async () => undefined);
   });
 
   afterEach(() => {
@@ -98,8 +98,8 @@ describe('PluginsPanel', () => {
 
   it('shows an uninstall error and refreshes state after a partial failure', async () => {
     let installed = true;
-    mockInvoke('reflect_list_plugins', async () => installed ? PLUGINS : []);
-    mockInvoke('reflect_uninstall_plugin', async () => {
+    mockInvoke('zhuye_list_plugins', async () => installed ? PLUGINS : []);
+    mockInvoke('zhuye_uninstall_plugin', async () => {
       installed = false;
       throw { msg: 'runtime refresh failed after uninstall' };
     });
@@ -112,7 +112,7 @@ describe('PluginsPanel', () => {
   });
 
   it('shows string errors when plugin installation fails', async () => {
-    mockInvoke('reflect_install_plugin', async () => { throw 'invalid plugin'; });
+    mockInvoke('zhuye_install_plugin', async () => { throw 'invalid plugin'; });
     render(wrap(<PluginsPanel />));
     fireEvent.click(screen.getByTestId('plugin-install-toggle'));
     fireEvent.change(screen.getByTestId('plugin-path-input'), { target: { value: '/tmp/plugin' } });
@@ -121,7 +121,7 @@ describe('PluginsPanel', () => {
   });
 
   it('shows plugin list failures instead of an empty list', async () => {
-    mockInvoke('reflect_list_plugins', async () => { throw { msg: 'cannot read plugins' }; });
+    mockInvoke('zhuye_list_plugins', async () => { throw { msg: 'cannot read plugins' }; });
     render(wrap(<PluginsPanel />));
     expect((await screen.findByRole('alert')).textContent).toContain('cannot read plugins');
     expect(screen.queryByTestId('plugin-list')).toBeNull();
@@ -129,11 +129,11 @@ describe('PluginsPanel', () => {
 
   it('shows only plugins currently loaded and removes them after disabling', async () => {
     let enabled = true;
-    mockInvoke('reflect_list_plugins', async () => [{
+    mockInvoke('zhuye_list_plugins', async () => [{
       ...PLUGINS[0], enabled,
       runtime: enabled ? { plugin: 'demo', scope: 'user', version: '0.1.0', skill_count: 1, command_count: 2 } : null,
     }]);
-    mockInvoke('reflect_toggle_plugin', async () => { enabled = false; });
+    mockInvoke('zhuye_toggle_plugin', async () => { enabled = false; });
     render(wrap(<PluginsPanel />));
     expect((await screen.findByTestId('plugin-loaded-list')).textContent).toContain('2 cmds');
     fireEvent.click(screen.getByTestId('plugin-toggle-demo'));
@@ -147,9 +147,9 @@ describe('PluginsPanel', () => {
 describe('PluginsPanel — marketplace browse & install', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_list_plugins', async () => PLUGINS);
-    mockInvoke('reflect_list_marketplaces', async () => MARKETS);
-    mockInvoke('reflect_browse_marketplace', async () => [
+    mockInvoke('zhuye_list_plugins', async () => PLUGINS);
+    mockInvoke('zhuye_list_marketplaces', async () => MARKETS);
+    mockInvoke('zhuye_browse_marketplace', async () => [
       {
         name: 'demo',
         description: 'Demo plugin from fake marketplace',
@@ -159,7 +159,7 @@ describe('PluginsPanel — marketplace browse & install', () => {
         source: '{}',
       },
     ]);
-    mockInvoke('reflect_install_from_marketplace', async () => undefined);
+    mockInvoke('zhuye_install_from_marketplace', async () => undefined);
   });
 
   afterEach(() => {
@@ -178,7 +178,7 @@ describe('PluginsPanel — marketplace browse & install', () => {
 
   it('installs a plugin from the marketplace listing', async () => {
     const installCalls: Array<{ marketplace: string; plugin: string }> = [];
-    mockInvoke('reflect_install_from_marketplace', async (_cmd: string, args: { marketplace: string; plugin: string }) => {
+    mockInvoke('zhuye_install_from_marketplace', async (_cmd: string, args: { marketplace: string; plugin: string }) => {
       installCalls.push(args);
       return undefined;
     });
@@ -191,7 +191,7 @@ describe('PluginsPanel — marketplace browse & install', () => {
   });
 
   it('surfaces install failures inline', async () => {
-    mockInvoke('reflect_install_from_marketplace', async () => {
+    mockInvoke('zhuye_install_from_marketplace', async () => {
       throw new Error('dep resolution failed');
     });
     render(wrap(<PluginsPanel />));
@@ -202,7 +202,7 @@ describe('PluginsPanel — marketplace browse & install', () => {
   });
 
   it('shows an inline error when the marketplace cache is missing', async () => {
-    mockInvoke('reflect_browse_marketplace', async () => {
+    mockInvoke('zhuye_browse_marketplace', async () => {
       throw new Error('marketplace manifest not found');
     });
     render(wrap(<PluginsPanel />));

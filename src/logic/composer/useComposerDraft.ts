@@ -1,13 +1,13 @@
 /**
  * useComposerDraft —— 按会话持久化 Composer 草稿（F）。
  *
- * key = `reflect.draft.<sessionId>`（新对话页用 `__new__`）。输入即写
+ * key = `zhuye.draft.<sessionId>`（新对话页用 `__new__`）。输入即写
  * localStorage；切换会话自动载入对应草稿，发送成功后清除对应草稿。此前草稿是组件内 useState，切会话/刷新即丢。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function draftKeyFor(sessionId: string | null | undefined): string {
-  return `reflect.draft.${sessionId ?? '__new__'}`;
+  return `zhuye.draft.${sessionId ?? '__new__'}`;
 }
 
 function readDraft(key: string): string {

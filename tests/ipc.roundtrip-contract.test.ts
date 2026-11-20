@@ -32,7 +32,7 @@ interface RoundtripDoc {
 }
 
 const doc = JSON.parse(readFileSync('tests/contracts/roundtrips.json', 'utf8')) as RoundtripDoc;
-const TMP = '/tmp/reflect-contract-roundtrip';
+const TMP = '/tmp/zhuye-contract-roundtrip';
 
 function expandTmp(v: unknown): unknown {
   if (typeof v === 'string') return v.replaceAll('${TMP}', TMP);

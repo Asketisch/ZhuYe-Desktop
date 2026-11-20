@@ -32,7 +32,7 @@ pub struct ModelAbilitiesResult {
 /// 供模型卡片展示与 composer 发送前的视觉检查:当前活跃模型不在最近
 /// 拉取的清单里时,这里是唯一的能力来源。纯目录查询,不发网络请求。
 #[tauri::command]
-pub async fn reflect_lookup_model_abilities(
+pub async fn zhuye_lookup_model_abilities(
     model_id: String,
 ) -> CommandResult<ModelAbilitiesResult> {
     let id = model_id.trim();
@@ -41,7 +41,7 @@ pub async fn reflect_lookup_model_abilities(
             msg: "model_id is empty".into(),
         });
     }
-    let abilities = reflect_llm::abilities_for(id);
+    let abilities = zhuye_llm::abilities_for(id);
     Ok(ModelAbilitiesResult {
         context_window: abilities.context_window,
         max_output_tokens: abilities.max_output_tokens,
@@ -55,18 +55,18 @@ pub async fn reflect_lookup_model_abilities(
 mod tests {
     use super::*;
 
-    /// 命令名快照 —— 静态门禁据此确认 `reflect_lookup_model_abilities`
+    /// 命令名快照 —— 静态门禁据此确认 `zhuye_lookup_model_abilities`
     /// 有生产模块内的测试入口(命令面四方一致的一部分)。
     #[test]
     fn command_name_is_stable() {
-        let name: &str = "reflect_lookup_model_abilities";
-        assert_eq!(name, stringify!(reflect_lookup_model_abilities));
+        let name: &str = "zhuye_lookup_model_abilities";
+        assert_eq!(name, stringify!(zhuye_lookup_model_abilities));
     }
 
     /// 查一个模型不会 panic;空 id 明确报错(不静默返回空能力)。
     #[test]
     fn lookup_rejects_empty_id() {
-        let result = futures::executor::block_on(reflect_lookup_model_abilities(String::new()));
+        let result = futures::executor::block_on(zhuye_lookup_model_abilities(String::new()));
         assert!(result.is_err(), "空 id 必须报错");
     }
 
@@ -78,9 +78,9 @@ mod tests {
         // fixture 且不恢复 —— 并发窗口下本测试会读到 fixture 而误报
         // (CI windows 实证)。持目录测试锁并恢复内嵌快照,与执行顺序
         // 无关。
-        reflect_llm::with_snapshot_catalog(|| {
+        zhuye_llm::with_snapshot_catalog(|| {
             let result =
-                futures::executor::block_on(reflect_lookup_model_abilities("gpt-4o".into()))
+                futures::executor::block_on(zhuye_lookup_model_abilities("gpt-4o".into()))
                     .expect("查询不应失败");
             assert!(
                 result.context_window.is_some()

@@ -2,12 +2,12 @@ import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { SquadController } from '@/logic/squad/useSquadController';
 export type { SquadController } from '@/logic/squad/useSquadController';
-import type { ReflectSquadMember, ReflectTask } from '@/utils/commands';
-export type { ReflectSquadMember, ReflectTask } from '@/utils/commands';
+import type { ZhuyeSquadMember, ZhuyeTask } from '@/utils/commands';
+export type { ZhuyeSquadMember, ZhuyeTask } from '@/utils/commands';
 
 export interface SquadTaskRowProps {
-  task: ReflectTask;
-  members: ReflectSquadMember[];
+  task: ZhuyeTask;
+  members: ZhuyeSquadMember[];
   squadName: string;
   onAssign: (assignee: string | null) => Promise<void>;
 }

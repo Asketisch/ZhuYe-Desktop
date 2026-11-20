@@ -10,7 +10,7 @@ import type { Locale } from './types';
 
 export const DEFAULT_LOCALE: Locale = 'en';
 export const SUPPORTED_LOCALES: readonly Locale[] = ['en', 'zh-CN'] as const;
-export const STORAGE_KEY = 'reflect.locale';
+export const STORAGE_KEY = 'zhuye.locale';
 
 export function detectLocale(): Locale {
   if (typeof window !== 'undefined') {

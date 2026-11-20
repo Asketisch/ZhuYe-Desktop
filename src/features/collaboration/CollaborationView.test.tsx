@@ -22,8 +22,8 @@ describe('CollaborationView — orchestration', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders discussion history from reflect_list_discussions', async () => {
-    mockInvoke('reflect_list_discussions', async () => [
+  it('renders discussion history from zhuye_list_discussions', async () => {
+    mockInvoke('zhuye_list_discussions', async () => [
       {
         sessionId: '11111111-2222-3333-4444-555555555555',
         title: 'demo-session',
@@ -38,9 +38,9 @@ describe('CollaborationView — orchestration', () => {
   });
 
   it('runs a discussion from a picked TOML config and shows the transcript', async () => {
-    mockInvoke('reflect_list_teams', async () => []);
-    mockInvoke('reflect_list_discussions', async () => []);
-    mockInvoke('reflect_pick_file', async () => '/Users/dev/discussion.toml');
+    mockInvoke('zhuye_list_teams', async () => []);
+    mockInvoke('zhuye_list_discussions', async () => []);
+    mockInvoke('zhuye_pick_file', async () => '/Users/dev/discussion.toml');
     const runDiscussion = vi.fn(async () => ({
       discussionId: '99999999-8888-7777-6666-555555555555',
       participants: ['advocate', 'skeptic'],
@@ -48,7 +48,7 @@ describe('CollaborationView — orchestration', () => {
       result: { consensus: false, rounds: 1 },
       llmBacked: true,
     }));
-    mockInvoke('reflect_run_discussion', runDiscussion);
+    mockInvoke('zhuye_run_discussion', runDiscussion);
 
     render(wrap(<CollaborationView />));
     fireEvent.click(await screen.findByText(/Choose config/i));
@@ -61,10 +61,10 @@ describe('CollaborationView — orchestration', () => {
   });
 
   it('explains when the discussion ran without a model', async () => {
-    mockInvoke('reflect_list_teams', async () => []);
-    mockInvoke('reflect_list_discussions', async () => []);
-    mockInvoke('reflect_pick_file', async () => '/tmp/discussion.toml');
-    mockInvoke('reflect_run_discussion', async () => ({
+    mockInvoke('zhuye_list_teams', async () => []);
+    mockInvoke('zhuye_list_discussions', async () => []);
+    mockInvoke('zhuye_pick_file', async () => '/tmp/discussion.toml');
+    mockInvoke('zhuye_run_discussion', async () => ({
       discussionId: 'fallback', participants: ['advocate'], transcript: '', result: {}, llmBacked: false,
     }));
     render(wrap(<CollaborationView />));
@@ -76,15 +76,15 @@ describe('CollaborationView — orchestration', () => {
   });
 
   it('exposes and forwards cancellation while a discussion is running', async () => {
-    mockInvoke('reflect_list_teams', async () => []);
-    mockInvoke('reflect_list_discussions', async () => []);
-    mockInvoke('reflect_pick_file', async () => '/tmp/discussion.toml');
+    mockInvoke('zhuye_list_teams', async () => []);
+    mockInvoke('zhuye_list_discussions', async () => []);
+    mockInvoke('zhuye_pick_file', async () => '/tmp/discussion.toml');
     let resolveRun: ((value: unknown) => void) | undefined;
-    mockInvoke('reflect_run_discussion', async () => new Promise((resolve) => {
+    mockInvoke('zhuye_run_discussion', async () => new Promise((resolve) => {
       resolveRun = resolve;
     }));
     const cancelDiscussion = vi.fn(async () => 1);
-    mockInvoke('reflect_cancel_discussions', cancelDiscussion);
+    mockInvoke('zhuye_cancel_discussions', cancelDiscussion);
 
     render(wrap(<CollaborationView />));
     fireEvent.click(await screen.findByText(/Choose config/i));
@@ -131,7 +131,7 @@ describe('CollaborationView — orchestration', () => {
   });
 
   it('runs a team pipeline and renders the node report', async () => {
-    mockInvoke('reflect_list_teams', async () => [
+    mockInvoke('zhuye_list_teams', async () => [
       {
         name: 'rocket',
         description: null,
@@ -150,7 +150,7 @@ describe('CollaborationView — orchestration', () => {
       ],
       total_elapsed_ms: 4,
     }));
-    mockInvoke('reflect_run_team_pipeline', runPipeline);
+    mockInvoke('zhuye_run_team_pipeline', runPipeline);
 
     render(wrap(<CollaborationView />));
     // teams 查询异步解析 —— 等选项真正出现再触发 change(否则 select 无
@@ -167,7 +167,7 @@ describe('CollaborationView — orchestration', () => {
     expect(report.textContent).toContain('plan');
     expect(report.textContent).toContain('boom');
     // mock 挂在 invoke 层 —— 断言线上负载形状(teamName / topic camelCase 键)。
-    expect(runPipeline).toHaveBeenCalledWith('reflect_run_team_pipeline', {
+    expect(runPipeline).toHaveBeenCalledWith('zhuye_run_team_pipeline', {
       teamName: 'rocket',
       topic: 'ship it',
     });

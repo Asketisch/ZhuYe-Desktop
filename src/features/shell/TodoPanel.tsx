@@ -2,11 +2,11 @@
  * TodoPanel —— agent 的 todo 清单(来自 `TodoWrite` 工具)。
  *
  * 核心的 `TodoWrite` 把清单放进 `ToolOutput.metadata.todos`,事件流里就
- * 有 —— GUI 直接从 `tool_call_end` 事件里取（store 的 `todos`）。
+ * 有 —— GUI 直接从 `tool_call_end` 事件里取（store 的 `todos`）。上游
+ * zhuye-core 同时把清单回灌进模型上下文(todos_slot + pre_loop 注入)。
  *
- * 注:**基座侧没有消费方** —— 清单没回灌模型上下文,LLM 实际上看不到
- * 自己的 todo 清单(核心注释指向的 reducer 在 submodule 里并不存在)。
- * GUI 如实展示 agent 写了什么,便于用户核对「agent 以为自己在做什么」。
+ * 本面板挂在检查器;右上角另有常驻的 CornerStack TodoWidget,两者同源
+ * (`store.todos`),数据一致。
  */
 import { ListChecks } from 'lucide-react';
 import { Badge, Icon } from '@/features/design-system';

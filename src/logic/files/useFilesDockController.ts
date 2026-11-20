@@ -2,11 +2,11 @@
  * useFilesDockController —— 右 dock「文件」面板的状态与动作。
  *
  * 职责：
- * - 经 `useCurrentWorkspace` 拿当前工作区；`reflect_list_dir(path, 1)` 逐目录懒加载
+ * - 经 `useCurrentWorkspace` 拿当前工作区；`zhuye_list_dir(path, 1)` 逐目录懒加载
  *   （根目录随工作区查询，子目录在展开时才拉取，全部走 react-query 缓存）。
- * - `reflect_git_status` 归一成文件级标记（modified / added / untracked），驱动树上的
+ * - `zhuye_git_status` 归一成文件级标记（modified / added / untracked），驱动树上的
  *   `.st` 徽标与「全部 / 已修改 / 未跟踪」过滤器；git 不可用（非 repo / 查询失败）时隐藏过滤器。
- * - `reflect_read_file` 读取选中文件并构造预览模型（二进制 / 截断 / 错误均给已翻译提示，
+ * - `zhuye_read_file` 读取选中文件并构造预览模型（二进制 / 截断 / 错误均给已翻译提示，
  *   正文展示上限约 200KB）。
  *
  * 分层约定：视图（render 层）只接收已翻译的标签与纯数据，所有 t() 都在本 hook 内完成；
@@ -15,10 +15,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_git_status,
-  reflect_list_dir,
-  reflect_read_file,
-  type ReflectDirEntry,
+  zhuye_git_status,
+  zhuye_list_dir,
+  zhuye_read_file,
+  type ZhuyeDirEntry,
 } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
@@ -81,7 +81,7 @@ export function useFilesDockController() {
     }
     return dirs.map((dir) => ({
       queryKey: [DOCK_KEY, 'dir', dir],
-      queryFn: () => reflect_list_dir(dir, 1),
+      queryFn: () => zhuye_list_dir(dir, 1),
       staleTime: LIST_STALE_MS,
       gcTime: 5 * 60_000,
     }));
@@ -96,7 +96,7 @@ export function useFilesDockController() {
     : null;
 
   // listing.root → 直接子条目；同时统计已加载条目数（副标题的 {count}）。
-  const listings = new Map<string, ReflectDirEntry[]>();
+  const listings = new Map<string, ZhuyeDirEntry[]>();
   let loadedCount = 0;
   for (const result of dirResults) {
     const data = result.data;
@@ -108,7 +108,7 @@ export function useFilesDockController() {
   // ====== git 状态：路径 → 归一标记 ======
   const gitQuery = useQuery({
     queryKey: [DOCK_KEY, 'git'],
-    queryFn: reflect_git_status,
+    queryFn: zhuye_git_status,
     staleTime: LIST_STALE_MS,
     retry: false,
   });
@@ -161,14 +161,14 @@ export function useFilesDockController() {
   const [selected, setSelected] = useState<string | null>(null);
   const fileQuery = useQuery({
     queryKey: [DOCK_KEY, 'file', selected],
-    queryFn: () => reflect_read_file(selected as string),
+    queryFn: () => zhuye_read_file(selected as string),
     enabled: !!selected,
     staleTime: FILE_STALE_MS,
     retry: false,
   });
 
   // 每次渲染直接重建树（dock 规模小，无需 memo；listings 本就随查询结果逐帧变化）。
-  // 根层的 key 是 workspace：reflect_list_dir 返回的 listing.root 即请求的工作区路径。
+  // 根层的 key 是 workspace：zhuye_list_dir 返回的 listing.root 即请求的工作区路径。
   const buildLevel = (dirPath: string): DockTreeNode[] => {
     const wanted: DockGitState | null =
       filter === 'all' ? null : filter === 'modified' ? 'modified' : 'untracked';

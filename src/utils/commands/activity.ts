@@ -1,30 +1,30 @@
 /**
  * 活动时间线 IPC 包装（Phase 3 条目 9）。
  *
- * 薄包装 `reflect_list_activity` / `reflect_search_activity` /
- * `reflect_clear_activity` / `reflect_activity_count` 四个命令。
- * 与后端 `reflect_app_core::activity::{ActivityEvent, ActivityFilter, Actor}`
+ * 薄包装 `zhuye_list_activity` / `zhuye_search_activity` /
+ * `zhuye_clear_activity` / `zhuye_activity_count` 四个命令。
+ * 与后端 `zhuye_app_core::activity::{ActivityEvent, ActivityFilter, Actor}`
  * camelCase 类型对齐。
  */
 import { invoke } from '@/utils/bridge';
 
 // ── Actor (与 app-core/src/actor.rs 对齐) ──────────────────────────
 
-export type ReflectActorType = 'human' | 'agent' | 'system';
+export type ZhuyeActorType = 'human' | 'agent' | 'system';
 
-export type ReflectActorKind = 'user' | 'lead' | 'member' | 'system';
+export type ZhuyeActorKind = 'user' | 'lead' | 'member' | 'system';
 
-export interface ReflectActor {
-  actorType: ReflectActorType;
+export interface ZhuyeActor {
+  actorType: ZhuyeActorType;
   actorId: string;
-  kind: ReflectActorKind;
+  kind: ZhuyeActorKind;
   displayName?: string;
   teamName?: string;
 }
 
 // ── Activity kinds / levels ────────────────────────────────────────
 
-export type ReflectActivityKind =
+export type ZhuyeActivityKind =
   | 'turn_started'
   | 'turn_complete'
   | 'turn_aborted'
@@ -50,22 +50,22 @@ export type ReflectActivityKind =
   | 'context_compacted'
   | 'other';
 
-export type ReflectActivityLevel = 'info' | 'warn' | 'error';
+export type ZhuyeActivityLevel = 'info' | 'warn' | 'error';
 
-export interface ReflectActivityEvent {
+export interface ZhuyeActivityEvent {
   id: string;
   tsMs: number;
-  kind: ReflectActivityKind;
-  actor: ReflectActor;
+  kind: ZhuyeActivityKind;
+  actor: ZhuyeActor;
   summary: string;
   taskId?: number;
   teamName?: string;
-  level: ReflectActivityLevel;
+  level: ZhuyeActivityLevel;
 }
 
-export interface ReflectActivityFilter {
-  kind?: ReflectActivityKind;
-  level?: ReflectActivityLevel;
+export interface ZhuyeActivityFilter {
+  kind?: ZhuyeActivityKind;
+  level?: ZhuyeActivityLevel;
   actorId?: string;
   teamName?: string;
   sinceMs?: number;
@@ -74,22 +74,22 @@ export interface ReflectActivityFilter {
 
 // ── Wrappers ───────────────────────────────────────────────────────
 
-export function reflect_list_activity(
-  filter?: ReflectActivityFilter,
-): Promise<ReflectActivityEvent[]> {
-  return invoke('reflect_list_activity', { filter: filter ?? null });
+export function zhuye_list_activity(
+  filter?: ZhuyeActivityFilter,
+): Promise<ZhuyeActivityEvent[]> {
+  return invoke('zhuye_list_activity', { filter: filter ?? null });
 }
 
-export function reflect_search_activity(query: string): Promise<ReflectActivityEvent[]> {
-  return invoke('reflect_search_activity', { query });
+export function zhuye_search_activity(query: string): Promise<ZhuyeActivityEvent[]> {
+  return invoke('zhuye_search_activity', { query });
 }
 
-export function reflect_clear_activity(): Promise<void> {
-  return invoke('reflect_clear_activity');
+export function zhuye_clear_activity(): Promise<void> {
+  return invoke('zhuye_clear_activity');
 }
 
-export function reflect_activity_count(): Promise<number> {
-  return invoke('reflect_activity_count');
+export function zhuye_activity_count(): Promise<number> {
+  return invoke('zhuye_activity_count');
 }
 
 /**

@@ -353,8 +353,8 @@ make_isolated_env() {
     local home_parent="${1:-$temp_parent}"
     ISO_HOME=""
     ISO_CWD=""
-    ISO_HOME="$(mktemp -d "${home_parent%/}/reflect-desktop-test-home.XXXXXX")" || return 1
-    ISO_CWD="$(mktemp -d "${temp_parent%/}/reflect-desktop-test-cwd.XXXXXX")" || {
+    ISO_HOME="$(mktemp -d "${home_parent%/}/zhuye-desktop-test-home.XXXXXX")" || return 1
+    ISO_CWD="$(mktemp -d "${temp_parent%/}/zhuye-desktop-test-cwd.XXXXXX")" || {
         cleanup_isolated_env
         return 1
     }
@@ -382,7 +382,7 @@ EOF
     # 这些覆盖项优先于 HOME 或会改变沙箱、provider；测试不继承宿主配置。
     unset ZHUYE_HOME ZHUYE_HUMAN_INPUT_DIR ZHUYE_ROLLOUT_BASE ZHUYE_QUOTA_STATE ZHUYE_SESSION_ID
     unset ZHUYE_SANDBOX_WRITABLE ZHUYE_UNTRUSTED_ALLOW_BARE ZHUYE_SANDBOX_OS_LEVEL ZHUYE_SANDBOX_STRICT
-    unset REFLECT_TEST_HOME ZHUYE_AUDIT_TEST_DIR ZHUYE_TASK_TEST_DIR ZHUYE_TASK_TEST_PHASE ZHUYE_TASK_TEST_WORKER
+    unset ZHUYE_TEST_HOME ZHUYE_AUDIT_TEST_DIR ZHUYE_TASK_TEST_DIR ZHUYE_TASK_TEST_PHASE ZHUYE_TASK_TEST_WORKER
     unset ZHUYE_TEST_INPUT_CHILD ZHUYE_TEST_PLAN_EXIT_CHILD ZHUYE_TEST_QUOTA_CHILD ZHUYE_TEST_SANDBOX_DEFAULT_CHILD
     unset ZHUYE_MODEL ZHUYE_PROVIDER ZHUYE_APPROVALS
     unset OPENAI_API_KEY ANTHROPIC_API_KEY OLLAMA_API_KEY OLLAMA_HOST BRAVE_API_KEY

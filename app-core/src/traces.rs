@@ -1,6 +1,6 @@
-//! LLM 调用记录(traces)只读查询 —— GUI 对应 CLI `reflect traces ls / show`。
+//! LLM 调用记录(traces)只读查询 —— GUI 对应 CLI `zhuye traces ls / show`。
 //!
-//! 数据源是 `reflect-telemetry` 的 model-io JSONL(`~/.zhuye/traces/model-io/`,
+//! 数据源是 `zhuye-telemetry` 的 model-io JSONL(`~/.zhuye/traces/model-io/`,
 //! 每次 LLM 调用一条 [`ModelIoRecord`],已脱敏)。本模块只读:
 //! - [`list_traces`] 列 session 摘要(调用数 / 最近时间 / 模型),
 //!   session_id → 可读标题复用 rollout 自定义名 / AI 标题链;
@@ -12,7 +12,7 @@
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use reflect_telemetry::{
+use zhuye_telemetry::{
     ModelIoRecord, UsageSnapshot, list_model_io_files, read_model_io_file, resolve_traces_dir,
 };
 use serde::{Deserialize, Serialize};
@@ -117,8 +117,8 @@ pub struct TraceModelRef {
     pub source: Option<String>,
 }
 
-impl From<&reflect_telemetry::ModelRef> for TraceModelRef {
-    fn from(m: &reflect_telemetry::ModelRef) -> Self {
+impl From<&zhuye_telemetry::ModelRef> for TraceModelRef {
+    fn from(m: &zhuye_telemetry::ModelRef) -> Self {
         Self {
             model_id: m.model_id.clone(),
             provider_id: m.provider_id.clone(),
@@ -154,7 +154,7 @@ impl From<ModelIoRecord> for TraceCall {
 pub fn list_traces(limit: usize) -> Vec<TraceSessionSummary> {
     let base = resolve_traces_dir(None);
     let files = list_model_io_files(&base);
-    let sessions = reflect_rollout::index::list_sessions(&reflect_rollout::path::default_base())
+    let sessions = zhuye_rollout::index::list_sessions(&zhuye_rollout::path::default_base())
         .unwrap_or_default();
 
     let mut out = Vec::new();
@@ -236,7 +236,7 @@ pub struct TraceSpan {
     pub parent_span_id: Option<String>,
     /// 事件判别器(`turn.started` / `model.request.completed` / `tool.call.ended` …)。
     pub event: String,
-    /// 发射模块(`reflect_core::submission_loop` / `reflect_goal` …)。
+    /// 发射模块(`zhuye_core::submission_loop` / `zhuye_goal` …)。
     pub module: String,
     /// 日志级别。
     pub level: String,
@@ -261,7 +261,7 @@ pub struct TraceSpan {
 /// 列出最近 `days` 天内可用的 span 日志文件(最近在前)。
 pub fn list_span_logs(days: usize) -> Vec<SpanLogFile> {
     let base = resolve_traces_dir(None);
-    reflect_telemetry::list_span_log_files(&base, days)
+    zhuye_telemetry::list_span_log_files(&base, days)
         .into_iter()
         .map(|(day, path)| SpanLogFile {
             day,
@@ -276,13 +276,13 @@ pub fn list_span_logs(days: usize) -> Vec<SpanLogFile> {
 /// 可能有多个会话的交错事件)。
 pub fn read_span_log(day: &str, session_id: Option<&str>) -> Vec<TraceSpan> {
     let base = resolve_traces_dir(None);
-    let Some((_, path)) = reflect_telemetry::list_span_log_files(&base, 30)
+    let Some((_, path)) = zhuye_telemetry::list_span_log_files(&base, 30)
         .into_iter()
         .find(|(d, _)| d == day)
     else {
         return Vec::new();
     };
-    let events = reflect_telemetry::read_span_log_file(&path);
+    let events = zhuye_telemetry::read_span_log_file(&path);
     let mut spans: Vec<TraceSpan> = events
         .into_iter()
         .filter(|e| match session_id {

@@ -29,9 +29,9 @@ fn parallel_reads_never_panic_or_error() {
     const THREADS: usize = 32;
     const PER_THREAD: usize = 20;
     let cmds: &[&str] = &[
-        "reflect_agent_status",
-        "reflect_list_sessions",
-        "reflect_get_config",
+        "zhuye_agent_status",
+        "zhuye_list_sessions",
+        "zhuye_get_config",
     ];
     let failures = Arc::new(std::sync::Mutex::new(Vec::new()));
     let barrier = Arc::new(std::sync::Barrier::new(THREADS));
@@ -77,7 +77,7 @@ fn submit_storm_with_interleaved_interrupts_keeps_the_agent_responsive() {
         let failures = failures.clone();
         handles.push(std::thread::spawn(move || {
             let v = common::invoke(
-                "reflect_submit",
+                "zhuye_submit",
                 json!({
                     "submission": {
                         "id": format!("concurrency-storm-{i}"),
@@ -93,7 +93,7 @@ fn submit_storm_with_interleaved_interrupts_keeps_the_agent_responsive() {
     }
     // 交错发几次 interrupt(可能打断、可能落空,都不能崩)。
     for _ in 0..4 {
-        let _ = common::invoke("reflect_interrupt", json!({}));
+        let _ = common::invoke("zhuye_interrupt", json!({}));
     }
     for h in handles {
         h.join().expect("submit 线程 panic");
@@ -105,7 +105,7 @@ fn submit_storm_with_interleaved_interrupts_keeps_the_agent_responsive() {
         failures.iter().take(5).collect::<Vec<_>>()
     );
     // 事后 agent 仍响应。
-    let status = common::invoke_ok("reflect_agent_status", json!({}));
+    let status = common::invoke_ok("zhuye_agent_status", json!({}));
     assert!(status.is_object(), "风暴后 agent_status 异常: {status}");
 }
 
@@ -123,7 +123,7 @@ fn concurrent_config_writes_keep_the_file_valid() {
         handles.push(std::thread::spawn(move || {
             barrier.wait();
             common::invoke_ok(
-                "reflect_upsert_mcp_server",
+                "zhuye_upsert_mcp_server",
                 json!({
                     "name": format!("concurrency-mcp-{i}"),
                     "entry": { "type": "stdio", "command": "echo", "args": ["probe"] }
@@ -136,7 +136,7 @@ fn concurrent_config_writes_keep_the_file_valid() {
     }
 
     // 配置文件仍是合法 TOML。
-    let data_dir = reflect_config::paths::data_dir().expect("夹具应已设置 HOME");
+    let data_dir = zhuye_config::paths::data_dir().expect("夹具应已设置 HOME");
     let raw = std::fs::read_to_string(data_dir.join("config.toml")).expect("读回 config.toml");
     let parsed: toml::Value = toml::from_str(&raw).unwrap_or_else(|e| {
         panic!("并发写之后 config.toml 不再是合法 TOML:\n{raw}\n解析错误: {e}")
@@ -153,6 +153,6 @@ fn concurrent_config_writes_keep_the_file_valid() {
     );
 
     // 写完之后配置命令仍可用(读写器没有死锁或损坏状态)。
-    let list = common::invoke_ok("reflect_list_mcp_servers", json!({}));
+    let list = common::invoke_ok("zhuye_list_mcp_servers", json!({}));
     assert!(list.is_array(), "并发写后 list_mcp_servers 异常: {list}");
 }

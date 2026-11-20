@@ -1,4 +1,4 @@
-"""test_registry.py —— ReflectDesktop(Rust + Tauri 桌面端)任务注册表。
+"""test_registry.py —— ZhuYe Desktop(Rust + Tauri 桌面端)任务注册表。
 
 任务 ID 与 PLAN.md 第 4 章对应;映射到仓库既有六层入口
 (static / frontend / backend / artifact / e2e / live,见 tests/run_all.sh)。
@@ -9,7 +9,7 @@
 - e2e 层:真实 Tauri 窗口(系统 WebView、IPC、权限) + 视觉回归
 - artifact 层:最终安装包(结构、资源、清洁性)
 
-coverage 语义同 Reflect-Agent。
+coverage 语义同 ZhuYe Agent。
 """
 
 TASKS: dict[str, dict] = {
@@ -119,11 +119,11 @@ TASKS: dict[str, dict] = {
         "timeout_s": 3600,
     },
 
-    # ---- live 层(真实模型,默认 SKIP,需 REFLECT_LIVE=1) ----
+    # ---- live 层(真实模型,默认 SKIP,需 ZHUYE_LIVE=1) ----
     "desktop.live": {
         "coverage": "conditional",
         "command": ["tests/run_all.sh", "live"],
-        "note": "L6 实模型演练层(真实 provider + 真实 SSE;需 REFLECT_LIVE=1)",
+        "note": "L6 实模型演练层(真实 provider + 真实 SSE;需 ZHUYE_LIVE=1)",
         "enabled": False,
     },
 }

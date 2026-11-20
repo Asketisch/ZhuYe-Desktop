@@ -1,8 +1,8 @@
 /**
  * FilesView —— LSP 开关 / 预热链路测试。
  *
- * 覆盖:chip 默认关闭、点击开启调 reflect_lsp_set_enabled(true) 并持久化
- * 偏好、开启状态下打开代码文件触发 reflect_lsp_warmup。
+ * 覆盖:chip 默认关闭、点击开启调 zhuye_lsp_set_enabled(true) 并持久化
+ * 偏好、开启状态下打开代码文件触发 zhuye_lsp_warmup。
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -28,20 +28,20 @@ describe('FilesView LSP', () => {
   beforeEach(() => {
     localStorage.clear();
     useEditorStore.setState({ drafts: {} });
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: true,
       model: 'openai/x',
       workspace: WORKSPACE,
       degraded_reason: null,
     }));
-    mockInvoke('reflect_list_dir', async () => ({
+    mockInvoke('zhuye_list_dir', async () => ({
       cwd: WORKSPACE,
       entries: [
         { name: 'a.ts', path: `${WORKSPACE}/a.ts`, kind: 'file', size: 10, mtime: 0, depth: 0 },
       ],
     }));
-    mockInvoke('reflect_read_file', async () => ({
+    mockInvoke('zhuye_read_file', async () => ({
       path: `${WORKSPACE}/a.ts`,
       content: 'const x = 1;\n',
       size: 13,
@@ -53,13 +53,13 @@ describe('FilesView LSP', () => {
   it('chip 默认关闭;点击开启 → set_enabled(true) + 偏好持久化', async () => {
     const setCalls: boolean[] = [];
     let enabled = false;
-    mockInvoke('reflect_lsp_status', async () => ({ enabled, servers: [] }));
-    mockInvoke('reflect_lsp_set_enabled', async (_cmd: string, args?: { enabled: boolean }) => {
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled, servers: [] }));
+    mockInvoke('zhuye_lsp_set_enabled', async (_cmd: string, args?: { enabled: boolean }) => {
       enabled = args?.enabled ?? false;
       setCalls.push(enabled);
       return { enabled, servers: enabled ? ['rust-analyzer'] : [] };
     });
-    mockInvoke('reflect_lsp_warmup', async () => ({ warmed: true, server: null }));
+    mockInvoke('zhuye_lsp_warmup', async () => ({ warmed: true, server: null }));
     renderView();
 
     const chip = await screen.findByTestId('files-lsp-toggle');
@@ -76,9 +76,9 @@ describe('FilesView LSP', () => {
   it('clears shared LSP status only after the backend confirms disable', async () => {
     localStorage.setItem(lspPrefKey(WORKSPACE), 'on');
     useAgentStore.setState({ lspServers: [{ name: 'fixture', status: 'started', detail: '1 methods' }] });
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: true, servers: ['fixture'] }));
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: true, servers: ['fixture'] }));
     let attempts = 0;
-    mockInvoke('reflect_lsp_set_enabled', async () => {
+    mockInvoke('zhuye_lsp_set_enabled', async () => {
       if (++attempts === 1) throw new Error('shutdown failed');
       return { enabled: false, servers: [] };
     });
@@ -95,9 +95,9 @@ describe('FilesView LSP', () => {
   });
 
   it('切换失败保留实际状态和原偏好，并允许重试', async () => {
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: false, servers: [] }));
     let attempts = 0;
-    mockInvoke('reflect_lsp_set_enabled', async () => {
+    mockInvoke('zhuye_lsp_set_enabled', async () => {
       if (++attempts === 1) throw new Error('LSP failed');
       return { enabled: true, servers: [] };
     });
@@ -116,9 +116,9 @@ describe('FilesView LSP', () => {
 
   it('状态初始化未完成前不能切换 LSP', async () => {
     let finish!: (status: { enabled: boolean; servers: string[] }) => void;
-    mockInvoke('reflect_lsp_status', () => new Promise((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_lsp_status', () => new Promise((resolve) => { finish = resolve; }));
     const set = vi.fn(async () => ({ enabled: true, servers: [] }));
-    mockInvoke('reflect_lsp_set_enabled', set);
+    mockInvoke('zhuye_lsp_set_enabled', set);
     renderView();
     const chip = await screen.findByTestId('files-lsp-toggle') as HTMLButtonElement;
     await waitFor(() => expect(finish).toBeDefined());
@@ -136,8 +136,8 @@ describe('FilesView LSP', () => {
     let enabled = false;
     let finish!: () => void;
     const calls: boolean[] = [];
-    mockInvoke('reflect_lsp_status', async () => ({ enabled, servers: [] }));
-    mockInvoke('reflect_lsp_set_enabled', async (_cmd: string, args?: { enabled: boolean }) => {
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled, servers: [] }));
+    mockInvoke('zhuye_lsp_set_enabled', async (_cmd: string, args?: { enabled: boolean }) => {
       const target = args?.enabled ?? false;
       calls.push(target);
       if (target) await new Promise<void>((resolve) => { finish = resolve; });
@@ -157,9 +157,9 @@ describe('FilesView LSP', () => {
 
   it('开启状态下打开代码文件 → 触发 warmup', async () => {
     const warmupCalls: string[] = [];
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: true, servers: ['rust-analyzer'] }));
-    mockInvoke('reflect_lsp_set_enabled', async () => ({ enabled: true, servers: [] }));
-    mockInvoke('reflect_lsp_warmup', async (_cmd: string, args?: { path: string }) => {
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: true, servers: ['rust-analyzer'] }));
+    mockInvoke('zhuye_lsp_set_enabled', async () => ({ enabled: true, servers: [] }));
+    mockInvoke('zhuye_lsp_warmup', async (_cmd: string, args?: { path: string }) => {
       warmupCalls.push(args?.path ?? '');
       return { warmed: true, server: 'rust-analyzer' };
     });
@@ -174,9 +174,9 @@ describe('FilesView LSP', () => {
 
   it('关闭状态下打开文件不触发 warmup', async () => {
     const warmup = vi.fn(async () => ({ warmed: false, server: null }));
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
-    mockInvoke('reflect_lsp_set_enabled', async () => ({ enabled: false, servers: [] }));
-    mockInvoke('reflect_lsp_warmup', warmup);
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_lsp_set_enabled', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_lsp_warmup', warmup);
     renderView();
 
     const fileBtn = await screen.findByText('a.ts');
@@ -188,7 +188,7 @@ describe('FilesView LSP', () => {
   });
   it('截断文件只读且不提供写回变更的操作', async () => {
     const path = `${WORKSPACE}/a.ts`;
-    mockInvoke('reflect_read_file', async () => ({ path, content: 'AA\nb\n', size: 2000000, binary: false, truncated: true }));
+    mockInvoke('zhuye_read_file', async () => ({ path, content: 'AA\nb\n', size: 2000000, binary: false, truncated: true }));
     useEditorStore.getState().recordEdit(path, '@@ -1,2 +1,2 @@\n-a\n+AA\n b\n');
     renderView();
     fireEvent.click(await screen.findByText('a.ts'));
@@ -202,9 +202,9 @@ describe('FilesView LSP', () => {
 
   it('拒绝变更写盘期间冻结当前编辑器，完成后恢复编辑', async () => {
     const path = `${WORKSPACE}/a.ts`;
-    mockInvoke('reflect_read_file', async () => ({ path, content: 'AA\nb\n', size: 5, binary: false, truncated: false }));
+    mockInvoke('zhuye_read_file', async () => ({ path, content: 'AA\nb\n', size: 5, binary: false, truncated: false }));
     let finish!: (path: string) => void;
-    mockInvoke('reflect_write_file', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_write_file', () => new Promise<string>((resolve) => { finish = resolve; }));
     useEditorStore.getState().recordEdit(path, '@@ -1,2 +1,2 @@\n-a\n+AA\n b\n');
     renderView();
     fireEvent.click(await screen.findByText('a.ts'));
@@ -218,10 +218,10 @@ describe('FilesView LSP', () => {
 
   it('saves the captured buffer while preserving edits made during the save', async () => {
     const path = `${WORKSPACE}/a.ts`;
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: false, servers: [] }));
     let finish!: (path: string) => void;
     const writes: string[] = [];
-    mockInvoke('reflect_write_file', (_cmd, args) => {
+    mockInvoke('zhuye_write_file', (_cmd, args) => {
       writes.push((args as { content: string }).content);
       return new Promise<string>((resolve) => { finish = resolve; });
     });
@@ -248,14 +248,14 @@ describe('FilesView LSP', () => {
 
   it('keeps a draft when the file changed on disk before saving', async () => {
     const path = `${WORKSPACE}/a.ts`;
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: false, servers: [] }));
     let reads = 0;
-    mockInvoke('reflect_read_file', async () => ({
+    mockInvoke('zhuye_read_file', async () => ({
       path, content: ++reads === 1 ? 'const x = 1;\n' : 'external change',
       size: 13, binary: false, truncated: false,
     }));
     const write = vi.fn();
-    mockInvoke('reflect_write_file', write);
+    mockInvoke('zhuye_write_file', write);
     const { container } = renderView();
     fireEvent.click(await screen.findByText('a.ts'));
     await screen.findByTestId('cm-editor');
@@ -272,9 +272,9 @@ describe('FilesView LSP', () => {
 
   it('reports a failed save after leaving the view and retains the draft', async () => {
     const path = `${WORKSPACE}/a.ts`;
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: false, servers: [] }));
     let fail!: (error: Error) => void;
-    mockInvoke('reflect_write_file', () => new Promise<string>((_, reject) => { fail = reject; }));
+    mockInvoke('zhuye_write_file', () => new Promise<string>((_, reject) => { fail = reject; }));
     useAgentStore.getState().reset();
     const { container, unmount } = renderView();
     fireEvent.click(await screen.findByText('a.ts'));
@@ -292,10 +292,10 @@ describe('FilesView LSP', () => {
 
   it('preserves new edits after reopening while a rejection is writing', async () => {
     const path = `${WORKSPACE}/a.ts`;
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
-    mockInvoke('reflect_read_file', async () => ({ path, content: 'AA\nb\n', size: 5, binary: false, truncated: false }));
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_read_file', async () => ({ path, content: 'AA\nb\n', size: 5, binary: false, truncated: false }));
     let finish!: (path: string) => void;
-    mockInvoke('reflect_write_file', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_write_file', () => new Promise<string>((resolve) => { finish = resolve; }));
     useEditorStore.getState().recordEdit(path, '@@ -1,2 +1,2 @@\n-a\n+AA\n b\n');
     const first = renderView();
     fireEvent.click(await screen.findByText('a.ts'));
@@ -317,12 +317,12 @@ describe('FilesView LSP', () => {
   it('does not reject over a file changed on disk and can reload it', async () => {
     const path = `${WORKSPACE}/a.ts`;
     let reads = 0;
-    mockInvoke('reflect_lsp_status', async () => ({ enabled: false, servers: [] }));
-    mockInvoke('reflect_read_file', async () => ({
+    mockInvoke('zhuye_lsp_status', async () => ({ enabled: false, servers: [] }));
+    mockInvoke('zhuye_read_file', async () => ({
       path, content: ++reads === 1 ? 'AA\nb\n' : 'external edit\n', size: 5, binary: false, truncated: false,
     }));
     const write = vi.fn();
-    mockInvoke('reflect_write_file', write);
+    mockInvoke('zhuye_write_file', write);
     useEditorStore.getState().recordEdit(path, '@@ -1,2 +1,2 @@\n-a\n+AA\n b\n');
     const { container } = renderView();
     fireEvent.click(await screen.findByText('a.ts'));

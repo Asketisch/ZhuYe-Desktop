@@ -1,9 +1,9 @@
-//! `reflect-desktop` Tauri 2 后端库。
+//! `zhuye-desktop` Tauri 2 后端库。
 //!
 //! ## 里程碑
 //!
 //! - **M1.x** (已): 协议桥 —— 19 个 Tauri command + Event 转发到前端,MinimalAgent stub。
-//! - **M2.x** (当前): 真后端 —— MinimalAgent 改为嵌入 `reflect_core::AgentThread`
+//! - **M2.x** (当前): 真后端 —— MinimalAgent 改为嵌入 `zhuye_core::AgentThread`
 //!   (stub model + EchoTool,不依赖网络);4 个产品联动 (tray / menu / shortcut / dock) 实装;
 //!   macOS close-to-tray。
 //!
@@ -35,8 +35,8 @@ pub use commands_registry::configure;
 
 /// 启动 Tauri 应用:
 ///
-/// 1. 注册 `MinimalAgent` (M2.x = 真 `reflect_core::AgentThread` + stub model);
-/// 2. 注册全部 reflect command + ping + `reflect_set_dock_badge`;
+/// 1. 注册 `MinimalAgent` (M2.x = 真 `zhuye_core::AgentThread` + stub model);
+/// 2. 注册全部 zhuye command + ping + `zhuye_set_dock_badge`;
 /// 3. 注册 `tauri-plugin-global-shortcut` plugin;
 /// 4. 在 setup 中:
 ///     - 启动 `forward_agent_events` 把 agent event 推到前端;
@@ -77,7 +77,7 @@ pub fn run() {
             //    记日志,不阻断启动 —— 此前 `?` 上抛会让 run(...) panic,
             //    应用完全无法打开。
             if let Err(e) = shortcut::register_global_shortcuts(app.handle()) {
-                tracing::warn!("[reflect-gui] global shortcut registration failed, continuing without it: {e}");
+                tracing::warn!("[zhuye-gui] global shortcut registration failed, continuing without it: {e}");
             }
 
             // 3. 启动时清空 dock badge。
@@ -104,8 +104,8 @@ pub fn run() {
                 events::forward_agent_events(app_handle, session_rx).await;
             });
             // v1.x 后台持续运行:后台会话事件(带 session id)走独立通道
-            // `reflect_session_event`,前端据此维护运行徽标 / 待确认提醒;
-            // 前台通道 `reflect_event` 线格式与 reducer 语义不变。
+            // `zhuye_session_event`,前端据此维护运行徽标 / 待确认提醒;
+            // 前台通道 `zhuye_event` 线格式与 reducer 语义不变。
             let agent_for_background: MinimalAgent = (*app.state::<MinimalAgent>()).clone();
             let app_handle_bg = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -114,7 +114,7 @@ pub fn run() {
             });
 
             tracing::info!(
-                "[reflect-gui] setup complete (model={}, workspace={}); agent thread installing in async runtime",
+                "[zhuye-gui] setup complete (model={}, workspace={}); agent thread installing in async runtime",
                 app.state::<MinimalAgent>().model_spec(),
                 app.state::<MinimalAgent>().workspace().display()
             );
@@ -126,7 +126,7 @@ pub fn run() {
         // `RunEvent::Reopen` (点击 Dock 图标) 静默丢弃,close-to-tray
         // 隐藏后的主窗口将无法唤回。
         .build(tauri::generate_context!())
-        .expect("error while building reflect-desktop")
+        .expect("error while building zhuye-desktop")
         .run(|app, event| {
             // macOS:点击 Dock 图标(AppKit reopen)唤回主窗口。
             // `RunEvent::Reopen` 变体仅 macOS/iOS 编译,必须 cfg 守卫,
@@ -159,7 +159,7 @@ pub fn run() {
 #[cfg(target_os = "macos")]
 fn reopen_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>, has_visible_windows: bool) {
     if !has_visible_windows {
-        tracing::debug!("[reflect-gui] dock reopen: showing main window");
+        tracing::debug!("[zhuye-gui] dock reopen: showing main window");
         tray::show_main_window(app);
     }
 }

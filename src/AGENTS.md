@@ -14,7 +14,7 @@
 | `features/` | 全部功能切片（视图 + 控制器/hook + 就近测试） | [features/AGENTS.md](features/AGENTS.md) |
 | `stores/` | Zustand 状态层（agent 主状态机、editorStore、回放构建） | [stores/AGENTS.md](stores/AGENTS.md) |
 | `utils/` | IPC 包装、i18n 运行时、桥接降级、通用小工具 | [utils/AGENTS.md](utils/AGENTS.md) |
-| `services/` | `agentEventBus.ts` 持有唯一 Tauri `reflect_event` 订阅并一对多扇出；`agent.ts`（18 行）是指向 stores 的兼容 re-export | 本篇规则 2、4 |
+| `services/` | `agentEventBus.ts` 持有唯一 Tauri `zhuye_event` 订阅并一对多扇出；`agent.ts`（18 行）是指向 stores 的兼容 re-export | 本篇规则 2、4 |
 | `types/` | 协议类型：`protocol.ts` + `protocol/` 10 个分域手写文件 + `css-modules.d.ts`，另有脚本按需生成物 | 本篇规则 1 |
 | `render/styles/` | `tokens.css`（v3 harness 设计 token：黑白主色双命名体系——设计原生名 `--bg/--surface/--line/--fg/--fill/--white/--ok…` 与旧名 `--bg-app/--text-primary…` 同值并存；`data-semantic="off"` 单色模式）+ `base.css`（reset）+ `harness.css`（壳层骨架与会话流共享组件的全局类，类名与 agent-harness-desktop.html 设计稿一一对应） | 根 AGENTS.md「约定」 |
 | `components/` | 跨切片通用组件，当前仅 `Markdown.tsx` + 同名 module.css | — |
@@ -35,8 +35,8 @@
 ## 层通用规则
 
 1. **协议类型手写 vs 生成分工**：`types/protocol/` 是手写分域类型（UI 消费面）；`scripts/dump-ts-types.sh`（`pnpm types:gen`）从 Rust `zhuye-protocol` 生成 `src/types/protocol.generated.ts`，用于防 `Op` / `EventMsg` 手写漂移。生成物不常驻工作树——改线格式后运行脚本比对，禁止手改生成物。
-2. **事件单订阅点**：新 consumer 不自开 `listen('reflect_event')`，一律 `subscribeAgentEvent(callback)`（`services/agentEventBus.ts` 内部引用计数开关底层 listener，consumer 回调彼此隔离）。订阅建立时机在 `AppProviders` mount（agentStore + editorStore + backgroundSessions 各一次，StrictMode 双 mount 幂等）。
-3. **测试挂载契约**：`src/test/setup.tsx` 是 Vitest 全局 setup，导出 `mockInvoke` / `resetMockInvoke` / `emitMockEvent` / `resetMockEvents` / `createTestQueryClient` / `renderWithQueryClient`，并预置约 40 个 `reflect_*` 默认 stub；`tests/helpers/fakeBackend.ts` 依赖它。新增命令时的 stub 同步是 5 处落点链的一环，见 [utils/AGENTS.md](utils/AGENTS.md)。
+2. **事件单订阅点**：新 consumer 不自开 `listen('zhuye_event')`，一律 `subscribeAgentEvent(callback)`（`services/agentEventBus.ts` 内部引用计数开关底层 listener，consumer 回调彼此隔离）。订阅建立时机在 `AppProviders` mount（agentStore + editorStore + backgroundSessions 各一次，StrictMode 双 mount 幂等）。
+3. **测试挂载契约**：`src/test/setup.tsx` 是 Vitest 全局 setup，导出 `mockInvoke` / `resetMockInvoke` / `emitMockEvent` / `resetMockEvents` / `createTestQueryClient` / `renderWithQueryClient`，并预置约 40 个 `zhuye_*` 默认 stub；`tests/helpers/fakeBackend.ts` 依赖它。新增命令时的 stub 同步是 5 处落点链的一环，见 [utils/AGENTS.md](utils/AGENTS.md)。
 4. **兼容桶不加新导出**：`services/agent.ts`、`stores/agentStore.ts`、`utils/tauri.ts` / `commands.ts` / `i18n.ts` 只减不增；各桶链路细节分别见 [stores/AGENTS.md](stores/AGENTS.md) 与 [utils/AGENTS.md](utils/AGENTS.md)。
 5. **新切片不在本层注册**：`src/` 顶层不放业务组件；建切片的完整落点链（router 三处接线 + i18n 文案 + 视觉基线）见 [features/AGENTS.md](features/AGENTS.md)。
 

@@ -2,14 +2,14 @@
  * 活动 agent 转数的 Submission + 生命周期包装。
  *
  * 生命周期 / Op 包装各自返回发起方的 submission id，
- * 便于前端将其与实时 `reflect_event` 流关联。
+ * 便于前端将其与实时 `zhuye_event` 流关联。
  */
 import { invoke } from '../bridge';
-import type { ReflectSubmission, UserInputItem } from '@/types/protocol';
+import type { ZhuyeSubmission, UserInputItem } from '@/types/protocol';
 
 /** Submission 入口。返回 submission id。 */
-export async function reflect_submit(s: ReflectSubmission): Promise<string> {
-  return invoke<string>('reflect_submit', { submission: s });
+export async function zhuye_submit(s: ZhuyeSubmission): Promise<string> {
+  return invoke<string>('zhuye_submit', { submission: s });
 }
 
 /**
@@ -21,10 +21,10 @@ export async function reflect_submit(s: ReflectSubmission): Promise<string> {
  *
  * 返回 submission id。
  */
-export async function reflect_interrupt(child_id?: string): Promise<string> {
+export async function zhuye_interrupt(child_id?: string): Promise<string> {
   return child_id
-    ? invoke<string>('reflect_interrupt', { childId: child_id })
-    : invoke<string>('reflect_interrupt');
+    ? invoke<string>('zhuye_interrupt', { childId: child_id })
+    : invoke<string>('zhuye_interrupt');
 }
 
 /**
@@ -34,33 +34,33 @@ export async function reflect_interrupt(child_id?: string): Promise<string> {
  * `'attachment'` = 参考资料(system-reminder 包裹,缺省)。
  * 注入本身不发协议事件(仅落 recorder),调用方需乐观渲染。
  */
-export async function reflect_steer(
+export async function zhuye_steer(
   items: UserInputItem[],
   priority?: 'now' | 'attachment',
 ): Promise<string> {
-  return invoke<string>('reflect_steer', { items, priority: priority ?? null });
+  return invoke<string>('zhuye_steer', { items, priority: priority ?? null });
 }
 
 /**
  * v1.4 C1:查询子代理状态快照。应答为 `subagent_status` 事件,经
- * reflect_event 通道异步送达(reducer 写入 store)。`child_id` 缺省 =
+ * zhuye_event 通道异步送达(reducer 写入 store)。`child_id` 缺省 =
  * 列出全部在飞 + 近期终态子代理。
  */
-export async function reflect_query_subagents(child_id?: string): Promise<string> {
-  return invoke<string>('reflect_query_subagents', { childId: child_id ?? null });
+export async function zhuye_query_subagents(child_id?: string): Promise<string> {
+  return invoke<string>('zhuye_query_subagents', { childId: child_id ?? null });
 }
 
 /** 压缩当前会话历史。 */
-export async function reflect_compact(): Promise<string> {
-  return invoke<string>('reflect_compact');
+export async function zhuye_compact(): Promise<string> {
+  return invoke<string>('zhuye_compact');
 }
 
 /** 回退到上一个回合（省略参数则丢弃最后一条用户消息）。 */
-export async function reflect_rewind(to_turn_id?: string): Promise<string> {
-  return invoke<string>('reflect_rewind', { toTurnId: to_turn_id ?? null });
+export async function zhuye_rewind(to_turn_id?: string): Promise<string> {
+  return invoke<string>('zhuye_rewind', { toTurnId: to_turn_id ?? null });
 }
 
 /** 关闭 agent 运行时。 */
-export async function reflect_shutdown(): Promise<string> {
-  return invoke<string>('reflect_shutdown');
+export async function zhuye_shutdown(): Promise<string> {
+  return invoke<string>('zhuye_shutdown');
 }

@@ -1,4 +1,4 @@
-//! 图片附件读取(`reflect_read_image_base64`)—— Composer 拖拽/选择器管线用。
+//! 图片附件读取(`zhuye_read_image_base64`)—— Composer 拖拽/选择器管线用。
 //!
 //! 与本目录其余命令(工作区沙盒内的文件树 / 文本读写)是两个刻意分开的域:
 //! 附件来源可以是 Desktop / Downloads 等任意位置,不走工作区沙盒。
@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use crate::commands::error::{CommandError, CommandResult};
 
-/// `reflect_read_image_base64` 的返回:图片字节(base64)+ MIME。
+/// `zhuye_read_image_base64` 的返回:图片字节(base64)+ MIME。
 #[derive(Debug, Serialize)]
 pub struct ImageBase64Result {
     /// 文件绝对路径。
@@ -42,14 +42,14 @@ fn image_mime_by_extension(path: &Path) -> Option<&'static str> {
 
 /// 读取图片文件并返回 base64 —— Composer 拖拽/选择器附件管线用。
 ///
-/// 与 `reflect_read_file` 的两个刻意差异:
+/// 与 `zhuye_read_file` 的两个刻意差异:
 /// - **不做工作区沙盒**:拖拽来源可以是 Desktop / Downloads 等任意位置,
 ///   沙盒会让主用例(拖张截图进来)直接失败;
 /// - **扩展名白名单 + 20 MiB 上限**:core 侧 `UserInputItem::LocalImage`
 ///   尚未接通(submission_loop 静默跳过),前端必须拿到字节以 inline
 ///   `Image` item 提交 —— 这里挡住非图片与大文件,防 IPC payload 失控。
 #[tauri::command]
-pub async fn reflect_read_image_base64(path: String) -> CommandResult<ImageBase64Result> {
+pub async fn zhuye_read_image_base64(path: String) -> CommandResult<ImageBase64Result> {
     let p = PathBuf::from(&path);
     let Some(mime) = image_mime_by_extension(&p) else {
         return Err(CommandError {
@@ -112,13 +112,13 @@ mod tests {
 
     #[test]
     fn read_image_base64_round_trip() {
-        let dir = std::env::temp_dir().join("reflect-files-test");
+        let dir = std::env::temp_dir().join("zhuye-files-test");
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("reflect_read_image_base64.png");
+        let path = dir.join("zhuye_read_image_base64.png");
         std::fs::write(&path, [0x89u8, b'P', b'N', b'G']).unwrap();
         let res = tokio::runtime::Runtime::new()
             .unwrap()
-            .block_on(reflect_read_image_base64(path.display().to_string()))
+            .block_on(zhuye_read_image_base64(path.display().to_string()))
             .unwrap();
         assert_eq!(res.mime_type, "image/png");
         assert_eq!(res.size, 4);
@@ -131,8 +131,8 @@ mod tests {
     fn read_image_base64_rejects_non_image() {
         let err = tokio::runtime::Runtime::new()
             .unwrap()
-            .block_on(reflect_read_image_base64(
-                "/tmp/reflect-not-an-image.txt".into(),
+            .block_on(zhuye_read_image_base64(
+                "/tmp/zhuye-not-an-image.txt".into(),
             ))
             .unwrap_err();
         assert!(err.msg.contains("not a supported image file"));

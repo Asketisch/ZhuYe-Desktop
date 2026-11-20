@@ -2,10 +2,10 @@
 //!
 //! 与 `models.rs` 的分工:那边是 **Tauri 命令**(拉清单 / 测连通 /
 //! 单查能力),这边是 **纯逻辑**(把 provider 的 `/models` 响应解析成
-//! 条目,按 `reflect_llm::FreeModelRules` 判定免费,再用 models.dev
+//! 条目,按 `zhuye_llm::FreeModelRules` 判定免费,再用 models.dev
 //! 目录补齐空缺字段)。
 //!
-//! 字段探测口径与上游 `reflect_llm::providers::openai` 一致:
+//! 字段探测口径与上游 `zhuye_llm::providers::openai` 一致:
 //! - 上下文窗口:`context_window` → `context_length` → `top_provider.context_length`;
 //! - 输出上限:`max_output_tokens` → `top_provider.max_completion_tokens`;
 //! - 视觉:`architecture.input_modalities` / `input_modalities` 含 `"image"`
@@ -17,14 +17,14 @@
 //! 挑的是同一套规则,不会出现「界面说免费、引擎挑不到」。
 //!
 //! **目录补缺**(`enrich_with_catalog`):live 披露优先,models.dev 目录
-//! 只填 `None` 字段(与上游 `enrich_model_info` / magpie Decorate 同
+//! 只填 `None` 字段(与上游 `enrich_model_info` Decorate 同
 //! 语义)—— Anthropic 官方端口从此也能拿到窗口 / 输出上限 / 视觉 /
 //! 思考能力。
 
 use serde::Serialize;
 use serde_json::Value;
 
-use reflect_llm::{FreeModelRules, ModelInfo};
+use zhuye_llm::{FreeModelRules, ModelInfo};
 
 use crate::commands::error::CommandError;
 
@@ -85,7 +85,7 @@ pub(crate) fn detect_vision(item: &Value) -> Option<bool> {
 }
 
 /// 从模型对象提取上下文窗口(三种字段形态依次探测)—— 与上游
-/// `reflect_llm::providers::openai::extract_context_window` 同口径。
+/// `zhuye_llm::providers::openai::extract_context_window` 同口径。
 fn extract_context_window(item: &Value) -> Option<u32> {
     let candidates = [
         item.get("context_window"),
@@ -104,7 +104,7 @@ fn extract_context_window(item: &Value) -> Option<u32> {
 }
 
 /// 从模型对象提取最大输出 token —— 与上游
-/// `reflect_llm::providers::openai::extract_max_output_tokens` 同口径。
+/// `zhuye_llm::providers::openai::extract_max_output_tokens` 同口径。
 fn extract_max_output_tokens(item: &Value) -> Option<u32> {
     let candidates = [
         item.get("max_output_tokens"),
@@ -203,13 +203,13 @@ pub(crate) fn parse_models_response(
 }
 
 /// 用 models.dev 目录补齐条目的空缺字段(live 披露优先,目录只填
-/// `None`)。目录数据 = 上游 `reflect_llm::models_dev` 的进程级懒加载
+/// `None`)。目录数据 = 上游 `zhuye_llm::models_dev` 的进程级懒加载
 /// (磁盘缓存与内嵌快照取新);空目录 = 全未知,行为与补缺前一致。
 ///
 /// 思考能力(`supports_reasoning`)live 清单不披露,只来自目录。
 pub(crate) fn enrich_with_catalog(models: &mut [ProviderModelInfo]) {
     for m in models.iter_mut() {
-        let abilities = reflect_llm::abilities_for(&m.id);
+        let abilities = zhuye_llm::abilities_for(&m.id);
         if m.supports_vision.is_none() {
             m.supports_vision = abilities.supports_vision;
         }
@@ -378,7 +378,7 @@ mod tests {
     fn enrich_fills_gaps_from_catalog() {
         // fixture 经持锁钩子安装:与 with_snapshot_catalog / 其他目录
         // 测试互斥,进程级全局不再被并发重置(CI windows 实证竞态)。
-        use reflect_llm::{DevCatalog, ModelAbilities, with_test_catalog};
+        use zhuye_llm::{DevCatalog, ModelAbilities, with_test_catalog};
         let fixture = DevCatalog::from_entries([(
             "zzenrich-model".to_string(),
             ModelAbilities {

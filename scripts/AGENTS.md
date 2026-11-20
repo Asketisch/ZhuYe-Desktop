@@ -52,7 +52,7 @@
 
 ### install.sh / dump-ts-types.sh / render-display-png.py
 
-- install.sh：装 `target/release/reflect-desktop` 到 `--prefix`（默认 `/usr/local/bin`）+ `ZhuYe.app` 到 `--app-dir`（默认 `~/Applications`）；`ZHUYE_INSTALL_BIN` / `ZHUYE_INSTALL_APP` 供 CI 传入与构建同源的路径。
+- install.sh：装 `target/release/zhuye-desktop` 到 `--prefix`（默认 `/usr/local/bin`）+ `ZhuYe.app` 到 `--app-dir`（默认 `~/Applications`）；`ZHUYE_INSTALL_BIN` / `ZHUYE_INSTALL_APP` 供 CI 传入与构建同源的路径。
 - dump-ts-types.sh：`cargo run -p zhuye-protocol --example dump_schema` → `npx json2ts` → `src/types/protocol.generated.ts`。产物为生成文件，勿手改；本脚本不是构建依赖，npx 不可用时跳过。
 - render-display-png.py：纯 Python（zlib + struct，无原生依赖）渲染 `docs/screenshots/display-section.png`，配色镜像 `src/render/styles/tokens.css`。
 

@@ -8,7 +8,7 @@
 #   ./tests/run_all.sh backend         # 只跑真后端能力覆盖层
 #   ./tests/run_all.sh artifact        # 只跑发布产物审查层
 #   ./tests/run_all.sh e2e             # 只跑真窗口 E2E + 视觉回归层
-#   REFLECT_LIVE=1 ./tests/run_all.sh live   # 只跑实模型演练层(真免费模型)
+#   ZHUYE_LIVE=1 ./tests/run_all.sh live   # 只跑实模型演练层(真免费模型)
 #
 # ## 分层模型
 #
@@ -17,7 +17,7 @@
 #   L3 backend        **真实后端**能力覆盖层(mock runtime 驱动真实命令体)
 #   L4 artifact       发布产物审查(.app / .dmg / .deb / .msi 结构与内容)
 #   L5 e2e            真窗口冒烟(tauri-driver)+ 视觉回归(路由 × 主题截图);依赖缺失时整层可跳过
-#   L6 live           **真免费模型**演练层(真实 provider + 真实 SSE);默认跳过,需 REFLECT_LIVE=1
+#   L6 live           **真免费模型**演练层(真实 provider + 真实 SSE);默认跳过,需 ZHUYE_LIVE=1
 #
 # L2 的后端是模拟的(fakeBackend),L3 的后端是真的。两者合起来才覆盖
 # 完整功能面 —— 与 submodule「能力覆盖层 + SDK 绑定层」的分层同理。

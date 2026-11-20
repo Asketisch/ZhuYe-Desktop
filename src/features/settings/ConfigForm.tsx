@@ -1,5 +1,5 @@
 /**
- * ReflectConfig 的综合结构化配置表单。
+ * ZhuyeConfig 的综合结构化配置表单。
  *
  * 为每个 核心 crate schema 分区的 FieldSpec 渲染一个输入框，
  * 并附带分类的复杂分区编辑器（subagent_providers /

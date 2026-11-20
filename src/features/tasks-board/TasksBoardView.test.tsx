@@ -26,9 +26,9 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_list_sessions: vi.fn(async () => sessionFixtures),
-    reflect_list_tasks: vi.fn(async (list: string) => {
-      calls.push({ cmd: 'reflect_list_tasks', args: { list } });
+    zhuye_list_sessions: vi.fn(async () => sessionFixtures),
+    zhuye_list_tasks: vi.fn(async (list: string) => {
+      calls.push({ cmd: 'zhuye_list_tasks', args: { list } });
       if (list === 'default' && liveTaskAppeared) {
         return [{ id: 3, list_id: list, subject: 'Agent created this', description: '', status: 'pending', blocks: [], blocked_by: [], metadata: {}, created_at: 0, updated_at: 0 }];
       }
@@ -62,21 +62,21 @@ vi.mock('@/utils/commands', async () => {
           ]
         : [];
     }),
-    reflect_list_teams: vi.fn(async () => []),
-    reflect_create_task: vi.fn(async (args: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_create_task', args });
+    zhuye_list_teams: vi.fn(async () => []),
+    zhuye_create_task: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_create_task', args });
       return { id: 99, list_id: args.list, subject: args.subject, description: '', status: 'pending', blocks: [], blocked_by: [], metadata: {}, created_at: 0, updated_at: 0 };
     }),
-    reflect_claim_task: vi.fn(async (list: string, claimer: string) => {
-      calls.push({ cmd: 'reflect_claim_task', args: { list, claimer } });
+    zhuye_claim_task: vi.fn(async (list: string, claimer: string) => {
+      calls.push({ cmd: 'zhuye_claim_task', args: { list, claimer } });
       return null;
     }),
-    reflect_update_task: vi.fn(async (list: string, id: number, patch: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_update_task', args: { list, id, patch } });
+    zhuye_update_task: vi.fn(async (list: string, id: number, patch: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_update_task', args: { list, id, patch } });
       return { task: { id, list_id: list, subject: '', description: '', status: patch.status, blocks: [], blocked_by: [], metadata: {}, created_at: 0, updated_at: 0 }, updatedFields: ['status'], statusChange: { from: 'pending', to: patch.status } };
     }),
-    reflect_delete_task: vi.fn(async (list: string, id: number) => {
-      calls.push({ cmd: 'reflect_delete_task', args: { list, id } });
+    zhuye_delete_task: vi.fn(async (list: string, id: number) => {
+      calls.push({ cmd: 'zhuye_delete_task', args: { list, id } });
     }),
   };
 });
@@ -110,7 +110,7 @@ describe('TasksBoardView', () => {
     fireEvent.click(screen.getByTestId('tasks-list-picker-toggle'));
     fireEvent.click(await screen.findByRole('button', { name: 'Agent conversation' }));
     expect(await screen.findByText('Write tests')).toBeDefined();
-    expect(calls).toContainEqual({ cmd: 'reflect_list_tasks', args: { list: 'agent-session-id' } });
+    expect(calls).toContainEqual({ cmd: 'zhuye_list_tasks', args: { list: 'agent-session-id' } });
   });
 
   it('refreshes the active task list while the board remains open', async () => {
@@ -118,11 +118,11 @@ describe('TasksBoardView', () => {
     try {
       render(wrap(<TasksBoardView />));
       await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-      const before = calls.filter((call) => call.cmd === 'reflect_list_tasks').length;
+      const before = calls.filter((call) => call.cmd === 'zhuye_list_tasks').length;
       expect(before).toBeGreaterThan(0);
       liveTaskAppeared = true;
       await act(async () => { await vi.advanceTimersByTimeAsync(15_100); });
-      expect(calls.filter((call) => call.cmd === 'reflect_list_tasks').length).toBeGreaterThan(before);
+      expect(calls.filter((call) => call.cmd === 'zhuye_list_tasks').length).toBeGreaterThan(before);
       expect(screen.getByText('Agent created this')).toBeDefined();
     } finally {
       cleanup();
@@ -148,7 +148,7 @@ describe('TasksBoardView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_create_task' &&
+            c.cmd === 'zhuye_create_task' &&
             (c.args as { subject: string }).subject === 'New task',
         ),
       ).toBe(true);
@@ -196,7 +196,7 @@ describe('TasksBoardView', () => {
     expect(screen.getByTestId('task-complete-2')).toBeDefined();
   });
 
-  it('forwards claim to reflect_claim_task with list + claimer', async () => {
+  it('forwards claim to zhuye_claim_task with list + claimer', async () => {
     render(wrap(<TasksBoardView />));
     fireEvent.click(screen.getByTestId('tasks-list-picker-toggle'));
     fireEvent.change(screen.getByTestId('tasks-list-id-input'), {
@@ -208,14 +208,14 @@ describe('TasksBoardView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_claim_task' &&
+            c.cmd === 'zhuye_claim_task' &&
             (c.args as { list: string }).list === 'seeded',
         ),
       ).toBe(true);
     });
   });
 
-  it('forwards complete to reflect_update_task with status=completed', async () => {
+  it('forwards complete to zhuye_update_task with status=completed', async () => {
     render(wrap(<TasksBoardView />));
     fireEvent.click(screen.getByTestId('tasks-list-picker-toggle'));
     fireEvent.change(screen.getByTestId('tasks-list-id-input'), {
@@ -227,7 +227,7 @@ describe('TasksBoardView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_update_task' &&
+            c.cmd === 'zhuye_update_task' &&
             (c.args as { id: number; patch: { status: string } }).id === 2 &&
             (c.args as { patch: { status: string } }).patch.status === 'completed',
         ),
@@ -235,7 +235,7 @@ describe('TasksBoardView', () => {
     });
   });
 
-  it('forwards delete to reflect_delete_task', async () => {
+  it('forwards delete to zhuye_delete_task', async () => {
     render(wrap(<TasksBoardView />));
     fireEvent.click(screen.getByTestId('tasks-list-picker-toggle'));
     fireEvent.change(screen.getByTestId('tasks-list-id-input'), {
@@ -247,7 +247,7 @@ describe('TasksBoardView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_delete_task' &&
+            c.cmd === 'zhuye_delete_task' &&
             (c.args as { list: string; id: number }).id === 1,
         ),
       ).toBe(true);

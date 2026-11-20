@@ -1,6 +1,6 @@
 //! 安全扫描命令面 —— `cargo audit` 的一次性诊断。
 //!
-//! 核心的 `reflect_integration::security_scan::run_cargo_audit` 是**真实
+//! 核心的 `zhuye_integration::security_scan::run_cargo_audit` 是**真实
 //! 实现**(带 30s 超时 + 管道排空,任何 IO 错误都落到结构化报告,不 panic)。
 //! 此前 GUI 完全没有这个面 —— 用户只能自己开终端跑。
 //!
@@ -9,7 +9,7 @@
 
 use std::path::PathBuf;
 
-use reflect_integration::security_scan::SecurityScanReport;
+use zhuye_integration::security_scan::SecurityScanReport;
 use serde::Serialize;
 use tauri::State;
 
@@ -65,12 +65,12 @@ mod tests {
 ///
 /// 阻塞调用(可能跑 30s)→ 放进 `spawn_blocking`,不占住 async worker。
 #[tauri::command]
-pub async fn reflect_run_security_scan(
+pub async fn zhuye_run_security_scan(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<SecurityScanResult> {
     let workspace: PathBuf = agent.workspace();
     let report = tokio::task::spawn_blocking(move || {
-        reflect_integration::security_scan::run_cargo_audit(Some(&workspace))
+        zhuye_integration::security_scan::run_cargo_audit(Some(&workspace))
     })
     .await
     .map_err(|e| super::error::CommandError {

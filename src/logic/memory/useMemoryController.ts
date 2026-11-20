@@ -2,7 +2,7 @@
  * Memory —— controller hook（B11-01 重构）。
  *
  * 封装查询 / 突变编排，使视图组件保持纯展示。职责：
- *   - TanStack `useQuery` 用于 `reflect_list_memory`
+ *   - TanStack `useQuery` 用于 `zhuye_list_memory`
  *   - 三个 mutation（`handleRemove` / `handleEditSave` / `handleAddNew`），
  *     包含 toast + cache 失效
  *   - 过滤 + 编辑 + 新建表单 UI 状态。
@@ -12,14 +12,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_add_memory,
-  reflect_list_memory,
-  reflect_remove_memory,
-  reflect_current_workspace,
-  type ReflectMemoryEntry,
+  zhuye_add_memory,
+  zhuye_list_memory,
+  zhuye_remove_memory,
+  zhuye_current_workspace,
+  type ZhuyeMemoryEntry,
   type MemoryContext,
 } from '@/utils/commands';
-import { reflect_get_active_agent } from '@/utils/commands/agents';
+import { zhuye_get_active_agent } from '@/utils/commands/agents';
 import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
 import { useAgentStore } from '@/stores/agentStore';
 import type { LocaleKey } from '@/utils/i18n';
@@ -59,8 +59,8 @@ export interface MemoryCounts {
 export interface MemoryController {
   // 查询
   context: MemoryContext | null;
-  entries: ReflectMemoryEntry[];
-  filtered: ReflectMemoryEntry[];
+  entries: ZhuyeMemoryEntry[];
+  filtered: ZhuyeMemoryEntry[];
   counts: MemoryCounts;
   loading: boolean;
   error: unknown;
@@ -71,14 +71,14 @@ export interface MemoryController {
   setFilter: (s: Scope) => void;
 
   // 编辑状态
-  editingEntry: ReflectMemoryEntry | null;
+  editingEntry: ZhuyeMemoryEntry | null;
   savedDrafts: EditDraft[];
   editingKey: string | null;
   editValue: string;
-  beginEdit: (entry: ReflectMemoryEntry) => void;
+  beginEdit: (entry: ZhuyeMemoryEntry) => void;
   setEditValue: (v: string) => void;
   cancelEdit: () => void;
-  discardEdit: (entry: ReflectMemoryEntry) => void;
+  discardEdit: (entry: ZhuyeMemoryEntry) => void;
 
   // 新建条目表单状态
   showForm: boolean;
@@ -91,8 +91,8 @@ export interface MemoryController {
   setNewValue: (v: string) => void;
 
   // 突变操作
-  remove: (entry: ReflectMemoryEntry) => Promise<void>;
-  saveEdit: (entry: ReflectMemoryEntry) => Promise<void>;
+  remove: (entry: ZhuyeMemoryEntry) => Promise<void>;
+  saveEdit: (entry: ZhuyeMemoryEntry) => Promise<void>;
   addNew: () => Promise<void>;
 
   // 进行中 mutation 状态（调用方用于禁用控件）。
@@ -111,9 +111,9 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
   const addPending = useRef(false);
   const removePending = useRef(new Set<string>());
 
-  const workspaceQ = useQuery({ queryKey: CURRENT_WORKSPACE_QUERY_KEY, queryFn: reflect_current_workspace, staleTime: MEMORY_STALE_MS });
+  const workspaceQ = useQuery({ queryKey: CURRENT_WORKSPACE_QUERY_KEY, queryFn: zhuye_current_workspace, staleTime: MEMORY_STALE_MS });
   const currentWorkspace = workspaceQ.data;
-  const activeQ = useQuery({ queryKey: ['active-agent'], queryFn: reflect_get_active_agent, staleTime: MEMORY_STALE_MS });
+  const activeQ = useQuery({ queryKey: ['active-agent'], queryFn: zhuye_get_active_agent, staleTime: MEMORY_STALE_MS });
   const context = useMemo(() => currentWorkspace && activeQ.data?.name
     ? { workspace: currentWorkspace, agent: activeQ.data.name } : null,
   [currentWorkspace, activeQ.data?.name]);
@@ -124,7 +124,7 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
 
   const memQ = useQuery({
     queryKey: [...MEMORY_QUERY_KEY, context],
-    queryFn: () => reflect_list_memory(context!),
+    queryFn: () => zhuye_list_memory(context!),
     enabled: context !== null,
     staleTime: MEMORY_STALE_MS,
   });
@@ -139,7 +139,7 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
 
   const addMut = useMutation({
     mutationFn: ({ scope, key, value, replaceDocument, createOnly, expectedContext, expectedValue }: { scope: string; key: string; value: string; replaceDocument?: boolean; createOnly?: boolean; expectedContext: MemoryContext; expectedValue?: string }) =>
-      reflect_add_memory(scope, key, value, { expectedContext, ...(expectedValue !== undefined ? { expectedValue } : {}), ...(replaceDocument ? { replaceDocument: true } : {}), ...(createOnly ? { createOnly: true } : {}) }),
+      zhuye_add_memory(scope, key, value, { expectedContext, ...(expectedValue !== undefined ? { expectedValue } : {}), ...(replaceDocument ? { replaceDocument: true } : {}), ...(createOnly ? { createOnly: true } : {}) }),
     onSuccess: () => {
       void invalidate();
     },
@@ -147,7 +147,7 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
 
   const removeMut = useMutation({
     mutationFn: ({ scope, key, replaceDocument, expectedContext, expectedValue }: { scope: string; key: string; replaceDocument?: boolean; expectedContext: MemoryContext; expectedValue: string }) =>
-      reflect_remove_memory(scope, key, replaceDocument, expectedContext, expectedValue),
+      zhuye_remove_memory(scope, key, replaceDocument, expectedContext, expectedValue),
     onSuccess: () => {
       void invalidate();
     },
@@ -167,7 +167,7 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
     return c;
   }, [entries]);
 
-  const beginEdit = useCallback((entry: ReflectMemoryEntry) => {
+  const beginEdit = useCallback((entry: ZhuyeMemoryEntry) => {
     if (!contextKey) return;
     const key = entryKey(entry);
     const revision = nextDraftRevision();
@@ -187,7 +187,7 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
       return { ...sessions, [contextKey]: { ...current, drafts: { ...current.drafts, [key]: { ...current.drafts[key], value, revision } } } };
     });
   }, [contextKey, setEditSessions]);
-  const discardEdit = useCallback((entry: ReflectMemoryEntry) => {
+  const discardEdit = useCallback((entry: ZhuyeMemoryEntry) => {
     if (!contextKey) return;
     setEditSessions((sessions) => {
       const current = sessions[contextKey];
@@ -213,7 +213,7 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
   const setNewValue = useCallback((value: string) => updateForm(() => ({ value })), [updateForm]);
 
   const remove = useCallback(
-    async (entry: ReflectMemoryEntry) => {
+    async (entry: ZhuyeMemoryEntry) => {
       const id = `${entry.scope}:${entry.key}`;
       if (removePending.current.has(id)) return;
       removePending.current.add(id);
@@ -232,7 +232,7 @@ export function useMemoryController({ t }: Pick<I18nContextValue, 't'>): MemoryC
   );
 
   const saveEdit = useCallback(
-    async (entry: ReflectMemoryEntry) => {
+    async (entry: ZhuyeMemoryEntry) => {
       if (addPending.current || !contextKey || !context || !editDraft || entryKey(editDraft.entry) !== entryKey(entry)) return;
       const { revision, value, entry: original } = editDraft;
       addPending.current = true;

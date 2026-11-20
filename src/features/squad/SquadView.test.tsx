@@ -14,8 +14,8 @@ function wrap(node: React.ReactNode) {
 describe('SquadView', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_list_squads', async () => []);
-    mockInvoke('reflect_list_tasks', async () => []);
+    mockInvoke('zhuye_list_squads', async () => []);
+    mockInvoke('zhuye_list_tasks', async () => []);
   });
   afterEach(() => cleanup());
 
@@ -33,7 +33,7 @@ describe('SquadView', () => {
   });
 
   it('renders squad rows from the API', async () => {
-    mockInvoke('reflect_list_squads', async () => [
+    mockInvoke('zhuye_list_squads', async () => [
       {
         name: 'rocket',
         description: 'go fast',

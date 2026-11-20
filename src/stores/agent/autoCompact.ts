@@ -5,7 +5,7 @@
  * 不感知模型窗口）；plan 的"最大上下文"落在 `[context_windows][model]`，
  * runtime 会级联进 `session_configured.context_window_size`（仪表/工具），
  * 但不参与压缩触发。本模块在前端补齐：监听 `token_count` 事件，当已上报
- * 的输入 token 超过 max_context 的 80% 时自动调用 `reflect_compact`
+ * 的输入 token 超过 max_context 的 80% 时自动调用 `zhuye_compact`
  * （Op::Compact，下一轮 pre_loop 执行压缩），回落到 50% 以下重新武装。
  *
  * 依赖注入（getConfig/compact）使控制器可脱离 zustand 与 Tauri IPC 单测。
@@ -18,7 +18,7 @@ import {
 } from '@/logic/settings/config/plans';
 import { readField } from '@/logic/settings/config/schema';
 
-export const AUTO_COMPACT_PREF_KEY = 'reflect.autoCompact';
+export const AUTO_COMPACT_PREF_KEY = 'zhuye.autoCompact';
 
 /** 默认开启；localStorage 显式写 'off' 才关闭（隐私模式下默认开）。 */
 export function isAutoCompactEnabled(): boolean {

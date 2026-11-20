@@ -1,8 +1,8 @@
 //! `rebind_session` —— 把后端 AgentThread 换绑到指定 session id。
 //!
 //! 触发动机:
-//! - New Chat → `reflect_create_session` 分配 id → 路由跳转 → ChatView
-//!   挂载时调 `reflect_bind_session(new_id)`,空历史绑定,首条消息落盘。
+//! - New Chat → `zhuye_create_session` 分配 id → 路由跳转 → ChatView
+//!   挂载时调 `zhuye_bind_session(new_id)`,空历史绑定,首条消息落盘。
 //! - 切换历史会话 → ChatView 重新挂载,带 replay 出的历史 binding,LLM
 //!   恢复上下文,后续消息续写到该 id。
 //!
@@ -19,8 +19,8 @@
 
 use std::sync::Arc;
 
-use reflect_llm::ChatMessage;
-use reflect_protocol::{PermissionMode, ThreadId};
+use zhuye_llm::ChatMessage;
+use zhuye_protocol::{PermissionMode, ThreadId};
 use tracing::{debug, warn};
 
 use super::MinimalAgent;
@@ -84,7 +84,7 @@ fn rebind_session_with(
         Option<ThreadId>,
         Vec<ChatMessage>,
         Option<PermissionMode>,
-    ) -> anyhow::Result<std::sync::Arc<reflect_core::AgentThread>>,
+    ) -> anyhow::Result<std::sync::Arc<zhuye_core::AgentThread>>,
 ) -> anyhow::Result<()> {
     let _rebind = agent.inner.rebind_lock.lock();
     if !agent.model_registry_ready() {
@@ -216,7 +216,7 @@ fn rebind_session_with(
 
 /// 从后台表取出指定会话的线程(promote)。同时清掉 running 标记 ——
 /// 之后它要么回到前台(前端接手展示),要么已被驱逐。
-fn take_background(agent: &MinimalAgent, sid: ThreadId) -> Option<Arc<reflect_core::AgentThread>> {
+fn take_background(agent: &MinimalAgent, sid: ThreadId) -> Option<Arc<zhuye_core::AgentThread>> {
     let mut bg = agent.inner.background.lock();
     let at = bg.iter().position(|(s, _)| *s == sid)?;
     let (_, thread) = bg.remove(at);
@@ -232,8 +232,8 @@ fn take_background(agent: &MinimalAgent, sid: ThreadId) -> Option<Arc<reflect_co
 
 /// 旧线程降级入后台表;超限按「空闲优先、最旧兜底」驱逐(驱逐 = cancel,
 /// 与旧换绑行为一致)。调用方保证 `sid` 非占位且不等于目标会话。
-fn demote_background(agent: &MinimalAgent, sid: ThreadId, thread: Arc<reflect_core::AgentThread>) {
-    let mut evicted: Vec<(ThreadId, Arc<reflect_core::AgentThread>)> = Vec::new();
+fn demote_background(agent: &MinimalAgent, sid: ThreadId, thread: Arc<zhuye_core::AgentThread>) {
+    let mut evicted: Vec<(ThreadId, Arc<zhuye_core::AgentThread>)> = Vec::new();
     {
         let mut bg = agent.inner.background.lock();
         // 防御:同 sid 残留表项先移除(正常流程不会有 —— promote 时已 take)。
@@ -260,7 +260,7 @@ fn demote_background(agent: &MinimalAgent, sid: ThreadId, thread: Arc<reflect_co
 /// 清空后台表(forced 热重载专用):provider 栈已重建,后台线程攥着旧
 /// registry/model clients,继续跑会与前台配置分叉 —— 全部 cancel。
 fn clear_background(agent: &MinimalAgent) {
-    let drained: Vec<(ThreadId, Arc<reflect_core::AgentThread>)> =
+    let drained: Vec<(ThreadId, Arc<zhuye_core::AgentThread>)> =
         std::mem::take(&mut *agent.inner.background.lock());
     agent.inner.background_running.lock().clear();
     for (sid, thread) in drained {

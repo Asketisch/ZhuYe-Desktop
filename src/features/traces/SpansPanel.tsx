@@ -2,8 +2,8 @@
  * SpansPanel —— span 日志视图(turn → model → tool 父子链)。
  *
  * span 日志是 model-io 的**姊妹**产物:按天写在
- * `~/.zhuye/traces/log/reflect-YYYY-MM-DD.jsonl`,记录 turn / model /
- * tool 的父子 span(含耗时、状态),以及 `reflect_goal` 模块发出的目标
+ * `~/.zhuye/traces/log/zhuye-YYYY-MM-DD.jsonl`,记录 turn / model /
+ * tool 的父子 span(含耗时、状态),以及 `zhuye_goal` 模块发出的目标
  * 校验事件(`goal.turn.verified` 等)。
  *
  * 与 model-io 的分工:model-io 给出「每次 LLM 调用的请求/响应全文」,
@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity } from 'lucide-react';
 import { Badge, Card, EmptyState, Icon, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import { reflect_list_span_logs, reflect_read_span_log } from '@/utils/commands/traces';
+import { zhuye_list_span_logs, zhuye_read_span_log } from '@/utils/commands/traces';
 import s from '@/render/traces/TracesView.module.css';
 
 export function SpansPanel() {
@@ -23,7 +23,7 @@ export function SpansPanel() {
 
   const filesQ = useQuery({
     queryKey: ['traces', 'span-files'],
-    queryFn: () => reflect_list_span_logs(7),
+    queryFn: () => zhuye_list_span_logs(7),
     staleTime: 30_000,
   });
   const files = filesQ.data ?? [];
@@ -31,7 +31,7 @@ export function SpansPanel() {
 
   const spansQ = useQuery({
     queryKey: ['traces', 'spans', day],
-    queryFn: () => reflect_read_span_log(day as string),
+    queryFn: () => zhuye_read_span_log(day as string),
     enabled: !!day,
     staleTime: 30_000,
   });

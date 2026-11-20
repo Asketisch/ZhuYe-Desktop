@@ -27,7 +27,7 @@ fn task_crud_round_trip() {
     let subject = format!("能力覆盖层任务 {}", tag());
 
     let created = invoke_ok(
-        "reflect_create_task",
+        "zhuye_create_task",
         json!({ "list": list, "subject": subject, "description": "真后端创建" }),
     );
     let id = created["id"].as_u64().expect("任务缺少数字 id");
@@ -38,11 +38,11 @@ fn task_crud_round_trip() {
     );
 
     // 读回
-    let got = invoke_ok("reflect_get_task", json!({ "list": list, "id": id }));
+    let got = invoke_ok("zhuye_get_task", json!({ "list": list, "id": id }));
     assert_eq!(got["subject"], subject, "读回主题不符: {got}");
 
     // 列表
-    let all = invoke_ok("reflect_list_tasks", json!({ "list": list }));
+    let all = invoke_ok("zhuye_list_tasks", json!({ "list": list }));
     assert!(
         all.as_array()
             .expect("任务列表应为数组")
@@ -53,7 +53,7 @@ fn task_crud_round_trip() {
 
     // 更新
     let updated = invoke_ok(
-        "reflect_update_task",
+        "zhuye_update_task",
         json!({ "list": list, "id": id, "patch": { "status": "in_progress" } }),
     );
     assert!(
@@ -63,7 +63,7 @@ fn task_crud_round_trip() {
 
     // 认领 / 释放
     let claimed = invoke_ok(
-        "reflect_claim_task",
+        "zhuye_claim_task",
         json!({ "list": list, "claimer": "probe@team" }),
     );
     assert!(
@@ -72,17 +72,17 @@ fn task_crud_round_trip() {
     );
     // 释放未认领的任务 → 结构化错误("nothing to release"),不得 panic。
     // 这里只验「不崩」:任务是否真被认领取决于上一条的结果。
-    let released = common::invoke("reflect_release_task", json!({ "list": list, "id": id }));
+    let released = common::invoke("zhuye_release_task", json!({ "list": list, "id": id }));
     match released {
         Ok(v) => assert!(!v.is_null(), "释放结果不应为 null"),
         Err(e) => assert!(!e.is_null(), "错误响应不应为 null"),
     }
-    invoke_ok("reflect_stop_task", json!({ "list": list, "id": id }));
-    let out = invoke_ok("reflect_get_task_output", json!({ "list": list, "id": id }));
+    invoke_ok("zhuye_stop_task", json!({ "list": list, "id": id }));
+    let out = invoke_ok("zhuye_get_task_output", json!({ "list": list, "id": id }));
     assert!(out.is_string(), "任务输出应为字符串: {out}");
 
     // 删除
-    invoke_ok("reflect_delete_task", json!({ "list": list, "id": id }));
+    invoke_ok("zhuye_delete_task", json!({ "list": list, "id": id }));
 }
 
 // ============================================================================
@@ -109,11 +109,11 @@ fn team_upsert_get_delete() {
         "created_at": { "secs_since_epoch": 1_700_000_000_u64, "nanos_since_epoch": 0_u32 },
     });
 
-    invoke_ok("reflect_upsert_team", json!({ "team": team }));
-    let got = invoke_ok("reflect_get_team", json!({ "name": name }));
+    invoke_ok("zhuye_upsert_team", json!({ "team": team }));
+    let got = invoke_ok("zhuye_get_team", json!({ "name": name }));
     assert_eq!(got["name"], name, "团队读回名称不符: {got}");
 
-    let list = invoke_ok("reflect_list_teams", json!({}));
+    let list = invoke_ok("zhuye_list_teams", json!({}));
     assert!(
         list.as_array()
             .expect("团队列表应为数组")
@@ -122,7 +122,7 @@ fn team_upsert_get_delete() {
         "团队未出现在列表里"
     );
 
-    invoke_ok("reflect_delete_team", json!({ "name": name }));
+    invoke_ok("zhuye_delete_team", json!({ "name": name }));
 }
 
 // ============================================================================
@@ -144,15 +144,15 @@ fn squad_create_get_delete() {
         "members": [],
         "createdAtMs": 1_700_000_000_u64,
     });
-    invoke_ok("reflect_create_squad", json!({ "spec": spec }));
+    invoke_ok("zhuye_create_squad", json!({ "spec": spec }));
 
-    let got = invoke_ok("reflect_get_squad", json!({ "name": name }));
+    let got = invoke_ok("zhuye_get_squad", json!({ "name": name }));
     assert_eq!(got["name"], name, "squad 读回名称不符: {got}");
 
-    let list = invoke_ok("reflect_list_squads", json!({}));
+    let list = invoke_ok("zhuye_list_squads", json!({}));
     assert!(list.is_array(), "squad 列表应为数组: {list}");
 
-    invoke_ok("reflect_delete_squad", json!({ "name": name }));
+    invoke_ok("zhuye_delete_squad", json!({ "name": name }));
 }
 
 // ============================================================================
@@ -164,18 +164,18 @@ fn schedule_crud_round_trip() {
     let _guard = common::state_lock();
     let name = format!("probe-cron-{}", tag());
     let created = invoke_ok(
-        "reflect_add_schedule",
+        "zhuye_add_schedule",
         json!({ "schedule": "0 9 * * *", "prompt": "standup", "name": name }),
     );
     let id = created["id"].as_str().expect("定时任务缺少 id").to_string();
 
     let invalid = invoke_err(
-        "reflect_update_schedule",
+        "zhuye_update_schedule",
         json!({ "id": id, "schedule": "invalid" }),
     );
     assert!(invalid.to_string().contains("cron expression"), "{invalid}");
 
-    let list = invoke_ok("reflect_list_schedules", json!({}));
+    let list = invoke_ok("zhuye_list_schedules", json!({}));
     assert!(
         list.as_array()
             .expect("定时任务列表应为数组")
@@ -185,7 +185,7 @@ fn schedule_crud_round_trip() {
     );
 
     let updated = invoke_ok(
-        "reflect_update_schedule",
+        "zhuye_update_schedule",
         json!({ "id": id, "schedule": "30 8 * * *", "enabled": false }),
     );
     assert_eq!(
@@ -193,10 +193,10 @@ fn schedule_crud_round_trip() {
         "cron 表达式未更新: {updated}"
     );
 
-    let status = invoke_ok("reflect_get_schedule_status", json!({}));
+    let status = invoke_ok("zhuye_get_schedule_status", json!({}));
     assert!(status.is_object(), "定时任务状态应为对象: {status}");
 
-    let removed = invoke_ok("reflect_remove_schedule", json!({ "id": id }));
+    let removed = invoke_ok("zhuye_remove_schedule", json!({ "id": id }));
     assert_eq!(removed, true, "删除未返回 true");
 }
 
@@ -207,15 +207,15 @@ fn schedule_crud_round_trip() {
 #[test]
 fn plugin_listing_and_toggle() {
     let _guard = common::state_lock();
-    let list = invoke_ok("reflect_list_plugins", json!({}));
+    let list = invoke_ok("zhuye_list_plugins", json!({}));
     assert!(list.is_array(), "插件列表应为数组: {list}");
-    assert!(invoke_ok("reflect_list_marketplaces", json!({})).is_array());
-    assert!(invoke_ok("reflect_list_plugin_commands", json!({})).is_array());
+    assert!(invoke_ok("zhuye_list_marketplaces", json!({})).is_array());
+    assert!(invoke_ok("zhuye_list_plugin_commands", json!({})).is_array());
 
     // 切一个不存在的插件 → 后端**幂等**:返回 Ok(null),不报错。
     // 这条守的是「不崩 + 不误伤」,不是「必须报错」。
     let v = invoke_ok(
-        "reflect_toggle_plugin",
+        "zhuye_toggle_plugin",
         json!({ "id": "no-such-plugin-xyz", "enabled": true }),
     );
     assert!(v.is_null() || v.is_object(), "切插件结果形态异常: {v}");
@@ -234,20 +234,20 @@ fn subagent_spec_crud() {
         format!("---\nrole: {role}\nname: {role}\ndescription: 探针子代理\n---\n\n你是探针。\n");
 
     invoke_ok(
-        "reflect_save_subagent_spec",
+        "zhuye_save_subagent_spec",
         json!({ "role": role, "markdown": markdown }),
     );
-    let got = invoke_ok("reflect_get_subagent_spec", json!({ "role": role }));
+    let got = invoke_ok("zhuye_get_subagent_spec", json!({ "role": role }));
     assert!(
         got.as_str().unwrap_or_default().contains("探针子代理"),
         "子代理 spec 读回内容不符: {got}"
     );
 
-    let list = invoke_ok("reflect_list_subagent_specs", json!({}));
+    let list = invoke_ok("zhuye_list_subagent_specs", json!({}));
     assert!(list.is_array(), "子代理列表应为数组: {list}");
 
-    invoke_ok("reflect_delete_subagent_spec", json!({ "role": role }));
-    let after = invoke_ok("reflect_get_subagent_spec", json!({ "role": role }));
+    invoke_ok("zhuye_delete_subagent_spec", json!({ "role": role }));
+    let after = invoke_ok("zhuye_get_subagent_spec", json!({ "role": role }));
     assert!(after.is_null(), "删除后仍能读到 spec: {after}");
 }
 
@@ -256,7 +256,7 @@ fn subagent_spec_without_role_is_rejected() {
     // 缺 `role` 的 frontmatter → 结构化错误,且**不落盘**。
     let role = format!("probe-bad-{}", tag());
     let e = invoke_err(
-        "reflect_save_subagent_spec",
+        "zhuye_save_subagent_spec",
         json!({ "role": role, "markdown": "---\nname: x\n---\n\n正文\n" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
@@ -276,11 +276,11 @@ fn mcp_servers_upsert_list_delete() {
         "args": ["probe"],
     });
     invoke_ok(
-        "reflect_upsert_mcp_server",
+        "zhuye_upsert_mcp_server",
         json!({ "name": name, "entry": entry }),
     );
 
-    let list = invoke_ok("reflect_list_mcp_servers", json!({}));
+    let list = invoke_ok("zhuye_list_mcp_servers", json!({}));
     assert!(
         list.as_array()
             .expect("MCP 列表应为数组")
@@ -290,11 +290,11 @@ fn mcp_servers_upsert_list_delete() {
     );
 
     // 无 MCP server 时资源 / prompt 列表应为空数组(不是错误)。
-    assert!(invoke_ok("reflect_list_mcp_resources", json!({})).is_array());
-    assert!(invoke_ok("reflect_list_mcp_prompts", json!({})).is_array());
-    assert!(invoke_ok("reflect_mcp_catalog", json!({})).is_array());
+    assert!(invoke_ok("zhuye_list_mcp_resources", json!({})).is_array());
+    assert!(invoke_ok("zhuye_list_mcp_prompts", json!({})).is_array());
+    assert!(invoke_ok("zhuye_mcp_catalog", json!({})).is_array());
 
-    invoke_ok("reflect_delete_mcp_server", json!({ "name": name }));
+    invoke_ok("zhuye_delete_mcp_server", json!({ "name": name }));
 }
 
 // ============================================================================
@@ -304,22 +304,22 @@ fn mcp_servers_upsert_list_delete() {
 #[test]
 fn lsp_status_and_toggle() {
     let _guard = common::state_lock();
-    let status = invoke_ok("reflect_lsp_status", json!({}));
+    let status = invoke_ok("zhuye_lsp_status", json!({}));
     assert!(status.is_object(), "LSP 状态应为对象: {status}");
     // 关 → 开 → 关(默认是关的)。
-    let enabled = invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": true }));
+    let enabled = invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": true }));
     assert!(enabled.is_object(), "LSP 开关结果应为对象: {enabled}");
-    let disabled = invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": false }));
+    let disabled = invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": false }));
     assert!(disabled.is_object(), "LSP 开关结果应为对象: {disabled}");
     // 未开启时诊断查询应返回空数组而非报错。
-    let diags = invoke_ok("reflect_lsp_diagnostics", json!({ "path": "main.rs" }));
+    let diags = invoke_ok("zhuye_lsp_diagnostics", json!({ "path": "main.rs" }));
     assert!(diags.is_array(), "LSP 诊断应为数组: {diags}");
 }
 
 #[test]
 fn lsp_warmup_without_a_server_is_a_noop() {
     // 未启用 LSP → 预热返回 `warmed: false`,**不**拉起语言服务器。
-    let v = invoke_ok("reflect_lsp_warmup", json!({ "path": "main.rs" }));
+    let v = invoke_ok("zhuye_lsp_warmup", json!({ "path": "main.rs" }));
     assert!(v.is_object(), "预热结果应为对象: {v}");
     assert_eq!(v["warmed"], false, "未启用 LSP 时不应预热: {v}");
 }
@@ -330,17 +330,17 @@ fn lsp_warmup_without_a_server_is_a_noop() {
 
 #[test]
 fn prompt_layers_are_readable() {
-    let effective = invoke_ok("reflect_get_effective_prompt", json!({}));
+    let effective = invoke_ok("zhuye_get_effective_prompt", json!({}));
     assert!(effective.is_object(), "生效提示词应为对象: {effective}");
     // list 动作走 Op 通道 —— 立即返回 submission id。
     let id = invoke_ok(
-        "reflect_prompt_command",
+        "zhuye_prompt_command",
         json!({ "action": { "type": "list" } }),
     );
     assert!(id.is_string(), "prompt 命令应返回 submission id: {id}");
 
     let id = invoke_ok(
-        "reflect_prompt_command",
+        "zhuye_prompt_command",
         json!({
             "action": {
                 "type": "select",
@@ -357,12 +357,12 @@ fn prompt_layers_are_readable() {
 
 #[test]
 fn kms_wiki_page_lifecycle() {
-    // 用例中途会让进程级 `reflect_kms_search` 全局报错(broken.md 毒化),
+    // 用例中途会让进程级 `zhuye_kms_search` 全局报错(broken.md 毒化),
     // 必须持锁,避免与同二进制的 dream 用例交叉。
     let _guard = common::state_lock();
     let wiki = format!("probe-wiki-{}", tag());
     let rejected = invoke_err(
-        "reflect_kms_create",
+        "zhuye_kms_create",
         json!({ "name": "../outside", "description": null }),
     );
     assert!(
@@ -372,13 +372,13 @@ fn kms_wiki_page_lifecycle() {
             .contains("invalid kms")
     );
     let created = invoke_ok(
-        "reflect_kms_create",
+        "zhuye_kms_create",
         json!({ "name": wiki, "description": "能力覆盖层 wiki" }),
     );
     assert_eq!(created["name"], wiki, "wiki 名称不符: {created}");
 
     invoke_ok(
-        "reflect_kms_save_page",
+        "zhuye_kms_save_page",
         json!({
             "wiki": wiki,
             "page": "index.md",
@@ -388,7 +388,7 @@ fn kms_wiki_page_lifecycle() {
         }),
     );
     let page = invoke_ok(
-        "reflect_kms_get_page",
+        "zhuye_kms_get_page",
         json!({ "wiki": wiki, "page": "index.md" }),
     );
     assert!(
@@ -396,7 +396,7 @@ fn kms_wiki_page_lifecycle() {
         "页面正文读回不符: {page}"
     );
     let saved_again = invoke_ok(
-        "reflect_kms_save_page",
+        "zhuye_kms_save_page",
         json!({"wiki": wiki, "page": "index.md", "content": page["content"], "title": null, "tags": null}),
     );
     assert_eq!(saved_again["content"], page["content"]);
@@ -404,34 +404,34 @@ fn kms_wiki_page_lifecycle() {
     assert_eq!(saved_again["tags"], json!(["probe"]));
 
     invoke_ok(
-        "reflect_kms_save_page",
+        "zhuye_kms_save_page",
         json!({"wiki": wiki, "page": "index.md", "content": "external edit", "title": null, "tags": null}),
     );
     invoke_err(
-        "reflect_kms_save_page",
+        "zhuye_kms_save_page",
         json!({"wiki": wiki, "page": "index.md", "content": "stale draft", "title": null, "tags": null, "expectedContent": page["content"]}),
     );
     let edited = invoke_ok(
-        "reflect_kms_get_page",
+        "zhuye_kms_get_page",
         json!({"wiki": wiki, "page": "index.md"}),
     );
     assert_eq!(edited["content"], "external edit");
 
     invoke_err(
-        "reflect_kms_save_page",
+        "zhuye_kms_save_page",
         json!({"wiki": wiki, "page": "index.md", "content": "must not overwrite", "title": null, "tags": null, "createOnly": true}),
     );
     let unchanged = invoke_ok(
-        "reflect_kms_get_page",
+        "zhuye_kms_get_page",
         json!({"wiki": wiki, "page": "index.md"}),
     );
     assert_eq!(unchanged["content"], "external edit");
     invoke_ok(
-        "reflect_kms_save_page",
+        "zhuye_kms_save_page",
         json!({"wiki": wiki, "page": "new-page", "content": "created", "title": null, "tags": null, "createOnly": true}),
     );
 
-    let pages = invoke_ok("reflect_kms_list_pages", json!({ "wiki": wiki }));
+    let pages = invoke_ok("zhuye_kms_list_pages", json!({ "wiki": wiki }));
     assert!(pages.is_array(), "页面列表应为数组: {pages}");
 
     let broken = common::isolated_home()
@@ -439,17 +439,17 @@ fn kms_wiki_page_lifecycle() {
         .join(&wiki)
         .join("pages/broken.md");
     std::fs::write(&broken, [0xff]).unwrap();
-    invoke_err("reflect_kms_list_pages", json!({"wiki": wiki}));
-    invoke_err("reflect_kms_search", json!({"query": "capability"}));
+    invoke_err("zhuye_kms_list_pages", json!({"wiki": wiki}));
+    invoke_err("zhuye_kms_search", json!({"query": "capability"}));
     std::fs::remove_file(broken).unwrap();
 
-    let hits = invoke_ok("reflect_kms_search", json!({ "query": "capability" }));
+    let hits = invoke_ok("zhuye_kms_search", json!({ "query": "capability" }));
     assert!(hits.is_array(), "知识库搜索应为数组: {hits}");
 
-    let wikis = invoke_ok("reflect_kms_list", json!({}));
+    let wikis = invoke_ok("zhuye_kms_list", json!({}));
     assert!(wikis.is_array(), "wiki 列表应为数组: {wikis}");
 
-    invoke_ok("reflect_kms_delete", json!({ "name": wiki }));
+    invoke_ok("zhuye_kms_delete", json!({ "name": wiki }));
 }
 
 #[test]
@@ -457,21 +457,21 @@ fn dream_writes_insights_to_a_wiki() {
     let _guard = common::state_lock();
     // dream 是纯 KMS 文件操作(写一份「会话洞察」wiki),**不需要模型**。
     let v = invoke_ok(
-        "reflect_dream",
+        "zhuye_dream",
         json!({ "insights": ["能力覆盖层洞察一", "洞察二"], "sessionsAnalyzed": 2 }),
     );
     assert!(v.is_object(), "dream 结果应为对象: {v}");
     let second = invoke_ok(
-        "reflect_dream",
+        "zhuye_dream",
         json!({ "insights": ["第二次洞察"], "sessionsAnalyzed": 1 }),
     );
     assert_ne!(v["page"], second["page"]);
     let first_page = invoke_ok(
-        "reflect_kms_get_page",
+        "zhuye_kms_get_page",
         json!({"wiki": v["wiki"], "page": v["page"]}),
     );
     let second_page = invoke_ok(
-        "reflect_kms_get_page",
+        "zhuye_kms_get_page",
         json!({"wiki": second["wiki"], "page": second["page"]}),
     );
     assert!(
@@ -488,7 +488,7 @@ fn dream_writes_insights_to_a_wiki() {
     );
 
     // 落地了:生成的 wiki 能在列表里看到。
-    let wikis = invoke_ok("reflect_kms_list", json!({}));
+    let wikis = invoke_ok("zhuye_kms_list", json!({}));
     assert!(
         wikis
             .as_array()
@@ -511,7 +511,7 @@ fn dream_writes_insights_to_a_wiki() {
 /// 等待通道离开 running(引擎无 provider 时终态来得很快;CI 冷机留足预算)。
 fn wait_side_channel_terminal(id: &str) -> serde_json::Value {
     for _ in 0..200 {
-        let got = invoke_ok("reflect_get_side_channel", json!({ "id": id }));
+        let got = invoke_ok("zhuye_get_side_channel", json!({ "id": id }));
         if got["status"] != "running" {
             return got;
         }
@@ -523,7 +523,7 @@ fn wait_side_channel_terminal(id: &str) -> serde_json::Value {
 #[test]
 fn side_channel_start_list_get_and_terminal_cancel_semantics() {
     let started = invoke_ok(
-        "reflect_start_side_channel",
+        "zhuye_start_side_channel",
         json!({ "agentName": "probe-helper", "prompt": "探针提示" }),
     );
     let id = started["id"]
@@ -534,7 +534,7 @@ fn side_channel_start_list_get_and_terminal_cancel_semantics() {
     assert!(started["startedAtMs"].is_number());
 
     // 列表 / 单条快照走 Op::QuerySideChannels 应答配对。
-    let list = invoke_ok("reflect_list_side_channels", json!({}));
+    let list = invoke_ok("zhuye_list_side_channels", json!({}));
     assert!(
         list.as_array()
             .expect("side-channel 列表应为数组")
@@ -542,7 +542,7 @@ fn side_channel_start_list_get_and_terminal_cancel_semantics() {
             .any(|s| s["id"] == id),
         "side-channel 未出现在列表里"
     );
-    let got = invoke_ok("reflect_get_side_channel", json!({ "id": id.as_str() }));
+    let got = invoke_ok("zhuye_get_side_channel", json!({ "id": id.as_str() }));
     assert_eq!(got["id"], id, "side-channel 读回 id 不符: {got}");
     assert_eq!(got["agentName"], "probe-helper");
     // ⚠️ startedAtMs 是**两个时间源**:registry 句柄 stamp(快照/列表
@@ -568,16 +568,16 @@ fn side_channel_start_list_get_and_terminal_cancel_semantics() {
     assert!(terminal["durationMs"].is_number(), "{terminal}");
 
     // 终态通道的取消 → false(boolean 语义:未知 / 已终态都不算生效)。
-    let cancelled = invoke_ok("reflect_cancel_side_channel", json!({ "id": id.as_str() }));
+    let cancelled = invoke_ok("zhuye_cancel_side_channel", json!({ "id": id.as_str() }));
     assert_eq!(cancelled, false, "已终态的通道取消应返回 false");
-    let after = invoke_ok("reflect_get_side_channel", json!({ "id": id }));
+    let after = invoke_ok("zhuye_get_side_channel", json!({ "id": id }));
     assert_eq!(after["status"], terminal["status"], "取消不应改写终态");
 
     // 未知 id:get 报错、cancel 返回 false。
-    assert!(invoke("reflect_get_side_channel", json!({ "id": "side-deadbeef" })).is_err());
+    assert!(invoke("zhuye_get_side_channel", json!({ "id": "side-deadbeef" })).is_err());
     assert_eq!(
         invoke_ok(
-            "reflect_cancel_side_channel",
+            "zhuye_cancel_side_channel",
             json!({ "id": "side-deadbeef" })
         ),
         false
@@ -585,7 +585,7 @@ fn side_channel_start_list_get_and_terminal_cancel_semantics() {
 }
 
 /// 事件信封断言(v1.x WP9 接线):
-/// 1. `side_channel_started` 经 submission id 配对发到 `reflect_event`;
+/// 1. `side_channel_started` 经 submission id 配对发到 `zhuye_event`;
 /// 2. **运行终态**经终态补发器(`state/side_channel_forwarder`)以
 ///    `EVENT_ID_NONE` 信封到达 —— 引擎 driver 只推进 registry,不发协议
 ///    终态事件,桌面端补的那一环必须有真 IPC 证据。
@@ -596,14 +596,14 @@ fn side_channel_lifecycle_events_reach_the_frontend() {
     // 先注册事件采集(内部拿夹具锁,与 invoke 顺序调用安全)。
     let collected = std::sync::Arc::new(std::sync::Mutex::new(Vec::<serde_json::Value>::new()));
     let sink = collected.clone();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             sink.lock().unwrap_or_else(|e| e.into_inner()).push(v);
         }
     });
 
     let started = invoke_ok(
-        "reflect_start_side_channel",
+        "zhuye_start_side_channel",
         json!({ "agentName": "probe-events", "prompt": "事件信封探针" }),
     );
     let id = started["id"]
@@ -674,25 +674,25 @@ fn squad_delegates_and_assigns_tasks() {
         "members": [],
         "createdAtMs": 1_700_000_000_u64,
     });
-    invoke_ok("reflect_create_squad", json!({ "spec": spec }));
+    invoke_ok("zhuye_create_squad", json!({ "spec": spec }));
 
     // 委派需要一个**待办任务** —— 任务列表名与 squad 同名。
     let task = invoke_ok(
-        "reflect_create_task",
+        "zhuye_create_task",
         json!({ "list": name, "subject": "待委派任务", "description": "探针" }),
     );
     let task_id = task["id"].as_u64().expect("任务缺少数字 id");
 
     // 指派给具体成员。
     let assigned = invoke_ok(
-        "reflect_assign_squad_task",
+        "zhuye_assign_squad_task",
         json!({ "name": name, "taskId": task_id, "assignee": "builder@x" }),
     );
     assert_eq!(assigned["id"], task_id, "指派后任务 id 不符: {assigned}");
 
     // 委派下一个任务(无待办时返回 null)。
     let delegated = invoke_ok(
-        "reflect_delegate_next",
+        "zhuye_delegate_next",
         json!({ "name": name, "leaderActorId": format!("team-lead@{name}") }),
     );
     assert!(
@@ -700,7 +700,7 @@ fn squad_delegates_and_assigns_tasks() {
         "委派结果形态异常: {delegated}"
     );
 
-    invoke_ok("reflect_delete_squad", json!({ "name": name }));
+    invoke_ok("zhuye_delete_squad", json!({ "name": name }));
 }
 
 // ============================================================================
@@ -710,16 +710,16 @@ fn squad_delegates_and_assigns_tasks() {
 #[test]
 fn remote_config_round_trips() {
     let _guard = common::state_lock();
-    let before = invoke_ok("reflect_get_remote_config", json!({}));
+    let before = invoke_ok("zhuye_get_remote_config", json!({}));
     assert!(before.is_object(), "远程配置应为对象: {before}");
 
     let after = invoke_ok(
-        "reflect_update_remote_config",
+        "zhuye_update_remote_config",
         json!({ "host": "127.0.0.1", "port": 8787, "autoConnect": false }),
     );
     assert_eq!(after["host"], "127.0.0.1", "远程 host 未更新: {after}");
 
-    let status = invoke_ok("reflect_get_remote_status", json!({}));
+    let status = invoke_ok("zhuye_get_remote_status", json!({}));
     assert!(status.is_object(), "远程状态应为对象: {status}");
 }
 
@@ -728,9 +728,9 @@ fn tailscale_status_commands_are_readable() {
     // tailscale 二进制本机可能没装 —— 命令必须返回**结构化结果**,
     // 而不是 panic 或挂死。
     for cmd in [
-        "reflect_tailscale_status",
-        "reflect_tailscale_daemon_status",
-        "reflect_tailscale_daemon_command_preview",
+        "zhuye_tailscale_status",
+        "zhuye_tailscale_daemon_status",
+        "zhuye_tailscale_daemon_command_preview",
     ] {
         let v = invoke_ok(cmd, json!({}));
         assert!(!v.is_null(), "{cmd} 返回 null");
@@ -746,14 +746,14 @@ fn plugin_install_and_uninstall_reject_bad_input() {
     let _guard = common::state_lock();
     // 非法 marketplace 名 → 结构化错误,装卸**一步都不执行**。
     let e = invoke_err(
-        "reflect_install_plugin",
+        "zhuye_install_plugin",
         json!({ "path": "/nonexistent/plugin", "marketplace": "BAD NAME", "scope": "user" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
 
     // 非法 plugin id → 解析阶段就失败,不会碰到插件目录。
     let e = invoke_err(
-        "reflect_uninstall_plugin",
+        "zhuye_uninstall_plugin",
         json!({ "id": "not a valid plugin id", "scope": "user" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
@@ -768,20 +768,20 @@ fn pipeline_and_discussion_runs_reject_missing_inputs() {
     let _guard = common::state_lock();
     // 配置文件不存在 → 结构化错误,**不会**起任何 agent 编排。
     let e = invoke_err(
-        "reflect_run_pipeline",
+        "zhuye_run_pipeline",
         json!({ "configPath": "/nonexistent/pipeline.toml", "topic": "探针" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
 
     let e = invoke_err(
-        "reflect_run_discussion",
+        "zhuye_run_discussion",
         json!({ "configPath": "/nonexistent/discussion.toml" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
 
     // 团队不存在 → 结构化错误。
     let e = invoke_err(
-        "reflect_run_team_pipeline",
+        "zhuye_run_team_pipeline",
         json!({ "teamName": "no-such-team-xyz", "topic": "探针" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
@@ -793,7 +793,7 @@ fn pipeline_and_discussion_runs_reject_missing_inputs() {
 
 #[test]
 fn discussion_listing_is_readable() {
-    let list = invoke_ok("reflect_list_discussions", json!({}));
+    let list = invoke_ok("zhuye_list_discussions", json!({}));
     assert!(list.is_array(), "讨论列表应为数组: {list}");
 }
 
@@ -803,17 +803,17 @@ fn pipeline_config_save_and_validate() {
     let name = format!("probe-pipeline-{}", tag());
     let toml = "name = \"probe\"\n";
     let saved = invoke_ok(
-        "reflect_save_pipeline_config",
+        "zhuye_save_pipeline_config",
         json!({ "name": name, "tomlSrc": toml }),
     );
     assert_eq!(saved["name"], name, "流水线配置名不符: {saved}");
 
-    let list = invoke_ok("reflect_list_pipeline_configs", json!({}));
+    let list = invoke_ok("zhuye_list_pipeline_configs", json!({}));
     assert!(list.is_array(), "流水线配置列表应为数组: {list}");
 
     // 非法 TOML → 结构化错误,不得 panic。
     let e = invoke_err(
-        "reflect_validate_pipeline",
+        "zhuye_validate_pipeline",
         json!({ "tomlSrc": "=== not toml ===" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
@@ -827,11 +827,11 @@ fn pipeline_config_save_and_validate() {
 fn network_bound_commands_return_structured_results() {
     for (cmd, body) in [
         (
-            "reflect_list_provider_models",
+            "zhuye_list_provider_models",
             json!({ "baseUrl": "http://127.0.0.1:9/v1", "apiKey": "probe", "endpoint": "models" }),
         ),
         (
-            "reflect_test_provider_chat",
+            "zhuye_test_provider_chat",
             json!({
                 "baseUrl": "http://127.0.0.1:9/v1",
                 "apiKey": "probe",
@@ -840,7 +840,7 @@ fn network_bound_commands_return_structured_results() {
             }),
         ),
         (
-            "reflect_query_plan_quota",
+            "zhuye_query_plan_quota",
             json!({ "baseUrl": "http://127.0.0.1:9", "apiKey": "probe", "checkVia": "header" }),
         ),
     ] {

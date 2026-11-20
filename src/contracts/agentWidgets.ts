@@ -1,16 +1,16 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ReflectAgentDef, ReflectMemoryScope } from '@/utils/commands';
+import type { ZhuyeAgentDef, ZhuyeMemoryScope } from '@/utils/commands';
 import type { SubagentSpecInfo } from '@/utils/commands/subagents';
 
 export interface AgentEditorViewProps {
   t: I18nContextValue['t'];
-  draft: ReflectAgentDef;
+  draft: ZhuyeAgentDef;
   isCreating: boolean;
   isSaving: boolean;
-  onPatch: (patch: Partial<ReflectAgentDef>) => void;
+  onPatch: (patch: Partial<ZhuyeAgentDef>) => void;
   onSave: () => void;
   onCancel: () => void;
-  memoryScopes: ReflectMemoryScope[];
+  memoryScopes: ZhuyeMemoryScope[];
 }
 
 export interface SubagentSpecsViewProps {

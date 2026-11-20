@@ -3,16 +3,16 @@
  */
 import { invoke } from '../bridge';
 
-export interface ReflectFileSearchHit {
+export interface ZhuyeFileSearchHit {
   path: string;
   line: number;
   context: string;
 }
 
-export interface ReflectFileSearchResult {
+export interface ZhuyeFileSearchResult {
   root: string;
   query: string;
-  hits: ReflectFileSearchHit[];
+  hits: ZhuyeFileSearchHit[];
   truncated: boolean;
 }
 
@@ -33,13 +33,13 @@ export type SearchRank = 'substring' | 'bm25';
  * @param maxResults  结果上限(默认 200)
  * @param rank   排序方式(默认子串匹配)
  */
-export async function reflect_search_files(
+export async function zhuye_search_files(
   query: string,
   path: string | null = null,
   maxResults = 200,
   rank: SearchRank = 'substring',
-): Promise<ReflectFileSearchResult | null> {
-  return invoke<ReflectFileSearchResult | null>('reflect_search_files', {
+): Promise<ZhuyeFileSearchResult | null> {
+  return invoke<ZhuyeFileSearchResult | null>('zhuye_search_files', {
     query,
     path,
     maxResults,

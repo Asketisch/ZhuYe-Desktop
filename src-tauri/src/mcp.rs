@@ -1,6 +1,6 @@
 //! MCP / LSP 运行时接入(阶段 3d)。
 //!
-//! 参照 `ZhuYe/crates/runtime/reflect-exec/src/bootstrap.rs` 的
+//! 参照 `ZhuYe/crates/runtime/zhuye-exec/src/bootstrap.rs` 的
 //! `bootstrap_m6` / `bootstrap_lsp`,但把 lifecycle event 推到 MinimalAgent
 //! 的 session broadcast(单一事件通道,前端 dispatcher 按 msg.type 分发)。
 //!
@@ -18,17 +18,17 @@
 
 use std::sync::Arc;
 
-use reflect_config::ReflectConfig;
-use reflect_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
-use reflect_mcp::{McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter};
-use reflect_protocol::{EVENT_ID_NONE, Event, EventMsg};
-use reflect_tools::{ToolRegistry, ToolSource};
+use zhuye_config::ReflectConfig;
+use zhuye_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
+use zhuye_mcp::{McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter};
+use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg};
+use zhuye_tools::{ToolRegistry, ToolSource};
 use tokio::sync::broadcast;
 
 /// 仅记录每个服务实际注册的工具，避免卸载时误删同名或已替换的工具。
 #[derive(Default)]
 pub(crate) struct McpTools(
-    parking_lot::Mutex<std::collections::HashMap<String, Vec<Arc<dyn reflect_tools::Tool>>>>,
+    parking_lot::Mutex<std::collections::HashMap<String, Vec<Arc<dyn zhuye_tools::Tool>>>>,
 );
 
 impl McpTools {
@@ -36,7 +36,7 @@ impl McpTools {
         &self,
         tools: &ToolRegistry,
         server: &str,
-        tool: Arc<dyn reflect_tools::Tool>,
+        tool: Arc<dyn zhuye_tools::Tool>,
     ) -> bool {
         let name = tool.name().to_string();
         // `with_floor` 变体才会给外部工具套权限 floor；它存入注册表的是
@@ -167,7 +167,7 @@ pub(crate) async fn start_one_server(
             cfg.timeout,
             invoked_tx.clone(),
         );
-        let arc: Arc<dyn reflect_tools::Tool> = Arc::new(adapter);
+        let arc: Arc<dyn zhuye_tools::Tool> = Arc::new(adapter);
         if ownership.register(tools, &cfg.name, arc) {
             names.push(desc.full_name.clone());
         } else {
@@ -229,7 +229,7 @@ pub(crate) async fn bootstrap_lsp(
                     server,
                     methods,
                     language_ids,
-                } => EventMsg::LspServerStarted(reflect_protocol::LspServerStartedEvent {
+                } => EventMsg::LspServerStarted(zhuye_protocol::LspServerStartedEvent {
                     server,
                     methods,
                     language_ids,
@@ -238,7 +238,7 @@ pub(crate) async fn bootstrap_lsp(
                     server,
                     error,
                     will_retry,
-                } => EventMsg::LspServerFailed(reflect_protocol::LspServerFailedEvent {
+                } => EventMsg::LspServerFailed(zhuye_protocol::LspServerFailedEvent {
                     server,
                     error,
                     will_retry,
@@ -304,7 +304,7 @@ pub(crate) async fn bootstrap_lsp(
                                     let _ = inner.session_tx.send(Event::new(
                                         EVENT_ID_NONE,
                                         EventMsg::LspServerFailed(
-                                            reflect_protocol::LspServerFailedEvent {
+                                            zhuye_protocol::LspServerFailedEvent {
                                                 server: name,
                                                 error: "LSP server disconnected".into(),
                                                 will_retry: false,
@@ -327,12 +327,12 @@ pub(crate) async fn bootstrap_lsp(
     Ok(Some(manager))
 }
 
-/// 把 reflect_mcp 的 transport kind 映射成 protocol 的 mirror 枚举。
-fn transport_mirror(transport: reflect_mcp::McpTransport) -> reflect_protocol::McpTransportMirror {
+/// 把 zhuye_mcp 的 transport kind 映射成 protocol 的 mirror 枚举。
+fn transport_mirror(transport: zhuye_mcp::McpTransport) -> zhuye_protocol::McpTransportMirror {
     match transport {
-        reflect_mcp::McpTransport::Stdio => reflect_protocol::McpTransportMirror::Stdio,
-        reflect_mcp::McpTransport::Http => reflect_protocol::McpTransportMirror::Http,
-        reflect_mcp::McpTransport::Sse => reflect_protocol::McpTransportMirror::Sse,
+        zhuye_mcp::McpTransport::Stdio => zhuye_protocol::McpTransportMirror::Stdio,
+        zhuye_mcp::McpTransport::Http => zhuye_protocol::McpTransportMirror::Http,
+        zhuye_mcp::McpTransport::Sse => zhuye_protocol::McpTransportMirror::Sse,
     }
 }
 
@@ -352,7 +352,7 @@ pub(crate) fn spawn_mcp_lifecycle_forwarder(
                     tools,
                     tool_names,
                     transport,
-                } => EventMsg::McpServerStarted(reflect_protocol::McpServerStartedEvent {
+                } => EventMsg::McpServerStarted(zhuye_protocol::McpServerStartedEvent {
                     server,
                     tool_count: tools,
                     tool_names,
@@ -362,7 +362,7 @@ pub(crate) fn spawn_mcp_lifecycle_forwarder(
                     server,
                     error,
                     will_retry,
-                } => EventMsg::McpServerFailed(reflect_protocol::McpServerFailedEvent {
+                } => EventMsg::McpServerFailed(zhuye_protocol::McpServerFailedEvent {
                     server,
                     error,
                     will_retry,
@@ -380,7 +380,7 @@ mod tests {
 
     struct TestTool(&'static str);
     #[async_trait::async_trait]
-    impl reflect_tools::Tool for TestTool {
+    impl zhuye_tools::Tool for TestTool {
         fn name(&self) -> &str {
             self.0
         }
@@ -392,9 +392,9 @@ mod tests {
         }
         async fn execute(
             &self,
-            _: reflect_tools::ToolContext,
+            _: zhuye_tools::ToolContext,
             _: serde_json::Value,
-        ) -> Result<reflect_protocol::ToolOutput, reflect_tools::ToolError> {
+        ) -> Result<zhuye_protocol::ToolOutput, zhuye_tools::ToolError> {
             unreachable!()
         }
     }
@@ -415,8 +415,8 @@ mod tests {
     }
 
     fn server_config(name: &str) -> ReflectConfig {
-        reflect_config::load_from_str(&format!(
-            "[mcp_servers.{name}]\ntype = \"stdio\"\ncommand = \"/nonexistent/reflect-mcp-test\"\n"
+        zhuye_config::load_from_str(&format!(
+            "[mcp_servers.{name}]\ntype = \"stdio\"\ncommand = \"/nonexistent/zhuye-mcp-test\"\n"
         ))
         .unwrap()
     }

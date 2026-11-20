@@ -15,9 +15,9 @@ import { Save, CheckCircle, AlertTriangle, GitBranch } from 'lucide-react';
 import { Badge, Button, Icon, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
-  reflect_list_pipeline_configs,
-  reflect_save_pipeline_config,
-  reflect_validate_pipeline,
+  zhuye_list_pipeline_configs,
+  zhuye_save_pipeline_config,
+  zhuye_validate_pipeline,
 } from '@/utils/commands/pipeline';
 import s from '@/render/collaboration/CollaborationView.module.css';
 
@@ -48,19 +48,19 @@ export function PipelineEditor() {
 
   const filesQ = useQuery({
     queryKey: ['pipeline-configs'],
-    queryFn: () => reflect_list_pipeline_configs(),
+    queryFn: () => zhuye_list_pipeline_configs(),
     staleTime: 15_000,
   });
 
   const validationQ = useQuery({
     queryKey: ['pipeline-validate', debounced],
-    queryFn: () => reflect_validate_pipeline(debounced),
+    queryFn: () => zhuye_validate_pipeline(debounced),
     staleTime: 0,
     retry: false,
   });
 
   const saveMut = useMutation({
-    mutationFn: () => reflect_save_pipeline_config(name.trim(), tomlSrc),
+    mutationFn: () => zhuye_save_pipeline_config(name.trim(), tomlSrc),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['pipeline-configs'] }),
   });
 

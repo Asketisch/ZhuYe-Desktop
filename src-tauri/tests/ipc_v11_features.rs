@@ -1,19 +1,19 @@
 //! 能力覆盖层 · v1.11 功能域 —— 真实命令体 over 真实 IPC 通路。
 //!
 //! 覆盖(与 feature-gap-report 对齐):
-//! - 桌面#2 插件市场:`reflect_browse_marketplace` /
-//!   `reflect_install_from_marketplace`(未注册市场 fail-fast + 本地
+//! - 桌面#2 插件市场:`zhuye_browse_marketplace` /
+//!   `zhuye_install_from_marketplace`(未注册市场 fail-fast + 本地
 //!   directory 市场成功路径:浏览字段级 / 一键安装落盘记账与缓存物化)
-//! - 桌面#1 Skill 市场:`reflect_install_skill`(repo 形态校验先于网络;
+//! - 桌面#1 Skill 市场:`zhuye_install_skill`(repo 形态校验先于网络;
 //!   成功路径走 GitHub 网络,按 COVERAGE §3 网络类口径豁免,前端
 //!   安装后自动重扫由 SkillsView 行为测试断言)
-//! - 桌面#5 多目录工作区:`reflect_set_workspace_dirs` /
-//!   `reflect_current_workspace_dirs`(校验 / 去重 / 状态回读);
+//! - 桌面#5 多目录工作区:`zhuye_set_workspace_dirs` /
+//!   `zhuye_current_workspace_dirs`(校验 / 去重 / 状态回读);
 //!   附加目录 → sandbox_writable 的并入语义由 thread_factory 单测覆盖
-//! - 基建#12 远程状态页:`reflect_status_server_start` /
-//!   `reflect_status_server_state` / `reflect_status_server_stop`
+//! - 基建#12 远程状态页:`zhuye_status_server_start` /
+//!   `zhuye_status_server_state` / `zhuye_status_server_stop`
 //!   (启动 → 端口可见 → 停止 → 归零);token 经
-//!   `reflect_update_remote_config` → start 的 IPC 组合路径含真 HTTP
+//!   `zhuye_update_remote_config` → start 的 IPC 组合路径含真 HTTP
 //!   401/401/200 三态
 //! - 基建#7 SSH 远端:参数拼装语义由 `commands/shell.rs` 单测覆盖
 //!   (`ssh_argv`:BatchMode / ConnectTimeout / host trim / 命令单参数)
@@ -30,7 +30,7 @@ use serde_json::json;
 fn browse_unregistered_marketplace_fails_with_hint() {
     let _guard = common::state_lock();
     let err = common::invoke_err(
-        "reflect_browse_marketplace",
+        "zhuye_browse_marketplace",
         json!({ "name": "no-such-mkt-v11" }),
     );
     let msg = err["msg"].as_str().expect("错误应带 msg");
@@ -44,7 +44,7 @@ fn browse_unregistered_marketplace_fails_with_hint() {
 fn install_from_unregistered_marketplace_fails_fast() {
     let _guard = common::state_lock();
     let err = common::invoke_err(
-        "reflect_install_from_marketplace",
+        "zhuye_install_from_marketplace",
         json!({ "marketplace": "no-such-mkt-v11", "plugin": "demo" }),
     );
     let msg = err["msg"].as_str().expect("错误应带 msg");
@@ -58,7 +58,7 @@ fn install_from_unregistered_marketplace_fails_fast() {
 fn browse_rejects_invalid_marketplace_name() {
     let _guard = common::state_lock();
     // 市场名校验(MarketplaceName::parse):大写 / 空格非法。
-    let err = common::invoke_err("reflect_browse_marketplace", json!({ "name": "BAD NAME" }));
+    let err = common::invoke_err("zhuye_browse_marketplace", json!({ "name": "BAD NAME" }));
     let msg = err["msg"].as_str().expect("错误应带 msg");
     assert!(
         msg.contains("invalid marketplace name"),
@@ -75,7 +75,7 @@ fn install_skill_rejects_invalid_repo_before_network() {
     let _guard = common::state_lock();
     // `owner/repo` 形态校验在命令体第一步,非法形态直接报错,不发网络请求。
     for bad in ["just-a-name", "https://example.com/a/b", ""] {
-        let err = common::invoke_err("reflect_install_skill", json!({ "repo": bad }));
+        let err = common::invoke_err("zhuye_install_skill", json!({ "repo": bad }));
         let msg = err["msg"].as_str().expect("错误应带 msg");
         assert!(!msg.is_empty(), "非法 repo `{bad}` 应被拒绝且带原因");
     }
@@ -91,7 +91,7 @@ fn workspace_dirs_roundtrip_with_validation_and_dedup() {
 
     // 主工作区不存在 → 显性拒绝。
     let err = common::invoke_err(
-        "reflect_set_workspace_dirs",
+        "zhuye_set_workspace_dirs",
         json!({ "main": "/nonexistent/ws-v11", "additional": [] }),
     );
     let msg = err["msg"].as_str().expect("错误应带 msg");
@@ -104,7 +104,7 @@ fn workspace_dirs_roundtrip_with_validation_and_dedup() {
     let main = std::env::temp_dir().join(format!("ws-v11-main-{}", std::process::id()));
     std::fs::create_dir_all(&main).expect("创建主工作区");
     let err = common::invoke_err(
-        "reflect_set_workspace_dirs",
+        "zhuye_set_workspace_dirs",
         json!({ "main": main.display().to_string(), "additional": ["/nonexistent/extra-v11"] }),
     );
     let msg = err["msg"].as_str().expect("错误应带 msg");
@@ -121,10 +121,10 @@ fn workspace_dirs_roundtrip_with_validation_and_dedup() {
     let main_str = main.display().to_string();
     let a_str = extra_a.display().to_string();
     common::invoke_ok(
-        "reflect_set_workspace_dirs",
+        "zhuye_set_workspace_dirs",
         json!({ "main": main_str, "additional": [a_str, a_str.clone(), main_str] }),
     );
-    let got = common::invoke_ok("reflect_current_workspace_dirs", json!({}));
+    let got = common::invoke_ok("zhuye_current_workspace_dirs", json!({}));
     assert_eq!(
         got["additional"].as_array().expect("additional 数组").len(),
         1,
@@ -138,10 +138,10 @@ fn workspace_dirs_roundtrip_with_validation_and_dedup() {
 
     // 收尾:清空附加目录(测试间不串)。
     common::invoke_ok(
-        "reflect_set_workspace_dirs",
+        "zhuye_set_workspace_dirs",
         json!({ "main": main_str, "additional": [] }),
     );
-    let got = common::invoke_ok("reflect_current_workspace_dirs", json!({}));
+    let got = common::invoke_ok("zhuye_current_workspace_dirs", json!({}));
     assert!(
         got["additional"]
             .as_array()
@@ -160,18 +160,18 @@ fn status_server_start_state_stop_roundtrip() {
     let _guard = common::state_lock();
 
     // 初始未运行。
-    let state = common::invoke_ok("reflect_status_server_state", json!({}));
+    let state = common::invoke_ok("zhuye_status_server_state", json!({}));
     assert!(
         state.as_null().is_some() || state.is_null(),
         "初始状态应为 null(未运行): {state}"
     );
 
     // 启动(port=0 自动分配)→ 端口可见。
-    let started = common::invoke_ok("reflect_status_server_start", json!({ "port": 0 }));
+    let started = common::invoke_ok("zhuye_status_server_start", json!({ "port": 0 }));
     let port = started.as_u64().expect("启动应返回绑定端口");
     assert!(port > 0, "自动分配端口应 > 0: {port}");
 
-    let state = common::invoke_ok("reflect_status_server_state", json!({}));
+    let state = common::invoke_ok("zhuye_status_server_state", json!({}));
     assert_eq!(
         state.as_u64(),
         Some(port),
@@ -179,9 +179,9 @@ fn status_server_start_state_stop_roundtrip() {
     );
 
     // 停止 → 状态归零;重复停止幂等。
-    common::invoke_ok("reflect_status_server_stop", json!({}));
-    common::invoke_ok("reflect_status_server_stop", json!({}));
-    let state = common::invoke_ok("reflect_status_server_state", json!({}));
+    common::invoke_ok("zhuye_status_server_stop", json!({}));
+    common::invoke_ok("zhuye_status_server_stop", json!({}));
+    let state = common::invoke_ok("zhuye_status_server_state", json!({}));
     assert!(
         state.as_null().is_some() || state.is_null(),
         "停止后状态应回到 null: {state}"
@@ -196,7 +196,7 @@ fn status_server_start_state_stop_roundtrip() {
 fn import_discover_rejects_unknown_kind() {
     let _guard = common::state_lock();
     let err = common::invoke_err(
-        "reflect_import_discover",
+        "zhuye_import_discover",
         json!({ "kind": "not-a-harness" }),
     );
     let msg = err["msg"].as_str().expect("错误应带 msg");
@@ -210,7 +210,7 @@ fn import_discover_rejects_unknown_kind() {
 fn import_sessions_unknown_kind_fails_fast() {
     let _guard = common::state_lock();
     let err = common::invoke_err(
-        "reflect_import_sessions",
+        "zhuye_import_sessions",
         json!({ "kind": "bogus", "dryRun": true }),
     );
     let msg = err["msg"].as_str().expect("错误应带 msg");
@@ -225,7 +225,7 @@ fn import_discover_zcode_returns_list_or_clean_error() {
     let _guard = common::state_lock();
     // ZCode 来源依赖 `~/.zcode/cli/db/db.sqlite` 存在与否(沙箱 HOME 里
     // 通常没有)→ 空清单或明确的发现错误都算合法;绝不允许 panic。
-    let result = common::invoke("reflect_import_discover", json!({ "kind": "zcode" }));
+    let result = common::invoke("zhuye_import_discover", json!({ "kind": "zcode" }));
     match result {
         Ok(list) => {
             assert!(list.is_array(), "发现结果应为数组: {list}");
@@ -301,7 +301,7 @@ fn write_local_marketplace_fixture() -> String {
 fn browse_local_marketplace_lists_plugin_fields() {
     let _guard = common::state_lock();
     let mkt = write_local_marketplace_fixture();
-    let list = common::invoke_ok("reflect_browse_marketplace", json!({ "name": mkt }));
+    let list = common::invoke_ok("zhuye_browse_marketplace", json!({ "name": mkt }));
     let arr = list.as_array().expect("浏览结果应为数组");
     assert_eq!(arr.len(), 1, "fixture 恰好一个插件: {list}");
     let p = &arr[0];
@@ -323,7 +323,7 @@ fn install_from_local_marketplace_lands_on_disk() {
     let mkt = write_local_marketplace_fixture();
     // 一键安装(含依赖 DFS;demo 无依赖 → 单条直接装)。
     common::invoke_ok(
-        "reflect_install_from_marketplace",
+        "zhuye_install_from_marketplace",
         json!({ "marketplace": mkt, "plugin": "demo" }),
     );
     // 落盘断言 1:installed_plugins.json 记账含 demo。
@@ -388,7 +388,7 @@ agents = "./agents"
     .expect("agent");
 
     common::invoke_ok(
-        "reflect_install_plugin",
+        "zhuye_install_plugin",
         json!({
             "path": plugin.display().to_string(),
             "marketplace": "local",
@@ -396,15 +396,15 @@ agents = "./agents"
         }),
     );
     // 插件 runtime 只在真实会话上挂载。先建会话,再启用,列表才读得到能力。
-    let session = common::invoke_ok("reflect_create_session", json!({}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
     let session_id = session.as_str().expect("create session 返回 id");
-    common::invoke_ok("reflect_bind_session", json!({ "id": session_id }));
+    common::invoke_ok("zhuye_bind_session", json!({ "id": session_id }));
     std::thread::sleep(std::time::Duration::from_millis(400));
     common::invoke_ok(
-        "reflect_toggle_plugin",
+        "zhuye_toggle_plugin",
         json!({ "id": "full@local", "enabled": true }),
     );
-    let commands = common::invoke_ok("reflect_list_plugin_commands", json!({}));
+    let commands = common::invoke_ok("zhuye_list_plugin_commands", json!({}));
     let names = commands
         .as_array()
         .expect("命令列表")
@@ -416,7 +416,7 @@ agents = "./agents"
         "slash 命令应可见: {names:?}"
     );
 
-    let skills = common::invoke_ok("reflect_list_skills", json!({}));
+    let skills = common::invoke_ok("zhuye_list_skills", json!({}));
     let skill_names = skills
         .as_array()
         .expect("技能列表")
@@ -428,7 +428,7 @@ agents = "./agents"
         "插件技能应出现在 Skills 列表: {skill_names:?}"
     );
 
-    let agents = common::invoke_ok("reflect_list_agent_defs", json!({}));
+    let agents = common::invoke_ok("zhuye_list_agent_defs", json!({}));
     let agent_names = agents
         .as_array()
         .expect("agent 列表")
@@ -442,10 +442,10 @@ agents = "./agents"
 
     // 停用后快照清除,列表不再残留插件能力。
     common::invoke_ok(
-        "reflect_toggle_plugin",
+        "zhuye_toggle_plugin",
         json!({ "id": "full@local", "enabled": false }),
     );
-    let skills_after = common::invoke_ok("reflect_list_skills", json!({}));
+    let skills_after = common::invoke_ok("zhuye_list_skills", json!({}));
     let names_after = skills_after
         .as_array()
         .expect("技能列表")
@@ -469,12 +469,12 @@ fn status_server_enforces_token_configured_via_ipc() {
     // 先确保停机态,再经 IPC 配置 token(remote_config 是 token 的唯一
     // 来源,启动命令体读它 —— 该组合路径此前仅由 status_server 单测
     // 以直接调用覆盖,未经 IPC 命令体链路)。
-    common::invoke_ok("reflect_status_server_stop", json!({}));
+    common::invoke_ok("zhuye_status_server_stop", json!({}));
     common::invoke_ok(
-        "reflect_update_remote_config",
+        "zhuye_update_remote_config",
         json!({ "host": "127.0.0.1", "port": 4732, "authToken": "v11-secret", "autoConnect": false }),
     );
-    let port = common::invoke_ok("reflect_status_server_start", json!({ "port": 0 }))
+    let port = common::invoke_ok("zhuye_status_server_start", json!({ "port": 0 }))
         .as_u64()
         .expect("启动应返回端口") as u16;
 
@@ -505,9 +505,9 @@ fn status_server_enforces_token_configured_via_ipc() {
     assert_eq!(right.as_u16(), 200, "对 token 必须放行");
 
     // 收尾:停机 + 清 token(测试间不串)。
-    common::invoke_ok("reflect_status_server_stop", json!({}));
+    common::invoke_ok("zhuye_status_server_stop", json!({}));
     common::invoke_ok(
-        "reflect_update_remote_config",
+        "zhuye_update_remote_config",
         json!({ "host": "127.0.0.1", "port": 4732, "authToken": null, "autoConnect": false }),
     );
 }

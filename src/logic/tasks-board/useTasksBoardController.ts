@@ -2,8 +2,8 @@
  * Tasks board —— controller hook（阶段 1 多 agent UI）。
  *
  * 封装查询 / 突变编排，使视图保持纯展示。职责：
- *   - TanStack `useQuery` 用于 `reflect_list_tasks`（轮询活动列表）
- *   - `useQuery` 用于 `reflect_list_teams`（驱动列表选择器：选择 team 时
+ *   - TanStack `useQuery` 用于 `zhuye_list_tasks`（轮询活动列表）
+ *   - `useQuery` 用于 `zhuye_list_teams`（驱动列表选择器：选择 team 时
  *     list id = team 名称，否则为自由文本）
  *   - 四个 mutation：create / claim / update(status) / delete，各带 toast
  *     + cache 失效
@@ -14,19 +14,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_claim_task,
-  reflect_create_task,
-  reflect_delete_task,
-  reflect_delete_team,
-  reflect_list_tasks,
-  reflect_list_teams,
-  reflect_release_task,
-  reflect_stop_task,
-  reflect_update_task,
-  reflect_upsert_team,
-  type ReflectTask,
-  type ReflectTaskStatus,
-  type ReflectTeam,
+  zhuye_claim_task,
+  zhuye_create_task,
+  zhuye_delete_task,
+  zhuye_delete_team,
+  zhuye_list_tasks,
+  zhuye_list_teams,
+  zhuye_release_task,
+  zhuye_stop_task,
+  zhuye_update_task,
+  zhuye_upsert_team,
+  type ZhuyeTask,
+  type ZhuyeTaskStatus,
+  type ZhuyeTeam,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { SESSIONS_QUERY_KEY, useSessions } from '@/logic/sessions/useSessions';
@@ -40,7 +40,7 @@ export const DEFAULT_LIST_ID = 'default';
 
 export type BoardView = 'list' | 'board';
 
-export const STATUS_ORDER: ReflectTaskStatus[] = [
+export const STATUS_ORDER: ZhuyeTaskStatus[] = [
   'pending',
   'in_progress',
   'completed',
@@ -48,7 +48,7 @@ export const STATUS_ORDER: ReflectTaskStatus[] = [
 ];
 
 /** 旧版 —— 请改用 i18n `tasks.*` key。保留用于向后兼容。 */
-export const STATUS_LABELS: Record<ReflectTaskStatus, string> = {
+export const STATUS_LABELS: Record<ZhuyeTaskStatus, string> = {
   pending: 'Pending',
   in_progress: 'In Progress',
   completed: 'Completed',
@@ -57,9 +57,9 @@ export const STATUS_LABELS: Record<ReflectTaskStatus, string> = {
 
 export interface TasksBoardController {
   // 任务查询
-  tasks: ReflectTask[];
+  tasks: ZhuyeTask[];
   /** 按状态分组（board 视图）。排除软删除的任务。 */
-  grouped: Record<ReflectTaskStatus, ReflectTask[]>;
+  grouped: Record<ZhuyeTaskStatus, ZhuyeTask[]>;
   loading: boolean;
   error: unknown;
   refetch: () => void;
@@ -69,9 +69,9 @@ export interface TasksBoardController {
   /** 会话任务默认使用会话 ID 作为列表名。 */
   sessions: { session_id: string; title?: string }[];
   /** 团队全量数据(团队编辑器用)。 */
-  teams: ReflectTeam[];
+  teams: ZhuyeTeam[];
   /** 保存团队(核心 `upsert_team`)。失败时抛错,由编辑器展示。 */
-  upsertTeam: (team: ReflectTeam) => Promise<void>;
+  upsertTeam: (team: ZhuyeTeam) => Promise<void>;
   /** 删除团队(核心 `delete_team`)。失败时抛错。 */
   deleteTeam: (name: string) => Promise<void>;
   /** 团队写操作进行中。 */
@@ -95,18 +95,18 @@ export interface TasksBoardController {
 
   // 突变操作
   create: () => Promise<void>;
-  claim: (task: ReflectTask) => Promise<void>;
-  advance: (task: ReflectTask, status: ReflectTaskStatus) => Promise<void>;
-  remove: (task: ReflectTask) => Promise<void>;
+  claim: (task: ZhuyeTask) => Promise<void>;
+  advance: (task: ZhuyeTask, status: ZhuyeTaskStatus) => Promise<void>;
+  remove: (task: ZhuyeTask) => Promise<void>;
   /** 停止进行中的任务(与核心 `TaskStopTool` 同语义)。 */
-  stop: (task: ReflectTask) => Promise<void>;
+  stop: (task: ZhuyeTask) => Promise<void>;
   /** 释放已认领的任务(与核心 `TaskReleaseTool` 同语义)。 */
-  release: (task: ReflectTask) => Promise<void>;
+  release: (task: ZhuyeTask) => Promise<void>;
 
   // 详情抽屉(产出 / 描述)
   /** 当前展开详情的任务(null = 未展开)。 */
-  selected: ReflectTask | null;
-  selectTask: (task: ReflectTask | null) => void;
+  selected: ZhuyeTask | null;
+  selectTask: (task: ZhuyeTask | null) => void;
 
   isMutating: boolean;
 }
@@ -131,14 +131,14 @@ export function useTasksBoardController(): TasksBoardController {
 
   const tasksQ = useQuery({
     queryKey: tasksQueryKey(listId),
-    queryFn: () => reflect_list_tasks(listId),
+    queryFn: () => zhuye_list_tasks(listId),
     staleTime: TASKS_STALE_MS,
     refetchInterval: TASKS_STALE_MS,
   });
 
   const teamsQ = useQuery({
     queryKey: ['teams'],
-    queryFn: () => reflect_list_teams(),
+    queryFn: () => zhuye_list_teams(),
     staleTime: TEAMS_STALE_MS,
   });
 
@@ -154,7 +154,7 @@ export function useTasksBoardController(): TasksBoardController {
       description: string;
       owner?: string;
     }) =>
-      reflect_create_task({
+      zhuye_create_task({
         list: args.list,
         subject: args.subject,
         description: args.description,
@@ -165,7 +165,7 @@ export function useTasksBoardController(): TasksBoardController {
 
   const claimMut = useMutation({
     mutationFn: ({ list, claimer }: { list: string; claimer: string }) =>
-      reflect_claim_task(list, claimer),
+      zhuye_claim_task(list, claimer),
     onSuccess: () => void invalidateTasks(),
   });
 
@@ -177,14 +177,14 @@ export function useTasksBoardController(): TasksBoardController {
     }: {
       list: string;
       id: number;
-      patch: { status: ReflectTaskStatus };
-    }) => reflect_update_task(list, id, patch),
+      patch: { status: ZhuyeTaskStatus };
+    }) => zhuye_update_task(list, id, patch),
     onSuccess: () => void invalidateTasks(),
   });
 
   const deleteMut = useMutation({
     mutationFn: ({ list, id }: { list: string; id: number }) =>
-      reflect_delete_task(list, id),
+      zhuye_delete_task(list, id),
     onSuccess: () => void invalidateTasks(),
   });
 
@@ -192,31 +192,31 @@ export function useTasksBoardController(): TasksBoardController {
   // (守卫在命令层,不在前端重复实现)。
   const stopMut = useMutation({
     mutationFn: ({ list, id }: { list: string; id: number }) =>
-      reflect_stop_task(list, id),
+      zhuye_stop_task(list, id),
     onSuccess: () => void invalidateTasks(),
   });
 
   const releaseMut = useMutation({
     mutationFn: ({ list, id }: { list: string; id: number }) =>
-      reflect_release_task(list, id),
+      zhuye_release_task(list, id),
     onSuccess: () => void invalidateTasks(),
   });
 
   // 团队建 / 改 / 删 —— 核心 `TaskManager::upsert_team` / `delete_team`。
   const upsertTeamMut = useMutation({
-    mutationFn: (team: ReflectTeam) => reflect_upsert_team(team),
+    mutationFn: (team: ZhuyeTeam) => zhuye_upsert_team(team),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['teams'] }),
   });
 
   const deleteTeamMut = useMutation({
-    mutationFn: (name: string) => reflect_delete_team(name),
+    mutationFn: (name: string) => zhuye_delete_team(name),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['teams'] }),
   });
 
   const tasks = useMemo(() => tasksQ.data ?? [], [tasksQ.data]);
 
-  const grouped = useMemo<Record<ReflectTaskStatus, ReflectTask[]>>(() => {
-    const init: Record<ReflectTaskStatus, ReflectTask[]> = {
+  const grouped = useMemo<Record<ZhuyeTaskStatus, ZhuyeTask[]>>(() => {
+    const init: Record<ZhuyeTaskStatus, ZhuyeTask[]> = {
       pending: [],
       in_progress: [],
       completed: [],
@@ -262,7 +262,7 @@ export function useTasksBoardController(): TasksBoardController {
   }, [createMut, listId, newDescription, newOwner, newSubject, pushToast]);
 
   const claim = useCallback(
-    async (task: ReflectTask) => {
+    async (task: ZhuyeTask) => {
       // 在任务自身列表下 claim（即使用户切换了 listId 也能正常工作）。
       const claimer = newOwner.trim() || 'desktop-user';
       try {
@@ -292,7 +292,7 @@ export function useTasksBoardController(): TasksBoardController {
   );
 
   const advance = useCallback(
-    async (task: ReflectTask, status: ReflectTaskStatus) => {
+    async (task: ZhuyeTask, status: ZhuyeTaskStatus) => {
       try {
         await updateMut.mutateAsync({
           list: task.list_id,
@@ -314,7 +314,7 @@ export function useTasksBoardController(): TasksBoardController {
   );
 
   const remove = useCallback(
-    async (task: ReflectTask) => {
+    async (task: ZhuyeTask) => {
       try {
         await deleteMut.mutateAsync({ list: task.list_id, id: task.id });
         pushToast({ kind: 'success', message: `Deleted #${task.id}` });
@@ -329,7 +329,7 @@ export function useTasksBoardController(): TasksBoardController {
   );
 
   const stop = useCallback(
-    async (task: ReflectTask) => {
+    async (task: ZhuyeTask) => {
       try {
         await stopMut.mutateAsync({ list: task.list_id, id: task.id });
         pushToast({ kind: 'success', message: `Stopped #${task.id}` });
@@ -344,7 +344,7 @@ export function useTasksBoardController(): TasksBoardController {
   );
 
   const release = useCallback(
-    async (task: ReflectTask) => {
+    async (task: ZhuyeTask) => {
       try {
         await releaseMut.mutateAsync({ list: task.list_id, id: task.id });
         pushToast({ kind: 'success', message: `Released #${task.id}` });
@@ -358,13 +358,13 @@ export function useTasksBoardController(): TasksBoardController {
     [pushToast, releaseMut],
   );
 
-  const [selected, setSelected] = useState<ReflectTask | null>(null);
+  const [selected, setSelected] = useState<ZhuyeTask | null>(null);
 
   /** 团队全量数据(团队编辑器用)。 */
   const teams = useMemo(() => teamsQ.data ?? [], [teamsQ.data]);
 
   const upsertTeam = useCallback(
-    async (team: ReflectTeam) => {
+    async (team: ZhuyeTeam) => {
       try {
         await upsertTeamMut.mutateAsync(team);
         pushToast({ kind: 'success', message: `Saved team “${team.name}”` });

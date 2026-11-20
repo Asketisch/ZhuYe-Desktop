@@ -3,7 +3,7 @@
  *
  * 覆盖(v1.11 桌面#1:Skill 市场):
  * - 技能列表照常渲染(fakeBackend / mock 数据)
- * - 市场安装:输入 repo → Install 转发 `reflect_install_skill`
+ * - 市场安装:输入 repo → Install 转发 `zhuye_install_skill`
  * - 安装失败:错误 toast 化(store 断言),按钮恢复可点
  * - 空参数禁止提交
  */
@@ -31,9 +31,9 @@ const SKILLS = [
 describe('SkillsView — skill marketplace', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_list_skills', async () => SKILLS);
-    mockInvoke('reflect_list_tools', async () => []);
-    mockInvoke('reflect_rescan_extensions', async () => 'sub-fake');
+    mockInvoke('zhuye_list_skills', async () => SKILLS);
+    mockInvoke('zhuye_list_tools', async () => []);
+    mockInvoke('zhuye_rescan_extensions', async () => 'sub-fake');
   });
 
   afterEach(() => {
@@ -50,7 +50,7 @@ describe('SkillsView — skill marketplace', () => {
 
   it('disables Install on empty input and forwards repo on click', async () => {
     const installCalls: Array<{ repo: string }> = [];
-    mockInvoke('reflect_install_skill', async (_cmd: string, args: { repo: string }) => {
+    mockInvoke('zhuye_install_skill', async (_cmd: string, args: { repo: string }) => {
       installCalls.push(args);
       return 'sub-fake';
     });
@@ -77,13 +77,13 @@ describe('SkillsView — skill marketplace', () => {
 
   it('re-lists skills after a successful install (auto rescan)', async () => {
     // 「装完自动重扫」的 GUI 落点 = 安装成功后 skillsQ.refetch() →
-    // reflect_list_skills 被再次调用(装进来的技能立即可见)。
+    // zhuye_list_skills 被再次调用(装进来的技能立即可见)。
     const listCalls: number[] = [];
-    mockInvoke('reflect_list_skills', async () => {
+    mockInvoke('zhuye_list_skills', async () => {
       listCalls.push(Date.now());
       return SKILLS;
     });
-    mockInvoke('reflect_install_skill', async () => 'sub-fake');
+    mockInvoke('zhuye_install_skill', async () => 'sub-fake');
     render(wrap(<SkillsView />));
     await screen.findByTestId('skill-market-row');
     const before = listCalls.length;
@@ -97,7 +97,7 @@ describe('SkillsView — skill marketplace', () => {
   });
 
   it('toastifies install failures and keeps the button usable', async () => {
-    mockInvoke('reflect_install_skill', async () => {
+    mockInvoke('zhuye_install_skill', async () => {
       throw new Error('repo has no SKILL.md');
     });
     render(wrap(<SkillsView />));

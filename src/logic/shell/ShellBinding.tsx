@@ -10,7 +10,7 @@ import { useShellUi } from '@/stores/shellUi';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
-import { reflect_create_session, reflect_pick_workspace_folder, reflect_set_workspace, reflect_remove_workspace } from '@/utils/commands';
+import { zhuye_create_session, zhuye_pick_workspace_folder, zhuye_set_workspace, zhuye_remove_workspace } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { useThemeCycle } from '@/logic/shell/useThemeCycle';
 import { useCommandPaletteShortcut } from '@/logic/shell/useCommandPaletteShortcut';
@@ -66,7 +66,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
 
   /** 切换工作区并失效相关缓存(失效集与 WorkspacesView 的切换路径一致)。 */
   const switchWorkspace = async (path: string) => {
-    await reflect_set_workspace(path);
+    await zhuye_set_workspace(path);
     void qc.invalidateQueries({ queryKey: ['agent-status'] });
     void qc.invalidateQueries({ queryKey: ['workspaces'] });
     void qc.invalidateQueries({ queryKey: CURRENT_WORKSPACE_QUERY_KEY });
@@ -77,7 +77,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   };
 
   const showNewSession = (id: string, workspace: string | null) => {
-    qc.setQueryData<import('@/utils/commands').ReflectSessionInfo[]>(
+    qc.setQueryData<import('@/utils/commands').ZhuyeSessionInfo[]>(
       ['sessions', { workspace: null }],
       (previous = []) => [{ session_id: id, model: '', started_at: new Date().toISOString(), message_count: 0, workspace }, ...previous.filter((s) => s.session_id !== id)],
     );
@@ -88,7 +88,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     const mySeq = ++selectSeqRef.current;
     let picked: string | null;
     try {
-      picked = await reflect_pick_workspace_folder();
+      picked = await zhuye_pick_workspace_folder();
     } catch (e) {
       toastError(t('workspaces.pickFailed', { msg: e instanceof Error ? e.message : String(e) }));
       return;
@@ -144,7 +144,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   const handleNewChat = () => {
     const mySeq = ++selectSeqRef.current;
     const pushToast = useAgentStore.getState().pushToast;
-    void reflect_create_session()
+    void zhuye_create_session()
       .then((id) => {
         if (mySeq === selectSeqRef.current) {
           showNewSession(id, currentWorkspace);
@@ -172,7 +172,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   const handleNewChatIn = (path: string) => {
     const mySeq = ++selectSeqRef.current;
     void switchWorkspace(path)
-      .then(() => mySeq === selectSeqRef.current ? reflect_create_session() : null)
+      .then(() => mySeq === selectSeqRef.current ? zhuye_create_session() : null)
       .then((id) => {
         if (id && mySeq === selectSeqRef.current) {
           showNewSession(id, path);
@@ -187,7 +187,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   const handleRemoveWorkspace = async (path: string) => {
     if (!await confirmDialog({ title: t('sidebar.group.remove'), message: t('sidebar.group.removeConfirm') })) return;
     try {
-      await reflect_remove_workspace(path);
+      await zhuye_remove_workspace(path);
       await qc.invalidateQueries({ queryKey: ['workspaces'] });
     } catch (e) {
       toastError(e instanceof Error ? e.message : String(e));

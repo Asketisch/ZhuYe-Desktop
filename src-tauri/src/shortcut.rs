@@ -29,7 +29,7 @@ pub fn register_global_shortcuts<R: Runtime>(app: &AppHandle<R>) -> anyhow::Resu
     let label = "Cmd+Shift+Space";
     #[cfg(not(target_os = "macos"))]
     let label = "Ctrl+Shift+Space";
-    tracing::info!("[reflect-gui] global shortcut registered: {label} (toggle main window)");
+    tracing::info!("[zhuye-gui] global shortcut registered: {label} (toggle main window)");
     Ok(())
 }
 

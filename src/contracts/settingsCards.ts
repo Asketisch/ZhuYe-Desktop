@@ -1,6 +1,6 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { SecurityScanResult } from '@/utils/commands/security';
-import type { ReflectUpdateInfo } from '@/utils/commands/updates';
+import type { ZhuyeUpdateInfo } from '@/utils/commands/updates';
 
 export interface GuardStatsCardProps { t: I18nContextValue['t']; busy: boolean; error: string | null; queried: boolean; onRun: () => void }
 export interface SecurityScanCardProps { t: I18nContextValue['t']; busy: boolean; report: SecurityScanResult | null; error: string | null; onRun: () => void }
@@ -9,7 +9,7 @@ export interface UpdateInstallState { phase: 'idle' | 'downloading' | 'installin
 export interface UpdatesSectionProps {
   t: I18nContextValue['t'];
   busy: boolean;
-  info: ReflectUpdateInfo | null;
+  info: ZhuyeUpdateInfo | null;
   onCheck: () => void;
   /** 自更新安装状态（null = 本次会话未发起过安装）。 */
   install: UpdateInstallState | null;

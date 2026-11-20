@@ -25,13 +25,13 @@ describe('theme module', () => {
 
   it('setTheme(dark) writes localStorage and sets data-theme', () => {
     setTheme('dark');
-    expect(localStorage.getItem('reflect-theme')).toBe('dark');
+    expect(localStorage.getItem('zhuye-theme')).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
   it('setTheme(light) sets data-theme="light"', () => {
     setTheme('light');
-    expect(localStorage.getItem('reflect-theme')).toBe('light');
+    expect(localStorage.getItem('zhuye-theme')).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 

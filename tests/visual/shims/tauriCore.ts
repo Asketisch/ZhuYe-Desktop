@@ -8,8 +8,8 @@
  * fakeBackend 把 handler 注册进 `src/test/setup.tsx` 的 `mockInvoke`
  * 注册表 —— 浏览器里没有 vitest,所以这里**复刻同一份注册表语义**:
  * alias 模块在首次调用前安装 fakeBackend(它经 `mockInvoke` 写注册表),
- * 之后 invoke 按表派发;listen 收集 `reflect_event` 订阅者,供
- * `emitMockEvent` 同形派发(Playwright 场景经 `window.__reflectEmitEvent`
+ * 之后 invoke 按表派发;listen 收集 `zhuye_event` 订阅者,供
+ * `emitMockEvent` 同形派发(Playwright 场景经 `window.__zhuyeEmitEvent`
  * 注入 agent 事件,与 vitest 的 `emitEvent` 完全同构)。
  */
 import { installFakeBackend, type FakeBackend } from '../../helpers/fakeBackend';
@@ -73,15 +73,15 @@ export async function listen<T>(
 // ④ Playwright 场景挂钩 —— spec 经 page.evaluate 驱动事件与状态。
 declare global {
   interface Window {
-    __reflectEmitEvent?: (id: string, msg: unknown) => void;
-    __reflectBackend?: () => unknown;
+    __zhuyeEmitEvent?: (id: string, msg: unknown) => void;
+    __zhuyeBackend?: () => unknown;
   }
 }
 
 export function mountVisualGlobals(): void {
   const b = ensureBackend();
-  window.__reflectEmitEvent = (id: string, msg: unknown) => {
-    emitMockEvent('reflect_event', { id, msg });
+  window.__zhuyeEmitEvent = (id: string, msg: unknown) => {
+    emitMockEvent('zhuye_event', { id, msg });
   };
-  window.__reflectBackend = () => b;
+  window.__zhuyeBackend = () => b;
 }

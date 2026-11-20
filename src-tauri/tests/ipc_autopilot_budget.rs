@@ -59,19 +59,19 @@ fn hot_reloaded_budget_marks_autopilot_run_failed() {
         provider.uri()
     ));
     let (tx, rx) = std::sync::mpsc::channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_save_config",
+        "zhuye_save_config",
         json!({"toml": format!("[active]\nprovider = \"anthropic\"\n[anthropic]\napi_key = \"test-key\"\nbase_url = \"{}\"\nmodel = \"claude-mock\"\n[hooks]\nenabled = []\n[token_budget]\nsession_total_tokens = 1\n", provider.uri())}),
     );
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{"enabled":true,"schedule":"* * * * *","taskTemplate":"limit-marker","maxConcurrent":1}}),
     );
     let config = common::isolated_home().join(".zhuye/autopilot/config.json");
@@ -107,7 +107,7 @@ fn hot_reloaded_budget_marks_autopilot_run_failed() {
     );
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         if history[0]["status"] == "failed" {
             assert!(
                 history[0]["error"]
@@ -125,11 +125,11 @@ fn hot_reloaded_budget_marks_autopilot_run_failed() {
         std::thread::sleep(Duration::from_millis(20));
     }
     common::invoke_ok(
-        "reflect_save_config",
+        "zhuye_save_config",
         json!({"toml": format!("[active]\nprovider = \"anthropic\"\n[anthropic]\napi_key = \"test-key\"\nbase_url = \"{}\"\nmodel = \"claude-mock\"\n[hooks]\nenabled = []\n", provider.uri())}),
     );
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"budget-reset-turn","op":{"type":"user_input","items":[{"type":"text","text":"budget-reset-marker"}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(10);

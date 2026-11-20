@@ -1,6 +1,6 @@
 //! 能力覆盖层 · 目标模式快照(v1.7)—— 真实命令体 over 真实 IPC 通路。
 //!
-//! `reflect_goal_snapshot` 读 `AgentThread::goal_snapshot()`(上游 v1.7
+//! `zhuye_goal_snapshot` 读 `AgentThread::goal_snapshot()`(上游 v1.7
 //! 新增的 `GoalController::snapshot()` 读口)。目标模式没有协议事件,
 //! 快照是 GUI 判断「是否活跃 / 跑到第几轮 / 累计 token」的唯一权威读口。
 //!
@@ -38,7 +38,7 @@ fn world() {
 fn poll_snapshot(pred: impl Fn(&serde_json::Value) -> bool) -> serde_json::Value {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        let v = invoke_ok("reflect_goal_snapshot", json!({}));
+        let v = invoke_ok("zhuye_goal_snapshot", json!({}));
         if pred(&v) || Instant::now() > deadline {
             return v;
         }
@@ -52,13 +52,13 @@ fn goal_snapshot_lifecycle() {
 
     // —— 阶段一:未进入目标模式 → null ——
     // (上一条用例遗留的 goal 已随 exit 清空;幂等兜底再退一次。)
-    let _ = invoke_ok("reflect_exit_goal_mode", json!({}));
+    let _ = invoke_ok("zhuye_exit_goal_mode", json!({}));
     let v = poll_snapshot(|v| v.is_null());
     assert!(v.is_null(), "未进入目标模式时快照应为 null,实得:{v}");
 
     // —— 阶段二:进入(最小形态)→ 快照暴露 GoalState ——
     let id = invoke_ok(
-        "reflect_enter_goal_mode",
+        "zhuye_enter_goal_mode",
         json!({ "goal": "让能力覆盖层全绿" }),
     );
     assert!(
@@ -84,7 +84,7 @@ fn goal_snapshot_lifecycle() {
     // —— 阶段三:完整形态(verifyCommand + tokenBudget,camelCase 线格式)
     // —— 重进覆盖,快照字段逐一对应。
     invoke_ok(
-        "reflect_enter_goal_mode",
+        "zhuye_enter_goal_mode",
         json!({ "goal": "第二个目标", "verifyCommand": "cargo test", "tokenBudget": 100_000 }),
     );
     let v = poll_snapshot(|v| v["goal"] == "第二个目标");
@@ -92,7 +92,7 @@ fn goal_snapshot_lifecycle() {
     assert_eq!(v["token_budget"].as_u64(), Some(100_000), "{v}");
 
     // —— 阶段四:退出 → 控制器被 clear → 快照回 null ——
-    invoke_ok("reflect_exit_goal_mode", json!({}));
+    invoke_ok("zhuye_exit_goal_mode", json!({}));
     let v = poll_snapshot(|v| v.is_null());
     assert!(v.is_null(), "退出目标模式后快照应为 null,实得:{v}");
 }

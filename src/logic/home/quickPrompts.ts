@@ -1,7 +1,7 @@
 /**
  * quickPrompts —— 首页 Hero 的快捷 prompt 模板（纯静态数据 + i18n key）。
  *
- * 对标 Codex 首页的四张任务建议卡：点击只**预填** composer 草稿
+ * 首页四张任务建议卡：点击只**预填** composer 草稿
  * （走 emitComposerPrefill），不自动发送 —— 用户保留审阅与补充的机会。
  * 全部为通用任务型模板，不依赖特定工作区；后续可按工作区语言/结构动态生成。
  */

@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from './store';
 import { readApprovalPolicy, writeApprovalPolicy } from './approvalPolicy';
-import type { ReflectSubmission } from '@/types/protocol';
+import type { ZhuyeSubmission } from '@/types/protocol';
 
 describe('store.syncPermissionMode — 弃用档归一化', () => {
   it('bind 返回的 accept_edits(计划批准落盘产物)归一为 auto', () => {
@@ -25,13 +25,13 @@ describe('store.syncPermissionMode — 弃用档归一化', () => {
 });
 
 describe('store.submit — Submission.workspace 线格式', () => {
-  let sent: ReflectSubmission[] = [];
+  let sent: ZhuyeSubmission[] = [];
 
   beforeEach(() => {
     resetMockInvoke();
     sent = [];
-    mockInvoke('reflect_submit', async (_cmd, args) => {
-      sent.push((args as { submission: ReflectSubmission }).submission);
+    mockInvoke('zhuye_submit', async (_cmd, args) => {
+      sent.push((args as { submission: ZhuyeSubmission }).submission);
       return 'ok';
     });
   });
@@ -88,7 +88,7 @@ describe('goal snapshot session lifecycle', () => {
 
   it('ignores a snapshot that returns after the session is cleared', async () => {
     let resolveSnapshot!: (value: unknown) => void;
-    mockInvoke('reflect_goal_snapshot', () => new Promise((resolve) => {
+    mockInvoke('zhuye_goal_snapshot', () => new Promise((resolve) => {
       resolveSnapshot = resolve;
     }));
     useAgentStore.getState().setGoalActive(true);

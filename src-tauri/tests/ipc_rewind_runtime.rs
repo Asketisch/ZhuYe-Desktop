@@ -53,7 +53,7 @@ fn wait_for(
 
 fn run_turn(rx: &Receiver<Value>, seen: &mut Vec<Value>, id: &str, marker: &str) -> String {
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":id,"op":{"type":"user_input","items":[{"type":"text","text":marker}]}}}),
     );
     let started = wait_for(rx, seen, |event| {
@@ -95,26 +95,26 @@ enabled = []
         provider.uri()
     ));
     let (tx, rx) = channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
 
     let mut seen = Vec::new();
     let first = run_turn(&rx, &mut seen, "rewind-first", "rewind-first-marker");
     let second = run_turn(&rx, &mut seen, "rewind-second", "rewind-second-marker");
     assert_ne!(first, second);
 
-    let before = common::invoke_ok("reflect_replay_session", json!({"id":session}));
+    let before = common::invoke_ok("zhuye_replay_session", json!({"id":session}));
     let before_text = before.to_string();
     assert!(before_text.contains("rewind-first-marker"), "{before}");
     assert!(before_text.contains("rewind-second-marker"), "{before}");
     let before_count = before.as_array().map(Vec::len).unwrap_or_default();
 
-    let rewind_id = common::invoke_ok("reflect_rewind", json!({"toTurnId":first}));
+    let rewind_id = common::invoke_ok("zhuye_rewind", json!({"toTurnId":first}));
     let rewound = wait_for(&rx, &mut seen, |event| {
         event["id"] == rewind_id && event["msg"]["type"] == "turn_rewound"
     });
@@ -123,7 +123,7 @@ enabled = []
         "{rewound}"
     );
 
-    let after = common::invoke_ok("reflect_replay_session", json!({"id":session}));
+    let after = common::invoke_ok("zhuye_replay_session", json!({"id":session}));
     let after_text = after.to_string();
     assert!(!after_text.contains("rewind-first-marker"), "{after}");
     assert!(!after_text.contains("rewind-second-marker"), "{after}");
@@ -163,20 +163,20 @@ enabled = []
         provider.uri()
     ));
     let (tx, rx) = channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
 
     let mut seen = Vec::new();
     for index in 0..32 {
         let marker = format!("compact-old-{index:02}-{}", "x".repeat(2_000));
         run_turn(&rx, &mut seen, &format!("compact-old-{index:02}"), &marker);
     }
-    let compact_id = common::invoke_ok("reflect_compact", json!({}));
+    let compact_id = common::invoke_ok("zhuye_compact", json!({}));
     let accepted = wait_for(&rx, &mut seen, |event| {
         event["id"] == compact_id && event["msg"]["type"] == "context_compacted"
     });

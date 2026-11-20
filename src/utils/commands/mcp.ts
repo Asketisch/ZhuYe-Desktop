@@ -44,7 +44,7 @@ export interface McpCatalogEntry {
 }
 
 /**
- * MCP server 的配置条目(对应 `reflect_config::McpServerEntry`)。
+ * MCP server 的配置条目(对应 `zhuye_config::McpServerEntry`)。
  *
  * 注意 `transport` 的线上字段名是 **`type`**(配置里写 `type = "stdio"`)。
  */
@@ -60,26 +60,26 @@ export interface McpServerEntry {
 }
 
 /** 列出配置中的全部 MCP server + 运行状态。 */
-export function reflect_list_mcp_servers(): Promise<McpServerInfo[]> {
-  return invoke('reflect_list_mcp_servers');
+export function zhuye_list_mcp_servers(): Promise<McpServerInfo[]> {
+  return invoke('zhuye_list_mcp_servers');
 }
 
 /** 列出内置精选 MCP catalog(离线清单 + 安装提示)。 */
-export function reflect_mcp_catalog(): Promise<McpCatalogEntry[]> {
-  return invoke('reflect_mcp_catalog');
+export function zhuye_mcp_catalog(): Promise<McpCatalogEntry[]> {
+  return invoke('zhuye_mcp_catalog');
 }
 
 /** 新增或更新一个 MCP server(落盘 + 运行时起停)。 */
-export function reflect_upsert_mcp_server(
+export function zhuye_upsert_mcp_server(
   name: string,
   entry: McpServerEntry,
 ): Promise<void> {
-  return invoke('reflect_upsert_mcp_server', { name, entry });
+  return invoke('zhuye_upsert_mcp_server', { name, entry });
 }
 
 /** 删除一个 MCP server(落盘 + 运行时停服)。 */
-export function reflect_delete_mcp_server(name: string): Promise<void> {
-  return invoke('reflect_delete_mcp_server', { name });
+export function zhuye_delete_mcp_server(name: string): Promise<void> {
+  return invoke('zhuye_delete_mcp_server', { name });
 }
 
 /** 一个 MCP 资源。 */
@@ -109,11 +109,11 @@ export interface McpPromptInfo {
  * MCP 三大原语里此前只有 tools 对用户可达 —— resources / prompts 只能被
  * LLM 调用,用户想复用某个 server 的资源或 prompt 模板时没有路径。
  */
-export function reflect_list_mcp_resources(): Promise<McpResourceInfo[]> {
-  return invoke('reflect_list_mcp_resources');
+export function zhuye_list_mcp_resources(): Promise<McpResourceInfo[]> {
+  return invoke('zhuye_list_mcp_resources');
 }
 
 /** 列出所有 MCP server 暴露的 prompt 模板。 */
-export function reflect_list_mcp_prompts(): Promise<McpPromptInfo[]> {
-  return invoke('reflect_list_mcp_prompts');
+export function zhuye_list_mcp_prompts(): Promise<McpPromptInfo[]> {
+  return invoke('zhuye_list_mcp_prompts');
 }

@@ -1,4 +1,4 @@
-//! `AppState` —— 真后端 facade:嵌入 `reflect_core::AgentThread`,接真实 LLM
+//! `AppState` —— 真后端 facade:嵌入 `zhuye_core::AgentThread`,接真实 LLM
 //! provider 与内置工具集。
 //!
 //! 真正的实现位于 [`state::agent`] / [`state::install`] / [`state::session`] /
@@ -15,9 +15,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use reflect_config::ReflectConfig;
-use reflect_protocol::{Event, RolloutRecorder, ThreadId};
-use reflect_tools::ToolRegistry;
+use zhuye_config::ReflectConfig;
+use zhuye_protocol::{Event, RolloutRecorder, ThreadId};
+use zhuye_tools::ToolRegistry;
 use tokio::sync::broadcast;
 
 pub use remote_config::{RemoteConfig, RemoteStatus};
@@ -95,7 +95,7 @@ impl MinimalAgent {
     ///
     /// 前台远程会话插槽置位时整条路由到远端 serve 的 stdin
     /// (`state/remote.rs`),本地 AgentThread 不参与。
-    pub async fn submit(&self, submission: reflect_protocol::Submission) -> anyhow::Result<()> {
+    pub async fn submit(&self, submission: zhuye_protocol::Submission) -> anyhow::Result<()> {
         if let Some(sid) = remote::foreground_remote(self) {
             return remote::submit_to_session(self, &sid, submission).await;
         }
@@ -104,7 +104,7 @@ impl MinimalAgent {
 
     /// 投递一个非 `UserInput` 的 `Op`(compact / rewind / approval / plan / effort /
     /// permission / ask_user 等)。自动生成 submission id。
-    pub async fn submit_op(&self, op: reflect_protocol::Op) -> anyhow::Result<String> {
+    pub async fn submit_op(&self, op: zhuye_protocol::Op) -> anyhow::Result<String> {
         submit::submit_op(self, op).await
     }
 
@@ -114,7 +114,7 @@ impl MinimalAgent {
     }
 
     /// 订阅后台会话 broadcast(v1.x 后台持续运行):`(session_id, Event)` 流,
-    /// 经 `reflect_session_event` 通道推前端,供会话列表徽标 / 后台待确认提醒。
+    /// 经 `zhuye_session_event` 通道推前端,供会话列表徽标 / 后台待确认提醒。
     pub fn subscribe_background(&self) -> broadcast::Receiver<(ThreadId, Event)> {
         session::subscribe_background(self)
     }
@@ -182,7 +182,7 @@ impl MinimalAgent {
     /// 目标模式**没有协议事件** —— GUI 此前只能靠前端投影(`goalActive`)
     /// 猜「是否活跃」,投影在会话切换 / 后端 rebind 后就会与真实状态脱节。
     /// 上游把 `GoalController` 放进会话级共享槽后,这里能读到真值。
-    pub fn goal_snapshot(&self) -> Option<reflect_goal::GoalState> {
+    pub fn goal_snapshot(&self) -> Option<zhuye_goal::GoalState> {
         self.inner
             .thread
             .lock()
@@ -210,27 +210,27 @@ impl MinimalAgent {
     /// 插件运行时句柄(submit 边界展开 `/plugin:*` 命令用;内层 `None`
     /// = 未挂载,展开直通)。挂载由 `state/plugins.rs` 在真实会话 rebind
     /// 时异步完成。
-    pub fn plugin_runtime(&self) -> reflect_plugin::SharedPluginRuntime {
+    pub fn plugin_runtime(&self) -> zhuye_plugin::SharedPluginRuntime {
         self.inner.plugin_runtime.clone()
     }
 
     /// Task/Team 管理器(供多 agent 命令面调用)。
     /// 命令层 `commands/tasks.rs` 通过本句柄调用 `TaskManager` 的 create/get/
     /// update/list/claim/upsert_team/list_teams 等方法。
-    pub fn task_manager(&self) -> Arc<reflect_task::TaskManager> {
+    pub fn task_manager(&self) -> Arc<zhuye_task::TaskManager> {
         Arc::clone(&self.inner.task_manager)
     }
 
     /// Cron 调度器句柄。
     /// 返回当前 scheduler 的 clone(若已 install);未 install 时返回 `None`。
     /// 命令层 `commands/schedule.rs` 据此决定走真 scheduler 还是空响应。
-    pub fn cron_scheduler(&self) -> Option<reflect_stream::cron::CronScheduler> {
+    pub fn cron_scheduler(&self) -> Option<zhuye_stream::cron::CronScheduler> {
         self.inner.cron_scheduler.read().clone()
     }
 
     /// Side-channel registry 句柄(进程级共享,与 driver 同一份 Arc)。
     /// 能力覆盖层夹具起终态补发器用。
-    pub fn side_channel_registry(&self) -> reflect_core::side_channel::SideChannelRegistry {
+    pub fn side_channel_registry(&self) -> zhuye_core::side_channel::SideChannelRegistry {
         self.inner.side_channels.clone()
     }
 
@@ -248,12 +248,12 @@ impl MinimalAgent {
     }
 
     /// KMS 知识库管理器。
-    pub fn kms_manager(&self) -> &reflect_kms::KnowledgeManager {
+    pub fn kms_manager(&self) -> &zhuye_kms::KnowledgeManager {
         &self.inner.kms_manager
     }
 
     /// Autopilot 管理器。
-    pub fn autopilot_manager(&self) -> &reflect_stream::autopilot::AutopilotManager {
+    pub fn autopilot_manager(&self) -> &zhuye_stream::autopilot::AutopilotManager {
         &self.inner.autopilot_manager
     }
 
@@ -270,23 +270,23 @@ impl MinimalAgent {
     /// Activity 日志管理器。
     /// `install_agent_thread` 会 spawn 一个 task 订阅 session broadcast,
     /// 把 `Event` 映射成 `ActivityEvent` 写入。
-    pub fn activity_log(&self) -> Arc<reflect_app_core::activity::ActivityLog> {
+    pub fn activity_log(&self) -> Arc<zhuye_app_core::activity::ActivityLog> {
         Arc::clone(&self.inner.activity_log)
     }
 
     /// Squad 管理器:复用 task_manager 的 team 存储。
-    pub fn squad_manager(&self) -> Arc<reflect_task::SquadManager> {
+    pub fn squad_manager(&self) -> Arc<zhuye_task::SquadManager> {
         Arc::clone(&self.inner.squad_manager)
     }
 
     /// v1.x:当前后端 AgentThread 绑定的 session id(`None` = 尚未
     /// 绑定或仍在 install 时随机 id 上)。命令层用此判断是否需要 rebind。
-    pub(crate) fn bound_session_id(&self) -> Option<reflect_protocol::ThreadId> {
+    pub(crate) fn bound_session_id(&self) -> Option<zhuye_protocol::ThreadId> {
         *self.inner.bound_session_id.lock()
     }
 
     /// v1.x:共享 ModelRegistry 是否已构建(provider/degraded 分支后)。
-    /// 命令层(尤其 `reflect_bind_session`)必须先看此再 rebind。
+    /// 命令层(尤其 `zhuye_bind_session`)必须先看此再 rebind。
     pub(crate) fn model_registry_ready(&self) -> bool {
         self.inner.model_registry.lock().is_some()
     }
@@ -299,15 +299,15 @@ impl MinimalAgent {
     /// 幂等:已有 scheduler(含 jobs)时把 jobs 迁移过来,重复 install 不丢 jobs。
     pub(crate) fn spawn_cron_scheduler(
         &self,
-        sender: tokio::sync::mpsc::Sender<reflect_protocol::Submission>,
+        sender: tokio::sync::mpsc::Sender<zhuye_protocol::Submission>,
     ) -> (
-        reflect_stream::cron::CronScheduler,
-        reflect_stream::cron::CronDriverHandle,
+        zhuye_stream::cron::CronScheduler,
+        zhuye_stream::cron::CronDriverHandle,
     ) {
         let existing = self.inner.cron_scheduler.read().clone();
         let mut scheduler = existing.unwrap_or_else(|| {
-            let store = reflect_config::paths::data_path_or_relative(&["cron", "schedules.json"]);
-            reflect_stream::cron::CronScheduler::new(None, reflect_protocol::ThreadId::new())
+            let store = zhuye_config::paths::data_path_or_relative(&["cron", "schedules.json"]);
+            zhuye_stream::cron::CronScheduler::new(None, zhuye_protocol::ThreadId::new())
                 .with_store(store)
         });
         scheduler.rebind_sender(Some(sender));
@@ -437,15 +437,15 @@ impl MinimalAgent {
 
     fn plugin_hook_engine(
         &self,
-        thread: &Arc<reflect_core::AgentThread>,
-    ) -> Option<Arc<reflect_hooks::HookEngine>> {
+        thread: &Arc<zhuye_core::AgentThread>,
+    ) -> Option<Arc<zhuye_hooks::HookEngine>> {
         let slot = self.inner.plugin_hook_slot.lock();
         let slot = slot.as_ref()?;
         let owner = slot.thread.upgrade()?;
         Arc::ptr_eq(&owner, thread).then(|| slot.bridge.engine.clone())
     }
 
-    pub(crate) fn activate_plugin_mount(&self, thread: &Arc<reflect_core::AgentThread>) {
+    pub(crate) fn activate_plugin_mount(&self, thread: &Arc<zhuye_core::AgentThread>) {
         if let Some(slot) = self.inner.plugin_hook_slot.lock().as_ref() {
             if slot
                 .thread
@@ -459,7 +459,7 @@ impl MinimalAgent {
 
     pub(crate) async fn wait_for_plugins(
         &self,
-        thread: &Arc<reflect_core::AgentThread>,
+        thread: &Arc<zhuye_core::AgentThread>,
     ) -> anyhow::Result<()> {
         let bridge = {
             let slot = self.inner.plugin_hook_slot.lock();

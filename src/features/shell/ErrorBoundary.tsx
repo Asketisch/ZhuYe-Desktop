@@ -37,7 +37,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     // 与后端日志同源的 console 通道 —— 白屏类问题在现场至少留一条线索。
-    console.error('[reflect-gui] view render error:', error, info.componentStack);
+    console.error('[zhuye-gui] view render error:', error, info.componentStack);
   }
 
   componentDidUpdate(prev: ErrorBoundaryProps): void {

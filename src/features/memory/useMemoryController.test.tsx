@@ -18,13 +18,13 @@ beforeEach(() => {
   resetMockInvoke();
   useMemoryDraftStore.setState({ editSessions: {}, formDrafts: {} });
   useAgentStore.getState().reset();
-  mockInvoke('reflect_list_memory', async () => []);
-  mockInvoke('reflect_current_workspace', async () => '/workspace');
-  mockInvoke('reflect_get_active_agent', async () => ({ name: 'default' }));
+  mockInvoke('zhuye_list_memory', async () => []);
+  mockInvoke('zhuye_current_workspace', async () => '/workspace');
+  mockInvoke('zhuye_get_active_agent', async () => ({ name: 'default' }));
 });
 
 it('keeps a conflicting edit and displays a serialized backend error', async () => {
-  mockInvoke('reflect_add_memory', async () => { throw { msg: 'memory entry changed' }; });
+  mockInvoke('zhuye_add_memory', async () => { throw { msg: 'memory entry changed' }; });
   const { result } = setup((key, vars) => `${key}: ${vars?.msg ?? ''}`);
   await waitFor(() => expect(result.current.loading).toBe(false));
   const entry = { scope: 'project', key: 'one', value: 'original' };
@@ -38,12 +38,12 @@ it('keeps a conflicting edit and displays a serialized backend error', async () 
 it('reloads for a new workspace and retains the original context of an edit', async () => {
   const reads: string[] = [];
   const writes: unknown[] = [];
-  mockInvoke('reflect_list_memory', async (_command, args) => {
+  mockInvoke('zhuye_list_memory', async (_command, args) => {
     const workspace = (args?.expectedContext as { workspace: string }).workspace;
     reads.push(workspace);
     return [{ scope: 'project', key: 'same', value: workspace }];
   });
-  mockInvoke('reflect_add_memory', async (_command, args) => {
+  mockInvoke('zhuye_add_memory', async (_command, args) => {
     writes.push(args);
     throw new Error('memory workspace or active agent changed');
   });
@@ -86,7 +86,7 @@ it('restores drafts after the memory view unmounts and remounts', async () => {
 
 it('does not clear a newer draft when a save finishes after remount', async () => {
   let finish!: () => void;
-  mockInvoke('reflect_add_memory', () => new Promise<void>((resolve) => { finish = resolve; }));
+  mockInvoke('zhuye_add_memory', () => new Promise<void>((resolve) => { finish = resolve; }));
   const first = setup();
   await waitFor(() => expect(first.result.current.loading).toBe(false));
   const entry = { scope: 'project', key: 'one', value: 'original' };
@@ -106,7 +106,7 @@ it('does not clear a newer draft when a save finishes after remount', async () =
 it('uses the saved value as the base for edits made during the save', async () => {
   let finish!: () => void;
   const writes: Array<Record<string, unknown> | undefined> = [];
-  mockInvoke('reflect_add_memory', (_command, args) => {
+  mockInvoke('zhuye_add_memory', (_command, args) => {
     writes.push(args);
     if (writes.length === 1) return new Promise<void>((resolve) => { finish = resolve; });
     return Promise.resolve();
@@ -147,7 +147,7 @@ it('keeps separate new-entry forms for workspace and active agent', async () => 
 
 it('keeps the newer editor when an earlier edit finishes saving', async () => {
   let finish!: () => void;
-  mockInvoke('reflect_add_memory', () => new Promise<void>((resolve) => { finish = resolve; }));
+  mockInvoke('zhuye_add_memory', () => new Promise<void>((resolve) => { finish = resolve; }));
   const { result } = setup();
   await waitFor(() => expect(result.current.loading).toBe(false));
   const first = { scope: 'project', key: 'first', value: 'old' };
@@ -181,7 +181,7 @@ it('restores each entry draft when switching between editors', async () => {
 
 it('keeps an earlier draft when its save fails after switching editors', async () => {
   let fail!: (error: Error) => void;
-  mockInvoke('reflect_add_memory', () => new Promise<void>((_resolve, reject) => { fail = reject; }));
+  mockInvoke('zhuye_add_memory', () => new Promise<void>((_resolve, reject) => { fail = reject; }));
   const { result } = setup();
   await waitFor(() => expect(result.current.loading).toBe(false));
   const first = { scope: 'project', key: 'first', value: 'original' };
@@ -200,7 +200,7 @@ it('keeps an earlier draft when its save fails after switching editors', async (
 it('preserves new form input while saving and prevents duplicate submissions', async () => {
   let finish!: () => void;
   const calls: unknown[] = [];
-  mockInvoke('reflect_add_memory', (_command, args) => {
+  mockInvoke('zhuye_add_memory', (_command, args) => {
     calls.push(args);
     return new Promise<void>((resolve) => { finish = resolve; });
   });
@@ -221,8 +221,8 @@ it('preserves new form input while saving and prevents duplicate submissions', a
 
 it('uses explicit document mode for legacy whole-file entries', async () => {
   const calls: unknown[] = [];
-  mockInvoke('reflect_add_memory', async (_command, args) => { calls.push(args); });
-  mockInvoke('reflect_remove_memory', async (_command, args) => { calls.push(args); });
+  mockInvoke('zhuye_add_memory', async (_command, args) => { calls.push(args); });
+  mockInvoke('zhuye_remove_memory', async (_command, args) => { calls.push(args); });
   const { result } = setup();
   await waitFor(() => expect(result.current.loading).toBe(false));
   const entry = { scope: 'project', key: '(all)', value: 'legacy', wholeDocument: true };

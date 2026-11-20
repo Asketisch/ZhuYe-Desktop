@@ -175,8 +175,8 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     // 8. 完整 IPC 时序:submit → plan_approval → tool_approval。
     const seq = backend.calls
       .map((c) => c.cmd)
-      .filter((c) => ['reflect_submit', 'reflect_plan_approval', 'reflect_tool_approval'].includes(c));
-    expect(seq).toEqual(['reflect_submit', 'reflect_plan_approval', 'reflect_tool_approval']);
+      .filter((c) => ['zhuye_submit', 'zhuye_plan_approval', 'zhuye_tool_approval'].includes(c));
+    expect(seq).toEqual(['zhuye_submit', 'zhuye_plan_approval', 'zhuye_tool_approval']);
   }, 30_000);
 
   it('Manual Approve choice sends manual_approve and the edit flow still completes', async () => {
@@ -246,10 +246,10 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     await typeAndSend('/plan migrate the database');
 
     // 斜杠走 Op 命令(Op::EnterPlanMode)而非用户文本提交 ——
-    // ScriptedAgent 的脚本只绑定 reflect_submit,Op 驱动的事件流在此手动 emit
+    // ScriptedAgent 的脚本只绑定 zhuye_submit,Op 驱动的事件流在此手动 emit
     // (id 用 enter_plan_mode 返回的 submission id,真实语义一致)。
-    await waitFor(() => expect(backend.callsOf('reflect_enter_plan_mode').length).toBe(1));
-    expect(backend.lastArgsOf('reflect_enter_plan_mode')).toEqual({
+    await waitFor(() => expect(backend.callsOf('zhuye_enter_plan_mode').length).toBe(1));
+    expect(backend.lastArgsOf('zhuye_enter_plan_mode')).toEqual({
       task: 'migrate the database',
     });
     expect(backend.agent.submissions.length).toBe(0);
@@ -276,7 +276,7 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     renderApp();
     await typeAndSend('/exit-plan');
 
-    await waitFor(() => expect(backend.callsOf('reflect_exit_plan_mode').length).toBe(1));
+    await waitFor(() => expect(backend.callsOf('zhuye_exit_plan_mode').length).toBe(1));
     expect(backend.agent.submissions.length).toBe(0);
     // 不产生转录内容(纯模式切换,无 agent 回复)。
     await new Promise((r) => setTimeout(r, 50));
@@ -290,9 +290,9 @@ describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
 
     // 1. 用户经斜杠设定目标 —— 新契约:先建会话并切换(首页无会话时)。
     await typeAndSend('/goal make all tests pass');
-    await waitFor(() => expect(backend.callsOf('reflect_create_session').length).toBe(1));
-    await waitFor(() => expect(backend.callsOf('reflect_enter_goal_mode').length).toBe(1));
-    expect(backend.lastArgsOf('reflect_enter_goal_mode')).toMatchObject({
+    await waitFor(() => expect(backend.callsOf('zhuye_create_session').length).toBe(1));
+    await waitFor(() => expect(backend.callsOf('zhuye_enter_goal_mode').length).toBe(1));
+    expect(backend.lastArgsOf('zhuye_enter_goal_mode')).toMatchObject({
       goal: 'make all tests pass',
     });
     // fake 后端镜像 core 行为:GoalController 挂入 cfg.goal。
@@ -301,7 +301,7 @@ describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
       goal: 'make all tests pass',
       verifyCommand: null,
       tokenBudget: null,
-      // v1.7 快照口径新增字段(reflect_goal_snapshot 消费)。
+      // v1.7 快照口径新增字段(zhuye_goal_snapshot 消费)。
       turnCount: 0,
       tokensUsed: 0,
     });
@@ -376,7 +376,7 @@ describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
 
     // 5. 续作全程零新增用户提交 —— 目标模式区别于普通聊天的关键可观察行为。
     expect(backend.agent.submissions.length).toBe(1);
-    expect(backend.callsOf('reflect_submit').length).toBe(1);
+    expect(backend.callsOf('zhuye_submit').length).toBe(1);
     // 目标模式仍激活。
     expect(backend.state.goal.active).toBe(true);
   }, 20_000);
@@ -394,7 +394,7 @@ describe('goal mode (/goal = 开目标会话 + 自动续作)', () => {
     await waitFor(() => expect(logText()).toContain('working on it'));
 
     await typeAndSend('/goal clear');
-    await waitFor(() => expect(backend.callsOf('reflect_exit_goal_mode').length).toBe(1));
+    await waitFor(() => expect(backend.callsOf('zhuye_exit_goal_mode').length).toBe(1));
     expect(backend.state.goal).toEqual({
       active: false,
       goal: null,

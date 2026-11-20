@@ -1,5 +1,5 @@
-//! 文件树 (`reflect_list_dir`) + 文本读 (`reflect_read_file`) + 写回
-//! (`reflect_write_file`)。共享的过滤 / 排序辅助函数给 `search.rs` 复用；
+//! 文件树 (`zhuye_list_dir`) + 文本读 (`zhuye_read_file`) + 写回
+//! (`zhuye_write_file`)。共享的过滤 / 排序辅助函数给 `search.rs` 复用；
 //! 附件子模块见 [`image`] 与 [`upload`](self::upload)。
 
 use std::io::{Read, Write};
@@ -38,10 +38,10 @@ pub struct DirListing {
 /// 列出目录内容。跳过隐藏文件 / 常见重型目录(`node_modules`、`.git`、`target` 等)。
 /// `max_depth` 默认 4,返回条目上限 2_000,避免 payload 过大。
 ///
-/// 路径与 `reflect_read_file` / `reflect_write_file` 同一条沙盒规则:解析后必须
+/// 路径与 `zhuye_read_file` / `zhuye_write_file` 同一条沙盒规则:解析后必须
 /// 落在工作区内,否则拒绝 —— 目录列表本身就是文件内容枚举面,不能比读取更宽。
 #[tauri::command]
-pub async fn reflect_list_dir(
+pub async fn zhuye_list_dir(
     agent: State<'_, MinimalAgent>,
     path: Option<String>,
     max_depth: Option<usize>,
@@ -157,7 +157,7 @@ const FILE_READ_MAX: u64 = 1_048_576; // 1 MiB
 /// 读取文本文件。超过 `FILE_READ_MAX` 时返回截断预览；含 NUL 或非 UTF-8
 /// 数据视为二进制，避免有损解码后将替换字符写回原文件。
 #[tauri::command]
-pub async fn reflect_read_file(
+pub async fn zhuye_read_file(
     agent: State<'_, MinimalAgent>,
     path: String,
 ) -> CommandResult<FileReadResult> {
@@ -217,7 +217,7 @@ fn decode_file_content(bytes: &[u8], truncated: bool) -> (String, bool) {
 /// 供编辑器把恢复后的内容写回磁盘:`Reject` 会用 inverse-patch 重建原文,
 /// 经此命令落盘。文件不存在时创建(含父目录);按 UTF-8 覆盖写。
 #[tauri::command]
-pub async fn reflect_write_file(
+pub async fn zhuye_write_file(
     agent: State<'_, MinimalAgent>,
     path: String,
     content: String,
@@ -369,8 +369,8 @@ pub(crate) fn resolve_under_workspace(workspace: &Path, path: &str) -> CommandRe
 mod image;
 mod upload;
 
-pub use image::{ImageBase64Result, reflect_read_image_base64};
-pub use upload::{IngestUploadResult, reflect_ingest_upload};
+pub use image::{ImageBase64Result, zhuye_read_image_base64};
+pub use upload::{IngestUploadResult, zhuye_ingest_upload};
 
 #[cfg(test)]
 mod tests {

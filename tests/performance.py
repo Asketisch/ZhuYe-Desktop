@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BINARY = ROOT / ("target/release/reflect-desktop.exe" if os.name == "nt" else "target/release/reflect-desktop")
+BINARY = ROOT / ("target/release/zhuye-desktop.exe" if os.name == "nt" else "target/release/zhuye-desktop")
 
 
 def run(command: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -34,7 +34,7 @@ def main() -> int:
 
     report: dict[str, object] = {}
     cold_start_seconds: list[float] = []
-    with tempfile.TemporaryDirectory(prefix="reflect-desktop-perf-") as home_name:
+    with tempfile.TemporaryDirectory(prefix="zhuye-desktop-perf-") as home_name:
         env = os.environ.copy()
         env["HOME"] = home_name
         env["USERPROFILE"] = home_name
@@ -74,7 +74,7 @@ def main() -> int:
         print(frontend.stdout + frontend.stderr, file=sys.stderr)
         return 1
 
-    backend = run(["cargo", "test", "--locked", "-p", "reflect-desktop", "--test", "ipc_perf_budgets"])
+    backend = run(["cargo", "test", "--locked", "-p", "zhuye-desktop", "--test", "ipc_perf_budgets"])
     report["backend_perf"] = {
         "returncode": backend.returncode,
         "stdout_tail": backend.stdout[-2000:],

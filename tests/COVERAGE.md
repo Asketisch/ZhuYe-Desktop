@@ -17,7 +17,7 @@
 | L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / doc-test（`///` 示例绊网，`--all-targets` 不含 doctest）/ `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`）/ llvm-cov 行覆盖报告（装了才跑，可通过 `BACKEND_COVERAGE=0` 关闭；报告型无门槛） | **真** | 0 = 通过 |
 | L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / **签名封印 + 授权已嵌入**（`codesign_entitlements_ok`，自测 `codesign-entitlements.test.sh` 同步编排）/ DMG 内封印 | 真产物 | 0 = 通过 |
 | L5 | `tests/e2e/` | 视觉回归（全路由 × dark/light 截图基线，真实前端 + fakeBackend 浏览器态构建）+ 真窗口冒烟（Linux/Windows WebDriver；macOS CoreGraphics）；`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
-| L6 | `tests/live/` | **实模型演练**：`reflect_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `reflect_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`REFLECT_LIVE=1` 开启 | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
+| L6 | `tests/live/` | **实模型演练**：`zhuye_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `zhuye_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`ZHUYE_LIVE=1` 开启 | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
 
 **为什么 L2、L3 与 L6 都要有**：L2 验前端行为与线格式（后端是模拟的），
 L3 验真后端命令体的行为（但模型是假的）。模拟后端的 bug 会把真后端的 bug
@@ -31,7 +31,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 
 **L3 能力覆盖层怎么做到「真」**：`src-tauri/tests/common/mod.rs` 用
 `tauri::test::mock_builder()` 建 app，再挂上**生产同一份**命令注册表
-（`reflect_desktop_lib::configure` —— 与 `run()` 共用同一个
+（`zhuye_desktop_lib::configure` —— 与 `run()` 共用同一个
 `generate_handler!`），然后以 `InvokeRequest` 注入 JSON 负载驱动**真实
 命令体**。没有前端 `invoke` 包装，没有 `fakeBackend`，没有 SDK 中间层。
 
@@ -81,7 +81,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | 讨论 / 流水线 | `list_discussions` `run_discussion` `cancel_discussions` `validate_pipeline` `list/save_pipeline_config` `run_pipeline` | L3 `ipc_domains.rs`、`ipc_discussion_runtime.rs`（本地模型、身份、实时事件与会话 transcript 持久化）、`ipc_discussion_cancel.rs`（运行中取消与 cancelled 终态）、`ipc_discussion_no_model.rs`、`ipc_discussion_history.rs`（筛选普通会话）、`ipc_discussion_live.rs`（运行中事件）、`ipc_discussion_failure.rs`（失败终态）、`ipc_pipeline_runtime.rs`（多节点与失败传播）、`ipc_pipeline_input_probe.rs`（自定义输入） | `CollaborationView` |
 | 远程 / tailscale | `get/update_remote_config` `get_remote_status` `tailscale_status` `tailscale_daemon_command_preview` `tailscale_daemon_status` `status_server_start/state/stop` | L3 `ipc_domains.rs` + `ipc_v11_features.rs`（状态服务器 start→端口→state→stop 幂等；token 经 `update_remote_config` → start 的 IPC 组合路径含真 HTTP 401/401/200 三态）；HTTP 路由守卫与 token 语义另由 `status_server.rs` 单测覆盖（reqwest 真 HTTP） | `RemoteView` |
 | 探针 | `ping` | L3 `ipc_core.rs` | `app.smoke` |
-| **事件回传通路** | `reflect_event` 通道(非命令):信封 `{ id, msg }`、`msg.type` 判别子、`EVENT_ID_NONE` 生命周期 id、Submission↔Event id 配对 | L3 `ipc_events.rs` | `agent.protocol-events` |
+| **事件回传通路** | `zhuye_event` 通道(非命令):信封 `{ id, msg }`、`msg.type` 判别子、`EVENT_ID_NONE` 生命周期 id、Submission↔Event id 配对 | L3 `ipc_events.rs` | `agent.protocol-events` |
 | **事件转发器韧性** | 转发器在 `RecvError::Lagged` 之后必须存活(慢订阅者不杀死转发器) | L3 `ipc_events.rs` | — |
 | **线格式契约(参数形状)** | 全部 198 条命令的参数样本:fakeBackend 收得下；真后端对排除清单之外的样本验证反序列化 | L2 `ipc.payload-contract` + L3 `ipc_payload_contract.rs` + L1 `payload-sample-complete` | 同左(fakeBackend 侧) |
 | **持久化往返契约(语义)** | 21 对「写 → 读」(allowlist / config / memory / schedule / mcp / 权限规则 / agent def / 活跃 agent / 子代理 / squad / team / pipeline / KMS / 任务 / 工作区 / autopilot / remote / 文件 / LSP) | L2 `ipc.roundtrip-contract` + L3 `ipc_roundtrip_contract.rs` 双端同表 | 同左(fakeBackend 侧) |
@@ -99,22 +99,22 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | **产物深度(Linux/Windows)** | .deb 解包(usr/bin 可执行 + .desktop(Exec) + 图标 + control 版本) / .AppImage(AppRun + .desktop) / .msi 管理映像(exe + ProductVersion) / 启动冒烟(CI 门控) | L4 `artifact/run.sh` | — |
 | **视觉回归** | 路由矩阵 × dark/light 截图与基线解码后的像素零容差比对；比较器自测覆盖编码、尺寸和像素差异；真实前端 + `fakeBackend` 浏览器态构建 | L5 `visual/visual.spec.ts` + `visual/png-compare.spec.ts` | — |
 | **真窗口 E2E** | 聊天和工具审批回路、批准后沙箱写盘、流中中断与后续消息恢复、两条会话侧栏往返切换与历史隔离、Goal 控制器挂载/清除、压缩请求回执、终端 stdout/退出码/终止、文件编辑回读、任务创建推进与切页回读、导航浮层、路由矩阵和错误边界 | L5 `e2e/window.smoke.test.ts` + `e2e/mock-provider.mjs`（`tauri-driver` + WebKitWebDriver + Xvfb） | — |
-| **实模型全链路** | 有**真模型**的完整一轮:`reflect_submit` → AgentThread → 真 provider(免费模型池)→ 真 SSE → `reflect_event` 通道。断言:model spec 解析成真实 id(非占位串)、turn 有终态、usage 字段齐全、工具调用成对。**不断言回答文本** | L6 `ipc_live_free_model.rs`(默认 SKIP,`REFLECT_LIVE=1` 开启) | — |
+| **实模型全链路** | 有**真模型**的完整一轮:`zhuye_submit` → AgentThread → 真 provider(免费模型池)→ 真 SSE → `zhuye_event` 通道。断言:model spec 解析成真实 id(非占位串)、turn 有终态、usage 字段齐全、工具调用成对。**不断言回答文本** | L6 `ipc_live_free_model.rs`(默认 SKIP,`ZHUYE_LIVE=1` 开启) | — |
 | **模型发现(清单实时拉取)** | `model = "free"` → 运行时查 provider 清单 → 按免费规则挑一个 → 写进运行时配置;失败**如实上报**(不回落占位串) | L6 `ipc_live_free_model.rs`(随实模型层跑) | — |
 | **实模型能力域矩阵** | 15 个场景覆盖**其余依赖模型的命令面**:工具调用(bubble 自动批准)/ 工具审批(prompt→批准→真跑)/ 中断 / 压缩 / 回退 / plan 模式(plan_request→plan_ready→plan_approved)/ goal 模式 / 会话标题生成 / 任务工具 / 子代理 / 追问 / 讨论(llmBacked=true)/ 流水线 / 团队流水线。**模型不配合判跳过**(非失败) | L6 `ipc_live_capabilities.rs`(默认 SKIP) | — |
 
 | **事件面线格式契约(全变体)** | 协议 `EventMsg` **全部 50 个变体**的最小合法样本(`tests/contracts/events.json`):真协议 serde 反序列化 + wire roundtrip + 未知 type/缺必填字段探测器 | L2 `ipc.event-contract` + L3 `ipc_event_contract.rs` + L1 `event-parity`(Rust enum ↔ TS 联合 ↔ 样本表三方奇偶) | 同左(fakeBackend 侧) |
 | **协议回放与属性(前端 reducer 兼容哨兵)** | 核心仓 `events.json` **全部变体样本**逐一喂给 `reduceEvent` 不抛错;运行时未知变体返回空 patch 且不吞后续事件(Protocol v0 加变体承诺);fast-check 属性:流式等价(delta 分片 ≡ 整段 agent_message)+ 回放幂等(完整回合重放不重复) | `desktop.contract.replay`(`src/stores/agent/protocol-replay.test.ts`,PR/main 必跑) | `agentStore` reducer |
-| **外部 Agent 会话导入**(v1.11 D9) | `reflect_import_discover` / `reflect_import_sessions`(CC / Codex / ZCode 三 adapter):未知 kind fail-fast ×2、zcode 发现不 panic(空清单或明确错误皆合法);adapter 本体解析在 submodule `zhuye-import`(68 单测) | L3 `ipc_v11_features.rs` + L2 `ImportView.test`(kind 切换重发现、发现失败不炸、无来源禁用、dryRun/force 字段级转发、成功/失败行逐条渲染) | `ImportView` |
+| **外部 Agent 会话导入**(v1.11 D9) | `zhuye_import_discover` / `zhuye_import_sessions`(三种外部 harness adapter):未知 kind fail-fast ×2、zcode 发现不 panic(空清单或明确错误皆合法);adapter 本体解析在 submodule `zhuye-import`(68 单测) | L3 `ipc_v11_features.rs` + L2 `ImportView.test`(kind 切换重发现、发现失败不炸、无来源禁用、dryRun/force 字段级转发、成功/失败行逐条渲染) | `ImportView` |
 | **编辑历史消息**(v1.11 F7+D6) | `Op::Rewind` 截断 + composer 预填的组合语义:rewind 目标推算(真实实现 `editRewindTargetFor` 导出直测:index 0 含自身 / 其余前一轮 / 无用户文本不可编辑)、prefill 总线装回草稿 | L2 `ChatEditTurn.test`(真实实现) + `MessageList.test`(turn-edit 入口:可编辑轮才有、点击回传 id、streaming/纯助手轮无入口) | `ChatView` / `MessageList` |
-| **HTML 产物预览**(v1.11 D1 轻) | workspace 内文件 srcDoc 静态预览:路径转发 `reflect_read_file`、iframe sandbox 禁脚本、非 HTML 原文兜底、读失败警告徽标 | L2 `HtmlPreviewView.test` | `HtmlPreviewView` |
+| **HTML 产物预览**(v1.11 D1 轻) | workspace 内文件 srcDoc 静态预览:路径转发 `zhuye_read_file`、iframe sandbox 禁脚本、非 HTML 原文兜底、读失败警告徽标 | L2 `HtmlPreviewView.test` | `HtmlPreviewView` |
 | **编辑器偏好:锁定发送**(v1.11 桌面#4) | 非命令面(localStorage `reflect.uiprefs.v1`):键位行为(hook 级)在 `useComposerInput.test`;键位提示随动 + 设置开关 + lock 徽标 + 持久化(默认开 / 回退 / 旧版无键容忍) | L2 `Composer.test` + `DisplaySection.behavior.test` + `uiPrefs.test` | `DisplaySection` |
 | **提交操作契约** | Rust `Op` 的 26 个变体、两个 TS 联合和 `ops.json` 样本逐项一致；样本经真实协议 serde 往返，检查字段未被静默忽略，并探测未知变体和缺失必填字段 | L1 `op-parity`、L3 `ipc_op_contract.rs`（不代替运行态测试） | TypeScript 联合 |
 | **子代理运行态** | 模型委派经审批运行真实子代理，检查结果回传、进度、终态查询与会话隔离；嵌套链路验证父→子→孙代理、两次结果回传和五次模型请求；定向中断后父回合继续 | L3 `ipc_subagent_runtime.rs`、`ipc_subagent_nested.rs`、`ipc_subagent_cancel.rs`（本地模型） | Inspector 运行态取消按钮 |
 | **任务工具与会话笔记运行态** | 本地模型可见全部已注册任务工具，创建任务与笔记后由真实命令读回；模型驱动任务认领、读取、释放、停止和完成，以及团队创建删除，验证审批、状态和工具结果；拒绝空笔记，验证下一回合注入、会话隔离和跨进程恢复后的记忆注入 | L3 `ipc_task_note_runtime.rs`、`ipc_task_tools_runtime.rs`、`ipc_note_restart.rs`；L2 任务板按会话选列表及自动刷新 | 实际文件及模型请求；TaskList 模型明细回归显式忽略，见 `RUNTIME_COVERAGE.md`；任务板为前端替身 |
 | **视图行为(九切片)** | home / models / skills / prompts / debug / dictation / about / apps / mobile 的交互与数据投影:会话导航、set_model/set_effort 线格式、`mcp__` 前缀分组、模板经 store.submit、ping 版本面;apps 已收口为 coming soon 占位(断言占位文案且无 connect/disconnect 按钮,mobile 同口径) | — | `views.untested-slices`(路由矩阵之外的交互增量) |
 | **门禁自测(测试测试的脚本)** | `lib.sh` 原语；总入口的退出码、状态与用例计数一致性、部分运行、严格跳过；backend/e2e/live runner 的依赖、隔离、结果缺失和异常退出；LIVE_CASE 折叠 | L1 `static/*.test.sh` 自动发现 | — |
-**口径**：198 条 `reflect_*` 命令均有参数样本，真后端契约测试驱动其中
+**口径**：198 条 `zhuye_*` 命令均有参数样本，真后端契约测试驱动其中
 192 条检查参数反序列化；余下 6 条在 §3 说明排除理由。行为断言范围见上表，
 不能把参数可反序列化等同于功能成功。静态棘轮统计测试源码里的命令名引用，
 不证明对应测试已执行。
@@ -127,22 +127,22 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 —— 每条都写明原因。排除必须是**有理由
 的**，不能是「没顾上」。v1.11 新增的 10 条命令（skill 安装 / 插件市场 ×2 /
 多目录工作区 ×2 / 状态服务器 ×3 / 导入 ×2）全部有真实 IPC 测试引用，不在排除之列；
-其中 `reflect_install_skill` 的**成功路径**依赖 GitHub 网络，L3 只验错误路径（§3
+其中 `zhuye_install_skill` 的**成功路径**依赖 GitHub 网络，L3 只验错误路径（§3
 网络类口径），成功链路由 L2 行为测试断言（安装后自动重扫）。
 
 | 命令 | 排除原因 | 替代覆盖 |
 |---|---|---|
-| `reflect_screenshot` | 截取**真实屏幕** —— 涉隐私 + 需录屏权限 | 无（人工验收） |
-| `reflect_computer_use` | 操作**真实鼠标键盘** —— 会抢用户输入 | 无（人工验收） |
-| `reflect_reveal_path` | 在系统文件管理器里**打开**目录 —— 会动用户桌面 | 无（人工验收） |
-| `reflect_tailscale_daemon_start` / `_stop` | 启停**真实系统守护进程** | `tailscale_daemon_command_preview` / `tailscale_daemon_status` 验命令拼装与状态面 |
-| `reflect_run_security_scan` | 内部跑 `cargo audit` —— 需网络 + 数十秒 | `audit.yml` 独立 workflow 覆盖 |
+| `zhuye_screenshot` | 截取**真实屏幕** —— 涉隐私 + 需录屏权限 | 无（人工验收） |
+| `zhuye_computer_use` | 操作**真实鼠标键盘** —— 会抢用户输入 | 无（人工验收） |
+| `zhuye_reveal_path` | 在系统文件管理器里**打开**目录 —— 会动用户桌面 | 无（人工验收） |
+| `zhuye_tailscale_daemon_start` / `_stop` | 启停**真实系统守护进程** | `tailscale_daemon_command_preview` / `tailscale_daemon_status` 验命令拼装与状态面 |
+| `zhuye_run_security_scan` | 内部跑 `cargo audit` —— 需网络 + 数十秒 | `audit.yml` 独立 workflow 覆盖 |
 
-**「网络类只验错误路径」的含义**：`reflect_check_update` /
-`reflect_download_install_update` / `reflect_relaunch_app`（OTA 自更新，
+**「网络类只验错误路径」的含义**：`zhuye_check_update` /
+`zhuye_download_install_update` / `zhuye_relaunch_app`（OTA 自更新，
 tauri-plugin-updater 只在生产 runtime 注册；mock 下经应用句柄缺失路径验
-结构化错误）/ `reflect_gh_pr_list` / `reflect_list_provider_models` /
-`reflect_test_provider_chat` / `reflect_query_plan_quota` 依赖**外网或
+结构化错误）/ `zhuye_gh_pr_list` / `zhuye_list_provider_models` /
+`zhuye_test_provider_chat` / `zhuye_query_plan_quota` 依赖**外网或
 OS 集成**。CI 无网时它们**必须**返回结构化错误，不能 panic、不能挂死 ——
 能力覆盖层正是盯这一条：网络类只验错误路径的健壮性。
 
@@ -150,8 +150,8 @@ OS 集成**。CI 无网时它们**必须**返回结构化错误，不能 panic�
 发言的身份、记录与事件；用真实 shell 节点验证流水线产出及失败传播。
 团队流水线已用本地模型验证 `plan → prd → exec → verify` 四节点真实执行。
 
-> **L6 已覆盖编排命令**：`reflect_run_pipeline` /
-> `reflect_run_discussion` / `reflect_run_team_pipeline` 三条在
+> **L6 已覆盖编排命令**：`zhuye_run_pipeline` /
+> `zhuye_run_discussion` / `zhuye_run_team_pipeline` 三条在
 > `ipc_live_capabilities.rs` 里都有实模型场景（讨论断言
 > `llmBacked === true` —— 证明真的走了模型而不是 noop 回落；流水线需要
 > 一个**与节点标签同名**的 team，这是上游的硬约束）。
@@ -163,7 +163,7 @@ OS 集成**。CI 无网时它们**必须**返回结构化错误，不能 panic�
 「忽略项 = 未审过」原则冲突，已移除；待上游把明细补进文本输出后在
 `ipc_task_tools_runtime.rs` 随实现补用例。
 
-**`reflect_generate_session_title` 的特例**：它**已覆盖**，但只覆盖到前置
+**`zhuye_generate_session_title` 的特例**：它**已覆盖**，但只覆盖到前置
 守卫（空会话 → 「session has no user message to summarize」）。真正生成
 标题需要模型，不在自动层。
 
@@ -178,7 +178,7 @@ OS 集成**。CI 无网时它们**必须**返回结构化错误，不能 panic�
 |---|---|---|
 | 生产文件 ≤ 500 行 | `src-tauri/src/commands/sessions.rs` 等 11 个文件超限 | 新增超限文件 → L1 失败 |
 | `protocol-bridge.md` 命令覆盖率 | 91.9% | 覆盖率跌破基线 → L1 失败 |
-| 已完成命令的测试入口 | **198/198** 条命令均有 IPC/命令体单元测试引用或带原因的环境排除（当前 1 条:`reflect_run_security_scan` 依赖联网 RustSec 数据库；v1.11 新增 10 条已全部接入 `ipc_v11_features.rs` 或 crate 单测） | 新增无证据命令、坏排除表、空原因或过期排除项 → L1 失败 |
+| 已完成命令的测试入口 | **198/198** 条命令均有 IPC/命令体单元测试引用或带原因的环境排除（当前 1 条:`zhuye_run_security_scan` 依赖联网 RustSec 数据库；v1.11 新增 10 条已全部接入 `ipc_v11_features.rs` 或 crate 单测） | 新增无证据命令、坏排除表、空原因或过期排除项 → L1 失败 |
 
 另有**已知的真后端行为特征**（能力覆盖层照实记录，不算缺陷）：
 
@@ -188,16 +188,16 @@ OS 集成**。CI 无网时它们**必须**返回结构化错误，不能 panic�
   丢更新（后写的拿的是更早的快照）。真实桌面里命令都从同一个 UI 线程
   发起，不会并发；能力覆盖层里则用 `common::state_lock()` 把它们串起来，
   否则断言不确定（实测会随机丢 MCP 条目）。
-- **记忆是「每 scope 一条」而非「每 key 一条」**：`reflect_list_memory`
+- **记忆是「每 scope 一条」而非「每 key 一条」**：`zhuye_list_memory`
   返回的两条记录 `key` 固定为 `"(all)"`，`value` 是该 scope 的
   `MEMORY.md` 全文。增删是按 `## <key>` 块做的。
-- **`reflect_create_session` 只分配 id，不落盘** —— 归档搬的是磁盘上的
+- **`zhuye_create_session` 只分配 id，不落盘** —— 归档搬的是磁盘上的
   文件，所以对新分配的 id 归档是 no-op（后端日志：`not found (no-op)`）。
-- **`reflect_upsert_mcp_server` 写的是配置**，`reflect_list_mcp_servers`
+- **`zhuye_upsert_mcp_server` 写的是配置**，`zhuye_list_mcp_servers`
   读的是同一份配置快照 —— 两者在同一次调用序列里一致。
-- **`reflect_toggle_plugin` 对不存在的插件幂等返回 `Ok(null)`**，不报错。
-- **`reflect_release_task` 对未认领的任务报错**（`not claimed (nothing
-  to release)`）；`reflect_claim_task` 在无待认领任务时返回 `null`。
+- **`zhuye_toggle_plugin` 对不存在的插件幂等返回 `Ok(null)`**，不报错。
+- **`zhuye_release_task` 对未认领的任务报错**（`not claimed (nothing
+  to release)`）；`zhuye_claim_task` 在无待认领任务时返回 `null`。
 - **Windows 原生窗口 E2E 尚未接入**:Windows 已进入 Rust 后端测试矩阵,
   测试夹具同时隔离 `USERPROFILE` / `HOMEDRIVE` + `HOMEPATH` / `APPDATA` /
   `LOCALAPPDATA`;这不等于原生 Tauri 窗口 E2E,窗口矩阵仍待补。
@@ -223,7 +223,7 @@ OS 集成**。CI 无网时它们**必须**返回结构化错误，不能 panic�
   discriminant 返回 `"ask_user"`,serde `rename_all=snake_case` 的 wire tag 是
   `ask_user_input`。事件面契约(L3 `ipc_event_contract.rs`)因此锚定
   **wire type**(重序列化后的 `type` 字段)而非 discriminant —— wire 才是
-  `reflect_event` 通道上消费者看到的形态。上游待统一(discriminant 跟随
+  `zhuye_event` 通道上消费者看到的形态。上游待统一(discriminant 跟随
   serde tag),修复后桌面无感(前端走 wire)。
 - **`ContextCompactedStrategy::LlMSummarize` 的 wire 值是 `ll_m_summarize`**
   (serde snake_case 对 `LlMSummarize` 的缩写分段),不是 `llm_summarize`。

@@ -6,7 +6,7 @@
  *   - 配额耗尽（quota_exhausted）→ 警告 toast + agent 停止语义
  *   - 会话级 error → lastError 通道
  *   - 列表加载故障 → 侧边栏错误展示 + Refresh 按钮恢复
- *   - 提交链路故障（reflect_submit 抛错）→ Composer 报错 toast，不丢输入语义
+ *   - 提交链路故障（zhuye_submit 抛错）→ Composer 报错 toast，不丢输入语义
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent, within } from '@testing-library/react';
@@ -93,14 +93,14 @@ describe('quota exhaustion', () => {
 
 describe('backend failures & recovery', () => {
   it('sessions list failure shows error; Refresh button recovers when backend heals', async () => {
-    backend.state.failures['reflect_list_sessions'] = new Error('database locked');
+    backend.state.failures['zhuye_list_sessions'] = new Error('database locked');
     renderApp();
 
     const sidebar = await screen.findByTestId('harness-sidebar');
     await waitFor(() => expect(sidebar.textContent).toContain('database locked'));
 
     // 后端自愈。
-    delete backend.state.failures['reflect_list_sessions'];
+    delete backend.state.failures['zhuye_list_sessions'];
     const refreshBtn = screen.getByTestId('harness-refresh');
     fireEvent.click(refreshBtn);
 
@@ -108,8 +108,8 @@ describe('backend failures & recovery', () => {
     expect(sidebar.textContent).not.toContain('database locked');
   });
 
-  it('reflect_submit failure surfaces an error toast from the composer path', async () => {
-    backend.state.failures['reflect_submit'] = new Error('submission channel closed');
+  it('zhuye_submit failure surfaces an error toast from the composer path', async () => {
+    backend.state.failures['zhuye_submit'] = new Error('submission channel closed');
     renderApp();
 
     await typeAndSend('doomed message');
@@ -132,12 +132,12 @@ describe('backend failures & recovery', () => {
     });
     await screen.findByText('Tool Approval');
 
-    backend.state.failures['reflect_tool_approval'] = new Error('approval bus down');
+    backend.state.failures['zhuye_tool_approval'] = new Error('approval bus down');
     fireEvent.click(screen.getByText('Approve'));
     expect((await screen.findByRole('alert')).textContent).toContain('approval bus down');
     expect(useAgentStore.getState().pendingApprovals).toHaveLength(1);
 
-    delete backend.state.failures['reflect_tool_approval'];
+    delete backend.state.failures['zhuye_tool_approval'];
     fireEvent.click(screen.getByText('Approve'));
     await waitFor(() => expect(useAgentStore.getState().pendingApprovals).toHaveLength(0));
     await waitFor(() => expect(screen.queryByText('Tool Approval')).toBeNull());

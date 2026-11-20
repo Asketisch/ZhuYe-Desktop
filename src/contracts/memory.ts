@@ -1,6 +1,6 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ReflectMemoryEntry } from '@/utils/commands/memory';
-export type { ReflectMemoryEntry } from '@/utils/commands/memory';
+import type { ZhuyeMemoryEntry } from '@/utils/commands/memory';
+export type { ZhuyeMemoryEntry } from '@/utils/commands/memory';
 import type { MemorySectionInfo } from '@/utils/commands/runtimeStatus';
 
 export type MemoryCounts = Record<string, number>;
@@ -20,11 +20,11 @@ export interface MemoryViewProps {
   newValue: string;
   loading: boolean;
   error: boolean;
-  entries: ReflectMemoryEntry[];
+  entries: ZhuyeMemoryEntry[];
   editKey: string | null;
   editValue: string;
   isMutating: boolean;
-  orphanDrafts: Array<{ entry: ReflectMemoryEntry; value: string }>;
+  orphanDrafts: Array<{ entry: ZhuyeMemoryEntry; value: string }>;
   sections: MemorySectionView[];
   injectBudget: number;
   usedChars: number;
@@ -34,23 +34,23 @@ export interface MemoryViewProps {
   notesLoading: boolean;
   notesError: string | null;
   memorySectionsError: boolean;
-  entryKey: (entry: ReflectMemoryEntry) => string;
+  entryKey: (entry: ZhuyeMemoryEntry) => string;
   onFilter: (scope: string) => void;
   onToggleForm: () => void;
   onNewScope: (scope: 'user' | 'project') => void;
   onNewKey: (value: string) => void;
   onNewValue: (value: string) => void;
   onSubmitNew: () => void;
-  onBeginEdit: (entry: ReflectMemoryEntry) => void;
+  onBeginEdit: (entry: ZhuyeMemoryEntry) => void;
   onChangeEdit: (value: string) => void;
-  onSaveEdit: (entry: ReflectMemoryEntry) => void;
+  onSaveEdit: (entry: ZhuyeMemoryEntry) => void;
   onCancelEdit: () => void;
-  onRemove: (entry: ReflectMemoryEntry) => void;
-  onDiscardDraft: (entry: ReflectMemoryEntry) => void;
+  onRemove: (entry: ZhuyeMemoryEntry) => void;
+  onDiscardDraft: (entry: ZhuyeMemoryEntry) => void;
   onPickNotesSession: (sessionId: string | null) => void;
 }
 
 /** memory 条目的稳定 key（渲染与草稿定位共用）。 */
-export function memoryEntryKey(entry: ReflectMemoryEntry): string {
+export function memoryEntryKey(entry: ZhuyeMemoryEntry): string {
   return `${entry.scope}:${entry.key}`;
 }

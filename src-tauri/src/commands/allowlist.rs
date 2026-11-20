@@ -1,10 +1,10 @@
 //! Approval allowlist —— per-prefix 白名单的**遗留**存储层。
 //!
 //! 当前状态（如实描述，避免按不存在的链路读代码）：
-//! - 三条命令已注册（`reflect_load_allowlist` / `reflect_save_allowlist` /
-//!   `reflect_check_allowlist`），但**没有任何消费面**：审批链路不查这张表，
+//! - 三条命令已注册（`zhuye_load_allowlist` / `zhuye_save_allowlist` /
+//!   `zhuye_check_allowlist`），但**没有任何消费面**：审批链路不查这张表，
 //!   前端也没有调用方 —— 审批弹窗上的「始终允许」写的是权限规则
-//!   （见 `commands/permissions.rs` 的 `reflect_add_permission_rule`），
+//!   （见 `commands/permissions.rs` 的 `zhuye_add_permission_rule`），
 //!   与本文件无关。
 //! - 因此这里只是数据层：读写 `~/.zhuye/approval_allowlist.json`，
 //!   以及按前缀判定。要在审批流程里启用它，需要同时补 UI 入口与
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::commands::error::{CommandError, CommandResult};
 
 fn allowlist_path() -> Option<PathBuf> {
-    reflect_config::paths::data_path(&["approval_allowlist.json"])
+    zhuye_config::paths::data_path(&["approval_allowlist.json"])
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,12 +65,12 @@ fn write_allowlist(list: &Allowlist) -> Result<(), CommandError> {
 }
 
 #[tauri::command]
-pub async fn reflect_load_allowlist() -> CommandResult<Allowlist> {
+pub async fn zhuye_load_allowlist() -> CommandResult<Allowlist> {
     read_allowlist()
 }
 
 #[tauri::command]
-pub async fn reflect_save_allowlist(list: Allowlist) -> CommandResult<()> {
+pub async fn zhuye_save_allowlist(list: Allowlist) -> CommandResult<()> {
     // 去重 + 排序 + 修剪空白 + 限制 1024 条。
     let mut set: BTreeSet<String> = BTreeSet::new();
     for p in list.prefixes {
@@ -89,7 +89,7 @@ pub async fn reflect_save_allowlist(list: Allowlist) -> CommandResult<()> {
 }
 
 #[tauri::command]
-pub async fn reflect_check_allowlist(prefix: String) -> CommandResult<bool> {
+pub async fn zhuye_check_allowlist(prefix: String) -> CommandResult<bool> {
     let list = read_allowlist()?;
     let target = prefix.trim();
     if target.is_empty() {

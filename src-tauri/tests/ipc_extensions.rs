@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 fn rescan_and_wait(rx: &std::sync::mpsc::Receiver<Value>) -> Value {
     let id = common::invoke_ok(
-        "reflect_rescan_extensions",
+        "zhuye_rescan_extensions",
         json!({ "skills": true, "commands": true }),
     );
     let id = id.as_str().expect("rescan returns submission id");
@@ -26,15 +26,15 @@ fn rescan_and_wait(rx: &std::sync::mpsc::Receiver<Value>) -> Value {
 fn rescanning_adds_and_removes_a_skill_and_pairs_the_acknowledgement() {
     let _guard = common::state_lock();
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event| {
+    common::listen("zhuye_event", move |event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
     // 占位线程尚未装载会话扩展；真实会话绑定后才有运行时 catalog。
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({ "id": session }));
-    let skill = reflect_config::paths::data_path_or_relative(&["skills", "rescan-probe"]);
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({ "id": session }));
+    let skill = zhuye_config::paths::data_path_or_relative(&["skills", "rescan-probe"]);
     std::fs::create_dir_all(&skill).expect("create skill directory");
     std::fs::write(
         skill.join("SKILL.md"),

@@ -9,13 +9,13 @@ import {
   isPlaceholderWorkspace,
   groupSessionsByWorkspace,
 } from './workspaceGroups';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 
 function sess(
   id: string,
   startedAt: string,
   workspace?: string | null,
-): ReflectSessionInfo {
+): ZhuyeSessionInfo {
   return {
     session_id: id,
     model: 'stub/test',

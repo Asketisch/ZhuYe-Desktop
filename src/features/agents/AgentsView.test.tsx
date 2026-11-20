@@ -4,16 +4,16 @@
  * 基于模拟 IPC 的冒烟 + 行为测试。验证：
  *   - 页面标题 + 预置行渲染
  *   - New 按钮打开编辑器
- *   - 编辑器 Save 将草稿转发到 reflect_save_agent_def
+ *   - 编辑器 Save 将草稿转发到 zhuye_save_agent_def
  *   - 编辑从点击的行预填草稿
- *   - delete 转发到 reflect_delete_agent_def
+ *   - delete 转发到 zhuye_delete_agent_def
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AgentsView } from './AgentsView';
 import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
-import { reflect_save_agent_def, type ReflectAgentDef } from '@/utils/commands';
+import { zhuye_save_agent_def, type ZhuyeAgentDef } from '@/utils/commands';
 
 const calls: Array<{ cmd: string; args: unknown }> = [];
 
@@ -21,8 +21,8 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_list_agent_defs: vi.fn(async () => {
-      calls.push({ cmd: 'reflect_list_agent_defs', args: undefined });
+    zhuye_list_agent_defs: vi.fn(async () => {
+      calls.push({ cmd: 'zhuye_list_agent_defs', args: undefined });
       return [
         {
           name: 'reviewer',
@@ -40,25 +40,25 @@ vi.mock('@/utils/commands', async () => {
         },
       ];
     }),
-    reflect_save_agent_def: vi.fn(async (def: Record<string, unknown>, createOnly?: boolean) => {
-      calls.push({ cmd: 'reflect_save_agent_def', args: { def, createOnly } });
+    zhuye_save_agent_def: vi.fn(async (def: Record<string, unknown>, createOnly?: boolean) => {
+      calls.push({ cmd: 'zhuye_save_agent_def', args: { def, createOnly } });
       return def;
     }),
-    reflect_delete_agent_def: vi.fn(async (name: string) => {
-      calls.push({ cmd: 'reflect_delete_agent_def', args: { name } });
+    zhuye_delete_agent_def: vi.fn(async (name: string) => {
+      calls.push({ cmd: 'zhuye_delete_agent_def', args: { name } });
       return true;
     }),
-    reflect_get_agent_def: vi.fn(async () => null),
-    reflect_parse_agent_md: vi.fn(async () => null),
-    reflect_get_active_agent: vi.fn(async () => ({
+    zhuye_get_agent_def: vi.fn(async () => null),
+    zhuye_parse_agent_md: vi.fn(async () => null),
+    zhuye_get_active_agent: vi.fn(async () => ({
       name: 'default',
       defFound: false,
       memoryScopes: [],
       injectBudgetChars: 8000,
       memoryPaths: [],
     })),
-    reflect_set_active_agent: vi.fn(async (name: string) => {
-      calls.push({ cmd: 'reflect_set_active_agent', args: { name } });
+    zhuye_set_active_agent: vi.fn(async (name: string) => {
+      calls.push({ cmd: 'zhuye_set_active_agent', args: { name } });
       return {
         name,
         defFound: true,
@@ -110,12 +110,12 @@ describe('AgentsView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_save_agent_def' &&
+            c.cmd === 'zhuye_save_agent_def' &&
             (c.args as { def: { name: string } }).def.name === 'tester',
         ),
       ).toBe(true);
     });
-    expect(calls.find((c) => c.cmd === 'reflect_save_agent_def')?.args).toMatchObject({ createOnly: true });
+    expect(calls.find((c) => c.cmd === 'zhuye_save_agent_def')?.args).toMatchObject({ createOnly: true });
   });
 
   it('keeps the new agent name editable until saving begins', () => {
@@ -130,9 +130,9 @@ describe('AgentsView', () => {
   });
 
   it('keeps edits made while a save is pending', async () => {
-    let finish!: (def: ReflectAgentDef) => void;
-    let saved!: ReflectAgentDef;
-    vi.mocked(reflect_save_agent_def).mockImplementationOnce((def) => {
+    let finish!: (def: ZhuyeAgentDef) => void;
+    let saved!: ZhuyeAgentDef;
+    vi.mocked(zhuye_save_agent_def).mockImplementationOnce((def) => {
       saved = def;
       return new Promise((resolve) => { finish = resolve; });
     });
@@ -151,9 +151,9 @@ describe('AgentsView', () => {
   });
 
   it('does not close a new editor when an older save completes', async () => {
-    let finish!: (def: ReflectAgentDef) => void;
-    let saved!: ReflectAgentDef;
-    vi.mocked(reflect_save_agent_def).mockImplementationOnce((def) => {
+    let finish!: (def: ZhuyeAgentDef) => void;
+    let saved!: ZhuyeAgentDef;
+    vi.mocked(zhuye_save_agent_def).mockImplementationOnce((def) => {
       saved = def;
       return new Promise((resolve) => { finish = resolve; });
     });
@@ -182,7 +182,7 @@ describe('AgentsView', () => {
     expect(nameInput.disabled).toBe(true);
   });
 
-  it('forwards delete to reflect_delete_agent_def', async () => {
+  it('forwards delete to zhuye_delete_agent_def', async () => {
     render(wrap(<AgentsView />));
     await waitFor(() => screen.getByTestId('agent-delete-reviewer'));
     fireEvent.click(screen.getByTestId('agent-delete-reviewer'));
@@ -190,7 +190,7 @@ describe('AgentsView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_delete_agent_def' &&
+            c.cmd === 'zhuye_delete_agent_def' &&
             (c.args as { name: string }).name === 'reviewer',
         ),
       ).toBe(true);
@@ -209,7 +209,7 @@ describe('AgentsView', () => {
     expect(card.textContent).toContain('none declared');
   });
 
-  it('switches the active agent through reflect_set_active_agent', async () => {
+  it('switches the active agent through zhuye_set_active_agent', async () => {
     render(wrap(<AgentsView />));
     await waitFor(() => screen.getByTestId('agent-activate-reviewer'));
     fireEvent.click(screen.getByTestId('agent-activate-reviewer'));
@@ -217,7 +217,7 @@ describe('AgentsView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_set_active_agent' &&
+            c.cmd === 'zhuye_set_active_agent' &&
             (c.args as { name: string }).name === 'reviewer',
         ),
       ).toBe(true);

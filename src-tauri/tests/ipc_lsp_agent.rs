@@ -140,21 +140,21 @@ fn model_requests_lsp_hover_and_receives_actual_result() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
     });
     std::fs::write("fixture.rs", "fn fixture_lsp_source() {}\n").unwrap();
-    common::invoke_ok("reflect_lsp_set_enabled", json!({"enabled":true}));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({"enabled":true}));
     let mut startup = Vec::new();
     wait_for(&rx, &mut startup, |e| {
         e["msg"]["type"] == "lsp_server_started" && e["msg"]["server"] == "fixture"
     });
-    common::invoke_ok("reflect_lsp_warmup", json!({"path":"fixture.rs"}));
-    common::invoke_ok("reflect_set_permission_mode", json!({ "mode": "prompt" }));
+    common::invoke_ok("zhuye_lsp_warmup", json!({"path":"fixture.rs"}));
+    common::invoke_ok("zhuye_set_permission_mode", json!({ "mode": "prompt" }));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({
             "submission": { "id": "lsp-agent-submission", "op": { "type": "user_input",
                 "items": [{ "type": "text", "text": "mock-lsp-agent-turn" }] } }
@@ -177,7 +177,7 @@ fn model_requests_lsp_hover_and_receives_actual_result() {
             .any(|tool| tool["name"] == "lsp")
     );
     common::invoke_ok(
-        "reflect_tool_approval",
+        "zhuye_tool_approval",
         json!({
             "id": approval["msg"]["request_id"], "decision": "approve"
         }),
@@ -211,5 +211,5 @@ fn model_requests_lsp_hover_and_receives_actual_result() {
             .contains("fixture hover response"),
         "{result}"
     );
-    common::invoke_ok("reflect_lsp_set_enabled", json!({"enabled":false}));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({"enabled":false}));
 }

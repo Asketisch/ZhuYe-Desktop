@@ -2,7 +2,7 @@
  * Vitest — useCurrentWorkspace hook。
  *
  * 验证:
- * 1. 挂载后调用 reflect_current_workspace 并回填绝对路径
+ * 1. 挂载后调用 zhuye_current_workspace 并回填绝对路径
  * 2. 后端返回 null(未打开工作区) → currentWorkspace 为 null
  * 3. 30s staleTime 内重复挂载不重复拉取(缓存生效)
  */
@@ -22,10 +22,10 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 // 每个 it 内 resetMockInvoke + mockInvoke —— 与本仓库其他 hook 测试同模式。
 describe('useCurrentWorkspace', () => {
-  it('calls reflect_current_workspace on mount and returns the path', async () => {
+  it('calls zhuye_current_workspace on mount and returns the path', async () => {
     resetMockInvoke();
     let called = false;
-    mockInvoke('reflect_current_workspace', async () => {
+    mockInvoke('zhuye_current_workspace', async () => {
       called = true;
       return '/Users/dev/project';
     });
@@ -41,7 +41,7 @@ describe('useCurrentWorkspace', () => {
   it('returns null (not undefined) when the backend has no open workspace', async () => {
     resetMockInvoke();
     let called = false;
-    mockInvoke('reflect_current_workspace', async () => {
+    mockInvoke('zhuye_current_workspace', async () => {
       called = true;
       return null;
     });
@@ -55,7 +55,7 @@ describe('useCurrentWorkspace', () => {
   it('caches within staleTime (second mount does not re-fetch)', async () => {
     resetMockInvoke();
     let calls = 0;
-    mockInvoke('reflect_current_workspace', async () => {
+    mockInvoke('zhuye_current_workspace', async () => {
       calls += 1;
       return '/Users/dev/project';
     });
@@ -75,7 +75,7 @@ describe('useCurrentWorkspace', () => {
       timeout: 2000,
     });
     expect(calls).toBe(1);
-    // 导出稳定 queryKey, 供 reflect_set_workspace 成功后手动失效。
+    // 导出稳定 queryKey, 供 zhuye_set_workspace 成功后手动失效。
     expect(CURRENT_WORKSPACE_QUERY_KEY).toEqual(['current-workspace']);
   });
 });

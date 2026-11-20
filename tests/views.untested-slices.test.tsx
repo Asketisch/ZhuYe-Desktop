@@ -38,7 +38,7 @@ describe('home view', () => {
 });
 
 describe('models view', () => {
-  it('plan card set-default action wires reflect_set_model with the plan identity', async () => {
+  it('plan card set-default action wires zhuye_set_model with the plan identity', async () => {
     // plans 从 configToml 解析(顶层 provider 段有 api_key/base_url 即成
     // plan);默认 fixture 是最小 TOML,这里注入一条 anthropic plan。
     // credential 钉在别的 label 上 —— 否则该 plan 被判为当前默认,按钮
@@ -49,15 +49,15 @@ describe('models view', () => {
     await app.navigate('/models');
     const setBtn = await screen.findByRole('button', { name: /set as default/i }, { timeout: 8000 });
     fireEvent.click(setBtn);
-    await waitFor(() => expect(backend.callsOf('reflect_set_model').length).toBeGreaterThanOrEqual(1));
-    const args = backend.lastArgsOf('reflect_set_model') as Record<string, unknown> | undefined;
+    await waitFor(() => expect(backend.callsOf('zhuye_set_model').length).toBeGreaterThanOrEqual(1));
+    const args = backend.lastArgsOf('zhuye_set_model') as Record<string, unknown> | undefined;
     expect(args).toBeTruthy();
     // 线格式:provider / model / label 三参来自被点 plan 卡。
     expect(String(args!['provider'])).toBe('anthropic');
     expect(String(args!['model'])).toBe('claude-sonnet-4');
   });
 
-  it('apply-effort action wires reflect_set_effort with the selected level', async () => {
+  it('apply-effort action wires zhuye_set_effort with the selected level', async () => {
     const app = renderApp();
     await app.navigate('/models');
     // SegmentedControl 的选项渲染成 low/medium/high;选 low 再 Apply。
@@ -66,7 +66,7 @@ describe('models view', () => {
     const apply = await screen.findByRole('button', { name: /apply effort/i });
     fireEvent.click(apply);
     await waitFor(() => {
-      const args = backend.lastArgsOf('reflect_set_effort') as
+      const args = backend.lastArgsOf('zhuye_set_effort') as
         | Record<string, unknown>
         | undefined;
       expect(args).toBeTruthy();
@@ -77,7 +77,7 @@ describe('models view', () => {
 
 describe('skills view', () => {
   it('groups tools into Built-in and MCP sections by the mcp__ prefix', async () => {
-    backend.override('reflect_list_tools', () => [
+    backend.override('zhuye_list_tools', () => [
       { name: 'read_file', description: 'Read a file', server: null },
       { name: 'mcp__search__web', description: 'Web search', server: 'mcp-search' },
     ]);
@@ -93,7 +93,7 @@ describe('skills view', () => {
     expect(builtinGroup).toBeTruthy();
   });
 
-  it('shows installed skills with name and description from reflect_list_skills', async () => {
+  it('shows installed skills with name and description from zhuye_list_skills', async () => {
     const app = renderApp();
     await app.navigate('/skills');
     await screen.findByText('release');
@@ -157,7 +157,7 @@ describe('about view', () => {
     await waitFor(() => {
       expect(screen.getByText('test-0.1.0')).toBeTruthy();
     });
-    expect(backend.callsOf('reflect_agent_status').length).toBeGreaterThanOrEqual(1);
+    expect(backend.callsOf('zhuye_agent_status').length).toBeGreaterThanOrEqual(1);
   });
 });
 

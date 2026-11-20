@@ -31,13 +31,13 @@ Session-layer advantages: the protocol envelope is shared by four runtimes (tran
 
 **Common prerequisites** (all platforms): BatchMode key auth (no interactive passwords); **known_hosts must already contain the host** before the first connect (BatchMode fails the host-key prompt — guide users to ssh manually once); the remote zhuye CLI can be installed via the one-click bootstrap.
 
-**Remote install (bootstrap, implemented)**: `reflect_remote_bootstrap` pipes a POSIX sh script over ssh — detect OS/arch → resolve the upstream latest tag → download `zhuye-<version>-<triple>.tar.gz` (curl or wget) → install to `~/.local/bin` (no sudo) → self-verify. Transport pairing: serve/probe run through `sh -lc` (login shell) so the install location is on PATH (non-interactive ssh commands do not include `~/.local/bin` by default).
+**Remote install (bootstrap, implemented)**: `zhuye_remote_bootstrap` pipes a POSIX sh script over ssh — detect OS/arch → resolve the upstream latest tag → download `zhuye-<version>-<triple>.tar.gz` (curl or wget) → install to `~/.local/bin` (no sudo) → self-verify. Transport pairing: serve/probe run through `sh -lc` (login shell) so the install location is on PATH (non-interactive ssh commands do not include `~/.local/bin` by default).
 
 ## 2. Existing foundation
 
 - Upstream: `zhuye serve` reads `Submission` from stdin, writes `Event` to stdout, and emits the `session_configured` handshake; the reverse tool channel is already reserved — `Op::RegisterTools` / `ToolExecutionResponse` + `EventMsg::ToolExecutionRequest` (`ToolSource::Remote` / `RemoteBridge`); desktop `docs/capabilities.md` §2 explicitly records these 2 Ops as "intentionally unwired", which this feature lights up.
-- Desktop: the `sshHost` parameter of `reflect_run_shell` (`ssh -o BatchMode=yes -o ConnectTimeout=10` argv pattern) is reusable as the transport shape; `RemoteConfig` is an in-memory placeholder, the `/remote` route exists (Tailscale probe + status server); `app-core/tailscale.rs` produces `suggested_remote_host`.
-- Event routing: the foreground `session_tx` (single `reflect_event` channel) already handles foreground/background sources keyed by sid; remote session events injected into the same bus are consumed by the reducer unchanged.
+- Desktop: the `sshHost` parameter of `zhuye_run_shell` (`ssh -o BatchMode=yes -o ConnectTimeout=10` argv pattern) is reusable as the transport shape; `RemoteConfig` is an in-memory placeholder, the `/remote` route exists (Tailscale probe + status server); `app-core/tailscale.rs` produces `suggested_remote_host`.
+- Event routing: the foreground `session_tx` (single `zhuye_event` channel) already handles foreground/background sources keyed by sid; remote session events injected into the same bus are consumed by the reducer unchanged.
 - Remote prerequisite: the `zhuye` CLI is installed (version probe at connect; failure surfaces install guidance).
 
 ## 3. Backend changes (src-tauri/)
@@ -48,7 +48,7 @@ Session-layer advantages: the protocol envelope is shared by four runtimes (tran
    - `session_configured` handshake confirmation, stderr captured as diagnostic logs, liveness monitoring (process exit → session marked disconnected)
    - events injected into the existing `session_tx` (keyed by sid)
 2. **Command surface** (`src/commands/remote.rs` extension, replacing not-implemented placeholders):
-   - `reflect_remote_hosts` (CRUD + connectivity test), `reflect_remote_connect/disconnect`
+   - `zhuye_remote_hosts` (CRUD + connectivity test), `zhuye_remote_connect/disconnect`
    - `state/submit.rs` routes by workspace type: local AgentThread / remote `RemoteAgentClient` (implements the same submit/interrupt command face as local); `ensure_workspace_matches` extended with the remote identity `ssh://host/path`; the protocol's `SessionMeta.workspace` is a String, so the v0 freeze is unaffected
 3. **Session lifecycle**: switching away disconnects the serve child process (remote rollout is already persisted, matching "switching away always degrades"); switching back restores via the serve resume path; remote sessions appear in a dedicated "Remote" group in the sidebar
 

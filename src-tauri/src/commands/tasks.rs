@@ -1,16 +1,16 @@
-//! Task / Team 管理命令 —— 薄包装 `reflect_task::TaskManager`。
+//! Task / Team 管理命令 —— 薄包装 `zhuye_task::TaskManager`。
 //!
 //! Phase 1 多 agent 命令面:把 核心 crate 已实现的 TaskManager 全套 CRUD 暴露给
 //! 前端。严格对齐 `manager.rs` 的公开方法签名,命令层只做参数转发 + 错误映射,
-//! 不加业务逻辑(遵循 AGENTS.md "Tauri app 是 reflect_core 薄 adapter" 原则)。
+//! 不加业务逻辑(遵循 AGENTS.md "Tauri app 是 zhuye_core 薄 adapter" 原则)。
 //!
 //! ## 命令清单
 //!
-//! Task CRUD:`reflect_list_tasks` / `reflect_create_task` / `reflect_get_task` /
-//! `reflect_update_task` / `reflect_claim_task` / `reflect_delete_task`。
+//! Task CRUD:`zhuye_list_tasks` / `zhuye_create_task` / `zhuye_get_task` /
+//! `zhuye_update_task` / `zhuye_claim_task` / `zhuye_delete_task`。
 //!
-//! Team CRUD:`reflect_list_teams` / `reflect_upsert_team` / `reflect_get_team` /
-//! `reflect_delete_team`。
+//! Team CRUD:`zhuye_list_teams` / `zhuye_upsert_team` / `zhuye_get_team` /
+//! `zhuye_delete_team`。
 //!
 //! ## 存储路径
 //!
@@ -21,10 +21,10 @@
 //! ## 未做(后续阶段)
 //!
 //! - event_sink 注入（Task 生命周期事件推前端留待后续阶段）
-//! - Schedule(cron)命令(Phase 1 第 2 项,见 `zhuye-agent/crates/integrations/reflect-stream/cron.rs`)
+//! - Schedule(cron)命令(Phase 1 第 2 项,见 `zhuye-agent/crates/integrations/zhuye-stream/cron.rs`)
 //! - Coordinator 模式开关命令(`is_coordinator_enabled` 已存在,但「启用 + 重启 agent」更重)
 
-use reflect_task::{Task, TaskId, TaskPatch, TaskStatus, TeamFile};
+use zhuye_task::{Task, TaskId, TaskPatch, TaskStatus, TeamFile};
 use serde::Serialize;
 use tauri::State;
 use tokio::io::AsyncReadExt;
@@ -47,7 +47,7 @@ async fn read_task_output(path: &std::path::Path) -> std::io::Result<String> {
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// `reflect_update_task` 的返回值。
+/// `zhuye_update_task` 的返回值。
 ///
 /// 不直接暴露 核心 crate 的 `UpdateOutcome`(其 `status_change: (TaskStatus, TaskStatus)`
 /// 元组序列化对前端不友好,且核心 crate 类型未 derive `Serialize`)。命令层展平成
@@ -72,8 +72,8 @@ pub struct TaskStatusChange {
     pub to: String,
 }
 
-impl From<reflect_task::UpdateOutcome> for TaskUpdateResult {
-    fn from(o: reflect_task::UpdateOutcome) -> Self {
+impl From<zhuye_task::UpdateOutcome> for TaskUpdateResult {
+    fn from(o: zhuye_task::UpdateOutcome) -> Self {
         let status_change = o.status_change.map(|(from, to)| TaskStatusChange {
             from: from.to_string(),
             to: to.to_string(),
@@ -92,7 +92,7 @@ impl From<reflect_task::UpdateOutcome> for TaskUpdateResult {
 ///
 /// `list` 语义:worker 视角 = session id;team 视角 = team 名。
 #[tauri::command]
-pub async fn reflect_list_tasks(
+pub async fn zhuye_list_tasks(
     agent: State<'_, MinimalAgent>,
     list: String,
 ) -> CommandResult<Vec<Task>> {
@@ -105,7 +105,7 @@ pub async fn reflect_list_tasks(
 
 /// 创建任务。`metadata` 缺省为空 JSON 对象。
 #[tauri::command]
-pub async fn reflect_create_task(
+pub async fn zhuye_create_task(
     agent: State<'_, MinimalAgent>,
     list: String,
     subject: String,
@@ -130,7 +130,7 @@ pub async fn reflect_create_task(
 
 /// 读取单个任务(不含软删)。
 #[tauri::command]
-pub async fn reflect_get_task(
+pub async fn zhuye_get_task(
     agent: State<'_, MinimalAgent>,
     list: String,
     id: TaskId,
@@ -147,7 +147,7 @@ pub async fn reflect_get_task(
 /// `status = Completed` 触发 `TaskCompleted` 钩子(若已注入 hook_engine);
 /// 其他字段变更触发 `TaskUpdated`。
 #[tauri::command]
-pub async fn reflect_update_task(
+pub async fn zhuye_update_task(
     agent: State<'_, MinimalAgent>,
     list: String,
     id: TaskId,
@@ -166,7 +166,7 @@ pub async fn reflect_update_task(
 ///
 /// 并发安全:同 list 内多 worker 经 per-list 锁串行化,无重复认领。
 #[tauri::command]
-pub async fn reflect_claim_task(
+pub async fn zhuye_claim_task(
     agent: State<'_, MinimalAgent>,
     list: String,
     claimer: String,
@@ -180,7 +180,7 @@ pub async fn reflect_claim_task(
 
 /// 物理删除任务文件(区别于 `update_task status=Deleted` 的软删除)。
 #[tauri::command]
-pub async fn reflect_delete_task(
+pub async fn zhuye_delete_task(
     agent: State<'_, MinimalAgent>,
     list: String,
     id: TaskId,
@@ -200,7 +200,7 @@ pub async fn reflect_delete_task(
 /// **不阻塞等待**(`block=false` 语义)—— GUI 是拉取式视图,不能因为
 /// worker 还没写完就把界面挂住;文件不存在 → 空串。
 #[tauri::command]
-pub async fn reflect_get_task_output(
+pub async fn zhuye_get_task_output(
     agent: State<'_, MinimalAgent>,
     list: String,
     id: TaskId,
@@ -225,7 +225,7 @@ pub async fn reflect_get_task_output(
 /// 守卫同款:`status` 必须是 `in_progress`,否则报错(不静默改状态)。
 /// 动作 = 退回 `pending` + 清空 `owner`。
 #[tauri::command]
-pub async fn reflect_stop_task(
+pub async fn zhuye_stop_task(
     agent: State<'_, MinimalAgent>,
     list: String,
     id: TaskId,
@@ -260,7 +260,7 @@ pub async fn reflect_stop_task(
 /// 守卫同款:必须存在 `claimed_by`,否则报错。动作 = 退回 `pending` +
 /// 清空 `claimed_by` / `claimed_at`。
 #[tauri::command]
-pub async fn reflect_release_task(
+pub async fn zhuye_release_task(
     agent: State<'_, MinimalAgent>,
     list: String,
     id: TaskId,
@@ -291,13 +291,13 @@ pub async fn reflect_release_task(
 
 /// 列所有 team,按 name 字典序。
 #[tauri::command]
-pub async fn reflect_list_teams(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<TeamFile>> {
+pub async fn zhuye_list_teams(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<TeamFile>> {
     agent.task_manager().list_teams().await.map_err(Into::into)
 }
 
 /// 幂等 upsert team。校验:`name` 合法 + `lead_agent_id == team-lead@<name>`。
 #[tauri::command]
-pub async fn reflect_upsert_team(
+pub async fn zhuye_upsert_team(
     agent: State<'_, MinimalAgent>,
     team: TeamFile,
 ) -> CommandResult<()> {
@@ -310,7 +310,7 @@ pub async fn reflect_upsert_team(
 
 /// 读取单个 team;不存在返回 `TeamNotFound` 错误。
 #[tauri::command]
-pub async fn reflect_get_team(
+pub async fn zhuye_get_team(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<TeamFile> {
@@ -323,7 +323,7 @@ pub async fn reflect_get_team(
 
 /// 物理删除 team 文件(不级联删 task,由后续清理命令统一处理)。
 #[tauri::command]
-pub async fn reflect_delete_team(
+pub async fn zhuye_delete_team(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<()> {
@@ -344,7 +344,7 @@ mod tests {
     //! Tauri `State` 注入本身由框架保证,无需在此覆盖。
 
     use super::*;
-    use reflect_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager, TaskStatus};
+    use zhuye_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager, TaskStatus};
     use std::sync::Arc;
 
     fn mgr() -> TaskManager {
@@ -428,7 +428,7 @@ mod tests {
         // delete(物理删)
         m.delete_task(&"L".into(), 1).await.unwrap();
         let err = m.get_task(&"L".into(), 1, false).await.unwrap_err();
-        assert!(matches!(err, reflect_task::TaskError::NotFound { .. }));
+        assert!(matches!(err, zhuye_task::TaskError::NotFound { .. }));
     }
 
     #[tokio::test]
@@ -437,13 +437,13 @@ mod tests {
         let m = mgr();
 
         let now = SystemTime::now();
-        let lead_id = reflect_task::lead_agent_id_for("rocket");
+        let lead_id = zhuye_task::lead_agent_id_for("rocket");
         let team = TeamFile {
             name: "rocket".into(),
             description: Some("Build rocket".into()),
             lead_agent_id: lead_id.clone(),
             lead_session_id: None,
-            members: vec![reflect_task::TeamMemberSpec {
+            members: vec![zhuye_task::TeamMemberSpec {
                 agent_id: lead_id,
                 name: "team-lead".into(),
                 role: "team-lead".into(),
@@ -473,13 +473,13 @@ mod tests {
         // delete
         m.delete_team("rocket").await.unwrap();
         let err = m.get_team("rocket").await.unwrap_err();
-        assert!(matches!(err, reflect_task::TaskError::TeamNotFound(_)));
+        assert!(matches!(err, zhuye_task::TaskError::TeamNotFound(_)));
     }
 
     /// 命令层错误映射:`TaskError` 经 `From<TaskError> for CommandError` 不丢信息。
     #[test]
     fn task_error_maps_to_command_error() {
-        let e = reflect_task::TaskError::NotFound {
+        let e = zhuye_task::TaskError::NotFound {
             list: "L".into(),
             id: 42,
         };
@@ -511,7 +511,7 @@ mod tests {
         let current = m.get_task(&"L".into(), t.id, false).await.unwrap();
         assert_eq!(current.status, TaskStatus::Pending);
         assert!(
-            reflect_task::TaskStatus::InProgress != current.status,
+            zhuye_task::TaskStatus::InProgress != current.status,
             "stop 的前置条件不满足时命令层必须拒绝"
         );
 

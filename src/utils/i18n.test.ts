@@ -58,8 +58,8 @@ describe('t()', () => {
   });
 
   it('interpolate {name} 占位符', () => {
-    expect(t('shell.status.ready', 'en', { model: 'claude-3-5' })).toBe('Agent ready — model claude-3-5');
-    expect(t('shell.status.ready', 'zh-CN', { model: 'claude-3-5' })).toBe('Agent 就绪 — 模型 claude-3-5');
+    expect(t('shell.status.ready', 'en', { model: 'demo-model-3' })).toBe('Agent ready — model demo-model-3');
+    expect(t('shell.status.ready', 'zh-CN', { model: 'demo-model-3' })).toBe('Agent 就绪 — 模型 demo-model-3');
     expect(t('composer.exported', 'en', { path: '/tmp/x.json' })).toBe('Exported → /tmp/x.json');
   });
 
@@ -168,13 +168,13 @@ describe('saveLocale()', () => {
 
   it('写入 localStorage 与 <html lang>', () => {
     saveLocale('zh-CN');
-    expect(window.localStorage.getItem('reflect.locale')).toBe('zh-CN');
+    expect(window.localStorage.getItem('zhuye.locale')).toBe('zh-CN');
     expect(document.documentElement.getAttribute('lang')).toBe('zh-CN');
   });
 
   it('en 写 en', () => {
     saveLocale('en');
-    expect(window.localStorage.getItem('reflect.locale')).toBe('en');
+    expect(window.localStorage.getItem('zhuye.locale')).toBe('en');
     expect(document.documentElement.getAttribute('lang')).toBe('en');
   });
 });

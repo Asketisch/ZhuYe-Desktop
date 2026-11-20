@@ -15,14 +15,14 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use reflect_llm::{
+use zhuye_llm::{
     ChatEvent, ChatMessage, ChatRequest, ContentBlock, ModelRegistry, SystemBlock, SystemBlocks,
     UserContent,
 };
-use reflect_protocol::{
+use zhuye_protocol::{
     MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId, TurnId, derive_title,
 };
-use reflect_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
+use zhuye_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
 use serde::Serialize;
 
 use crate::commands::error::{CommandError, CommandResult};
@@ -32,14 +32,14 @@ mod title_commit;
 use crate::state::MinimalAgent;
 use tauri::State;
 
-/// 复用 `reflect_rollout::path::default_base()` = `$HOME/.zhuye/sessions`。
+/// 复用 `zhuye_rollout::path::default_base()` = `$HOME/.zhuye/sessions`。
 ///
 /// v1.x:原桌面端自拼 `dirs::home_dir().join(...sessions)` 与 submodule 的
 /// `default_base()` 路径语义等价但拼装独立,改为直接走 core 助手避免
-/// record 端(`reflect_rollout::JsonlRolloutWriter`)与 read 端(sessions_base)
+/// record 端(`zhuye_rollout::JsonlRolloutWriter`)与 read 端(sessions_base)
 /// 因环境差异而分叉。两边现在都走同一函数。
 pub(crate) fn sessions_base() -> Option<PathBuf> {
-    Some(reflect_rollout::path::default_base())
+    Some(zhuye_rollout::path::default_base())
 }
 
 /// 预分配一个新 session id(前端路由用)。
@@ -49,18 +49,18 @@ pub(crate) fn sessions_base() -> Option<PathBuf> {
 /// `SessionMeta`(见 PROTOCOL_BRIDGE §2 `workspace` 字段),不在这里
 /// 落盘 —— 避免产生只有 SessionMeta 头、无消息的空 JSONL。
 ///
-/// v1.x:`ChatView` 在挂载时调 `reflect_bind_session(id)`,把后端
-/// AgentThread 真正绑到该 id。`reflect_create_session` 本身仍是纯 ID
+/// v1.x:`ChatView` 在挂载时调 `zhuye_bind_session(id)`,把后端
+/// AgentThread 真正绑到该 id。`zhuye_create_session` 本身仍是纯 ID
 /// 分配,绑定延迟到 ChatView 挂载。
 #[tauri::command]
-pub async fn reflect_create_session() -> CommandResult<String> {
+pub async fn zhuye_create_session() -> CommandResult<String> {
     Ok(ThreadId::new().to_string())
 }
 
 /// v1.x:把后端 AgentThread 绑到指定 session id(回放历史 → preload → 重建)。
 ///
 /// ChatView 激活每个会话都调一次:
-/// - 路由新会话(id 刚由 `reflect_create_session` 分配)→ replay 空 → 空历史绑定,
+/// - 路由新会话(id 刚由 `zhuye_create_session` 分配)→ replay 空 → 空历史绑定,
 ///   首条消息开始落盘。
 /// - 路由到历史会话 → replay 整段 JSONL → `records_to_preload` → 注入 preload,
 ///   LLM 恢复上下文;后续消息续写到同一文件。
@@ -73,7 +73,7 @@ pub async fn reflect_create_session() -> CommandResult<String> {
 /// 返回绑定后线程的当前 PermissionMode(线格式字符串,如 `"plan"`),
 /// 供前端在切换会话后同步徽标/切换器;同 id 短路时同样读实际线程返回。
 #[tauri::command]
-pub async fn reflect_bind_session(
+pub async fn zhuye_bind_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
 ) -> CommandResult<String> {
@@ -112,9 +112,9 @@ pub async fn reflect_bind_session(
             });
         }
     }
-    let preload = reflect_core::resume::records_to_preload(&records);
+    let preload = zhuye_core::resume::records_to_preload(&records);
     // 权限模式随会话恢复:取时间序末次 PermissionModeChanged 的目标值。
-    // Bypass 绝不是合法运行时目标(见 reflect-core submission_loop 安全基线),
+    // Bypass 绝不是合法运行时目标(见 zhuye-core submission_loop 安全基线),
     // 借旧审计记录回潮的路径同样降级为最严格的等价值。
     let initial_mode = records.iter().rev().find_map(|r| match r {
         RolloutRecord::PermissionModeChanged { to, .. } => Some(match to {
@@ -144,7 +144,7 @@ pub async fn reflect_bind_session(
 /// - `limit` + `offset` 提供游标式分页(按时间倒序)。
 ///   `limit = 0` 或省略 → 无上限(返回完整列表)。
 #[tauri::command]
-pub async fn reflect_list_sessions(
+pub async fn zhuye_list_sessions(
     workspace: Option<String>,
     limit: Option<usize>,
     offset: Option<usize>,
@@ -176,7 +176,7 @@ pub async fn reflect_list_sessions(
 }
 
 #[tauri::command]
-pub async fn reflect_rename_session(
+pub async fn zhuye_rename_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
     new_name: String,
@@ -187,7 +187,7 @@ pub async fn reflect_rename_session(
     name::rename(&agent, &base, id, &new_name).await
 }
 
-/// 基于历史会话 fork 出子会话（GUI 入口，对应 CLI `reflect session fork`）。
+/// 基于历史会话 fork 出子会话（GUI 入口，对应 CLI `zhuye session fork`）。
 ///
 /// 复制父会话 JSONL 生成新 session id 的子会话：`up_to_turn_id = None`
 /// 全量复制到末尾，`Some(tid)` 截至该 turn（含）；父文件 append 一条
@@ -195,10 +195,10 @@ pub async fn reflect_rename_session(
 /// 写成子会话的自定义名（`_names`，列表中直接可辨）。
 ///
 /// 纯文件操作、不触碰运行中的 AgentThread —— fork 完前端自行
-/// `reflect_bind_session(child)` 切换。`fork_with_history` 是同步 IO，
+/// `zhuye_bind_session(child)` 切换。`fork_with_history` 是同步 IO，
 /// 包 `spawn_blocking` 避免阻塞 tauri 异步运行时。
 #[tauri::command]
-pub async fn reflect_fork_session(
+pub async fn zhuye_fork_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
     branch: Option<String>,
@@ -261,7 +261,7 @@ pub async fn reflect_fork_session(
 /// - `force = false`(前端 turn 收尾自动触发)且 `_titles` 已有 → 幂等返回;
 /// - `force = true`(会话菜单「AI 重命名」)→ 重新生成并覆盖。
 #[tauri::command]
-pub async fn reflect_generate_session_title(
+pub async fn zhuye_generate_session_title(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
     force: Option<bool>,
@@ -463,7 +463,7 @@ async fn restore_after_failed_operation(
 /// 删除 session:移除该 session 的全部 rollout 文件(含文件名错位副本、
 /// 轮转副本)、自定义名,以及旧布局的 `<base>/<id>/` 目录。
 #[tauri::command]
-pub async fn reflect_delete_session(
+pub async fn zhuye_delete_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
 ) -> CommandResult<()> {
@@ -478,9 +478,9 @@ pub async fn reflect_delete_session(
         Err(error) => return Err(restore_after_failed_operation(&agent, id, mode, error).await),
     };
     if removed > 0 {
-        tracing::info!("[reflect-gui] deleted session {} ({} paths)", id, removed);
+        tracing::info!("[zhuye-gui] deleted session {} ({} paths)", id, removed);
     } else {
-        tracing::debug!("[reflect-gui] delete_session: {} not found (no-op)", id);
+        tracing::debug!("[zhuye-gui] delete_session: {} not found (no-op)", id);
     }
     Ok(())
 }
@@ -492,7 +492,7 @@ pub async fn reflect_delete_session(
 // 根目录放在 sessions 树之外:`~/.zhuye/sessions-archive/`,以「整树
 // 搬移 + 相对路径不变」为不变量 —— unarchive 沿同一相对路径搬回。
 //
-// 从 rollout 的 sessions 根派生而不是走 `paths::data_dir()`:`reflect_rollout`
+// 从 rollout 的 sessions 根派生而不是走 `paths::data_dir()`:`zhuye_rollout`
 // 只认 `$HOME`,若这里改读 `ZHUYE_HOME`,设置了该变量的机器上活跃会话与归档
 // 会分家,unarchive 就再也找不回文件。
 
@@ -503,7 +503,7 @@ fn archive_base() -> Option<PathBuf> {
 
 /// 导出文件的落点(`~/.zhuye/exports/`)。JSON 与 Markdown 导出共用。
 pub(crate) fn exports_dir() -> CommandResult<PathBuf> {
-    let dir = reflect_config::paths::data_path(&["exports"]).ok_or_else(|| CommandError {
+    let dir = zhuye_config::paths::data_path(&["exports"]).ok_or_else(|| CommandError {
         msg: "no HOME dir for exports".into(),
     })?;
     std::fs::create_dir_all(&dir).map_err(CommandError::from)?;
@@ -516,7 +516,7 @@ pub(crate) fn exports_dir() -> CommandResult<PathBuf> {
 /// sessions 侧路径走 [`sessions_base`](与 record/read 同源);归档树独立
 /// 于 rollout base(`archive_base`),unarchive 沿同一对目录往返。
 #[tauri::command]
-pub async fn reflect_archive_session(
+pub async fn zhuye_archive_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
 ) -> CommandResult<()> {
@@ -534,16 +534,16 @@ pub async fn reflect_archive_session(
         Err(error) => return Err(restore_after_failed_operation(&agent, id, mode, error).await),
     };
     if moved > 0 {
-        tracing::info!("[reflect-gui] archived session {} ({} paths)", id, moved);
+        tracing::info!("[zhuye-gui] archived session {} ({} paths)", id, moved);
     } else {
-        tracing::debug!("[reflect-gui] archive_session: {} not found (no-op)", id);
+        tracing::debug!("[zhuye-gui] archive_session: {} not found (no-op)", id);
     }
     Ok(())
 }
 
 /// 恢复归档 session:搬回 `~/.zhuye/sessions` 原相对路径。
 #[tauri::command]
-pub async fn reflect_unarchive_session(
+pub async fn zhuye_unarchive_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
 ) -> CommandResult<()> {
@@ -562,17 +562,17 @@ pub async fn reflect_unarchive_session(
     })?;
     let moved = move_session_tree(&archive, &base, &id)?;
     if moved > 0 {
-        tracing::info!("[reflect-gui] unarchived session {} ({} paths)", id, moved);
+        tracing::info!("[zhuye-gui] unarchived session {} ({} paths)", id, moved);
     } else {
-        tracing::debug!("[reflect-gui] unarchive_session: {} not found (no-op)", id);
+        tracing::debug!("[zhuye-gui] unarchive_session: {} not found (no-op)", id);
     }
     Ok(())
 }
 
 /// 列出已归档 session(按 started_at 倒序,标题精化规则与活跃列表一致)。
-/// `workspace` 过滤语义与 [`reflect_list_sessions`] 一致。
+/// `workspace` 过滤语义与 [`zhuye_list_sessions`] 一致。
 #[tauri::command]
-pub async fn reflect_list_archived_sessions(
+pub async fn zhuye_list_archived_sessions(
     workspace: Option<String>,
 ) -> CommandResult<Vec<SessionInfo>> {
     let base = archive_base().ok_or_else(|| CommandError {
@@ -587,7 +587,7 @@ pub async fn reflect_list_archived_sessions(
     Ok(all)
 }
 
-/// `reflect_archive_session` / `reflect_unarchive_session` 的共用核心:
+/// `zhuye_archive_session` / `zhuye_unarchive_session` 的共用核心:
 /// 把 `from` 树下该 session 的全部文件(`session_files` 定位,含 meta 错位
 /// 副本)+ `_names/<id>.name` 搬到 `to` 树的**同相对路径**。返回搬移数。
 fn move_session_tree(from: &Path, to: &Path, id: &ThreadId) -> CommandResult<usize> {
@@ -680,7 +680,7 @@ fn remove_moved_source(src: &Path, dest: &Path) -> CommandResult<()> {
     })
 }
 
-/// `reflect_delete_session` 的可测试核心:删除 `base` 下该 session 的
+/// `zhuye_delete_session` 的可测试核心:删除 `base` 下该 session 的
 /// 全部路径,返回删除数。
 fn delete_session_paths(base: &Path, id: &ThreadId) -> CommandResult<usize> {
     let mut removed = 0usize;
@@ -708,7 +708,7 @@ fn delete_session_paths(base: &Path, id: &ThreadId) -> CommandResult<usize> {
 }
 
 #[tauri::command]
-pub async fn reflect_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRecord>> {
+pub async fn zhuye_replay_session(id: ThreadId) -> CommandResult<Vec<RolloutRecord>> {
     let base = sessions_base().ok_or_else(|| CommandError {
         msg: "no home dir".into(),
     })?;
@@ -737,12 +737,12 @@ pub(crate) async fn replay_session(
 }
 
 /// coding plan 热重载路径(`state/reload.rs`)复用:replay 全量历史 →
-/// `records_to_preload`。与 `reflect_bind_session` 的 preload 构造同源,
+/// `records_to_preload`。与 `zhuye_bind_session` 的 preload 构造同源,
 /// 保证强制重绑后对话上下文不丢。
 pub(crate) async fn replay_for_preload(id: &ThreadId) -> anyhow::Result<Vec<ChatMessage>> {
     let base = sessions_base().ok_or_else(|| anyhow::anyhow!("no HOME dir for sessions"))?;
     let records = replay_session(&base, id).await?;
-    Ok(reflect_core::resume::records_to_preload(&records))
+    Ok(zhuye_core::resume::records_to_preload(&records))
 }
 
 /// 导出路径(JSON / Markdown)共用的回放入口:与 bind/replay 同源,
@@ -754,7 +754,7 @@ pub(crate) async fn replay_for_export(id: &ThreadId) -> anyhow::Result<Vec<Rollo
 
 /// 把 session 导出为 JSON 到 `~/.zhuye/exports/<id>.json` 并返回路径。供 ThreadsView / CommandPalette 的导出菜单使用。
 #[tauri::command]
-pub async fn reflect_export_session(id: ThreadId) -> CommandResult<String> {
+pub async fn zhuye_export_session(id: ThreadId) -> CommandResult<String> {
     let export_dir = exports_dir()?;
     std::fs::create_dir_all(&export_dir).map_err(CommandError::from)?;
     let dest = export_dir.join(format!("{}.json", id));
@@ -856,10 +856,10 @@ fn filename_session_match(path: &Path, id_str: &str) -> Option<PathBuf> {
 // ── 列表标题精化 ────────────────────────────────────────────────────────
 //
 // 三级优先级:
-// 1. 用户自定义名(`<base>/_names/<id>.name`,由 `reflect_rename_session`
+// 1. 用户自定义名(`<base>/_names/<id>.name`,由 `zhuye_rename_session`
 //    写入;TUI 的「自定义名优先于派生值」语义在此镜像);
 // 2. AI 生成标题(`<base>/_titles/<id>.title`,由
-//    `reflect_generate_session_title` 写入);
+//    `zhuye_generate_session_title` 写入);
 // 3. 首条 User 消息重派生 —— `index::list_sessions` 的 `title` 对 block
 //    数组 `content`(user 消息新格式)是整段 JSON 字符串,不可用作标题。
 
@@ -1010,7 +1010,7 @@ fn session_file_id(path: &Path) -> Option<String> {
 
 // ── 跨会话内容搜索 ──────────────────────────────────────────────────────
 //
-// v1.x P1：搜索页「会话」tab 的后端。区别于 `reflect_search_files`
+// v1.x P1：搜索页「会话」tab 的后端。区别于 `zhuye_search_files`
 //（工作区源码 grep），这里 grep 的是会话 JSONL 里的 user/assistant 文本，
 // 覆盖活跃树（`~/.zhuye/sessions`）与归档树（`~/.zhuye/sessions-archive`）。
 
@@ -1036,7 +1036,7 @@ const SESSION_SNIPPET_CONTEXT: usize = 60;
 /// 扫描上限：最近 `SESSION_SEARCH_SCAN_CAP` 个会话（活跃树 + 归档树各自
 /// 按最近序），防止超大会话库把命令拖死；命中 `limit`（默认 20）即止。
 #[tauri::command]
-pub async fn reflect_search_sessions(
+pub async fn zhuye_search_sessions(
     query: String,
     limit: Option<usize>,
 ) -> CommandResult<Vec<SessionSearchHit>> {
@@ -1165,7 +1165,7 @@ fn build_snippet(text: &str, match_start: usize, match_len: usize) -> String {
     out
 }
 
-/// ASCII 折叠搜索 + 片段窗口的纯函数单测（`reflect_search_sessions` 核心）。
+/// ASCII 折叠搜索 + 片段窗口的纯函数单测（`zhuye_search_sessions` 核心）。
 #[cfg(test)]
 mod search_tests {
     use super::{SESSION_SNIPPET_CONTEXT, build_snippet};
@@ -1219,7 +1219,7 @@ mod tests {
 
     proptest::proptest! {
         // derive_title 的**桌面消费契约**(实现在上游 recorder.rs,桌面经
-        // reflect_protocol 消费):非空输入必产 Some;输出单行、无首尾
+        // zhuye_protocol 消费):非空输入必产 Some;输出单行、无首尾
         // 空白;截断时 48 字符 + `…`。标题直接进 GUI 列表,坏了就是显示
         // 回归 —— 锁消费端可见的形状,上游实现细节不在这里复制。
         #[test]
@@ -1227,7 +1227,7 @@ mod tests {
             if let Some(title) = derive_title(&text) {
                 let n = title.chars().count();
                 prop_assert!(
-                    n <= reflect_protocol::recorder::TITLE_MAX_CHARS + 1,
+                    n <= zhuye_protocol::recorder::TITLE_MAX_CHARS + 1,
                     "超长: {} ({})",
                     title,
                     n
@@ -1270,7 +1270,7 @@ mod tests {
         }
     }
 
-    // 分页逻辑与 reflect_list_sessions 的 limit/offset 切片保持一致。
+    // 分页逻辑与 zhuye_list_sessions 的 limit/offset 切片保持一致。
     // 这里不启动 Tauri runtime,而是在合成的 Vec<String> 上复现切片语义,
     // 用以捕获算法层的回归。
 
@@ -1323,7 +1323,7 @@ mod tests {
 
     // ── AI 会话标题(B) ────────────────────────────────────────────────
 
-    use reflect_protocol::TurnId;
+    use zhuye_protocol::TurnId;
 
     #[test]
     fn refine_prefers_custom_over_ai_over_derived() {
@@ -1478,7 +1478,7 @@ mod tests {
         for (suffix, text) in [(".3", "old"), (".1", "middle"), ("", "new")] {
             let record = RolloutRecord::message(
                 tid,
-                reflect_protocol::MessageRole::User,
+                zhuye_protocol::MessageRole::User,
                 serde_json::json!(text),
             );
             let body = format!("{}\n", serde_json::to_string(&record).unwrap());

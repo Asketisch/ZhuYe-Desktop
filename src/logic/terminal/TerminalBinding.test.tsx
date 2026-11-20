@@ -21,26 +21,26 @@ describe('终端绑定', () => {
   it('应用渲染入口可以替换路由所用终端界面', async () => {
     resetMockInvoke();
     const run = vi.fn(async () => ({ id: 'session-2', command: 'date', cwd: '/work' }));
-    mockInvoke('reflect_run_shell', run);
+    mockInvoke('zhuye_run_shell', run);
     render(<RendererProvider renderer={{ ...renderer, TerminalView: AlternateTerminal }}><TerminalView /></RendererProvider>);
     fireEvent.change(screen.getByLabelText('command'), { target: { value: 'date' } });
     fireEvent.click(screen.getByText('run'));
     await waitFor(() => expect(run).toHaveBeenCalledOnce());
     await screen.findByText(/cwd: \/work/);
-    act(() => emitMockEvent('reflect_terminal_output', { session_id: 'session-2', stream: 'stdout', data: 'today', seq: 1 }));
+    act(() => emitMockEvent('zhuye_terminal_output', { session_id: 'session-2', stream: 'stdout', data: 'today', seq: 1 }));
     expect(screen.getByText(/today/)).toBeDefined();
   });
 
   it('替代界面使用同一控制器执行命令并显示事件', async () => {
     resetMockInvoke();
     const run = vi.fn(async () => ({ id: 'session-1', command: 'pwd', cwd: '/work' }));
-    mockInvoke('reflect_run_shell', run);
+    mockInvoke('zhuye_run_shell', run);
     render(<TerminalBinding view={AlternateTerminal} />);
     fireEvent.change(screen.getByLabelText('command'), { target: { value: 'pwd' } });
     fireEvent.click(screen.getByText('run'));
     await waitFor(() => expect(run).toHaveBeenCalledOnce());
     await screen.findByText(/cwd: \/work/);
-    act(() => emitMockEvent('reflect_terminal_output', { session_id: 'session-1', stream: 'stdout', data: 'result', seq: 1 }));
+    act(() => emitMockEvent('zhuye_terminal_output', { session_id: 'session-1', stream: 'stdout', data: 'result', seq: 1 }));
     expect(screen.getByText(/result/)).toBeDefined();
   });
 });

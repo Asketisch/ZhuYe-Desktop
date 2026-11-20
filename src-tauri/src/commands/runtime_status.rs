@@ -9,7 +9,7 @@
 //! - **配置位置与分析健康度** —— 手改 `config.toml` 后不知道应用读的是
 //!   哪个文件、分析上报是否正常。
 
-use reflect_protocol::ThreadId;
+use zhuye_protocol::ThreadId;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -34,9 +34,9 @@ pub struct CredentialPoolStatus {
 /// (隐式 `api_key` + `credentials` 列表),所以按「哪个段存在」来区分。
 type ProviderSection<'a> = (
     &'a str,
-    Option<&'a reflect_config::AnthropicSection>,
-    Option<&'a reflect_config::OpenAISection>,
-    Option<&'a reflect_config::OllamaSection>,
+    Option<&'a zhuye_config::AnthropicSection>,
+    Option<&'a zhuye_config::OpenAISection>,
+    Option<&'a zhuye_config::OllamaSection>,
 );
 
 /// 查询各 provider 的凭证池健康度。
@@ -45,7 +45,7 @@ type ProviderSection<'a> = (
 /// 字段,只能从健康集合反推)。冷却原因(429 / 401 / 5xx)在核心内不公开,
 /// 此处不编造。
 #[tauri::command]
-pub async fn reflect_credential_pool_status(
+pub async fn zhuye_credential_pool_status(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<CredentialPoolStatus>> {
     let cfg = agent.inner.cfg.read().clone();
@@ -110,7 +110,7 @@ pub struct SubagentCallRecord {
 /// registry 挂在 `M4Deps` 上,`CallSubAgentTool` 写、`pre_loop` 读 ——
 /// 它回答「agent 刚才派了哪些子代理、结论是什么」。
 #[tauri::command]
-pub async fn reflect_recovery_state(
+pub async fn zhuye_recovery_state(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<SubagentCallRecord>> {
     let thread = agent.inner.thread.lock().clone();
@@ -152,7 +152,7 @@ pub struct MemorySectionInfo {
 
 /// 查询磁盘记忆的分段候选项；实际注入内容还取决于作用域和当前查询。
 #[tauri::command]
-pub async fn reflect_memory_sections(
+pub async fn zhuye_memory_sections(
     agent: State<'_, MinimalAgent>,
     expected_context: Option<crate::commands::MemoryContext>,
 ) -> CommandResult<Vec<MemorySectionInfo>> {
@@ -193,7 +193,7 @@ pub struct ConfigInfo {
     /// 当前活跃 agent 名。
     pub active_agent: String,
     /// 配置健康问题及其严重程度。
-    pub issues: Vec<reflect_app_core::config_health::ConfigHealthIssue>,
+    pub issues: Vec<zhuye_app_core::config_health::ConfigHealthIssue>,
 }
 
 /// 查询配置位置与分析健康度。
@@ -201,9 +201,9 @@ pub struct ConfigInfo {
 /// 手改 `config.toml` 的用户需要知道「应用读的是哪个文件」;分析上报
 /// 是否正常也应有可见面。
 #[tauri::command]
-pub async fn reflect_config_info(agent: State<'_, MinimalAgent>) -> CommandResult<ConfigInfo> {
+pub async fn zhuye_config_info(agent: State<'_, MinimalAgent>) -> CommandResult<ConfigInfo> {
     let cfg = agent.inner.cfg.read().clone();
-    let path = reflect_config::default_config_path();
+    let path = zhuye_config::default_config_path();
     Ok(ConfigInfo {
         exists: path.as_ref().is_some_and(|p| p.exists()),
         path: path.map(|p| p.display().to_string()),
@@ -212,10 +212,10 @@ pub async fn reflect_config_info(agent: State<'_, MinimalAgent>) -> CommandResul
             .as_ref()
             .and_then(|a| a.enabled)
             .unwrap_or(false),
-        analytics_status: reflect_config::analytics::status_line(cfg.analytics.as_ref()),
+        analytics_status: zhuye_config::analytics::status_line(cfg.analytics.as_ref()),
         workspace: agent.workspace().display().to_string(),
         active_agent: crate::agent_state::AgentState::active_agent(),
-        issues: reflect_app_core::config_health::config_health_issues(&cfg),
+        issues: zhuye_app_core::config_health::config_health_issues(&cfg),
     })
 }
 

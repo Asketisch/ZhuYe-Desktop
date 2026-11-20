@@ -1,10 +1,10 @@
-//! 核心 agent 桥接:`reflect_submit` / `reflect_interrupt` + 14 个 Op 命令。
+//! 核心 agent 桥接:`zhuye_submit` / `zhuye_interrupt` + 14 个 Op 命令。
 //!
 //! 每个 Op 命令构造一个 `Op`,经 `MinimalAgent::submit_op` 真正驱动 `AgentThread`。
 
 use tauri::State;
 
-use reflect_protocol::{
+use zhuye_protocol::{
     AskUserAnswer, Op, PermissionMode, SteeringPriorityMirror, Submission, UserInputItem,
 };
 
@@ -15,14 +15,14 @@ use crate::state::MinimalAgent;
 
 /// 把 Submission 通过 MinimalAgent 发送到后端。返回 submission.id。
 ///
-/// 前端 invoke 形态:`invoke<string>('reflect_submit', { submission })`。
+/// 前端 invoke 形态:`invoke<string>('zhuye_submit', { submission })`。
 ///
 /// 图片附件归一:前端 Composer 把图片读成 data-URL(base64)字符串,而协议
 /// `UserInputItem::Image.data` 是 `Vec<u8>`(serde 要求数字数组)。这里在
 /// 应用层把 `type:"image"` 条目的字符串 data(data-URL 或裸 base64)解码成
 /// 字节数组,再做 serde 反序列化——线格式保持紧凑,协议层不动。
 #[tauri::command]
-pub async fn reflect_submit(
+pub async fn zhuye_submit(
     agent: State<'_, MinimalAgent>,
     submission: serde_json::Value,
 ) -> CommandResult<String> {
@@ -78,7 +78,7 @@ fn normalize_image_data(v: serde_json::Value) -> CommandResult<serde_json::Value
     }
 }
 
-/// 小型 base64 解码器(与 reflect-llm 内手写编码器配对;src-tauri 无 base64 依赖)。
+/// 小型 base64 解码器(与 zhuye-llm 内手写编码器配对;src-tauri 无 base64 依赖)。
 /// `pub(crate)`:文件上传落盘(`files/upload.rs`)复用同一解码器。
 pub(crate) fn base64_decode(input: &str) -> Option<Vec<u8>> {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -108,7 +108,7 @@ pub(crate) fn base64_decode(input: &str) -> Option<Vec<u8>> {
 }
 
 #[tauri::command]
-pub async fn reflect_interrupt(
+pub async fn zhuye_interrupt(
     agent: State<'_, MinimalAgent>,
     child_id: Option<String>,
 ) -> CommandResult<String> {
@@ -125,12 +125,12 @@ pub async fn reflect_interrupt(
 // ====== 14 个 Op 命令:构造 Op 经 submit_op 真正驱动 AgentThread ======
 
 #[tauri::command]
-pub async fn reflect_compact(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_compact(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.submit_op(Op::Compact).await?)
 }
 
 #[tauri::command]
-pub async fn reflect_rewind(
+pub async fn zhuye_rewind(
     agent: State<'_, MinimalAgent>,
     to_turn_id: Option<String>,
 ) -> CommandResult<String> {
@@ -138,12 +138,12 @@ pub async fn reflect_rewind(
 }
 
 #[tauri::command]
-pub async fn reflect_shutdown(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_shutdown(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.submit_op(Op::Shutdown).await?)
 }
 
 #[tauri::command]
-pub async fn reflect_tool_approval(
+pub async fn zhuye_tool_approval(
     agent: State<'_, MinimalAgent>,
     id: String,
     decision: ReviewDecision,
@@ -152,7 +152,7 @@ pub async fn reflect_tool_approval(
 }
 
 #[tauri::command]
-pub async fn reflect_hook_approval(
+pub async fn zhuye_hook_approval(
     agent: State<'_, MinimalAgent>,
     id: String,
     decision: ReviewDecision,
@@ -161,7 +161,7 @@ pub async fn reflect_hook_approval(
 }
 
 #[tauri::command]
-pub async fn reflect_enter_plan_mode(
+pub async fn zhuye_enter_plan_mode(
     agent: State<'_, MinimalAgent>,
     task: String,
 ) -> CommandResult<String> {
@@ -169,12 +169,12 @@ pub async fn reflect_enter_plan_mode(
 }
 
 #[tauri::command]
-pub async fn reflect_exit_plan_mode(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_exit_plan_mode(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.submit_op(Op::ExitPlanMode).await?)
 }
 
 #[tauri::command]
-pub async fn reflect_plan_approval(
+pub async fn zhuye_plan_approval(
     agent: State<'_, MinimalAgent>,
     id: String,
     choice: PlanApprovalChoice,
@@ -182,11 +182,11 @@ pub async fn reflect_plan_approval(
     Ok(agent.submit_op(Op::PlanApproval { id, choice }).await?)
 }
 
-// reflect_set_effort / reflect_get_effort 在 `commands/effort.rs`
+// zhuye_set_effort / zhuye_get_effort 在 `commands/effort.rs`
 // (agent.rs 顶到文件大小预算上限,effort 是独立的用户设置域)。
 
 #[tauri::command]
-pub async fn reflect_ask_user_question_response(
+pub async fn zhuye_ask_user_question_response(
     agent: State<'_, MinimalAgent>,
     id: String,
     answers: serde_json::Value,
@@ -201,7 +201,7 @@ pub async fn reflect_ask_user_question_response(
 }
 
 #[tauri::command]
-pub async fn reflect_ask_user_input_response(
+pub async fn zhuye_ask_user_input_response(
     agent: State<'_, MinimalAgent>,
     id: String,
     text: String,
@@ -212,7 +212,7 @@ pub async fn reflect_ask_user_input_response(
 }
 
 #[tauri::command]
-pub async fn reflect_set_permission_mode(
+pub async fn zhuye_set_permission_mode(
     agent: State<'_, MinimalAgent>,
     mode: String,
 ) -> CommandResult<String> {
@@ -221,7 +221,7 @@ pub async fn reflect_set_permission_mode(
 }
 
 #[tauri::command]
-pub async fn reflect_cycle_permission_mode(
+pub async fn zhuye_cycle_permission_mode(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<String> {
     Ok(agent.submit_op(Op::CyclePermissionMode).await?)
@@ -232,12 +232,12 @@ pub async fn reflect_cycle_permission_mode(
 /// 下一个 UserInput turn 边界合并。应答只有 submission id,注入本身
 /// 不发协议事件(仅落 recorder),GUI 需乐观渲染。
 ///
-/// 前端 invoke 形态:`invoke<string>('reflect_steer', { items, priority? })`。
+/// 前端 invoke 形态:`invoke<string>('zhuye_steer', { items, priority? })`。
 /// items 与 Submission 的 UserInputItem 同形(图片可能带 data-URL 字符串,
 /// 复用 `normalize_image_data` 归一);priority:`"now"`(用户中途说话,
 /// 直入上下文)或 `"attachment"`(参考资料,system-reminder 包裹;缺省)。
 #[tauri::command]
-pub async fn reflect_steer(
+pub async fn zhuye_steer(
     agent: State<'_, MinimalAgent>,
     items: serde_json::Value,
     priority: Option<String>,
@@ -254,25 +254,25 @@ pub async fn reflect_steer(
 }
 
 /// v1.4 C1:查询子代理状态快照。应答为 `subagent_status` 事件,经
-/// per-turn 通道 + 会话扇出双路送达(前端走 reflect_event 通道)。
+/// per-turn 通道 + 会话扇出双路送达(前端走 zhuye_event 通道)。
 ///
-/// 前端 invoke 形态:`invoke<string>('reflect_query_subagents', { childId? })`。
+/// 前端 invoke 形态:`invoke<string>('zhuye_query_subagents', { childId? })`。
 #[tauri::command]
-pub async fn reflect_query_subagents(
+pub async fn zhuye_query_subagents(
     agent: State<'_, MinimalAgent>,
     child_id: Option<String>,
 ) -> CommandResult<String> {
     Ok(agent.submit_op(Op::QuerySubagents { child_id }).await?)
 }
 
-// ====== 目标模式(v1.2 P1,reflect-goal 编排)======
+// ====== 目标模式(v1.2 P1,zhuye-goal 编排)======
 
 /// 进入目标模式:`Op::EnterGoalMode`。core 侧构造 `GoalController`,
 /// 后续每轮 turn 结束自校验,未完成则 steering 续作,完成则退出。
 ///
-/// 前端 invoke 形态:`invoke<string>('reflect_enter_goal_mode', { goal, verifyCommand?, tokenBudget? })`。
+/// 前端 invoke 形态:`invoke<string>('zhuye_enter_goal_mode', { goal, verifyCommand?, tokenBudget? })`。
 #[tauri::command]
-pub async fn reflect_enter_goal_mode(
+pub async fn zhuye_enter_goal_mode(
     agent: State<'_, MinimalAgent>,
     goal: String,
     verify_command: Option<String>,
@@ -289,7 +289,7 @@ pub async fn reflect_enter_goal_mode(
 
 /// 退出目标模式:`Op::ExitGoalMode`,停止自动续作。
 #[tauri::command]
-pub async fn reflect_exit_goal_mode(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_exit_goal_mode(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.submit_op(Op::ExitGoalMode).await?)
 }
 
@@ -297,12 +297,12 @@ pub async fn reflect_exit_goal_mode(agent: State<'_, MinimalAgent>) -> CommandRe
 /// v1.7 读口)。目标模式没有协议事件,这是「是否活跃 / 第几轮 / LM 判定 /
 /// 累计 token」的唯一权威来源;前端投影在会话切换 / rebind 后以此校准。
 ///
-/// 前端 invoke 形态:`invoke<GoalSnapshotPayload | null>('reflect_goal_snapshot')`。
+/// 前端 invoke 形态:`invoke<GoalSnapshotPayload | null>('zhuye_goal_snapshot')`。
 /// 未进入目标模式(或后端 rebind 丢控制器)返回 `null`。
 #[tauri::command]
-pub async fn reflect_goal_snapshot(
+pub async fn zhuye_goal_snapshot(
     agent: State<'_, MinimalAgent>,
-) -> CommandResult<Option<reflect_goal::GoalState>> {
+) -> CommandResult<Option<zhuye_goal::GoalState>> {
     let thread = agent.inner.thread.lock().clone();
     Ok(thread.as_ref().and_then(|t| t.goal_snapshot()))
 }
@@ -344,7 +344,7 @@ fn parse_steering_priority(s: &str) -> CommandResult<SteeringPriorityMirror> {
 }
 
 /// `PermissionMode` → 线格式字符串(`parse_permission_mode` 的逆,
-/// 与 reflect-protocol 的 serde snake_case 一致)。`reflect_bind_session`
+/// 与 zhuye-protocol 的 serde snake_case 一致)。`zhuye_bind_session`
 /// 返回当前会话模式给前端同步用。
 pub(crate) fn permission_mode_str(mode: PermissionMode) -> &'static str {
     match mode {
@@ -358,7 +358,7 @@ pub(crate) fn permission_mode_str(mode: PermissionMode) -> &'static str {
     }
 }
 
-use reflect_protocol::{PlanApprovalChoice, ReviewDecision};
+use zhuye_protocol::{PlanApprovalChoice, ReviewDecision};
 
 #[cfg(test)]
 mod tests {

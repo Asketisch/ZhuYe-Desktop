@@ -38,7 +38,7 @@ describe('ModalStack', () => {
   });
 
   it('renders ApprovalModal from pendingApprovals and clears on Approve', async () => {
-    mockInvoke('reflect_tool_approval', async () => 'sub-1');
+    mockInvoke('zhuye_tool_approval', async () => 'sub-1');
     useAgentStore.setState({
       pendingApprovals: [
         { id: 'a1', kind: 'tool', toolName: 'bash', argsSummary: 'rm -rf /', turnId: 't1' },
@@ -54,7 +54,7 @@ describe('ModalStack', () => {
   });
 
   it('renders AskUserModal and submits text', async () => {
-    mockInvoke('reflect_ask_user_input_response', async () => 'sub-2');
+    mockInvoke('zhuye_ask_user_input_response', async () => 'sub-2');
     useAgentStore.setState({
       pendingAskUser: [{ id: 'u1', payload: { prompt: 'your name?' }, turnId: 't1' }],
     });
@@ -69,7 +69,7 @@ describe('ModalStack', () => {
 
   it('keeps a failed approval open and allows retry', async () => {
     let attempt = 0;
-    mockInvoke('reflect_tool_approval', async () => {
+    mockInvoke('zhuye_tool_approval', async () => {
       if (++attempt === 1) throw new Error('connection failed');
       return 'sub-1';
     });
@@ -88,8 +88,8 @@ describe('ModalStack', () => {
 
   it('Bash 审批出现「始终允许」入口,点击后写规则 + 批准', async () => {
     const addRule = vi.fn(async (_cmd: string, _args: unknown) => undefined);
-    mockInvoke('reflect_add_permission_rule', addRule);
-    mockInvoke('reflect_tool_approval', async () => 'sub-1');
+    mockInvoke('zhuye_add_permission_rule', addRule);
+    mockInvoke('zhuye_tool_approval', async () => 'sub-1');
     useAgentStore.setState({
       pendingApprovals: [
         {
@@ -127,8 +127,8 @@ describe('ModalStack', () => {
   it('保存永久规则期间禁止其他审批操作并显示原命令', async () => {
     let finish!: () => void;
     const approval = vi.fn(async () => 'sub-1');
-    mockInvoke('reflect_add_permission_rule', () => new Promise<void>((resolve) => { finish = resolve; }));
-    mockInvoke('reflect_tool_approval', approval);
+    mockInvoke('zhuye_add_permission_rule', () => new Promise<void>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_tool_approval', approval);
     useAgentStore.setState({ pendingApprovals: [{
       id: 'a1', kind: 'tool', toolName: 'bash', argsSummary: 'echo *', args: { cmd: 'echo *' }, turnId: 't1',
     }] });
@@ -147,8 +147,8 @@ describe('ModalStack', () => {
   it('普通审批进行中不能同时写入永久规则', async () => {
     let finish!: (value: string) => void;
     const addRule = vi.fn(async () => undefined);
-    mockInvoke('reflect_add_permission_rule', addRule);
-    mockInvoke('reflect_tool_approval', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_add_permission_rule', addRule);
+    mockInvoke('zhuye_tool_approval', () => new Promise<string>((resolve) => { finish = resolve; }));
     useAgentStore.setState({ pendingApprovals: [{
       id: 'a1', kind: 'tool', toolName: 'bash', argsSummary: 'echo x', args: { cmd: 'echo x' }, turnId: 't1',
     }] });
@@ -163,7 +163,7 @@ describe('ModalStack', () => {
   });
 
   it('写类工具审批不出现「始终允许」入口(核心规则模型没有路径维度)', () => {
-    mockInvoke('reflect_tool_approval', async () => 'sub-1');
+    mockInvoke('zhuye_tool_approval', async () => 'sub-1');
     useAgentStore.setState({
       pendingApprovals: [
         {

@@ -2,13 +2,13 @@
  * BottomTabs —— 底部分屏:终端 | 浏览器 | 预览(redesign/zcode-shell)。
  *
  * 终端 = 系统 shell 的交互式伪终端;
- * 预览 = reflect_read_file 读取工作区文件做只读预览;
+ * 预览 = zhuye_read_file 读取工作区文件做只读预览;
  * 浏览器 = 占位面板(内嵌浏览器尚未接线,给出诚实提示与替代入口)。
  * chat 路由渲染;头部终端开关控制显隐。
  */
 import { useEffect, useRef, useState } from 'react';
 import { Terminal as TerminalIcon, Globe, Eye, Plus, FileText } from 'lucide-react';
-import { reflect_read_file } from '@/utils/commands/files';
+import { zhuye_read_file } from '@/utils/commands/files';
 import { useI18n } from '@/utils/i18n';
 import { InteractiveTerminal } from '@/features/terminal/InteractiveTerminal';
 import s from '@/render/shell/zcode/zcode.module.css';
@@ -27,7 +27,7 @@ export function BottomTabs({ open, onClose }: { open: boolean; onClose: () => vo
   useEffect(() => {
     if (tab !== 'preview' || !previewPath.trim()) return;
     const ctrl = new AbortController();
-    reflect_read_file(previewPath.trim())
+    zhuye_read_file(previewPath.trim())
       .then((r) => {
         if (ctrl.signal.aborted) return;
         const res = r as unknown as { content?: string; text?: string };

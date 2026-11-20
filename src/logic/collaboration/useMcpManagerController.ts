@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
 import { parseMcpArguments } from './parseMcpArguments';
-import { reflect_delete_mcp_server, reflect_list_mcp_prompts, reflect_list_mcp_resources, reflect_list_mcp_servers, reflect_mcp_catalog, reflect_upsert_mcp_server, type McpServerEntry } from '@/utils/commands/mcp';
+import { zhuye_delete_mcp_server, zhuye_list_mcp_prompts, zhuye_list_mcp_resources, zhuye_list_mcp_servers, zhuye_mcp_catalog, zhuye_upsert_mcp_server, type McpServerEntry } from '@/utils/commands/mcp';
 
 export const MCP_TRANSPORTS: McpServerEntry['type'][] = ['stdio', 'http', 'sse'];
 export function mcpErrorMessage(error: unknown): string {
@@ -13,8 +13,8 @@ export function mcpErrorMessage(error: unknown): string {
 export function useMcpManagerController() {
   const qc = useQueryClient();
   const runtime = useAgentStore((state) => state.mcpServers);
-  const serversQuery = useQuery({ queryKey: ['mcp-servers'], queryFn: () => reflect_list_mcp_servers(), staleTime: 10_000 });
-  const catalogQuery = useQuery({ queryKey: ['mcp-catalog'], queryFn: () => reflect_mcp_catalog(), staleTime: 300_000 });
+  const serversQuery = useQuery({ queryKey: ['mcp-servers'], queryFn: () => zhuye_list_mcp_servers(), staleTime: 10_000 });
+  const catalogQuery = useQuery({ queryKey: ['mcp-catalog'], queryFn: () => zhuye_mcp_catalog(), staleTime: 300_000 });
   const [showForm, setShowForm] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
   const [showPrimitives, setShowPrimitives] = useState(false);
@@ -25,10 +25,10 @@ export function useMcpManagerController() {
   const [url, setUrl] = useState('');
   const [argsError, setArgsError] = useState(false);
   const invalidate = () => { void qc.invalidateQueries({ queryKey: ['mcp-servers'] }); };
-  const upsertMutation = useMutation({ mutationFn: (value: { name: string; entry: McpServerEntry }) => reflect_upsert_mcp_server(value.name, value.entry), onSettled: invalidate });
-  const deleteMutation = useMutation({ mutationFn: (serverName: string) => reflect_delete_mcp_server(serverName), onSettled: invalidate });
-  const resourcesQuery = useQuery({ queryKey: ['mcp-resources'], queryFn: () => reflect_list_mcp_resources(), enabled: showPrimitives, staleTime: 30_000 });
-  const promptsQuery = useQuery({ queryKey: ['mcp-prompts'], queryFn: () => reflect_list_mcp_prompts(), enabled: showPrimitives, staleTime: 30_000 });
+  const upsertMutation = useMutation({ mutationFn: (value: { name: string; entry: McpServerEntry }) => zhuye_upsert_mcp_server(value.name, value.entry), onSettled: invalidate });
+  const deleteMutation = useMutation({ mutationFn: (serverName: string) => zhuye_delete_mcp_server(serverName), onSettled: invalidate });
+  const resourcesQuery = useQuery({ queryKey: ['mcp-resources'], queryFn: () => zhuye_list_mcp_resources(), enabled: showPrimitives, staleTime: 30_000 });
+  const promptsQuery = useQuery({ queryKey: ['mcp-prompts'], queryFn: () => zhuye_list_mcp_prompts(), enabled: showPrimitives, staleTime: 30_000 });
   const servers = serversQuery.data ?? []; const catalog = catalogQuery.data ?? [];
   const resources = resourcesQuery.data ?? []; const prompts = promptsQuery.data ?? [];
   const busy = upsertMutation.isPending || deleteMutation.isPending;

@@ -7,7 +7,7 @@
 //! submodule「能力覆盖层不经过任何 SDK」的道理同源。
 //!
 //! 这一层直接对**生产同一份** `generate_handler!` 注册表
-//! (`reflect_desktop_lib::configure`)注入 JSON 负载,断言真命令体返回的
+//! (`zhuye_desktop_lib::configure`)注入 JSON 负载,断言真命令体返回的
 //! 真结果。没有前端包装、没有 fakeBackend、没有 SDK 中间层。
 //!
 //! ## 隔离
@@ -37,11 +37,11 @@ use tauri::test::{INVOKE_KEY, MockRuntime, mock_builder, mock_context, noop_asse
 use tauri::webview::InvokeRequest;
 use tauri::{App, Manager, WebviewWindow};
 
-use reflect_desktop_lib::state::MinimalAgent;
+use zhuye_desktop_lib::state::MinimalAgent;
 
 /// 单条命令的墙钟预算。超时不当"卡死"处理,而是让**这一条**失败。
 /// 30s 对 mock 模型绰绰有余;但实模型演练层(L6)的同步命令会在命令体
-/// 内联跑完整条 LLM 链(如 `reflect_run_team_pipeline` = 4 个节点逐个
+/// 内联跑完整条 LLM 链(如 `zhuye_run_team_pipeline` = 4 个节点逐个
 /// 调模型)—— 思考型模型下单节点就可能超过 30s,窗口必须给足(2026-11
 /// 局域网网关实测:team-pipeline 在 30s 窗口下间歇性超时)。
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(180);
@@ -119,7 +119,7 @@ pub fn init_isolated_env() {
         let base = std::env::var_os("REFLECT_TEST_HOME").map_or_else(
             || {
                 tempfile::Builder::new()
-                    .prefix("reflect-desktop-capability-")
+                    .prefix("zhuye-desktop-capability-")
                     .tempdir()
                     .expect("create unique capability directory")
                     .keep()
@@ -210,7 +210,7 @@ pub fn warmup() {
 pub fn harness() -> MutexGuard<'static, Harness> {
     let cell = HARNESS.get_or_init(|| {
         init_isolated_env();
-        let app = reflect_desktop_lib::configure(mock_builder())
+        let app = zhuye_desktop_lib::configure(mock_builder())
             .build(mock_context(noop_assets()))
             .expect("build mock app (真实命令注册表)");
 
@@ -230,7 +230,7 @@ pub fn harness() -> MutexGuard<'static, Harness> {
         }
 
         // 与生产 setup 对齐的第二件事:起**事件转发器** —— agent 的
-        // session broadcast → Tauri `reflect_event` 通道 → 前端。
+        // session broadcast → Tauri `zhuye_event` 通道 → 前端。
         // 这段是「UI 点一下 → 命令 → agent → 事件回前端」链路的最后一环,
         // 不起它就验不到事件信封的线上形状。
         {
@@ -238,16 +238,16 @@ pub fn harness() -> MutexGuard<'static, Harness> {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let session_rx = agent.subscribe_session();
-                reflect_desktop_lib::events::forward_agent_events(app_handle, session_rx).await;
+                zhuye_desktop_lib::events::forward_agent_events(app_handle, session_rx).await;
             });
         }
 
         // 与生产 install 6a-2 对齐:side-channel 终态补发(driver 的
-        // Done / Cancelled / Error → reflect_event)。夹具未 set_app_handle,
+        // Done / Cancelled / Error → zhuye_event)。夹具未 set_app_handle,
         // install 里的自动 spawn 会跳过,这里手动起。
         {
             let registry = app.state::<MinimalAgent>().side_channel_registry();
-            reflect_desktop_lib::state::side_channel_forwarder::spawn_side_channel_forwarder(
+            zhuye_desktop_lib::state::side_channel_forwarder::spawn_side_channel_forwarder(
                 app.handle().clone(),
                 &registry,
             );
@@ -362,7 +362,7 @@ pub fn state_lock() -> MutexGuard<'static, ()> {
 
 /// 当前工作区路径。
 pub fn current_workspace() -> String {
-    invoke_ok("reflect_current_workspace", serde_json::json!({}))
+    invoke_ok("zhuye_current_workspace", serde_json::json!({}))
         .as_str()
         .unwrap_or_default()
         .to_string()
@@ -370,13 +370,13 @@ pub fn current_workspace() -> String {
 
 /// 切到指定工作区(调用方须持有 [`workspace_lock`])。
 pub fn set_workspace(path: &str) {
-    invoke_ok("reflect_set_workspace", serde_json::json!({ "path": path }));
+    invoke_ok("zhuye_set_workspace", serde_json::json!({ "path": path }));
 }
 
 /// 建一个临时工作区目录(含一个探针文件),返回其路径。
 pub fn temp_workspace(tag: &str) -> String {
     let dir = std::env::temp_dir().join(format!(
-        "reflect-desktop-capability-{}-{tag}",
+        "zhuye-desktop-capability-{}-{tag}",
         std::process::id()
     ));
     std::fs::create_dir_all(&dir).expect("create temp workspace");

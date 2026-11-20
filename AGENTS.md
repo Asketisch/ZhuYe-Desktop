@@ -4,11 +4,11 @@
 
 ## 项目概览
 
-烛夜（ZhuYe）是烛夜 agent 引擎（上游更名自 Reflect Agent）的桌面 GUI 应用，基于 Tauri 2 + React 19 构建。
+烛夜（ZhuYe）是烛夜 agent 引擎的桌面 GUI 应用，基于 Tauri 2 + React 19 构建。
 
 - 前端：React 19 + Vite + TanStack Router/Query（`src/`）
 - 后端应用：Tauri Rust 进程（`src-tauri/src/lib.rs`）
-- 子模块：`zhuye-*` 核心 crate（桌面端使用 `reflect-*` 依赖别名） 通过 git submodule 复用（见 `zhuye-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
+- 子模块：`zhuye-*` 核心 crate（桌面端使用 `zhuye-*` 依赖别名） 通过 git submodule 复用（见 `zhuye-agent/`），升级流程见 [`SUBMODULE.md`](SUBMODULE.md)
 - 共享核心：`app-core/`（UI 无关的领域服务层：activity / media / tailscale / traces / discussion / pipeline / sandbox / stats，供 `src-tauri` 命令层复用）
 
 ## AGENTS.md 体系导航
@@ -66,7 +66,7 @@ bash tests/run_all.sh         # 静态 + 前端 + 真后端 + 产物
 # 发布构建
 pnpm tauri build              # 全平台构建
 pnpm tauri build --bundles app  # 仅 macOS .app
-bash scripts/install.sh       # → /usr/local/bin/reflect-desktop + ~/Applications/ZhuYe.app
+bash scripts/install.sh       # → /usr/local/bin/zhuye-desktop + ~/Applications/ZhuYe.app
 
 # 图标再生成（默认源图恒为仓库根 logo.png，与调用目录无关；产物 = src-tauri/icons/ + favicon）
 pnpm icons                    # 等价于 bash scripts/gen-icons.sh
@@ -100,13 +100,13 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 | 领域服务 | `app-core/` | UI 无关领域服务层，供命令层复用；渲染状态由前端 TS 负责 |
 | 引擎 | `zhuye-agent/` | submodule 只读镜像：烛夜 agent 引擎 zhuye-* crate（协议 / 能力 / 资源 / 编排 / 集成 / 运行时） |
 
-与 submodule 重叠的实现已收敛到上游：actor / squad → `reflect-task`，autopilot → `reflect-stream`，kms → `reflect-kms`，pricing → `reflect-llm`，activity 实体 → `reflect-telemetry`，side-channel → `reflect-core`，paths → `reflect-config::paths`（收敛判定见 [app-core/AGENTS.md](app-core/AGENTS.md)）。
+与 submodule 重叠的实现已收敛到上游：actor / squad → `zhuye-task`，autopilot → `zhuye-stream`，kms → `zhuye-kms`，pricing → `zhuye-llm`，activity 实体 → `zhuye-telemetry`，side-channel → `zhuye-core`，paths → `zhuye-config::paths`（收敛判定见 [app-core/AGENTS.md](app-core/AGENTS.md)）。
 
 ### 核心数据流
 
-- `AgentThread`（submodule）消费 `Submission`，事件经 `src-tauri/src/events.rs` 转发到单一 `reflect_event` 通道。
+- `AgentThread`（submodule）消费 `Submission`，事件经 `src-tauri/src/events.rs` 转发到单一 `zhuye_event` 通道。
 - 前端唯一订阅点 `services/agentEventBus.ts` 扇出 → `stores/agent/reducer.ts` 的 `reduceEvent` 产出 patch → Zustand store 应用。
-- 发送意图经 `stores/agent/index.ts::useAgentStore` 构造 `Op` → `reflect_submit` 命令 → 宿主 `state/submit.rs` 提交。
+- 发送意图经 `stores/agent/index.ts::useAgentStore` 构造 `Op` → `zhuye_submit` 命令 → 宿主 `state/submit.rs` 提交。
 - 文件/会话路径一律经后端命令往返，前端不自拼数据目录路径。
 
 ### 关键不变量
@@ -114,17 +114,17 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 **架构红线（不可妥协）**：
 
 1. 将共享/领域后端逻辑优先放在 `app-core/` 和 `zhuye-agent/crates/**/zhuye-*` 中。
-2. Tauri 应用是 `reflect_core::AgentThread` 的薄适配层。
-3. TUI 和 GUI 之间不重复逻辑；两者消费同一份 `reflect-protocol` 协议信封。
+2. Tauri 应用是 `zhuye_core::AgentThread` 的薄适配层。
+3. TUI 和 GUI 之间不重复逻辑；两者消费同一份 `zhuye-protocol` 协议信封。
 4. 除非有意修改协议，否则保持 Tauri 命令名称和负载结构稳定。
 5. 保持前端 IPC 协议与后端命令表一致（`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`）。
-6. 数据目录以 submodule 为准（用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`）。路径只经 `reflect_config::paths` 取，不在功能代码里自拼目录名；与 sessions 树必须同级的目录（归档）从 `reflect_rollout::path::default_base()` 派生。
+6. 数据目录以 submodule 为准（用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`）。路径只经 `zhuye_config::paths` 取，不在功能代码里自拼目录名；与 sessions 树必须同级的目录（归档）从 `zhuye_rollout::path::default_base()` 派生。
 
 **协议不变量**：
 
-- 线格式为 `reflect_protocol::Event` / `Submission`（snake_case JSON）
+- 线格式为 `zhuye_protocol::Event` / `Submission`（snake_case JSON）
 - 所有 `Op` 变体 → Tauri 命令（见 `docs/protocol-bridge.md` §2）
-- 所有 `EventMsg` 变体 → 单一 `reflect_event` 通道，前端通过 `msg.type` 分发
+- 所有 `EventMsg` 变体 → 单一 `zhuye_event` 通道，前端通过 `msg.type` 分发
 - Submission id ↔ Event id 配对用于流关联
 - `EVENT_ID_NONE = ""` 用于生命周期事件（无匹配提交）
 
@@ -138,7 +138,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 **会话层级不变量**：
 
 - `useSessions`（`src/logic/sessions/useSessions.ts`）是会话列表的规范 hook，旧切片路径提供兼容导出
-- 切换会话 → `reflect_replay_session(id)` 后水合本地状态
+- 切换会话 → `zhuye_replay_session(id)` 后水合本地状态
 - 时间分组（`Now/今天/昨天/本周/更早`）在 hook 中，不在侧边栏组件中
 - **切走必降级、切回必恢复**：assistant 内容按步骤增量落盘，但正在流出的
   半截文本、运行态，以及审批 / 提问 / plan 这些 gate 请求仍不在 rollout 里。
@@ -212,7 +212,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 | L3 真后端能力覆盖 | `bash tests/run_all.sh backend` | `cargo fmt` / `clippy` / `cargo test`（含能力覆盖层） | **真**（模型是假的） |
 | L4 发布产物 | `bash tests/run_all.sh artifact` | `.app` 结构 / Info.plist / 资源已嵌入 / 签名 / 无开发残留 / .deb・.AppImage・.msi 解包深度校验 / 启动冒烟（CI 门控） | 真产物 |
 | L5 e2e | `bash tests/run_all.sh e2e` | 视觉回归（路由 × dark/light 截图基线，`tests/visual/`）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）。依赖缺失默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
-| L6 实模型演练 | `REFLECT_LIVE=1 bash tests/run_all.sh live` | 真 provider（免费模型池）+ 真 SSE 的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，不发起任何网络请求 | **真**（模型也是真的） |
+| L6 实模型演练 | `ZHUYE_LIVE=1 bash tests/run_all.sh live` | 真 provider（免费模型池）+ 真 SSE 的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，不发起任何网络请求 | **真**（模型也是真的） |
 
 - **L2 与 L3 都要有**：L2 的后端是模拟的 —— 模拟后端的 bug 会把真后端的 bug 遮住。L3 用 `tauri::test` mock runtime 驱动**生产同一份** `generate_handler!` 注册表里的**真实命令体**，不经前端 `invoke` 包装、不经 `fakeBackend`。
 - 能力覆盖层在 `src-tauri/tests/ipc_*.rs`，共享夹具 `src-tauri/tests/common/mod.rs`（HOME 与 cwd 全部沙箱化）。各层职责与口径的权威说明见 [tests/AGENTS.md](tests/AGENTS.md)；能力 → 套件映射见 [`tests/COVERAGE.md`](tests/COVERAGE.md)；报告落在 `.test-results/release-review.md`。

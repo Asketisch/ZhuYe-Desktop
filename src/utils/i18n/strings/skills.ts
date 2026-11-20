@@ -16,7 +16,7 @@ const skills: Record<string, StringEntry> = {
   'skills.unload':            { en: 'Unload',                                                                   'zh-CN': '卸载' },
   'skills.error':             { en: 'Failed to load tools',                                                     'zh-CN': '加载工具失败' },
   'skills.errorDesc':         { en: 'Check the agent backend and try again.',                                   'zh-CN': '请检查 agent 后端并重试。' },
-  'skills.toolsCount':        { en: '{count} tool{plural} available. Built-in tools come from reflect-tools;',  'zh-CN': '{count} 个工具可用。内置工具来自 reflect-tools;' },
+  'skills.toolsCount':        { en: '{count} tool{plural} available. Built-in tools come from zhuye-tools;',  'zh-CN': '{count} 个工具可用。内置工具来自 zhuye-tools;' },
   'skills.toolsCountSuffix':  { en: '-prefixed tools come from MCP servers.',                                   'zh-CN': '开头的工具来自 MCP 服务。' },
   'skills.mcp':               { en: 'MCP',                                                                      'zh-CN': 'MCP' },
   'skills.noneRegistered':    { en: 'None registered.',                                                         'zh-CN': '尚未注册。' },

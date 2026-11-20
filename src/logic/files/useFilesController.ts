@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { reflect_agent_status, reflect_list_dir, reflect_read_file, reflect_lsp_set_enabled, reflect_lsp_status, reflect_lsp_warmup, reflect_lsp_diagnostics, type LspStatus } from '@/utils/commands';
+import { zhuye_agent_status, zhuye_list_dir, zhuye_read_file, zhuye_lsp_set_enabled, zhuye_lsp_status, zhuye_lsp_warmup, zhuye_lsp_diagnostics, type LspStatus } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useEditorStore } from '@/stores/editorStore';
 import { useAgentStore } from '@/stores/agentStore';
 import { useFileDraftController } from './useFileDraftController';
 
-export function lspPrefKey(workspace: string | null): string { return `reflect.lsp.enabled.${workspace ?? 'none'}`; }
+export function lspPrefKey(workspace: string | null): string { return `zhuye.lsp.enabled.${workspace ?? 'none'}`; }
 export function readLspPref(workspace: string | null): boolean { try { return localStorage.getItem(lspPrefKey(workspace)) === 'on'; } catch { return false; } }
 function writeLspPref(workspace: string | null, enabled: boolean): void { try { localStorage.setItem(lspPrefKey(workspace), enabled ? 'on' : 'off'); } catch { /* 隐私模式时仅本会话生效 */ } }
 let lspQueue: Promise<void> = Promise.resolve();
 
 export function useFilesController() {
   const { t } = useI18n();
-  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: reflect_agent_status, staleTime: 30_000 });
+  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: zhuye_agent_status, staleTime: 30_000 });
   const workspace = statusQuery.data?.workspace ?? null;
-  const treeQuery = useQuery({ queryKey: ['files-tree', workspace], queryFn: () => reflect_list_dir(workspace, 4), enabled: !!workspace, staleTime: 10_000 });
+  const treeQuery = useQuery({ queryKey: ['files-tree', workspace], queryFn: () => zhuye_list_dir(workspace, 4), enabled: !!workspace, staleTime: 10_000 });
   const [selected, setSelected] = useState<string | null>(null);
-  const fileQuery = useQuery({ queryKey: ['files-read', selected], queryFn: () => reflect_read_file(selected!), enabled: !!selected, staleTime: 60_000 });
+  const fileQuery = useQuery({ queryKey: ['files-read', selected], queryFn: () => zhuye_read_file(selected!), enabled: !!selected, staleTime: 60_000 });
   const [lsp, setLsp] = useState<LspStatus>({ enabled: false, servers: [], diagnostics: { documents: 0, count: 0, statusLine: '' } });
   const [lspBusy, setLspBusy] = useState(false);
   const [lspError, setLspError] = useState<string | null>(null);
@@ -32,9 +32,9 @@ export function useFilesController() {
     lspQueue = lspQueue.catch(() => {}).then(async () => {
       if (generation !== generationRef.current) return;
       try {
-        let status = await reflect_lsp_status();
+        let status = await zhuye_lsp_status();
         if (generation !== generationRef.current) return;
-        if (status.enabled !== pref) status = await reflect_lsp_set_enabled(pref);
+        if (status.enabled !== pref) status = await zhuye_lsp_set_enabled(pref);
         if (!status.enabled) useAgentStore.setState({ lspServers: [] });
         if (generation !== generationRef.current) return;
         setLsp(status);
@@ -51,7 +51,7 @@ export function useFilesController() {
     lspQueue = lspQueue.catch(() => {}).then(async () => {
       if (generation !== generationRef.current) return;
       try {
-        const status = await reflect_lsp_set_enabled(next);
+        const status = await zhuye_lsp_set_enabled(next);
         if (!status.enabled) useAgentStore.setState({ lspServers: [] });
         if (generation !== generationRef.current) return;
         setLsp(status);
@@ -60,8 +60,8 @@ export function useFilesController() {
       finally { if (generation === generationRef.current) setLspBusy(false); }
     });
   };
-  useEffect(() => { if (lspBusy || !lsp.enabled || !fileQuery.data || fileQuery.data.binary || !selected) return; void reflect_lsp_warmup(fileQuery.data.path).catch(() => {}); }, [fileQuery.data, lsp.enabled, lspBusy, selected]);
-  const diagnosticsQuery = useQuery({ queryKey: ['lsp-diagnostics', selected], queryFn: () => reflect_lsp_diagnostics(selected as string), enabled: !!selected && lsp.enabled && !lspBusy, staleTime: 5_000, refetchInterval: lsp.enabled && !lspBusy ? 15_000 : false });
+  useEffect(() => { if (lspBusy || !lsp.enabled || !fileQuery.data || fileQuery.data.binary || !selected) return; void zhuye_lsp_warmup(fileQuery.data.path).catch(() => {}); }, [fileQuery.data, lsp.enabled, lspBusy, selected]);
+  const diagnosticsQuery = useQuery({ queryKey: ['lsp-diagnostics', selected], queryFn: () => zhuye_lsp_diagnostics(selected as string), enabled: !!selected && lsp.enabled && !lspBusy, staleTime: 5_000, refetchInterval: lsp.enabled && !lspBusy ? 15_000 : false });
   const diagnostics = diagnosticsQuery.data ?? [];
   const pending = useEditorStore((state) => selected ? state.pending[selected] : undefined);
   const lastEditedPath = useEditorStore((state) => state.lastEditedPath);

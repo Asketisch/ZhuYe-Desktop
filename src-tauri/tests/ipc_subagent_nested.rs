@@ -137,7 +137,7 @@ fn nested_subagents_return_grandchild_result_to_parent() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -148,25 +148,25 @@ fn nested_subagents_return_grandchild_result_to_parent() {
         spec_dir.join("nested.md"),
         "---\nname: Nested Runner\nrole: nested\nallowed_tools: [call_nested]\n---\nDelegate nested work when asked.\n",
     ).unwrap();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    let tools: Value = common::invoke_ok("reflect_list_tools", json!({}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    let tools: Value = common::invoke_ok("zhuye_list_tools", json!({}));
     assert!(
         tools
             .as_array()
             .is_some_and(|items| items.iter().any(|tool| tool["name"] == "call_nested")),
         "call_nested tool missing: {tools}"
     );
-    let specs: Value = common::invoke_ok("reflect_list_subagent_specs", json!({}));
+    let specs: Value = common::invoke_ok("zhuye_list_subagent_specs", json!({}));
     assert!(
         specs
             .as_array()
             .is_some_and(|items| items.iter().any(|spec| spec["role"] == "nested")),
         "workspace nested spec missing: {specs}"
     );
-    common::invoke_ok("reflect_set_permission_mode", json!({"mode":"prompt"}));
+    common::invoke_ok("zhuye_set_permission_mode", json!({"mode":"prompt"}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"nested-parent-turn","op":{"type":"user_input","items":[{"type":"text","text":"nested-parent-marker"}]}}}),
     );
     let mut seen = Vec::new();
@@ -175,7 +175,7 @@ fn nested_subagents_return_grandchild_result_to_parent() {
             && event["msg"]["kind"]["tool_name"] == "call_nested"
     });
     common::invoke_ok(
-        "reflect_tool_approval",
+        "zhuye_tool_approval",
         json!({"id":approval["msg"]["request_id"], "decision":"approve"}),
     );
     wait_for(&rx, &mut seen, |event| {

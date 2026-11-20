@@ -3,8 +3,8 @@
  *
  * 覆盖:
  *   - newSession 触发 onNewChat + pushToast(info)
- *   - exportActive 无 activeId 时推 warn toast,有 activeId 时调 reflect_export_session
- *   - saveConfig 调 reflect_save_config('') 并推 success toast
+ *   - exportActive 无 activeId 时推 warn toast,有 activeId 时调 zhuye_export_session
+ *   - saveConfig 调 zhuye_save_config('') 并推 success toast
  *   - runSlash 调 submit
  *   - clearAllSessions 复用 qc 缓存的 sessions
  */
@@ -15,7 +15,7 @@ import type { ReactNode } from 'react';
 import { usePaletteActions, type PaletteToasts } from './usePaletteActions';
 import { useAgentStore } from '@/stores/agentStore';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
-import { reflect_delete_session } from '@/utils/commands';
+import { zhuye_delete_session } from '@/utils/commands';
 
 // clearAllSessions 有二次确认(ConfirmDialog);测试中自动确认。
 vi.mock('@/logic/modals/confirm', () => ({
@@ -65,7 +65,7 @@ describe('usePaletteActions', () => {
       defaultOptions: { queries: { retry: false } },
     });
     onNewChat = vi.fn();
-    onDeleteSession = vi.fn((id: string) => reflect_delete_session(id));
+    onDeleteSession = vi.fn((id: string) => zhuye_delete_session(id));
   });
   afterEach(() => {
     resetMockInvoke();
@@ -108,9 +108,9 @@ describe('usePaletteActions', () => {
     expect(toasts[toasts.length - 1].message).toBe('No active session to export.');
   });
 
-  it('exportActive: success path calls reflect_export_session + success toast', async () => {
+  it('exportActive: success path calls zhuye_export_session + success toast', async () => {
     const spy = vi.fn(async () => '/tmp/foo.json');
-    mockInvoke('reflect_export_session', spy);
+    mockInvoke('zhuye_export_session', spy);
 
     const { result } = renderHook(
       () =>
@@ -126,7 +126,7 @@ describe('usePaletteActions', () => {
     });
     // 桥接层将 cmd + args 一并转给 handler；验证 id 已传入。
     expect(spy).toHaveBeenCalledWith(
-      'reflect_export_session',
+      'zhuye_export_session',
       expect.objectContaining({ id: 'sess-1' }),
     );
 
@@ -137,7 +137,7 @@ describe('usePaletteActions', () => {
   });
 
   it('exportActive: null path uses exportedNoPath', async () => {
-    mockInvoke('reflect_export_session', async () => null);
+    mockInvoke('zhuye_export_session', async () => null);
 
     const { result } = renderHook(
       () =>
@@ -157,9 +157,9 @@ describe('usePaletteActions', () => {
 
   // ── markdown 转录导出（核心 `to_markdown`；此前有后端无入口）──
 
-  it('exportActiveMarkdown: calls reflect_export_session_markdown + success toast', async () => {
+  it('exportActiveMarkdown: calls zhuye_export_session_markdown + success toast', async () => {
     const spy = vi.fn(async () => ({ path: '/tmp/foo.md', bytes: 42 }));
-    mockInvoke('reflect_export_session_markdown', spy);
+    mockInvoke('zhuye_export_session_markdown', spy);
 
     const { result } = renderHook(
       () =>
@@ -174,7 +174,7 @@ describe('usePaletteActions', () => {
       await result.current.exportActiveMarkdown();
     });
     expect(spy).toHaveBeenCalledWith(
-      'reflect_export_session_markdown',
+      'zhuye_export_session_markdown',
       expect.objectContaining({ id: 'sess-1' }),
     );
     const toasts = useAgentStore.getState().toasts;
@@ -202,7 +202,7 @@ describe('usePaletteActions', () => {
   });
 
   it('exportActiveMarkdown: failure → error toast', async () => {
-    mockInvoke('reflect_export_session_markdown', async () => {
+    mockInvoke('zhuye_export_session_markdown', async () => {
       throw new Error('boom');
     });
     const { result } = renderHook(
@@ -221,7 +221,7 @@ describe('usePaletteActions', () => {
     expect(toasts[toasts.length - 1].kind).toBe('error');
   });
 
-  it('saveConfig: success toast', async () => {    mockInvoke('reflect_save_config', async () => undefined);
+  it('saveConfig: success toast', async () => {    mockInvoke('zhuye_save_config', async () => undefined);
     const { result } = renderHook(
       () =>
         usePaletteActions({
@@ -239,7 +239,7 @@ describe('usePaletteActions', () => {
   });
 
   it('saveConfig: failure toast', async () => {
-    mockInvoke('reflect_save_config', async () => {
+    mockInvoke('zhuye_save_config', async () => {
       throw new Error('boom');
     });
     const { result } = renderHook(
@@ -270,10 +270,10 @@ describe('usePaletteActions', () => {
         }),
       { wrapper: wrapper(qc) },
     );
-    // /compact 是 submit_with_submission 类:必须触发 reflect_compact,
+    // /compact 是 submit_with_submission 类:必须触发 zhuye_compact,
     // 而不是把 "/compact" 作为普通文本 submit 给模型。
     let compactCalled = false;
-    mockInvoke('reflect_compact', async () => {
+    mockInvoke('zhuye_compact', async () => {
       compactCalled = true;
       return 'ok';
     });
@@ -304,14 +304,14 @@ describe('usePaletteActions', () => {
   });
 
   it('clearAllSessions: fetches sessions and deletes each', async () => {
-    // 每个测试以 resetMockInvoke() 开始 —— 注册我们自己的 reflect_list_sessions。
-    mockInvoke('reflect_list_sessions', async () => [
+    // 每个测试以 resetMockInvoke() 开始 —— 注册我们自己的 zhuye_list_sessions。
+    mockInvoke('zhuye_list_sessions', async () => [
       { session_id: 'sess-1' },
       { session_id: 'sess-2' },
       { session_id: 'sess-3' },
     ]);
     const delSpy = vi.fn(async () => undefined);
-    mockInvoke('reflect_delete_session', delSpy);
+    mockInvoke('zhuye_delete_session', delSpy);
 
     const { result } = renderHook(
       () =>
@@ -329,11 +329,11 @@ describe('usePaletteActions', () => {
     expect(onDeleteSession).toHaveBeenCalledTimes(3);
     expect(onDeleteSession).toHaveBeenCalledWith('sess-1');
     expect(delSpy).toHaveBeenCalledWith(
-      'reflect_delete_session',
+      'zhuye_delete_session',
       expect.objectContaining({ id: 'sess-1' }),
     );
     expect(delSpy).toHaveBeenCalledWith(
-      'reflect_delete_session',
+      'zhuye_delete_session',
       expect.objectContaining({ id: 'sess-2' }),
     );
 
@@ -350,17 +350,17 @@ describe('usePaletteActions', () => {
   it('clearAllSessions fetches a fresh list even when the cache is still fresh', async () => {
     qc.setQueryDefaults(['sessions'], { staleTime: 60_000 });
     qc.setQueryData(['sessions'], [{ session_id: 'old' }]);
-    mockInvoke('reflect_list_sessions', async () => [{ session_id: 'current' }]);
+    mockInvoke('zhuye_list_sessions', async () => [{ session_id: 'current' }]);
     const remove = vi.fn(async () => undefined);
-    mockInvoke('reflect_delete_session', remove);
+    mockInvoke('zhuye_delete_session', remove);
     const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
     await act(async () => { await result.current.clearAllSessions(); });
-    expect(remove).toHaveBeenCalledWith('reflect_delete_session', { id: 'current' });
-    expect(remove).not.toHaveBeenCalledWith('reflect_delete_session', { id: 'old' });
+    expect(remove).toHaveBeenCalledWith('zhuye_delete_session', { id: 'current' });
+    expect(remove).not.toHaveBeenCalledWith('zhuye_delete_session', { id: 'old' });
   });
 
   it('clearAllSessions: empty list → info toast', async () => {
-    mockInvoke('reflect_list_sessions', async () => []);
+    mockInvoke('zhuye_list_sessions', async () => []);
     const { result } = renderHook(
       () =>
         usePaletteActions({
@@ -378,8 +378,8 @@ describe('usePaletteActions', () => {
   });
 
   it('clearAllSessions reports the actual number deleted and structured errors', async () => {
-    mockInvoke('reflect_list_sessions', async () => [{ session_id: 'one' }, { session_id: 'two' }]);
-    mockInvoke('reflect_delete_session', async (_cmd, args) => {
+    mockInvoke('zhuye_list_sessions', async () => [{ session_id: 'one' }, { session_id: 'two' }]);
+    mockInvoke('zhuye_delete_session', async (_cmd, args) => {
       if (args?.id === 'two') throw { msg: 'permission denied' };
     });
     const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
@@ -391,15 +391,15 @@ describe('usePaletteActions', () => {
   });
 
   it('clearAllSessions reports a list failure instead of rejecting silently', async () => {
-    mockInvoke('reflect_list_sessions', async () => { throw { msg: 'disk unavailable' }; });
+    mockInvoke('zhuye_list_sessions', async () => { throw { msg: 'disk unavailable' }; });
     const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
     await act(async () => { await result.current.clearAllSessions(); });
     expect(useAgentStore.getState().toasts.some((toast) => toast.kind === 'error' && toast.message.includes('disk unavailable'))).toBe(true);
   });
 
   it('clearAllSessions does not announce success when every deletion fails', async () => {
-    mockInvoke('reflect_list_sessions', async () => [{ session_id: 'one' }]);
-    mockInvoke('reflect_delete_session', async () => { throw { msg: 'read-only' }; });
+    mockInvoke('zhuye_list_sessions', async () => [{ session_id: 'one' }]);
+    mockInvoke('zhuye_delete_session', async () => { throw { msg: 'read-only' }; });
     const { result } = renderHook(() => usePaletteActions({ activeId: null, onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
     await act(async () => { await result.current.clearAllSessions(); });
     const toasts = useAgentStore.getState().toasts;
@@ -408,7 +408,7 @@ describe('usePaletteActions', () => {
   });
 
   it('exportActive displays structured backend errors', async () => {
-    mockInvoke('reflect_export_session', async () => { throw { msg: 'disk full' }; });
+    mockInvoke('zhuye_export_session', async () => { throw { msg: 'disk full' }; });
     const { result } = renderHook(() => usePaletteActions({ activeId: 'one', onNewChat, onDeleteSession, toasts: TOASTS }), { wrapper: wrapper(qc) });
     await act(async () => { await result.current.exportActive(); });
     expect(useAgentStore.getState().toasts.at(-1)?.message).toBe('Export failed: disk full');

@@ -1,9 +1,9 @@
 //! 知识管理系统(KMS)命令。
 //!
 //! 基于 grep 的 wiki + /dream 会话挖掘。
-//! 包装 `reflect_kms::KnowledgeManager`。
+//! 包装 `zhuye_kms::KnowledgeManager`。
 
-use reflect_kms::{DreamResult, KmsError, Page, SearchResult, WikiInfo};
+use zhuye_kms::{DreamResult, KmsError, Page, SearchResult, WikiInfo};
 use tauri::State;
 
 use crate::commands::error::{CommandError, CommandResult};
@@ -17,13 +17,13 @@ impl From<KmsError> for CommandError {
 
 /// 列出所有知识库。
 #[tauri::command]
-pub async fn reflect_kms_list(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<WikiInfo>> {
+pub async fn zhuye_kms_list(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<WikiInfo>> {
     agent.kms_manager().list_wikis().map_err(CommandError::from)
 }
 
 /// 创建一个新的知识库。
 #[tauri::command]
-pub async fn reflect_kms_create(
+pub async fn zhuye_kms_create(
     agent: State<'_, MinimalAgent>,
     name: String,
     description: Option<String>,
@@ -36,7 +36,7 @@ pub async fn reflect_kms_create(
 
 /// 删除一个知识库。
 #[tauri::command]
-pub async fn reflect_kms_delete(agent: State<'_, MinimalAgent>, name: String) -> CommandResult<()> {
+pub async fn zhuye_kms_delete(agent: State<'_, MinimalAgent>, name: String) -> CommandResult<()> {
     agent
         .kms_manager()
         .delete_wiki(&name)
@@ -46,7 +46,7 @@ pub async fn reflect_kms_delete(agent: State<'_, MinimalAgent>, name: String) ->
 /// 在知识库中保存一个页面。
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // 保持现有平铺 IPC 负载。
-pub async fn reflect_kms_save_page(
+pub async fn zhuye_kms_save_page(
     agent: State<'_, MinimalAgent>,
     wiki: String,
     page: String,
@@ -75,7 +75,7 @@ pub async fn reflect_kms_save_page(
 
 /// 从知识库读取一个页面。
 #[tauri::command]
-pub async fn reflect_kms_get_page(
+pub async fn zhuye_kms_get_page(
     agent: State<'_, MinimalAgent>,
     wiki: String,
     page: String,
@@ -88,7 +88,7 @@ pub async fn reflect_kms_get_page(
 
 /// 列出知识库中的所有页面。
 #[tauri::command]
-pub async fn reflect_kms_list_pages(
+pub async fn zhuye_kms_list_pages(
     agent: State<'_, MinimalAgent>,
     wiki: String,
 ) -> CommandResult<Vec<Page>> {
@@ -100,7 +100,7 @@ pub async fn reflect_kms_list_pages(
 
 /// 在所有知识库内搜索。
 #[tauri::command]
-pub async fn reflect_kms_search(
+pub async fn zhuye_kms_search(
     agent: State<'_, MinimalAgent>,
     query: String,
 ) -> CommandResult<Vec<SearchResult>> {
@@ -112,7 +112,7 @@ pub async fn reflect_kms_search(
 
 /// 运行一次 /dream 会话 —— 从最近的会话中抽取洞察。
 #[tauri::command]
-pub async fn reflect_dream(
+pub async fn zhuye_dream(
     agent: State<'_, MinimalAgent>,
     insights: Vec<String>,
     sessions_analyzed: usize,

@@ -20,13 +20,13 @@
 //! ## 断言层级
 //!
 //! 事件没有命令面(不是请求,是后端写出口),所以本文件直接驱动协议 crate
-//! 的 serde 层 —— 这正是引擎 `reflect_event` 通道发出的那条 wire 的权威
+//! 的 serde 层 —— 这正是引擎 `zhuye_event` 通道发出的那条 wire 的权威
 //! 定义点。子模块升级后如果事件结构变更(字段改名 / 必填新增),本文件
 //! 会在编译期后的第一时间失败,并逐变体点名。
 
 use std::collections::BTreeMap;
 
-use reflect_protocol::EventMsg;
+use zhuye_protocol::EventMsg;
 use serde_json::Value;
 
 /// 注册表事件变体下限(当前 50)—— 新增变体由 L1 event-parity 三方奇偶
@@ -71,7 +71,7 @@ fn every_event_sample_deserializes_on_the_real_protocol() {
         match serde_json::from_value::<EventMsg>(sample.clone()) {
             Ok(msg) => {
                 // 判别子锚定 **wire**(重序列化后的 `type` 字段)—— 这才是
-                // `reflect_event` 通道上消费者看到的形态。不用
+                // `zhuye_event` 通道上消费者看到的形态。不用
                 // `EventMsg::discriminant()`:上游该 match 与 serde tag 存在
                 // 内部不一致(`AskUserInput` 的 discriminant 是 `"ask_user"`,
                 // wire tag 是 `ask_user_input`),锚定 wire 才是协议真相。

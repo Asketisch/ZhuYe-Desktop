@@ -3,7 +3,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use reflect_config::{default_config_path, load_from_str};
+use zhuye_config::{default_config_path, load_from_str};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::{AgentStatus, MinimalAgent};
@@ -11,13 +11,13 @@ use crate::state::{AgentStatus, MinimalAgent};
 /// 返回 agent 状态快照(ready / has_model / model / workspace / degraded_reason)。
 /// 前端用来显示状态徽标 + 引导用户去 Settings 配 API key。
 #[tauri::command]
-pub async fn reflect_agent_status(agent: State<'_, MinimalAgent>) -> CommandResult<AgentStatus> {
+pub async fn zhuye_agent_status(agent: State<'_, MinimalAgent>) -> CommandResult<AgentStatus> {
     Ok(agent.agent_status())
 }
 
 /// 返回当前 `~/.zhuye/config.toml` 的 TOML 字符串。Settings 页加载用。
 #[tauri::command]
-pub async fn reflect_get_config(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_get_config(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     let cfg = agent.cfg();
     let toml = toml::to_string_pretty(&*cfg.read()).map_err(|e| CommandError {
         msg: format!("serialize config: {e}"),
@@ -32,8 +32,8 @@ pub async fn reflect_get_config(agent: State<'_, MinimalAgent>) -> CommandResult
 /// 落盘 + 换内存快照),避免各自拼一套写盘逻辑。
 pub(crate) fn persist_config(
     agent: &MinimalAgent,
-    new_cfg: reflect_config::ReflectConfig,
-) -> CommandResult<reflect_config::ReflectConfig> {
+    new_cfg: zhuye_config::ReflectConfig,
+) -> CommandResult<zhuye_config::ReflectConfig> {
     let toml = toml::to_string_pretty(&new_cfg).map_err(|e| CommandError {
         msg: format!("serialize config: {e}"),
     })?;
@@ -50,7 +50,7 @@ pub(crate) fn persist_config(
         std::mem::replace(&mut *guard, new_cfg)
     };
     tracing::info!(
-        "[reflect-gui] config saved to {} (hot-reloaded in-memory)",
+        "[zhuye-gui] config saved to {} (hot-reloaded in-memory)",
         path.display()
     );
     Ok(old_cfg)
@@ -65,7 +65,7 @@ pub(crate) fn persist_config(
 /// 运行中的会话生效。hooks 段变更也会重绑当前会话；其余段落仍只热更新 cfg,
 /// 由各自的重载机制接管。
 #[tauri::command]
-pub async fn reflect_save_config(
+pub async fn zhuye_save_config(
     agent: State<'_, MinimalAgent>,
     toml: String,
 ) -> CommandResult<()> {
@@ -76,7 +76,7 @@ pub async fn reflect_save_config(
     //     即可区分「没写」(None)与「写了 false」(Some(false))。没写
     //     → 走核心基线(默认要求 OS sandbox),不因一次保存把沙箱静默关掉;
     //     显式写了 → 尊重用户的显式表态。归一后恒为 Some(有效值)。
-    new_cfg.sandbox.os_level = Some(reflect_app_core::sandbox::normalize_os_level(
+    new_cfg.sandbox.os_level = Some(zhuye_app_core::sandbox::normalize_os_level(
         new_cfg.sandbox.os_level,
     ));
     // 2. 写盘 + 热更新共享 cfg(保留旧快照供变更检测)。
@@ -88,7 +88,7 @@ pub async fn reflect_save_config(
     if let Some(err) =
         crate::state::reload::hot_reload_provider_stack(&agent, &old_cfg, &new_cfg).await
     {
-        tracing::warn!("[reflect-gui] provider reload failed after save: {err}");
+        tracing::warn!("[zhuye-gui] provider reload failed after save: {err}");
     }
     Ok(())
 }
@@ -116,7 +116,7 @@ pub async fn reflect_save_config(
 /// `model` 传空串 = 清除对应位置的 model 覆盖。返回解析后的完整 spec;
 /// 无任何显式 model 时返回空串(诚实缺失,由 UI 显示"未配置模型")。
 #[tauri::command]
-pub async fn reflect_set_model(
+pub async fn zhuye_set_model(
     agent: State<'_, MinimalAgent>,
     provider: String,
     model: String,
@@ -157,13 +157,13 @@ pub async fn reflect_set_model(
         "stub/test" => String::new(),
         s => s.to_string(),
     };
-    tracing::info!("[reflect-gui] model switched to '{spec}' (hot-reloaded)");
+    tracing::info!("[zhuye-gui] model switched to '{spec}' (hot-reloaded)");
     Ok(spec)
 }
 
-/// `reflect_set_model` 的纯函数核心(便于无 Tauri State 单测)。
+/// `zhuye_set_model` 的纯函数核心(便于无 Tauri State 单测)。
 fn apply_model_switch(
-    cfg: &mut reflect_config::ReflectConfig,
+    cfg: &mut zhuye_config::ReflectConfig,
     provider: &str,
     model: &str,
     label: Option<&str>,
@@ -217,7 +217,7 @@ fn apply_model_switch(
 /// 自身;顶层隐式 plan(label = "default" 无数组条目)或未传 label 写段级。
 /// 显式钉住却找不到条目 → 报错,避免 `[active].credential` 指向空处静默失效。
 fn apply_section_model(
-    credentials: &mut [reflect_config::CredentialConfig],
+    credentials: &mut [zhuye_config::CredentialConfig],
     section_model: &mut Option<String>,
     label: Option<&str>,
     model_opt: Option<String>,
@@ -243,7 +243,7 @@ fn apply_section_model(
 /// 列出当前 ToolRegistry 中所有工具(name + description)。
 /// 前端 Settings / Skills 页展示可用工具列表用。
 #[tauri::command]
-pub async fn reflect_list_tools(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<ToolInfo>> {
+pub async fn zhuye_list_tools(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<ToolInfo>> {
     let tools = agent.tools();
     let mut out: Vec<ToolInfo> = tools
         .list()
@@ -269,7 +269,7 @@ pub struct ToolInfo {
 
 // ── Coding plan 余量查询 ─────────────────────────────────────────
 
-/// coding plan 余量快照(序列化给前端)。字段对齐 `reflect_llm::QuotaSnapshot`,
+/// coding plan 余量快照(序列化给前端)。字段对齐 `zhuye_llm::QuotaSnapshot`,
 /// 仅把 `resets_at` 从 `DateTime<Utc>` 转成 RFC3339 字符串。
 #[derive(Debug, Clone, Serialize)]
 pub struct PlanQuotaSnapshot {
@@ -288,18 +288,18 @@ pub struct PlanQuotaSnapshot {
 }
 
 /// 把 `check_via` 字符串(`kimi | zhipu | minimax | zenmux | …`,与
-/// `reflect_config::QuotaSource` 的 snake_case 序列化一致)解析成 provider 实例。
+/// `zhuye_config::QuotaSource` 的 snake_case 序列化一致)解析成 provider 实例。
 /// 复用 `state::quota::make_provider` 的同一份映射;`None`(火山/Anthropic/
 /// OpenAI usage 暂未实现)报错给前端,而非静默走本地统计。
 fn make_quota_provider(
     check_via: &str,
-) -> Result<std::sync::Arc<dyn reflect_llm::QuotaProvider>, CommandError> {
+) -> Result<std::sync::Arc<dyn zhuye_llm::QuotaProvider>, CommandError> {
     if check_via.is_empty() {
         return Err(CommandError {
             msg: "check_via is empty — set quota.check_via on the plan first".into(),
         });
     }
-    let src: reflect_config::QuotaSource =
+    let src: zhuye_config::QuotaSource =
         serde_json::from_value(serde_json::Value::String(check_via.to_string())).map_err(|_| {
             CommandError {
                 msg: format!("unknown check_via: {check_via}"),
@@ -316,13 +316,13 @@ fn make_quota_provider(
 /// 查询指定 coding plan 的剩余额度(对着厂商用量 API,端点与 cc-switch 一致:
 /// Kimi `/coding/v1/usages`、智谱 `/api/monitor/usage/quota/limit`、
 /// MiniMax `/coding_plan/remains`、ZenMux base_url)。查询本体在
-/// `reflect_llm` 的 `QuotaProvider` 实现里,与运行时 failover 判定共用。
+/// `zhuye_llm` 的 `QuotaProvider` 实现里,与运行时 failover 判定共用。
 ///
 /// 传显式 `base_url` / `api_key` 而非 (provider, label):前端编辑中的未保存
 /// 表单也能直接试查,无需先落盘。网络瞬时失败同样折叠为
 /// `success=false`——对手动查询而言展示层处理方式相同。
 #[tauri::command]
-pub async fn reflect_query_plan_quota(
+pub async fn zhuye_query_plan_quota(
     base_url: String,
     api_key: String,
     check_via: String,

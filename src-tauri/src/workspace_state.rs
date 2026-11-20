@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn set_and_get_share_the_same_override() {
-        let path = PathBuf::from("/tmp/reflect-workspace-state-test");
+        let path = PathBuf::from("/tmp/zhuye-workspace-state-test");
         WorkspaceState::set(path.clone());
         assert_eq!(WorkspaceState::get(), Some(path));
     }
@@ -78,6 +78,6 @@ mod tests {
         WorkspaceState::set_additional_dirs(Vec::new());
         assert!(WorkspaceState::additional_dirs().is_empty());
         // 恢复主工作区状态,不影响其他用例。
-        WorkspaceState::set(PathBuf::from("/tmp/reflect-workspace-state-test"));
+        WorkspaceState::set(PathBuf::from("/tmp/zhuye-workspace-state-test"));
     }
 }

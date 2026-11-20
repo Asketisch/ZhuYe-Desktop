@@ -7,13 +7,13 @@
  *
  * - 订阅 webview 拖拽事件,暴露 `dragActive` 高亮态 + `nativeDrop` 标记
  *   （true 时 Composer 抑制 DOM drop,防止 Windows 双通道重复添加）;
- * - `ingestPaths` 按扩展名分流:图片 → `reflect_read_image_base64` 读
+ * - `ingestPaths` 按扩展名分流:图片 → `zhuye_read_image_base64` 读
  *   字节转 data-URL 走 inline image 附件（core 的 LocalImage item 尚未
  *   接通,必须以字节提交）;其余文件 → file mention（真实路径,由 agent
  *   的 /read 按需读取）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { reflect_read_image_base64 } from '@/utils/commands/files';
+import { zhuye_read_image_base64 } from '@/utils/commands/files';
 import { onWebviewDragDrop } from '@/utils/dragDrop';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
@@ -53,7 +53,7 @@ export function useComposerDragDrop(attachments: UseAttachmentsResult): Composer
           continue;
         }
         try {
-          const res = await reflect_read_image_base64(p);
+          const res = await zhuye_read_image_base64(p);
           // 非 Tauri 环境 invoke 降级返回 undefined —— 无字节可加,跳过。
           if (!res) continue;
           attachments.addInlineImage(

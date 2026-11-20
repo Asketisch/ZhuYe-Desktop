@@ -7,14 +7,14 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 import { chatLinkFor, shortTimestamp } from '../utils/threadLabels';
 import { SessionItemMenu } from '@/features/sessions/components/SessionItemMenu';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/threads/components/ThreadItem.module.css';
 
 export interface ThreadItemProps {
-  session: ReflectSessionInfo;
+  session: ZhuyeSessionInfo;
   active: boolean;
   onClick: () => void;
   onRename: (id: string, newName: string) => Promise<void>;

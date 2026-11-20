@@ -1,19 +1,19 @@
 /**
  * turnsFromRollout 单元测试 —— 直接以真实 rollout JSONL 线格式
- * (reflect_protocol::RolloutRecord tagged union) 作为输入。
+ * (zhuye_protocol::RolloutRecord tagged union) 作为输入。
  */
 import { describe, expect, it } from 'vitest';
 import { turnsFromRollout } from './replay';
-import type { ReflectRolloutRecord } from '@/utils/types';
+import type { ZhuyeRolloutRecord } from '@/utils/types';
 
 const T1 = '075f8a83-d84b-4f9d-93eb-9c428881bb43';
 const T2 = '1af25630-0000-0000-0000-000000000000';
 
-function rec(partial: Record<string, unknown>): ReflectRolloutRecord {
-  return partial as ReflectRolloutRecord;
+function rec(partial: Record<string, unknown>): ZhuyeRolloutRecord {
+  return partial as ZhuyeRolloutRecord;
 }
 
-const BASE_RECORDS: ReflectRolloutRecord[] = [
+const BASE_RECORDS: ZhuyeRolloutRecord[] = [
   rec({ type: 'session_meta', session_id: 'sess-1', model: 'anthropic/x', started_at: '2026-08-13T03:01:00Z' }),
   rec({ type: 'permission_mode_changed', from: 'auto', to: 'plan', at: '2026-08-13T03:01:00Z' }),
   rec({
@@ -223,7 +223,7 @@ describe('turnsFromRollout', () => {
       rec({ type: 'message', turn_id: T1, role: 'user', content: 42 }),
       rec({ type: 'message', turn_id: T1, role: 'system', content: 'system note' }),
       rec({ type: 'message', turn_id: T1, role: 'user', content: '' }),
-      { bogus: true } as unknown as ReflectRolloutRecord,
+      { bogus: true } as unknown as ZhuyeRolloutRecord,
     ]);
     // 无 turn_id / 非字符串 content / system role / 空文本 → 全部丢弃。
     expect(turns).toHaveLength(0);

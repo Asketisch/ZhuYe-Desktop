@@ -1,16 +1,16 @@
 //! Autopilot 命令。
 //!
 //! Autopilot 配置和历史存储；后台驱动负责调度执行。
-//! `reflect_stream::autopilot::AutopilotManager` 的薄包装,
+//! `zhuye_stream::autopilot::AutopilotManager` 的薄包装,
 //! 把配置和运行历史暴露给前端。
 //!
 //! ## 命令清单
 //!
-//! - `reflect_get_autopilot_config` — 读取当前配置
-//! - `reflect_update_autopilot_config(config)` — 写入新配置
-//! - `reflect_autopilot_history` — 拉取最近 run 历史
+//! - `zhuye_get_autopilot_config` — 读取当前配置
+//! - `zhuye_update_autopilot_config(config)` — 写入新配置
+//! - `zhuye_autopilot_history` — 拉取最近 run 历史
 
-use reflect_stream::autopilot::{AutopilotConfig, AutopilotRun};
+use zhuye_stream::autopilot::{AutopilotConfig, AutopilotRun};
 use tauri::State;
 
 use crate::commands::error::{CommandError, CommandResult};
@@ -18,7 +18,7 @@ use crate::state::MinimalAgent;
 
 /// 读取当前 autopilot 配置。
 #[tauri::command]
-pub async fn reflect_get_autopilot_config(
+pub async fn zhuye_get_autopilot_config(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<AutopilotConfig> {
     agent
@@ -29,7 +29,7 @@ pub async fn reflect_get_autopilot_config(
 
 /// 更新 autopilot 配置。
 #[tauri::command]
-pub async fn reflect_update_autopilot_config(
+pub async fn zhuye_update_autopilot_config(
     agent: State<'_, MinimalAgent>,
     config: AutopilotConfig,
 ) -> CommandResult<()> {
@@ -41,7 +41,7 @@ pub async fn reflect_update_autopilot_config(
 
 /// 读取 autopilot 的运行历史。
 #[tauri::command]
-pub async fn reflect_autopilot_history(
+pub async fn zhuye_autopilot_history(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<AutopilotRun>> {
     agent

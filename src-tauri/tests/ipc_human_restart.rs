@@ -47,7 +47,7 @@ fn reply(tool: bool) -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -57,7 +57,7 @@ fn listen() -> Receiver<Value> {
 
 fn submit(id: &str, prompt: &str) {
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":id,"op":{"type":"user_input","items":[{"type":"text","text":prompt}]}}}),
     );
 }
@@ -80,8 +80,8 @@ fn wait_until(rx: &Receiver<Value>, id: &str, event_type: &str) -> Vec<Value> {
 fn human_input_files_survive_restart_and_retry_consumes_answer() {
     if std::env::var(PHASE).as_deref() == Ok("child") {
         let rx = listen();
-        let session = common::invoke_ok("reflect_create_session", json!({}));
-        common::invoke_ok("reflect_bind_session", json!({"id":session}));
+        let session = common::invoke_ok("zhuye_create_session", json!({}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":session}));
         let base = std::path::PathBuf::from(std::env::var_os(BASE).unwrap());
         std::fs::write(base.join("session-id"), session.as_str().unwrap()).unwrap();
         submit("human-before-restart", "ask-human-before-restart");
@@ -155,7 +155,7 @@ fn human_input_files_survive_restart_and_retry_consumes_answer() {
         std::env::set_var(BASE, shared.path());
     }
     let rx = listen();
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     submit("human-after-restart", "retry-human-after-restart");
     let seen = wait_until(&rx, "human-after-restart", "turn_complete");
     assert!(

@@ -1,7 +1,7 @@
 /**
  * 会话笔记 IPC 包装。
  *
- * agent 运行时经 `AddSessionNoteTool`(`reflect-notes`)把结论写进
+ * agent 运行时经 `AddSessionNoteTool`(`zhuye-notes`)把结论写进
  * `<notes_home>/session-notes/<thread_id>.jsonl`。此前这条链路只有写、
  * 没有读 —— GUI 补上读取侧,让「agent 记了什么」可见。
  */
@@ -26,11 +26,11 @@ export interface NoteSessionInfo {
 }
 
 /** 列出某会话最近的有效笔记(按写入顺序,最新在后);没有笔记时返回空数组。 */
-export function reflect_list_session_notes(id: string): Promise<SessionNoteInfo[]> {
-  return invoke('reflect_list_session_notes', { id });
+export function zhuye_list_session_notes(id: string): Promise<SessionNoteInfo[]> {
+  return invoke('zhuye_list_session_notes', { id });
 }
 
 /** 列出所有有笔记的会话(按最后写入时间降序)。 */
-export function reflect_list_note_sessions(): Promise<NoteSessionInfo[]> {
-  return invoke('reflect_list_note_sessions');
+export function zhuye_list_note_sessions(): Promise<NoteSessionInfo[]> {
+  return invoke('zhuye_list_note_sessions');
 }

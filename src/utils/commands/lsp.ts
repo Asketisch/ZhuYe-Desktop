@@ -41,23 +41,23 @@ export interface LspDiagnostic {
 }
 
 /** 开启 / 关闭 LSP（对当前生效的工作区）。 */
-export async function reflect_lsp_set_enabled(enabled: boolean): Promise<LspStatus> {
-  return invoke<LspStatus>('reflect_lsp_set_enabled', { enabled });
+export async function zhuye_lsp_set_enabled(enabled: boolean): Promise<LspStatus> {
+  return invoke<LspStatus>('zhuye_lsp_set_enabled', { enabled });
 }
 
 /** 查询 LSP 状态。 */
-export async function reflect_lsp_status(): Promise<LspStatus> {
-  return invoke<LspStatus>('reflect_lsp_status');
+export async function zhuye_lsp_status(): Promise<LspStatus> {
+  return invoke<LspStatus>('zhuye_lsp_status');
 }
 
 /**
  * 预热一个代码文件（didOpen，server 侧建索引）。LSP 未开启或无匹配
  * server 时 warmed = false，不报错 —— 预热是尽力而为的后台优化。
  */
-export async function reflect_lsp_warmup(
+export async function zhuye_lsp_warmup(
   path: string,
 ): Promise<{ warmed: boolean; server: string | null }> {
-  return invoke<{ warmed: boolean; server: string | null }>('reflect_lsp_warmup', { path });
+  return invoke<{ warmed: boolean; server: string | null }>('zhuye_lsp_warmup', { path });
 }
 
 /**
@@ -67,6 +67,6 @@ export async function reflect_lsp_warmup(
  * `textDocument/publishDiagnostics` 时被动缓存,客户端不主动 pull。
  * 文件未被 server 打开过(未预热)或 LSP 未开启 → 空列表。
  */
-export async function reflect_lsp_diagnostics(path: string): Promise<LspDiagnostic[]> {
-  return invoke<LspDiagnostic[]>('reflect_lsp_diagnostics', { path });
+export async function zhuye_lsp_diagnostics(path: string): Promise<LspDiagnostic[]> {
+  return invoke<LspDiagnostic[]>('zhuye_lsp_diagnostics', { path });
 }

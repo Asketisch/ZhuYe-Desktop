@@ -3,22 +3,22 @@
 //!
 //! 调用方:
 //! - `state/install.rs::install_agent_thread`:首次构造,`sid = None`,
-//!   `preload = []`(走随机 session_id 的占位 thread,供 `reflect_bind_session`
+//!   `preload = []`(走随机 session_id 的占位 thread,供 `zhuye_bind_session`
 //!   重建前作为兜底)。
 //! - `state/rebind.rs::rebind_session`:每次切换会话,`sid = Some(...)`,
 //!   `preload` 由 `records_to_preload` 从 rollout replay 算出。
 //!
 //! 持久化:recorder 绑定的 base 目录与 `commands/sessions.rs::sessions_base`
-//! 一致(都是 `reflect_rollout::path::default_base()`),保证 record 与
+//! 一致(都是 `zhuye_rollout::path::default_base()`),保证 record 与
 //! replay 同源 —— 这是为什么我们替换了原 `dirs::home_dir().join(...)` 的
 //! 直接拼装。
 
 use std::sync::Arc;
 
-use reflect_core::{AgentConfig, AgentThread};
-use reflect_llm::{ChatMessage, ModelRegistry, SharedModelRegistry};
-use reflect_protocol::{PermissionMode, ThreadId};
-use reflect_tools::Sanitizer;
+use zhuye_core::{AgentConfig, AgentThread};
+use zhuye_llm::{ChatMessage, ModelRegistry, SharedModelRegistry};
+use zhuye_protocol::{PermissionMode, ThreadId};
+use zhuye_tools::Sanitizer;
 use tracing::warn;
 
 use super::MinimalAgent;
@@ -29,10 +29,10 @@ use super::MinimalAgent;
 /// `enabled = false` 才关闭。model-io 文件名绑定会话 ID，便于 Traces 视图
 /// 与会话列表关联。
 fn build_telemetry_sink(
-    cfg: &reflect_config::ReflectConfig,
+    cfg: &zhuye_config::ReflectConfig,
     sid: Option<ThreadId>,
-) -> Option<Arc<reflect_telemetry::TelemetrySink>> {
-    let default_section = reflect_config::TelemetrySection::default();
+) -> Option<Arc<zhuye_telemetry::TelemetrySink>> {
+    let default_section = zhuye_config::TelemetrySection::default();
     let section = cfg.telemetry.as_ref().unwrap_or(&default_section);
     if !section.is_enabled() {
         return None;
@@ -40,15 +40,15 @@ fn build_telemetry_sink(
     let base_dir = section
         .dir
         .clone()
-        .unwrap_or_else(|| reflect_telemetry::resolve_traces_dir(None));
+        .unwrap_or_else(|| zhuye_telemetry::resolve_traces_dir(None));
     let session_id = sid.unwrap_or_default().to_string();
-    let write_cfg = reflect_telemetry::TelemetryWriteConfig {
+    let write_cfg = zhuye_telemetry::TelemetryWriteConfig {
         redact: section.should_redact(),
         max_bytes: section
             .max_bytes
-            .map_or(reflect_telemetry::model::MAX_FIELD_CHARS, |n| n as usize),
+            .map_or(zhuye_telemetry::model::MAX_FIELD_CHARS, |n| n as usize),
     };
-    let sink = reflect_telemetry::TelemetrySink::new_with_config(
+    let sink = zhuye_telemetry::TelemetrySink::new_with_config(
         base_dir,
         session_id,
         write_cfg,
@@ -66,7 +66,7 @@ fn build_telemetry_sink(
         && !secret_key.is_empty()
     {
         let exporter =
-            reflect_telemetry::LangfuseExporter::start(Some(reflect_telemetry::LangfuseConfig {
+            zhuye_telemetry::LangfuseExporter::start(Some(zhuye_telemetry::LangfuseConfig {
                 endpoint: endpoint.clone(),
                 public_key: public_key.clone(),
                 secret_key: secret_key.clone(),
@@ -80,14 +80,14 @@ fn build_telemetry_sink(
 /// 构造共享 `ModelRegistry`。逻辑原 `install.rs:47-70` 整体搬过来:
 /// provider 配置齐 → `cfg.to_registry()`;否则降级到空 registry,
 /// 让命令层不依赖 API key 也能启动(但实际 chat 跑不动)。
-pub(crate) fn build_registry(cfg_snapshot: &reflect_config::ReflectConfig) -> SharedModelRegistry {
+pub(crate) fn build_registry(cfg_snapshot: &zhuye_config::ReflectConfig) -> SharedModelRegistry {
     let has_provider = cfg_snapshot.active_provider().is_some();
     if has_provider {
         match cfg_snapshot.to_registry() {
             Ok(r) => Arc::new(r),
             Err(e) => {
                 warn!(
-                    "[reflect-gui] to_registry failed ({}); falling back to empty registry",
+                    "[zhuye-gui] to_registry failed ({}); falling back to empty registry",
                     e
                 );
                 Arc::new(ModelRegistry::new())
@@ -95,7 +95,7 @@ pub(crate) fn build_registry(cfg_snapshot: &reflect_config::ReflectConfig) -> Sh
         }
     } else {
         warn!(
-            "[reflect-gui] no provider configured (set OPENAI_API_KEY / ANTHROPIC_API_KEY \
+            "[zhuye-gui] no provider configured (set OPENAI_API_KEY / ANTHROPIC_API_KEY \
              or edit ~/.zhuye/config.toml); running in degraded mode"
         );
         Arc::new(ModelRegistry::new())
@@ -105,7 +105,7 @@ pub(crate) fn build_registry(cfg_snapshot: &reflect_config::ReflectConfig) -> Sh
 /// 构造 `AgentThread`,把 recorder / session_id / preload 一并接进 config。
 ///
 /// `sid == None` 时不挂 recorder 也不固定 id —— 这是 install 阶段的占位
-/// thread,首条 submission 触发 `reflect_bind_session` 后再换为带 recorder
+/// thread,首条 submission 触发 `zhuye_bind_session` 后再换为带 recorder
 /// 的真 thread。
 ///
 /// `initial_mode`:会话级 PermissionMode 的恢复入口(v1.x 会话绑定)。
@@ -141,11 +141,11 @@ pub(crate) fn construct_thread(
     // 纯问候也被迫连答数轮。需要 hook 的用户在 config 显式写
     // `[hooks] enabled = [...]`(或对应子段)。
     let mut hooks_cfg =
-        reflect_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
+        zhuye_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
     if hooks_cfg.enabled.is_none() {
         hooks_cfg.enabled = Some(Vec::new());
     }
-    let hook_engine: Arc<reflect_hooks::HookEngine> = Arc::new(hooks_cfg.build_engine());
+    let hook_engine: Arc<zhuye_hooks::HookEngine> = Arc::new(hooks_cfg.build_engine());
     agent.inner.hook_store.apply_disabled(&hook_engine)?;
     // v1.x 修复:无条件注册 PlanModeGate(GUI 的 Plan 只读边界)。
     // 此前 GUI 从不注册该 gate,Plan 模式只读性只靠 pre_loop 的 write/edit
@@ -154,7 +154,7 @@ pub(crate) fn construct_thread(
     // plan_safe_bash 免审批短路还建立在「gate 已分级」的错误前提上。
     // 与 CLI headless(无条件注册)对齐;gate 按当前 mode 判定,非 Plan
     // 会话零副作用。rebind 恢复 Plan 模式的会话由此同样受保护。
-    hook_engine.register(reflect_hooks::builtins::PlanModeGate::default_mode());
+    hook_engine.register(zhuye_hooks::builtins::PlanModeGate::default_mode());
 
     // v1.x:首轮上下文注入(环境块 + AGENTS.md)—— 修复此前「headless CLI
     // 注册而 GUI 从不注册」的半接线(exec 侧 builtin_hooks.rs 头注释声称
@@ -163,14 +163,17 @@ pub(crate) fn construct_thread(
     // 首轮 InjectMessage,引擎循环零触碰;hook 实例随 thread 生命周期,
     // 每会话只注一次。AGENTS.md 挂 `[active] agents_md` 开关(缺省开,
     // 与 headless.rs 同口径);环境块恒开(主流 agent 均默认注入)。
+    // 字节上限读桌面偏好 `agents_md_max_bytes`(缺省 None = 不截断,
+    // 完整注入;设置后超限字符边界截断并附提示)。
     if cfg_snapshot.active.agents_md.unwrap_or(true) {
-        let user_data_dir = reflect_config::data_path_or_relative(&[]);
-        hook_engine.register(reflect_app_core::prompt_env::AgentsMdHook::new(
+        let user_data_dir = zhuye_config::data_path_or_relative(&[]);
+        hook_engine.register(zhuye_app_core::prompt_env::AgentsMdHook::new(
             agent.workspace(),
             Some(user_data_dir),
+            crate::agent_state::AgentState::agents_md_max_bytes(),
         ));
     }
-    hook_engine.register(reflect_app_core::prompt_env::EnvContextHook::new(
+    hook_engine.register(zhuye_app_core::prompt_env::EnvContextHook::new(
         agent.workspace(),
     ));
 
@@ -178,10 +181,10 @@ pub(crate) fn construct_thread(
     // 避免随机 id 产生空文件污染 `~/.zhuye/sessions/`。
     let mut cfg = AgentConfig::new(model_spec, agent.workspace())
         .with_approvals(true)
-        .with_max_iterations(reflect_core::config::max_iterations_from_env(
+        .with_max_iterations(zhuye_core::config::max_iterations_from_env(
             cfg_snapshot.active.max_iterations,
         ))
-        .with_token_budget(reflect_core::config::token_budget_from_env(
+        .with_token_budget(zhuye_core::config::token_budget_from_env(
             cfg_snapshot
                 .token_budget
                 .as_ref()
@@ -208,7 +211,7 @@ pub(crate) fn construct_thread(
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
     cfg = cfg.with_telemetry(build_telemetry_sink(&cfg_snapshot, sid));
-    let mut mounted_m4: Option<(ThreadId, reflect_core::config::M4Deps)> = None;
+    let mut mounted_m4: Option<(ThreadId, zhuye_core::config::M4Deps)> = None;
     if let Some(sid) = sid {
         // 活跃 agent 名:桌面端偏好(缺省 "default",与 CLI 一致)——
         // 决定加载哪条 agent 定义,以及记忆目录(`.zhuye/agent-memory/<agent>/`)，
@@ -217,7 +220,7 @@ pub(crate) fn construct_thread(
         // 上游 v1.x 起 `build_default_m4` 不可失败(提示词扫描等失败在
         // 上游内部降级为日志),直接接 recorder —— 持久化是承诺而非
         // nice-to-have,GuardedRecorder 的接线不再依赖可失败的组装步骤。
-        let mut m4 = reflect::m4_bootstrap::build_default_m4(
+        let mut m4 = zhuye::m4_bootstrap::build_default_m4(
             &agent.workspace(),
             &active_agent,
             &cfg.current_model(),
@@ -229,14 +232,14 @@ pub(crate) fn construct_thread(
         agent
             .inner
             .tools
-            .register_runtime_tool(Arc::new(reflect_skills::LoadSkillTool::new(
+            .register_runtime_tool(Arc::new(zhuye_skills::LoadSkillTool::new(
                 m4.skills.clone(),
             )));
         agent.inner.tools.register_runtime_tool(Arc::new(
-            reflect_skills::ReadSkillResourceTool::new(m4.skills.clone()),
+            zhuye_skills::ReadSkillResourceTool::new(m4.skills.clone()),
         ));
         m4.recorder = Some(Arc::new(super::recorder_guard::GuardedRecorder::new(
-            reflect_rollout::JsonlRolloutWriter::new(reflect_rollout::path::default_base(), sid),
+            zhuye_rollout::JsonlRolloutWriter::new(zhuye_rollout::path::default_base(), sid),
             super::recorder_guard::gate_for(agent, sid),
         )));
         super::subagents::expose_task_tools(&m4, agent.task_manager());
@@ -256,7 +259,7 @@ pub(crate) fn construct_thread(
             &agent.inner.tools,
             &cfg_snapshot,
         );
-        let subagent_runtime = Arc::new(reflect_core::SubagentRuntimeRegistry::new());
+        let subagent_runtime = Arc::new(zhuye_core::SubagentRuntimeRegistry::new());
         subagent_factory.set_runtime_registry(subagent_runtime.clone());
         cfg = cfg.with_subagent_runtime(subagent_runtime);
         mounted_m4 = Some((sid, m4));
@@ -298,12 +301,12 @@ pub(crate) fn construct_thread(
         // 模式经 inherited_approval_mode 共享翻转,InheritedPlanGate 直接读
         // 父级模式判定只读边界(不依赖侧线程自身模式)。
         let parent_mode = cfg.permission_mode.clone();
-        let factory: reflect_core::side_channel::SideThreadFactory = Arc::new(
+        let factory: zhuye_core::side_channel::SideThreadFactory = Arc::new(
             move |agent_name: &str, cancel: tokio_util::sync::CancellationToken| {
                 let workspace = crate::workspace_state::WorkspaceState::get()
                     .unwrap_or_else(|| inner_for_side.workspace.clone());
                 let model = inner_for_side.model_spec.read().clone();
-                let mut m4 = reflect::m4_bootstrap::build_default_m4(
+                let mut m4 = zhuye::m4_bootstrap::build_default_m4(
                     &workspace,
                     agent_name,
                     &model,
@@ -325,13 +328,13 @@ pub(crate) fn construct_thread(
                     None,
                     None,
                 );
-                side_thread.register_hook(reflect_core::side_channel::InheritedPlanGate::new(
+                side_thread.register_hook(zhuye_core::side_channel::InheritedPlanGate::new(
                     parent_mode.clone(),
                 ));
                 Ok(side_thread)
             },
         );
-        reflect_core::side_channel::SideChannelDriver::new(
+        zhuye_core::side_channel::SideChannelDriver::new(
             agent.inner.side_channels.clone(),
             factory,
         )

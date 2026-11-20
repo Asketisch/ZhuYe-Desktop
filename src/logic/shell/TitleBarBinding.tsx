@@ -4,7 +4,7 @@ import { useLocation } from '@tanstack/react-router';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
-import { reflect_agent_status, reflect_current_workspace } from '@/utils/commands';
+import { zhuye_agent_status, zhuye_current_workspace } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useThemeCycle } from './useThemeCycle';
 import { isUsableModelSpec } from './modelLabel';
@@ -24,7 +24,7 @@ export function TitleBarBinding({ view: View, sidebarOpen, inspectorOpen, onTogg
   const session = useAgentStore((state) => state.session);
   const permissionMode = useAgentStore((state) => state.permissionMode);
   const { t } = useI18n();
-  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: reflect_agent_status, staleTime: 30_000 });
+  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: zhuye_agent_status, staleTime: 30_000 });
   const sessionLabel = session && isUsableModelSpec(session.model)
     ? `${session.model} @ ${session.provider}` : statusQuery.data?.has_model ? statusQuery.data.model : t('shell.sessionWaiting');
   // harness 壳层状态与动作。
@@ -33,7 +33,7 @@ export function TitleBarBinding({ view: View, sidebarOpen, inspectorOpen, onTogg
   // 标题条主标题 = 当前工作区尾段（与 ShellBinding 同源查询键）。
   const wsQuery = useQuery({
     queryKey: ['current-workspace'],
-    queryFn: reflect_current_workspace,
+    queryFn: zhuye_current_workspace,
     staleTime: 30_000,
     retry: 1,
   });

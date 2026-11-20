@@ -2,32 +2,32 @@
  * 市场控制器 —— harness 单色版「插件与 MCP 市场」页的编排 hook。
  *
  * 三种数据源归一成 `MarketCard` 投影:
- *   - MCP server(`reflect_list_mcp_servers`)→ kind 'mcp',已安装;
- *   - 插件(已装 `reflect_list_plugins` + 各 marketplace 清单
- *     `reflect_browse_marketplace`)→ 按 type/category/tags 映射
+ *   - MCP server(`zhuye_list_mcp_servers`)→ kind 'mcp',已安装;
+ *   - 插件(已装 `zhuye_list_plugins` + 各 marketplace 清单
+ *     `zhuye_browse_marketplace`)→ 按 type/category/tags 映射
  *     mcp/skill/hook,缺省 'mcp';
- *   - 技能(已装 `reflect_list_skills`;搜索时叠加 skills.sh 市场结果
- *     `reflect_search_skill_market`)→ kind 'skill'。
+ *   - 技能(已装 `zhuye_list_skills`;搜索时叠加 skills.sh 市场结果
+ *     `zhuye_search_skill_market`)→ kind 'skill'。
  *
  * 突变全部走真实命令,成功/失败经 toast 反馈,并失效对应查询。
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_list_mcp_servers,
-  reflect_delete_mcp_server,
-  reflect_list_plugins,
-  reflect_list_marketplaces,
-  reflect_browse_marketplace,
-  reflect_toggle_plugin,
-  reflect_uninstall_plugin,
-  reflect_install_from_marketplace,
-  reflect_list_skills,
-  reflect_search_skill_market,
-  reflect_install_skill_from_market,
+  zhuye_list_mcp_servers,
+  zhuye_delete_mcp_server,
+  zhuye_list_plugins,
+  zhuye_list_marketplaces,
+  zhuye_browse_marketplace,
+  zhuye_toggle_plugin,
+  zhuye_uninstall_plugin,
+  zhuye_install_from_marketplace,
+  zhuye_list_skills,
+  zhuye_search_skill_market,
+  zhuye_install_skill_from_market,
   type McpServerInfo,
-  type ReflectMarketplacePluginInfo,
-  type ReflectPluginScope,
+  type ZhuyeMarketplacePluginInfo,
+  type ZhuyePluginScope,
 } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
@@ -51,7 +51,7 @@ function asTrimmed(v: unknown, fallback = ''): string {
 }
 
 /** 插件 scope 线外值校验(非法回退 'user',保证 uninstall 不被拒)。 */
-function parseScope(v: unknown): ReflectPluginScope {
+function parseScope(v: unknown): ZhuyePluginScope {
   return v === 'managed' || v === 'user' || v === 'project' || v === 'local' ? v : 'user';
 }
 
@@ -112,12 +112,12 @@ export function useMarketController(): UseMarketControllerResult {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // ── 三源查询 ──
-  const mcpQ = useQuery({ queryKey: [...MARKET_MCP_KEY], queryFn: reflect_list_mcp_servers });
-  const pluginsQ = useQuery({ queryKey: [...MARKET_PLUGINS_KEY], queryFn: reflect_list_plugins });
-  const skillsQ = useQuery({ queryKey: [...MARKET_SKILLS_KEY], queryFn: reflect_list_skills });
+  const mcpQ = useQuery({ queryKey: [...MARKET_MCP_KEY], queryFn: zhuye_list_mcp_servers });
+  const pluginsQ = useQuery({ queryKey: [...MARKET_PLUGINS_KEY], queryFn: zhuye_list_plugins });
+  const skillsQ = useQuery({ queryKey: [...MARKET_SKILLS_KEY], queryFn: zhuye_list_skills });
   const marketplacesQ = useQuery({
     queryKey: [...MARKET_MARKETPLACES_KEY],
-    queryFn: reflect_list_marketplaces,
+    queryFn: zhuye_list_marketplaces,
     staleTime: MARKET_STALE_MS,
   });
 
@@ -126,12 +126,12 @@ export function useMarketController(): UseMarketControllerResult {
   // 逐个 marketplace 浏览;市场未注册 / 缓存未物化时 reject(allSettled 吞掉)。
   const marketplaceItemsQ = useQuery({
     queryKey: [...MARKET_MARKETPLACE_ITEMS_KEY, marketplaces.map((m) => m.name)],
-    queryFn: async (): Promise<Array<{ marketplace: string; item: ReflectMarketplacePluginInfo }>> => {
-      const settled = await Promise.allSettled(marketplaces.map((m) => reflect_browse_marketplace(m.name)));
+    queryFn: async (): Promise<Array<{ marketplace: string; item: ZhuyeMarketplacePluginInfo }>> => {
+      const settled = await Promise.allSettled(marketplaces.map((m) => zhuye_browse_marketplace(m.name)));
       return settled.flatMap((r, i) => {
         if (r.status !== 'fulfilled' || !Array.isArray(r.value)) return [];
         return r.value
-          .filter((item): item is ReflectMarketplacePluginInfo => Boolean(item && asTrimmed(item.name)))
+          .filter((item): item is ZhuyeMarketplacePluginInfo => Boolean(item && asTrimmed(item.name)))
           .map((item) => ({ marketplace: marketplaces[i]?.name ?? '', item }));
       });
     },
@@ -143,7 +143,7 @@ export function useMarketController(): UseMarketControllerResult {
   const trimmedQuery = query.trim();
   const skillSearchQ = useQuery({
     queryKey: ['market', 'skill-search', trimmedQuery],
-    queryFn: () => reflect_search_skill_market(trimmedQuery, 50),
+    queryFn: () => zhuye_search_skill_market(trimmedQuery, 50),
     enabled: trimmedQuery.length >= 2,
     staleTime: MARKET_STALE_MS,
   });
@@ -279,14 +279,14 @@ export function useMarketController(): UseMarketControllerResult {
 
   // ── 突变(成功后失效对应查询) ──
   const toggleMut = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => reflect_toggle_plugin(id, enabled),
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => zhuye_toggle_plugin(id, enabled),
     onSuccess: (_ok, vars) => {
       void qc.invalidateQueries({ queryKey: [...MARKET_PLUGINS_KEY] });
       pushToast({ kind: 'success', message: t(vars.enabled ? 'harness.market.toastEnabled' : 'harness.market.toastDisabled') });
     },
   });
   const uninstallMut = useMutation({
-    mutationFn: ({ id, scope }: { id: string; scope: ReflectPluginScope }) => reflect_uninstall_plugin(id, scope),
+    mutationFn: ({ id, scope }: { id: string; scope: ZhuyePluginScope }) => zhuye_uninstall_plugin(id, scope),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [...MARKET_PLUGINS_KEY] });
       pushToast({ kind: 'success', message: t('harness.market.toastUninstalled') });
@@ -294,7 +294,7 @@ export function useMarketController(): UseMarketControllerResult {
   });
   const installPluginMut = useMutation({
     mutationFn: ({ marketplace, plugin }: { marketplace: string; plugin: string }) =>
-      reflect_install_from_marketplace(marketplace, plugin),
+      zhuye_install_from_marketplace(marketplace, plugin),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [...MARKET_PLUGINS_KEY] });
       void qc.invalidateQueries({ queryKey: [...MARKET_MARKETPLACE_ITEMS_KEY] });
@@ -302,14 +302,14 @@ export function useMarketController(): UseMarketControllerResult {
     },
   });
   const installSkillMut = useMutation({
-    mutationFn: (source: string) => reflect_install_skill_from_market(source),
+    mutationFn: (source: string) => zhuye_install_skill_from_market(source),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [...MARKET_SKILLS_KEY] });
       pushToast({ kind: 'success', message: t('harness.market.toastSkillInstalled') });
     },
   });
   const deleteMcpMut = useMutation({
-    mutationFn: (name: string) => reflect_delete_mcp_server(name),
+    mutationFn: (name: string) => zhuye_delete_mcp_server(name),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [...MARKET_MCP_KEY] });
       pushToast({ kind: 'success', message: t('harness.market.toastMcpRemoved') });

@@ -1,11 +1,11 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ReflectTask, ReflectTaskStatus, ReflectTeam } from '@/utils/commands';
+import type { ZhuyeTask, ZhuyeTaskStatus, ZhuyeTeam } from '@/utils/commands';
 
-export type TaskStatus = ReflectTaskStatus;
+export type TaskStatus = ZhuyeTaskStatus;
 export type BoardView = 'list' | 'board';
-export type TaskRowData = ReflectTask;
+export type TaskRowData = ZhuyeTask;
 export interface TeamMemberDraft { key: string; role: string; name: string; system_prompt: string }
-export type TeamData = ReflectTeam;
+export type TeamData = ZhuyeTeam;
 
 export interface TasksBoardViewProps {
   t: I18nContextValue['t'];

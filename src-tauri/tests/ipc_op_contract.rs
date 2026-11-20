@@ -1,5 +1,5 @@
 //! 提交操作样本由真实协议 serde 检查；不代替端到端执行测试。
-use reflect_protocol::Op;
+use zhuye_protocol::Op;
 use serde_json::{Value, json};
 
 fn assert_preserved(sample: &Value, actual: &Value, path: &str) {

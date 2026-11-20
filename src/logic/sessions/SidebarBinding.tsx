@@ -4,7 +4,7 @@ import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { displayTitle } from './buckets';
 import { useCollapsedGroups } from './useCollapsedGroups';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 import type { WorkspaceSessionGroup } from './workspaceGroups';
 import type { SidebarViewProps } from '@/contracts/sidebar';
 import type { SessionBadge } from '@/contracts/shell';
@@ -29,7 +29,7 @@ export interface SidebarBindingProps {
   onOpenProject?: () => void;
   pinnedIds?: readonly string[];
   onTogglePin?: (id: string) => void;
-  archived?: ReflectSessionInfo[];
+  archived?: ZhuyeSessionInfo[];
   /** harness 会话徽标（透传给视图）。 */
   badges?: Record<string, SessionBadge>;
   onUnarchive?: (id: string) => Promise<void>;

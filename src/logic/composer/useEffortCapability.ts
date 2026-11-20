@@ -9,7 +9,7 @@
  * 档位(用户可以先选),引擎在服务端拒绝时自动降级。
  */
 import { useQuery } from '@tanstack/react-query';
-import { reflect_effort_capability, type ReflectEffortCapability } from '@/utils/commands/permissions';
+import { zhuye_effort_capability, type ZhuyeEffortCapability } from '@/utils/commands/permissions';
 
 export const EFFORT_CAPABILITY_QUERY_KEY = ['effort-capability'] as const;
 
@@ -47,7 +47,7 @@ function toEffort(value: string): Effort {
 
 /** 把后端快照转成视图模型。 */
 export function toCapabilityView(
-  capability: ReflectEffortCapability | undefined,
+  capability: ZhuyeEffortCapability | undefined,
 ): EffortCapabilityView {
   if (!capability) return FALLBACK;
   const supported = capability.supported.map(toEffort);
@@ -69,7 +69,7 @@ export function toCapabilityView(
 export function useEffortCapability(): EffortCapabilityView {
   const { data } = useQuery({
     queryKey: EFFORT_CAPABILITY_QUERY_KEY,
-    queryFn: reflect_effort_capability,
+    queryFn: zhuye_effort_capability,
     staleTime: 30_000,
   });
   return toCapabilityView(data);

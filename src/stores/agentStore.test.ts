@@ -1,14 +1,14 @@
 /**
  * src/stores/agentStore.test.ts —— 全部 EventMsg 变体的 reducer 覆盖测试（B1-05）。
  *
- * 每个测试为单个变体构造最小化的 `ReflectEvent`，并断言 `reduceEvent`
+ * 每个测试为单个变体构造最小化的 `ZhuyeEvent`，并断言 `reduceEvent`
  * 返回的 patch。本测试文件不演练完整的 store / IPC 层 ——
  * 那由 `src/services/agent.test.ts` 覆盖。目标是**每个变体的
  * reducer 正确性**。
  */
 import { describe, it, expect } from 'vitest';
 import { reduceEvent, type AgentState } from './agentStore';
-import type { ReflectEvent, ReflectEventMsg } from '@/types/protocol';
+import type { ZhuyeEvent, ZhuyeEventMsg } from '@/types/protocol';
 
 // ====== Helpers ======
 
@@ -83,7 +83,7 @@ const emptyState = (): AgentState => ({
   reset: () => {},
 });
 
-const ev = (id: string, msg: ReflectEventMsg): ReflectEvent => ({ id, msg });
+const ev = (id: string, msg: ZhuyeEventMsg): ZhuyeEvent => ({ id, msg });
 
 // ====== Lifecycle (6) ======
 
@@ -1133,7 +1133,7 @@ describe('reduceEvent — 未知事件类型的前向兼容', () => {
     // 场景:submodule 升级新增 EventMsg 变体、前端类型未同步时,
     // store.subscribe 对 patch 做 Object.keys 展开 —— reducer 返回
     // undefined 会让整条事件处理中断。default 分支必须返回 {}。
-    const unknown = { type: 'future_event_kind', payload: { x: 1 } } as unknown as ReflectEventMsg;
+    const unknown = { type: 'future_event_kind', payload: { x: 1 } } as unknown as ZhuyeEventMsg;
     const patch = reduceEvent(emptyState(), ev('', unknown));
     expect(patch).toEqual({});
   });

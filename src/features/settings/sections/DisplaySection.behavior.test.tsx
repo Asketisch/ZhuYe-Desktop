@@ -37,7 +37,7 @@ describe('DisplaySection — sendOnEnter toggle', () => {
     fireEvent.click(box);
     expect(getUiPrefs().sendOnEnter).toBe(false);
     expect(
-      JSON.parse(localStorage.getItem('reflect.uiprefs.v1') ?? '{}').sendOnEnter,
+      JSON.parse(localStorage.getItem('zhuye.uiprefs.v1') ?? '{}').sendOnEnter,
     ).toBe(false);
     // 再开 → 恢复。
     fireEvent.click(screen.getByTestId('settings-send-on-enter'));

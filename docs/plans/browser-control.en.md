@@ -28,7 +28,7 @@
 
 1. **New crate `crates/integrations/zhuye-browser/`** (modeled on zhuye-computer-use):
    - `src/cdp.rs`: minimal CDP client — ws connection (`tokio-tungstenite`, added to the upstream root `[workspace.dependencies]`), JSON-RPC id matching, event subscription
-   - `src/chrome.rs`: browser discovery (common paths on three platforms + env override), launch (isolated user-data-dir under `$ZHUYE_HOME/browser-profile` via `reflect_config::paths`, `--remote-debugging-port=0`), ws endpoint parsed from the `DevToolsActivePort` file, attach to a running instance
+   - `src/chrome.rs`: browser discovery (common paths on three platforms + env override), launch (isolated user-data-dir under `$ZHUYE_HOME/browser-profile` via `zhuye_config::paths`, `--remote-debugging-port=0`), ws endpoint parsed from the `DevToolsActivePort` file, attach to a running instance
    - `src/backend.rs`: `BrowserBackend` trait + CDP implementation (navigate / snapshot / click / type / key / scroll / screenshot / evaluate / close); reuses a11y types from `zhuye-computer-use`; `BrowserSecurity` enforced at connect (v1 enables loopback_only + single_target; require_token interface kept but off, rationale recorded in code)
    - `src/bin/zhuye-browser-server.rs`: MCP stdio server with tools `browser_navigate / browser_snapshot / browser_click / browser_type / browser_press_key / browser_scroll / browser_screenshot / browser_close`
    - `Cargo.toml`: `real` feature off by default (includes ws deps), unified `Unavailable` when off
@@ -40,8 +40,8 @@
 ## 4. Desktop changes
 
 1. `app-core/src/browser.rs`: browser session trait + config/status types (UI-agnostic, modeled on media.rs; real implementation in src-tauri, same precedent as media_backend.rs)
-2. `src-tauri/src/browser_backend.rs`: launch/attach share the `DevToolsActivePort` discovery contract (shared profile dir with the plugin, first launch wins, later parties attach); screencast frames throttled to ~10fps → base64 JPEG → `reflect_browser_frame` events to the frontend
-3. `src-tauri/src/commands/browser.rs`: `reflect_browser_status/start/stop`
+2. `src-tauri/src/browser_backend.rs`: launch/attach share the `DevToolsActivePort` discovery contract (shared profile dir with the plugin, first launch wins, later parties attach); screencast frames throttled to ~10fps → base64 JPEG → `zhuye_browser_frame` events to the frontend
+3. `src-tauri/src/commands/browser.rs`: `zhuye_browser_status/start/stop`
 4. Frontend slice `browser/` (render/logic separation): `features/browser/BrowserView.tsx` (thin) → `logic/browser/useBrowserController.ts` → `render/browser/BrowserPanel.tsx` (URL bar + picture + start/stop + agent-acting badge); route `/browser` + ZRail entry + routeMatrix
 5. IPC: `src/utils/commands/browser.ts` + fakeBackend + payload samples (four-way consistency)
 6. Settings: config schema `[browser]` (executable override, default headless) → advanced section

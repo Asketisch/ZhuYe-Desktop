@@ -91,16 +91,16 @@ fn run_task_lifecycle() {
         provider.uri()
     ));
     let (tx, rx) = channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    common::invoke_ok("reflect_set_permission_mode", json!({"mode":"auto"}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    common::invoke_ok("zhuye_set_permission_mode", json!({"mode":"auto"}));
     let task = common::invoke_ok(
-        "reflect_create_task",
+        "zhuye_create_task",
         json!({"list":session,"subject":"agent-lifecycle-task","description":"integration"}),
     );
     let id = task["id"].as_u64().unwrap();
@@ -109,20 +109,20 @@ fn run_task_lifecycle() {
     for step in 0..14 {
         if step == 12 {
             let running = common::invoke_ok(
-                "reflect_create_task",
+                "zhuye_create_task",
                 json!({"list":session,"subject":"stop target","description":"integration","owner":"worker"}),
             );
             let running_id = running["id"].as_u64().unwrap();
             stop_id.store(running_id, Ordering::SeqCst);
             common::invoke_ok(
-                "reflect_update_task",
+                "zhuye_update_task",
                 json!({"list":session,"id":running_id,"patch":{"status":"in_progress"}}),
             );
         }
         let submission = format!("task-turn-{step}");
         let tool_id = format!("lifecycle_tool_{step}");
         common::invoke_ok(
-            "reflect_submit",
+            "zhuye_submit",
             json!({"submission":{"id":submission,"op":{"type":"user_input","items":[{"type":"text","text":format!("task-step-{step}")}]}}}),
         );
         let deadline = Instant::now() + Duration::from_secs(30);
@@ -142,7 +142,7 @@ fn run_task_lifecycle() {
                             && prior["msg"]["call_id"] == tool_id)
                 );
                 common::invoke_ok(
-                    "reflect_tool_approval",
+                    "zhuye_tool_approval",
                     json!({"id":event["msg"]["request_id"],"decision":"approve"}),
                 );
             }
@@ -175,7 +175,7 @@ fn run_task_lifecycle() {
             "step {step}: {model_result}"
         );
         if step <= 4 {
-            let current = common::invoke_ok("reflect_get_task", json!({"list":session,"id":id}));
+            let current = common::invoke_ok("zhuye_get_task", json!({"list":session,"id":id}));
             match step {
                 0 => {
                     assert_eq!(current["status"], "in_progress");
@@ -196,7 +196,7 @@ fn run_task_lifecycle() {
                 _ => unreachable!(),
             }
         } else if step == 5 {
-            let team = common::invoke_ok("reflect_get_team", json!({"name":"runtime-team"}));
+            let team = common::invoke_ok("zhuye_get_team", json!({"name":"runtime-team"}));
             let members = team["members"].as_array().unwrap();
             assert!(
                 members
@@ -209,11 +209,11 @@ fn run_task_lifecycle() {
                     .any(|m| m["agent_id"] == "team-lead@runtime-team")
             );
             common::invoke_ok(
-                "reflect_create_task",
+                "zhuye_create_task",
                 json!({"list":"runtime-team","subject":"team task remains","description":"delete must preserve tasks"}),
             );
         } else if step == 6 {
-            let teams = common::invoke_ok("reflect_list_teams", json!({}));
+            let teams = common::invoke_ok("zhuye_list_teams", json!({}));
             assert!(
                 !teams
                     .as_array()
@@ -221,7 +221,7 @@ fn run_task_lifecycle() {
                     .iter()
                     .any(|t| t["name"] == "runtime-team")
             );
-            let tasks = common::invoke_ok("reflect_list_tasks", json!({"list":"runtime-team"}));
+            let tasks = common::invoke_ok("zhuye_list_tasks", json!({"list":"runtime-team"}));
             assert!(
                 tasks
                     .as_array()
@@ -243,14 +243,14 @@ fn run_task_lifecycle() {
                     assert!(model_result.to_string().contains("runtime task output"));
                     assert_eq!(
                         common::invoke_ok(
-                            "reflect_get_task_output",
+                            "zhuye_get_task_output",
                             json!({"list":session,"id":id})
                         ),
                         "runtime task output"
                     );
                 }
                 10 => assert_eq!(
-                    common::invoke_ok("reflect_get_task", json!({"list":session,"id":id}))["status"],
+                    common::invoke_ok("zhuye_get_task", json!({"list":session,"id":id}))["status"],
                     "completed"
                 ),
                 11 => assert_eq!(
@@ -259,7 +259,7 @@ fn run_task_lifecycle() {
                 ),
                 12 | 13 => {
                     let stopped = common::invoke_ok(
-                        "reflect_get_task",
+                        "zhuye_get_task",
                         json!({"list":session,"id":stop_id.load(Ordering::SeqCst)}),
                     );
                     assert_eq!(stopped["status"], "pending");

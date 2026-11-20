@@ -18,7 +18,7 @@ ZhuYe-Desktop/
 │   ├── features/           # Feature slices: views + controllers/hooks + colocated tests (slice overview in src/features/AGENTS.md)
 │   ├── stores/             # Zustand state layer (src/stores/AGENTS.md)
 │   ├── utils/              # IPC wrappers (commands/, per domain), i18n runtime, bridge fallback (src/utils/AGENTS.md)
-│   ├── services/           # agentEventBus (the single reflect_event subscription point) + agent.ts compat layer
+│   ├── services/           # agentEventBus (the single zhuye_event subscription point) + agent.ts compat layer
 │   ├── types/              # Hand-written per-domain protocol types; dump-ts-types.sh output is not kept in the worktree
 │   ├── styles/             # tokens.css, the single source of truth for design tokens
 │   └── components/         # Cross-slice shared components
@@ -42,9 +42,9 @@ The full map of slices and files is deliberately not maintained here (hard-codin
 
 ## 2. IPC contract
 
-The wire format is exactly `reflect-protocol::Event` / `Submission` (snake_case JSON), with no custom serializer. The envelope structure, the `Op` → Tauri command mapping, and the event tables live in [protocol-bridge.md](protocol-bridge.md).
+The wire format is exactly `zhuye-protocol::Event` / `Submission` (snake_case JSON), with no custom serializer. The envelope structure, the `Op` → Tauri command mapping, and the event tables live in [protocol-bridge.md](protocol-bridge.md).
 
-The command surface (`#[tauri::command]`) is registered in `src-tauri/src/lib.rs::invoke_handler` and defined per domain in `src-tauri/src/commands/<domain>.rs`; the thin barrel `commands/mod.rs` re-exports the domain modules plus the shared `error` types (`CommandError` / `CommandResult`). On the event side, the single push channel `reflect_event` is emitted by `events::forward_agent_events`; terminal output goes through the separate channel `reflect_terminal_output`.
+The command surface (`#[tauri::command]`) is registered in `src-tauri/src/lib.rs::invoke_handler` and defined per domain in `src-tauri/src/commands/<domain>.rs`; the thin barrel `commands/mod.rs` re-exports the domain modules plus the shared `error` types (`CommandError` / `CommandResult`). On the event side, the single push channel `zhuye_event` is emitted by `events::forward_agent_events`; terminal output goes through the separate channel `zhuye_terminal_output`.
 
 The concrete command list is not registered here: it is guarded by the four-way consistency gate — the backend registry ↔ the frontend `src/utils/commands/` wrappers ↔ `fakeBackend` implementations ↔ [protocol-bridge.md](protocol-bridge.md) coverage (the `tests/static/analyze.mjs` ratchet floor + the `src-tauri/tests/ipc_*.rs` real-backend contracts).
 
@@ -62,7 +62,7 @@ The concrete command list is not registered here: it is guarded by the four-way 
         └──────────────┬───────────────┘
                        ▼
             target/release/...
-            ├── reflect-desktop (Mach-O)
+            ├── zhuye-desktop (Mach-O)
             ├── bundle/macos/ZhuYe.app
             └── bundle/{dmg,msi,deb,appimage}/...
 ```
@@ -90,7 +90,7 @@ The concrete command list is not registered here: it is guarded by the four-way 
 │   │ useAgent（services/agent.ts）— compat re-export                   │
 │   │ event fan-out: services/agentEventBus.ts (reference-counted)      │
 │   ▼                                                                   │
-│ onReflectEvent → agentEventBus → reducer（agent/reducer.ts）          │
+│ onZhuyeEvent → agentEventBus → reducer（agent/reducer.ts）          │
 └─────────────────────────┬─────────────────────────────────────────┘
                           │ Tauri 2 IPC（invoke / listen）
 ┌─────────────────────────▼─────────────────────────────────────────┐
@@ -104,17 +104,17 @@ The concrete command list is not registered here: it is guarded by the four-way 
 │     ├─ shell_sessions / hook_store / memory_store / workspace_state │
 │     └─ MinimalAgentInner                                            │
 │                                                                       │
-│      ↔ reflect_core::AgentThread                                     │
+│      ↔ zhuye_core::AgentThread                                     │
 │     + upstream shared builtin tool table（Bash/Read/Write/Q&A/AST/...）│
 │     + ModelRegistry                                                  │
 │     + ConfigWatcher                                                  │
-│     + reflect-rollout::JsonlRolloutWriter                            │
+│     + zhuye-rollout::JsonlRolloutWriter                            │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 5. Core submodule
 
-`zhuye-agent/` is a **read-only** git submodule mirror of the ZhuYe agent engine's zhuye-* crates (referenced on the desktop via the `reflect-*` dependency aliases). The submodule model lets the GUI keep its own release cadence, independent of the engine repo's CI, while still receiving bug fixes from reflect-protocol / reflect-core and the rest.
+`zhuye-agent/` is a **read-only** git submodule mirror of the ZhuYe agent engine's zhuye-* crates (referenced on the desktop via the `zhuye-*` dependency aliases). The submodule model lets the GUI keep its own release cadence, independent of the engine repo's CI, while still receiving bug fixes from zhuye-protocol / zhuye-core and the rest.
 
 Upgrading:
 
@@ -126,4 +126,4 @@ git add zhuye-agent
 git commit -m "chore: bump zhuye-agent submodule"
 ```
 
-The submodule intentionally excludes the parts the GUI does not depend on (such as the `reflect` top-level binary and other TUI/CLI-only artifacts). The full crate set kept in sync is in the root `Cargo.toml`'s `[workspace.dependencies]` and in `SUBMODULE.md`.
+The submodule intentionally excludes the parts the GUI does not depend on (such as the `zhuye` top-level binary and other TUI/CLI-only artifacts). The full crate set kept in sync is in the root `Cargo.toml`'s `[workspace.dependencies]` and in `SUBMODULE.md`.

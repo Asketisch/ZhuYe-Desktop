@@ -12,7 +12,7 @@ describe('session approval policies', () => {
   });
 
   it('falls back to follow-mode for unknown stored values', () => {
-    localStorage.setItem('reflect.approvalPolicy.d', 'yolo-legacy');
+    localStorage.setItem('zhuye.approvalPolicy.d', 'yolo-legacy');
     expect(readApprovalPolicy('d')).toBe('auto');
   });
 });

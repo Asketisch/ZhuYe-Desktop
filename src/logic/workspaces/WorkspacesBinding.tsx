@@ -5,14 +5,14 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import {
-  reflect_agent_status,
-  reflect_current_workspace_dirs,
-  reflect_list_workspaces,
-  reflect_pick_workspace_folder,
-  reflect_remove_workspace,
-  reflect_reveal_path,
-  reflect_set_workspace,
-  reflect_set_workspace_dirs,
+  zhuye_agent_status,
+  zhuye_current_workspace_dirs,
+  zhuye_list_workspaces,
+  zhuye_pick_workspace_folder,
+  zhuye_remove_workspace,
+  zhuye_reveal_path,
+  zhuye_set_workspace,
+  zhuye_set_workspace_dirs,
 } from '@/utils/commands';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useI18n } from '@/utils/i18n';
@@ -38,9 +38,9 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
   const [adding, setAdding] = useState(false);
-  const statusQ = useQuery({ queryKey: ['agent-status'], queryFn: reflect_agent_status, staleTime: 30_000 });
-  const workspacesQ = useQuery({ queryKey: ['workspaces'], queryFn: () => reflect_list_workspaces(), staleTime: 30_000 });
-  const dirsQ = useQuery({ queryKey: ['workspace-dirs'], queryFn: reflect_current_workspace_dirs, staleTime: 10_000 });
+  const statusQ = useQuery({ queryKey: ['agent-status'], queryFn: zhuye_agent_status, staleTime: 30_000 });
+  const workspacesQ = useQuery({ queryKey: ['workspaces'], queryFn: () => zhuye_list_workspaces(), staleTime: 30_000 });
+  const dirsQ = useQuery({ queryKey: ['workspace-dirs'], queryFn: zhuye_current_workspace_dirs, staleTime: 10_000 });
 
   const currentWs = statusQ.data?.workspace;
 
@@ -53,7 +53,7 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
 
   const onUse = async (path: string) => {
     try {
-      await reflect_set_workspace(path, true);
+      await zhuye_set_workspace(path, true);
       pushToast({ kind: 'success', message: t('workspaces.setTo', { name: basename(path) }) });
       refreshAll();
     } catch (e) {
@@ -64,7 +64,7 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
   const onRemove = async (path: string) => {
     if (!await confirmDialog({ title: t('sidebar.group.remove'), message: t('sidebar.group.removeConfirm') })) return;
     try {
-      await reflect_remove_workspace(path);
+      await zhuye_remove_workspace(path);
       pushToast({ kind: 'success', message: t('workspaces.removedToast', { name: basename(path) }) });
       refreshAll();
     } catch (e) {
@@ -75,7 +75,7 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
   const onPickFolder = async () => {
     let picked: string | null;
     try {
-      picked = await reflect_pick_workspace_folder();
+      picked = await zhuye_pick_workspace_folder();
     } catch (e) {
       pushToast({ kind: 'error', message: t('workspaces.pickFailed', { msg: errMsg(e) }) });
       return;
@@ -85,7 +85,7 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
 
   const onReveal = async (path: string) => {
     try {
-      await reflect_reveal_path(path);
+      await zhuye_reveal_path(path);
     } catch (e) {
       pushToast({ kind: 'error', message: t('workspaces.revealFailed', { msg: errMsg(e) }) });
     }
@@ -94,7 +94,7 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
   const pickAndAdd = async () => {
     let picked: string | null = null;
     try {
-      picked = await reflect_pick_workspace_folder();
+      picked = await zhuye_pick_workspace_folder();
     } catch (e) {
       pushToast({ kind: 'error', message: t('workspaces.pickFailed', { msg: errMsg(e) }) });
       return;
@@ -103,7 +103,7 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
     const current = dirsQ.data ?? { main: '', additional: [] };
     if (current.additional.includes(picked) || picked === current.main) return;
     try {
-      await reflect_set_workspace_dirs(current.main, [...current.additional, picked]);
+      await zhuye_set_workspace_dirs(current.main, [...current.additional, picked]);
       pushToast({ kind: 'success', message: t('workspaces.additionalAdded') });
       void qc.invalidateQueries({ queryKey: ['workspace-dirs'] });
     } catch (e) {
@@ -115,7 +115,7 @@ export function WorkspacesBinding({ view: View }: { view: ComponentType<Workspac
   const removeDir = async (dir: string) => {
     const current = dirsQ.data ?? { main: '', additional: [] };
     try {
-      await reflect_set_workspace_dirs(current.main, current.additional.filter((d) => d !== dir));
+      await zhuye_set_workspace_dirs(current.main, current.additional.filter((d) => d !== dir));
       void qc.invalidateQueries({ queryKey: ['workspace-dirs'] });
     } catch (e) {
       pushToast({ kind: 'error', message: t('workspaces.additionalFailed', { msg: errMsg(e) }) });

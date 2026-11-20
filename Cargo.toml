@@ -12,7 +12,7 @@ rust-version = "1.85"
 license = "Apache-2.0"
 repository = "https://github.com/Asketisch/ReflectDesktop"
 homepage = "https://github.com/Asketisch/ReflectDesktop"
-authors = ["Reflect Agent Contributors"]
+authors = ["ZhuYe Contributors"]
 
 # ── 成员 crate 统一 lint 策略 ──────────────────────────────────────
 # 通过清单级 [lints](而非 CI 的 RUSTFLAGS=-D warnings)拒绝警告:
@@ -53,59 +53,9 @@ manual_div_ceil    = { level = "allow", priority = 10 }
 # 注:Cargo 不支持嵌套 workspace,这里只用 path 依赖,不把核心 crate 列入 members。
 # 核心 crate 仍属于 zhuye-agent 自己的 workspace,通过 path 被本仓库消费。
 # workspace.dependencies 必须**完整声明**核心 crate 用 `workspace = true` 继承的全部项
-# (含内部 reflect-* 与外部 crate),否则跨 workspace 解析会失败。
+# (含内部 zhuye-* 与外部 crate),否则跨 workspace 解析会失败。
 [workspace.dependencies]
 # protocol 层
-reflect-protocol = { package = "zhuye-protocol", path = "zhuye-agent/crates/protocol/zhuye-protocol" }
-
-# abilities 层
-reflect-llm        = { package = "zhuye-llm", path = "zhuye-agent/crates/abilities/zhuye-llm" }
-reflect-tools      = { package = "zhuye-tools", path = "zhuye-agent/crates/abilities/zhuye-tools" }
-reflect-bm25       = { package = "zhuye-bm25", path = "zhuye-agent/crates/abilities/zhuye-bm25" }
-reflect-hooks      = { package = "zhuye-hooks", path = "zhuye-agent/crates/abilities/zhuye-hooks" }
-reflect-skills     = { package = "zhuye-skills", path = "zhuye-agent/crates/abilities/zhuye-skills" }
-reflect-memory     = { package = "zhuye-memory", path = "zhuye-agent/crates/abilities/zhuye-memory" }
-reflect-agent-def  = { package = "zhuye-agent-def", path = "zhuye-agent/crates/abilities/zhuye-agent-def" }
-reflect-prompt     = { package = "zhuye-prompt", path = "zhuye-agent/crates/abilities/zhuye-prompt" }
-reflect-compact    = { package = "zhuye-compact", path = "zhuye-agent/crates/abilities/zhuye-compact" }
-reflect-recovery   = { package = "zhuye-recovery", path = "zhuye-agent/crates/abilities/zhuye-recovery" }
-reflect-notes      = { package = "zhuye-notes", path = "zhuye-agent/crates/abilities/zhuye-notes" }
-reflect-sanitize   = { package = "zhuye-sanitize", path = "zhuye-agent/crates/abilities/zhuye-sanitize" }
-reflect-kms        = { package = "zhuye-kms", path = "zhuye-agent/crates/abilities/zhuye-kms" }
-
-# resources 层
-reflect-config      = { package = "zhuye-config", path = "zhuye-agent/crates/resources/zhuye-config" }
-reflect-permissions = { package = "zhuye-permissions", path = "zhuye-agent/crates/resources/zhuye-permissions" }
-reflect-plugin      = { package = "zhuye-plugin", path = "zhuye-agent/crates/resources/zhuye-plugin" }
-reflect-rollout     = { package = "zhuye-rollout", path = "zhuye-agent/crates/resources/zhuye-rollout" }
-reflect-telemetry   = { package = "zhuye-telemetry", path = "zhuye-agent/crates/resources/zhuye-telemetry" }
-reflect-sandbox     = { package = "zhuye-sandbox", path = "zhuye-agent/crates/resources/zhuye-sandbox" }
-reflect-ast         = { package = "zhuye-ast", path = "zhuye-agent/crates/resources/zhuye-ast" }
-reflect-fs          = { package = "zhuye-fs", path = "zhuye-agent/crates/resources/zhuye-fs" }
-reflect-git         = { package = "zhuye-git", path = "zhuye-agent/crates/resources/zhuye-git" }
-
-# orchestration 层
-reflect-subagent    = { package = "zhuye-subagent", path = "zhuye-agent/crates/orchestration/zhuye-subagent" }
-reflect-discussion  = { package = "zhuye-discussion", path = "zhuye-agent/crates/orchestration/zhuye-discussion" }
-reflect-task        = { package = "zhuye-task", path = "zhuye-agent/crates/orchestration/zhuye-task" }
-reflect-pipeline    = { package = "zhuye-pipeline", path = "zhuye-agent/crates/orchestration/zhuye-pipeline" }
-reflect-goal        = { package = "zhuye-goal", path = "zhuye-agent/crates/orchestration/zhuye-goal" }
-
-# integrations 层
-reflect-mcp         = { package = "zhuye-mcp", path = "zhuye-agent/crates/integrations/zhuye-mcp" }
-reflect-lsp         = { package = "zhuye-lsp", path = "zhuye-agent/crates/integrations/zhuye-lsp" }
-reflect-integration = { package = "zhuye-integration", path = "zhuye-agent/crates/integrations/zhuye-integration" }
-reflect-stream      = { package = "zhuye-stream", path = "zhuye-agent/crates/integrations/zhuye-stream" }
-reflect-import      = { package = "zhuye-import", path = "zhuye-agent/crates/integrations/zhuye-import" }
-reflect-computer-use = { package = "zhuye-computer-use", path = "zhuye-agent/crates/integrations/zhuye-computer-use" }
-reflect-shell       = { package = "zhuye-shell", path = "zhuye-agent/crates/integrations/zhuye-shell" }
-reflect-git-tools   = { package = "zhuye-git-tools", path = "zhuye-agent/crates/integrations/zhuye-git-tools" }
-reflect-browser     = { package = "zhuye-browser", path = "zhuye-agent/crates/integrations/zhuye-browser" }
-
-# runtime 层
-reflect-core = { package = "zhuye-core", path = "zhuye-agent/crates/runtime/zhuye-core" }
-reflect      = { package = "zhuye", path = "zhuye-agent/crates/runtime/zhuye" }
-
 zhuye-protocol = { path = "zhuye-agent/crates/protocol/zhuye-protocol" }
 zhuye-llm = { path = "zhuye-agent/crates/abilities/zhuye-llm" }
 zhuye-tools = { path = "zhuye-agent/crates/abilities/zhuye-tools" }
@@ -154,7 +104,7 @@ zhuye-py   = { path = "zhuye-agent/crates/runtime/zhuye-py" }
 zhuye = { path = "zhuye-agent/crates/runtime/zhuye" }
 
 # Desktop 自有共享层(UI 无关应用层,Tauri 与未来其它 runtime 复用)
-reflect-app-core    = { path = "app-core" }
+zhuye-app-core    = { path = "app-core" }
 
 # ── 通用外部依赖(需与核心 workspace 对齐版本,核心 crate 的 workspace=true 会解析到这里)──
 tokio              = { version = "1", features = ["full"] }

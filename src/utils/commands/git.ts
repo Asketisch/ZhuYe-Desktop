@@ -3,7 +3,7 @@
  */
 import { invoke } from '../bridge';
 
-export interface ReflectGitStatusEntry {
+export interface ZhuyeGitStatusEntry {
   path: string;
   status: string;
   /** 是否含已暂存(index)变更 —— trimmed porcelain 码丢失了 "M " / " M"
@@ -12,17 +12,17 @@ export interface ReflectGitStatusEntry {
   old_path: string | null;
 }
 
-export interface ReflectGitStatus {
+export interface ZhuyeGitStatus {
   branch: string | null;
   upstream: string | null;
   ahead: number;
   behind: number;
-  entries: ReflectGitStatusEntry[];
+  entries: ZhuyeGitStatusEntry[];
   raw: string;
   is_repo: boolean;
 }
 
-export interface ReflectGitLogEntry {
+export interface ZhuyeGitLogEntry {
   hash: string;
   short_hash: string;
   author: string;
@@ -30,39 +30,39 @@ export interface ReflectGitLogEntry {
   subject: string;}
 
 /** 获取当前仓库状态(branch、upstream、entries、原始 porcelain 输出)。 */
-export async function reflect_git_status(): Promise<ReflectGitStatus> {
-  return invoke<ReflectGitStatus>('reflect_git_status');
+export async function zhuye_git_status(): Promise<ZhuyeGitStatus> {
+  return invoke<ZhuyeGitStatus>('zhuye_git_status');
 }
 
 /** 获取 diff 文本(`staged=false` 为工作区,`true` 为暂存区)。 */
-export async function reflect_git_diff(staged = false): Promise<string> {
-  return invoke<string>('reflect_git_diff', { staged });
+export async function zhuye_git_diff(staged = false): Promise<string> {
+  return invoke<string>('zhuye_git_diff', { staged });
 }
 
 /** 获取最近 N 条 log(默认 20)。 */
-export async function reflect_git_log(limit = 20): Promise<ReflectGitLogEntry[]> {
-  return invoke<ReflectGitLogEntry[]>('reflect_git_log', { limit });
+export async function zhuye_git_log(limit = 20): Promise<ZhuyeGitLogEntry[]> {
+  return invoke<ZhuyeGitLogEntry[]>('zhuye_git_log', { limit });
 }
 
 // ====== P3：Git 操作化 + 拉取请求 ======
 
 /** stage 文件（`git add --`；空数组 = 全量 add -A）。 */
-export async function reflect_git_stage(paths: string[]): Promise<void> {
-  return invoke<void>('reflect_git_stage', { paths });
+export async function zhuye_git_stage(paths: string[]): Promise<void> {
+  return invoke<void>('zhuye_git_stage', { paths });
 }
 
 /** unstage 文件（`git reset HEAD --`；空数组 = 全量）。 */
-export async function reflect_git_unstage(paths: string[]): Promise<void> {
-  return invoke<void>('reflect_git_unstage', { paths });
+export async function zhuye_git_unstage(paths: string[]): Promise<void> {
+  return invoke<void>('zhuye_git_unstage', { paths });
 }
 
 /** 提交（`git commit -m`），返回新 commit 短 hash。 */
-export async function reflect_git_commit(message: string): Promise<string> {
-  return invoke<string>('reflect_git_commit', { message });
+export async function zhuye_git_commit(message: string): Promise<string> {
+  return invoke<string>('zhuye_git_commit', { message });
 }
 
 /** GitHub PR（`gh pr list`）；gh 未安装 / 非 repo 时后端抛带原因的错误。 */
-export interface ReflectGhPullRequest {
+export interface ZhuyeGhPullRequest {
   number: number;
   title: string;
   head_ref: string;
@@ -72,8 +72,8 @@ export interface ReflectGhPullRequest {
   draft: boolean;
 }
 
-export async function reflect_gh_pr_list(limit = 20): Promise<ReflectGhPullRequest[]> {
-  return invoke<ReflectGhPullRequest[]>('reflect_gh_pr_list', { limit });
+export async function zhuye_gh_pr_list(limit = 20): Promise<ZhuyeGhPullRequest[]> {
+  return invoke<ZhuyeGhPullRequest[]>('zhuye_gh_pr_list', { limit });
 }
 
 /**
@@ -82,7 +82,7 @@ export async function reflect_gh_pr_list(limit = 20): Promise<ReflectGhPullReque
  * `isolated` = 非主工作树(agent 的 `EnterWorktree` 建的就是这种);
  * `stranded` = 隔离 worktree 且有未提交改动 → 改动**还没落回主分支**。
  */
-export interface ReflectWorktreeInfo {
+export interface ZhuyeWorktreeInfo {
   /** worktree 绝对路径。 */
   path: string;
   /** HEAD 指向的分支名(detached HEAD 时为空串)。 */
@@ -100,10 +100,32 @@ export interface ReflectWorktreeInfo {
 /**
  * 列出仓库的 worktree,标出「改动被困在隔离 worktree」的风险。
  *
- * 核心的 worktree 状态存在 `ToolContext` 里(进程内),GUI 读不到;
- * 但 worktree 本身文件系统可见 —— `git worktree list --porcelain` + 核心的
- * `worktree_dirty` 判脏。
+ * 实现在 app-core `worktree_list`(porcelain 解析 + 判脏),本层纯 invoke。
  */
-export function reflect_list_worktrees(): Promise<ReflectWorktreeInfo[]> {
-  return invoke('reflect_list_worktrees');
+export function zhuye_list_worktrees(): Promise<ZhuyeWorktreeInfo[]> {
+  return invoke('zhuye_list_worktrees');
+}
+
+/**
+ * 创建 linked worktree。
+ *
+ * `branch` 缺省 → 建同名新分支;指定则检出已有分支。`path` 缺省 →
+ * `<repo 父目录>/<repo 名>-worktrees/<name>/`。返回新 worktree 信息。
+ */
+export function zhuye_create_worktree(
+  name: string,
+  branch?: string,
+  path?: string,
+): Promise<ZhuyeWorktreeInfo> {
+  return invoke('zhuye_create_worktree', { name, branch, path });
+}
+
+/** 删除 linked worktree;脏树默认拒绝(`force = true` 才连带丢弃改动)。 */
+export function zhuye_remove_worktree(path: string, force = false): Promise<void> {
+  return invoke('zhuye_remove_worktree', { path, force });
+}
+
+/** 清理失效的 worktree 行政登记(目录已被手工删除等)。 */
+export function zhuye_prune_worktrees(): Promise<void> {
+  return invoke('zhuye_prune_worktrees');
 }

@@ -2,8 +2,8 @@
 //! 降级原因计算 + 显式解析兜底 + 动态清单发现。消费方 `install.rs` /
 //! `reload.rs`（`super::model_spec::` 路径）。
 
-use reflect_config::ReflectConfig;
-use reflect_llm::ModelRegistry;
+use zhuye_config::ReflectConfig;
+use zhuye_llm::ModelRegistry;
 
 /// 按配置快照计算降级原因(供 install / 热重载共用)。
 ///
@@ -59,7 +59,7 @@ pub(crate) fn resolve_model_spec_with_fallback(cfg: &ReflectConfig) -> Option<St
 
 /// 解析 model spec —— **支持运行时才知道的动态值**(`model = "free"`)。
 ///
-/// 上游 `reflect_config::resolve_model_spec` 是统一入口:静态 model 走同步
+/// 上游 `zhuye_config::resolve_model_spec` 是统一入口:静态 model 走同步
 /// 解析,动态值走 provider 模型清单发现(需要网络 → 必须 async)。桌面端
 /// 此前只用同步的 `resolved_model_spec()`,遇到 `model = "free"` 拿到的是
 /// **占位串** `"provider/free"` —— 它会被 routing 的 main slot 当成真模型
@@ -78,7 +78,7 @@ pub(crate) async fn resolve_model_spec_with_discovery(
     cfg: &ReflectConfig,
     registry: &ModelRegistry,
 ) -> (Option<String>, Option<String>) {
-    match reflect_config::resolve_model_spec(cfg, registry).await {
+    match zhuye_config::resolve_model_spec(cfg, registry).await {
         Ok(Some(spec)) => (Some(spec), None),
         // 静态路径解析不出来 → 交给同步兜底(悬空钉住场景)。
         Ok(None) => (resolve_model_spec_with_fallback(cfg), None),
@@ -89,12 +89,12 @@ pub(crate) async fn resolve_model_spec_with_discovery(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reflect_llm::ModelRegistry;
+    use zhuye_llm::ModelRegistry;
 
     /// 静态 model:走同步解析路径,不触发清单发现(不打网络)。
     #[tokio::test]
     async fn discovery_resolution_keeps_static_path() {
-        let cfg = reflect_config::load_from_str(
+        let cfg = zhuye_config::load_from_str(
             "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"gpt-4o\"\n",
         )
         .unwrap();
@@ -111,7 +111,7 @@ mod tests {
     /// 模型发给 provider(表现为「模型不存在」)。
     #[tokio::test]
     async fn discovery_resolution_reports_error_instead_of_placeholder() {
-        let cfg = reflect_config::load_from_str(
+        let cfg = zhuye_config::load_from_str(
             "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"free\"\n\n\
              [model_discovery]\nenabled = false\n",
         )
@@ -133,7 +133,7 @@ mod tests {
     /// (清单拿不到),同样不返回占位串。
     #[tokio::test]
     async fn discovery_resolution_errors_without_registered_credentials() {
-        let cfg = reflect_config::load_from_str(
+        let cfg = zhuye_config::load_from_str(
             "[active]\nprovider = \"openai\"\n\n[openai]\nmodel = \"free\"\n",
         )
         .unwrap();
@@ -146,7 +146,7 @@ mod tests {
     /// 没配 model 时:既没有 spec 也没有错误(与同步路径同口径)。
     #[tokio::test]
     async fn discovery_resolution_without_model_is_silent() {
-        let cfg = reflect_config::load_from_str("[active]\nprovider = \"openai\"\n").unwrap();
+        let cfg = zhuye_config::load_from_str("[active]\nprovider = \"openai\"\n").unwrap();
         let registry = ModelRegistry::new();
         let (spec, err) = resolve_model_spec_with_discovery(&cfg, &registry).await;
         assert!(spec.is_none());
@@ -173,7 +173,7 @@ mod tests {
             model = "MiniMax-M3"
             weight = 1
         "#;
-        let cfg = reflect_config::load_from_str(toml).unwrap();
+        let cfg = zhuye_config::load_from_str(toml).unwrap();
         // 显式链确实为 None(钉住 label 不存在 + 无段级 model)。
         assert_eq!(cfg.resolved_model_spec(), None);
         assert_eq!(
@@ -200,7 +200,7 @@ mod tests {
             api_key = "sk-test"
             model = "MiniMax-M3"
         "#;
-        let cfg = reflect_config::load_from_str(toml).unwrap();
+        let cfg = zhuye_config::load_from_str(toml).unwrap();
         assert_eq!(
             resolve_model_spec_with_fallback(&cfg).as_deref(),
             Some("anthropic/MiniMax-M3")
@@ -221,7 +221,7 @@ mod tests {
             label = "a"
             api_key = "sk-a"
         "#;
-        let cfg = reflect_config::load_from_str(toml).unwrap();
+        let cfg = zhuye_config::load_from_str(toml).unwrap();
         assert_eq!(resolve_model_spec_with_fallback(&cfg), None);
         assert!(compute_degraded_reason(&cfg).is_some());
     }

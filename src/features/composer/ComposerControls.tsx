@@ -4,15 +4,15 @@
  * 渲染在输入卡片**下方**的独立一行（不在卡片内部），对标成熟 agent
  * 桌面端：选择器贴近输入框，不必跳设置页或拼斜杠命令。
  *
- * - 模型：选项来自 coding plans（`reflect_get_config` 解析，与 ModelsView
- *   同源）；切换走 `reflect_set_model(provider, model, label)` —— 后端写
+ * - 模型：选项来自 coding plans（`zhuye_get_config` 解析，与 ModelsView
+ *   同源）；切换走 `zhuye_set_model(provider, model, label)` —— 后端写
  *   `[active].provider` + `[active].credential`（钉住该凭证）+ 条目/段级
  *   model → 热重载 provider 栈，协议不动。同 provider 的两个 plan 也能
  *   真正切换（v1.5 起 `active.credential` 钉住语义）。
  * - 选中态单一事实源是 `[active].credential`（后端钉住），不再靠
  *   "spec 后缀匹配 plan.model" 猜 —— 两个同 provider 空 model 的 plan
  *   以前会被兜底链挤回同一个选项，看起来「切换不生效」。
- * - 思考深度：`reflect_get_effort` 回读 + `reflect_set_effort` 设置
+ * - 思考深度：`zhuye_get_effort` 回读 + `zhuye_set_effort` 设置
  *   （乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新）。
  * - 工作模式由 agentStore 回读；审批策略按会话单独保存并在发送时传入。
  *
@@ -21,9 +21,9 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { reflect_agent_status, reflect_get_config, reflect_set_model } from '@/utils/commands/config';
-import { reflect_list_provider_models, type ProviderModelInfo } from '@/utils/commands/models';
-import { reflect_get_effort, reflect_set_effort } from '@/utils/commands/permissions';
+import { zhuye_agent_status, zhuye_get_config, zhuye_set_model } from '@/utils/commands/config';
+import { zhuye_list_provider_models, type ProviderModelInfo } from '@/utils/commands/models';
+import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/permissions';
 import { listPlans, readActiveCredential, readActiveProvider, type PlanEntry } from '@/features/settings/config/plans';
 import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
 import { groupDisplayLabel, listGroups, type GroupEntry } from '@/features/settings/config/groups';
@@ -58,7 +58,7 @@ export function ComposerControls() {
   useEffect(() => { setApprovalPolicy(readApprovalPolicy(sessionId)); }, [sessionId]);
   const goalActive = useAgentStore((st) => st.goalActive);
   // v1.7 后端快照:徽标 tooltip 从「只有固定文案」升级为实际进度
-  // (轮次 / token / 状态),数据来自 reflect_goal_snapshot 读口。
+  // (轮次 / token / 状态),数据来自 zhuye_goal_snapshot 读口。
   const goalSnapshot = useAgentStore((st) => st.goalSnapshot);
   const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
   const pushToast = useAgentStore((st) => st.pushToast);
@@ -82,7 +82,7 @@ export function ComposerControls() {
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
-      const toml = await reflect_get_config();
+      const toml = await zhuye_get_config();
       if (cancelled) return;
       setPlans(listPlans(toml));
       setGroups(listGroups(toml));
@@ -90,7 +90,7 @@ export function ComposerControls() {
       setActiveCredential(readActiveCredential(toml));
     };
     refresh().catch(() => {/* 配置不可读时隐藏模型选择 */});
-    reflect_agent_status()
+    zhuye_agent_status()
       .then((status) => {
         if (cancelled) return;
         // 后端诚实化:has_model=false(无 provider 或无显式 model)时
@@ -98,7 +98,7 @@ export function ComposerControls() {
         setCurrentSpec(status.has_model ? status.model : '');
       })
       .catch(() => {/* 状态不可读时显示占位 */});
-    reflect_get_effort()
+    zhuye_get_effort()
       .then((level) => {
         if (!cancelled) setEffort(normalizeEffort(level));
       })
@@ -118,7 +118,7 @@ export function ComposerControls() {
         setSwitching(true);
         try {
           // 组切换不钉凭据(组级 model = 默认模型)。
-          const spec = await reflect_set_model(activeGroup.id, modelId);
+          const spec = await zhuye_set_model(activeGroup.id, modelId);
           setCurrentSpec(spec);
           setActiveProvider(activeGroup.id);
           setActiveCredential('');
@@ -139,7 +139,7 @@ export function ComposerControls() {
       if (!target) return;
       setSwitching(true);
       try {
-        const spec = await reflect_set_model(target.provider, modelId, target.label);
+        const spec = await zhuye_set_model(target.provider, modelId, target.label);
         setCurrentSpec(spec);
         setActiveProvider(target.provider);
         setActiveCredential(target.label);
@@ -162,7 +162,7 @@ export function ComposerControls() {
       if (!group) return;
       setSwitching(true);
       try {
-        const spec = await reflect_set_model(group.id, group.model.trim());
+        const spec = await zhuye_set_model(group.id, group.model.trim());
         setCurrentSpec(spec);
         setActiveProvider(group.id);
         setActiveCredential('');
@@ -188,7 +188,7 @@ export function ComposerControls() {
     if (!plan) return;
     setSwitching(true);
     try {
-      const spec = await reflect_set_model(plan.provider, plan.model, plan.label);
+      const spec = await zhuye_set_model(plan.provider, plan.model, plan.label);
       setCurrentSpec(spec);
       setActiveProvider(plan.provider);
       setActiveCredential(plan.label);
@@ -212,7 +212,7 @@ export function ComposerControls() {
 
   /** 切换成功后重读配置(后端已改写 active.credential / 条目 model / 组 model)。 */
   const refreshPlans = async () => {
-    const toml = await reflect_get_config();
+    const toml = await zhuye_get_config();
     setPlans(listPlans(toml));
     setGroups(listGroups(toml));
     setActiveProvider(readActiveProvider(toml));
@@ -247,7 +247,7 @@ export function ComposerControls() {
     setFetchingModels(true);
     setModelsError(null);
     try {
-      const res = await reflect_list_provider_models(plan.baseUrl.trim(), plan.apiKey.trim(), plan.provider);
+      const res = await zhuye_list_provider_models(plan.baseUrl.trim(), plan.apiKey.trim(), plan.provider);
       setApiModels(res.models);
       setApiModelsFor(planKey(plan));
     } catch (e) {
@@ -266,7 +266,7 @@ export function ComposerControls() {
 
   const onSetEffort = (level: Effort) => {
     setEffort(level);
-    void reflect_set_effort(level).catch(() => {
+    void zhuye_set_effort(level).catch(() => {
       // 乐观更新失败回滚读不到真值 —— 保持所选，下次挂载会对齐。
     });
   };

@@ -23,7 +23,7 @@ interface PayloadDoc {
 }
 
 const doc = JSON.parse(readFileSync('tests/contracts/payloads.json', 'utf8')) as PayloadDoc;
-const TMP = '/tmp/reflect-contract-probe';
+const TMP = '/tmp/zhuye-contract-probe';
 
 /** 递归把 `${TMP}` 占位符换成固定路径（fake 不碰文件系统，任何字符串都行）。 */
 function expandTmp(v: unknown): unknown {
@@ -44,7 +44,7 @@ beforeEach(() => {
 describe('payload contract (fakeBackend)', () => {
   it('sample table covers the whole fake registry and vice versa', () => {
     const sampled = new Set(Object.keys(doc.commands));
-    const registered = new Set(backend.registeredCommands.filter((c) => c.startsWith('reflect_')));
+    const registered = new Set(backend.registeredCommands.filter((c) => c.startsWith('zhuye_')));
     const missingSamples = [...registered].filter((c) => !sampled.has(c)).sort();
     const staleSamples = [...sampled].filter((c) => !registered.has(c)).sort();
     expect(missingSamples, 'fakeBackend 注册了但 payloads.json 没有样本').toEqual([]);
@@ -53,7 +53,7 @@ describe('payload contract (fakeBackend)', () => {
 
   const entries = Object.entries(doc.commands).sort(([a], [b]) => a.localeCompare(b));
   it.each(entries)('%s accepts the real-backend payload shape', async (cmd, args) => {
-    if (['reflect_kms_get_page', 'reflect_kms_list_pages', 'reflect_kms_save_page'].includes(cmd)) {
+    if (['zhuye_kms_get_page', 'zhuye_kms_list_pages', 'zhuye_kms_save_page'].includes(cmd)) {
       backend.state.wikis.push({ name: 'contract-probe-wiki', description: '' });
       backend.state.wikiPages['contract-probe-wiki/index.md'] = { title: null, content: 'fixture', tags: [] };
     }

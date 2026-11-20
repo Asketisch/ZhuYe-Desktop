@@ -1,10 +1,10 @@
 //! Squad + Leader 委派命令面。
 //!
-//! 薄包装 `reflect_task::SquadManager`,在 TaskManager 之上提供
+//! 薄包装 `zhuye_task::SquadManager`,在 TaskManager 之上提供
 //! leader 委派语义层。
 
-use reflect_task::Task;
-use reflect_task::{SquadError, SquadSpec};
+use zhuye_task::Task;
+use zhuye_task::{SquadError, SquadSpec};
 use tauri::State;
 
 use super::CommandResult;
@@ -18,13 +18,13 @@ impl From<SquadError> for super::error::CommandError {
 
 /// 列出所有 squad。
 #[tauri::command]
-pub async fn reflect_list_squads(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SquadSpec>> {
+pub async fn zhuye_list_squads(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SquadSpec>> {
     Ok(agent.squad_manager().list_squads().await?)
 }
 
 /// 创建 / 覆盖一个 squad。
 #[tauri::command]
-pub async fn reflect_create_squad(
+pub async fn zhuye_create_squad(
     agent: State<'_, MinimalAgent>,
     spec: SquadSpec,
 ) -> CommandResult<()> {
@@ -34,7 +34,7 @@ pub async fn reflect_create_squad(
 
 /// 读取单个 squad。
 #[tauri::command]
-pub async fn reflect_get_squad(
+pub async fn zhuye_get_squad(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<SquadSpec> {
@@ -43,7 +43,7 @@ pub async fn reflect_get_squad(
 
 /// 删除 squad(team 文件物理删除;task 不级联)。
 #[tauri::command]
-pub async fn reflect_delete_squad(
+pub async fn zhuye_delete_squad(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<()> {
@@ -53,7 +53,7 @@ pub async fn reflect_delete_squad(
 
 /// leader 原子认领下一个 Pending+unblocked 任务。
 #[tauri::command]
-pub async fn reflect_delegate_next(
+pub async fn zhuye_delegate_next(
     agent: State<'_, MinimalAgent>,
     name: String,
     leader_actor_id: String,
@@ -66,7 +66,7 @@ pub async fn reflect_delegate_next(
 
 /// 把任务分配给具体成员(`assignee` 为 None 清空分配)。
 #[tauri::command]
-pub async fn reflect_assign_squad_task(
+pub async fn zhuye_assign_squad_task(
     agent: State<'_, MinimalAgent>,
     name: String,
     task_id: u32,

@@ -12,57 +12,57 @@ export interface RouteSpec {
 }
 
 export const ROUTES: RouteSpec[] = [
-  { route: '/', commands: ['reflect_list_sessions'] },
+  { route: '/', commands: ['zhuye_list_sessions'] },
   { route: '/home' },
   { route: '/chat' },
   {
     route: '/sessions',
-    commands: ['reflect_list_sessions'],
+    commands: ['zhuye_list_sessions'],
   },
   {
     route: '/settings',
-    commands: ['reflect_get_config', 'reflect_agent_status'],
+    commands: ['zhuye_get_config', 'zhuye_agent_status'],
     shows: ['anthropic/claude-sonnet-4'],
   },
   {
     route: '/files',
-    commands: ['reflect_list_dir'],
+    commands: ['zhuye_list_dir'],
     shows: ['README.md'],
   },
   {
     route: '/models',
-    commands: ['reflect_agent_status'],
+    commands: ['zhuye_agent_status'],
   },
   {
     route: '/skills',
-    commands: ['reflect_list_tools'],
+    commands: ['zhuye_list_tools'],
     shows: ['read_file'],
   },
   {
     // WorkspacesView 由 workspaces.json 历史驱动；当前工作区来自 agent-status。
     route: '/workspaces',
-    commands: ['reflect_list_workspaces', 'reflect_agent_status'],
+    commands: ['zhuye_list_workspaces', 'zhuye_agent_status'],
     shows: ['/Users/dev/project'],
   },
   {
     route: '/git',
-    commands: ['reflect_git_status', 'reflect_git_diff', 'reflect_git_log'],
+    commands: ['zhuye_git_status', 'zhuye_git_diff', 'zhuye_git_log'],
     shows: ['feat: parser'],
   },
   {
     // P3：拉取请求（gh CLI）；fakeBackend 默认空列表。
     route: '/pulls',
-    commands: ['reflect_gh_pr_list'],
+    commands: ['zhuye_gh_pr_list'],
   },
   {
     // P3：hooks 运行时启停面板。
     route: '/hooks',
-    commands: ['reflect_list_hooks'],
+    commands: ['zhuye_list_hooks'],
   },
   { route: '/terminal' },
   { route: '/plan' },
   { route: '/prompts' },
-  { route: '/about', commands: ['reflect_agent_status'] },
+  { route: '/about', commands: ['zhuye_agent_status'] },
   {
     // 默认 tab 为 inbox；activity 查询按 tab 启用。
     route: '/notifications',
@@ -71,10 +71,10 @@ export const ROUTES: RouteSpec[] = [
   { route: '/apps' },
   { route: '/import' },
   { route: '/preview' },
-  { route: '/browser', commands: ['reflect_browser_status'] },
+  { route: '/browser', commands: ['zhuye_browser_status'] },
   {
     route: '/collaboration',
-    commands: ['reflect_list_tools'],
+    commands: ['zhuye_list_tools'],
   },
   { route: '/mobile' },
   { route: '/dictation' },
@@ -84,78 +84,78 @@ export const ROUTES: RouteSpec[] = [
   },
   {
     route: '/memory',
-    commands: ['reflect_list_memory'],
+    commands: ['zhuye_list_memory'],
     shows: ['build-cmd'],
   },
   { route: '/search' },
   {
     route: '/tasks',
-    commands: ['reflect_list_tasks'],
+    commands: ['zhuye_list_tasks'],
     shows: ['Ship v2'],
   },
   {
     route: '/schedule',
-    commands: ['reflect_list_schedules'],
+    commands: ['zhuye_list_schedules'],
     shows: ['run the nightly build'],
   },
   {
     route: '/agents',
-    commands: ['reflect_list_agent_defs'],
+    commands: ['zhuye_list_agent_defs'],
     shows: ['reviewer'],
   },
   {
     route: '/side-channels',
-    commands: ['reflect_list_side_channels'],
+    commands: ['zhuye_list_side_channels'],
     shows: ['background research'],
   },
   {
     route: '/remote',
-    commands: ['reflect_get_remote_status'],
+    commands: ['zhuye_get_remote_status'],
   },
   {
     route: '/kms',
-    commands: ['reflect_kms_list'],
+    commands: ['zhuye_kms_list'],
     shows: ['engineering'],
   },
   {
     route: '/autopilot',
-    commands: ['reflect_get_autopilot_config'],
+    commands: ['zhuye_get_autopilot_config'],
   },
   {
     // tasks 查询仅在选中 squad 后启用（enabled: !!selectedName）。
     route: '/squad',
-    commands: ['reflect_list_squads'],
+    commands: ['zhuye_list_squads'],
     shows: ['rocket'],
   },
   { route: '/media' },
   {
     route: '/traces',
-    commands: ['reflect_list_traces'],
+    commands: ['zhuye_list_traces'],
     shows: ['demo-session'],
   },
   {
     route: '/usage',
-    commands: ['reflect_all_model_usage'],
+    commands: ['zhuye_all_model_usage'],
     shows: ['openai/gpt-4o'],
   },
   {
     route: '/collaboration',
-    commands: ['reflect_list_discussions'],
+    commands: ['zhuye_list_discussions'],
     shows: ['demo-session'],
   },
   {
     // market：三源合并卡片（MCP / 插件 / 技能）。
     route: '/market',
-    commands: ['reflect_list_mcp_servers', 'reflect_list_plugins', 'reflect_list_skills'],
+    commands: ['zhuye_list_mcp_servers', 'zhuye_list_plugins', 'zhuye_list_skills'],
   },
   {
     // lanes：子代理泳道（快照经 subagent_status 事件异步到达，空态即可）。
     route: '/lanes',
-    commands: ['reflect_list_side_channels'],
+    commands: ['zhuye_list_side_channels'],
   },
   {
     route: '/chat/sess-alpha',
-    commands: ['reflect_replay_session'],
+    commands: ['zhuye_replay_session'],
     shows: ['Summarize the auth flow'],
   },
 ];

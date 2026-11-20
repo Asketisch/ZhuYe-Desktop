@@ -1,8 +1,8 @@
 /**
- * useBangShell —— Composer `!` 终端直通（P3，对标 Reasonix「! 终端」语法）。
+ * useBangShell —— Composer `!` 终端直通（P3，`! 终端` 直通语法）。
  *
- * `! <cmd>` 不进 agent 循环：经 `reflect_run_shell` 在当前工作区本地执行，
- * 输出经共享的 `reflect_terminal_output` 事件订阅按 session_id 分发到对应
+ * `! <cmd>` 不进 agent 循环：经 `zhuye_run_shell` 在当前工作区本地执行，
+ * 输出经共享的 `zhuye_terminal_output` 事件订阅按 session_id 分发到对应
  * run，`exit` / `error` 块收尾。结果只在 Composer 上方的面板本地呈现
  * （不写入会话 JSONL —— 这是用户自查环境，不是给模型的上下文）。
  *
@@ -11,9 +11,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   onTerminalOutput,
-  reflect_kill_shell,
-  reflect_run_shell,
-  type ReflectShellOutputChunk,
+  zhuye_kill_shell,
+  zhuye_run_shell,
+  type ZhuyeShellOutputChunk,
 } from '@/utils/commands';
 
 export interface BangRun {
@@ -27,8 +27,8 @@ export interface BangRun {
 let sharedListener: Promise<void> | null = null;
 let sharedUnlisten: (() => void) | null = null;
 let listenerUsers = 0;
-const outputTargets = new Map<string, (chunk: ReflectShellOutputChunk) => void>();
-const earlyOutput = new Map<string, ReflectShellOutputChunk[]>();
+const outputTargets = new Map<string, (chunk: ZhuyeShellOutputChunk) => void>();
+const earlyOutput = new Map<string, ZhuyeShellOutputChunk[]>();
 let starting = 0;
 
 function ensureSharedListener(): Promise<void> {
@@ -98,10 +98,10 @@ export function useBangShell() {
         await ensureSharedListener();
         starting += 1;
         try {
-          const session = await reflect_run_shell(trimmed);
+          const session = await zhuye_run_shell(trimmed);
           if (!mounted.current) return;
           owned.current.add(session.id);
-          const target = (chunk: ReflectShellOutputChunk) => {
+          const target = (chunk: ZhuyeShellOutputChunk) => {
             if (chunk.stream === 'exit' || chunk.stream === 'error') {
               // stderr 可能在 exit 之后到达；保留路由直到面板关闭或卸载。
               const code = chunk.data.trim();
@@ -147,7 +147,7 @@ export function useBangShell() {
   const kill = useCallback(
     async (id: string) => {
       if (!id.startsWith('local-')) {
-        await reflect_kill_shell(id).catch(() => {/* 已退出的 run 幂等 no-op */});
+        await zhuye_kill_shell(id).catch(() => {/* 已退出的 run 幂等 no-op */});
       }
       dismiss(id);
     },

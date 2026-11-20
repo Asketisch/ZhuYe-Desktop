@@ -1,10 +1,10 @@
 //! Workspace 命令。
 //!
 //! - 列表持久化在 `~/.zhuye/workspaces.json`（`[WorkspaceInfo]` 数组）；
-//!   `reflect_set_workspace` 每次切换 upsert 该文件，作为「最近项目」历史。
-//! - `reflect_pick_workspace_folder` 走 `tauri-plugin-dialog` 的 Rust 侧
+//!   `zhuye_set_workspace` 每次切换 upsert 该文件，作为「最近项目」历史。
+//! - `zhuye_pick_workspace_folder` 走 `tauri-plugin-dialog` 的 Rust 侧
 //!   API 弹原生目录选择框 —— 不经 JS IPC，无需 dialog capability。
-//! - `reflect_reveal_path` 在系统文件管理器中定位路径（macOS Finder /
+//! - `zhuye_reveal_path` 在系统文件管理器中定位路径（macOS Finder /
 //!   Windows 资源管理器 / Linux xdg-open）。
 
 use std::io;
@@ -42,7 +42,7 @@ pub struct WorkspaceDirsInfo {
 }
 
 fn workspaces_file() -> Option<PathBuf> {
-    reflect_config::paths::data_path(&["workspaces.json"])
+    zhuye_config::paths::data_path(&["workspaces.json"])
 }
 
 /// 不存在时返回空表；读取或解析失败时保留原文件并报告错误。
@@ -95,7 +95,7 @@ fn upsert_history(path: &Path, entry: WorkspaceInfo, unhide: bool) -> CommandRes
 
 /// 列出已知 workspace（从 `~/.zhuye/workspaces.json` 读取）。
 #[tauri::command]
-pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
+pub async fn zhuye_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
     let _guard = HISTORY_LOCK.lock();
     let path = workspaces_file().ok_or_else(|| CommandError {
         msg: "no HOME dir".into(),
@@ -117,7 +117,7 @@ pub async fn reflect_list_workspaces() -> CommandResult<Vec<WorkspaceInfo>> {
 }
 
 #[tauri::command]
-pub async fn reflect_set_workspace(
+pub async fn zhuye_set_workspace(
     agent: State<'_, MinimalAgent>,
     path: String,
     unhide: Option<bool>,
@@ -151,7 +151,7 @@ pub async fn reflect_set_workspace(
         };
         if let Err(e) = upsert_history(&hist, entry, unhide.unwrap_or(false)) {
             // 历史写失败不阻断切换 —— workspace 本身已生效。
-            tracing::warn!("[reflect-gui] persist workspace history failed: {}", e.msg);
+            tracing::warn!("[zhuye-gui] persist workspace history failed: {}", e.msg);
         }
     }
     agent.set_workspace(p);
@@ -186,7 +186,7 @@ fn hide_workspace_variants(list: &mut [WorkspaceInfo], path: &str) -> bool {
 /// 变体时精确字符串匹配只命中其一,可见组来自另一变体,表现为「删不掉」;
 /// ② 顺手清理占位条目("/", ".", 空串)。
 #[tauri::command]
-pub async fn reflect_remove_workspace(path: String) -> CommandResult<()> {
+pub async fn zhuye_remove_workspace(path: String) -> CommandResult<()> {
     let _guard = HISTORY_LOCK.lock();
     let file = workspaces_file().ok_or_else(|| CommandError {
         msg: "no HOME dir".into(),
@@ -211,7 +211,7 @@ pub async fn reflect_remove_workspace(path: String) -> CommandResult<()> {
 }
 
 #[tauri::command]
-pub async fn reflect_current_workspace(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_current_workspace(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.workspace().display().to_string())
 }
 
@@ -225,7 +225,7 @@ pub async fn reflect_current_workspace(agent: State<'_, MinimalAgent>) -> Comman
 /// 传空数组 = 清空(回到单目录)。新绑定的会话生效(既有会话不受影响,
 /// 与 workspace 切换的 bind 语义一致)。
 #[tauri::command]
-pub async fn reflect_set_workspace_dirs(
+pub async fn zhuye_set_workspace_dirs(
     agent: State<'_, MinimalAgent>,
     main: String,
     additional: Vec<String>,
@@ -275,7 +275,7 @@ pub async fn reflect_set_workspace_dirs(
 
 /// 读取当前多目录综合工作区状态(主 + 附加)。
 #[tauri::command]
-pub async fn reflect_current_workspace_dirs(
+pub async fn zhuye_current_workspace_dirs(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<WorkspaceDirsInfo> {
     Ok(WorkspaceDirsInfo {
@@ -296,7 +296,7 @@ pub async fn reflect_current_workspace_dirs(
 /// 能力覆盖层才能用 mock runtime 驱动真实命令体。句柄缺失时返回错误
 /// (原生对话框在无桌面 runtime 下本就无法弹出)。
 #[tauri::command]
-pub async fn reflect_pick_workspace_folder(
+pub async fn zhuye_pick_workspace_folder(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Option<String>> {
     let app = agent.app_handle().ok_or_else(|| CommandError {
@@ -319,7 +319,7 @@ pub async fn reflect_pick_workspace_folder(
 ///
 /// `extensions` 为扩展名白名单（不含点，如 `["toml"]`）；空列表 = 不过滤。
 #[tauri::command]
-pub async fn reflect_pick_file(
+pub async fn zhuye_pick_file(
     agent: State<'_, MinimalAgent>,
     extensions: Option<Vec<String>>,
 ) -> CommandResult<Option<String>> {
@@ -346,11 +346,11 @@ pub async fn reflect_pick_file(
 
 /// 弹出原生**多选**文件选择框(Composer 附件按钮入口)；取消 → `None`。
 ///
-/// 与 `reflect_pick_file`(单选、TOML 配置入口)刻意分开:附件场景不过滤
+/// 与 `zhuye_pick_file`(单选、TOML 配置入口)刻意分开:附件场景不过滤
 /// 扩展名、一次可拖选多个,返回真实绝对路径供 file mention / 内联图片
 /// 分流(与 Finder 原生拖拽同款管线)。
 #[tauri::command]
-pub async fn reflect_pick_files(
+pub async fn zhuye_pick_files(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Option<Vec<String>>> {
     let app = agent.app_handle().ok_or_else(|| CommandError {
@@ -375,7 +375,7 @@ pub async fn reflect_pick_files(
 /// 在系统文件管理器中定位并选中 `path`（Finder 显示 / 资源管理器选中 /
 /// xdg-open 打开所在目录）。
 #[tauri::command]
-pub async fn reflect_reveal_path(path: String) -> CommandResult<()> {
+pub async fn zhuye_reveal_path(path: String) -> CommandResult<()> {
     let p = PathBuf::from(&path);
     if !p.exists() {
         return Err(CommandError {

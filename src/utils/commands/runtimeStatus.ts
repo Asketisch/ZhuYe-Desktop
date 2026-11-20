@@ -60,21 +60,21 @@ export interface ConfigInfo {
 
 
 /** 查询各 provider 的凭证池健康度。 */
-export function reflect_credential_pool_status(): Promise<CredentialPoolStatus[]> {
-  return invoke('reflect_credential_pool_status');
+export function zhuye_credential_pool_status(): Promise<CredentialPoolStatus[]> {
+  return invoke('zhuye_credential_pool_status');
 }
 
 /** 查询本会话已完成的子代理调用。 */
-export function reflect_recovery_state(): Promise<SubagentCallRecord[]> {
-  return invoke('reflect_recovery_state');
+export function zhuye_recovery_state(): Promise<SubagentCallRecord[]> {
+  return invoke('zhuye_recovery_state');
 }
 
 /** 查询磁盘记忆的分段候选项。 */
-export function reflect_memory_sections(expectedContext?: MemoryContext): Promise<MemorySectionInfo[]> {
-  return invoke('reflect_memory_sections', expectedContext ? { expectedContext } : undefined);
+export function zhuye_memory_sections(expectedContext?: MemoryContext): Promise<MemorySectionInfo[]> {
+  return invoke('zhuye_memory_sections', expectedContext ? { expectedContext } : undefined);
 }
 
 /** 查询配置位置与分析健康度。 */
-export function reflect_config_info(): Promise<ConfigInfo> {
-  return invoke('reflect_config_info');
+export function zhuye_config_info(): Promise<ConfigInfo> {
+  return invoke('zhuye_config_info');
 }

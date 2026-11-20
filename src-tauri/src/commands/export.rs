@@ -1,14 +1,14 @@
-//! Session 导出为 Markdown (`reflect_export_session_markdown`)。
+//! Session 导出为 Markdown (`zhuye_export_session_markdown`)。
 //!
 //! 把 session replay flatten 成 markdown transcript,写到 `~/.zhuye/exports/<id>.md`。
 //!
-//! 渲染已收编进上游 `reflect_rollout::export`(13 变体渲染 + Usage 段,
+//! 渲染已收编进上游 `zhuye_rollout::export`(13 变体渲染 + Usage 段,
 //! 与 CLI `/export` 同源单一事实源);桌面端保留:
 //! - 回放入口(`replay_for_export`,与 bind/replay/JSON 导出同源);
 //! - 写盘语义([`write_export`],tempfile + rename **替换** symlink,
 //!   与上游 `write_atomic` 的"写穿 symlink"语义刻意不同)。
 
-use reflect_protocol::ThreadId;
+use zhuye_protocol::ThreadId;
 use serde::{Deserialize, Serialize};
 
 use crate::commands::error::{CommandError, CommandResult};
@@ -23,16 +23,16 @@ pub struct MarkdownExportResult {
 /// 回放 session,flatten 成 Markdown 转写稿,写入
 /// `~/.zhuye/exports/<id>.md`,返回绝对路径。
 #[tauri::command]
-pub async fn reflect_export_session_markdown(id: ThreadId) -> CommandResult<MarkdownExportResult> {
+pub async fn zhuye_export_session_markdown(id: ThreadId) -> CommandResult<MarkdownExportResult> {
     // 与 bind/replay/JSON 导出同源的回放入口(全树按时间序)。
     // 此前只走三日快路径,旧会话导出为不报错的空稿。
     let records = replay_for_export(&id).await.map_err(CommandError::from)?;
 
-    let mut out = reflect_rollout::export::render_transcript(&id, &records);
+    let mut out = zhuye_rollout::export::render_transcript(&id, &records);
     // v1.x:文末「Usage」段(模型级 token 统计 + 压缩节省 + 记忆访问)。
     // 聚合与渲染都走上游;统计缺省(会话尚无落盘记录)→ 空串。
-    let stats = reflect_rollout::index::session_stats(&reflect_rollout::path::default_base(), id);
-    out.push_str(&reflect_rollout::export::render_usage_section(
+    let stats = zhuye_rollout::index::session_stats(&zhuye_rollout::path::default_base(), id);
+    out.push_str(&zhuye_rollout::export::render_usage_section(
         stats.as_ref(),
     ));
 
@@ -111,16 +111,16 @@ mod tests {
     fn upstream_renderers_produce_transcript_and_usage() {
         // 集成冒烟:上游渲染器对桌面回放结果产出的形状(标题 + Usage 段)。
         let id = ThreadId::new();
-        let record = reflect_protocol::RolloutRecord::Message {
-            turn_id: reflect_protocol::TurnId::new(),
-            role: reflect_protocol::MessageRole::User,
+        let record = zhuye_protocol::RolloutRecord::Message {
+            turn_id: zhuye_protocol::TurnId::new(),
+            role: zhuye_protocol::MessageRole::User,
             content: serde_json::Value::String("hello".into()),
         };
-        let md = reflect_rollout::export::render_transcript(&id, &[record]);
+        let md = zhuye_rollout::export::render_transcript(&id, &[record]);
         assert!(md.contains("## Turn 1"));
         assert!(md.contains("**user**: hello"));
         assert_eq!(
-            reflect_rollout::export::render_usage_section(None),
+            zhuye_rollout::export::render_usage_section(None),
             String::new()
         );
     }

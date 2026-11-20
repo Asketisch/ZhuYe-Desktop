@@ -23,7 +23,7 @@ describe('外观适配', () => {
     expect(document.documentElement.dataset.alternateTheme).toBe('light');
     expect(document.documentElement.style.getPropertyValue('--alternate-scale')).toBe('1.2');
     expect(getUiPrefs().sendOnEnter).toBe(false);
-    expect(localStorage.getItem('reflect-theme')).toBe('light');
+    expect(localStorage.getItem('zhuye-theme')).toBe('light');
     unsubscribe();
   });
 });

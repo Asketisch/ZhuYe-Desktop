@@ -2,17 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import {
-  reflect_check_update,
-  reflect_download_install_update,
-  reflect_relaunch_app,
+  zhuye_check_update,
+  zhuye_download_install_update,
+  zhuye_relaunch_app,
   listen_update_progress,
-  type ReflectUpdateInfo,
-  type ReflectUpdateProgress,
+  type ZhuyeUpdateInfo,
+  type ZhuyeUpdateProgress,
 } from '@/utils/commands/updates';
 import type { UpdateInstallState, UpdatesSectionProps } from '@/contracts/settingsCards';
 export function UpdatesBinding({ view: View }: { view: ComponentType<UpdatesSectionProps> }) {
   const { t } = useI18n();
-  const [info, setInfo] = useState<ReflectUpdateInfo | null>(null);
+  const [info, setInfo] = useState<ZhuyeUpdateInfo | null>(null);
   const [busy, setBusy] = useState(false);
   // OTA 安装状态:null = 本次会话未发起过安装。安装期间按钮不再渲染
   // (phase 非空即收起入口),无需单独的 busy 标记防双击。
@@ -22,7 +22,7 @@ export function UpdatesBinding({ view: View }: { view: ComponentType<UpdatesSect
 
   useEffect(() => {
     let cancelled = false;
-    listen_update_progress((payload: ReflectUpdateProgress) => {
+    listen_update_progress((payload: ZhuyeUpdateProgress) => {
       setInstall((prev) => {
         if (payload.type === 'progress') {
           const total = payload.total;
@@ -50,7 +50,7 @@ export function UpdatesBinding({ view: View }: { view: ComponentType<UpdatesSect
     };
   }, []);
 
-  const check = async () => { setBusy(true); try { setInfo(await reflect_check_update()); } catch (cause) { setInfo({ currentVersion: '', latestVersion: null, updateAvailable: false, releaseUrl: null, releaseNotes: null, probedAt: Date.now(), error: cause instanceof Error ? cause.message : String(cause) }); } finally { setBusy(false); } };
+  const check = async () => { setBusy(true); try { setInfo(await zhuye_check_update()); } catch (cause) { setInfo({ currentVersion: '', latestVersion: null, updateAvailable: false, releaseUrl: null, releaseNotes: null, probedAt: Date.now(), error: cause instanceof Error ? cause.message : String(cause) }); } finally { setBusy(false); } };
 
   // 挂载即检查一次:原生菜单「Check for Updates…」跳到设置页即完成触发,
   // 也让面板在打开时总是展示新鲜状态(探测失败不阻断 UI)。
@@ -66,7 +66,7 @@ export function UpdatesBinding({ view: View }: { view: ComponentType<UpdatesSect
   const installUpdate = async () => {
     setInstall({ phase: 'downloading', percent: null, error: null, version: null });
     try {
-      const outcome = await reflect_download_install_update();
+      const outcome = await zhuye_download_install_update();
       if (outcome.installed) {
         setInstall({ phase: 'done', percent: 100, error: null, version: outcome.version });
       } else {
@@ -85,7 +85,7 @@ export function UpdatesBinding({ view: View }: { view: ComponentType<UpdatesSect
   };
 
   const relaunch = async () => {
-    try { await reflect_relaunch_app(); } catch (cause) {
+    try { await zhuye_relaunch_app(); } catch (cause) {
       // 重启失败(极少)降级为错误展示,不打断 UI。
       setInstall((prev) => ({ phase: 'error', percent: null, error: cause instanceof Error ? cause.message : String(cause), version: prev?.version ?? null }));
     }

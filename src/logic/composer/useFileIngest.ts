@@ -3,7 +3,7 @@
  *
  * webview 侧 `<input type=file>` / clipboardData / DOM drop 只给字节不给
  * 路径,而引擎 `UserInputItem::File` 与 `/read` 都按路径消费 —— 因此把
- * 字节经 `reflect_ingest_upload` 落到工作区 `.zhuye/uploads/` 拿到真实
+ * 字节经 `zhuye_ingest_upload` 落到工作区 `.zhuye/uploads/` 拿到真实
  * 路径,再转成 ready 的 file mention(与 Finder 原生拖拽同款终点)。
  *
  * 状态机(A3):先 `addBrowserFile` 以 pending 入列,成功 settle / 失败
@@ -12,7 +12,7 @@
  * 图片不走这里(多模态内容,保持 base64 内联,见 Composer.onPickImage)。
  */
 import { useCallback } from 'react';
-import { reflect_ingest_upload } from '@/utils/commands/files';
+import { zhuye_ingest_upload } from '@/utils/commands/files';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import type { UseAttachmentsResult } from './useAttachments';
@@ -49,7 +49,7 @@ export function useFileIngest(attachments: UseAttachmentsResult): UseFileIngestR
   const { t } = useI18n();
   const pushToast = useAgentStore((st) => st.pushToast);
 
-  // 单个附件的落盘流程:pending → reflect_ingest_upload → settle/markError。
+  // 单个附件的落盘流程:pending → zhuye_ingest_upload → settle/markError。
   const runIngest = useCallback(
     async (id: string, file: File) => {
       try {
@@ -57,7 +57,7 @@ export function useFileIngest(attachments: UseAttachmentsResult): UseFileIngestR
           throw new Error(t('composer.upload.tooLarge', { size: INGEST_MAX_BYTES }));
         }
         const base64 = await fileToBase64(file);
-        const res = await reflect_ingest_upload(file.name, base64);
+        const res = await zhuye_ingest_upload(file.name, base64);
         attachments.updateAttachment(id, { kind: 'file', path: res.path });
       } catch (e) {
         attachments.updateAttachment(

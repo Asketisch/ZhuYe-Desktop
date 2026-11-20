@@ -20,7 +20,7 @@
 import { useRef, useState } from 'react';
 import { useAgentStore, type PendingApproval } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { reflect_add_permission_rule } from '@/utils/commands';
+import { zhuye_add_permission_rule } from '@/utils/commands';
 import { Badge } from '@/features/design-system';
 import { ModalShell } from './ModalShell';
 import { deriveAllowRule, extractCommand } from './allowRule';
@@ -68,7 +68,7 @@ export function ApprovalModal({ approval }: { approval: PendingApproval }) {
     setAllowBusy(true);
     setAllowError(null);
     try {
-      await reflect_add_permission_rule(allowRule);
+      await zhuye_add_permission_rule(allowRule);
       await approve(approval.kind, approval.id, 'approve');
     } catch (e) {
       setAllowError(e instanceof Error ? e.message : String(e));

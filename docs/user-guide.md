@@ -12,7 +12,7 @@
 ```bash
 bash scripts/install.sh
 # 安装到：
-#   /usr/local/bin/reflect-desktop           （二进制文件）
+#   /usr/local/bin/zhuye-desktop           （二进制文件）
 #   ~/Applications/ZhuYe.app                 （可启动包）
 ```
 
@@ -29,7 +29,7 @@ bash scripts/install.sh
 ## 2. 启动
 
 - 在 macOS 上点击 `~/Applications/ZhuYe.app`
-- 或：从任意终端运行 `reflect-desktop`（PATH 安装）
+- 或：从任意终端运行 `zhuye-desktop`（PATH 安装）
 - 开发模式：`pnpm tauri dev`（HMR，开发工具）
 
 ## 3. 功能总览
@@ -53,7 +53,7 @@ GUI 采用 feature-sliced 布局，功能切片的完整清单与落点链见
 
 ## 4. 引擎与 IPC
 
-GUI 通过本地进程内 `reflect-core::AgentThread` 消耗烛夜 agent 引擎（`zhuye-agent` submodule），由 `reflect_*` Tauri 命令暴露。线协议为 `reflect-protocol::Event` / `Submission`（通过 Tauri 的 JSON 序列化器零拷贝）。
+GUI 通过本地进程内 `zhuye-core::AgentThread` 消耗烛夜 agent 引擎（`zhuye-agent` submodule），由 `zhuye_*` Tauri 命令暴露。线协议为 `zhuye-protocol::Event` / `Submission`（通过 Tauri 的 JSON 序列化器零拷贝）。
 
 ```text
 React 19 + Vite
@@ -62,7 +62,7 @@ React 19 + Vite
 src-tauri/        （Rust 适配层）
    |  （进程内 Arc + mpsc）
    v
-reflect-core::AgentThread（MinimalAgent 宿主封装）
+zhuye-core::AgentThread（MinimalAgent 宿主封装）
 ```
 
 当 agent 发布额外钩子/工具/内置功能时，同步一次：
@@ -75,13 +75,13 @@ git submodule update --remote zhuye-agent
 
 | 变体 | 大小 |
 |---|---|
-| `target/release/reflect-desktop`（Mach-O） | ~7.5 MB |
+| `target/release/zhuye-desktop`（Mach-O） | ~7.5 MB |
 | `target/release/bundle/macos/ZhuYe.app` | ~7.3 MB |
 | 通过 `pnpm tauri build` 的跨平台目标 | .dmg / .msi / .deb / .AppImage |
 
 ## 6. 从烛夜 CLI 切换
 
-上游 CLI（二进制 `zhuye`）和 `reflect-desktop`（本仓库）共享相同的
+上游 CLI（二进制 `zhuye`）和 `zhuye-desktop`（本仓库）共享相同的
 `~/.zhuye/` 数据目录（sessions / 配置 / 记忆 / 权限），相同的模型注册表
 和相同的 MCP 服务器。你可以来回切换而不丢失状态。
 
@@ -98,7 +98,7 @@ git submodule update --remote zhuye-agent
 
 ## 8. 故障排查
 
-- **`binary not found: .../target/release/reflect-desktop`** —— 先运行
+- **`binary not found: .../target/release/zhuye-desktop`** —— 先运行
   `pnpm tauri build --bundles app`。
 
 - **`Permission denied for ~/.zhuye/sessions/`** —— `chmod 700 ~/.zhuye`。

@@ -38,7 +38,7 @@ fn reply() -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -99,16 +99,16 @@ fn model_turn_writes_activity_trace_and_span_records() {
         provider.uri()
     ));
     let rx = listen();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"telemetry-runtime-turn","op":{"type":"user_input","items":[{"type":"text","text":"telemetry-runtime-marker"}]}}}),
     );
     wait_terminal(&rx);
 
     let traces: Vec<Value> = wait_for(
-        "reflect_list_traces",
+        "zhuye_list_traces",
         json!({"limit":5}),
         |traces: &Vec<Value>| {
             traces.iter().any(|trace| {
@@ -124,13 +124,13 @@ fn model_turn_writes_activity_trace_and_span_records() {
     assert_eq!(trace["model"], "claude-mock", "{trace}");
 
     let files: Vec<Value> = wait_for(
-        "reflect_list_span_logs",
+        "zhuye_list_span_logs",
         json!({"days":1}),
         |files: &Vec<Value>| !files.is_empty(),
     );
     let day = files[0]["day"].as_str().unwrap();
     let spans: Vec<Value> = wait_for(
-        "reflect_read_span_log",
+        "zhuye_read_span_log",
         json!({"day":day,"sessionId":session}),
         |spans: &Vec<Value>| {
             spans.iter().any(|span| span["event"] == "turn.started")
@@ -145,7 +145,7 @@ fn model_turn_writes_activity_trace_and_span_records() {
     );
 
     let activity: Vec<Value> =
-        wait_for("reflect_list_activity", json!({}), |events: &Vec<Value>| {
+        wait_for("zhuye_list_activity", json!({}), |events: &Vec<Value>| {
             events.iter().any(|event| event["kind"] == "turn_complete")
         });
     assert!(

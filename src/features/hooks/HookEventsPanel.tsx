@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Card, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import { reflect_list_hook_events } from '@/utils/commands/hooks';
+import { zhuye_list_hook_events } from '@/utils/commands/hooks';
 import s from '@/render/hooks/HooksView.module.css';
 
 export function HookEventsPanel() {
@@ -17,7 +17,7 @@ export function HookEventsPanel() {
   const [open, setOpen] = useState(false);
   const q = useQuery({
     queryKey: ['hook-events'],
-    queryFn: () => reflect_list_hook_events(),
+    queryFn: () => zhuye_list_hook_events(),
     enabled: open,
     staleTime: 300_000,
   });

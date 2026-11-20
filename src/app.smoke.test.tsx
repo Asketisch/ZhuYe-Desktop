@@ -4,9 +4,9 @@
  * 覆盖：
  * 1. 路由模块结构 —— 注册 21 个路由,AppRouter type 存在
  * 2. 顶层 AppLayout 接线 —— Sidebar / ChatView 渲染
- * 3. ReflectEvent dispatch —— useAgent 累积 turns + session 配置
+ * 3. ZhuyeEvent dispatch —— useAgent 累积 turns + session 配置
  * 4. useSessions —— 真实 TanStack Query + bucket 分类 + rename IPC
- * 5. SettingsView —— reflect_set_permission_mode 变更
+ * 5. SettingsView —— zhuye_set_permission_mode 变更
  * 6. DesignSystemView —— 6 个 section 全部渲染 + 4 个 primitive 可见
  * 7. Barrel exports —— features/<slice>/index.ts 全部可 import
  */
@@ -136,14 +136,14 @@ describe('AppShell (IDE-style top-level shell)', () => {
 });
 
 // ===========================================================================
-// 3. ReflectEvent dispatch —— useAgent 累积 turns
+// 3. ZhuyeEvent dispatch —— useAgent 累积 turns
 // ===========================================================================
 
 describe('Event-driven agent flow', () => {
   let unsubscribe: (() => void) | null = null;
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_submit', async (s: { id: string }) => s.id);
+    mockInvoke('zhuye_submit', async (s: { id: string }) => s.id);
     // 清空 store + 建立事件订阅(生产环境由 AppProviders 建立)。
     useAgentStore.getState().reset();
     unsubscribe = useAgentStore.getState().subscribe();
@@ -174,7 +174,7 @@ describe('Event-driven agent flow', () => {
 
     // 2. 第一个流式 delta
     await act(async () => {
-      emitMockEvent('reflect_event', {
+      emitMockEvent('zhuye_event', {
         id: submissionId,
         msg: { type: 'agent_message_delta', delta: 'Hi' },
       });
@@ -183,7 +183,7 @@ describe('Event-driven agent flow', () => {
 
     // 3. 第二个流式 delta
     await act(async () => {
-      emitMockEvent('reflect_event', {
+      emitMockEvent('zhuye_event', {
         id: submissionId,
         msg: { type: 'agent_message_delta', delta: ' there' },
       });
@@ -192,7 +192,7 @@ describe('Event-driven agent flow', () => {
 
     // 4. turn 完成
     await act(async () => {
-      emitMockEvent('reflect_event', {
+      emitMockEvent('zhuye_event', {
         id: submissionId,
         msg: { type: 'turn_complete', turn_id: 'turn-1', usage: {}, status: 'success' },
       });
@@ -210,7 +210,7 @@ describe('Event-driven agent flow', () => {
 
     expect(agentHook!.session).toBeNull();
     await act(async () => {
-      emitMockEvent('reflect_event', {
+      emitMockEvent('zhuye_event', {
         id: '',
         msg: { type: 'session_configured', model: 'claude-opus-4.7', provider: 'anthropic' },
       });
@@ -230,7 +230,7 @@ describe('Event-driven agent flow', () => {
     render(wrap(<Capture />));
 
     await act(async () => {
-      emitMockEvent('reflect_event', {
+      emitMockEvent('zhuye_event', {
         id: '',
         msg: { type: 'session_configured', model: '', provider: '' },
       });
@@ -247,7 +247,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
   beforeEach(() => {
     resetMockInvoke();
     const now = Date.now();
-    mockInvoke('reflect_list_sessions', async () => [
+    mockInvoke('zhuye_list_sessions', async () => [
       {
         session_id: 's-A',
         thread_id: 't-A',
@@ -274,7 +274,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
       },
     ]);
     // commands.ts 以 { id, newName } 作为 args 对象发送
-    mockInvoke('reflect_rename_session', async (_cmd: string, args: { id: string; newName: string }) => {
+    mockInvoke('zhuye_rename_session', async (_cmd: string, args: { id: string; newName: string }) => {
       (globalThis as { __lastRename?: { id: string; newName: string } }).__lastRename = args;
     });
   });
@@ -305,7 +305,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
 
   it('invalidates query cache after successful rename (auto-refresh)', async () => {
     let callCount = 0;
-    mockInvoke('reflect_list_sessions', async () => {
+    mockInvoke('zhuye_list_sessions', async () => {
       callCount += 1;
       return [];
     });
@@ -331,12 +331,12 @@ describe('Settings save flow', () => {
   beforeEach(() => {
     resetMockInvoke();
     (globalThis as { __lastMode?: string }).__lastMode = undefined;
-    mockInvoke('reflect_set_permission_mode', async (_cmd: string, args: { mode: string }) => {
+    mockInvoke('zhuye_set_permission_mode', async (_cmd: string, args: { mode: string }) => {
       (globalThis as { __lastMode?: string }).__lastMode = args.mode;
     });
-    mockInvoke('reflect_save_config', async () => {});
-    mockInvoke('reflect_get_config', async () => '[active]\nprovider = "anthropic"\n');
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_save_config', async () => {});
+    mockInvoke('zhuye_get_config', async () => '[active]\nprovider = "anthropic"\n');
+    mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: true,
       model: 'anthropic/claude',
@@ -345,7 +345,7 @@ describe('Settings save flow', () => {
     }));
   });
 
-  it('clicking permission button triggers reflect_set_permission_mode mutation', async () => {
+  it('clicking permission button triggers zhuye_set_permission_mode mutation', async () => {
     render(wrap(<SettingsView />));
     // 权限快捷控件只在 Permissions 页显示（v1.x:不再每个设置页签重复）。
     fireEvent.click(screen.getByText('Permissions'));
@@ -458,26 +458,26 @@ describe('Feature barrel exports', () => {
 
   it('utils barrel exposes all IPC commands', async () => {
     const mod = await import('@/utils/commands');
-    expect(mod.reflect_submit).toBeDefined();
-    expect(mod.reflect_interrupt).toBeDefined();
-    expect(mod.reflect_compact).toBeDefined();
-    expect(mod.reflect_rewind).toBeDefined();
-    expect(mod.reflect_shutdown).toBeDefined();
-    expect(mod.reflect_tool_approval).toBeDefined();
-    expect(mod.reflect_hook_approval).toBeDefined();
-    expect(mod.reflect_plan_approval).toBeDefined();
-    expect(mod.reflect_enter_plan_mode).toBeDefined();
-    expect(mod.reflect_exit_plan_mode).toBeDefined();
-    expect(mod.reflect_set_effort).toBeDefined();
-    expect(mod.reflect_set_permission_mode).toBeDefined();
-    expect(mod.reflect_cycle_permission_mode).toBeDefined();
-    expect(mod.reflect_ask_user_question_response).toBeDefined();
-    expect(mod.reflect_ask_user_input_response).toBeDefined();
-    expect(mod.reflect_list_sessions).toBeDefined();
-    expect(mod.reflect_rename_session).toBeDefined();
-    expect(mod.reflect_delete_session).toBeDefined();
-    expect(mod.reflect_replay_session).toBeDefined();
-    expect(mod.onReflectEvent).toBeDefined();
+    expect(mod.zhuye_submit).toBeDefined();
+    expect(mod.zhuye_interrupt).toBeDefined();
+    expect(mod.zhuye_compact).toBeDefined();
+    expect(mod.zhuye_rewind).toBeDefined();
+    expect(mod.zhuye_shutdown).toBeDefined();
+    expect(mod.zhuye_tool_approval).toBeDefined();
+    expect(mod.zhuye_hook_approval).toBeDefined();
+    expect(mod.zhuye_plan_approval).toBeDefined();
+    expect(mod.zhuye_enter_plan_mode).toBeDefined();
+    expect(mod.zhuye_exit_plan_mode).toBeDefined();
+    expect(mod.zhuye_set_effort).toBeDefined();
+    expect(mod.zhuye_set_permission_mode).toBeDefined();
+    expect(mod.zhuye_cycle_permission_mode).toBeDefined();
+    expect(mod.zhuye_ask_user_question_response).toBeDefined();
+    expect(mod.zhuye_ask_user_input_response).toBeDefined();
+    expect(mod.zhuye_list_sessions).toBeDefined();
+    expect(mod.zhuye_rename_session).toBeDefined();
+    expect(mod.zhuye_delete_session).toBeDefined();
+    expect(mod.zhuye_replay_session).toBeDefined();
+    expect(mod.onZhuyeEvent).toBeDefined();
     expect(mod.ping).toBeDefined();
   });
 });
@@ -507,18 +507,18 @@ describe('IPC parity (frontend ↔ backend)', () => {
   it('frontend commands exactly match backend tauri::commands', async () => {
     const backendSrc = readBackendCommandSources();
     const frontend = await import('@/utils/commands');
-    const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('reflect_'));
+    const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('zhuye_'));
 
     // 所有前端命令都必须出现在后端源码中（同步 `pub fn` 与 `pub async fn` 均可 ——
-    // 如 dock::reflect_set_dock_badge 是同步命令）。
+    // 如 dock::zhuye_set_dock_badge 是同步命令）。
     const missing = frontendNames.filter(
       (n) => !backendSrc.includes(`pub async fn ${n}`) && !backendSrc.includes(`pub fn ${n}`),
     );
     expect(missing).toEqual([]);
 
-    // 后端的每个 reflect_ fn 也必须有对应的前端 wrapper
+    // 后端的每个 zhuye_ fn 也必须有对应的前端 wrapper
     const backendMatches: RegExpMatchArray[] = [
-      ...backendSrc.matchAll(/pub (?:async )?fn (reflect_\w+)/g),
+      ...backendSrc.matchAll(/pub (?:async )?fn (zhuye_\w+)/g),
     ];
     const backendNames: string[] = backendMatches.map((m: RegExpMatchArray) => m[1]);
     const orphan = backendNames.filter((n: string) => !frontendNames.includes(n));
@@ -531,7 +531,7 @@ describe('IPC parity (frontend ↔ backend)', () => {
       .map((f) => nodeRead(f, 'utf8'))
       .join('\n');
     const frontend = await import('@/utils/commands');
-    const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('reflect_'));
+    const frontendNames = Object.keys(frontend).filter((k) => k.startsWith('zhuye_'));
 
     // 提取 handler 列表
     const match = libSrc.match(/tauri::generate_handler!\[([\s\S]*?)\]/);

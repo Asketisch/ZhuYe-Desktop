@@ -8,7 +8,7 @@
 //! - **传输**:`ssh -o BatchMode=yes -o ConnectTimeout=10 <host> -- zhuye
 //!   serve --cwd <path>` 子进程 stdin/stdout duplex(无 SSH 库,密钥认证);
 //!   二进制可用 `ZHUYE_REMOTE_SSH_BIN` 覆盖(测试 stub 注入点)。
-//! - **事件泵**:stdout 逐行解析 `reflect_protocol::Event`,前台会话进
+//! - **事件泵**:stdout 逐行解析 `zhuye_protocol::Event`,前台会话进
 //!   `session_tx`(前端唯一订阅点),非前台进 `background_tx`(带 sid,
 //!   前端徽标),与本地线程的路由语义(`session::route_event`)对齐。
 //! - **前台插槽**:`foreground_remote` —— bind 到远程会话时置位;此时
@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::Arc;
 
-use reflect_protocol::{Event, ThreadId};
+use zhuye_protocol::{Event, ThreadId};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin};
@@ -86,7 +86,7 @@ impl RemoteManager {
 // ====== host 注册表(持久化) ======
 
 fn hosts_file() -> Option<std::path::PathBuf> {
-    reflect_config::paths::data_path(&["remote-hosts.json"])
+    zhuye_config::paths::data_path(&["remote-hosts.json"])
 }
 
 /// 读 host 注册表(文件缺失 = 空表)。
@@ -219,7 +219,7 @@ pub async fn connect(agent: &MinimalAgent, host: &RemoteHost, cwd: &str) -> Resu
     let event: Event =
         serde_json::from_str(line.trim()).map_err(|e| format!("握手行不是合法 Event: {e}"))?;
     let sid = match &event.msg {
-        reflect_protocol::EventMsg::SessionConfigured(configured) => configured.session_id,
+        zhuye_protocol::EventMsg::SessionConfigured(configured) => configured.session_id,
         other => {
             return Err(format!(
                 "握手首行应为 session_configured,实际 {other:?}(检查远端 zhuye 版本)"
@@ -294,7 +294,7 @@ fn route_remote_event(agent: &MinimalAgent, sid: &str, event: Event) {
         let _ = inner.session_tx.send(event);
     } else {
         // ThreadId(uuid)重建:协议 id 是 uuid 字符串。
-        if let Ok(tid) = reflect_protocol::ThreadId::parse_str(sid) {
+        if let Ok(tid) = zhuye_protocol::ThreadId::parse_str(sid) {
             let _ = inner.background_tx.send((tid, event));
         }
     }
@@ -345,7 +345,7 @@ pub async fn is_remote_session(agent: &MinimalAgent, sid: &str) -> bool {
 pub async fn submit_to_session(
     agent: &MinimalAgent,
     sid: &str,
-    submission: reflect_protocol::Submission,
+    submission: zhuye_protocol::Submission,
 ) -> anyhow::Result<()> {
     let handle = {
         let manager = agent.inner.remote_manager.lock().await;

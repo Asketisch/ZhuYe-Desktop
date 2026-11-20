@@ -1,16 +1,16 @@
 //! 桌面端 Autopilot 装配层。
 //!
-//! 到期判定、占位、提交与历史状态由 `reflect-stream::autopilot` 提供；
+//! 到期判定、占位、提交与历史状态由 `zhuye-stream::autopilot` 提供；
 //! 这里只把驱动接到当前 `AgentThread`，并把回合终态回填到共享历史。
 
 use std::time::Duration;
 
-use reflect_protocol::{EventMsg, Op, SideChannelEvent, Submission};
+use zhuye_protocol::{EventMsg, Op, SideChannelEvent, Submission};
 use tokio_util::sync::CancellationToken;
 
 use super::MinimalAgent;
 use fs2::FileExt;
-use reflect_stream::autopilot::AutopilotRunStatus;
+use zhuye_stream::autopilot::AutopilotRunStatus;
 
 const DEFAULT_TICK_SECS: u64 = 30;
 const SIDE_CHANNEL_START_TIMEOUT: Duration = Duration::from_secs(10);
@@ -22,7 +22,7 @@ fn ensure_driver_lease(agent: &MinimalAgent) -> std::io::Result<bool> {
     if lease.is_some() {
         return Ok(true);
     }
-    let path = reflect_config::paths::data_path_or_relative(&["autopilot", "driver.lock"]);
+    let path = zhuye_config::paths::data_path_or_relative(&["autopilot", "driver.lock"]);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -105,10 +105,10 @@ fn tick_secs() -> u64 {
 }
 
 fn completion_result(
-    status: reflect_protocol::TurnStatus,
+    status: zhuye_protocol::TurnStatus,
     failure: Option<String>,
 ) -> Result<(), String> {
-    if status == reflect_protocol::TurnStatus::Success {
+    if status == zhuye_protocol::TurnStatus::Success {
         failure.map_or(Ok(()), Err)
     } else {
         Err(format!("autopilot turn ended with {status:?}"))
@@ -117,7 +117,7 @@ fn completion_result(
 
 async fn run_reserved(
     agent: MinimalAgent,
-    config: reflect_stream::autopilot::AutopilotConfig,
+    config: zhuye_stream::autopilot::AutopilotConfig,
     run_id: String,
     cancel: CancellationToken,
 ) {
@@ -127,7 +127,7 @@ async fn run_reserved(
         let mut events = agent.side_channel_registry().subscribe_events();
         match start_selected_side_channel(&agent, &name, &config.task_template).await {
             Ok(side_id) => loop {
-                use reflect_core::side_channel::SideChannelEvent as SideEvent;
+                use zhuye_core::side_channel::SideChannelEvent as SideEvent;
                 let event = tokio::select! {
                     _ = cancel.cancelled() => {
                         break Err("autopilot driver stopped".into());
@@ -238,7 +238,7 @@ pub(crate) fn spawn_autopilot_driver(agent: &MinimalAgent) -> AutopilotDriverHan
 #[cfg(test)]
 mod tests {
     use super::completion_result;
-    use reflect_protocol::TurnStatus;
+    use zhuye_protocol::TurnStatus;
 
     #[test]
     fn only_successful_turns_without_errors_complete_successfully() {

@@ -3,7 +3,7 @@
  */
 import { invoke } from '../bridge';
 
-export interface ReflectDirEntry {
+export interface ZhuyeDirEntry {
   name: string;
   path: string;
   /** "file" | "dir" | "symlink"。 */
@@ -15,13 +15,13 @@ export interface ReflectDirEntry {
   depth: number;
 }
 
-export interface ReflectDirListing {
+export interface ZhuyeDirListing {
   root: string;
-  entries: ReflectDirEntry[];
+  entries: ZhuyeDirEntry[];
   truncated: boolean;
 }
 
-export interface ReflectFileReadResult {
+export interface ZhuyeFileReadResult {
   path: string;
   content: string;
   size: number;
@@ -34,16 +34,16 @@ export interface ReflectFileReadResult {
  * @param path  绝对路径,或 `null` 表示当前工作区
  * @param maxDepth  默认 4;总条目上限 2000。
  */
-export async function reflect_list_dir(
+export async function zhuye_list_dir(
   path: string | null,
   maxDepth = 4,
-): Promise<ReflectDirListing> {
-  return invoke<ReflectDirListing>('reflect_list_dir', { path, maxDepth: maxDepth });
+): Promise<ZhuyeDirListing> {
+  return invoke<ZhuyeDirListing>('zhuye_list_dir', { path, maxDepth: maxDepth });
 }
 
 /**
  * v1.x：Composer `@` 弹层专用 —— 列出当前工作区 depth=2 的目录条目。
- * 后端 `reflect_list_dir` 已跳过 dotfile + node_modules / target / dist / .git
+ * 后端 `zhuye_list_dir` 已跳过 dotfile + node_modules / target / dist / .git
  * （详见 `commands/files.rs::should_skip`），无需前端再做过滤。
  *
  * @param maxDepth  默认 2。深度 1 只列顶层目录；2 含一层子目录；过深会
@@ -51,19 +51,19 @@ export async function reflect_list_dir(
  */
 export async function listDirForMention(
   maxDepth = 2,
-): Promise<ReflectDirListing> {
-  return invoke<ReflectDirListing>('reflect_list_dir', {
+): Promise<ZhuyeDirListing> {
+  return invoke<ZhuyeDirListing>('zhuye_list_dir', {
     path: null,
     maxDepth,
   });
 }
 
 /** 读取文本文件(最大 1 MiB)。对二进制文件标记 `binary=true` 并返回空内容。 */
-export async function reflect_read_file(path: string): Promise<ReflectFileReadResult> {
-  return invoke<ReflectFileReadResult>('reflect_read_file', { path });
+export async function zhuye_read_file(path: string): Promise<ZhuyeFileReadResult> {
+  return invoke<ZhuyeFileReadResult>('zhuye_read_file', { path });
 }
 
-export interface ReflectImageBase64Result {
+export interface ZhuyeImageBase64Result {
   /** 文件绝对路径。 */
   path: string;
   /** 按扩展名推断的 MIME(`image/png` 等)。 */
@@ -81,21 +81,21 @@ export interface ReflectImageBase64Result {
  * 上限 20 MiB。返回后前端拼 `data:<mime>;base64,<b64>` 作为 inline image
  * 附件(core 的 LocalImage item 尚未接通,必须以字节提交)。
  */
-export async function reflect_read_image_base64(
+export async function zhuye_read_image_base64(
   path: string,
-): Promise<ReflectImageBase64Result> {
-  return invoke<ReflectImageBase64Result>('reflect_read_image_base64', { path });
+): Promise<ZhuyeImageBase64Result> {
+  return invoke<ZhuyeImageBase64Result>('zhuye_read_image_base64', { path });
 }
 
 /**
  * 写回文本文件(工作区沙盒内)。编辑器 Reject 恢复原文时用 inverse-patch
  * 重建内容后经此落盘;文件不存在时创建(含父目录)。
  */
-export async function reflect_write_file(path: string, content: string): Promise<string> {
-  return invoke<string>('reflect_write_file', { path, content });
+export async function zhuye_write_file(path: string, content: string): Promise<string> {
+  return invoke<string>('zhuye_write_file', { path, content });
 }
 
-export interface ReflectIngestUploadResult {
+export interface ZhuyeIngestUploadResult {
   /** 落盘文件的绝对路径(`<workspace>/.zhuye/uploads/<ts>_<name>`)。 */
   path: string;
   /** 写入字节数。 */
@@ -108,9 +108,9 @@ export interface ReflectIngestUploadResult {
  * 返回真实路径 —— 引擎 `UserInputItem::File` 与 `/read` 都按路径消费，
  * 落在工作区内才能保证 agent 可读。上限 64 MiB。
  */
-export async function reflect_ingest_upload(
+export async function zhuye_ingest_upload(
   filename: string,
   base64: string,
-): Promise<ReflectIngestUploadResult> {
-  return invoke<ReflectIngestUploadResult>('reflect_ingest_upload', { filename, base64 });
+): Promise<ZhuyeIngestUploadResult> {
+  return invoke<ZhuyeIngestUploadResult>('zhuye_ingest_upload', { filename, base64 });
 }

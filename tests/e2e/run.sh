@@ -177,10 +177,10 @@ if [ "$WEBDRIVER_PLATFORM" -eq 1 ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
         # 1) 调试二进制(无 bundle,tauri:options.application 指向它)。
         # 每次让 Cargo 检查源码是否更新，不能复用上次运行的旧二进制。
         build_ok=1
-        tcase_log "构建调试二进制(cargo build -p reflect-desktop)" \
+        tcase_log "构建调试二进制(cargo build -p zhuye-desktop)" \
             "$RESULT_DIR/e2e-window-build.log" \
-            cargo build -p reflect-desktop || build_ok=0
-        APP_BIN="$ROOT/target/debug/reflect-desktop"
+            cargo build -p zhuye-desktop || build_ok=0
+        APP_BIN="$ROOT/target/debug/zhuye-desktop"
         [ "$PLATFORM" = "Linux" ] || APP_BIN="$APP_BIN.exe"
         # 调试二进制按 devUrl(http://localhost:5173)加载前端,没有内嵌
         # 资源 —— 必须先起 vite dev server 并等就绪,否则 webview 显示的是
@@ -244,7 +244,7 @@ provider = "anthropic"
 [anthropic]
 api_key = "test-key"
 base_url = "http://127.0.0.1:$mock_port"
-model = "claude-mock"
+model = "mock-model"
 [hooks]
 enabled = []
 EOF
@@ -342,10 +342,10 @@ EOF
 elif [ "$PLATFORM" = "Darwin" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
     if command -v swift >/dev/null 2>&1 && command -v screencapture >/dev/null 2>&1; then
         build_ok=1
-        tcase_log "构建调试二进制(cargo build -p reflect-desktop)" \
+        tcase_log "构建调试二进制(cargo build -p zhuye-desktop)" \
             "$RESULT_DIR/e2e-macos-build.log" \
-            cargo build -p reflect-desktop || build_ok=0
-        APP_BIN="$ROOT/target/debug/reflect-desktop"
+            cargo build -p zhuye-desktop || build_ok=0
+        APP_BIN="$ROOT/target/debug/zhuye-desktop"
         if [ "$build_ok" -ne 1 ] || [ ! -x "$APP_BIN" ]; then
             tcase "macOS 原生窗口冒烟" false
         elif ! make_isolated_env; then

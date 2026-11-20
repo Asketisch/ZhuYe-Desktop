@@ -4,9 +4,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FileTree } from './FileTree';
-import type { ReflectDirEntry } from '@/utils/commands';
+import type { ZhuyeDirEntry } from '@/utils/commands';
 
-const ENTRIES: ReflectDirEntry[] = [
+const ENTRIES: ZhuyeDirEntry[] = [
   { name: 'src', path: '/r/src', kind: 'dir', size: 0, mtime: 0, depth: 0 },
   { name: 'README.md', path: '/r/README.md', kind: 'file', size: 12, mtime: 0, depth: 0 },
   { name: 'main.ts', path: '/r/src/main.ts', kind: 'file', size: 99, mtime: 0, depth: 1 },

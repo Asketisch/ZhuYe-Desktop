@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { systemTimeNow, type ReflectTeam, type ReflectTeamMember } from '@/utils/commands';
+import { systemTimeNow, type ZhuyeTeam, type ZhuyeTeamMember } from '@/utils/commands';
 import type { TeamMemberDraft } from '@/contracts/tasksBoard';
 
 const NAME_RE = /^[a-z0-9_-]{1,64}$/;
@@ -9,7 +9,7 @@ export function leadAgentIdFor(name: string): string {
   return `team-lead@${name}`;
 }
 
-function draftFromMember(member: ReflectTeamMember): TeamMemberDraft {
+function draftFromMember(member: ZhuyeTeamMember): TeamMemberDraft {
   return {
     key: `${member.agent_id}-${member.role}`,
     role: member.role,
@@ -25,7 +25,7 @@ export interface TeamEditorController {
   members: TeamMemberDraft[];
   error: string | null;
   startCreate: () => void;
-  startEdit: (team: ReflectTeam) => void;
+  startEdit: (team: ZhuyeTeam) => void;
   reset: () => void;
   setName: (value: string) => void;
   setDescription: (value: string) => void;
@@ -38,8 +38,8 @@ export interface TeamEditorController {
 
 /** 团队编辑器的本地草稿和提交编排。 */
 export function useTeamEditor(args: {
-  teams: ReflectTeam[];
-  onSave: (team: ReflectTeam) => Promise<void>;
+  teams: ZhuyeTeam[];
+  onSave: (team: ZhuyeTeam) => Promise<void>;
   onDelete: (name: string) => Promise<void>;
   invalidNameMessage: string;
 }): TeamEditorController {
@@ -66,7 +66,7 @@ export function useTeamEditor(args: {
     setError(null);
   }, []);
 
-  const startEdit = useCallback((team: ReflectTeam) => {
+  const startEdit = useCallback((team: ZhuyeTeam) => {
     setEditing(team.name);
     setName(team.name);
     setDescription(team.description ?? '');
@@ -95,7 +95,7 @@ export function useTeamEditor(args: {
       return;
     }
     const now = systemTimeNow();
-    const built: ReflectTeamMember[] = members.map((member) => {
+    const built: ZhuyeTeamMember[] = members.map((member) => {
       const role = member.role.trim() || 'member';
       return {
         agent_id: `${role}@${teamName}`,

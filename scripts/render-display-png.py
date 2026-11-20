@@ -3,7 +3,7 @@
 render-display-png.py —— 将设置 > 显示分区渲染为忠实的 PNG 截图。
 
 本脚本生成 docs/screenshots/display-section.png —— 一张真实落盘的 PNG
-图片，按暗色主题 Reflect Desktop 皮肤并排展示四张主卡片
+图片，按暗色主题 ZhuYe Desktop 皮肤并排展示四张主卡片
 （主题 / 强调色 / 透明度 / 背景图）及其实际标签与控件外观。
 
 渲染一个镜像生产版 CSS Modules + tokens.css 的 SVG，再通过
@@ -23,7 +23,7 @@ PNG_PATH = os.path.join(OUT_DIR, "display-section.png")
 HTML_PATH = os.path.join(OUT_DIR, "display-section.html")
 TEXT_PATH = os.path.join(OUT_DIR, "display-section.txt")
 
-# Reflect Desktop 暗色主题 token（镜像自 src/render/styles/tokens.css）。
+# ZhuYe Desktop 暗色主题 token（镜像自 src/render/styles/tokens.css）。
 BG_APP = "#0b0e14"
 BG_SURFACE = "#11151f"
 BG_ELEVATED = "#161b27"
@@ -173,7 +173,7 @@ for title, body, height in positions:
 svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">
   <rect width="100%" height="100%" fill="{BG_APP}"/>
   <text x="40" y="56" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="{TEXT_PRIMARY}">Settings › Display</text>
-  <text x="40" y="80" font-family="Inter, system-ui, sans-serif" font-size="12" fill="{TEXT_MUTED}">ReflectDesktop • dark theme • accent=#60a5fa</text>
+  <text x="40" y="80" font-family="Inter, system-ui, sans-serif" font-size="12" fill="{TEXT_MUTED}">ZhuYeDesktop • dark theme • accent=#60a5fa</text>
   {''.join(cards)}
 </svg>
 """
@@ -189,7 +189,7 @@ with open(HTML_PATH, "w", encoding="utf-8") as f:
 
 # 纯文本转储，便于 grep 的证据。
 lines = [
-    "ReflectDesktop — Settings › Display (rendered evidence)",
+    "ZhuYeDesktop — Settings › Display (rendered evidence)",
     "============================================================",
     "",
     "[Card 1] Theme",
@@ -328,7 +328,7 @@ try:
     draw.text((40, 36), "Settings", fill=TEXT_PRIMARY_RGB, font=f_title)
     draw.text((148, 36), "›", fill=TEXT_MUTED_RGB, font=f_title)
     draw.text((168, 36), "Display", fill=TEXT_PRIMARY_RGB, font=f_title)
-    draw.text((40, 80), "ReflectDesktop  •  Dark  •  Accent #60a5fa  •  Opacity 70%  •  Wallpaper: example.com",
+    draw.text((40, 80), "ZhuYeDesktop  •  Dark  •  Accent #60a5fa  •  Opacity 70%  •  Wallpaper: example.com",
               fill=TEXT_MUTED_RGB, font=f_sub)
 
     def card(x: int, y: int, w: int, h: int, title: str, lines_func) -> None:

@@ -4,7 +4,7 @@
 //! 编辑过),新进程启动时读它。夹具(`tests/fixtures/config/`)覆盖四种
 //! 形态:最小 / 旧版本全量 / 未知键(前向兼容)/ 当前全量。
 //!
-//! 为什么走子进程:`reflect_get_config` 读的是**内存快照**,桌面端没有把
+//! 为什么走子进程:`zhuye_get_config` 读的是**内存快照**,桌面端没有把
 //! ConfigWatcher 接到该快照 —— 进程内直接写文件不会热重载(实测如此)。
 //! 「旧文件 + 新进程」(= 升级)只能用 `ipc_restart.rs` 同款子进程重执行
 //! 复刻:父进程为每个夹具准备独立 HOME 并预置配置文件,子进程以该 HOME
@@ -42,7 +42,7 @@ fn run_fixture(name: &str, marker: &str) {
     drop(common::harness()); // 读入预置的 fixture 配置(仅当文件缺失才写默认)
 
     // 已知键生效:标记出现在规范化读回配置里。
-    let cfg = common::invoke_ok("reflect_get_config", json!({}));
+    let cfg = common::invoke_ok("zhuye_get_config", json!({}));
     let text = cfg.as_str().unwrap_or_default().to_string();
     assert!(
         text.contains(marker),
@@ -58,10 +58,10 @@ fn run_fixture(name: &str, marker: &str) {
     );
 
     // agent 存活:状态可读、提交仍被受理。
-    let status = common::invoke_ok("reflect_agent_status", json!({}));
+    let status = common::invoke_ok("zhuye_agent_status", json!({}));
     assert!(status.is_object(), "[{name}] agent_status 异常: {status}");
     let submitted = common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({
             "submission": {
                 "id": format!("config-compat-{name}"),
@@ -89,7 +89,7 @@ fn legacy_and_unknown_config_shapes_load_in_a_fresh_process() {
     // 父进程:每个夹具一个独立 HOME,预置配置文件后起子进程。
     for (name, _) in FIXTURES {
         let shared = std::env::temp_dir().join(format!(
-            "reflect-desktop-config-compat-{}-{name}",
+            "zhuye-desktop-config-compat-{}-{name}",
             std::process::id()
         ));
         let data = shared.join("home").join(".zhuye");

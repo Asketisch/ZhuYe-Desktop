@@ -13,10 +13,10 @@
 //!
 //! - `enabled` = 生效开关,来自「env `ZHUYE_SANDBOX_OS_LEVEL` 优先,
 //!   否则取配置 `[sandbox].os_level`(未表态 = 核心基线开启)」,
-//!   见 `reflect_app_core::sandbox`;
+//!   见 `zhuye_app_core::sandbox`;
 //! - `OsSandbox::with_enabled(enabled)` 正是 BashTool 在
 //!   `ctx.os_sandbox = Some(enabled)` 时走的构造器
-//!   (`reflect-tools/src/builtins/bash.rs`),后台 bash 同理。
+//!   (`zhuye-tools/src/builtins/bash.rs`),后台 bash 同理。
 //!
 //! 附带的 `osLevel` 是配置值,`backend` 是平台可用后端 —— 三者一起看
 //! 才能判断「配置说开、平台支持、实际生效」。
@@ -24,7 +24,7 @@
 //! `envOverride` 非空 = 用户用进程 env 覆盖了配置(此时在 Settings 里
 //! 拨开关看不到变化,属预期行为)。
 
-use reflect_sandbox::{OsSandbox, OsSandboxStatus};
+use zhuye_sandbox::{OsSandbox, OsSandboxStatus};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -53,7 +53,7 @@ pub struct SandboxStatus {
 
 /// 查询当前生效的 OS 沙箱状态。
 #[tauri::command]
-pub async fn reflect_sandbox_status(
+pub async fn zhuye_sandbox_status(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<SandboxStatus> {
     // load/save 两条路径都已归一成 Some(有效值);unwrap_or(true) 兜底 = 基线。
@@ -67,7 +67,7 @@ pub async fn reflect_sandbox_status(
         os_level,
         status: status_str(status).to_string(),
         active: sandbox.is_active(),
-        backend: backend_str(reflect_sandbox::detect_backend()).to_string(),
+        backend: backend_str(zhuye_sandbox::detect_backend()).to_string(),
         status_line: sandbox.status_line(),
         enabled,
         env_override,

@@ -1,7 +1,7 @@
 /**
- * 协议事件矩阵测试 —— reflect_protocol::EventMsg 全类型 → agentStore 状态。
+ * 协议事件矩阵测试 —— zhuye_protocol::EventMsg 全类型 → agentStore 状态。
  *
- * 每种事件类型都通过真实的 `reflect_event` 总线链路分发
+ * 每种事件类型都通过真实的 `zhuye_event` 总线链路分发
  * （emitEvent → mocked listen → agentEventBus → reduceEvent → store），
  * 并断言**具体的状态效果**（不是"没崩就算过"）。
  * 这保证 submodule 协议演进时前端 reducer 行为被逐变体锁定。

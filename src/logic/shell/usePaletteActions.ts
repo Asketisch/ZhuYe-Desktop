@@ -8,10 +8,10 @@
  *   - `newSession` 调 `handleNewChat`(创建路由到 /chat) + pushToast。
  *   - `clearAllSessions` 通过 qc 复用 sessions 缓存,无会话直接提示,否则逐个删除并
  *     invalidate,最后统计 toast。
- *   - `exportActive` 若无 active id 提示 warn;否则调 `reflect_export_session` 并 toast。
- *   - `exportActiveMarkdown` 同上,但调 `reflect_export_session_markdown`
+ *   - `exportActive` 若无 active id 提示 warn;否则调 `zhuye_export_session` 并 toast。
+ *   - `exportActiveMarkdown` 同上,但调 `zhuye_export_session_markdown`
  *     (核心 `to_markdown` 转录 + 用量小节)—— 此前该命令有后端无入口。
- *   - `saveConfig` 调 `reflect_save_config('')` 并 toast;失败提示。
+ *   - `saveConfig` 调 `zhuye_save_config('')` 并 toast;失败提示。
  *   - `runSlash` 直接 fire-and-forget 调 `submit(slash)`,让 /compact 等命令无需输入。
  *
  * 入参 `t` / `tp` 由调用方传入(可在 I18nProvider 之外的测试场景中替换)。
@@ -27,10 +27,10 @@ import { useEnsureSession } from '@/logic/sessions/useEnsureSession';
 import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/logic/modals/confirm';
 import {
-  reflect_export_session,
-  reflect_export_session_markdown,
-  reflect_save_config,
-  reflect_list_sessions,
+  zhuye_export_session,
+  zhuye_export_session_markdown,
+  zhuye_save_config,
+  zhuye_list_sessions,
 } from '@/utils/commands';
 
 function errorMessage(error: unknown): string {
@@ -109,7 +109,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
     try {
       list = await qc.fetchQuery({
         queryKey: ['sessions'],
-        queryFn: () => reflect_list_sessions(),
+        queryFn: () => zhuye_list_sessions(),
         staleTime: 0,
       });
       if (!Array.isArray(list)) throw new Error('Invalid session list');
@@ -146,7 +146,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
       return;
     }
     try {
-      const path = await reflect_export_session(activeId);
+      const path = await zhuye_export_session(activeId);
       pushToast({
         kind: 'success',
         message: path ? toasts.exported(path) : toasts.exportedNoPath,
@@ -157,7 +157,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
   }, [activeId, pushToast, toasts]);
 
   /**
-   * 导出当前会话为 **Markdown 转录**（核心 `reflect_rollout::to_markdown`）。
+   * 导出当前会话为 **Markdown 转录**（核心 `zhuye_rollout::to_markdown`）。
    *
    * 与 `exportActive`(JSON 原始记录)并列 —— JSON 供程序消费,
    * Markdown 供人阅读/分享(带用量小节)。此前该命令存在但无任何
@@ -169,7 +169,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
       return;
     }
     try {
-      const result = await reflect_export_session_markdown(activeId);
+      const result = await zhuye_export_session_markdown(activeId);
       const path = result?.path ?? null;
       pushToast({
         kind: 'success',
@@ -182,7 +182,7 @@ export function usePaletteActions(opts: UsePaletteActionsOptions): UsePaletteAct
 
   const saveConfig = useCallback(async () => {
     try {
-      await reflect_save_config('');
+      await zhuye_save_config('');
       pushToast({ kind: 'success', message: toasts.configReloaded });
     } catch (e) {
       pushToast({ kind: 'error', message: toasts.saveFailed(errorMessage(e)) });

@@ -11,7 +11,7 @@
 | 分区 | 内容 |
 |---|---|
 | `run_all.sh` + `lib.sh` | 门禁入口 + 公共助手（断言 / HOME 隔离 / 便携超时 / 结果落盘） |
-| `static/` | L1 静态审查：命令面四方一致、版本一致、大小预算棘轮等校验器（`*.mjs`）+ 自测（`*.test.sh`） |
+| `static/` | L1 静态审查：命令面四方一致、版本一致、大小预算棘轮、仓库品牌名卫生（自有代码禁第三方 agent 产品名，豁免导入线格式/真实模型 id/格式名/changelog 史实/submodule，见 `static/run.sh` 的 `check_brand_names`）等校验器（`*.mjs`）+ 自测（`*.test.sh`） |
 | `frontend/` | L2 前端行为：`pnpm typecheck` + vitest 全量（模拟后端） |
 | `backend/` | L3 真后端：cargo fmt / clippy / test（+ 可选 llvm-cov 行覆盖报告，重建树落 `target/llvm-cov-target/`，报告型无门槛，可经 `scripts/gc.sh` 回收） |
 | `artifact/` | L4 发布产物：.app / .deb / .AppImage / .msi 解包深度校验 + `stage.sh` |
@@ -45,7 +45,7 @@
 
 - 层级名单以 `run_all.sh` 的 `ALL_SUITES=(static frontend backend artifact e2e live)` 为准，共 6 层；**没有独立的 visual 层**——视觉回归是 e2e 层 `run_visual()` 的一部分（`vite build --config vite.config.visual.ts` 产 `dist-visual/` → Playwright/Chromium + vitest 跑 `visual/`）。各层职责表述见根 AGENTS.md「验证矩阵」。
 - `GATE_STRICT=1` 时整层跳过或层内跳过均判失败；结果目录以 `.release-gate.lock` 互斥；报告统一落 `.test-results/release-review.md`。
-- live 层需 `REFLECT_LIVE=1` 显式开启，默认跳过且不发任何网络请求；上游限流/地区门判为跳过而非失败。
+- live 层需 `ZHUYE_LIVE=1` 显式开启，默认跳过且不发任何网络请求；上游限流/地区门判为跳过而非失败。
 
 ### 改 tests/ 要遵守什么
 

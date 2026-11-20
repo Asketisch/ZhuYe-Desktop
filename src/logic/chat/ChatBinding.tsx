@@ -6,12 +6,12 @@ import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
 import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import { userItemsFromTurn } from '@/stores/agent/turns';
-import { reflect_replay_session, reflect_git_diff } from '@/utils/commands';
-import { reflect_bind_session, reflect_fork_session, reflect_export_session_markdown } from '@/utils/commands/sessions';
+import { zhuye_replay_session, zhuye_git_diff } from '@/utils/commands';
+import { zhuye_bind_session, zhuye_fork_session, zhuye_export_session_markdown } from '@/utils/commands/sessions';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { useActiveSession, useSessions } from '@/logic/sessions/useSessions';
 import { useUiPrefs } from '@/logic/preferences/uiPrefs';
-import type { ReflectRolloutRecord } from '@/utils/types';
+import type { ZhuyeRolloutRecord } from '@/utils/types';
 import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useAutoSessionTitle } from '@/logic/sessions/useAutoSessionTitle';
@@ -106,7 +106,7 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
     if (!sessionId || forking) return;
     const epoch = sessionEpoch.current.value;
     setForking(true);
-    reflect_fork_session(sessionId, branch, upToTurnId)
+    zhuye_fork_session(sessionId, branch, upToTurnId)
       .then((child) => {
         pushToast({ kind: 'success', message: t('chat.forked', { id: child }) });
         if (sessionEpoch.current.value === epoch) setActiveId(child);
@@ -240,7 +240,7 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
     // 也必须先走一遍(早退前),Composer 发送才会续写本会话文件。
     // 返回值是该会话恢复出的权限模式 —— 模式绑定会话而非进程,切换
     // 会话后用返回值同步本地徽标/切换器,避免沿用上一会话的显示。
-    void reflect_bind_session(sessionId)
+    void zhuye_bind_session(sessionId)
       .then((mode) => {
         if (requestIdRef.current !== myId) return null;
         syncPermissionMode(mode);
@@ -248,9 +248,9 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
         // 闭包快照 —— `loadedSessionId` 不能进 deps(水合成功后会让本
         // effect 重跑第二遍:多余 bind + loading banner 闪断)。
         if (useAgentStore.getState().loadedSessionId === sessionId) return null;
-        return reflect_replay_session(sessionId);
+        return zhuye_replay_session(sessionId);
       })
-      .then((records: ReflectRolloutRecord[] | null) => {
+      .then((records: ZhuyeRolloutRecord[] | null) => {
         if (requestIdRef.current !== myId) return;
         if (records) hydrateSession(sessionId, records);
         // v1.x 后台持续运行:该会话在后台期间积攒的待确认交互(gate 请求
@@ -304,7 +304,7 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       return;
     }
     setDiffLoading(true);
-    reflect_git_diff(false)
+    zhuye_git_diff(false)
       .then((d) => setDiffText(d))
       .catch(() => setDiffText(''))
       .finally(() => setDiffLoading(false));
@@ -316,13 +316,13 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
   setError(null);
   setLoading(true);
   // 与主加载序列同构:bind(幂等)→ replay → hydrate。
-  void reflect_bind_session(sessionId)
+  void zhuye_bind_session(sessionId)
     .then((mode) => {
       // 与主路径同源守卫:点 Retry 后立刻切走会话时,
       // 旧会话恢复出的权限模式不得覆盖新会话。
       if (requestIdRef.current !== myId) return null;
       syncPermissionMode(mode);
-      return reflect_replay_session(sessionId);
+      return zhuye_replay_session(sessionId);
     })
     .then((r) => {
       if (requestIdRef.current !== myId || !r) return;
@@ -337,7 +337,7 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
   };
   const exportMarkdown = () => {
     if (!sessionId) return;
-    void reflect_export_session_markdown(sessionId)
+    void zhuye_export_session_markdown(sessionId)
       .then((result) => pushToast({ kind: 'success', message: t('toast.exportedMarkdown', { path: result?.path ?? '' }) }))
       .catch((error: unknown) => pushToast({ kind: 'error', message: error instanceof Error ? error.message : String(error) }));
   };

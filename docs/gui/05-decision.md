@@ -15,23 +15,23 @@
 | 状态管理 | Zustand | Redux Toolkit / Jotai / 内置 useReducer | 2026-07-07 |
 | 样式 | Tailwind + Radix UI | CSS Modules / styled-components | 2026-07-07 |
 | Markdown | **M1** react-markdown + Shiki；**M2** 升 Streamdown | 都自研 | 2026-07-07 |
-| 后端共享 | 复用 `reflect-core::AgentThread`(直接 in-process) | 单写 GUI 后端 | 2026-07-07 |
-| 进程拓扑 | **单进程 Tauri shim**（无 daemon child process） | spawn `reflect-agent-daemon` over NDJSON | 2026-07-07 ✓ |
-| 二进制 | 最终 dual binary： `reflect`(CLI/TUI) + `reflect-agent-gui`(Tauri 桌面);独立安装；C4 阶段实现 | 单 binary dispatch | 2026-07-07 |
+| 后端共享 | 复用 `zhuye-core::AgentThread`(直接 in-process) | 单写 GUI 后端 | 2026-07-07 |
+| 进程拓扑 | **单进程 Tauri shim**（无 daemon child process） | spawn `zhuye-agent-daemon` over NDJSON | 2026-07-07 ✓ |
+| 二进制 | 最终 dual binary： `zhuye`(CLI/TUI) + `zhuye-agent-gui`(Tauri 桌面);独立安装；C4 阶段实现 | 单 binary dispatch | 2026-07-07 |
 | MVP 范围 | 完整 M1.1–M1.8（~4 周单人） | 砍模态/砍 sidebar/砍 modal | 2026-07-07 |
 
 **依据**：
 - Tauri 2 + React 19 + Vite + TS 已验证路径可行（macOS / Linux / Windows / iOS）
-- Tauri 与 Reflect Rust 后端同语言，可直接以 `reflect-protocol::EventMsg`/`Submission` 作为 Tauri command/event 载荷（**零序列化**）
+- Tauri 与 ZhuYe Rust 后端同语言，可直接以 `zhuye-protocol::EventMsg`/`Submission` 作为 Tauri command/event 载荷（**零序列化**）
 - Electron 代价：binary > 100MB、需额外 Node ↔ Rust 进程边界 stdio NDJSON 通信
 - 详细架构见 `03-architecture.md`；蓝图见 `04-roadmap.md`；特性清单见 `01-features.md`；接入方案见 `02-integration.md`
 
 **进程拓扑决策反思（2026-07-07 晚）**：
 
-独立 daemon 进程(=独立 binary + NDJSON over stdio)与行业现有远程 daemon 形态一致，但当前 Rust 端 `reflect-core`/`reflect-*` 仍在快速迭代，**协议层 & state shape 还会变**。当前强行做 daemon 会陷入 envelope 与 in-process state shape 双重维护。因此：
+独立 daemon 进程(=独立 binary + NDJSON over stdio)与行业现有远程 daemon 形态一致，但当前 Rust 端 `zhuye-core`/`zhuye-*` 仍在快速迭代，**协议层 & state shape 还会变**。当前强行做 daemon 会陷入 envelope 与 in-process state shape 双重维护。因此：
 
-- 现在：GUI 直接 in-process 持有 `AgentThread`（M1.x 的 MinimalAgent stub 后续 PR 替换为真实 `reflect_core::AgentThread::new` + 22 builtin tools + ConfigWatcher + 完整 bootstrap 链）
-- 后续（reflect-core 冻结后）：抽 `reflect-runtime` crate → spawn `reflect-agent-daemon` → Tauri shim 变 thin RPC client。状态机本身未改，仅位置换了。
+- 现在：GUI 直接 in-process 持有 `AgentThread`（M1.x 的 MinimalAgent stub 后续 PR 替换为真实 `zhuye_core::AgentThread::new` + 22 builtin tools + ConfigWatcher + 完整 bootstrap 链）
+- 后续（zhuye-core 冻结后）：抽 `zhuye-runtime` crate → spawn `zhuye-agent-daemon` → Tauri shim 变 thin RPC client。状态机本身未改，仅位置换了。
 
 详见 [`../todo/21-gui/10-strategy.md`](../todo/21-gui/10-strategy.md)（策略调整背景）。
 
@@ -41,7 +41,7 @@
 
 | M | spec | 工期 | 状态 |
 |---|---|---|---|
-| M1.1 | [→](../todo/21-gui/01-mvp-scaffold.md) | 5 天 | ✅ 已完成（脚手架 + ReflectAgentApp 占位 + 5 icon） |
+| M1.1 | [→](../todo/21-gui/01-mvp-scaffold.md) | 5 天 | ✅ 已完成（脚手架 + ZhuyeAgentApp 占位 + 5 icon） |
 | M1.2 | [→](../todo/21-gui/02-protocol-bridge.md) | 4 天 | ✅ 已完成（Tauri commands + Event 转发 + 4/4 E2E） |
 | M1.3 | [→](../todo/21-gui/03-three-pane-layout.md) | 3 天 | ✅ 已完成（三栏 + Session 列表占位） |
 | M1.4 | [→](../todo/21-gui/04-chat-render.md) | 5 天 | 🔧 在编（B3 features/messages 深化） |
@@ -63,10 +63,10 @@
 | `docs/tui/` | 不改；TUI 保留 |
 | `docs/done/16-ui/` | 不改；GUI 工作流不进 done 管道 |
 | `docs/todo/` ← 21-gui 子目录 | 新增入口 |
-| 根 `Cargo.toml` | 新增 workspace members `reflect-gui` + `reflect-app-core` |
+| 根 `Cargo.toml` | 新增 workspace members `zhuye-gui` + `zhuye-app-core` |
 
 ---
 
 ## 4. 一句话总结
 
-**Tauri 2 + React 19 + Vite + TS + 在编 in-process `reflect-core::AgentThread` 已确定。沿用 `04-roadmap.md` M1.1–M1.8，按 docs/todo/21-gui/ 顺序推进。**
+**Tauri 2 + React 19 + Vite + TS + 在编 in-process `zhuye-core::AgentThread` 已确定。沿用 `04-roadmap.md` M1.1–M1.8，按 docs/todo/21-gui/ 顺序推进。**

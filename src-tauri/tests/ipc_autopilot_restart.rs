@@ -34,7 +34,7 @@ fn reply() -> &'static str {
 fn wait_history(predicate: impl Fn(&[Value]) -> bool) -> Vec<Value> {
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         let runs = history.as_array().unwrap();
         if predicate(runs) {
             return runs.clone();
@@ -54,10 +54,10 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
         std::env::set_var("ZHUYE_AUTOPILOT_TICK_SECS", "1");
     }
     if std::env::var(PHASE).as_deref() == Ok("child") {
-        let session = common::invoke_ok("reflect_create_session", json!({}));
-        common::invoke_ok("reflect_bind_session", json!({"id":session}));
+        let session = common::invoke_ok("zhuye_create_session", json!({}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":session}));
         common::invoke_ok(
-            "reflect_update_autopilot_config",
+            "zhuye_update_autopilot_config",
             json!({"config":{
                 "enabled":true,"schedule":"* * * * *","taskTemplate":PROMPT,"maxConcurrent":1
             }}),
@@ -136,11 +136,11 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
     unsafe {
         std::env::set_var(BASE, shared.path());
     }
-    let config = common::invoke_ok("reflect_get_autopilot_config", json!({}));
+    let config = common::invoke_ok("zhuye_get_autopilot_config", json!({}));
     assert_eq!(config["taskTemplate"], PROMPT);
     assert_eq!(config["enabled"], true);
     std::thread::sleep(Duration::from_millis(1300));
-    let live = common::invoke_ok("reflect_autopilot_history", json!({}));
+    let live = common::invoke_ok("zhuye_autopilot_history", json!({}));
     assert!(
         live.as_array()
             .unwrap()
@@ -161,8 +161,8 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
     std::fs::write(&history_file, serde_json::to_vec_pretty(&history).unwrap()).unwrap();
     child.0.kill().unwrap();
     child.0.wait().unwrap();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     let runs = wait_history(|runs| {
         runs.iter()
             .any(|r| r["id"] == old_id && r["status"] == "failed")

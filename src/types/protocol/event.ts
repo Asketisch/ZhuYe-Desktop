@@ -1,15 +1,15 @@
 /**
- * Reflect protocol —— Tauri `reflect_event` 信封。
+ * 上游协议 —— Tauri `zhuye_event` 信封。
  *
- * 对应 `zhuye-agent/crates/protocol/reflect-protocol/src/event.rs` 和 `event_msg.rs`。
- * 外层信封形状为 `{ id: string; msg: ReflectEventMsg }`。`EventMsgByType` 映射
+ * 对应 `zhuye-agent/crates/protocol/zhuye-protocol/src/event.rs` 和 `event_msg.rs`。
+ * 外层信封形状为 `{ id: string; msg: ZhuyeEventMsg }`。`EventMsgByType` 映射
  * 是 Rust `EventMsg` 枚举的类型层镜像,允许 TS 通过 `event.msg.type` 收窄类型。
  *
  * 从 barrel 再导出的辅助/常量:
  *   - `EVENT_ID_NONE` → `''`(空字符串,session 级事件的 id)
  *   - `EventMsgType` → 所有 discriminator 值的字符串字面量联合
- *   - `ReflectEventMsg` → 跨 `EventMsgType` 的判别联合
- *   - `ReflectEvent` → 外层信封
+ *   - `ZhuyeEventMsg` → 跨 `EventMsgType` 的判别联合
+ *   - `ZhuyeEvent` → 外层信封
  *
  * 顶层同步警告见 `./index.ts`。
  */
@@ -23,7 +23,7 @@ import type { TokenUsagePayload } from './usage';
 export const EVENT_ID_NONE = '';
 
 /**
- * 外层信封:Tauri `reflect_event` 事件的 payload 形如
+ * 外层信封:Tauri `zhuye_event` 事件的 payload 形如
  * `{ id: string; msg: EventMsgByType[T] }`。`Event` 接口基于 `msg.type` 使用
  * TypeScript 的判别联合,使消费者可以用 `switch (event.msg.type)` 收窄 payload 形状。
  */
@@ -582,7 +582,7 @@ export interface SubagentStatusPayload {
 
 /**
  * 单条 side-channel 公开视图(camelCase,镜像 Rust `SideChannelInfo`)。
- * 与 `reflect_list_side_channels` 命令返回的 `ReflectSideChannelInfo`
+ * 与 `zhuye_list_side_channels` 命令返回的 `ZhuyeSideChannelInfo`
  * 同一 wire 形状。
  */
 export interface SideChannelInfoPayload {
@@ -697,19 +697,19 @@ export interface EventMsgByType {
   guard_stats: GuardStatsPayload;
 }
 
-/** ReflectEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */
-export type ReflectEventMsg = {
+/** ZhuyeEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */
+export type ZhuyeEventMsg = {
   [T in EventMsgType]: { type: T } & EventMsgByType[T];
 }[EventMsgType];
 
-/** 外层 Tauri `reflect_event` payload。 */
-export interface ReflectEvent {
+/** 外层 Tauri `zhuye_event` payload。 */
+export interface ZhuyeEvent {
   id: string;
-  msg: ReflectEventMsg;
+  msg: ZhuyeEventMsg;
 }
 
-/** 外层 Tauri `reflect_session_event` payload(v1.x 后台持续运行)。 */
-export interface ReflectSessionEvent {
+/** 外层 Tauri `zhuye_session_event` payload(v1.x 后台持续运行)。 */
+export interface ZhuyeSessionEvent {
   session_id: string;
-  event: ReflectEvent;
+  event: ZhuyeEvent;
 }

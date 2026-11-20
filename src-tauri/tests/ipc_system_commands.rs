@@ -11,7 +11,7 @@ use serde_json::json;
 fn reveal_path_rejects_missing_path() {
     let _guard = common::state_lock();
     let error = common::invoke_err(
-        "reflect_reveal_path",
+        "zhuye_reveal_path",
         json!({ "path": "/definitely/not/a/real/path/v1" }),
     );
     let text = error.to_string();
@@ -25,12 +25,12 @@ fn reveal_path_rejects_missing_path() {
 fn computer_use_rejects_screenshot_action_with_dedicated_command_pointer() {
     let _guard = common::state_lock();
     let error = common::invoke_err(
-        "reflect_computer_use",
+        "zhuye_computer_use",
         json!({ "action": { "kind": "screenshot" } }),
     );
     let text = error.to_string();
     assert!(
-        text.contains("use reflect_screenshot for captures"),
+        text.contains("use zhuye_screenshot for captures"),
         "Screenshot 动作应引导到独立命令:{text}"
     );
 }
@@ -39,9 +39,9 @@ fn computer_use_rejects_screenshot_action_with_dedicated_command_pointer() {
 fn tailscale_daemon_commands_report_unimplemented_contract() {
     let _guard = common::state_lock();
     for command in [
-        "reflect_tailscale_daemon_start",
-        "reflect_tailscale_daemon_stop",
-        "reflect_tailscale_daemon_status",
+        "zhuye_tailscale_daemon_start",
+        "zhuye_tailscale_daemon_stop",
+        "zhuye_tailscale_daemon_status",
     ] {
         let value = common::invoke_ok(command, json!({}));
         assert_eq!(

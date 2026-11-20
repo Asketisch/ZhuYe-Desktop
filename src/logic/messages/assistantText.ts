@@ -11,7 +11,7 @@
  *   原理上无法与正文区分 —— 不处理(那是模型/端点侧的问题)。
  *
  * 另剥离 `FINAL ANSWER:` 运行时标记:nudge / auto-continue 边路会注入
- * `reflect_prompt::FINAL_ANSWER_TEMPLATE`,模型会照字面回显到答案里
+ * `zhuye_prompt::FINAL_ANSWER_TEMPLATE`,模型会照字面回显到答案里
  * (常驻注入已从系统提示词移除,但历史会话与边路注入仍会产生)。
  *
  * 在渲染层拆分(而非 reducer 层),streaming 增量、agent_message 定稿、

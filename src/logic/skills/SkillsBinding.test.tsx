@@ -30,9 +30,9 @@ describe('SkillsBinding 市场', () => {
     const search = vi.fn(async (_cmd: string, _args: { query: string; limit: number }) => [
       { id: 'vercel-labs/skills/find-skills', source: 'vercel-labs/skills', slug: 'find-skills', official: true },
     ]);
-    mockInvoke('reflect_search_skill_market', search);
-    mockInvoke('reflect_list_skills', async () => []);
-    mockInvoke('reflect_list_tools', async () => []);
+    mockInvoke('zhuye_search_skill_market', search);
+    mockInvoke('zhuye_list_skills', async () => []);
+    mockInvoke('zhuye_list_tools', async () => []);
     renderSkills();
     await waitFor(() => expect(captured).not.toBeNull());
 
@@ -55,15 +55,15 @@ describe('SkillsBinding 市场', () => {
   it('安装成功后通知后端命令并刷新技能列表,已装名集合来自列表', async () => {
     resetMockInvoke();
     const install = vi.fn(async (_cmd: string, _args: { source: string }) => 'sub-1');
-    mockInvoke('reflect_install_skill_from_market', install);
-    mockInvoke('reflect_list_skills', async () => [
+    mockInvoke('zhuye_install_skill_from_market', install);
+    mockInvoke('zhuye_list_skills', async () => [
       { name: 'already-here', path: '/.zhuye/skills/already-here/SKILL.md', description: '', tools: [], triggers: [], whenPaths: [] },
       { name: 'agents-skill', path: '/.agents/skills/agents-skill/SKILL.md', description: '', tools: [], triggers: [], whenPaths: [] },
     ]);
-    mockInvoke('reflect_search_skill_market', async () => [
+    mockInvoke('zhuye_search_skill_market', async () => [
       { id: 'a/b/already-here', source: 'a/b', slug: 'already-here', official: false },
     ]);
-    mockInvoke('reflect_list_tools', async () => []);
+    mockInvoke('zhuye_list_tools', async () => []);
     renderSkills();
     await waitFor(() => expect(captured!.installedNames.has('already-here')).toBe(true));
     // .agents/skills 来源标签由 path 推断。
@@ -78,9 +78,9 @@ describe('SkillsBinding 市场', () => {
   it('刷新索引按钮调用刷新命令并回传条目数', async () => {
     resetMockInvoke();
     const refresh = vi.fn(async (_cmd: string) => 42);
-    mockInvoke('reflect_refresh_skill_market_index', refresh);
-    mockInvoke('reflect_list_skills', async () => []);
-    mockInvoke('reflect_list_tools', async () => []);
+    mockInvoke('zhuye_refresh_skill_market_index', refresh);
+    mockInvoke('zhuye_list_skills', async () => []);
+    mockInvoke('zhuye_list_tools', async () => []);
     renderSkills();
     await waitFor(() => expect(captured).not.toBeNull());
     captured!.onRefreshIndex();

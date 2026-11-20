@@ -13,7 +13,7 @@ npm install -g pnpm
 cargo install tauri-cli --version "^2"
 
 # 在仓库根
-cd crates/reflect-gui
+cd crates/zhuye-gui
 pnpm install
 pnpm tauri build         # 生产构建
 pnpm tauri dev           # 开发模式（热重载）
@@ -21,9 +21,9 @@ pnpm tauri dev           # 开发模式（热重载）
 
 产物位置：
 
-- macOS: `src-tauri/target/release/bundle/macos/Reflect.app` + `…/dmg/Reflect_0.1.0_aarch64.dmg`
-- Linux: `src-tauri/target/release/bundle/appimage/reflect_0.1.0_amd64.AppImage`
-- Windows: `src-tauri/target/release/bundle/msi/Reflect_0.1.0_x64_en-US.msi`
+- macOS: `src-tauri/target/release/bundle/macos/ZhuYe.app` + `…/dmg/ZhuYe_0.1.0_aarch64.dmg`
+- Linux: `src-tauri/target/release/bundle/appimage/zhuye_0.1.0_amd64.AppImage`
+- Windows: `src-tauri/target/release/bundle/msi/ZhuYe_0.1.0_x64_en-US.msi`
 
 ### Linux / Windows
 
@@ -33,7 +33,7 @@ pnpm tauri dev           # 开发模式（热重载）
 
 首次启动：
 
-1. Reflect 拉起 macOS 窗口（标题栏融入系统 vibrancy / overlay）
+1. ZhuYe 拉起 macOS 窗口（标题栏融入系统 vibrancy / overlay）
 2. 默认 session 显示 `(waiting...)` —— 第一次输入 prompt 时会发出 `SessionConfigured` 事件
 3. 输入框位于主区域底部，按 `Cmd+Enter` 或 `Ctrl+Enter` 提交
 
@@ -86,7 +86,7 @@ pnpm tauri dev           # 开发模式（热重载）
 | Settings | 通过 slash | 独立视图 |
 | 部署 | 终端二进制 | macOS .app / Linux AppImage / Windows .msi |
 
-TUI 与 GUI 共用同一份 Rust 后端（`reflect-protocol` / `reflect-core` / `reflect-rollout`），状态隔离 —— 同时跑两者互不影响。
+TUI 与 GUI 共用同一份 Rust 后端（`zhuye-protocol` / `zhuye-core` / `zhuye-rollout`），状态隔离 —— 同时跑两者互不影响。
 
 ## 7. 故障排查
 

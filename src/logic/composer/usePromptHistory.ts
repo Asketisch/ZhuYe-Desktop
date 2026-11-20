@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const KEY_PREFIX = 'reflect.history.';
+const KEY_PREFIX = 'zhuye.history.';
 const CAP = 200;
 
 function keyFor(workspace: string): string {

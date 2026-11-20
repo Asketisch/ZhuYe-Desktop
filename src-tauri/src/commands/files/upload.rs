@@ -1,4 +1,4 @@
-//! 上传附件落盘(`reflect_ingest_upload`)—— Composer 文件按钮 / 粘贴 /
+//! 上传附件落盘(`zhuye_ingest_upload`)—— Composer 文件按钮 / 粘贴 /
 //! DOM 拖入兜底共用的「字节 → 工作区内真实路径」管线。
 //!
 //! 浏览器侧 `<input type=file>` / clipboardData 只给字节不给路径,而引擎
@@ -7,8 +7,8 @@
 //! `<workspace>/.zhuye/uploads/` 再返回路径 —— 既绕开 webview 拿不到路径
 //! 的限制,又保证 agent 后续一定能读到。
 //!
-//! 目录推导走 `reflect_config::paths::project_data_path`(架构红线:路径
-//! 只经 reflect_config::paths,不自拼目录名)。
+//! 目录推导走 `zhuye_config::paths::project_data_path`(架构红线:路径
+//! 只经 zhuye_config::paths,不自拼目录名)。
 
 use std::path::PathBuf;
 
@@ -18,7 +18,7 @@ use tauri::State;
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
 
-/// `reflect_ingest_upload` 的返回:落盘后的绝对路径与字节数。
+/// `zhuye_ingest_upload` 的返回:落盘后的绝对路径与字节数。
 #[derive(Debug, Serialize)]
 pub struct IngestUploadResult {
     /// 落盘文件的绝对路径(`<workspace>/.zhuye/uploads/<ts>_<name>`)。
@@ -65,7 +65,7 @@ fn sanitize_filename(raw: &str) -> String {
 /// - 文件名净化后加毫秒时间戳前缀防覆盖;
 /// - 超过 [`INGEST_MAX`] 直接拒绝,防 IPC payload 失控。
 #[tauri::command]
-pub async fn reflect_ingest_upload(
+pub async fn zhuye_ingest_upload(
     agent: State<'_, MinimalAgent>,
     filename: String,
     base64: String,
@@ -78,7 +78,7 @@ pub async fn reflect_ingest_upload(
             msg: format!("upload too large: {} bytes (max {INGEST_MAX})", bytes.len()),
         });
     }
-    let dir: PathBuf = reflect_config::paths::project_data_path(&agent.workspace(), &["uploads"]);
+    let dir: PathBuf = zhuye_config::paths::project_data_path(&agent.workspace(), &["uploads"]);
     std::fs::create_dir_all(&dir).map_err(CommandError::from)?;
     let name = format!(
         "{}_{}",

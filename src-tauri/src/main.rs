@@ -3,5 +3,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    reflect_desktop_lib::run();
+    zhuye_desktop_lib::run();
 }

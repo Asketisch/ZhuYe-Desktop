@@ -89,10 +89,10 @@ ollama pull qwen2.5:7b        # 更大的版本,工具调用更稳
 ```
 
 ```bash
-REFLECT_LIVE=1 \
-REFLECT_LIVE_PROVIDER=ollama \
-REFLECT_LIVE_BASE_URL=http://127.0.0.1:11434 \
-REFLECT_LIVE_MODELS=qwen2.5:1.5b \
+ZHUYE_LIVE=1 \
+ZHUYE_LIVE_PROVIDER=ollama \
+ZHUYE_LIVE_BASE_URL=http://127.0.0.1:11434 \
+ZHUYE_LIVE_MODELS=qwen2.5:1.5b \
 bash tests/run_all.sh live
 ```
 
@@ -115,7 +115,7 @@ bash tests/run_all.sh live
 ### ⚠️ 关键：必须用 `[[openai.credentials]]` **数组形态**
 
 顶层单值 `api_key = ""` **注册不上这个 provider** ——
-`reflect-config` 的 `build_openai_pool` 在「credentials 数组为空 **且**
+`zhuye-config` 的 `build_openai_pool` 在「credentials 数组为空 **且**
 api_key 为空」时直接返回 `None`（该 provider 不注册），于是 `model = "free"`
 的清单发现报「provider 未注册任何凭据」。
 
@@ -174,7 +174,7 @@ enabled = true
 清单 → 按免费规则挑一个 → 写进运行时配置。事件流里看到的是**真实 model
 id**，不是占位串。
 
-「免费」的判定走规则（`reflect_llm::FreeModelRules`），三通道：
+「免费」的判定走规则（`zhuye_llm::FreeModelRules`），三通道：
 
 1. **provider 显式标记** —— Kilo 的 `isFree: true`（权威）；
 2. **白名单** —— 不带 free 标记但确实免费的 id（默认三个，可配置）；
@@ -189,13 +189,13 @@ id**，不是占位串。
 ### 门禁层 L6（真 IPC 全链路）
 
 ```bash
-REFLECT_LIVE=1 bash tests/run_all.sh live
+ZHUYE_LIVE=1 bash tests/run_all.sh live
 ```
 
 这条命令驱动的是**生产同一条链**：
 
 ```
-reflect_submit → AgentThread → HTTP → SSE 解析 → reflect_event 通道
+zhuye_submit → AgentThread → HTTP → SSE 解析 → zhuye_event 通道
 ```
 
 与 GUI 点一次「发送」完全同形（同一个 `generate_handler!` 注册表、同一个
@@ -208,9 +208,9 @@ L6 有**两个**测试二进制：
 ```bash
 cd src-tauri
 # 主回合:真模型 → 正文 → token → 终态
-REFLECT_LIVE=1 cargo test --test ipc_live_free_model -- --ignored --nocapture
+ZHUYE_LIVE=1 cargo test --test ipc_live_free_model -- --ignored --nocapture
 # 能力域矩阵:15 个场景跑完其余依赖模型的命令面
-REFLECT_LIVE=1 cargo test --test ipc_live_capabilities -- --ignored --nocapture
+ZHUYE_LIVE=1 cargo test --test ipc_live_capabilities -- --ignored --nocapture
 ```
 
 **能力域矩阵**覆盖：工具调用(bubble 自动批准)/ 工具审批(prompt → 批准 → 工具真跑)/
@@ -223,27 +223,27 @@ REFLECT_LIVE=1 cargo test --test ipc_live_capabilities -- --ignored --nocapture
 没进 plan，判**跳过**（附理由）而不是失败；上游限流 / 地区门 / 配额耗尽
 同样判跳过。只有「产品该做的没做」才判失败。
 
-默认**不发起任何网络请求**：用例带 `#[ignore]`，运行期还要 `REFLECT_LIVE=1`
+默认**不发起任何网络请求**：用例带 `#[ignore]`，运行期还要 `ZHUYE_LIVE=1`
 才放行（双保险 —— 手滑 `--ignored` 也不会误打上游）。
 
 ### 环境变量
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `REFLECT_LIVE` | 空 | 设 `1` 才真跑 |
-| `REFLECT_LIVE_PROVIDER` | `openai` | provider 名(`openai` / `ollama`) |
-| `REFLECT_LIVE_BASE_URL` | `https://api.kilo.ai/api/gateway` | provider 端点 |
-| `REFLECT_LIVE_API_KEY` | 空 | 免 Key 端点留空；dsh 网关填 forwardKey |
-| `REFLECT_LIVE_MODELS` | 空 | 逗号分隔 model id；空则从清单发现 |
-| `REFLECT_LIVE_RETRIES` | `0` | 限流重试次数(默认**不重试**,见下) |
-| `REFLECT_LIVE_RETRY_DELAY` | `65` | 重试间隔（秒）—— 必须 ≥ 凭据冷却窗(60s) |
-| `REFLECT_LIVE_DRAIN_TIMEOUT` | `180` | 事件流等待预算（秒） |
+| `ZHUYE_LIVE` | 空 | 设 `1` 才真跑 |
+| `ZHUYE_LIVE_PROVIDER` | `openai` | provider 名(`openai` / `ollama`) |
+| `ZHUYE_LIVE_BASE_URL` | `https://api.kilo.ai/api/gateway` | provider 端点 |
+| `ZHUYE_LIVE_API_KEY` | 空 | 免 Key 端点留空；dsh 网关填 forwardKey |
+| `ZHUYE_LIVE_MODELS` | 空 | 逗号分隔 model id；空则从清单发现 |
+| `ZHUYE_LIVE_RETRIES` | `0` | 限流重试次数(默认**不重试**,见下) |
+| `ZHUYE_LIVE_RETRY_DELAY` | `65` | 重试间隔（秒）—— 必须 ≥ 凭据冷却窗(60s) |
+| `ZHUYE_LIVE_DRAIN_TIMEOUT` | `180` | 事件流等待预算（秒） |
 
 ### 为什么默认不重试
 
 上游 429 会让凭据进入 **60s 冷却**，而冷却表是**进程内**的 —— 同一进程内
 重试必然直接撞上冷却，拿到 `ALL_CREDENTIALS_EXHAUSTED(0 tried)`。真要重试，
-得让 `REFLECT_LIVE_RETRIES > 0` **且** `REFLECT_LIVE_RETRY_DELAY` 覆盖冷却窗
+得让 `ZHUYE_LIVE_RETRIES > 0` **且** `ZHUYE_LIVE_RETRY_DELAY` 覆盖冷却窗
 （默认 65s）。与 submodule `tests/live/`「限流必须换新会话」的结论同源。
 
 ### 免 Key 池的额外限制
@@ -255,7 +255,7 @@ Kilo 免费池对**匿名**请求有使用上限，触顶后返回
 ### 指定模型
 
 ```bash
-REFLECT_LIVE=1 REFLECT_LIVE_MODELS="cohere/north-mini-code:free" bash tests/run_all.sh live
+ZHUYE_LIVE=1 ZHUYE_LIVE_MODELS="cohere/north-mini-code:free" bash tests/run_all.sh live
 ```
 
 ---
@@ -270,7 +270,7 @@ REFLECT_LIVE=1 REFLECT_LIVE_MODELS="cohere/north-mini-code:free" bash tests/run_
 3. `openai.model` 填 `free`；
 4. `openai.api_key` 留空。
 
-> ⚠️ **已知缺口**：设置页的「获取模型列表」走 `reflect_list_provider_models`，
+> ⚠️ **已知缺口**：设置页的「获取模型列表」走 `zhuye_list_provider_models`，
 > 该命令对空 `api_key` 直接报 `api_key is empty` —— **免 Key 的免费池在
 > GUI 里拿不到模型清单**（引擎侧的清单发现不受影响，因为它走 provider
 > client 而非该命令）。要用 GUI 侧的清单按钮，得先填一个占位 key。
@@ -285,7 +285,7 @@ REFLECT_LIVE=1 REFLECT_LIVE_MODELS="cohere/north-mini-code:free" bash tests/run_
 | **匿名 Kilo 有整体配额** | 连续跑若干轮后 `429 PROMOTION_MODEL_LIMIT_REACHED` —— **所有**模型 id 都一样，不是单模型限额；文案提示「Sign up for free to continue … Takes 2 minutes」 | 注册免费账号 / 换出口 IP / 改用本地 Ollama 车道 |
 | **OpenCode 车道也按账号计** | dsh 网关的 OpenCode tier（`beam-free` / `nemotron-*` / `glm-*` 等）过 v2 指纹门后，命中 `429 Free usage limit reached. Subscribe to OpenCode Go`；另有 `403 This model is not available in your country`（地区门，按出口 IP 判） | 换账号 / 换出口 IP；两者都是**环境态**，L6 判跳过 |
 | **两条车道共用同一配额池** | Kilo 免费池与 OpenCode tier 在 dsh 网关侧最终都落到同一批**匿名免费模型**上 —— 实测两条车道的额度一起被同一个 `PROMOTION_MODEL_LIMIT_REACHED` 挡住 | 要跑**完整**矩阵（15 场景 × 多模型）就得有账号额度或本地模型；否则只能分批、串行地跑 |
-| **凭据冷却是进程内的** | 429 会把凭据打进 60s 冷却，冷却表在进程内 → 同进程重试必然拿到 `ALL_CREDENTIALS_EXHAUSTED(0 tried)` | 默认**不重试**（判跳过）；要重试得 `REFLECT_LIVE_RETRIES>0` **且** `REFLECT_LIVE_RETRY_DELAY ≥ 65` |
+| **凭据冷却是进程内的** | 429 会把凭据打进 60s 冷却，冷却表在进程内 → 同进程重试必然拿到 `ALL_CREDENTIALS_EXHAUSTED(0 tried)` | 默认**不重试**（判跳过）；要重试得 `ZHUYE_LIVE_RETRIES>0` **且** `ZHUYE_LIVE_RETRY_DELAY ≥ 65` |
 | **地区门 403** | 免费车道按出口 IP 判地区 | 换出口后重跑 |
 | **模型集合随时变** | 上游随时下架某个 id | 清单每次实时拉取 |
 | **慢首字 / 思考静默** | 实测首字 >30s、思考阶段可静默 60~70s | v1.10 起超时语义是「建连 + **读空闲**」双层（默认 300s）：流只要还在吐字节就不会超时，合法长流不再被总时长腰斩；仅无字节静默超过 300s 才需调大 |

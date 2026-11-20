@@ -2,10 +2,10 @@
  * Remote controller hook（阶段 2 任务 2）。
  *
  * 拥有 TanStack 查询 + 突变：
- *   - `reflect_get_remote_config` / `reflect_update_remote_config`
- *   - `reflect_get_remote_status`
- *   - `reflect_tailscale_status`
- *   - `reflect_tailscale_daemon_command_preview`
+ *   - `zhuye_get_remote_config` / `zhuye_update_remote_config`
+ *   - `zhuye_get_remote_status`
+ *   - `zhuye_tailscale_status`
+ *   - `zhuye_tailscale_daemon_command_preview`
  *
  * `start/stop/status` daemon 命令已存在，以便 iOS 设置卡片可以展示
  * "尚未实现" 的占位符而不产生 TypeScript 错误；controller 不会自动调用它们。
@@ -13,27 +13,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_get_remote_config,
-  reflect_get_remote_status,
-  reflect_status_server_start,
-  reflect_status_server_state,
-  reflect_status_server_stop,
-  reflect_tailscale_daemon_command_preview,
-  reflect_tailscale_status,
-  reflect_update_remote_config,
-  reflect_remote_hosts,
-  reflect_remote_host_remove,
-  reflect_remote_host_save,
-  reflect_remote_sessions,
-  reflect_remote_test,
-  reflect_remote_connect,
-  reflect_remote_disconnect,
-  reflect_remote_bootstrap,
-  type ReflectRemoteConfigSnapshot,
-  type ReflectRemoteHost,
-  type ReflectRemoteSessionInfo,
-  type ReflectRemoteStatus,
-  type ReflectTailscaleStatus,
+  zhuye_get_remote_config,
+  zhuye_get_remote_status,
+  zhuye_status_server_start,
+  zhuye_status_server_state,
+  zhuye_status_server_stop,
+  zhuye_tailscale_daemon_command_preview,
+  zhuye_tailscale_status,
+  zhuye_update_remote_config,
+  zhuye_remote_hosts,
+  zhuye_remote_host_remove,
+  zhuye_remote_host_save,
+  zhuye_remote_sessions,
+  zhuye_remote_test,
+  zhuye_remote_connect,
+  zhuye_remote_disconnect,
+  zhuye_remote_bootstrap,
+  type ZhuyeRemoteConfigSnapshot,
+  type ZhuyeRemoteHost,
+  type ZhuyeRemoteSessionInfo,
+  type ZhuyeRemoteStatus,
+  type ZhuyeTailscaleStatus,
 } from '@/utils/commands';
 import { useNavigate } from '@tanstack/react-router';
 import { useAgentStore } from '@/stores/agentStore';
@@ -44,9 +44,9 @@ const REMOTE_STALE_MS = 15_000;
 
 export interface RemoteController {
   // 查询
-  config: ReflectRemoteConfigSnapshot | null;
-  status: ReflectRemoteStatus | null;
-  tailscale: ReflectTailscaleStatus | null;
+  config: ZhuyeRemoteConfigSnapshot | null;
+  status: ZhuyeRemoteStatus | null;
+  tailscale: ZhuyeTailscaleStatus | null;
   previewCmd: string | null;
   loading: boolean;
   error: unknown;
@@ -69,8 +69,8 @@ export interface RemoteController {
   isMutating: boolean;
 
   // ── SSH 远程开发(state/remote.rs 会话层接缝)──
-  sshHosts: ReflectRemoteHost[];
-  sshSessions: ReflectRemoteSessionInfo[];
+  sshHosts: ZhuyeRemoteHost[];
+  sshSessions: ZhuyeRemoteSessionInfo[];
   sshConnectForm: SshConnectDraft;
   patchSshConnectForm: (patch: Partial<SshConnectDraft>) => void;
   sshSaveHost: () => Promise<void>;
@@ -100,7 +100,7 @@ export interface RemoteConfigDraft {
   autoConnect: boolean;
 }
 
-export function emptyRemoteDraft(c?: ReflectRemoteConfigSnapshot | null): RemoteConfigDraft {
+export function emptyRemoteDraft(c?: ZhuyeRemoteConfigSnapshot | null): RemoteConfigDraft {
   return {
     host: c?.host ?? '',
     port: c?.port ?? 4732,
@@ -119,41 +119,41 @@ export function useRemoteController(): RemoteController {
 
   const cfgQ = useQuery({
     queryKey: [...REMOTE_QUERY_KEY, 'config'],
-    queryFn: () => reflect_get_remote_config(),
+    queryFn: () => zhuye_get_remote_config(),
     staleTime: REMOTE_STALE_MS,
   });
 
   const statusQ = useQuery({
     queryKey: [...REMOTE_QUERY_KEY, 'status'],
-    queryFn: () => reflect_get_remote_status(),
+    queryFn: () => zhuye_get_remote_status(),
     staleTime: REMOTE_STALE_MS,
   });
 
   const tsQ = useQuery({
     queryKey: [...REMOTE_QUERY_KEY, 'tailscale'],
-    queryFn: () => reflect_tailscale_status(),
+    queryFn: () => zhuye_tailscale_status(),
     staleTime: REMOTE_STALE_MS,
   });
 
   const previewQ = useQuery({
     queryKey: [...REMOTE_QUERY_KEY, 'preview'],
-    queryFn: () => reflect_tailscale_daemon_command_preview(),
+    queryFn: () => zhuye_tailscale_daemon_command_preview(),
     staleTime: Infinity,
   });
 
   // v1.11 基建#12:远程网页访问状态服务器。
   const serverQ = useQuery({
     queryKey: [...REMOTE_QUERY_KEY, 'status-server'],
-    queryFn: () => reflect_status_server_state(),
+    queryFn: () => zhuye_status_server_state(),
     staleTime: 5_000,
   });
   const startServerMut = useMutation({
-    mutationFn: (port: number) => reflect_status_server_start(port),
+    mutationFn: (port: number) => zhuye_status_server_start(port),
     onSuccess: () => qc.invalidateQueries({ queryKey: [...REMOTE_QUERY_KEY, 'status-server'] }),
     onError: () => undefined,
   });
   const stopServerMut = useMutation({
-    mutationFn: () => reflect_status_server_stop(),
+    mutationFn: () => zhuye_status_server_stop(),
     onSuccess: () => qc.invalidateQueries({ queryKey: [...REMOTE_QUERY_KEY, 'status-server'] }),
     onError: () => undefined,
   });
@@ -185,7 +185,7 @@ export function useRemoteController(): RemoteController {
 
   const updateMut = useMutation({
     mutationFn: (d: RemoteConfigDraft) =>
-      reflect_update_remote_config({
+      zhuye_update_remote_config({
         host: d.host,
         port: d.port,
         authToken: d.authToken || null,
@@ -233,12 +233,12 @@ export function useRemoteController(): RemoteController {
   const navigate = useNavigate();
   const hostsQ = useQuery({
     queryKey: [...REMOTE_QUERY_KEY, 'ssh-hosts'],
-    queryFn: () => reflect_remote_hosts(),
+    queryFn: () => zhuye_remote_hosts(),
     staleTime: REMOTE_STALE_MS,
   });
   const sessionsQ = useQuery({
     queryKey: [...REMOTE_QUERY_KEY, 'ssh-sessions'],
-    queryFn: () => reflect_remote_sessions(),
+    queryFn: () => zhuye_remote_sessions(),
     refetchInterval: 10_000,
   });
   const [sshForm, setSshForm] = useState<SshConnectDraft>({
@@ -259,7 +259,7 @@ export function useRemoteController(): RemoteController {
 
   const sshSaveHostMut = useMutation({
     mutationFn: () =>
-      reflect_remote_host_save({
+      zhuye_remote_host_save({
         name: sshForm.name,
         host: sshForm.host,
         port: sshForm.port ?? undefined,
@@ -276,7 +276,7 @@ export function useRemoteController(): RemoteController {
   }, [sshSaveHostMut]);
 
   const sshRemoveHostMut = useMutation({
-    mutationFn: (name: string) => reflect_remote_host_remove(name),
+    mutationFn: (name: string) => zhuye_remote_host_remove(name),
     onSuccess: invalidateSsh,
     onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
   });
@@ -289,7 +289,7 @@ export function useRemoteController(): RemoteController {
 
   const sshTestMut = useMutation({
     mutationFn: () =>
-      reflect_remote_test({
+      zhuye_remote_test({
         host: sshForm.host,
         port: sshForm.port ?? undefined,
         user: sshForm.user || undefined,
@@ -302,10 +302,10 @@ export function useRemoteController(): RemoteController {
     await sshTestMut.mutateAsync();
   }, [sshTestMut]);
 
-  // 连接 = reflect_remote_connect(握手)→ bind → 前台插槽置位 →
+  // 连接 = zhuye_remote_connect(握手)→ bind → 前台插槽置位 →
   // 导航 /chat/<sid>:ChatView 挂载 bind 对远程 sid 短路(后端清形)。
   const sshConnectMut = useMutation({
-    mutationFn: () => reflect_remote_connect(sshForm.name, sshForm.cwd),
+    mutationFn: () => zhuye_remote_connect(sshForm.name, sshForm.cwd),
     onSuccess: async (sid) => {
       invalidateSsh();
       pushToast({ kind: 'success', message: t('remote.ssh.connected') });
@@ -324,7 +324,7 @@ export function useRemoteController(): RemoteController {
   }, [sshConnectMut]);
 
   const sshDisconnectMut = useMutation({
-    mutationFn: (sid: string) => reflect_remote_disconnect(sid),
+    mutationFn: (sid: string) => zhuye_remote_disconnect(sid),
     onSuccess: invalidateSsh,
     onError: (e) => pushToast({ kind: 'error', message: (e as Error).message }),
   });
@@ -337,7 +337,7 @@ export function useRemoteController(): RemoteController {
 
   // 一键安装:远端无 zhuye CLI 时(测试主机报错后)使用;装完自动重测。
   const sshBootstrapMut = useMutation({
-    mutationFn: () => reflect_remote_bootstrap(sshForm.name),
+    mutationFn: () => zhuye_remote_bootstrap(sshForm.name),
     onSuccess: async (version) => {
       pushToast({ kind: 'success', message: t('remote.ssh.bootstrapOk', { version }) });
       // 装完即验证可达性,让用户直接 connect。

@@ -1,29 +1,29 @@
 import { create } from 'zustand';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
-import type { PermissionMode, ReflectEvent, ReflectSubmission } from '@/types/protocol';
+import type { PermissionMode, ZhuyeEvent, ZhuyeSubmission } from '@/types/protocol';
 import { normalizePermissionMode } from '@/types/protocol';
 import {
-  reflect_ask_user_input_response,
-  reflect_ask_user_question_response,
-  reflect_compact,
-  reflect_cycle_permission_mode,
-  reflect_enter_plan_mode,
-  reflect_exit_plan_mode,
-  reflect_get_config,
-  reflect_hook_approval,
-  reflect_interrupt,
-  reflect_plan_approval,
-  reflect_prompt_command,
-  reflect_query_guard_stats,
-  reflect_query_subagents,
-  reflect_rewind,
-  reflect_set_effort,
-  reflect_set_permission_mode,
-  reflect_shutdown,
-  reflect_steer,
-  reflect_goal_snapshot,
-  reflect_submit,
-  reflect_tool_approval,
+  zhuye_ask_user_input_response,
+  zhuye_ask_user_question_response,
+  zhuye_compact,
+  zhuye_cycle_permission_mode,
+  zhuye_enter_plan_mode,
+  zhuye_exit_plan_mode,
+  zhuye_get_config,
+  zhuye_hook_approval,
+  zhuye_interrupt,
+  zhuye_plan_approval,
+  zhuye_prompt_command,
+  zhuye_query_guard_stats,
+  zhuye_query_subagents,
+  zhuye_rewind,
+  zhuye_set_effort,
+  zhuye_set_permission_mode,
+  zhuye_shutdown,
+  zhuye_steer,
+  zhuye_goal_snapshot,
+  zhuye_submit,
+  zhuye_tool_approval,
 } from '@/utils/commands';
 import { planFromRollout, turnsFromRollout } from '../replay';
 import {
@@ -46,8 +46,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
   let goalSnapshotGeneration = 0;
   // 按 plan 最大上下文自动压缩控制器(内部有开关/节流/触发闩)。
   const autoCompact = createAutoCompactController({
-    getConfig: () => reflect_get_config(),
-    compact: () => reflect_compact(),
+    getConfig: () => zhuye_get_config(),
+    compact: () => zhuye_compact(),
   });
   // coding plan 耗尽自动切换控制器:闭包持有 get/set,防抖状态随 store 生命周期
   // (接线细节收进 planFailover 模块,store 构造期一行接入)。
@@ -75,7 +75,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     const changedSession = get().loadedSessionId !== id;
     // goalActive/goalSnapshot 一并复位:goal 挂在后端线程上,rebind 造新
     // 线程即丢,换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
-    // 复位后立即向后端快照校准（reflect_goal_snapshot,v1.7 读口）;subagents
+    // 复位后立即向后端快照校准（zhuye_goal_snapshot,v1.7 读口）;subagents
     // 同为会话作用域投影。token 投影同理:live 的按模型累计属于上一个会话,
     // 换会话后必须清空(落盘侧累计由 `/usage` 按 session id 现查,不受影响)。
     set({
@@ -158,7 +158,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   syncGoalSnapshot: async () => {
     const generation = ++goalSnapshotGeneration;
     try {
-      const snapshot = await reflect_goal_snapshot();
+      const snapshot = await zhuye_goal_snapshot();
       if (generation !== goalSnapshotGeneration) return;
       // 快照是权威:有 = 活跃(拉回 true),无 = 未挂载/rebind 丢失(落 false)。
       set({ goalSnapshot: snapshot, goalActive: snapshot !== null });
@@ -170,7 +170,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   subscribe: () => {
     if (get().subscribed) return () => {};
     set({ subscribed: true });
-    const unsubscribe = subscribeAgentEvent((event: ReflectEvent) => {
+    const unsubscribe = subscribeAgentEvent((event: ZhuyeEvent) => {
       const patch = reduceEvent(get(), event);
       if (Object.keys(patch).length > 0) set(patch);
       // C：turn 收尾后自动排空跟进队列（reduce 完成后再取最新状态判断）。
@@ -210,7 +210,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
 
   submit: async (text, workspace) => {
     const id = uuid();
-    const submission: ReflectSubmission = {
+    const submission: ZhuyeSubmission = {
       id,
       op: { type: 'user_input', items: [{ type: 'text', text }], thread_settings: { approval_policy: wireApprovalPolicy(get().loadedSessionId) } },
       ...(workspace ? { workspace } : {}),
@@ -222,7 +222,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       ],
     }));
     try {
-      await reflect_submit(submission);
+      await zhuye_submit(submission);
     } catch (error) {
       // 提交失败：乐观 turn 落为 aborted 并记录错误。否则它永远停在
       // streaming → selectIsTurnRunning 恒真 → 队列永不排空,整个会话假死。
@@ -236,7 +236,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
 
   submitItems: async (items, workspace) => {
     const id = uuid();
-    const submission: ReflectSubmission = {
+    const submission: ZhuyeSubmission = {
       id,
       op: { type: 'user_input', items, thread_settings: { approval_policy: wireApprovalPolicy(get().loadedSessionId) } },
       ...(workspace ? { workspace } : {}),
@@ -263,7 +263,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       ],
     }));
     try {
-      await reflect_submit(submission);
+      await zhuye_submit(submission);
     } catch (error) {
       // 同 submit:失败回滚乐观 turn,不卡死队列。
       set((state) => ({
@@ -275,7 +275,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   },
 
   interrupt: async () => {
-    await reflect_interrupt();
+    await zhuye_interrupt();
   },
 
   steer: async (items, priority) => {
@@ -299,7 +299,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     };
     set((s) => ({ turns: appendItem(s.turns, last.id, optimistic) }));
     try {
-      await reflect_steer(items, priority);
+      await zhuye_steer(items, priority);
     } catch (error) {
       set((s) => ({
         turns: s.turns.map((turn) =>
@@ -313,14 +313,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
   },
 
   // 应答经 subagent_status 事件异步到达,reducer 写 subagents.lastStatus。
-  querySubagents: async (childId) => { await reflect_query_subagents(childId); },
-  interruptSubagent: async (childId) => { await reflect_interrupt(childId); },
+  querySubagents: async (childId) => { await zhuye_query_subagents(childId); },
+  interruptSubagent: async (childId) => { await zhuye_interrupt(childId); },
   /**
    * v1.6.1:查询提示词层。应答经 `prompt_list` 事件异步到达,
    * reducer 写入 `prompt`(进程级状态,不随会话切换重置)。
    */
   promptList: async () => {
-    await reflect_prompt_command({ type: 'list' });
+    await zhuye_prompt_command({ type: 'list' });
   },
 
   /**
@@ -329,24 +329,24 @@ export const useAgentStore = create<AgentState>((set, get) => {
    * `prompt` 并弹 toast。
    */
   promptRescan: async (layer) => {
-    await reflect_prompt_command({ type: 'switch', layer: layer ?? null });
+    await zhuye_prompt_command({ type: 'switch', layer: layer ?? null });
   },
-  queryGuardStats: () => runQueryGuardStats(reflect_query_guard_stats), // F01
+  queryGuardStats: () => runQueryGuardStats(zhuye_query_guard_stats), // F01
   ...createQueueActions(set, get),
 
   compact: async () => {
-    await reflect_compact();
+    await zhuye_compact();
   },
   rewind: async (toTurnId) => {
-    await reflect_rewind(toTurnId);
+    await zhuye_rewind(toTurnId);
   },
   shutdown: async () => {
-    await reflect_shutdown();
+    await zhuye_shutdown();
   },
 
   approve: async (kind, id, decision) => {
-    if (kind === 'tool') await reflect_tool_approval(id, decision);
-    else await reflect_hook_approval(id, decision);
+    if (kind === 'tool') await zhuye_tool_approval(id, decision);
+    else await zhuye_hook_approval(id, decision);
     set((state) => ({
       pendingApprovals: state.pendingApprovals.filter((approval) => approval.id !== id),
     }));
@@ -355,26 +355,26 @@ export const useAgentStore = create<AgentState>((set, get) => {
   // plan 审批走独立的 approvePlan —— PlanApprovalChoice 三选一,语义与
   // tool/hook 的 ReviewDecision 不同,故单独方法。
   approvePlan: async (id, choice) => {
-    await reflect_plan_approval(id, choice);
+    await zhuye_plan_approval(id, choice);
     set((state) => state.pendingPlan?.id === id && state.pendingPlan.kind === 'request'
       ? { pendingPlan: null }
       : {});
   },
 
   enterPlanMode: async (task) => {
-    await reflect_enter_plan_mode(task);
+    await zhuye_enter_plan_mode(task);
   },
   exitPlanMode: async () => {
-    await reflect_exit_plan_mode();
+    await zhuye_exit_plan_mode();
   },
   setEffort: async (level) => {
-    await reflect_set_effort(level);
+    await zhuye_set_effort(level);
   },
   setPermissionMode: async (mode) => {
-    await reflect_set_permission_mode(mode);
+    await zhuye_set_permission_mode(mode);
   },
   cyclePermissionMode: async () => {
-    await reflect_cycle_permission_mode();
+    await zhuye_cycle_permission_mode();
   },
   syncPermissionMode: (mode) => {
     // v1.x:bind 返回值可能携带弃用档(计划批准落盘的 accept_edits),
@@ -383,14 +383,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
   },
 
   answerQuestion: async (id, answers) => {
-    await reflect_ask_user_question_response(id, answers);
+    await zhuye_ask_user_question_response(id, answers);
     set((state) => ({
       pendingQuestions: state.pendingQuestions.filter((question) => question.id !== id),
     }));
   },
 
   answerInput: async (id, text) => {
-    await reflect_ask_user_input_response(id, text);
+    await zhuye_ask_user_input_response(id, text);
     set((state) => ({
       pendingAskUser: state.pendingAskUser.filter((question) => question.id !== id),
     }));

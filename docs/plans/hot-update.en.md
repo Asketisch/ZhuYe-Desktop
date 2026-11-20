@@ -11,7 +11,7 @@
 
 ## 1. Current state
 
-- `reflect_check_update` (`src-tauri/src/commands/update.rs`): probes GitHub `releases/latest` via curl, compares version numbers only — **check-only, no download or install**; the UpdatesSection in Settings displays it with a link out to the release page.
+- `zhuye_check_update` (`src-tauri/src/commands/update.rs`): probes GitHub `releases/latest` via curl, compares version numbers only — **check-only, no download or install**; the UpdatesSection in Settings displays it with a link out to the release page.
 - No tauri-plugin-updater, no minisign signing, no latest.json artifact; `release.yml` builds and uploads per-platform bundles to Releases but produces no update metadata.
 - macOS `signingIdentity: "-"` (ad-hoc); four-way version sync (package.json / root Cargo.toml / tauri.conf.json / Cargo.lock) is already enforced by `create_tag.sh` + the L1 gate.
 - Broken wire: the native menu emits `menu-check-updates` but no frontend consumer exists.
@@ -24,15 +24,15 @@
 
 | Command | Responsibility |
 |---|---|
-| `reflect_check_update` | kept as-is (compat), lightweight probe |
-| `reflect_download_install_update` | updater `check()` → `download_and_install()`, progress forwarded via `reflect_update_progress` events (started/progress/finished) |
-| `reflect_relaunch_app` | thin wrapper over the process plugin restart |
+| `zhuye_check_update` | kept as-is (compat), lightweight probe |
+| `zhuye_download_install_update` | updater `check()` → `download_and_install()`, progress forwarded via `zhuye_update_progress` events (started/progress/finished) |
+| `zhuye_relaunch_app` | thin wrapper over the process plugin restart |
 
 **Configuration**: `tauri.conf.json` gains `plugins.updater` (endpoint pointing at GitHub Releases `latest.json`, pubkey placeholder filled after key generation); `capabilities/main.json` gains `updater:default` and `process:allow-restart`.
 
 **Release chain**: `scripts/gen-update-keys.sh` generates a minisign keypair (private key stays local + GitHub secret `TAURI_SIGNING_PRIVATE_KEY`; public key committed into `tauri.conf.json`); `release.yml` injects signing env, tauri build produces per-platform update bundles + signatures, CI assembles `latest.json` (platform → { signature, url }) and uploads it to the Release.
 
-**Frontend**: UpdatesSection gains an "Update now" button → progress bar (listening to `reflect_update_progress`) → "Relaunch" prompt on completion; an auto-check toggle (default off) lives in the same section.
+**Frontend**: UpdatesSection gains an "Update now" button → progress bar (listening to `zhuye_update_progress`) → "Relaunch" prompt on completion; an auto-check toggle (default off) lives in the same section.
 
 **Drive-by fix**: wire the frontend listener for the `menu-check-updates` event (navigate to Settings and trigger a check).
 

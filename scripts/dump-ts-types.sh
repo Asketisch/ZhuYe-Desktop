@@ -4,7 +4,7 @@
 # 流水线：
 #   1. cargo run -p zhuye-protocol --example dump_schema
 #        → 生成 JSON Schema（基于协议类型上的 schemars JsonSchema derive）
-#   2. npx json2ts /tmp/reflect-schema.json
+#   2. npx json2ts /tmp/zhuye-schema.json
 #        → 生成 src/types/protocol.ts
 #
 # 为什么需要它（B1-01）：
@@ -21,8 +21,8 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 TS_OUT="src/types/protocol.generated.ts"
-SCHEMA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/reflect-schema.XXXXXX")"
-SCHEMA_TMP="$SCHEMA_DIR/reflect-schema.json"
+SCHEMA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/zhuye-schema.XXXXXX")"
+SCHEMA_TMP="$SCHEMA_DIR/zhuye-schema.json"
 TS_TMP=""
 HEADER_TMP=""
 trap 'rm -f "$SCHEMA_TMP" "$TS_TMP" "$HEADER_TMP"; rmdir "$SCHEMA_DIR"' EXIT

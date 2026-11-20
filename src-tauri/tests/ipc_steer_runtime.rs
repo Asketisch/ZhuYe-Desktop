@@ -1,4 +1,4 @@
-//! `reflect_steer` 在运行中的回合抢占并进入后续模型上下文。
+//! `zhuye_steer` 在运行中的回合抢占并进入后续模型上下文。
 mod common;
 
 use serde_json::{Value, json};
@@ -23,7 +23,7 @@ fn reply(text: &str) -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -74,14 +74,14 @@ fn steer_during_a_turn_reaches_the_next_model_request() {
         provider.uri()
     ));
     let rx = listen();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"steer-runtime-turn","op":{"type":"user_input","items":[{"type":"text","text":"start-steer-runtime-turn"}]}}}),
     );
     common::invoke_ok(
-        "reflect_steer",
+        "zhuye_steer",
         json!({"items":[{"type":"text","text":"steer-injected-marker"}],"priority":"now"}),
     );
     wait_terminal(&rx, "steer-runtime-turn");

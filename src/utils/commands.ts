@@ -1,5 +1,5 @@
 /**
- * Reflect GUI 的前端 IPC 包装层。
+ * ZhuYe GUI 的前端 IPC 包装层。
  *
  * 包装器现按领域组织在 `./commands/{domain}.ts` 下。
  * 本文件作为向后兼容的再导出保留，使现有 `@/utils/commands`

@@ -3,23 +3,23 @@ import { useState } from 'react';
 import type { ComponentType } from 'react';
 import type { ConfigHealthKey, ConfigHealthViewProps } from '@/contracts/configHealth';
 import { useI18n } from '@/utils/i18n';
-import { reflect_get_config } from '@/utils/commands/config';
+import { zhuye_get_config } from '@/utils/commands/config';
 import { ping } from '@/utils/commands/health';
-import { reflect_config_info } from '@/utils/commands/runtimeStatus';
+import { zhuye_config_info } from '@/utils/commands/runtimeStatus';
 
 /** 向配置诊断视图提供当前问题和探活动作。 */
 export function ConfigHealthBinding({ view: View }: { view: ComponentType<ConfigHealthViewProps> }) {
   const { t } = useI18n();
   const [dismissed, setDismissed] = useState<ConfigHealthKey[]>([]);
   const [drill, setDrill] = useState<{ backend: boolean; config: boolean } | null>(null);
-  const config = useQuery({ queryKey: ['config-health'], queryFn: reflect_config_info, staleTime: 60_000 });
+  const config = useQuery({ queryKey: ['config-health'], queryFn: zhuye_config_info, staleTime: 60_000 });
   if (config.isLoading) return null;
 
   const issues = config.data?.issues ?? [];
   const runDrill = async () => {
     const results = { backend: false, config: false };
     try { await ping(); results.backend = true; } catch { /* 保留失败状态 */ }
-    try { await reflect_get_config(); results.config = true; } catch { /* 保留失败状态 */ }
+    try { await zhuye_get_config(); results.config = true; } catch { /* 保留失败状态 */ }
     setDrill(results);
   };
 

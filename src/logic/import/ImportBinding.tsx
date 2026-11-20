@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
-import { reflect_import_discover, reflect_import_sessions } from '@/utils/commands';
+import { zhuye_import_discover, zhuye_import_sessions } from '@/utils/commands';
 import type { ImportKindOption, ImportViewProps } from '@/contracts/importView';
 
 const KINDS: ImportKindOption[] = [
@@ -19,10 +19,10 @@ export function ImportBinding({ view: View }: { view: ComponentType<ImportViewPr
 
   const discoverQ = useQuery({
     queryKey: ['import-sources', kind],
-    queryFn: () => reflect_import_discover(kind as 'claude_code' | 'codex' | 'zcode'),
+    queryFn: () => zhuye_import_discover(kind as 'claude_code' | 'codex' | 'zcode'),
     staleTime: 10_000,
   });
-  const importMut = useMutation({ mutationFn: () => reflect_import_sessions(kind as 'claude_code' | 'codex' | 'zcode', { dryRun, force: false }) });
+  const importMut = useMutation({ mutationFn: () => zhuye_import_sessions(kind as 'claude_code' | 'codex' | 'zcode', { dryRun, force: false }) });
 
   const sources = discoverQ.data ?? [];
   return (

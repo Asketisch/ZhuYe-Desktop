@@ -2,23 +2,23 @@
  * Effort + permission-mode 封装。控制运行中 agent 循环的推理强度
  * 与全局权限门控。
  *
- * 另含**权限规则**只读查询(核心 `reflect-permissions` 三层 store 的生效
+ * 另含**权限规则**只读查询(核心 `zhuye-permissions` 三层 store 的生效
  * 规则)—— 让「这个会话到底受哪些规则约束」在 GUI 里可见。
  */
 import { invoke } from '../bridge';
 
 /** 设置推理强度等级(provider 定义字符串)。 */
-export async function reflect_set_effort(level: string): Promise<string> {
-  return invoke<string>('reflect_set_effort', { level });
+export async function zhuye_set_effort(level: string): Promise<string> {
+  return invoke<string>('zhuye_set_effort', { level });
 }
 
 /** 读回当前 reasoning effort("low"|"medium"|"high"|"max"|"ultra";pre-install 为 "low")。 */
-export async function reflect_get_effort(): Promise<string> {
-  return invoke<string>('reflect_get_effort');
+export async function zhuye_get_effort(): Promise<string> {
+  return invoke<string>('zhuye_get_effort');
 }
 
 /** 思考强度能力快照 —— 「当前模型能选哪些档」「实际生效哪档」。 */
-export interface ReflectEffortCapability {
+export interface ZhuyeEffortCapability {
   /** 当前模型 spec(`provider/model`);未配置模型时为空串。 */
   model: string;
   /** 已知支持的档位;`known = false` 时为空数组(能力未知)。 */
@@ -34,18 +34,18 @@ export interface ReflectEffortCapability {
 }
 
 /** 读当前模型的思考强度能力(Composer / Models 两处共用同一口径)。 */
-export async function reflect_effort_capability(): Promise<ReflectEffortCapability> {
-  return invoke<ReflectEffortCapability>('reflect_effort_capability');
+export async function zhuye_effort_capability(): Promise<ZhuyeEffortCapability> {
+  return invoke<ZhuyeEffortCapability>('zhuye_effort_capability');
 }
 
 /** 直接设置 permission mode。 */
-export async function reflect_set_permission_mode(mode: string): Promise<string> {
-  return invoke<string>('reflect_set_permission_mode', { mode });
+export async function zhuye_set_permission_mode(mode: string): Promise<string> {
+  return invoke<string>('zhuye_set_permission_mode', { mode });
 }
 
 /** 在可用的 permission mode 之间循环切换。 */
-export async function reflect_cycle_permission_mode(): Promise<string> {
-  return invoke<string>('reflect_cycle_permission_mode');
+export async function zhuye_cycle_permission_mode(): Promise<string> {
+  return invoke<string>('zhuye_cycle_permission_mode');
 }
 
 // ====== 权限规则(只读) ======
@@ -79,8 +79,8 @@ export interface PermissionRuleInfo {
  * 规则数组顺序即匹配顺序(first-match-wins)—— 前端按数组序展示,
  * 用户能看出「哪条先生效」。
  */
-export function reflect_list_permission_rules(): Promise<PermissionRuleInfo[]> {
-  return invoke('reflect_list_permission_rules');
+export function zhuye_list_permission_rules(): Promise<PermissionRuleInfo[]> {
+  return invoke('zhuye_list_permission_rules');
 }
 
 // ====== 权限规则(可写:用户级) ======
@@ -107,6 +107,6 @@ export interface PermissionRuleInput {
  * 规则 —— 真值唯一,且同一条规则会出现在 Settings → Permissions 的
  * 「生效的权限规则」列表里。
  */
-export function reflect_add_permission_rule(rule: PermissionRuleInput): Promise<void> {
-  return invoke<void>('reflect_add_permission_rule', { rule });
+export function zhuye_add_permission_rule(rule: PermissionRuleInput): Promise<void> {
+  return invoke<void>('zhuye_add_permission_rule', { rule });
 }

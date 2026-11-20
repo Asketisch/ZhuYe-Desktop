@@ -32,7 +32,7 @@ installer_upgrade_ok() {
         rm -rf "$tmp"
         return 1
     }
-    if ! cmp -s "$bin_src" "$prefix/reflect-desktop"; then
+    if ! cmp -s "$bin_src" "$prefix/zhuye-desktop"; then
         echo "已安装二进制与构建产物不一致"
         rm -rf "$tmp"
         return 1

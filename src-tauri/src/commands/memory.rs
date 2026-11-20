@@ -38,7 +38,7 @@ pub(crate) fn validate_context(
 }
 
 #[tauri::command]
-pub async fn reflect_list_memory(
+pub async fn zhuye_list_memory(
     agent: State<'_, MinimalAgent>,
     expected_context: Option<MemoryContext>,
 ) -> CommandResult<Vec<MemoryEntry>> {
@@ -52,7 +52,7 @@ pub async fn reflect_list_memory(
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // 保持既有平铺 IPC 负载，新增字段均为可选项。
-pub async fn reflect_add_memory(
+pub async fn zhuye_add_memory(
     agent: State<'_, MinimalAgent>,
     scope: String,
     key: String,
@@ -78,7 +78,7 @@ pub async fn reflect_add_memory(
 }
 
 #[tauri::command]
-pub async fn reflect_remove_memory(
+pub async fn zhuye_remove_memory(
     agent: State<'_, MinimalAgent>,
     scope: String,
     key: String,

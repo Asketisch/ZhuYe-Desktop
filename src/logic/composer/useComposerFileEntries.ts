@@ -3,7 +3,7 @@
  *
  * 把「图片内联 / 文件落盘 / 原生拖拽」三条附件进入路径收敛到一个 hook,
  * Composer 只消费回调:
- * - 附件按钮:Tauri 下 `reflect_pick_files` 原生多选拿真实路径(与 Finder
+ * - 附件按钮:Tauri 下 `zhuye_pick_files` 原生多选拿真实路径(与 Finder
  *   拖拽同款分流);浏览器/测试 invoke 降级返回 undefined → 回落隐藏
  *   DOM input(字节经 useFileIngest 落盘)。
  * - 粘贴 / DOM drop 兜底:图片字节 → base64 内联;其余 → useFileIngest
@@ -11,7 +11,7 @@
  * - 原生拖拽(useComposerDragDrop)负责 Tauri WKWebView 下 Finder 拖入。
  */
 import { useCallback, useRef, type ClipboardEvent, type DragEvent, type RefObject } from 'react';
-import { reflect_pick_files } from '@/utils/commands/workspaces';
+import { zhuye_pick_files } from '@/utils/commands/workspaces';
 import { useAttachments } from './useAttachments';
 import { useFileIngest } from './useFileIngest';
 import { useComposerDragDrop } from './useComposerDragDrop';
@@ -59,7 +59,7 @@ export function useComposerFileEntries(fileInputRef: RefObject<HTMLInputElement 
   };
 
   const onAttachFile = useCallback(() => {
-    void reflect_pick_files().then((paths) => {
+    void zhuye_pick_files().then((paths) => {
       if (paths === undefined) {
         fileInputRef.current?.click();
         return;

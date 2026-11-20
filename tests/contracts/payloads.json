@@ -2,46 +2,46 @@
   "_about": "跨运行时线格式契约样本。每条注册命令一份**真后端可反序列化**的参数样本(顶层键 camelCase,嵌套结构按各自 serde 规则)。消费方:L1 tests/static/analyze.mjs(每条注册命令必须有样本)、L2 tests/ipc.payload-contract.test.ts(fakeBackend 必须接受)、L3 src-tauri/tests/ipc_payload_contract.rs(真后端必须反序列化成功——结构化业务错误可以,`invalid args` 不行)。`${TMP}` 由运行方替换为本次运行的临时目录。",
   "_skipOnRealBackend": "有副作用、不该在自动层执行的命令 —— 与 tests/COVERAGE.md §3 的显式排除项一致。它们的样本仍然存在(L1 完整性 + L2 fakeBackend 都要),只是 L3 不投喂真后端。",
   "skipOnRealBackend": [
-    "reflect_screenshot",
-    "reflect_computer_use",
-    "reflect_reveal_path",
-    "reflect_tailscale_daemon_start",
-    "reflect_tailscale_daemon_stop",
-    "reflect_run_security_scan",
-    "reflect_pty_start",
-    "reflect_pty_write",
-    "reflect_pty_resize",
-    "reflect_pty_close"
+    "zhuye_screenshot",
+    "zhuye_computer_use",
+    "zhuye_reveal_path",
+    "zhuye_tailscale_daemon_start",
+    "zhuye_tailscale_daemon_stop",
+    "zhuye_run_security_scan",
+    "zhuye_pty_start",
+    "zhuye_pty_write",
+    "zhuye_pty_resize",
+    "zhuye_pty_close"
   ],
   "commands": {
-    "reflect_activity_count": {},
-    "reflect_add_memory": {
+    "zhuye_activity_count": {},
+    "zhuye_add_memory": {
       "scope": "user",
       "key": "contract-probe",
       "value": "pnpm test",
       "createOnly": true
     },
-    "reflect_add_permission_rule": {
+    "zhuye_add_permission_rule": {
       "rule": {
         "tool": "CapabilityProbe",
         "action": "allow"
       }
     },
-    "reflect_add_schedule": {
+    "zhuye_add_schedule": {
       "schedule": "0 9 * * *",
       "prompt": "契约探针 standup",
       "name": "contract-probe-cron"
     },
-    "reflect_agent_status": {},
-    "reflect_all_model_usage": {},
-    "reflect_archive_session": {
+    "zhuye_agent_status": {},
+    "zhuye_all_model_usage": {},
+    "zhuye_archive_session": {
       "id": "00000000-0000-4000-8000-000000000001"
     },
-    "reflect_ask_user_input_response": {
+    "zhuye_ask_user_input_response": {
       "id": "q-probe-2",
       "text": "探针回答"
     },
-    "reflect_ask_user_question_response": {
+    "zhuye_ask_user_question_response": {
       "id": "q-probe",
       "answers": {
         "answers": [
@@ -53,37 +53,38 @@
         ]
       }
     },
-    "reflect_assign_squad_task": {
+    "zhuye_assign_squad_task": {
       "name": "contract-probe-squad",
       "taskId": 1,
       "assignee": "builder@x"
     },
-    "reflect_autopilot_history": {},
-    "reflect_bind_session": {
+    "zhuye_autopilot_history": {},
+    "zhuye_bind_session": {
       "id": "00000000-0000-0000-0000-000000000001"
     },
-    "reflect_cancel_discussions": {},
-    "reflect_cancel_side_channel": {
+    "zhuye_cancel_discussions": {},
+    "zhuye_cancel_side_channel": {
       "id": "contract-probe-side-channel"
     },
-    "reflect_check_allowlist": {
+    "zhuye_check_allowlist": {
       "prefix": "capability-layer-probe"
     },
-    "reflect_check_update": {},
-    "reflect_claim_task": {
+    "zhuye_check_update": {},
+    "zhuye_claim_task": {
       "list": "contract-probe-list",
       "claimer": "probe@team"
     },
-    "reflect_clear_activity": {},
-    "reflect_compact": {},
-    "reflect_computer_use": {
+    "zhuye_clear_activity": {},
+    "zhuye_compact": {},
+    "zhuye_computer_use": {
       "action": {
         "kind": "screenshot"
       }
     },
-    "reflect_config_info": {},
-    "reflect_create_session": {},
-    "reflect_create_squad": {
+    "zhuye_config_info": {},
+    "zhuye_create_session": {},
+    "zhuye_create_worktree": { "name": "contract-probe-wt", "branch": null, "path": null },
+    "zhuye_create_squad": {
       "spec": {
         "name": "contract-probe-squad",
         "description": "契约探针 squad",
@@ -96,191 +97,191 @@
         "createdAtMs": 1700000000
       }
     },
-    "reflect_create_task": {
+    "zhuye_create_task": {
       "list": "contract-probe-list",
       "subject": "契约探针任务",
       "description": "由契约样本创建"
     },
-    "reflect_credential_pool_status": {},
-    "reflect_current_workspace": {},
-    "reflect_cycle_permission_mode": {},
-    "reflect_delegate_next": {
+    "zhuye_credential_pool_status": {},
+    "zhuye_current_workspace": {},
+    "zhuye_cycle_permission_mode": {},
+    "zhuye_delegate_next": {
       "name": "contract-probe-squad",
       "leaderActorId": "team-lead@contract-probe-squad"
     },
-    "reflect_delete_agent_def": {
+    "zhuye_delete_agent_def": {
       "name": "capability-probe"
     },
-    "reflect_delete_mcp_server": {
+    "zhuye_delete_mcp_server": {
       "name": "contract-probe-mcp"
     },
-    "reflect_delete_session": {
+    "zhuye_delete_session": {
       "id": "00000000-0000-4000-8000-000000000001"
     },
-    "reflect_delete_squad": {
+    "zhuye_delete_squad": {
       "name": "contract-probe-squad"
     },
-    "reflect_delete_subagent_spec": {
+    "zhuye_delete_subagent_spec": {
       "role": "contract-probe-role"
     },
-    "reflect_delete_task": {
+    "zhuye_delete_task": {
       "list": "contract-probe-list",
       "id": 1
     },
-    "reflect_delete_team": {
+    "zhuye_delete_team": {
       "name": "contract-probe-team"
     },
-    "reflect_download_install_update": {},
-    "reflect_relaunch_app": {},
-    "reflect_remote_bootstrap": {
+    "zhuye_download_install_update": {},
+    "zhuye_relaunch_app": {},
+    "zhuye_remote_bootstrap": {
       "host": "contract-probe-box"
     },
-    "reflect_remote_bind": {
+    "zhuye_remote_bind": {
       "sid": "00000000-0000-4000-8000-0000000000aa"
     },
-    "reflect_remote_connect": {
+    "zhuye_remote_connect": {
       "host": "contract-probe-box",
       "cwd": "/home/probe/proj"
     },
-    "reflect_remote_disconnect": {
+    "zhuye_remote_disconnect": {
       "sid": "00000000-0000-4000-8000-0000000000aa"
     },
-    "reflect_remote_host_remove": {
+    "zhuye_remote_host_remove": {
       "name": "contract-probe-box"
     },
-    "reflect_remote_host_save": {
+    "zhuye_remote_host_save": {
       "name": "contract-probe-box",
       "host": "10.0.0.5",
       "port": 2222,
       "user": "probe"
     },
-    "reflect_remote_hosts": {},
-    "reflect_remote_sessions": {},
-    "reflect_remote_test": {
+    "zhuye_remote_hosts": {},
+    "zhuye_remote_sessions": {},
+    "zhuye_remote_test": {
       "host": "10.0.0.5",
       "port": 2222
     },
-    "reflect_dream": {
+    "zhuye_dream": {
       "insights": [
         "能力覆盖层洞察一",
         "洞察二"
       ],
       "sessionsAnalyzed": 2
     },
-    "reflect_enter_goal_mode": {
+    "zhuye_enter_goal_mode": {
       "goal": "让能力覆盖层全绿"
     },
-    "reflect_enter_plan_mode": {
+    "zhuye_enter_plan_mode": {
       "task": "能力覆盖层 plan 探针"
     },
-    "reflect_exit_goal_mode": {},
-    "reflect_exit_plan_mode": {},
-    "reflect_export_session": {
+    "zhuye_exit_goal_mode": {},
+    "zhuye_exit_plan_mode": {},
+    "zhuye_export_session": {
       "id": "00000000-0000-4000-8000-000000000001"
     },
-    "reflect_export_session_markdown": {
+    "zhuye_export_session_markdown": {
       "id": "00000000-0000-0000-0000-000000000000"
     },
-    "reflect_fork_session": {
+    "zhuye_fork_session": {
       "id": "00000000-0000-0000-0000-000000000002"
     },
-    "reflect_generate_session_title": {
+    "zhuye_generate_session_title": {
       "id": "00000000-0000-0000-0000-000000000003",
       "force": true
     },
-    "reflect_get_active_agent": {},
-    "reflect_get_agent_def": {
+    "zhuye_get_active_agent": {},
+    "zhuye_get_agent_def": {
       "name": "capability-probe"
     },
-    "reflect_get_autopilot_config": {},
-    "reflect_get_config": {},
-    "reflect_get_effective_prompt": {},
-    "reflect_get_effort": {},
-    "reflect_get_remote_config": {},
-    "reflect_get_remote_status": {},
-    "reflect_get_schedule_status": {},
-    "reflect_get_side_channel": {
+    "zhuye_get_autopilot_config": {},
+    "zhuye_get_config": {},
+    "zhuye_get_effective_prompt": {},
+    "zhuye_get_effort": {},
+    "zhuye_get_remote_config": {},
+    "zhuye_get_remote_status": {},
+    "zhuye_get_schedule_status": {},
+    "zhuye_get_side_channel": {
       "id": "contract-probe-side-channel"
     },
-    "reflect_get_squad": {
+    "zhuye_get_squad": {
       "name": "contract-probe-squad"
     },
-    "reflect_get_subagent_spec": {
+    "zhuye_get_subagent_spec": {
       "role": "contract-probe-role"
     },
-    "reflect_get_task": {
+    "zhuye_get_task": {
       "list": "contract-probe-list",
       "id": 1
     },
-    "reflect_get_task_output": {
+    "zhuye_get_task_output": {
       "list": "contract-probe-list",
       "id": 1
     },
-    "reflect_get_team": {
+    "zhuye_get_team": {
       "name": "contract-probe-team"
     },
-    "reflect_get_trace": {
+    "zhuye_get_trace": {
       "id": "capability-probe"
     },
-    "reflect_gh_pr_list": {
+    "zhuye_gh_pr_list": {
       "limit": 5
     },
-    "reflect_git_commit": {
+    "zhuye_git_commit": {
       "message": "capability probe"
     },
-    "reflect_git_diff": {
+    "zhuye_git_diff": {
       "staged": true
     },
-    "reflect_git_log": {
+    "zhuye_git_log": {
       "limit": 5
     },
-    "reflect_git_stage": {
+    "zhuye_git_stage": {
       "paths": [
         "probe.txt"
       ]
     },
-    "reflect_git_status": {},
-    "reflect_git_unstage": {
+    "zhuye_git_status": {},
+    "zhuye_git_unstage": {
       "paths": [
         "probe.txt"
       ]
     },
-    "reflect_hook_approval": {
+    "zhuye_hook_approval": {
       "id": "hk-probe",
       "decision": "approve"
     },
-    "reflect_image_process": {
+    "zhuye_image_process": {
       "spec": {
         "inputPath": "${TMP}/contract-probe.png",
         "outputPath": "${TMP}/contract-probe.jpg",
         "format": "jpeg"
       }
     },
-    "reflect_install_plugin": {
+    "zhuye_install_plugin": {
       "path": "/nonexistent/plugin",
       "marketplace": "BAD NAME",
       "scope": "user"
     },
-    "reflect_interrupt": {},
-    "reflect_kill_shell": {
+    "zhuye_interrupt": {},
+    "zhuye_kill_shell": {
       "sessionId": "contract-probe-shell"
     },
-    "reflect_kms_create": {
+    "zhuye_kms_create": {
       "name": "contract-probe-wiki",
       "description": "契约探针 wiki"
     },
-    "reflect_kms_delete": {
+    "zhuye_kms_delete": {
       "name": "contract-probe-wiki"
     },
-    "reflect_kms_get_page": {
+    "zhuye_kms_get_page": {
       "wiki": "contract-probe-wiki",
       "page": "index.md"
     },
-    "reflect_kms_list": {},
-    "reflect_kms_list_pages": {
+    "zhuye_kms_list": {},
+    "zhuye_kms_list_pages": {
       "wiki": "contract-probe-wiki"
     },
-    "reflect_kms_save_page": {
+    "zhuye_kms_save_page": {
       "wiki": "contract-probe-wiki",
       "page": "index.md",
       "content": "# 标题\n\ncontract probe body\n",
@@ -289,163 +290,164 @@
         "probe"
       ]
     },
-    "reflect_kms_search": {
+    "zhuye_kms_search": {
       "query": "capability"
     },
-    "reflect_list_activity": {},
-    "reflect_list_agent_defs": {},
-    "reflect_list_archived_sessions": {},
-    "reflect_list_dir": {
+    "zhuye_list_activity": {},
+    "zhuye_list_agent_defs": {},
+    "zhuye_list_archived_sessions": {},
+    "zhuye_list_dir": {
       "path": "${TMP}",
       "maxDepth": 2
     },
-    "reflect_list_discussions": {},
-    "reflect_list_hook_events": {},
-    "reflect_list_hooks": {},
-    "reflect_list_marketplaces": {},
-    "reflect_list_mcp_prompts": {},
-    "reflect_list_mcp_resources": {},
-    "reflect_list_mcp_servers": {},
-    "reflect_list_media": {
+    "zhuye_list_discussions": {},
+    "zhuye_list_hook_events": {},
+    "zhuye_list_hooks": {},
+    "zhuye_list_marketplaces": {},
+    "zhuye_list_mcp_prompts": {},
+    "zhuye_list_mcp_resources": {},
+    "zhuye_list_mcp_servers": {},
+    "zhuye_list_media": {
       "dir": "${TMP}"
     },
-    "reflect_list_memory": {},
-    "reflect_list_note_sessions": {},
-    "reflect_list_permission_rules": {},
-    "reflect_list_pipeline_configs": {},
-    "reflect_list_plugin_commands": {},
-    "reflect_list_plugins": {},
-    "reflect_list_provider_models": {
+    "zhuye_list_memory": {},
+    "zhuye_list_note_sessions": {},
+    "zhuye_list_permission_rules": {},
+    "zhuye_list_pipeline_configs": {},
+    "zhuye_list_plugin_commands": {},
+    "zhuye_list_plugins": {},
+    "zhuye_list_provider_models": {
       "baseUrl": "http://127.0.0.1:9",
       "apiKey": "test",
       "endpoint": "/v1/models"
     },
-    "reflect_lookup_model_abilities": {
+    "zhuye_lookup_model_abilities": {
       "modelId": "claude-sonnet-4"
     },
-    "reflect_list_schedules": {},
-    "reflect_list_session_notes": {
+    "zhuye_list_schedules": {},
+    "zhuye_list_session_notes": {
       "id": "00000000-0000-0000-0000-000000000000"
     },
-    "reflect_list_sessions": {},
-    "reflect_list_shell_sessions": {},
-    "reflect_list_side_channels": {},
-    "reflect_list_skills": {},
-    "reflect_list_span_logs": {
+    "zhuye_list_sessions": {},
+    "zhuye_list_shell_sessions": {},
+    "zhuye_list_side_channels": {},
+    "zhuye_list_skills": {},
+    "zhuye_list_span_logs": {
       "days": 1
     },
-    "reflect_list_squads": {},
-    "reflect_list_subagent_specs": {},
-    "reflect_list_tasks": {
+    "zhuye_list_squads": {},
+    "zhuye_list_subagent_specs": {},
+    "zhuye_list_tasks": {
       "list": "contract-probe-list"
     },
-    "reflect_list_teams": {},
-    "reflect_list_tools": {},
-    "reflect_list_traces": {
+    "zhuye_list_teams": {},
+    "zhuye_list_tools": {},
+    "zhuye_list_traces": {
       "limit": 5
     },
-    "reflect_list_workspaces": {},
-    "reflect_list_worktrees": {},
-    "reflect_load_allowlist": {},
-    "reflect_lsp_diagnostics": {
+    "zhuye_list_workspaces": {},
+    "zhuye_list_worktrees": {},
+    "zhuye_load_allowlist": {},
+    "zhuye_lsp_diagnostics": {
       "path": "main.rs"
     },
-    "reflect_lsp_set_enabled": {
+    "zhuye_lsp_set_enabled": {
       "enabled": false
     },
-    "reflect_lsp_status": {},
-    "reflect_lsp_warmup": {
+    "zhuye_lsp_status": {},
+    "zhuye_lsp_warmup": {
       "path": "main.rs"
     },
-    "reflect_ingest_upload": {
+    "zhuye_ingest_upload": {
       "filename": "contract-probe.txt",
       "base64": "cHJvYmU="
     },
-    "reflect_mcp_catalog": {},
-    "reflect_media_capabilities": {},
-    "reflect_memory_sections": {},
-    "reflect_model_rate_cards": {
+    "zhuye_mcp_catalog": {},
+    "zhuye_media_capabilities": {},
+    "zhuye_memory_sections": {},
+    "zhuye_model_rate_cards": {
       "models": [
         "gpt-4o"
       ]
     },
-    "reflect_parse_agent_md": {
+    "zhuye_parse_agent_md": {
       "text": "---\nname: contract-probe\ndescription: 契约探针\n---\n你是探针。\n"
     },
-    "reflect_pick_file": {
+    "zhuye_pick_file": {
       "extensions": [
         "toml"
       ]
     },
-    "reflect_pick_files": {},
-    "reflect_pick_workspace_folder": {},
-    "reflect_plan_approval": {
+    "zhuye_pick_files": {},
+    "zhuye_pick_workspace_folder": {},
+    "zhuye_prune_worktrees": {},
+    "zhuye_plan_approval": {
       "id": "plan-probe",
       "choice": "manual_approve"
     },
-    "reflect_prompt_command": {
+    "zhuye_prompt_command": {
       "action": {
         "type": "list"
       }
     },
-    "reflect_query_plan_quota": {
+    "zhuye_query_plan_quota": {
       "baseUrl": "http://127.0.0.1:9",
       "apiKey": "test",
       "checkVia": "zhipu"
     },
-    "reflect_query_subagents": {},
-    "reflect_read_file": {
+    "zhuye_query_subagents": {},
+    "zhuye_read_file": {
       "path": "${TMP}/contract-probe.txt"
     },
-    "reflect_read_image_base64": {
+    "zhuye_read_image_base64": {
       "path": "${TMP}/contract-probe.png"
     },
-    "reflect_read_span_log": {
+    "zhuye_read_span_log": {
       "day": "1970-01-01"
     },
-    "reflect_recovery_state": {},
-    "reflect_release_task": {
+    "zhuye_recovery_state": {},
+    "zhuye_release_task": {
       "list": "contract-probe-list",
       "id": 1
     },
-    "reflect_remove_memory": {
+    "zhuye_remove_memory": {
       "scope": "user",
       "key": "contract-probe"
     },
-    "reflect_remove_schedule": {
+    "zhuye_remove_schedule": {
       "id": "contract-probe-cron-id"
     },
-    "reflect_rename_session": {
+    "zhuye_rename_session": {
       "id": "00000000-0000-4000-8000-000000000001",
       "newName": "契约探针改名"
     },
-    "reflect_replay_session": {
+    "zhuye_replay_session": {
       "id": "00000000-0000-4000-8000-000000000001"
     },
-    "reflect_reveal_path": {
+    "zhuye_reveal_path": {
       "path": "${TMP}"
     },
-    "reflect_rewind": {
+    "zhuye_rewind": {
       "toTurnId": null
     },
-    "reflect_run_discussion": {
+    "zhuye_run_discussion": {
       "configPath": "/nonexistent/discussion.toml"
     },
-    "reflect_run_pipeline": {
+    "zhuye_run_pipeline": {
       "configPath": "/nonexistent/pipeline.toml",
       "topic": "探针"
     },
-    "reflect_run_security_scan": {},
-    "reflect_run_shell": {
+    "zhuye_run_security_scan": {},
+    "zhuye_run_shell": {
       "cmd": "echo capability-probe",
       "sshHost": null
     },
-    "reflect_run_team_pipeline": {
+    "zhuye_run_team_pipeline": {
       "teamName": "no-such-team-xyz",
       "topic": "探针"
     },
-    "reflect_sandbox_status": {},
-    "reflect_save_agent_def": {
+    "zhuye_sandbox_status": {},
+    "zhuye_save_agent_def": {
       "createOnly": true,
       "def": {
         "name": "contract-probe-agent",
@@ -453,7 +455,7 @@
         "prompt": "你是探针。"
       }
     },
-    "reflect_save_allowlist": {
+    "zhuye_save_allowlist": {
       "list": {
         "prefixes": [
           "git status",
@@ -461,59 +463,59 @@
         ]
       }
     },
-    "reflect_save_config": {
+    "zhuye_save_config": {
       "toml": "# contract-probe-marker\n[hooks]\nenabled = []\n"
     },
-    "reflect_save_pipeline_config": {
+    "zhuye_save_pipeline_config": {
       "name": "contract-probe-pipeline",
       "tomlSrc": "name = \"contract-probe\"\n"
     },
-    "reflect_save_subagent_spec": {
+    "zhuye_save_subagent_spec": {
       "role": "contract-probe-role",
       "markdown": "---\nrole: contract-probe-role\nname: contract-probe-role\ndescription: 契约探针子代理\n---\n\n你是探针。\n"
     },
-    "reflect_screenshot": {},
-    "reflect_search_activity": {
+    "zhuye_screenshot": {},
+    "zhuye_search_activity": {
       "query": "probe"
     },
-    "reflect_search_files": {
+    "zhuye_search_files": {
       "query": "contract",
       "path": "${TMP}",
       "maxResults": 10,
       "rank": "bm25"
     },
-    "reflect_search_sessions": {
+    "zhuye_search_sessions": {
       "query": "probe",
       "limit": 5
     },
-    "reflect_session_stats": {
+    "zhuye_session_stats": {
       "id": "00000000-0000-0000-0000-000000000000"
     },
-    "reflect_set_active_agent": {
+    "zhuye_set_active_agent": {
       "name": "contract-probe-agent"
     },
-    "reflect_set_dock_badge": {
+    "zhuye_set_dock_badge": {
       "label": "3"
     },
-    "reflect_set_effort": {
+    "zhuye_set_effort": {
       "level": "high"
     },
-    "reflect_set_model": {
+    "zhuye_set_model": {
       "provider": "anthropic",
       "model": "claude-sonnet-4-5"
     },
-    "reflect_set_permission_mode": {
+    "zhuye_set_permission_mode": {
       "mode": "prompt"
     },
-    "reflect_set_workspace": {
+    "zhuye_set_workspace": {
       "path": "${TMP}"
     },
-    "reflect_shutdown": {},
-    "reflect_start_side_channel": {
+    "zhuye_shutdown": {},
+    "zhuye_start_side_channel": {
       "agentName": "probe-helper",
       "prompt": "探针提示"
     },
-    "reflect_steer": {
+    "zhuye_steer": {
       "items": [
         {
           "type": "text",
@@ -521,11 +523,11 @@
         }
       ]
     },
-    "reflect_stop_task": {
+    "zhuye_stop_task": {
       "list": "contract-probe-list",
       "id": 1
     },
-    "reflect_submit": {
+    "zhuye_submit": {
       "submission": {
         "id": "contract-probe-sub",
         "op": {
@@ -539,26 +541,26 @@
         }
       }
     },
-    "reflect_tailscale_daemon_command_preview": {},
-    "reflect_tailscale_daemon_start": {},
-    "reflect_tailscale_daemon_status": {},
-    "reflect_tailscale_daemon_stop": {},
-    "reflect_tailscale_status": {},
-    "reflect_test_provider_chat": {
+    "zhuye_tailscale_daemon_command_preview": {},
+    "zhuye_tailscale_daemon_start": {},
+    "zhuye_tailscale_daemon_status": {},
+    "zhuye_tailscale_daemon_stop": {},
+    "zhuye_tailscale_status": {},
+    "zhuye_test_provider_chat": {
       "baseUrl": "http://127.0.0.1:9",
       "apiKey": "test",
       "endpoint": "/v1/chat/completions",
       "model": "probe"
     },
-    "reflect_toggle_hook": {
+    "zhuye_toggle_hook": {
       "name": "audit-deps",
       "enabled": false
     },
-    "reflect_toggle_plugin": {
+    "zhuye_toggle_plugin": {
       "id": "no-such-plugin-xyz",
       "enabled": true
     },
-    "reflect_tool_approval": {
+    "zhuye_tool_approval": {
       "id": "apr-probe",
       "decision": {
         "deny": {
@@ -566,14 +568,14 @@
         }
       }
     },
-    "reflect_unarchive_session": {
+    "zhuye_unarchive_session": {
       "id": "00000000-0000-4000-8000-000000000001"
     },
-    "reflect_uninstall_plugin": {
+    "zhuye_uninstall_plugin": {
       "id": "not a valid plugin id",
       "scope": "user"
     },
-    "reflect_update_autopilot_config": {
+    "zhuye_update_autopilot_config": {
       "config": {
         "enabled": false,
         "schedule": "0 9 * * *",
@@ -582,24 +584,24 @@
         "maxConcurrent": 1
       }
     },
-    "reflect_update_remote_config": {
+    "zhuye_update_remote_config": {
       "host": "127.0.0.1",
       "port": 8787,
       "autoConnect": false
     },
-    "reflect_update_schedule": {
+    "zhuye_update_schedule": {
       "id": "contract-probe-cron-id",
       "schedule": "30 8 * * *",
       "enabled": false
     },
-    "reflect_update_task": {
+    "zhuye_update_task": {
       "list": "contract-probe-list",
       "id": 1,
       "patch": {
         "status": "in_progress"
       }
     },
-    "reflect_upsert_mcp_server": {
+    "zhuye_upsert_mcp_server": {
       "name": "contract-probe-mcp",
       "entry": {
         "type": "stdio",
@@ -609,7 +611,7 @@
         ]
       }
     },
-    "reflect_upsert_team": {
+    "zhuye_upsert_team": {
       "team": {
         "name": "contract-probe-team",
         "description": "契约探针团队",
@@ -633,95 +635,99 @@
         }
       }
     },
-    "reflect_validate_pipeline": {
+    "zhuye_validate_pipeline": {
       "tomlSrc": "name = \"contract-probe\"\n"
     },
-    "reflect_write_file": {
+    "zhuye_write_file": {
       "path": "${TMP}/contract-probe.txt",
       "content": "hello contract\n"
     },
-    "reflect_goal_snapshot": {},
-    "reflect_rescan_extensions": {
+    "zhuye_goal_snapshot": {},
+    "zhuye_rescan_extensions": {
       "skills": true,
       "commands": false
     },
-    "reflect_query_guard_stats": {},
-    "reflect_scan_local_ports": {
+    "zhuye_query_guard_stats": {},
+    "zhuye_scan_local_ports": {
       "ports": [5173, 8080],
       "recent_output": "Local: http://localhost:5173/"
     },
-    "reflect_browser_env": {},
-    "reflect_browser_start": {},
-    "reflect_browser_status": {},
-    "reflect_browser_stop": {},
-    "reflect_browser_navigate": {
+    "zhuye_browser_env": {},
+    "zhuye_browser_start": {},
+    "zhuye_browser_status": {},
+    "zhuye_browser_stop": {},
+    "zhuye_browser_navigate": {
       "url": "example.com"
     },
-    "reflect_browser_back": {},
-    "reflect_browser_forward": {},
-    "reflect_browser_reload": {},
-    "reflect_browser_set_device": {
+    "zhuye_browser_back": {},
+    "zhuye_browser_forward": {},
+    "zhuye_browser_reload": {},
+    "zhuye_browser_set_device": {
       "width": 390,
       "height": 844
     },
-    "reflect_browse_marketplace": {
+    "zhuye_browse_marketplace": {
       "name": "fake-mkt"
     },
-    "reflect_install_from_marketplace": {
+    "zhuye_install_from_marketplace": {
       "marketplace": "fake-mkt",
       "plugin": "demo"
     },
-    "reflect_current_workspace_dirs": {},
-    "reflect_set_workspace_dirs": {
+    "zhuye_current_workspace_dirs": {},
+    "zhuye_set_workspace_dirs": {
       "main": "${TMP}",
       "additional": []
     },
-    "reflect_status_server_start": {
+    "zhuye_status_server_start": {
       "port": 4732
     },
-    "reflect_status_server_state": {},
-    "reflect_status_server_stop": {},
-    "reflect_install_skill": {
+    "zhuye_status_server_state": {},
+    "zhuye_status_server_stop": {},
+    "zhuye_install_skill": {
       "repo": "owner/repo"
     },
-    "reflect_search_skill_market": {
+    "zhuye_search_skill_market": {
       "query": "react",
       "limit": 50
     },
-    "reflect_install_skill_from_market": {
+    "zhuye_install_skill_from_market": {
       "source": "anthropics/skills/frontend-design"
     },
-    "reflect_refresh_skill_market_index": {},
-    "reflect_import_discover": {
+    "zhuye_refresh_skill_market_index": {},
+    "zhuye_import_discover": {
       "kind": "claude_code"
     },
-    "reflect_import_sessions": {
+    "zhuye_import_sessions": {
       "kind": "claude_code",
       "force": false,
       "dryRun": true,
       "includeThinking": false,
       "keepInjected": false
     },
-    "reflect_pty_start": {
+    "zhuye_pty_start": {
       "id": "contract-pty",
       "cols": 80,
       "rows": 24
     },
-    "reflect_pty_write": {
+    "zhuye_pty_write": {
       "id": "contract-pty",
       "data": "exit\n"
     },
-    "reflect_pty_resize": {
+    "zhuye_pty_resize": {
       "id": "contract-pty",
       "cols": 100,
       "rows": 30
     },
-    "reflect_pty_close": {
+    "zhuye_pty_close": {
       "id": "contract-pty"
     },
-    "reflect_remove_workspace": {
+    "zhuye_remove_workspace": {
       "path": "${TMP}/project"
     },
-    "reflect_effort_capability": {}
+    "zhuye_remove_worktree": {
+      "path": "${TMP}/project-worktrees/contract-probe-wt",
+      "force": false
+    },
+    "zhuye_effort_capability": {}
   }
 }

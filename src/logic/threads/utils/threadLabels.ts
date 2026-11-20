@@ -1,10 +1,10 @@
 /**
  * Threads 工具 —— 链接生成 + 日期格式化。
  */
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 
 /** 生成 chat 路由路径。 */
-export function chatLinkFor(session: Pick<ReflectSessionInfo, 'session_id'>): string {
+export function chatLinkFor(session: Pick<ZhuyeSessionInfo, 'session_id'>): string {
   return `/chat/${session.session_id}`;
 }
 

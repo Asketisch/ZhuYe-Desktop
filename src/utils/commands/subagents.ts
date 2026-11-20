@@ -35,13 +35,13 @@ export interface SubagentSpecInfo {
 }
 
 /** 列出当前生效的全部子代理 spec(按合并口径)。 */
-export function reflect_list_subagent_specs(): Promise<SubagentSpecInfo[]> {
-  return invoke('reflect_list_subagent_specs');
+export function zhuye_list_subagent_specs(): Promise<SubagentSpecInfo[]> {
+  return invoke('zhuye_list_subagent_specs');
 }
 
 /** 读取某个子代理 spec 的原始 md 文本(编辑器回填);不存在 → null。 */
-export function reflect_get_subagent_spec(role: string): Promise<string | null> {
-  return invoke('reflect_get_subagent_spec', { role });
+export function zhuye_get_subagent_spec(role: string): Promise<string | null> {
+  return invoke('zhuye_get_subagent_spec', { role });
 }
 
 /**
@@ -50,14 +50,14 @@ export function reflect_get_subagent_spec(role: string): Promise<string | null> 
  * `markdown` 是完整文件内容(frontmatter + body)—— 写前由后端解析校验,
  * 非法 frontmatter 直接报错不落盘。
  */
-export function reflect_save_subagent_spec(
+export function zhuye_save_subagent_spec(
   role: string,
   markdown: string,
 ): Promise<void> {
-  return invoke('reflect_save_subagent_spec', { role, markdown });
+  return invoke('zhuye_save_subagent_spec', { role, markdown });
 }
 
 /** 删除一个子代理 spec(只删工作区 md;用户级 / TOML 来源不动)。 */
-export function reflect_delete_subagent_spec(role: string): Promise<void> {
-  return invoke('reflect_delete_subagent_spec', { role });
+export function zhuye_delete_subagent_spec(role: string): Promise<void> {
+  return invoke('zhuye_delete_subagent_spec', { role });
 }

@@ -39,15 +39,15 @@ fn iteration_limit_marks_autopilot_run_failed() {
         provider.uri()
     ));
     let (tx, rx) = std::sync::mpsc::channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{"enabled":true,"schedule":"* * * * *","taskTemplate":"limit-marker","maxConcurrent":1}}),
     );
     let config = common::isolated_home().join(".zhuye/autopilot/config.json");
@@ -72,7 +72,7 @@ fn iteration_limit_marks_autopilot_run_failed() {
     assert_eq!(terminal["msg"]["status"], "max_iterations", "{terminal}");
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         if history[0]["status"] == "failed" {
             assert!(
                 history[0]["error"]

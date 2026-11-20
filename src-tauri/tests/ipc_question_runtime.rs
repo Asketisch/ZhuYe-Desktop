@@ -148,13 +148,13 @@ fn selected_and_custom_answers_return_to_model() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
     });
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({
             "submission": { "id": "question-submission", "op": { "type": "user_input",
                 "items": [{ "type": "text", "text": "mock-question-turn" }] } }
@@ -169,7 +169,7 @@ fn selected_and_custom_answers_return_to_model() {
     let id = question["msg"]["request_id"].as_str().unwrap();
     assert!(
         common::invoke(
-            "reflect_ask_user_question_response",
+            "zhuye_ask_user_question_response",
             json!({
                 "id": id, "answers": { "answers": [{ "selected": ["invalid"] }] }
             })
@@ -185,7 +185,7 @@ fn selected_and_custom_answers_return_to_model() {
         1
     );
     common::invoke_ok(
-        "reflect_ask_user_question_response",
+        "zhuye_ask_user_question_response",
         json!({
             "id": id,
             "answers": { "answers": [

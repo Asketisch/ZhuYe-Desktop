@@ -19,7 +19,7 @@ IPC、AgentThread 与隔离数据目录）。模型替身仅替代 provider，�
 |---|---|---|
 | 聊天、流式正文、用量和结束 | Linux ARM64 真窗口验证合成消息经本地 SSE 生成回复，状态栏显示 10 输入 + 7 输出 = 17 tokens；真后端 `ipc_mock_provider.rs` 验证正文、用量和完成终态；`ipc_chat_restart.rs` 验证新进程回放旧用户与助手消息，并在下一模型请求中继续携带上下文 | — |
 | 工具调用、审批、拒绝、结果 | Linux ARM64 真窗口验证审批前不提交工具结果、批准后 bash 输出进入第二次模型请求，以及批准后的沙箱内工作区写入；拒绝后模型收到错误且目标文件不存在；真后端覆盖批准与工具结果 | 当前子模块仍待升级包含 Landlock `O_PATH` 修复的上游提交 |
-| 中断、恢复、排队、steer | Linux ARM64 真窗口验证请求到达本地模型后中断挂起回合、排队消息进入后续回合并得到模型回复；`ipc_steer_runtime.rs` 验证运行中提交的 `reflect_steer` 进入后续模型请求；真后端覆盖中断和后续恢复；前端替身覆盖队列与抢占 | — |
+| 中断、恢复、排队、steer | Linux ARM64 真窗口验证请求到达本地模型后中断挂起回合、排队消息进入后续回合并得到模型回复；`ipc_steer_runtime.rs` 验证运行中提交的 `zhuye_steer` 进入后续模型请求；真后端覆盖中断和后续恢复；前端替身覆盖队列与抢占 | — |
 | Plan / Goal / 压缩 / 回退 | 前端脚本事件；真后端验证 Plan 请求、进入、读取文件、修改与批准的状态流转；Unix 真后端验证 Goal 模型判定与验证命令共同决定目标是否结束；本地模型跑两轮后回退第一轮，验证事件、截断数量与回放共同收缩；32 轮后手动压缩，验证事件 token 变化和下一条模型请求移除旧中段；Linux ARM64 真窗口通过斜杠命令挂载和清除真实 Goal 控制器并检查徽标，验证 `/compact` 的真实后端回执；实模型矩阵可选 | Goal 其他状态及回退的真窗口回执 |
 | 问答和用户输入 | 前端验证单选/多选、自定义、敏感输入掩码及失效弹窗清理；真后端验证结构化问题和自由文本的模型请求 → IPC 回执 → 答案返回模型；Linux 真窗口验证单选、多选、取消选择、自定义答案和密文输入经弹窗与 IPC 返回本地模型；跨进程验证挂起文件保留，重新调用同一 context 时消费预写答案并返回模型 | 异常退出后的原回合自动恢复（现有文件不足以关联会话及原工具调用） |
 | 会话创建、切换、重命名、归档、删除、分叉、回放 | 前端替身、真后端存储操作；`ipc_session_lifecycle_restart.rs` 验证重命名、分叉、归档和删除状态跨进程保持，活跃与归档回放内容完整，取消归档后重新进入活跃列表；Linux ARM64 真窗口验证侧栏会话切换及原聊天历史水合 | 跨工作区与失败恢复 |
@@ -34,11 +34,11 @@ IPC、AgentThread 与隔离数据目录）。模型替身仅替代 provider，�
 | 讨论 / 流水线 / 子代理 | 真后端讨论通过本地模型驱动两个角色顺序及并发发言，验证身份、运行中事件、失败与取消终态、历史筛选、provider 认证失败和会话 transcript 持久化；流水线通过 IPC 执行两个 shell 节点，自定义输入进入模板；团队流水线通过本地模型跑 plan/prd/exec/verify 四节点并验证四次模型请求；子代理完成审批、执行、嵌套父→子→孙代理、两次结果回传、状态查询与会话隔离，定向取消经 Inspector 后父回合继续 | — |
 | 设置、权限、模型与凭据 | 前端替身、真后端配置/权限往返；`ipc_settings_restart.rs` 验证新进程保存的 token 预算实际约束后续 Agent 回合；`ipc_settings_concurrency.rs` 验证两个模型切换并发执行后两个 provider 段均保留；`ipc_permission_runtime.rs` 验证新增 deny 规则立即阻断模型发起的 bash 调用，且拒绝结果返回模型；Linux/macOS/Windows CI 执行后端测试，Windows 隔离 `USERPROFILE` / `APPDATA` / `LOCALAPPDATA` | 真窗口修改后的行为与错误展示；其余设置项的跨进程生效 |
 | 遥测、用量、搜索、媒体、知识库 | `ipc_telemetry_runtime.rs` 验证真实模型回合生成 activity、模型调用 trace 与 turn/model span，并按会话查询；`ipc_activity_disabled.rs` 验证关闭后无内存和磁盘审计；`ipc_workspace.rs` 验证新增文件即被搜索、图片处理产物进入媒体列表、删除后即时消失；KMS 验证页面写入、并发保护、搜索和错误恢复；前端替身 | 搜索、媒体、知识库的真实窗口交互 |
-| SSH 远程开发 | 真后端 `ipc_remote.rs`:stub-ssh 按远端命令分支全链路(host 注册表持久化 → 连接握手提取 sid → bind 置前台 → `reflect_submit` 经前台插槽路由远端 stdin → stub 回合事件进 session 通道 → 断开摘除 → bootstrap 返回安装自验版本);argv 组装(登录 shell `sh -lc`、BatchMode/ConnectTimeout/user@host/-p)与 bootstrap 脚本(平台探测/资产命名/免 sudo 安装/curl-wget 自适应)单测钉死 | 真机连接与 bootstrap 实机验收(Windows→Linux、macOS→Linux 各一台;远端需能访问 GitHub Releases) |
+| SSH 远程开发 | 真后端 `ipc_remote.rs`:stub-ssh 按远端命令分支全链路(host 注册表持久化 → 连接握手提取 sid → bind 置前台 → `zhuye_submit` 经前台插槽路由远端 stdin → stub 回合事件进 session 通道 → 断开摘除 → bootstrap 返回安装自验版本);argv 组装(登录 shell `sh -lc`、BatchMode/ConnectTimeout/user@host/-p)与 bootstrap 脚本(平台探测/资产命名/免 sudo 安装/curl-wget 自适应)单测钉死 | 真机连接与 bootstrap 实机验收(Windows→Linux、macOS→Linux 各一台;远端需能访问 GitHub Releases) |
 | 受控浏览器面板 | 真后端 `ipc_browser.rs`:status 无副作用(隔离 HOME 无实例 → running=false)、start 在句柄缺失时返回结构化错误(**早于**浏览器探测,测试环境绝不拉起真浏览器)、stop 幂等、env profile 路径隔离;前端替身覆盖空态引导 / 帧事件渲染 / 停止清帧 / 失败展示 | screencast 真画面与 agent 控制联动(需真浏览器 + 装插件;见 docs/plans/browser-control.md) |
 | 路由、主题、键盘、可访问性 | Linux ARM64 真窗口逐条挂载路由矩阵并检查主内容和渲染错误边界；macOS 全路由 dark/light 视觉回归通过；路由矩阵 + jsdom axe | 各路由更深层业务操作与系统级键盘快捷键 |
 | 原生窗口、菜单、托盘、系统选择器、通知 | Linux ARM64 真窗口启动、导航和本地模型交互；菜单 mock runtime | Windows 实际事件与生命周期；系统选择器/通知隔离测试 |
-| 原生产物与升级 | macOS `.app` / DMG 结构、前端嵌入、签名与授权通过；安装脚本在隔离 HOME 中连续安装两次，验证二进制和 `.app` 替换及旧 bundle 文件清理；已安装二进制在隔离 HOME 中 `--help` 启动成功；OTA 自更新（`reflect_download_install_update` / `reflect_relaunch_app`）真后端验证应用句柄缺失时返回结构化错误，前端替身覆盖进度事件 → 完成重启引导与失败展示；release.yml 产签名更新包与 latest.json（依赖 `TAURI_SIGNING_*` secrets，未配置即构建失败） | 真实下载/安装回路的实机验收（需真发布密钥与多版本发布） |
+| 原生产物与升级 | macOS `.app` / DMG 结构、前端嵌入、签名与授权通过；安装脚本在隔离 HOME 中连续安装两次，验证二进制和 `.app` 替换及旧 bundle 文件清理；已安装二进制在隔离 HOME 中 `--help` 启动成功；OTA 自更新（`zhuye_download_install_update` / `zhuye_relaunch_app`）真后端验证应用句柄缺失时返回结构化错误，前端替身覆盖进度事件 → 完成重启引导与失败展示；release.yml 产签名更新包与 latest.json（依赖 `TAURI_SIGNING_*` secrets，未配置即构建失败） | 真实下载/安装回路的实机验收（需真发布密钥与多版本发布） |
 | 真实 provider | L6 使用免费池实时发现的 `openai/baidu/ernie-5.5-flash-preview:free`，最近一次完整门禁完成 16 项通过：模型解析、真实 SSE 主回合、工具调用、中断、压缩、回退、Plan/Goal、标题、任务工具、子代理、讨论、流水线、团队流水线及完整链路协议形状；此前一次配额恢复时还完成过工具审批 | 本轮模型未发起工具审批所需调用、未发起追问，两项显式跳过；不把跳过折算成覆盖 |
 
 `screenshot`、真实鼠标键盘、系统守护进程和打开文件管理器涉及宿主系统；

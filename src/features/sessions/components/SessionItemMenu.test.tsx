@@ -12,9 +12,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SessionItemMenu } from '@/features/sessions/components/SessionItemMenu';
 import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 
-const SESSION: ReflectSessionInfo = {
+const SESSION: ZhuyeSessionInfo = {
   session_id: 's1',
   model: 'stub/test',
   started_at: new Date().toISOString(),
@@ -57,7 +57,7 @@ describe('SessionItemMenu', () => {
     const input = (await waitFor(() =>
       container.querySelector('[data-testid="session-fork-input-s1"]'),
     )) as HTMLInputElement;
-    // 默认分支名与 CLI(`reflect session fork` 无 --branch)一致。
+    // 默认分支名与 CLI(`zhuye session fork` 无 --branch)一致。
     expect(input.value).toBe('manual');
 
     fireEvent.change(input, { target: { value: 'explore-rewrite' } });

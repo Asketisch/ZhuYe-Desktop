@@ -1,4 +1,4 @@
-import type { ReflectEvent } from '@/types/protocol';
+import type { ZhuyeEvent } from '@/types/protocol';
 import { normalizePermissionMode } from '@/types/protocol';
 import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, PluginLoadedInfo, TodoItem } from './types';
 import { COMPACTION_RECORD_CAP, SUBAGENT_FEED_CAP } from './types';
@@ -16,7 +16,7 @@ import {
   upsertThinking,
 } from './turns';
 
-export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<AgentState> {
+export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<AgentState> {
   const { msg } = event;
   const turnId = event.id;
   const isSessionEvent = turnId === EVENT_ID_NONE;
@@ -197,7 +197,8 @@ export function reduceEvent(state: AgentState, event: ReflectEvent): Partial<Age
         guardVerdict: extractGuardVerdict(msg.output?.metadata),
       });
       // TodoWrite 工具把 todo 清单放在 `output.metadata.todos` —— 事件流里
-      // 就有。核心目前没有消费方(LLM 看不到清单),但清单本身可展示。
+      // 就有。上游 zhuye-core 已把清单回灌进模型上下文(todos_slot +
+      // pre_loop 注入);GUI 侧提取进 store.todos 驱动右上角清单与检查器。
       const patch: Partial<AgentState> = {};
       const turnOfCall = withOutput.find((t) => t.id === turnId);
       const toolCall = turnOfCall?.items.find(

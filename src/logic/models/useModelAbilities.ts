@@ -7,7 +7,7 @@
  * 渲染每次都打一遍 IPC。
  */
 import { useQuery } from '@tanstack/react-query';
-import { reflect_lookup_model_abilities } from '@/utils/commands/models';
+import { zhuye_lookup_model_abilities } from '@/utils/commands/models';
 
 /** 能力查询的缓存键前缀（model spec 作后缀）。 */
 export const MODEL_ABILITIES_QUERY_KEY = ['model-abilities'] as const;
@@ -17,7 +17,7 @@ export function useModelAbilities(modelSpec: string | null | undefined) {
   const id = modelSpec?.trim() || null;
   return useQuery({
     queryKey: [...MODEL_ABILITIES_QUERY_KEY, id],
-    queryFn: () => reflect_lookup_model_abilities(id!),
+    queryFn: () => zhuye_lookup_model_abilities(id!),
     enabled: id != null,
     staleTime: 10 * 60 * 1000,
     retry: false,

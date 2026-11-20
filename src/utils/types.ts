@@ -1,15 +1,15 @@
 /**
- * 共享 Tauri 类型 —— reflect-protocol 镜像 + ReflectAgent 特定类型。
+ * 共享 Tauri 类型 —— zhuye-protocol 镜像 + ZhuyeAgent 特定类型。
  *
  * 权威来源：
- * - Rust: `zhuye-agent/crates/protocol/reflect-protocol/src/{event,event_msg,op,item,submission}.rs`
+ * - Rust: `zhuye-agent/crates/protocol/zhuye-protocol/src/{event,event_msg,op,item,submission}.rs`
  * - TS:   `src/types/protocol.ts`（事件/Submission 判别联合）
  */
 
-export interface ReflectSessionInfo {
+export interface ZhuyeSessionInfo {
   /**
-   * 镜像 `reflect_protocol::SessionInfo`，与 `reflect_list_sessions`
-   * 返回的结构一致（`zhuye-agent/crates/protocol/reflect-protocol/src/recorder.rs::SessionInfo`）。
+   * 镜像 `zhuye_protocol::SessionInfo`，与 `zhuye_list_sessions`
+   * 返回的结构一致（`zhuye-agent/crates/protocol/zhuye-protocol/src/recorder.rs::SessionInfo`）。
    * 基础 4 字段 + 会话标题/累计用量 —— 更丰富的信息（provider、cwd 等）
    * 必须通过单独的命令暴露，而不是在这里追加。
    */
@@ -35,7 +35,7 @@ export interface ReflectSessionInfo {
   /**
    * v1.x：会话归属工作区（绝对路径）。
    *
-   * - 镜像 `reflect_protocol::SessionInfo.workspace`，由后端
+   * - 镜像 `zhuye_protocol::SessionInfo.workspace`，由后端
    *   `session_meta.workspace` 派生 —— 创建该 session 的首条 Submission
    *   携带的 workspace 字段。
    * - 旧 session（升级前已落盘）字段缺省为 `undefined`；前端按
@@ -46,13 +46,13 @@ export interface ReflectSessionInfo {
   workspace?: string | null;
 }
 
-export interface ReflectRolloutRecord {
+export interface ZhuyeRolloutRecord {
   type: string;
   [k: string]: unknown;
 }
 
 /**
- * ReviewDecision —— 对齐 Rust `reflect_protocol::ReviewDecision`。
+ * ReviewDecision —— 对齐 Rust `zhuye_protocol::ReviewDecision`。
  *
  * Rust 用 `#[serde(rename_all = "snake_case")]`,且 `Deny` 是 struct variant
  * (带 reason)。前端必须传以下形态之一,否则后端反序列化失败:
@@ -68,7 +68,7 @@ export type ReviewDecision =
   | { reject_for_session: { reason: string } };
 
 /**
- * PlanApprovalChoice —— 对齐 Rust `reflect_protocol::PlanApprovalChoice`。
+ * PlanApprovalChoice —— 对齐 Rust `zhuye_protocol::PlanApprovalChoice`。
  *
  * Rust 用 `#[serde(rename_all = "snake_case")]`,plan 审批三选一:
  *   - "auto_mode":切到 AcceptEdits(自动批准编辑/写入类)。

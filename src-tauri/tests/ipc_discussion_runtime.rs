@@ -72,13 +72,13 @@ fn discussion_preserves_each_participants_identity_in_transcript_and_events() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     let config = r#"[discussion]
 mode = "sequential"
 topic = "identity test"
@@ -97,7 +97,7 @@ allowed_tools = ["send_message"]
         let config = config.replace("mode = \"sequential\"", &format!("mode = \"{mode}\""));
         std::fs::write("discussion-runtime.toml", config).unwrap();
         let outcome = common::invoke_ok(
-            "reflect_run_discussion",
+            "zhuye_run_discussion",
             json!({ "configPath": "discussion-runtime.toml" }),
         );
         assert_eq!(outcome["llmBacked"], true, "{outcome}");
@@ -132,7 +132,7 @@ allowed_tools = ["send_message"]
                 "{events:#?}"
             );
         }
-        let replay = common::invoke_ok("reflect_replay_session", json!({"id":session}));
+        let replay = common::invoke_ok("zhuye_replay_session", json!({"id":session}));
         let replay_text = replay.to_string();
         assert!(
             replay_text.contains(outcome["discussionId"].as_str().unwrap_or_default())
@@ -141,7 +141,7 @@ allowed_tools = ["send_message"]
             "{mode}: {replay}"
         );
         let history = common::invoke_ok(
-            "reflect_list_discussions",
+            "zhuye_list_discussions",
             json!({"discussionId":outcome["discussionId"]}),
         );
         eprintln!("discussion history: {history}");
@@ -155,7 +155,7 @@ allowed_tools = ["send_message"]
     let failed_config = config.replace("ROLE_ADVOCATE", "ROLE_PROVIDER_FAILURE");
     std::fs::write("discussion-failure.toml", failed_config).unwrap();
     let failure = common::invoke(
-        "reflect_run_discussion",
+        "zhuye_run_discussion",
         json!({ "configPath": "discussion-failure.toml" }),
     );
     assert!(

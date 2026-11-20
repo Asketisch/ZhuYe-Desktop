@@ -8,7 +8,7 @@
  * 不触发导航，kebab 隐藏（批量删除由 Sidebar 的选择条承担）。
  */
 import { memo, useState, useRef, useEffect } from 'react';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
@@ -18,7 +18,7 @@ import { SessionItemMenu } from './SessionItemMenu';
 import s from '@/render/sessions/components/SessionItem.module.css';
 
 export interface SessionItemProps {
-  session: ReflectSessionInfo;
+  session: ZhuyeSessionInfo;
   active: boolean;
   onClick: () => void;
   /** meta 行是否显示归属项目（项目分组视图下由组头承担，可关）。 */

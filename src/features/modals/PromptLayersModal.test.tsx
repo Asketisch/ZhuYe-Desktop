@@ -63,7 +63,7 @@ describe('PromptLayersModal', () => {
   it('rescan triggers the switch action and re-queries the list', async () => {
     const calls: unknown[] = [];
     // mock 的 handler 签名是 (cmd, args) —— args 即 invoke 的第二参数。
-    mockInvoke('reflect_prompt_command', async (_cmd, args) => {
+    mockInvoke('zhuye_prompt_command', async (_cmd, args) => {
       calls.push(args);
       return 'sub-1';
     });
@@ -84,7 +84,7 @@ describe('PromptLayersModal', () => {
   });
 
   it('expands the effective prompt body on demand', async () => {
-    mockInvoke('reflect_get_effective_prompt', async () => ({
+    mockInvoke('zhuye_get_effective_prompt', async () => ({
       model: 'anthropic/claude-sonnet-4-latest',
       layers: ['my-layer'],
       sections: [{ key: 'system.main', content: '你是一名编码助手。' }],
@@ -106,7 +106,7 @@ describe('PromptLayersModal', () => {
 
   it('sends session selection and saves the selected default', async () => {
     const calls: unknown[] = [];
-    mockInvoke('reflect_prompt_command', async (_cmd, args) => {
+    mockInvoke('zhuye_prompt_command', async (_cmd, args) => {
       calls.push(args);
       return 'sub-1';
     });

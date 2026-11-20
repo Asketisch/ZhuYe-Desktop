@@ -3,10 +3,10 @@
  *
  * 分层职责：
  *  - 同 provider 池内凭证切换（429/401/5xx 冷却 + failover）由上游
- *    reflect-core graph 层完成，GUI 无需介入；
+ *    zhuye-core graph 层完成，GUI 无需介入；
  *  - **跨 provider** 的计划切换（`[active].provider` → 备用计划）没有
  *    上编排，由本模块在前端补齐：监听 `quota_exhausted` / `error` 事件,
- *    判定耗尽 → 挑选备用 provider → `reflect_save_config` 落盘 →
+ *    判定耗尽 → 挑选备用 provider → `zhuye_save_config` 落盘 →
  *    后端热重载新 provider 栈（`state/reload.rs`）→ toast 告知用户。
  *
  * 依赖注入（getConfig/saveConfig/pushToast）使控制器可脱离 zustand
@@ -14,7 +14,7 @@
  */
 
 import { pickFailoverProvider, setActiveProvider } from '@/logic/settings/config/plans';
-import { reflect_get_config, reflect_save_config } from '@/utils/commands';
+import { zhuye_get_config, zhuye_save_config } from '@/utils/commands';
 import type { ToastKind } from './types';
 
 /** 额度耗尽的文本特征（小写匹配）。涵盖上游 ALL_CREDENTIALS_EXHAUSTED、
@@ -36,7 +36,7 @@ const EXHAUSTION_PATTERNS = [
 export const FAILOVER_DEBOUNCE_MS = 60_000;
 
 /** UI 偏好键（localStorage）：'off' = 关闭自动切换；缺省开启。 */
-export const AUTO_FAILOVER_PREF_KEY = 'reflect.plans.autoFailover';
+export const AUTO_FAILOVER_PREF_KEY = 'zhuye.plans.autoFailover';
 
 export function isAutoFailoverEnabled(): boolean {
   try {
@@ -111,9 +111,9 @@ function readDetailsProvider(details: unknown): string | null {
 }
 
 export interface PlanFailoverDeps {
-  /** 读取当前 config TOML（reflect_get_config）。 */
+  /** 读取当前 config TOML（zhuye_get_config）。 */
   getConfig: () => Promise<string>;
-  /** 写回 config（reflect_save_config；后端随即热重载 provider 栈）。 */
+  /** 写回 config（zhuye_save_config；后端随即热重载 provider 栈）。 */
   saveConfig: (toml: string) => Promise<unknown>;
   pushToast: (input: { kind: ToastKind; message: string; ttlMs?: number }) => unknown;
   /** 自动切换开关（UI 偏好，默认开）。 */
@@ -191,8 +191,8 @@ export function createWiredPlanFailoverController(
   set: (patch: { planFailover: { from: string; to: string; at: number } }) => void,
 ): PlanFailoverController {
   return createPlanFailoverController({
-    getConfig: () => reflect_get_config(),
-    saveConfig: (toml) => reflect_save_config(toml),
+    getConfig: () => zhuye_get_config(),
+    saveConfig: (toml) => zhuye_save_config(toml),
     pushToast: (input) => {
       get().pushToast(input);
     },

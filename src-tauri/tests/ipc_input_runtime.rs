@@ -146,13 +146,13 @@ fn secret_input_request_and_response_reach_model() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
     });
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({
             "submission": { "id": "input-submission", "op": { "type": "user_input",
                 "items": [{ "type": "text", "text": "mock-input-turn" }] } }
@@ -173,7 +173,7 @@ fn secret_input_request_and_response_reach_model() {
         1
     );
     common::invoke_ok(
-        "reflect_ask_user_input_response",
+        "zhuye_ask_user_input_response",
         json!({
             "id": request["msg"]["request_id"], "text": "synthetic-value"
         }),
@@ -201,7 +201,7 @@ fn secret_input_request_and_response_reach_model() {
     );
 
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({
             "submission": { "id": "human-submission", "op": { "type": "user_input",
                 "items": [{ "type": "text", "text": "mock-human-turn" }] } }
@@ -213,9 +213,9 @@ fn secret_input_request_and_response_reach_model() {
     });
     assert_eq!(human["msg"]["prompt"], "External answer?");
     let pending =
-        reflect_config::paths::data_path_or_relative(&["human_input", "runtime-human.json"]);
+        zhuye_config::paths::data_path_or_relative(&["human_input", "runtime-human.json"]);
     let answer_file =
-        reflect_config::paths::data_path_or_relative(&["human_input", "runtime-human.answer.json"]);
+        zhuye_config::paths::data_path_or_relative(&["human_input", "runtime-human.answer.json"]);
     let pending_record: Value = serde_json::from_slice(&std::fs::read(&pending).unwrap()).unwrap();
     assert_eq!(pending_record["prompt"], "External answer?");
     std::fs::write(&answer_file, r#"{"answer":"file-answer"}"#).unwrap();

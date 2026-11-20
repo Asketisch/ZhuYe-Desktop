@@ -1,6 +1,6 @@
-//! 多 agent 讨论 —— GUI 对应 CLI `reflect discussion run / ls`。
+//! 多 agent 讨论 —— GUI 对应 CLI `zhuye discussion run / ls`。
 //!
-//! [`run_discussion`] 重组 `reflect-discussion::cli` 的 LLM 组装(provider
+//! [`run_discussion`] 重组 `zhuye-discussion::cli` 的 LLM 组装(provider
 //! 可用时真 LLM,否则降级 `run_noop` 跑空状态机),差异仅一处:CLI 把
 //! `EventMsg::Collab*` 事件写 stdout JSONL,这里经 `event_sink` 回调交给
 //! 调用方(Tauri 命令层包成 `Event` 推进 MinimalAgent 的 session broadcast,
@@ -19,18 +19,18 @@ use crate::discussion_events::{emit_discussion_message, message_key};
 
 pub use crate::discussion_events::{DiscussionSessionInfo, list_discussions};
 use parking_lot::Mutex;
-use reflect_discussion::cli::DiscussionToml;
-use reflect_discussion::llm::{build_context, prompt_for_closure};
-use reflect_discussion::message_bus::MessageBus;
-use reflect_discussion::models::{AgentId, DiscussionId};
-use reflect_discussion::orchestrator::DiscussionOrchestrator;
-use reflect_discussion::tool::DiscussionToolSet;
-use reflect_llm::{ModelRegistry, SharedModelRegistry};
-use reflect_protocol::{
+use zhuye_discussion::cli::DiscussionToml;
+use zhuye_discussion::llm::{build_context, prompt_for_closure};
+use zhuye_discussion::message_bus::MessageBus;
+use zhuye_discussion::models::{AgentId, DiscussionId};
+use zhuye_discussion::orchestrator::DiscussionOrchestrator;
+use zhuye_discussion::tool::DiscussionToolSet;
+use zhuye_llm::{ModelRegistry, SharedModelRegistry};
+use zhuye_protocol::{
     CollabFinishedEvent, CollabStartedEvent, EventMsg, RolloutRecorder, ThreadId, TokenUsage,
 };
-use reflect_subagent::SubAgentFactory;
-use reflect_tools::ToolRegistry;
+use zhuye_subagent::SubAgentFactory;
+use zhuye_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
@@ -87,7 +87,7 @@ pub struct DiscussionRunOutcome {
 
 /// 运行一次多 agent 讨论(阻塞至结束;事件经 `event_sink` 转发)。
 ///
-/// 与 CLI `reflect discussion run` 同语义:读 TOML 配置 → LLM 编排
+/// 与 CLI `zhuye discussion run` 同语义:读 TOML 配置 → LLM 编排
 /// (provider 可用)或 `run_noop` 降级 → 返回 transcript + result。
 /// 不写输出文件(GUI 直接消费结构化返回值)。
 pub async fn run_discussion(
@@ -131,8 +131,8 @@ pub async fn run_discussion_with_cancel(
                         id: discussion_id.to_string(),
                         participants: participants.clone(),
                         mode: match config.mode {
-                            reflect_discussion::models::DiscussionMode::Sequential => "sequential",
-                            reflect_discussion::models::DiscussionMode::Concurrent => "concurrent",
+                            zhuye_discussion::models::DiscussionMode::Sequential => "sequential",
+                            zhuye_discussion::models::DiscussionMode::Concurrent => "concurrent",
                         }
                         .into(),
                     }));
@@ -199,15 +199,15 @@ pub async fn run_discussion_with_cancel(
                 let out = match result {
                     Ok(result) => {
                         let (outcome, rounds) = match &result {
-                            reflect_discussion::models::DiscussionResult::Consensus {
+                            zhuye_discussion::models::DiscussionResult::Consensus {
                                 final_round,
                                 ..
                             } => ("consensus", final_round + 1),
-                            reflect_discussion::models::DiscussionResult::NoConsensus {
+                            zhuye_discussion::models::DiscussionResult::NoConsensus {
                                 rounds_completed,
                                 ..
                             } => ("no_consensus", *rounds_completed),
-                            reflect_discussion::models::DiscussionResult::Finished {
+                            zhuye_discussion::models::DiscussionResult::Finished {
                                 final_round,
                                 ..
                             } => ("finished", final_round + 1),
@@ -243,8 +243,8 @@ pub async fn run_discussion_with_cancel(
                     "no provider configured; discussion falls back to run_noop (empty transcript)"
                 );
                 let mode = match config.mode {
-                    reflect_discussion::models::DiscussionMode::Sequential => "sequential",
-                    reflect_discussion::models::DiscussionMode::Concurrent => "concurrent",
+                    zhuye_discussion::models::DiscussionMode::Sequential => "sequential",
+                    zhuye_discussion::models::DiscussionMode::Concurrent => "concurrent",
                 };
                 let orch =
                     DiscussionOrchestrator::new(config, bus.clone(), None, cancel.clone(), None)
@@ -289,14 +289,14 @@ type LlmAssembly = (
     Arc<AtomicU32>,
 );
 
-/// LLM 编排组装 —— 镜像 `reflect_discussion::cli::try_build_llm_orchestrator`,
+/// LLM 编排组装 —— 镜像 `zhuye_discussion::cli::try_build_llm_orchestrator`,
 /// 唯一差异:event_sink 由调用方注入(CLI 是 stdout drainer,GUI 是
 /// MinimalAgent session broadcast)。任一步失败返回 `None` 降级 noop。
 ///
 /// `async`:model spec 的解析可能要打 provider 的模型清单端点
 /// (`model = "free"` 这类动态值),那是网络 I/O —— 与上游 CLI 同口径。
 async fn try_build_llm_orchestrator(
-    config: &reflect_discussion::models::DiscussionConfig,
+    config: &zhuye_discussion::models::DiscussionConfig,
     bus: &MessageBus,
     event_sink: Option<DiscussionEventSink>,
     recorder: Option<DiscussionRecorder>,
@@ -304,10 +304,10 @@ async fn try_build_llm_orchestrator(
 ) -> Option<LlmAssembly> {
     // 1. provider + model spec(全走 ReflectConfig,与 exec / GUI 线程一致)。
     //    registry 先建 —— `model = "free"` 的解析要用它当清单来源。
-    let reflect_cfg = reflect_config::load_default();
+    let zhuye_cfg = zhuye_config::load_default();
     let registry: SharedModelRegistry = Arc::new(ModelRegistry::new());
-    reflect_cfg.apply_to_registry(&registry).ok()?;
-    let resolved = reflect_config::resolve_model_spec(&reflect_cfg, &registry)
+    zhuye_cfg.apply_to_registry(&registry).ok()?;
+    let resolved = zhuye_config::resolve_model_spec(&zhuye_cfg, &registry)
         .await
         .ok()
         .flatten()?;

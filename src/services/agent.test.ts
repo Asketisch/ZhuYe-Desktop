@@ -10,7 +10,7 @@ import { renderHook, act } from '@testing-library/react';
 
 import { useAgentStore, reduceEvent, type AgentState, type Turn } from '@/stores/agentStore';
 import { useAgent } from '@/services/agent';
-import type { ReflectEvent } from '@/types/protocol';
+import type { ZhuyeEvent } from '@/types/protocol';
 import { mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
 
 /** 构造一个最小可用 state(空 turns + null session)。 */
@@ -27,8 +27,8 @@ function stateWithTurn(id = 't1'): AgentState {
   };
 }
 
-const ev = (id: string, msg: Record<string, unknown>): ReflectEvent =>
-  ({ id, msg: { type: msg.type, ...msg } } as ReflectEvent);
+const ev = (id: string, msg: Record<string, unknown>): ZhuyeEvent =>
+  ({ id, msg: { type: msg.type, ...msg } } as ZhuyeEvent);
 
 // ====== reduceEvent 纯函数测试 ======
 
@@ -176,7 +176,7 @@ describe('useAgent (compat hook from store)', () => {
   beforeEach(() => {
     useAgentStore.getState().reset();
     resetMockInvoke();
-    mockInvoke('reflect_submit', async (submission: { id: string }) => submission.id);
+    mockInvoke('zhuye_submit', async (submission: { id: string }) => submission.id);
   });
 
   it('starts with empty turns and null session', () => {

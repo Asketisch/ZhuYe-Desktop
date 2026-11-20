@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use reflect_protocol::ThreadId;
+use zhuye_protocol::ThreadId;
 
 use super::{
     CommandError, CommandResult, MinimalAgent, custom_names, extract_title_seed, replay_session,
@@ -51,7 +51,7 @@ pub(super) async fn commit(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reflect_protocol::{MessageRole, RolloutRecord, TurnId};
+    use zhuye_protocol::{MessageRole, RolloutRecord, TurnId};
 
     fn session(base: &Path, id: ThreadId) {
         let record = RolloutRecord::Message {
@@ -98,7 +98,7 @@ mod tests {
         let id = ThreadId::new();
         session(root.path(), id);
         let gate = crate::state::recorder_guard::gate_for(&agent, id);
-        reflect_rollout::index::rename_session(root.path(), id, "manual").unwrap();
+        zhuye_rollout::index::rename_session(root.path(), id, "manual").unwrap();
         assert_eq!(
             commit(
                 &agent,

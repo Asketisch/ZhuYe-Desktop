@@ -30,7 +30,7 @@ export interface GoalTurnRecordPayload {
   at: string;
 }
 
-/** 目标模式运行时快照(镜像 Rust `reflect_goal::GoalState`)。 */
+/** 目标模式运行时快照(镜像 Rust `zhuye_goal::GoalState`)。 */
 export interface GoalSnapshotPayload {
   goal: string;
   verify_command: string | null;
@@ -48,23 +48,23 @@ export interface GoalSnapshotPayload {
 }
 
 /** 进入目标模式;返回 submission id。 */
-export async function reflect_enter_goal_mode(
+export async function zhuye_enter_goal_mode(
   goal: string,
   verifyCommand?: string,
   tokenBudget?: number,
 ): Promise<string> {
-  return invoke<string>('reflect_enter_goal_mode', { goal, verifyCommand, tokenBudget });
+  return invoke<string>('zhuye_enter_goal_mode', { goal, verifyCommand, tokenBudget });
 }
 
 /** 退出目标模式,停止自动续作;返回 submission id。 */
-export async function reflect_exit_goal_mode(): Promise<string> {
-  return invoke<string>('reflect_exit_goal_mode');
+export async function zhuye_exit_goal_mode(): Promise<string> {
+  return invoke<string>('zhuye_exit_goal_mode');
 }
 
 /**
  * 读取目标模式状态快照。未进入目标模式(或 rebind 丢控制器)返回 `null`。
- * 前端 invoke 形态:`invoke<GoalSnapshotPayload | null>('reflect_goal_snapshot')`。
+ * 前端 invoke 形态:`invoke<GoalSnapshotPayload | null>('zhuye_goal_snapshot')`。
  */
-export async function reflect_goal_snapshot(): Promise<GoalSnapshotPayload | null> {
-  return invoke<GoalSnapshotPayload | null>('reflect_goal_snapshot');
+export async function zhuye_goal_snapshot(): Promise<GoalSnapshotPayload | null> {
+  return invoke<GoalSnapshotPayload | null>('zhuye_goal_snapshot');
 }

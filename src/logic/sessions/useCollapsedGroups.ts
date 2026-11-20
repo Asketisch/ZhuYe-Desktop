@@ -8,7 +8,7 @@
 import { useCallback, useState } from 'react';
 import { UNASSIGNED_GROUP_KEY } from './workspaceGroups';
 
-const STORAGE_KEY = 'reflect.sidebar.collapsedGroups';
+const STORAGE_KEY = 'zhuye.sidebar.collapsedGroups';
 
 function load(): Set<string> {
   const defaults = new Set([UNASSIGNED_GROUP_KEY]);

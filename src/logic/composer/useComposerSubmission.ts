@@ -12,7 +12,7 @@ import {
 } from '@/logic/sessions/useSessions';
 import { useEnsureSession } from '@/logic/sessions/useEnsureSession';
 import { confirmDialog } from '@/logic/modals/confirm';
-import { reflect_lookup_model_abilities } from '@/utils/commands/models';
+import { zhuye_lookup_model_abilities } from '@/utils/commands/models';
 import { useI18n } from '@/utils/i18n';
 import {
   useAgentStore,
@@ -33,7 +33,7 @@ interface UseComposerSubmissionOptions {
   setBusy: (busy: boolean) => void;
   setSlashVisible: (visible: boolean) => void;
   focus: () => void;
-  /** v1.x：当前工作区绝对路径；提交时注入 `ReflectSubmission.workspace`。 */
+  /** v1.x：当前工作区绝对路径；提交时注入 `ZhuyeSubmission.workspace`。 */
   currentWorkspace?: string | null;
   /** C：Queue/Steer 模式（仅 turn 运行中发送时生效）。 */
   sendMode?: SendMode;
@@ -141,7 +141,7 @@ export function useComposerSubmission({
         if (hasImages) {
           const spec = useAgentStore.getState().prompt?.currentSpec?.trim();
           if (spec) {
-            const abilities = await reflect_lookup_model_abilities(spec).catch(() => null);
+            const abilities = await zhuye_lookup_model_abilities(spec).catch(() => null);
             if (abilities?.supports_vision === false) {
               const ok = await confirmDialog({
                 title: t('composer.visionConfirmTitle'),

@@ -8,16 +8,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from './store';
-import type { ReflectSubmission } from '@/types/protocol';
+import type { ZhuyeSubmission } from '@/types/protocol';
 
 describe('queuedMessages — 队列状态机', () => {
-  let sent: ReflectSubmission[] = [];
+  let sent: ZhuyeSubmission[] = [];
 
   beforeEach(() => {
     resetMockInvoke();
     sent = [];
-    mockInvoke('reflect_submit', async (_cmd, args) => {
-      sent.push((args as { submission: ReflectSubmission }).submission);
+    mockInvoke('zhuye_submit', async (_cmd, args) => {
+      sent.push((args as { submission: ZhuyeSubmission }).submission);
       return 'ok';
     });
     useAgentStore.getState().reset();

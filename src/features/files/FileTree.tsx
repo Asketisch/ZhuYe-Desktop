@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, FileCode2, File } from 'lucide-react';
 import { Icon } from '@/features/design-system';
-import type { ReflectDirEntry } from '@/utils/commands';
+import type { ZhuyeDirEntry } from '@/utils/commands';
 import s from '@/render/files/FileTree.module.css';
 
 const TEXT_EXTS = new Set([
@@ -18,7 +18,7 @@ const TEXT_EXTS = new Set([
 ]);
 const CODE_EXTS = new Set(['rs', 'ts', 'tsx', 'js', 'jsx', 'py', 'go', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'swift', 'kt', 'php', 'rb']);
 
-function iconForEntry(entry: ReflectDirEntry) {
+function iconForEntry(entry: ZhuyeDirEntry) {
   if (entry.kind === 'dir') return Folder;
   const ext = entry.name.includes('.') ? entry.name.split('.').pop()!.toLowerCase() : '';
   if (CODE_EXTS.has(ext)) return FileCode2;
@@ -27,7 +27,7 @@ function iconForEntry(entry: ReflectDirEntry) {
 }
 
 export interface FileTreeProps {
-  entries: ReflectDirEntry[];
+  entries: ZhuyeDirEntry[];
   /** 当前选中的文件路径。 */
   selectedPath?: string | null;
   /** 用户点击文件条目时回调。 */
@@ -37,14 +37,14 @@ export interface FileTreeProps {
 }
 
 interface TreeNode {
-  entry: ReflectDirEntry;
+  entry: ZhuyeDirEntry;
   children: TreeNode[];
 }
 
 /** 由扁平条目列表构建树（每个条目的 path 即其完整路径）。 */
-function buildTree(entries: ReflectDirEntry[]): TreeNode[] {
+function buildTree(entries: ZhuyeDirEntry[]): TreeNode[] {
   // 按父目录路径分组。
-  const childrenByDir = new Map<string, ReflectDirEntry[]>();
+  const childrenByDir = new Map<string, ZhuyeDirEntry[]>();
   for (const e of entries) {
     const parent = parentDir(e.path);
     const list = childrenByDir.get(parent);

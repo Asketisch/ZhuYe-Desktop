@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use parking_lot::Mutex;
-use reflect_hooks::HookEngine;
+use zhuye_hooks::HookEngine;
 
 use crate::commands::HookInfo;
 
@@ -16,7 +16,7 @@ pub(crate) struct HookStore {
 impl Default for HookStore {
     fn default() -> Self {
         Self {
-            path: reflect_config::paths::data_path(&["hook_state.json"]),
+            path: zhuye_config::paths::data_path(&["hook_state.json"]),
             lock: Mutex::new(()),
         }
     }
@@ -119,7 +119,7 @@ fn write_state(path: &Path, state: &HashMap<String, bool>) -> anyhow::Result<()>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reflect_hooks::builtins::TestRunnerHook;
+    use zhuye_hooks::builtins::TestRunnerHook;
 
     #[test]
     fn toggle_updates_real_engine_and_restores_after_rebuild() {
@@ -160,8 +160,8 @@ mod tests {
 
     #[tokio::test]
     async fn toggles_change_dispatched_decisions() {
-        use reflect_hooks::{HookDecision, HookEvent};
-        use reflect_protocol::{ContentBlock, ToolOutput};
+        use zhuye_hooks::{HookDecision, HookEvent};
+        use zhuye_protocol::{ContentBlock, ToolOutput};
         let dir = tempfile::tempdir().unwrap();
         let store = HookStore {
             path: Some(dir.path().join("state.json")),
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn concurrent_toggles_preserve_both_preferences() {
-        use reflect_hooks::builtins::SearchBudgetHook;
+        use zhuye_hooks::builtins::SearchBudgetHook;
         use std::sync::Arc;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("state.json");

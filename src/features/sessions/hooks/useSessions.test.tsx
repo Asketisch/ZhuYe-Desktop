@@ -2,10 +2,10 @@
  * Vitest — useSessions hook 测试。
  *
  * 验证:
- * 1. 挂载后自动调用 reflect_list_sessions
+ * 1. 挂载后自动调用 zhuye_list_sessions
  * 2. 时间分桶正确 (Now / Today / Yesterday / This week / Older)
  * 3. refresh 重新拉取
- * 4. rename 调用 reflect_rename_session + refresh
+ * 4. rename 调用 zhuye_rename_session + refresh
  * 5. 错误处理 (invoke reject)
  * 6. 项目目录分组 (侧边栏 groups: 会话归组 + 已知项目合并 + 未归属哨兵)
  */
@@ -43,7 +43,7 @@ describe('useSessions', () => {
   beforeEach(() => {
     resetMockInvoke();
     const now = Date.now();
-    mockInvoke('reflect_list_sessions', async () => [
+    mockInvoke('zhuye_list_sessions', async () => [
       {
         session_id: 's1',
         model: 'stub/test',
@@ -67,7 +67,7 @@ describe('useSessions', () => {
 
   it('fetches sessions on mount', async () => {
     let invoked = false;
-    mockInvoke('reflect_list_sessions', async () => {
+    mockInvoke('zhuye_list_sessions', async () => {
       invoked = true;
       return [];
     });
@@ -94,9 +94,9 @@ describe('useSessions', () => {
     expect(labels).toContain('Older');
   });
 
-  it('calls reflect_rename_session on rename', async () => {
+  it('calls zhuye_rename_session on rename', async () => {
     let renameInvoked = false;
-    mockInvoke('reflect_rename_session', async () => {
+    mockInvoke('zhuye_rename_session', async () => {
       renameInvoked = true;
     });
 
@@ -114,7 +114,7 @@ describe('useSessions', () => {
   });
 
   it('sets error on invoke failure', async () => {
-    mockInvoke('reflect_list_sessions', async () => {
+    mockInvoke('zhuye_list_sessions', async () => {
       throw new Error('network error');
     });
 
@@ -132,7 +132,7 @@ describe('useSessions', () => {
 
   it('refresh re-fetches sessions', async () => {
     let callCount = 0;
-    mockInvoke('reflect_list_sessions', async () => {
+    mockInvoke('zhuye_list_sessions', async () => {
       callCount += 1;
       return [];
     });
@@ -152,7 +152,7 @@ describe('useSessions', () => {
 describe('useSessions workspace 过滤 (v1.x workspace→session 归属)', () => {
   it('omitted workspace lists everything (workspace: null on the wire)', async () => {
     const seen: Array<Record<string, unknown>> = [];
-    mockInvoke('reflect_list_sessions', async (_c, args) => {
+    mockInvoke('zhuye_list_sessions', async (_c, args) => {
       seen.push((args as Record<string, unknown>) ?? {});
       return [];
     });
@@ -165,7 +165,7 @@ describe('useSessions workspace 过滤 (v1.x workspace→session 归属)', () =>
 
   it('passes workspacePath through and re-fetches on workspace switch', async () => {
     const seen: Array<Record<string, unknown>> = [];
-    mockInvoke('reflect_list_sessions', async (_c, args) => {
+    mockInvoke('zhuye_list_sessions', async (_c, args) => {
       seen.push((args as Record<string, unknown>) ?? {});
       return [];
     });
@@ -188,7 +188,7 @@ describe('useSessions workspace 过滤 (v1.x workspace→session 归属)', () =>
 describe('useSessions 项目分组 (sidebar groups)', () => {
   it('computes workspace groups from sessions + known workspaces', async () => {
     const now = Date.now();
-    mockInvoke('reflect_list_sessions', async () => [
+    mockInvoke('zhuye_list_sessions', async () => [
       {
         session_id: 's1',
         model: 'stub/test',
@@ -203,7 +203,7 @@ describe('useSessions 项目分组 (sidebar groups)', () => {
         message_count: 1,
       },
     ]);
-    mockInvoke('reflect_list_workspaces', async () => [
+    mockInvoke('zhuye_list_workspaces', async () => [
       { path: '/tmp/proj-a', label: 'proj-a', last_used: 1, session_count: 1 },
       { path: '/tmp/proj-b', label: 'proj-b', last_used: 2, session_count: 0 },
     ]);

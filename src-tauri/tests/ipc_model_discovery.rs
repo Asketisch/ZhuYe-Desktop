@@ -35,20 +35,20 @@ fn unchanged_saved_config_retries_failed_discovery() {
             .await;
     });
     common::invoke_ok(
-        "reflect_bind_session",
+        "zhuye_bind_session",
         json!({"id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}),
     );
     let toml = format!(
         "[active]\nprovider = \"openai\"\n[openai]\nmodel = \"free\"\napi_key = \"test\"\nbase_url = \"{}\"\n[model_discovery]\nalways_free = [\"test-free\"]\n",
         server.uri()
     );
-    common::invoke_ok("reflect_save_config", json!({"toml": toml}));
-    let failed = common::invoke_ok("reflect_agent_status", json!({}));
+    common::invoke_ok("zhuye_save_config", json!({"toml": toml}));
+    let failed = common::invoke_ok("zhuye_agent_status", json!({}));
     assert_eq!(failed["model"], "stub/test");
     assert!(failed["degraded_reason"].is_string(), "{failed}");
     available.store(true, Ordering::SeqCst);
-    common::invoke_ok("reflect_save_config", json!({"toml": toml}));
-    let recovered = common::invoke_ok("reflect_agent_status", json!({}));
+    common::invoke_ok("zhuye_save_config", json!({"toml": toml}));
+    let recovered = common::invoke_ok("zhuye_agent_status", json!({}));
     assert_eq!(recovered["model"], "openai/test-free");
     assert!(recovered["degraded_reason"].is_null(), "{recovered}");
 }

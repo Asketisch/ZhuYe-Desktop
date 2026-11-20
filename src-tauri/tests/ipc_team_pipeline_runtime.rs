@@ -75,9 +75,9 @@ enabled = []
         }],
         "created_at": {"secs_since_epoch": 1700000000u64, "nanos_since_epoch": 0u32}
     });
-    common::invoke_ok("reflect_upsert_team", json!({ "team": team }));
+    common::invoke_ok("zhuye_upsert_team", json!({ "team": team }));
     let report = common::invoke_ok(
-        "reflect_run_team_pipeline",
+        "zhuye_run_team_pipeline",
         json!({ "teamName": "rocket", "topic": "team pipeline runtime check" }),
     );
     assert_eq!(report["status"], "success", "{report}");

@@ -1,8 +1,8 @@
-//! 会话统计只读查询 —— GUI 对应 CLI `reflect session stats` 与模型级用量。
+//! 会话统计只读查询 —— GUI 对应 CLI `zhuye session stats` 与模型级用量。
 //!
 //! 数据源是 rollout JSONL(`$HOME/.zhuye/sessions/`),聚合**直接复用**
-//! submodule 的 [`reflect_rollout::index::session_stats`] /
-//! [`reflect_rollout::all_model_usage`] —— 与 CLI / SDK 同源,不在桌面端
+//! submodule 的 [`zhuye_rollout::index::session_stats`] /
+//! [`zhuye_rollout::all_model_usage`] —— 与 CLI / SDK 同源,不在桌面端
 //! 复刻 token 聚合逻辑(历史上聚合曾有三份独立实现,统计类型统一后此处
 //! 只做协议形状转换)。
 //!
@@ -19,7 +19,7 @@
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use reflect_protocol::ThreadId;
+use zhuye_protocol::ThreadId;
 use serde::{Deserialize, Serialize};
 
 /// 单会话统计(camelCase 出线,桌面端 DTO 约定)。
@@ -90,8 +90,8 @@ pub struct ModelUsage {
     pub cost_usd: Option<f64>,
 }
 
-impl From<reflect_protocol::ModelUsage> for ModelUsage {
-    fn from(u: reflect_protocol::ModelUsage) -> Self {
+impl From<zhuye_protocol::ModelUsage> for ModelUsage {
+    fn from(u: zhuye_protocol::ModelUsage) -> Self {
         Self {
             model: u.model,
             provider: u.provider,
@@ -106,8 +106,8 @@ impl From<reflect_protocol::ModelUsage> for ModelUsage {
     }
 }
 
-impl From<reflect_protocol::SessionStats> for SessionStats {
-    fn from(s: reflect_protocol::SessionStats) -> Self {
+impl From<zhuye_protocol::SessionStats> for SessionStats {
+    fn from(s: zhuye_protocol::SessionStats) -> Self {
         // 先取借用型派生值,再 move 字段 —— 避免 partial move 后借用。
         let compaction_tokens_saved = s.compaction_tokens_saved();
         let cache_hit_rate = s.cache_hit_rate();
@@ -140,24 +140,24 @@ impl From<reflect_protocol::SessionStats> for SessionStats {
 /// 磁盘上无该 session 的 JSONL(刚创建未发消息的新会话)→ `None`,
 /// 由调用方决定是回空统计还是报错。
 pub fn session_stats(session_id: &ThreadId) -> Option<SessionStats> {
-    session_stats_in(&reflect_rollout::path::default_base(), session_id)
+    session_stats_in(&zhuye_rollout::path::default_base(), session_id)
 }
 
 /// [`session_stats`] 的可注入基路径版本(测试用)。
 pub fn session_stats_in(base: &Path, session_id: &ThreadId) -> Option<SessionStats> {
-    reflect_rollout::index::session_stats(base, *session_id).map(SessionStats::from)
+    zhuye_rollout::index::session_stats(base, *session_id).map(SessionStats::from)
 }
 
 /// 全部会话的模型级用量(读默认 rollout 基目录)。
 ///
 /// 按 `totalTokens` 降序 —— 用量最大的模型在前。
 pub fn all_model_usage() -> Vec<ModelUsage> {
-    all_model_usage_in(&reflect_rollout::path::default_base())
+    all_model_usage_in(&zhuye_rollout::path::default_base())
 }
 
 /// [`all_model_usage`] 的可注入基路径版本(测试用)。
 pub fn all_model_usage_in(base: &Path) -> Vec<ModelUsage> {
-    reflect_rollout::all_model_usage(base)
+    zhuye_rollout::all_model_usage(base)
         .into_iter()
         .map(ModelUsage::from)
         .collect()

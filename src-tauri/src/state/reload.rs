@@ -1,6 +1,6 @@
 //! provider 栈热重载 —— coding plan 切换的"立即生效"闭环。
 //!
-//! 背景:`reflect_save_config` 长期以来只热更新共享 cfg,**不**重建
+//! 背景:`zhuye_save_config` 长期以来只热更新共享 cfg,**不**重建
 //! `ModelRegistry`(memoized 于 `inner.model_registry`)。用户在设置里
 //! 添加/切换 coding plan(凭证池 / `[active].provider`)后必须重启应用
 //! 才生效 —— 对"额度耗尽自动切换备用计划"的体验是致命断点。
@@ -21,8 +21,8 @@ use super::MinimalAgent;
 
 /// 判断 provider 相关段是否发生变化(决定是否值得打断当前线程重建)。
 fn provider_stack_changed(
-    old: &reflect_config::ReflectConfig,
-    new: &reflect_config::ReflectConfig,
+    old: &zhuye_config::ReflectConfig,
+    new: &zhuye_config::ReflectConfig,
 ) -> bool {
     old.active != new.active
         || old.anthropic != new.anthropic
@@ -48,8 +48,8 @@ fn provider_stack_changed(
 /// `agent_status.degraded_reason`，调用方可据此提示用户。
 pub(crate) async fn hot_reload_provider_stack(
     agent: &MinimalAgent,
-    old: &reflect_config::ReflectConfig,
-    new: &reflect_config::ReflectConfig,
+    old: &zhuye_config::ReflectConfig,
+    new: &zhuye_config::ReflectConfig,
 ) -> Option<String> {
     // 调用方持有配置写锁；会话切换也遵循配置锁 → 会话锁的顺序。
     let _transition = agent.inner.session_transition_lock.lock().await;
@@ -59,7 +59,7 @@ pub(crate) async fn hot_reload_provider_stack(
     {
         thread
             .config()
-            .set_token_budget(reflect_core::config::token_budget_from_env(
+            .set_token_budget(zhuye_core::config::token_budget_from_env(
                 new.token_budget
                     .as_ref()
                     .and_then(|section| section.session_total_tokens),
@@ -73,7 +73,7 @@ pub(crate) async fn hot_reload_provider_stack(
         || agent.inner.pending_plugin_reload_error.lock().is_some()
     {
         info!(
-            "[reflect-gui] plugins section changed; diff-syncing enabled plugins: {:?}",
+            "[zhuye-gui] plugins section changed; diff-syncing enabled plugins: {:?}",
             new.plugins.enabled_plugins
         );
         let _mount = agent.inner.plugin_mount_lock.lock().await;
@@ -81,7 +81,7 @@ pub(crate) async fn hot_reload_provider_stack(
             Ok(()) => clear_pending_plugin_reload(agent),
             Err(error) => {
                 let message = format!("plugin runtime reload failed: {error:#}");
-                warn!("[reflect-gui] {message}; continuing other configuration updates");
+                warn!("[zhuye-gui] {message}; continuing other configuration updates");
                 *agent.inner.pending_plugin_reload_error.lock() = Some(message.clone());
                 reload_errors.push(message);
             }
@@ -95,7 +95,7 @@ pub(crate) async fn hot_reload_provider_stack(
     let sandbox_changed = old.sandbox != new.sandbox;
     if sandbox_changed {
         info!(
-            "[reflect-gui] sandbox section changed; forcing rebind to refresh writable dirs / network"
+            "[zhuye-gui] sandbox section changed; forcing rebind to refresh writable dirs / network"
         );
     }
     if !provider_changed
@@ -106,10 +106,10 @@ pub(crate) async fn hot_reload_provider_stack(
         return finish_reload(agent, reload_errors);
     }
     if provider_changed {
-        info!("[reflect-gui] provider stack changed; rebuilding registry + quota tracker");
+        info!("[zhuye-gui] provider stack changed; rebuilding registry + quota tracker");
 
         // 1. 重建模型注册表，内置工具仍由共享工具表管理。
-        reflect_config::discovery::clear_catalog_cache();
+        zhuye_config::discovery::clear_catalog_cache();
         let registry = super::thread_factory::build_registry(new);
 
         // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。
@@ -125,7 +125,7 @@ pub(crate) async fn hot_reload_provider_stack(
             super::model_spec::resolve_model_spec_with_discovery(new, &registry).await;
         if let Some(ref err) = resolve_error {
             warn!(
-                "[reflect-gui] model spec resolution failed ({err}); keeping previous model spec"
+                "[zhuye-gui] model spec resolution failed ({err}); keeping previous model spec"
             );
             *agent.inner.degraded_reason.lock() = Some(err.clone());
             *agent.inner.pending_model_discovery_error.lock() = Some(err.clone());
@@ -152,7 +152,7 @@ pub(crate) async fn hot_reload_provider_stack(
     // 4. 当前有绑定会话 → replay 历史 → 强制重绑(跳过同 id 短路)。
     //    旧线程的会话级 PermissionMode 原样带过去,热重载不重置权限模式。
     let Some(sid) = agent.bound_session_id() else {
-        info!("[reflect-gui] no bound session; updated configuration takes effect on next bind");
+        info!("[zhuye-gui] no bound session; updated configuration takes effect on next bind");
         return finish_reload(agent, reload_errors);
     };
     let current_mode = agent
@@ -165,17 +165,17 @@ pub(crate) async fn hot_reload_provider_stack(
         Ok(p) => p,
         Err(e) => {
             let message = format!("session replay failed during configuration reload: {e:#}");
-            warn!("[reflect-gui] {message}; keeping current thread");
+            warn!("[zhuye-gui] {message}; keeping current thread");
             *agent.inner.pending_rebind_error.lock() = Some(message.clone());
             reload_errors.push(message);
             return finish_reload(agent, reload_errors);
         }
     };
     match super::rebind::rebind_session_forced(agent, sid, preload, current_mode) {
-        Ok(()) => info!("[reflect-gui] hot rebind for session {sid} completed or became stale"),
+        Ok(()) => info!("[zhuye-gui] hot rebind for session {sid} completed or became stale"),
         Err(e) => {
             let message = format!("session rebind failed during configuration reload: {e:#}");
-            warn!("[reflect-gui] {message}; new stack applies on next bind");
+            warn!("[zhuye-gui] {message}; new stack applies on next bind");
             *agent.inner.pending_rebind_error.lock() = Some(message.clone());
             reload_errors.push(message);
         }

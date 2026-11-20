@@ -2,7 +2,7 @@
  * 聊天主流程 —— 真实应用级端到端测试。
  *
  * 挂载完整应用（AppProviders + RouterProvider + 真实路由表），用户在
- * Composer 输入并回车 → store.submit → reflect_submit → ScriptedAgent
+ * Composer 输入并回车 → store.submit → zhuye_submit → ScriptedAgent
  * 按编排回放事件流 → reducer → MessageList/StatusBar/ModalStack 实时渲染。
  * 中途包含一次工具审批 gate：agent 暂停，用户在 ApprovalModal 点批准，
  * agent 才继续 —— 完整复刻真实人机交互回路。
@@ -91,7 +91,7 @@ describe('chat full conversation flow (real app mount)', () => {
     // 1. 用户发送消息 —— 走真实 Composer 键盘路径。
     await typeAndSend('run the tests');
 
-    // 2. reflect_submit 收到完整 Submission 信封。
+    // 2. zhuye_submit 收到完整 Submission 信封。
     await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
     const submission = backend.agent.submissions[0];
     expect(submission.op).toEqual({
@@ -155,7 +155,7 @@ describe('chat full conversation flow (real app mount)', () => {
 
     // 用户触发 interrupt（store action，StatusBar/Composer 的停止按钮同路径）。
     await useAgentStore.getState().interrupt();
-    expect(backend.callsOf('reflect_interrupt').length).toBe(1);
+    expect(backend.callsOf('zhuye_interrupt').length).toBe(1);
 
     // 模拟后端确认中断：turn_aborted。
     const turnId = backend.agent.submissions[0].id;

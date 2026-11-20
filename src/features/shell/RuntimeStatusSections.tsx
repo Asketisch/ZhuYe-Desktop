@@ -13,8 +13,8 @@ import { ShieldAlert, Bot, CheckCircle } from 'lucide-react';
 import { Badge, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import {
-  reflect_credential_pool_status,
-  reflect_recovery_state,
+  zhuye_credential_pool_status,
+  zhuye_recovery_state,
 } from '@/utils/commands/runtimeStatus';
 import s from '@/render/shell/Inspector.module.css';
 
@@ -23,7 +23,7 @@ export function CredentialPoolSection() {
   const { t } = useI18n();
   const q = useQuery({
     queryKey: ['credential-pool-status'],
-    queryFn: () => reflect_credential_pool_status(),
+    queryFn: () => zhuye_credential_pool_status(),
     staleTime: 15_000,
   });
   const pools = q.data ?? [];
@@ -64,7 +64,7 @@ export function SubagentCallsSection() {
   const { t } = useI18n();
   const q = useQuery({
     queryKey: ['recovery-state'],
-    queryFn: () => reflect_recovery_state(),
+    queryFn: () => zhuye_recovery_state(),
     staleTime: 15_000,
   });
   const calls = q.data ?? [];

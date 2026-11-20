@@ -1,7 +1,7 @@
 import { AlertCircle, AlertTriangle, Info, BellOff, History, AtSign, Inbox } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { NotificationsViewProps } from '@/contracts/notifications';
-import type { NotifItem, NotificationFilter, NotificationTab, ReflectActivityEvent } from '@/contracts/notifications';
+import type { NotifItem, NotificationFilter, NotificationTab, ZhuyeActivityEvent } from '@/contracts/notifications';
 type Filter = NotificationFilter;
 type Tab = NotificationTab;
 import { Card } from '../design-system/Card';
@@ -253,19 +253,19 @@ function NotifRow({ item }: { item: NotifItem }) {
   );
 }
 
-const ACTIVITY_ICON: Record<ReflectActivityEvent['level'], ComponentType> = {
+const ACTIVITY_ICON: Record<ZhuyeActivityEvent['level'], ComponentType> = {
   info: Info,
   warn: AlertTriangle,
   error: AlertCircle,
 };
 
-const ACTIVITY_BADGE: Record<ReflectActivityEvent['level'], 'neutral' | 'warning' | 'danger'> = {
+const ACTIVITY_BADGE: Record<ZhuyeActivityEvent['level'], 'neutral' | 'warning' | 'danger'> = {
   info: 'neutral',
   warn: 'warning',
   error: 'danger',
 };
 
-function ActivityRow({ event }: { event: ReflectActivityEvent }) {
+function ActivityRow({ event }: { event: ZhuyeActivityEvent }) {
   const IconComp = ACTIVITY_ICON[event.level];
   const ts = new Date(event.tsMs).toLocaleString();
   return (

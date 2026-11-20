@@ -38,7 +38,7 @@ describe('PermissionRulesSection', () => {
   });
 
   it('renders the effective rules with action and scope', async () => {
-    mockInvoke('reflect_list_permission_rules', async () => RULES);
+    mockInvoke('zhuye_list_permission_rules', async () => RULES);
     render(wrap(<PermissionRulesSection />));
 
     const rows = await screen.findAllByTestId('permission-rule-row');
@@ -52,13 +52,13 @@ describe('PermissionRulesSection', () => {
   });
 
   it('renders the empty state when no rules are configured', async () => {
-    mockInvoke('reflect_list_permission_rules', async () => []);
+    mockInvoke('zhuye_list_permission_rules', async () => []);
     render(wrap(<PermissionRulesSection />));
     expect(await screen.findByText(/No permission rules/i)).toBeDefined();
   });
 
   it('surfaces query errors without crashing', async () => {
-    mockInvoke('reflect_list_permission_rules', async () => {
+    mockInvoke('zhuye_list_permission_rules', async () => {
       throw new Error('permissions.toml unreadable');
     });
     render(wrap(<PermissionRulesSection />));

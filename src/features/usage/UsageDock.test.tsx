@@ -57,7 +57,7 @@ const STATS = {
   ],
 };
 
-/** 带会话级费用的会话列表（override reflect_list_sessions）。 */
+/** 带会话级费用的会话列表（override zhuye_list_sessions）。 */
 const COST_SESSIONS = [
   { session_id: 'sess-1', model: 'stub/test', provider: 'local', started_at: '2026-11-20T00:00:00Z', message_count: 2, tool_count: 0, token_total: 0, cwd: '/tmp', display_name: 'First session', title: 'First session', cost_usd: 0.5 },
   { session_id: 'sess-2', model: 'stub/test', provider: 'local', started_at: '2026-11-19T00:00:00Z', message_count: 5, tool_count: 1, token_total: 120, cwd: '/tmp', display_name: 'Second session', title: 'Second session', cost_usd: 1.2 },
@@ -76,9 +76,9 @@ function renderDock() {
 describe('UsageDock', () => {
   beforeEach(() => {
     // useSessions 的三路查询;workspaces 在 setup 默认 stub 里没有,补齐。
-    mockInvoke('reflect_list_workspaces', async () => []);
-    mockInvoke('reflect_session_stats', async () => null);
-    mockInvoke('reflect_model_rate_cards', async () => []);
+    mockInvoke('zhuye_list_workspaces', async () => []);
+    mockInvoke('zhuye_session_stats', async () => null);
+    mockInvoke('zhuye_model_rate_cards', async () => []);
   });
 
   afterEach(() => {
@@ -87,9 +87,9 @@ describe('UsageDock', () => {
   });
 
   it('renders the total tokens with the token split', async () => {
-    mockInvoke('reflect_session_stats', async () => STATS);
+    mockInvoke('zhuye_session_stats', async () => STATS);
     // setup 默认 stub 用的是旧字段 display_name;后端出线是 title,这里对齐。
-    mockInvoke('reflect_list_sessions', async () => [
+    mockInvoke('zhuye_list_sessions', async () => [
       { session_id: 'sess-1', model: 'stub/test', provider: 'local', started_at: '2026-11-20T00:00:00Z', message_count: 2, tool_count: 0, token_total: 0, cwd: '/tmp', display_name: 'First session', title: 'First session' },
     ]);
 
@@ -114,8 +114,8 @@ describe('UsageDock', () => {
   });
 
   it('falls back gracefully when session stats are null', async () => {
-    // 磁盘上还没有该会话的 JSONL → reflect_session_stats 返回 null。
-    mockInvoke('reflect_session_stats', async () => null);
+    // 磁盘上还没有该会话的 JSONL → zhuye_session_stats 返回 null。
+    mockInvoke('zhuye_session_stats', async () => null);
 
     const { container } = renderDock();
 
@@ -129,7 +129,7 @@ describe('UsageDock', () => {
   });
 
   it('renders cross-session cost rows with the current session highlighted', async () => {
-    mockInvoke('reflect_list_sessions', async () => COST_SESSIONS);
+    mockInvoke('zhuye_list_sessions', async () => COST_SESSIONS);
 
     const { container } = renderDock();
 
@@ -148,8 +148,8 @@ describe('UsageDock', () => {
   });
 
   it('renders model rate cards for the session models', async () => {
-    mockInvoke('reflect_session_stats', async () => STATS);
-    mockInvoke('reflect_model_rate_cards', async () => [
+    mockInvoke('zhuye_session_stats', async () => STATS);
+    mockInvoke('zhuye_model_rate_cards', async () => [
       {
         model: 'openai/gpt-4o',
         priced: true,
@@ -174,7 +174,7 @@ describe('UsageDock', () => {
   });
 
   it('refresh button invalidates usage queries without crashing', async () => {
-    mockInvoke('reflect_session_stats', async () => STATS);
+    mockInvoke('zhuye_session_stats', async () => STATS);
 
     renderDock();
     const refresh = await screen.findByTestId('usage-dock-refresh');

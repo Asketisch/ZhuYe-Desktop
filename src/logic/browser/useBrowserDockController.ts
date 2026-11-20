@@ -3,8 +3,8 @@
  *
  * 职责:
  * - 挂载时查询一次状态(**不自动启动**:status 无副作用)+ 订阅
- *   `reflect_browser_frame` 帧流(base64 JPEG → data URL)。
- * - 启停:reflect_browser_start / stop;start/stop 后回写状态。
+ *   `zhuye_browser_frame` 帧流(base64 JPEG → data URL)。
+ * - 启停:zhuye_browser_start / stop;start/stop 后回写状态。
  * - 导航:地址栏草稿(Enter 提交)与后退/前进/刷新,均由后端开短连接
  *   page 级 CDP 命令完成;动作失败进入 error(面板可重试)。
  * - 设备模拟:预设尺寸(桌面/平板/手机)在前端持有,后端只应用 metrics;
@@ -16,15 +16,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   listen_browser_frame,
-  reflect_browser_back,
-  reflect_browser_forward,
-  reflect_browser_navigate,
-  reflect_browser_reload,
-  reflect_browser_set_device,
-  reflect_browser_start,
-  reflect_browser_status,
-  reflect_browser_stop,
-  type ReflectBrowserStatus,
+  zhuye_browser_back,
+  zhuye_browser_forward,
+  zhuye_browser_navigate,
+  zhuye_browser_reload,
+  zhuye_browser_set_device,
+  zhuye_browser_start,
+  zhuye_browser_status,
+  zhuye_browser_stop,
+  type ZhuyeBrowserStatus,
 } from '@/utils/commands/browser';
 
 /** 设备档位标识(渲染层只收字符串,不反依赖逻辑层)。 */
@@ -42,7 +42,7 @@ function messageOf(cause: unknown): string {
 }
 
 export function useBrowserDockController() {
-  const [status, setStatus] = useState<ReflectBrowserStatus | null>(null);
+  const [status, setStatus] = useState<ZhuyeBrowserStatus | null>(null);
   /** 当前帧 data URL(`data:image/jpeg;base64,...`;无帧为 null)。 */
   const [frame, setFrame] = useState<string | null>(null);
   /** 启停/导航/设备切换进行中。 */
@@ -66,7 +66,7 @@ export function useBrowserDockController() {
   // 挂载:查一次状态(不自动启动)+ 订阅帧流。
   useEffect(() => {
     let cancelled = false;
-    reflect_browser_status()
+    zhuye_browser_status()
       .then((next) => {
         if (cancelled) return;
         setStatus(next);
@@ -91,7 +91,7 @@ export function useBrowserDockController() {
 
   /** 统一动作包装:busy + 错误捕获 + 状态回写(可选清帧)。 */
   const run = useCallback(
-    async (action: () => Promise<ReflectBrowserStatus>, opts?: { resetFrame?: boolean }) => {
+    async (action: () => Promise<ZhuyeBrowserStatus>, opts?: { resetFrame?: boolean }) => {
       setBusy(true);
       setError(null);
       try {
@@ -108,30 +108,30 @@ export function useBrowserDockController() {
   );
 
   const start = useCallback(() => {
-    void run(() => reflect_browser_start());
+    void run(() => zhuye_browser_start());
   }, [run]);
 
   const stop = useCallback(() => {
-    void run(() => reflect_browser_stop(), { resetFrame: true });
+    void run(() => zhuye_browser_stop(), { resetFrame: true });
   }, [run]);
 
   // 地址栏提交:trim 交给后端,scheme 补全在后端 normalize_url(单一事实源)。
   const navigate = useCallback(() => {
     const target = urlDraft.trim();
     if (!target) return;
-    void run(() => reflect_browser_navigate(target));
+    void run(() => zhuye_browser_navigate(target));
   }, [run, urlDraft]);
 
   const back = useCallback(() => {
-    void run(() => reflect_browser_back());
+    void run(() => zhuye_browser_back());
   }, [run]);
 
   const forward = useCallback(() => {
-    void run(() => reflect_browser_forward());
+    void run(() => zhuye_browser_forward());
   }, [run]);
 
   const reload = useCallback(() => {
-    void run(() => reflect_browser_reload());
+    void run(() => zhuye_browser_reload());
   }, [run]);
 
   /** 切换设备档位:未启动只记录档位(不发起命令);运行中应用 metrics。 */
@@ -142,7 +142,7 @@ export function useBrowserDockController() {
       if (!metrics) return;
       setDevice(preset);
       if (!running) return;
-      void run(() => reflect_browser_set_device(metrics.width, metrics.height));
+      void run(() => zhuye_browser_set_device(metrics.width, metrics.height));
     },
     [run, running],
   );

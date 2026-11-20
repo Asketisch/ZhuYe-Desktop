@@ -3,10 +3,10 @@
  *
  * 验证:
  * 1. 渲染 Provider / Permissions / Advanced sections
- * 2. 显示 agent 状态徽标(从 reflect_agent_status)
- * 3. permission 按钮点击调 reflect_set_permission_mode
- * 4. Save 按钮调 reflect_save_config
- * 5. 全量结构化表单为所有 ReflectConfig 段提供直接输入框
+ * 2. 显示 agent 状态徽标(从 zhuye_agent_status)
+ * 3. permission 按钮点击调 zhuye_set_permission_mode
+ * 4. Save 按钮调 zhuye_save_config
+ * 5. 全量结构化表单为所有 ZhuyeConfig 段提供直接输入框
  * 6. Ollama / Anthropic / OpenAI provider 都有显式输入
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -55,13 +55,13 @@ max_calls = 25
 describe('SettingsView', () => {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem('reflect.locale', 'en');
+    localStorage.setItem('zhuye.locale', 'en');
     resetUiPrefsForTests();
     resetMockInvoke();
-    mockInvoke('reflect_set_permission_mode', async () => {});
-    mockInvoke('reflect_save_config', async () => {});
-    mockInvoke('reflect_get_config', async () => SAMPLE_TOML);
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_set_permission_mode', async () => {});
+    mockInvoke('zhuye_save_config', async () => {});
+    mockInvoke('zhuye_get_config', async () => SAMPLE_TOML);
+    mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: true,
       model: 'anthropic/claude-3-5-sonnet-latest',
@@ -87,9 +87,9 @@ describe('SettingsView', () => {
     });
   });
 
-  it('clicking permission button calls reflect_set_permission_mode', async () => {
+  it('clicking permission button calls zhuye_set_permission_mode', async () => {
     let modeArg: string | null = null;
-    mockInvoke('reflect_set_permission_mode', async (_cmd: string, args: unknown) => {
+    mockInvoke('zhuye_set_permission_mode', async (_cmd: string, args: unknown) => {
       modeArg = (args as { mode: string }).mode;
     });
 
@@ -107,12 +107,12 @@ describe('SettingsView', () => {
     let finish!: () => void;
     let saved = SAMPLE_TOML;
     let reads = 0;
-    mockInvoke('reflect_save_config', async (_cmd, args) => {
+    mockInvoke('zhuye_save_config', async (_cmd, args) => {
       const submitted = (args as { toml: string }).toml;
       await new Promise<void>((resolve) => { finish = resolve; });
       saved = submitted;
     });
-    mockInvoke('reflect_get_config', async () => { reads += 1; return saved; });
+    mockInvoke('zhuye_get_config', async () => { reads += 1; return saved; });
     renderSettingsView();
     fireEvent.click(screen.getByText('Advanced'));
     const editor = await screen.findByRole('textbox') as HTMLTextAreaElement;
@@ -129,9 +129,9 @@ describe('SettingsView', () => {
     expect(saved).toBe(first);
   });
 
-  it('Save button calls reflect_save_config with merged TOML', async () => {
+  it('Save button calls zhuye_save_config with merged TOML', async () => {
     let savedToml: string | null = null;
-    mockInvoke('reflect_save_config', async (_cmd: string, args: unknown) => {
+    mockInvoke('zhuye_save_config', async (_cmd: string, args: unknown) => {
       savedToml = (args as { toml: string }).toml;
     });
 
@@ -154,7 +154,7 @@ describe('SettingsView', () => {
     expect(savedToml).toContain('sk-ant-existing');
   });
 
-  it('renders direct structured inputs for every ReflectConfig section', async () => {
+  it('renders direct structured inputs for every ZhuyeConfig section', async () => {
     renderSettingsView();
     // Anthropic
     expect(screen.getByLabelText(/Anthropic API key/)).toBeDefined();

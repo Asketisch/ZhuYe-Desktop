@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { RefreshCw, Plus } from 'lucide-react';
 import { Badge, Button, Icon, Input, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import { reflect_test_provider_chat, type ProviderModelInfo } from '@/utils/commands';
+import { zhuye_test_provider_chat, type ProviderModelInfo } from '@/utils/commands';
 import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
 import {
   GROUP_ENDPOINTS,
@@ -31,7 +31,7 @@ import s from '@/render/settings/SettingsView.module.css';
 export interface GroupFormProps {
   rawToml: string;
   onChange: (next: string) => void;
-  /** 把变更立即落盘（reflect_save_config → 后端校验 + 热重载 provider 栈）。 */
+  /** 把变更立即落盘（zhuye_save_config → 后端校验 + 热重载 provider 栈）。 */
   onCommit?: (next: string) => void;
 }
 
@@ -194,7 +194,7 @@ export function GroupForm({ rawToml, onChange, onCommit }: GroupFormProps) {
     setChatReply(null);
     setChatError(null);
     try {
-      const res = await reflect_test_provider_chat(
+      const res = await zhuye_test_provider_chat(
         form.baseUrl.trim(),
         form.apiKey.trim(),
         form.endpoint,

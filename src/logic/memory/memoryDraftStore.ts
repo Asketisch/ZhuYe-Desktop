@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import type { ReflectMemoryEntry } from '@/utils/commands';
+import type { ZhuyeMemoryEntry } from '@/utils/commands';
 
 export interface EditDraft {
-  entry: ReflectMemoryEntry;
+  entry: ZhuyeMemoryEntry;
   value: string;
   revision: number;
 }

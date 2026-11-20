@@ -20,7 +20,7 @@ fn wait_event(rx: &Receiver<Value>, kind: &str, server: &str) -> Value {
 #[test]
 fn local_server_connects_invokes_reloads_and_unregisters() {
     let (tx, rx) = std::sync::mpsc::channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
@@ -29,7 +29,7 @@ fn local_server_connects_invokes_reloads_and_unregisters() {
         .join("../tests/fixtures/mcp-stdio-server.mjs");
     let configure = |greeting: &str| {
         common::invoke_ok(
-            "reflect_upsert_mcp_server",
+            "zhuye_upsert_mcp_server",
             json!({
                 "name": "desktop_fixture",
                 "entry": { "type": "stdio", "command": "node", "args": [fixture],
@@ -42,7 +42,7 @@ fn local_server_connects_invokes_reloads_and_unregisters() {
     let started = wait_event(&rx, "mcp_server_started", "desktop_fixture");
     assert_eq!(started["id"], "");
     assert_eq!(started["msg"]["tool_count"], 1);
-    let servers = common::invoke_ok("reflect_list_mcp_servers", json!({}));
+    let servers = common::invoke_ok("zhuye_list_mcp_servers", json!({}));
     assert!(
         servers
             .as_array()
@@ -54,7 +54,7 @@ fn local_server_connects_invokes_reloads_and_unregisters() {
     let tools = {
         let h = common::harness();
         h.app
-            .state::<reflect_desktop_lib::state::MinimalAgent>()
+            .state::<zhuye_desktop_lib::state::MinimalAgent>()
             .tools()
     };
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -62,7 +62,7 @@ fn local_server_connects_invokes_reloads_and_unregisters() {
         let tool = tools
             .get("mcp__desktop_fixture__echo")
             .expect("registered MCP tool");
-        let mut ctx = reflect_tools::ToolContext::for_workspace(std::env::current_dir().unwrap());
+        let mut ctx = zhuye_tools::ToolContext::for_workspace(std::env::current_dir().unwrap());
         ctx.call_id = "desktop-fixture-call".into();
         runtime
             .block_on(tool.execute(ctx, json!({ "text": "hello" })))
@@ -73,7 +73,7 @@ fn local_server_connects_invokes_reloads_and_unregisters() {
     assert!(
         result.content.iter().any(|block| matches!(
             block,
-            reflect_protocol::ContentBlock::Text { text } if text == "first: hello"
+            zhuye_protocol::ContentBlock::Text { text } if text == "first: hello"
         )),
         "{result:?}"
     );
@@ -88,16 +88,16 @@ fn local_server_connects_invokes_reloads_and_unregisters() {
     assert!(
         reloaded.content.iter().any(|block| matches!(
             block,
-            reflect_protocol::ContentBlock::Text { text } if text == "second: hello"
+            zhuye_protocol::ContentBlock::Text { text } if text == "second: hello"
         )),
         "{reloaded:?}"
     );
     common::invoke_ok(
-        "reflect_delete_mcp_server",
+        "zhuye_delete_mcp_server",
         json!({ "name": "desktop_fixture" }),
     );
     assert!(tools.get("mcp__desktop_fixture__echo").is_none());
-    let servers = common::invoke_ok("reflect_list_mcp_servers", json!({}));
+    let servers = common::invoke_ok("zhuye_list_mcp_servers", json!({}));
     assert!(
         !servers
             .as_array()
@@ -110,16 +110,16 @@ fn local_server_connects_invokes_reloads_and_unregisters() {
 #[test]
 fn newly_added_server_reports_start_failure() {
     let (tx, rx) = std::sync::mpsc::channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let _ = tx.send(value);
         }
     });
     common::invoke_ok(
-        "reflect_upsert_mcp_server",
+        "zhuye_upsert_mcp_server",
         serde_json::json!({
             "name": "missing-local-server",
-            "entry": { "type": "stdio", "command": "/nonexistent/reflect-mcp-test" }
+            "entry": { "type": "stdio", "command": "/nonexistent/zhuye-mcp-test" }
         }),
     );
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -135,5 +135,5 @@ fn newly_added_server_reports_start_failure() {
             break;
         }
     }
-    assert!(found, "server failure must reach reflect_event");
+    assert!(found, "server failure must reach zhuye_event");
 }

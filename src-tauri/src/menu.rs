@@ -2,7 +2,7 @@
 //!
 //! 菜单结构：
 //! - `enable_macos_default_menu(false)` 关闭 Tauri 默认菜单;
-//! - 5 个 submenu: Reflect / Edit / Composer / View / Window;
+//! - 5 个 submenu: ZhuYe / Edit / Composer / View / Window;
 //! - 每个菜单项 click → `app.emit("menu-<id>", ())` 通知前端,
 //!   前端 reducer 按 id 决定后续动作 (cycle model / open settings / ...)。
 //! - 4 个 inline accelerator: cycle_model / cycle_reasoning / new_agent / interrupt
@@ -13,7 +13,7 @@ use tauri::{
     menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu},
 };
 
-// ====== Reflect (App) 菜单 ======
+// ====== ZhuYe (App) 菜单 ======
 pub const MENU_ABOUT: &str = "menu_about";
 pub const MENU_CHECK_UPDATES: &str = "menu_check_updates";
 pub const MENU_SETTINGS: &str = "menu_settings";
@@ -56,16 +56,16 @@ pub const CUSTOM_MENU_IDS: &[&str] = &[
 
 /// 构建完整应用菜单。
 pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
-    let reflect = build_reflect_menu(app)?;
+    let zhuye_menu = build_zhuye_menu(app)?;
     let edit = build_edit_menu(app)?;
     let composer = build_composer_menu(app)?;
     let view = build_view_menu(app)?;
     let window = build_window_menu(app)?;
-    Menu::with_items(app, &[&reflect, &edit, &composer, &view, &window])
+    Menu::with_items(app, &[&zhuye_menu, &edit, &composer, &view, &window])
 }
 
-fn build_reflect_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Submenu<R>> {
-    let app_name = "Reflect";
+fn build_zhuye_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Submenu<R>> {
+    let app_name = "ZhuYe";
     let about = MenuItemBuilder::with_id(MENU_ABOUT, format!("About {app_name}")).build(app)?;
     let check = MenuItemBuilder::with_id(MENU_CHECK_UPDATES, "Check for Updates…").build(app)?;
     let settings = MenuItemBuilder::with_id(MENU_SETTINGS, "Settings…")
@@ -194,7 +194,7 @@ pub fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: tauri::menu::Men
             app.exit(0);
         }
         _ => {
-            tracing::debug!("[reflect-gui] menu: unhandled id={id}");
+            tracing::debug!("[zhuye-gui] menu: unhandled id={id}");
         }
     }
 }

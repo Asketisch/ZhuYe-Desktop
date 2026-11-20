@@ -1,5 +1,5 @@
 /**
- * M1.5 Slash 命令静态列表 —— 镜像 `crates/reflect-tui/src/slash.rs` 的命令。
+ * M1.5 Slash 命令静态列表 —— 镜像 `crates/zhuye-tui/src/slash.rs` 的命令。
  *
  * Tier A (toolbar 显示) 7 个 + 剩余弹 popup。 M2.x 把 active command
  * 接到对应 Tauri command / API。
@@ -82,7 +82,7 @@ export const TIER_A_TOOLBAR = SLASH_COMMANDS.filter((c) => c.toolbared);
 
 /**
  * 插件 slash 命令注册表 —— 由 `usePluginCommands` 从后端
- * (`reflect_list_plugin_commands`)拉取后写入,与挂载状态联动。
+ * (`zhuye_list_plugin_commands`)拉取后写入,与挂载状态联动。
  *
  * 插件命令与内置命令的分界:内置命令由 `slashEngine.executeSlash` 本地
  * 执行;插件命令引擎不解析,`dispatch` 对其返回 PlainText 原样提交,

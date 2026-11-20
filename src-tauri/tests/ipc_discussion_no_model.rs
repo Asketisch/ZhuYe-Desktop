@@ -22,7 +22,7 @@ system_prompt = "respond"
     )
     .unwrap();
     let outcome = common::invoke_ok(
-        "reflect_run_discussion",
+        "zhuye_run_discussion",
         json!({ "configPath": "discussion-no-model.toml" }),
     );
     assert_eq!(outcome["llmBacked"], false, "{outcome}");

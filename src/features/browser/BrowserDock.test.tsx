@@ -3,11 +3,11 @@
  *
  * 验证(mockInvoke 模式,后端为模拟):
  *   - 状态 running=false → 空态引导 + 启动按钮(无画面、无停止键)
- *   - 点击启动 → reflect_browser_start 被调 → 转运行态(地址栏 + 停止键)
- *   - 地址栏输入 + Enter → reflect_browser_navigate 收到 trim 后的地址
+ *   - 点击启动 → zhuye_browser_start 被调 → 转运行态(地址栏 + 停止键)
+ *   - 地址栏输入 + Enter → zhuye_browser_navigate 收到 trim 后的地址
  *     (scheme 补全在后端 normalize_url,不在前端重复)
- *   - 设备档位 → reflect_browser_set_device 收到预设尺寸
- *   - reflect_browser_frame 事件 → 画面渲染为 <img>
+ *   - 设备档位 → zhuye_browser_set_device 收到预设尺寸
+ *   - zhuye_browser_frame 事件 → 画面渲染为 <img>
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react';
@@ -37,7 +37,7 @@ describe('BrowserDock', () => {
   afterEach(() => cleanup());
 
   it('未启动 → 空态引导 + 启动按钮;无画面与停止键', async () => {
-    mockInvoke('reflect_browser_status', async () => NOT_RUNNING);
+    mockInvoke('zhuye_browser_status', async () => NOT_RUNNING);
     render(<BrowserDock />);
     await waitFor(() => {
       expect(screen.getByTestId('browser-dock-empty')).toBeDefined();
@@ -50,15 +50,15 @@ describe('BrowserDock', () => {
     expect((screen.getByTestId('browser-dock-url').querySelector('input') as HTMLInputElement).disabled).toBe(true);
   });
 
-  it('启动 → reflect_browser_start 被调,转运行态(地址栏 + 停止键)', async () => {
-    mockInvoke('reflect_browser_status', async () => NOT_RUNNING);
+  it('启动 → zhuye_browser_start 被调,转运行态(地址栏 + 停止键)', async () => {
+    mockInvoke('zhuye_browser_status', async () => NOT_RUNNING);
     render(<BrowserDock />);
     await waitFor(() => {
       expect(screen.getByTestId('browser-dock-start')).toBeDefined();
     });
 
     const start = vi.fn(async () => RUNNING);
-    mockInvoke('reflect_browser_start', start);
+    mockInvoke('zhuye_browser_start', start);
     fireEvent.click(screen.getByTestId('browser-dock-start'));
 
     await waitFor(() => {
@@ -71,8 +71,8 @@ describe('BrowserDock', () => {
     });
   });
 
-  it('地址栏 Enter → reflect_browser_navigate 收到 trim 后的地址', async () => {
-    mockInvoke('reflect_browser_status', async () => RUNNING);
+  it('地址栏 Enter → zhuye_browser_navigate 收到 trim 后的地址', async () => {
+    mockInvoke('zhuye_browser_status', async () => RUNNING);
     render(<BrowserDock />);
     await waitFor(() => {
       expect((screen.getByTestId('browser-dock-url').querySelector('input') as HTMLInputElement).value).toBe('about:blank');
@@ -85,7 +85,7 @@ describe('BrowserDock', () => {
       streaming: true,
       message: null,
     }));
-    mockInvoke('reflect_browser_navigate', navigate);
+    mockInvoke('zhuye_browser_navigate', navigate);
     const input = screen.getByTestId('browser-dock-url').querySelector('input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '  example.com  ' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -97,15 +97,15 @@ describe('BrowserDock', () => {
     expect(navigate.mock.calls[0][1]).toEqual({ url: 'example.com' });
   });
 
-  it('设备档位 → reflect_browser_set_device 收到预设尺寸', async () => {
-    mockInvoke('reflect_browser_status', async () => RUNNING);
+  it('设备档位 → zhuye_browser_set_device 收到预设尺寸', async () => {
+    mockInvoke('zhuye_browser_status', async () => RUNNING);
     render(<BrowserDock />);
     await waitFor(() => {
       expect(screen.getByTestId('browser-dock-device-phone')).toBeDefined();
     });
 
     const setDevice = vi.fn(async (_cmd: string, _args?: { width?: number; height?: number }) => RUNNING);
-    mockInvoke('reflect_browser_set_device', setDevice);
+    mockInvoke('zhuye_browser_set_device', setDevice);
     fireEvent.click(screen.getByTestId('browser-dock-device-phone'));
 
     await waitFor(() => {
@@ -117,7 +117,7 @@ describe('BrowserDock', () => {
   });
 
   it('运行中帧事件 → 画面渲染为 <img>(等比缩放)', async () => {
-    mockInvoke('reflect_browser_status', async () => RUNNING);
+    mockInvoke('zhuye_browser_status', async () => RUNNING);
     render(<BrowserDock />);
     await waitFor(() => {
       expect(screen.getByTestId('browser-dock-stop')).toBeDefined();
@@ -125,7 +125,7 @@ describe('BrowserDock', () => {
     expect(screen.getByTestId('browser-dock-waiting')).toBeDefined();
 
     act(() => {
-      emitMockEvent('reflect_browser_frame', { data: 'ZmFrZWpwZWc=' });
+      emitMockEvent('zhuye_browser_frame', { data: 'ZmFrZWpwZWc=' });
     });
     const frame = screen.getByTestId('browser-dock-frame') as HTMLImageElement;
     expect(frame.src).toBe('data:image/jpeg;base64,ZmFrZWpwZWc=');

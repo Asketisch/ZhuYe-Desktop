@@ -1,7 +1,7 @@
 /**
  * PlanReadyModal —— 计划展示 + 审批弹窗（聚焦版,三选一）。
  *
- * Plan 审批对齐 `reflect_protocol::PlanApprovalChoice` 三选一:
+ * Plan 审批对齐 `zhuye_protocol::PlanApprovalChoice` 三选一:
  *   - Revise(revise):留在 plan 模式,用户输入反馈继续 plan(等价旧行为的 reject)。
  *   - Manual Approve(manual_approve):切到 Prompt,逐工具审批。
  *   - Auto Mode(auto_mode):切到 AcceptEdits,自动批准编辑/写入类(autoFocus)。

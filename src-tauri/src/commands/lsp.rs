@@ -97,7 +97,7 @@ async fn status(agent: &MinimalAgent) -> LspStatus {
 /// 开启 = bootstrap(`[lsp_servers]` 配置 → 注册 `lsp` tool + 起 server),
 /// 幂等;关闭 = 反注册 `lsp` tool + 停掉全部 server 并释放 manager。
 #[tauri::command]
-pub async fn reflect_lsp_set_enabled(
+pub async fn zhuye_lsp_set_enabled(
     agent: State<'_, MinimalAgent>,
     enabled: bool,
 ) -> CommandResult<LspStatus> {
@@ -115,7 +115,7 @@ pub async fn reflect_lsp_set_enabled(
         if let Some(mgr) = mgr {
             agent.tools().unregister("lsp");
             mgr.shutdown().await;
-            tracing::info!("[reflect-gui] LSP disabled: lsp tool unregistered, servers stopped");
+            tracing::info!("[zhuye-gui] LSP disabled: lsp tool unregistered, servers stopped");
         }
     }
     Ok(status(&agent).await)
@@ -123,7 +123,7 @@ pub async fn reflect_lsp_set_enabled(
 
 /// 查询 LSP 状态(前端恢复开关 / 徽标展示用)。
 #[tauri::command]
-pub async fn reflect_lsp_status(agent: State<'_, MinimalAgent>) -> CommandResult<LspStatus> {
+pub async fn zhuye_lsp_status(agent: State<'_, MinimalAgent>) -> CommandResult<LspStatus> {
     Ok(status(&agent).await)
 }
 
@@ -132,7 +132,7 @@ pub async fn reflect_lsp_status(agent: State<'_, MinimalAgent>) -> CommandResult
 /// LSP 未开启或无匹配 server 时不做事(warmed = false),**不报错**——
 /// 预热是尽力而为的后台优化。
 #[tauri::command]
-pub async fn reflect_lsp_warmup(
+pub async fn zhuye_lsp_warmup(
     agent: State<'_, MinimalAgent>,
     path: String,
 ) -> CommandResult<LspWarmupResult> {
@@ -152,7 +152,7 @@ pub async fn reflect_lsp_warmup(
         });
     }
     let workspace = agent.workspace();
-    let Some(route) = reflect_lsp::matching::pick_server_for(&abs, &workspace, &handles, None)
+    let Some(route) = zhuye_lsp::matching::pick_server_for(&abs, &workspace, &handles, None)
     else {
         return Ok(LspWarmupResult {
             warmed: false,
@@ -188,7 +188,7 @@ pub async fn reflect_lsp_warmup(
 /// 文件未被 server 打开过(未预热)→ 返回空列表。LSP 未开启 → 同样空列表,
 /// 不报错。
 #[tauri::command]
-pub async fn reflect_lsp_diagnostics(
+pub async fn zhuye_lsp_diagnostics(
     agent: State<'_, MinimalAgent>,
     path: String,
 ) -> CommandResult<Vec<LspDiagnostic>> {
@@ -236,7 +236,7 @@ fn severity_str(s: Option<lsp_types::DiagnosticSeverity>) -> &'static str {
     }
 }
 
-/// 绝对路径 → LSP `file://` URI。与 reflect-lsp `tool.rs::path_to_uri`
+/// 绝对路径 → LSP `file://` URI。与 zhuye-lsp `tool.rs::path_to_uri`
 /// 同款 `url::Url` 中转(该 helper 非 pub,应用层平移一份)。
 fn file_uri(path: &std::path::Path) -> Result<Uri, CommandError> {
     let url = url::Url::from_file_path(path).map_err(|()| CommandError {

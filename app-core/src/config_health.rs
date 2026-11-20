@@ -1,6 +1,6 @@
 //! 桌面端配置健康提示，基于应用当前生效的配置快照。
 
-use reflect_config::ReflectConfig;
+use zhuye_config::ReflectConfig;
 use serde::{Deserialize, Serialize};
 
 /// 配置健康问题的稳定标识与严重程度。
@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn diagnostics_preserve_provider_and_explicit_switch_semantics() {
-        let default = reflect_config::load_from_str("").expect("默认配置");
+        let default = zhuye_config::load_from_str("").expect("默认配置");
         assert_eq!(
             config_health_issues(&default)
                 .iter()
@@ -60,12 +60,12 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["no-provider"]
         );
-        let healthy = reflect_config::load_from_str(
+        let healthy = zhuye_config::load_from_str(
             "[active]\nprovider = 'openai'\n[sandbox]\nos_level = true\n",
         )
         .expect("有效配置");
         assert!(config_health_issues(&healthy).is_empty());
-        let disabled = reflect_config::load_from_str("[anthropic]\napi_key = 'key'\n[prompt_guard]\nenabled = false\n[sandbox]\nos_level = false\n").expect("有效配置");
+        let disabled = zhuye_config::load_from_str("[anthropic]\napi_key = 'key'\n[prompt_guard]\nenabled = false\n[sandbox]\nos_level = false\n").expect("有效配置");
         assert_eq!(
             config_health_issues(&disabled)
                 .iter()

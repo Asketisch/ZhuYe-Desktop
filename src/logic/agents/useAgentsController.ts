@@ -2,7 +2,7 @@
  * Agents controller hook（阶段 1 任务 3）。
  *
  * 职责：
- *   - TanStack `useQuery` 用于 `reflect_list_agent_defs`
+ *   - TanStack `useQuery` 用于 `zhuye_list_agent_defs`
  *   - 三个 mutation：save / delete / parse-preview
  *   - 编辑器状态（草稿 def + 原始 markdown 模式切换）
  *
@@ -11,16 +11,16 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_delete_agent_def,
-  reflect_get_active_agent,
-  reflect_list_agent_defs,
-  reflect_save_agent_def,
-  reflect_set_active_agent,
+  zhuye_delete_agent_def,
+  zhuye_get_active_agent,
+  zhuye_list_agent_defs,
+  zhuye_save_agent_def,
+  zhuye_set_active_agent,
   type ActiveAgentInfo,
-  type ReflectAgentDef,
+  type ZhuyeAgentDef,
 } from '@/utils/commands';
 
-export type { ReflectAgentDef, ReflectMemoryScope } from '@/utils/commands';
+export type { ZhuyeAgentDef, ZhuyeMemoryScope } from '@/utils/commands';
 export type { ActiveAgentInfo } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 
@@ -29,7 +29,7 @@ export const ACTIVE_AGENT_QUERY_KEY = ['active-agent'] as const;
 const AGENTS_STALE_MS = 30_000;
 
 /** 创建表单的空草稿。 */
-export function emptyAgentDraft(): ReflectAgentDef {
+export function emptyAgentDraft(): ZhuyeAgentDef {
   return {
     name: '',
     description: '',
@@ -49,23 +49,23 @@ export function emptyAgentDraft(): ReflectAgentDef {
 
 export interface AgentsController {
   // 查询
-  defs: ReflectAgentDef[];
+  defs: ZhuyeAgentDef[];
   loading: boolean;
   error: unknown;
   refetch: () => void;
 
   // 编辑器状态
-  draft: ReflectAgentDef | null;
+  draft: ZhuyeAgentDef | null;
   isEditing: boolean;
   isCreating: boolean;
   beginCreate: () => void;
-  beginEdit: (def: ReflectAgentDef) => void;
+  beginEdit: (def: ZhuyeAgentDef) => void;
   cancelEdit: () => void;
-  patchDraft: (patch: Partial<ReflectAgentDef>) => void;
+  patchDraft: (patch: Partial<ZhuyeAgentDef>) => void;
 
   // 突变操作
   save: () => Promise<void>;
-  remove: (def: ReflectAgentDef) => Promise<void>;
+  remove: (def: ZhuyeAgentDef) => Promise<void>;
 
   // 活跃 agent(决定运行时加载哪条定义 + 记忆目录)
   activeAgent: ActiveAgentInfo | null;
@@ -81,14 +81,14 @@ export function useAgentsController(): AgentsController {
   const qc = useQueryClient();
   const pushToast = useAgentStore((st) => st.pushToast);
 
-  const [draft, setDraft] = useState<ReflectAgentDef | null>(null);
+  const [draft, setDraft] = useState<ZhuyeAgentDef | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const editorGeneration = useRef(0);
   const saving = useRef(false);
 
   const defsQ = useQuery({
     queryKey: [...AGENTS_QUERY_KEY],
-    queryFn: () => reflect_list_agent_defs(),
+    queryFn: () => zhuye_list_agent_defs(),
     staleTime: AGENTS_STALE_MS,
   });
 
@@ -96,7 +96,7 @@ export function useAgentsController(): AgentsController {
   // Agents 视图是死胡同)。
   const activeQ = useQuery({
     queryKey: [...ACTIVE_AGENT_QUERY_KEY],
-    queryFn: () => reflect_get_active_agent(),
+    queryFn: () => zhuye_get_active_agent(),
     staleTime: AGENTS_STALE_MS,
   });
 
@@ -106,12 +106,12 @@ export function useAgentsController(): AgentsController {
   );
 
   const saveMut = useMutation({
-    mutationFn: ({ def, createOnly }: { def: ReflectAgentDef; createOnly: boolean }) => reflect_save_agent_def(def, createOnly),
+    mutationFn: ({ def, createOnly }: { def: ZhuyeAgentDef; createOnly: boolean }) => zhuye_save_agent_def(def, createOnly),
     onSuccess: () => void invalidate(),
   });
 
   const deleteMut = useMutation({
-    mutationFn: ({ name }: { name: string }) => reflect_delete_agent_def(name),
+    mutationFn: ({ name }: { name: string }) => zhuye_delete_agent_def(name),
     onSuccess: () => void invalidate(),
   });
 
@@ -120,7 +120,7 @@ export function useAgentsController(): AgentsController {
     setIsCreating(true);
     setDraft(emptyAgentDraft());
   }, []);
-  const beginEdit = useCallback((def: ReflectAgentDef) => {
+  const beginEdit = useCallback((def: ZhuyeAgentDef) => {
     editorGeneration.current += 1;
     setIsCreating(false);
     setDraft({ ...def });
@@ -131,7 +131,7 @@ export function useAgentsController(): AgentsController {
     setDraft(null);
   }, []);
 
-  const patchDraft = useCallback((patch: Partial<ReflectAgentDef>) => {
+  const patchDraft = useCallback((patch: Partial<ZhuyeAgentDef>) => {
     setDraft((prev) => (prev ? { ...prev, ...patch, ...(saving.current ? { name: prev.name } : {}) } : prev));
   }, []);
 
@@ -167,7 +167,7 @@ export function useAgentsController(): AgentsController {
   }, [draft, isCreating, pushToast, saveMut]);
 
   const remove = useCallback(
-    async (def: ReflectAgentDef) => {
+    async (def: ZhuyeAgentDef) => {
       try {
         const ok = await deleteMut.mutateAsync({ name: def.name });
         pushToast({
@@ -187,7 +187,7 @@ export function useAgentsController(): AgentsController {
   const defs = useMemo(() => defsQ.data ?? [], [defsQ.data]);
 
   const setActiveMut = useMutation({
-    mutationFn: (name: string) => reflect_set_active_agent(name),
+    mutationFn: (name: string) => zhuye_set_active_agent(name),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [...ACTIVE_AGENT_QUERY_KEY] });
     },

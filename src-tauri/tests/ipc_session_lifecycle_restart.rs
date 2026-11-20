@@ -42,7 +42,7 @@ fn reply() -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -52,7 +52,7 @@ fn listen() -> Receiver<Value> {
 
 fn submit_and_wait(rx: &Receiver<Value>, id: &str, prompt: &str) {
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":id,"op":{"type":"user_input","items":[{"type":"text","text":prompt}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -76,32 +76,32 @@ fn contains_session(sessions: &Value, id: &str) -> bool {
 fn session_lifecycle_survives_process_restart() {
     if std::env::var(PHASE).as_deref() == Ok("child") {
         let rx = listen();
-        let active = common::invoke_ok("reflect_create_session", json!({}));
+        let active = common::invoke_ok("zhuye_create_session", json!({}));
         let active_id = active.as_str().unwrap();
-        common::invoke_ok("reflect_bind_session", json!({"id":active}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":active}));
         submit_and_wait(&rx, "session-a-turn", "session-a-marker");
         common::invoke_ok(
-            "reflect_rename_session",
+            "zhuye_rename_session",
             json!({"id":active,"newName":"Renamed Across Restart"}),
         );
         let fork = common::invoke_ok(
-            "reflect_fork_session",
+            "zhuye_fork_session",
             json!({"id":active,"branch":"persisted-fork","upToTurnId":null}),
         );
 
-        let archived = common::invoke_ok("reflect_create_session", json!({}));
+        let archived = common::invoke_ok("zhuye_create_session", json!({}));
         let archived_id = archived.as_str().unwrap();
-        common::invoke_ok("reflect_bind_session", json!({"id":archived}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":archived}));
         submit_and_wait(&rx, "session-b-turn", "session-b-marker");
 
-        let deleted = common::invoke_ok("reflect_create_session", json!({}));
+        let deleted = common::invoke_ok("zhuye_create_session", json!({}));
         let deleted_id = deleted.as_str().unwrap();
-        common::invoke_ok("reflect_bind_session", json!({"id":deleted}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":deleted}));
         submit_and_wait(&rx, "session-c-turn", "session-c-marker");
 
-        common::invoke_ok("reflect_bind_session", json!({"id":active}));
-        common::invoke_ok("reflect_archive_session", json!({"id":archived}));
-        common::invoke_ok("reflect_delete_session", json!({"id":deleted}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":active}));
+        common::invoke_ok("zhuye_archive_session", json!({"id":archived}));
+        common::invoke_ok("zhuye_delete_session", json!({"id":deleted}));
         let ids = json!({
             "active":active_id,
             "fork":fork,
@@ -164,7 +164,7 @@ fn session_lifecycle_survives_process_restart() {
     let archived_id = ids["archived"].as_str().unwrap();
     let deleted_id = ids["deleted"].as_str().unwrap();
 
-    let active = common::invoke_ok("reflect_list_sessions", json!({}));
+    let active = common::invoke_ok("zhuye_list_sessions", json!({}));
     assert!(contains_session(&active, active_id), "{active}");
     assert!(contains_session(&active, fork_id), "{active}");
     assert!(!contains_session(&active, archived_id), "{active}");
@@ -177,22 +177,22 @@ fn session_lifecycle_survives_process_restart() {
         .unwrap();
     assert_eq!(renamed["title"], "Renamed Across Restart", "{renamed}");
 
-    let archived = common::invoke_ok("reflect_list_archived_sessions", json!({}));
+    let archived = common::invoke_ok("zhuye_list_archived_sessions", json!({}));
     assert!(contains_session(&archived, archived_id), "{archived}");
     assert!(!contains_session(&archived, deleted_id), "{archived}");
 
-    let active_replay = common::invoke_ok("reflect_replay_session", json!({"id":active_id}));
+    let active_replay = common::invoke_ok("zhuye_replay_session", json!({"id":active_id}));
     assert!(active_replay.to_string().contains("session-a-marker"));
-    let fork_replay = common::invoke_ok("reflect_replay_session", json!({"id":fork_id}));
+    let fork_replay = common::invoke_ok("zhuye_replay_session", json!({"id":fork_id}));
     assert!(fork_replay.to_string().contains("session-a-marker"));
 
-    common::invoke_ok("reflect_unarchive_session", json!({"id":archived_id}));
-    let archived_replay = common::invoke_ok("reflect_replay_session", json!({"id":archived_id}));
+    common::invoke_ok("zhuye_unarchive_session", json!({"id":archived_id}));
+    let archived_replay = common::invoke_ok("zhuye_replay_session", json!({"id":archived_id}));
     assert!(
         archived_replay.to_string().contains("session-b-marker"),
         "{archived_replay:?}"
     );
-    let active_after = common::invoke_ok("reflect_list_sessions", json!({}));
+    let active_after = common::invoke_ok("zhuye_list_sessions", json!({}));
     assert!(
         contains_session(&active_after, archived_id),
         "{active_after}"

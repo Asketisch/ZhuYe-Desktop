@@ -2,10 +2,10 @@
  * Usage 视图控制器 —— 当前会话统计 + 全局模型级用量 + 费率卡。
  *
  * 数据面走 TanStack Query,读的是 rollout JSONL 落盘后的聚合
- * (与 CLI `reflect session stats` 同源):
- * - `stats`  : `reflect_session_stats`,仅在已绑定会话时启用;
- * - `models` : `reflect_all_model_usage`,全部会话合计的按模型拆分;
- * - `rateCards`: `reflect_model_rate_cards`,核心静态费率表反解 ——
+ * (与 CLI `zhuye session stats` 同源):
+ * - `stats`  : `zhuye_session_stats`,仅在已绑定会话时启用;
+ * - `models` : `zhuye_all_model_usage`,全部会话合计的按模型拆分;
+ * - `rateCards`: `zhuye_model_rate_cards`,核心静态费率表反解 ——
  *   让「费用」在 UI 上可解释(单价 × 分段 = 金额)。
  *
  * 另有一路 **live** 投影直接来自 store(`tokens.byModel`):本次会话
@@ -17,9 +17,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
 import type { LiveModelUsage } from '@/stores/agent/types';
 import {
-  reflect_all_model_usage,
-  reflect_model_rate_cards,
-  reflect_session_stats,
+  zhuye_all_model_usage,
+  zhuye_model_rate_cards,
+  zhuye_session_stats,
   type ModelUsage,
   type RateCard,
   type SessionStats,
@@ -55,14 +55,14 @@ export function useUsageController(): UsageController {
 
   const statsQ = useQuery({
     queryKey: ['usage', 'session', sessionId],
-    queryFn: () => reflect_session_stats(sessionId as string),
+    queryFn: () => zhuye_session_stats(sessionId as string),
     enabled: !!sessionId,
     staleTime: 30_000,
   });
 
   const modelsQ = useQuery({
     queryKey: ['usage', 'models'],
-    queryFn: () => reflect_all_model_usage(),
+    queryFn: () => zhuye_all_model_usage(),
     staleTime: 30_000,
   });
 
@@ -83,7 +83,7 @@ export function useUsageController(): UsageController {
 
   const rateQ = useQuery({
     queryKey: ['usage', 'rate-cards', modelNames],
-    queryFn: () => reflect_model_rate_cards(modelNames),
+    queryFn: () => zhuye_model_rate_cards(modelNames),
     enabled: modelNames.length > 0,
     staleTime: 300_000,
   });

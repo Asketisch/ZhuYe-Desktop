@@ -3,7 +3,7 @@
  */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { reflect_list_span_logs, reflect_read_span_log } from '@/utils/commands/traces';
+import { zhuye_list_span_logs, zhuye_read_span_log } from '@/utils/commands/traces';
 import type { ComponentType } from 'react';
 import type { SpansPanelViewProps } from '@/contracts/traces_spans';
 import { useI18n } from '@/utils/i18n';
@@ -13,14 +13,14 @@ export function SpansPanelBinding({ view: SpansPanelView }: { view: ComponentTyp
   const [picked, setPicked] = useState<string | null>(null);
   const filesQ = useQuery({
     queryKey: ['traces', 'span-files'],
-    queryFn: () => reflect_list_span_logs(7),
+    queryFn: () => zhuye_list_span_logs(7),
     staleTime: 30_000,
   });
   const files = filesQ.data ?? [];
   const day = picked ?? files[0]?.day ?? null;
   const spansQ = useQuery({
     queryKey: ['traces', 'spans', day],
-    queryFn: () => reflect_read_span_log(day as string),
+    queryFn: () => zhuye_read_span_log(day as string),
     enabled: !!day,
     staleTime: 30_000,
   });

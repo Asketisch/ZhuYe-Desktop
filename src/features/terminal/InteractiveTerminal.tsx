@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { onPtyExit, onPtyOutput, reflect_pty_close, reflect_pty_resize, reflect_pty_start, reflect_pty_write } from '@/utils/commands/terminal';
+import { onPtyExit, onPtyOutput, zhuye_pty_close, zhuye_pty_resize, zhuye_pty_start, zhuye_pty_write } from '@/utils/commands/terminal';
 import styles from '@/render/terminal/InteractiveTerminal.module.css';
 
 export function InteractiveTerminal() {
@@ -21,12 +21,12 @@ export function InteractiveTerminal() {
     let exitUnlisten: (() => void) | undefined;
     let writes = Promise.resolve();
     const data = terminal.onData((value) => {
-      writes = writes.then(() => reflect_pty_write(id, value)).catch((e) => { terminal.writeln(`\r\n${String(e)}`); });
+      writes = writes.then(() => zhuye_pty_write(id, value)).catch((e) => { terminal.writeln(`\r\n${String(e)}`); });
     });
     const resize = () => {
       if (!element.clientWidth || !element.clientHeight) return;
       fit.fit();
-      if (started) void reflect_pty_resize(id, terminal.cols, terminal.rows).catch(() => {});
+      if (started) void zhuye_pty_resize(id, terminal.cols, terminal.rows).catch(() => {});
     };
     const observer = new ResizeObserver(resize);
     observer.observe(element);
@@ -37,9 +37,9 @@ export function InteractiveTerminal() {
         exitUnlisten = await onPtyExit((eventId) => { if (eventId === id && !disposed) terminal.writeln('\r\n[Process exited]'); });
         if (disposed) { exitUnlisten(); return; }
         resize();
-        await reflect_pty_start(id, terminal.cols, terminal.rows);
+        await zhuye_pty_start(id, terminal.cols, terminal.rows);
         started = true;
-        if (disposed) { await reflect_pty_close(id); return; }
+        if (disposed) { await zhuye_pty_close(id); return; }
         resize();
       } catch (e) {
         if (!disposed) terminal.writeln(`\r\n${String(e)}`);
@@ -51,7 +51,7 @@ export function InteractiveTerminal() {
       data.dispose();
       outputUnlisten?.();
       exitUnlisten?.();
-      if (started) void reflect_pty_close(id);
+      if (started) void zhuye_pty_close(id);
       terminal.dispose();
     };
   }, []);

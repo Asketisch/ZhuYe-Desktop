@@ -1,4 +1,4 @@
-/* CodeMirrorEditor —— CM6 宿主与 agent 变更装饰(Cursor 式 review)。
+/* CodeMirrorEditor —— CM6 宿主与 agent 变更装饰(逐块 review)。
  *
  * CM 自身注入的类(.cm-*)经 :global 定制;颜色全部走 tokens.css 变量,
  * 避免硬编码。绿/红采用低饱和背景 + 左侧亮边的 diff 惯例。 */

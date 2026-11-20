@@ -1,7 +1,7 @@
 /**
- * ReflectConfig 的纯结构化配置 schema。
+ * ZhuyeConfig 的纯结构化配置 schema。
  *
- * 覆盖 zhuye-agent/crates/resources/reflect-config/src/schema.rs 暴露的每个分区
+ * 覆盖 zhuye-agent/crates/resources/zhuye-config/src/schema.rs 暴露的每个分区
  * （25+ 个分区，包括 mcp_servers / lsp_servers / hooks / routing /
  * subagent_providers / coordinator / postgres_session / sse_redis /
  * voice / dap / acp / feature_flags / ask_user_question / sanitize /
@@ -10,7 +10,7 @@
  *
  * 纯工具：通过 `readField` / `applyField` 读写 TOML 字符串，
  * 未知键保持不变，高级 TOML 编辑器仍作为出口闸阀。后端校验仍
- * 通过 `reflect_save_config` -> `ReflectConfig::load_from_str` 完成。
+ * 通过 `zhuye_save_config` -> `ZhuyeConfig::load_from_str` 完成。
  *
  * **i18n 约定**：`label` / `placeholder` 改为 `labelKey` / `placeholderKey`，渲染时
  * 通过 `t(labelKey)` 拿到当前 locale 文本。技术字段（skills / model / permission
@@ -42,7 +42,7 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   // Ollama 走 OpenAI 兼容端口：base_url 指向本地服务即可，不再是独立选项。
   { section: 'active', key: 'provider', labelKey: 'settings.config.field.active.provider', kind: 'select', options: ['anthropic', 'openai'] },
   // 内置 skill 包开关（上游 0.1.8 起默认关闭）：核心 bootstrap 与
-  // `reflect_list_skills` 同按此开关决定是否合入 15 个编译期内置技能。
+  // `zhuye_list_skills` 同按此开关决定是否合入 15 个编译期内置技能。
   { section: 'active', key: 'bundled_skills', labelKey: 'settings.config.field.active.bundled_skills', kind: 'boolean' },
 
   { section: 'anthropic', key: 'api_key', labelKey: 'settings.config.field.anthropic.api_key', kind: 'text', secret: true, placeholderKey: 'settings.config.placeholder.anthropic.api_key' },

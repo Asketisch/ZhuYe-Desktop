@@ -18,7 +18,7 @@ fn lsp_warmup_diagnostics_hover_and_restart() {
          file_patterns = [{{ glob = \"**/*.rs\", language_id = \"rust\" }}]\n"
     ));
     let (tx, rx) = std::sync::mpsc::channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
@@ -27,18 +27,18 @@ fn lsp_warmup_diagnostics_hover_and_restart() {
     std::fs::write(workspace.join("fixture.rs"), "fn fixture_lsp_source() {}\n").unwrap();
 
     assert_eq!(
-        common::invoke_ok("reflect_lsp_status", json!({}))["enabled"],
+        common::invoke_ok("zhuye_lsp_status", json!({}))["enabled"],
         false
     );
     let tools = {
         let h = common::harness();
         h.app
-            .state::<reflect_desktop_lib::state::MinimalAgent>()
+            .state::<zhuye_desktop_lib::state::MinimalAgent>()
             .tools()
     };
     assert!(tools.get("lsp").is_none());
     for attempt in 0..2 {
-        let enabled = common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": true }));
+        let enabled = common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": true }));
         assert_eq!(enabled["enabled"], true);
         let deadline = Instant::now() + Duration::from_secs(20);
         let mut started = None;
@@ -79,15 +79,15 @@ fn lsp_warmup_diagnostics_hover_and_restart() {
                 .iter()
                 .any(|v| v == "rust")
         );
-        let warmup = common::invoke_ok("reflect_lsp_warmup", json!({ "path": "fixture.rs" }));
+        let warmup = common::invoke_ok("zhuye_lsp_warmup", json!({ "path": "fixture.rs" }));
         assert_eq!(warmup["warmed"], true, "{warmup}");
         assert_eq!(warmup["server"], "fixture");
-        assert!(common::invoke("reflect_lsp_warmup", json!({ "path": "../outside.rs" })).is_err());
+        assert!(common::invoke("zhuye_lsp_warmup", json!({ "path": "../outside.rs" })).is_err());
 
         let deadline = Instant::now() + Duration::from_secs(15);
         let diagnostics = loop {
             let result =
-                common::invoke_ok("reflect_lsp_diagnostics", json!({ "path": "fixture.rs" }));
+                common::invoke_ok("zhuye_lsp_diagnostics", json!({ "path": "fixture.rs" }));
             if !result.as_array().unwrap().is_empty() {
                 break result;
             }
@@ -103,7 +103,7 @@ fn lsp_warmup_diagnostics_hover_and_restart() {
         assert_eq!(diagnostics[0]["message"], "fixture diagnostic");
         assert_eq!(diagnostics[0]["source"], "fixture-lsp");
         assert_eq!(diagnostics[0]["code"], "TEST001");
-        let status = common::invoke_ok("reflect_lsp_status", json!({}));
+        let status = common::invoke_ok("zhuye_lsp_status", json!({}));
         assert_eq!(status["servers"], json!(["fixture"]));
         assert_eq!(status["diagnostics"]["documents"], 1);
         assert_eq!(status["diagnostics"]["count"], 1);
@@ -112,21 +112,21 @@ fn lsp_warmup_diagnostics_hover_and_restart() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let output = runtime
             .block_on(tool.execute(
-                reflect_tools::ToolContext::for_workspace(&workspace),
+                zhuye_tools::ToolContext::for_workspace(&workspace),
                 json!({ "action": "hover", "file_path": "fixture.rs", "line": 0, "character": 3 }),
             ))
             .unwrap();
         assert!(!output.is_error, "{output:?}");
         assert!(output.content.iter().any(|block| matches!(
             block,
-            reflect_protocol::ContentBlock::Text { text } if text.contains("fixture hover response")
+            zhuye_protocol::ContentBlock::Text { text } if text.contains("fixture hover response")
         )), "{output:?}");
 
-        let disabled = common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": false }));
+        let disabled = common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": false }));
         assert_eq!(disabled["enabled"], false, "attempt {attempt}: {disabled}");
         assert!(tools.get("lsp").is_none());
         assert_eq!(
-            common::invoke_ok("reflect_lsp_diagnostics", json!({ "path": "fixture.rs" })),
+            common::invoke_ok("zhuye_lsp_diagnostics", json!({ "path": "fixture.rs" })),
             json!([])
         );
     }

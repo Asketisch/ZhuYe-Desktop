@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Store } from 'lucide-react';
 import { Badge, Button, Icon, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import { reflect_browse_marketplace, reflect_install_from_marketplace } from '@/utils/commands';
+import { zhuye_browse_marketplace, zhuye_install_from_marketplace } from '@/utils/commands';
 import { PLUGIN_COMMANDS_QUERY_KEY } from '@/logic/composer/usePluginCommands';
 import { AGENTS_QUERY_KEY } from '@/logic/agents/useAgentsController';
 import { pluginErrorMessage as errorMessage } from '@/logic/collaboration/usePluginsPanelController';
@@ -26,13 +26,13 @@ export function MarketplaceRow({
   const [installError, setInstallError] = useState<string | null>(null);
   const browseQ = useQuery({
     queryKey: ['marketplace-plugins', name],
-    queryFn: () => reflect_browse_marketplace(name),
+    queryFn: () => zhuye_browse_marketplace(name),
     enabled: expanded,
     staleTime: 30_000,
   });
   const installMut = useMutation({
     mutationFn: (v: { marketplace: string; plugin: string }) =>
-      reflect_install_from_marketplace(v.marketplace, v.plugin),
+      zhuye_install_from_marketplace(v.marketplace, v.plugin),
     onMutate: () => setInstallError(null),
     onError: (error) => setInstallError(errorMessage(error)),
     onSettled: () => {

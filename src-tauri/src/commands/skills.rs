@@ -12,8 +12,8 @@
 //!   15+ 个 skill 合进 catalog),桌面端没有这一步。GUI 列出的技能少于
 //!   agent 实际能激活的。
 //!
-//! 现在扫描目录直接取上游唯一出口 `reflect_config::default_skill_dirs`,
-//! 复用核心的 `reflect_skills::{scan_skills_dirs, bundled_skills}`,目录与
+//! 现在扫描目录直接取上游唯一出口 `zhuye_config::default_skill_dirs`,
+//! 复用核心的 `zhuye_skills::{scan_skills_dirs, bundled_skills}`,目录与
 //! 合并语义与运行时逐行一致,GUI 不再可能与 agent 分叉。
 //!
 //! 内置技能包受 `[active] bundled_skills` 门控(上游 0.1.8 起**默认关闭**):
@@ -22,12 +22,12 @@
 //! `load_skill` 也激活不了的技能。
 //!
 //! 另有三条 skills.sh 市场命令(搜索 / 安装 / 强制刷新索引),领域逻辑在
-//! 上游 `reflect_skills::{directory, marketplace}`,本文件只做命令适配。
+//! 上游 `zhuye_skills::{directory, marketplace}`,本文件只做命令适配。
 
 use std::collections::HashSet;
 
-use reflect_protocol::Op;
-use reflect_skills::{bundled_skills, scan_skills_dirs};
+use zhuye_protocol::Op;
+use zhuye_skills::{bundled_skills, scan_skills_dirs};
 use serde::Serialize;
 use tauri::State;
 
@@ -62,10 +62,10 @@ pub struct SkillInfo {
 /// 技能** —— 插件技能在运行时已注册进 catalog(模型侧可用),但列表
 /// 此前只扫目录,用户在 Skills 视图里看不到(「装了却看不到」)。
 #[tauri::command]
-pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SkillInfo>> {
+pub async fn zhuye_list_skills(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<SkillInfo>> {
     // 与核心两处 bootstrap 完全同源的唯一目录清单(顺序即同名优先级):
     // <ws>/.zhuye/skills → <ws>/.agents/skills → ~/.zhuye/skills → ~/.agents/skills。
-    let dirs_owned = reflect_config::default_skill_dirs(&agent.workspace());
+    let dirs_owned = zhuye_config::default_skill_dirs(&agent.workspace());
     let dirs: Vec<&std::path::Path> = dirs_owned.iter().map(|p| p.as_path()).collect();
     // scan_skills_dirs 不去重同名:按清单顺序先到先得(高优先级目录胜),
     // 与 catalog.scan → get() 取首个的语义一致。
@@ -94,14 +94,14 @@ pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResul
             if !seen.insert(s.name.clone()) {
                 continue; // 同名不覆盖(工作区/用户级技能优先)
             }
-            let mut meta = reflect_skills::parse_skill_file(&s.skill_md).unwrap_or_else(|e| {
+            let mut meta = zhuye_skills::parse_skill_file(&s.skill_md).unwrap_or_else(|e| {
                 tracing::warn!(
                     plugin = %plugin_id,
                     skill = %s.name,
                     error = %e,
                     "插件 SKILL.md 解析失败;降级为 manifest 元数据"
                 );
-                reflect_skills::SkillMeta {
+                zhuye_skills::SkillMeta {
                     name: s.name.clone(),
                     description: s.description.clone().unwrap_or_default(),
                     triggers: Vec::new(),
@@ -144,9 +144,9 @@ pub async fn reflect_list_skills(agent: State<'_, MinimalAgent>) -> CommandResul
 /// 触发运行时扩展目录重扫 —— `Op::RescanExtensions`(上游 v1.x):
 /// `.zhuye/skills/`(workspace + 用户级)的新增/修改不重启即生效。
 /// 不开 turn;应答经 `extensions_rescanned` 事件回推(skills 条目总数),
-/// 这里投递并返回 submission id(与 `reflect_set_effort` 同款发后即走)。
+/// 这里投递并返回 submission id(与 `zhuye_set_effort` 同款发后即走)。
 #[tauri::command]
-pub async fn reflect_rescan_extensions(
+pub async fn zhuye_rescan_extensions(
     agent: State<'_, MinimalAgent>,
     skills: Option<bool>,
     commands: Option<bool>,
@@ -161,9 +161,9 @@ pub async fn reflect_rescan_extensions(
 
 /// F01:查询 prompt_guard 裁决统计 —— `Op::QueryGuardStats`。
 /// 不开 turn;应答经 `guard_stats` 事件回推(enabled + 四计数),这里
-/// 投递并返回 submission id(与 `reflect_rescan_extensions` 同款)。
+/// 投递并返回 submission id(与 `zhuye_rescan_extensions` 同款)。
 #[tauri::command]
-pub async fn reflect_query_guard_stats(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
+pub async fn zhuye_query_guard_stats(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
     Ok(agent.submit_op(Op::QueryGuardStats).await?)
 }
 
@@ -174,14 +174,14 @@ pub async fn reflect_query_guard_stats(agent: State<'_, MinimalAgent>) -> Comman
 /// 返回重扫 submission id。repo 形态:`owner/repo` 或 GitHub URL
 /// (仓库根含 `SKILL.md`;名字取 frontmatter `name:`,缺省用仓库名)。
 #[tauri::command]
-pub async fn reflect_install_skill(
+pub async fn zhuye_install_skill(
     agent: State<'_, MinimalAgent>,
     repo: String,
 ) -> CommandResult<String> {
     // 语义校验前置(repo 形态非法直接拒,不发起网络请求)。
-    reflect_skills::normalize_repo(&repo).map_err(|e| e.to_string())?;
-    let out_dir = reflect_config::paths::data_path_or_relative(&["skills"]);
-    reflect_skills::install_from_github(&repo, &out_dir)
+    zhuye_skills::normalize_repo(&repo).map_err(|e| e.to_string())?;
+    let out_dir = zhuye_config::paths::data_path_or_relative(&["skills"]);
+    zhuye_skills::install_from_github(&repo, &out_dir)
         .await
         .map_err(|e| e.to_string())?;
     // 重扫扩展目录:GUI 列表与运行时 catalog 同步刷新(不阻塞返回)。
@@ -209,20 +209,20 @@ pub struct SkillMarketEntryInfo {
 
 /// 市场索引缓存路径:`~/.zhuye/cache/skills-market.json`(ZHUYE_HOME 可重定向)。
 fn market_index_cache_path() -> std::path::PathBuf {
-    reflect_config::paths::data_path_or_relative(&["cache", "skills-market.json"])
+    zhuye_config::paths::data_path_or_relative(&["cache", "skills-market.json"])
 }
 
 /// 搜索 skills.sh 目录。索引首次访问自动拉取(24h TTL),后续走本地缓存;
-/// query < 2 字符返回空。领域逻辑在上游 `reflect_skills::directory`。
+/// query < 2 字符返回空。领域逻辑在上游 `zhuye_skills::directory`。
 #[tauri::command]
-pub async fn reflect_search_skill_market(
+pub async fn zhuye_search_skill_market(
     query: String,
     limit: Option<u32>,
 ) -> CommandResult<Vec<SkillMarketEntryInfo>> {
-    let entries = reflect_skills::fetch_index(&market_index_cache_path(), false)
+    let entries = zhuye_skills::fetch_index(&market_index_cache_path(), false)
         .await
         .map_err(|e| e.to_string())?;
-    let hits = reflect_skills::search_entries(&entries, &query, limit.unwrap_or(50) as usize);
+    let hits = zhuye_skills::search_entries(&entries, &query, limit.unwrap_or(50) as usize);
     Ok(hits
         .into_iter()
         .map(|h| SkillMarketEntryInfo {
@@ -238,14 +238,14 @@ pub async fn reflect_search_skill_market(
 /// 装完触发 `Op::RescanExtensions` 让运行时无需重启即发现。
 /// source 形态:`owner/repo/slug`、`owner/repo`、skills.sh / GitHub URL。
 #[tauri::command]
-pub async fn reflect_install_skill_from_market(
+pub async fn zhuye_install_skill_from_market(
     agent: State<'_, MinimalAgent>,
     source: String,
 ) -> CommandResult<String> {
     // 语义校验前置(非法形态不发网络请求)。
-    reflect_skills::normalize_market_source(&source).map_err(|e| e.to_string())?;
-    let out_dir = reflect_config::paths::data_path_or_relative(&["skills"]);
-    reflect_skills::install_skill_from_market(&source, &out_dir)
+    zhuye_skills::normalize_market_source(&source).map_err(|e| e.to_string())?;
+    let out_dir = zhuye_config::paths::data_path_or_relative(&["skills"]);
+    zhuye_skills::install_skill_from_market(&source, &out_dir)
         .await
         .map_err(|e| e.to_string())?;
     Ok(agent
@@ -258,8 +258,8 @@ pub async fn reflect_install_skill_from_market(
 
 /// 强制刷新 skills.sh 目录索引(跳过 TTL),返回条目数。
 #[tauri::command]
-pub async fn reflect_refresh_skill_market_index() -> CommandResult<u32> {
-    let entries = reflect_skills::fetch_index(&market_index_cache_path(), true)
+pub async fn zhuye_refresh_skill_market_index() -> CommandResult<u32> {
+    let entries = zhuye_skills::fetch_index(&market_index_cache_path(), true)
         .await
         .map_err(|e| e.to_string())?;
     Ok(entries.len() as u32)
@@ -277,19 +277,19 @@ mod guard_stats_tests {
         let op = Op::QueryGuardStats;
         assert_eq!(op.discriminant(), "query_guard_stats");
         // 命令名字符串本身也要出现在测试里 —— 门禁按字符串扫描。
-        let name = "reflect_query_guard_stats";
-        assert!(name.starts_with("reflect_"));
+        let name = "zhuye_query_guard_stats";
+        assert!(name.starts_with("zhuye_"));
     }
 
     /// 市场命令名字符串存在性(命令面静态门禁据此认定有测试引用)。
     #[test]
     fn market_command_names_are_stable() {
         for name in [
-            "reflect_search_skill_market",
-            "reflect_install_skill_from_market",
-            "reflect_refresh_skill_market_index",
+            "zhuye_search_skill_market",
+            "zhuye_install_skill_from_market",
+            "zhuye_refresh_skill_market_index",
         ] {
-            assert!(name.starts_with("reflect_"));
+            assert!(name.starts_with("zhuye_"));
         }
         // 缓存路径固定为 data/cache 下的 market 索引文件。
         let cache = market_index_cache_path();

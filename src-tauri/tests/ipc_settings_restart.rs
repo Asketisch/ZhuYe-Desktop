@@ -42,7 +42,7 @@ fn tool_reply() -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -58,7 +58,7 @@ fn saved_token_budget_applies_in_a_new_process() {
         )
         .unwrap();
         common::invoke_ok(
-            "reflect_save_config",
+            "zhuye_save_config",
             json!({"toml":format!(
                 "[active]\nprovider = \"anthropic\"\n[anthropic]\napi_key = \"test-key\"\nbase_url = \"{provider}\"\nmodel = \"claude-mock\"\n[hooks]\nenabled = []\n[token_budget]\nsession_total_tokens = 1\n"
             )}),
@@ -99,7 +99,7 @@ fn saved_token_budget_applies_in_a_new_process() {
     unsafe {
         std::env::set_var(BASE, shared.path());
     }
-    let config = common::invoke_ok("reflect_get_config", json!({}));
+    let config = common::invoke_ok("zhuye_get_config", json!({}));
     assert!(
         config
             .as_str()
@@ -108,10 +108,10 @@ fn saved_token_budget_applies_in_a_new_process() {
         "saved budget was not read back: {config}"
     );
     let rx = listen();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"settings-restart-turn","op":{"type":"user_input","items":[{"type":"text","text":"settings-restart-marker"}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(30);

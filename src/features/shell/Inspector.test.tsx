@@ -113,7 +113,7 @@ describe('Inspector tabs', () => {
 
   it('cancels a running subagent with its child id', async () => {
     const interrupts: unknown[] = [];
-    mockInvoke('reflect_interrupt', async (_command, args) => {
+    mockInvoke('zhuye_interrupt', async (_command, args) => {
       interrupts.push(args);
       return 'child-interrupted';
     });
@@ -189,7 +189,7 @@ describe('Inspector tabs', () => {
   });
 
   it('files tab lists the workspace tree', async () => {
-    mockInvoke('reflect_list_dir', async () => ({
+    mockInvoke('zhuye_list_dir', async () => ({
       cwd: '/tmp',
       entries: [
         { name: 'src', path: '/tmp/src', kind: 'dir', size: 0, mtime: 0, depth: 0 },
@@ -203,7 +203,7 @@ describe('Inspector tabs', () => {
   });
 
   it('changes tab renders the git diff', async () => {
-    mockInvoke('reflect_git_diff', async () => 'diff --git a/x b/x\n+hello\n');
+    mockInvoke('zhuye_git_diff', async () => 'diff --git a/x b/x\n+hello\n');
     render(wrap(<Inspector />));
     fireEvent.click(screen.getByTestId('inspector-tab-changes'));
     await waitFor(() => {

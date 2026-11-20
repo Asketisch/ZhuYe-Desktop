@@ -82,7 +82,7 @@ fn at<'a>(value: &'a Value, path: Option<&str>) -> Option<&'a Value> {
 }
 
 /// 本次运行的临时目录 —— macOS/Linux 取 canonical 路径,因为
-/// `reflect_set_workspace` 读回的是规范化后的路径(macOS 的 `/var` 是
+/// `zhuye_set_workspace` 读回的是规范化后的路径(macOS 的 `/var` 是
 /// `/private/var` 的符号链接)。Windows 上**不能** canonicalize:
 /// `std::fs::canonicalize` 会加 `\\?\` 长路径前缀,而带该前缀的路径会
 /// 禁用 Win32 的分隔符归一化,契约参数 `${TMP}/xxx` 的斜杠拼接直接
@@ -90,7 +90,7 @@ fn at<'a>(value: &'a Value, path: Option<&str>) -> Option<&'a Value> {
 /// 绝对无符号链接路径,跳过规范化即可。
 fn prepare_tmp() -> String {
     let dir =
-        std::env::temp_dir().join(format!("reflect-desktop-roundtrip-{}", std::process::id()));
+        std::env::temp_dir().join(format!("zhuye-desktop-roundtrip-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create roundtrip tmp dir");
     #[cfg(not(windows))]
     let dir = std::fs::canonicalize(&dir).unwrap_or(dir);

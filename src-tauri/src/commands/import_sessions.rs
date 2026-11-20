@@ -1,23 +1,23 @@
-//! v1.11 D9:外部 Agent 导入 —— Claude Code / Codex / ZCode 会话一键导入。
+//! v1.11 D9:外部 Agent 导入 —— 三种外部 harness 会话一键导入。
 //!
-//! 引擎侧 `reflect-import` 三个 adapter 早已齐备(gap-report D9:
+//! 引擎侧 `zhuye-import` 三个 adapter 早已齐备(gap-report D9:
 //! 「引擎有,GUI 无」),本命令把它们接进 Tauri 表:
-//! - `reflect_import_discover` —— 按种类列出可导入来源(不入库);
-//! - `reflect_import_sessions` —— 批量导入到本机 rollout base
-//!   (`reflect_rollout::path::default_base()`),`dry_run` 可预演。
+//! - `zhuye_import_discover` —— 按种类列出可导入来源(不入库);
+//! - `zhuye_import_sessions` —— 批量导入到本机 rollout base
+//!   (`zhuye_rollout::path::default_base()`),`dry_run` 可预演。
 //!
-//! 导入后既有会话列表(reflect_list_sessions / replay)自然看到新会话,
+//! 导入后既有会话列表(zhuye_list_sessions / replay)自然看到新会话,
 //! 无需额外注册动作。
 
 use serde::Serialize;
 
 use crate::commands::error::{CommandError, CommandResult};
 
-fn parse_kind(kind: &str) -> CommandResult<reflect_import::HarnessKind> {
+fn parse_kind(kind: &str) -> CommandResult<zhuye_import::HarnessKind> {
     match kind {
-        "claude_code" => Ok(reflect_import::HarnessKind::ClaudeCode),
-        "codex" => Ok(reflect_import::HarnessKind::Codex),
-        "zcode" => Ok(reflect_import::HarnessKind::Zcode),
+        "claude_code" => Ok(zhuye_import::HarnessKind::ClaudeCode),
+        "codex" => Ok(zhuye_import::HarnessKind::Codex),
+        "zcode" => Ok(zhuye_import::HarnessKind::Zcode),
         other => Err(CommandError {
             msg: format!("unknown harness kind `{other}`; expected claude_code | codex | zcode"),
         }),
@@ -61,9 +61,9 @@ pub struct ImportFailureInfo {
 
 /// 列出某类 Harness 的全部可导入来源(只发现,不入库)。
 #[tauri::command]
-pub async fn reflect_import_discover(kind: String) -> CommandResult<Vec<ImportSourceInfo>> {
+pub async fn zhuye_import_discover(kind: String) -> CommandResult<Vec<ImportSourceInfo>> {
     let parsed = parse_kind(&kind)?;
-    let sources = reflect_import::discover(parsed).map_err(|e| CommandError {
+    let sources = zhuye_import::discover(parsed).map_err(|e| CommandError {
         msg: format!("discover {kind} sources failed: {e}"),
     })?;
     Ok(sources
@@ -80,7 +80,7 @@ pub async fn reflect_import_discover(kind: String) -> CommandResult<Vec<ImportSo
 /// (失败清单逐条返回)。`include_thinking` / `keep_injected` 透传引擎
 /// ImportOptions(默认丢弃 thinking 与 Harness 注入行,语义见上游)。
 #[tauri::command]
-pub async fn reflect_import_sessions(
+pub async fn zhuye_import_sessions(
     kind: String,
     force: Option<bool>,
     dry_run: Option<bool>,
@@ -88,16 +88,16 @@ pub async fn reflect_import_sessions(
     keep_injected: Option<bool>,
 ) -> CommandResult<ImportRunResult> {
     let parsed = parse_kind(&kind)?;
-    let sources = reflect_import::discover(parsed).map_err(|e| CommandError {
+    let sources = zhuye_import::discover(parsed).map_err(|e| CommandError {
         msg: format!("discover {kind} sources failed: {e}"),
     })?;
-    let opts = reflect_import::ImportOptions {
+    let opts = zhuye_import::ImportOptions {
         include_thinking: include_thinking.unwrap_or(false),
         keep_injected: keep_injected.unwrap_or(false),
         include_sidechain: false,
     };
-    let base = reflect_rollout::path::default_base();
-    let (ok, failed) = reflect_import::import_all(
+    let base = zhuye_rollout::path::default_base();
+    let (ok, failed) = zhuye_import::import_all(
         &base,
         &sources,
         Some(parsed),

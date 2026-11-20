@@ -187,7 +187,7 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
         {/* 安全扫描(cargo audit)—— 核心真实实现,GUI 此前只能开终端跑。 */}
         <SecurityScanCard />
 
-        {/* 更新检查 —— 后端早有 reflect_check_update,界面此前无入口。 */}
+        {/* 更新检查 —— 后端早有 zhuye_check_update,界面此前无入口。 */}
         <UpdatesSection />
 
         <div className={s.saveBar}>

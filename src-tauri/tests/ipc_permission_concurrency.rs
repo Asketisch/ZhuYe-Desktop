@@ -9,7 +9,7 @@ mod common;
 
 #[test]
 fn concurrent_rule_additions_stay_atomic_and_parsable() {
-    common::invoke_ok("reflect_list_permission_rules", serde_json::json!({}));
+    common::invoke_ok("zhuye_list_permission_rules", serde_json::json!({}));
     let start = std::sync::Arc::new(std::sync::Barrier::new(12));
     let threads: Vec<_> = (0..12)
         .map(|i| {
@@ -17,7 +17,7 @@ fn concurrent_rule_additions_stay_atomic_and_parsable() {
             std::thread::spawn(move || {
                 start.wait();
                 common::invoke_ok(
-                    "reflect_add_permission_rule",
+                    "zhuye_add_permission_rule",
                     serde_json::json!({
                         "rule": {"tool": format!("concurrent-tool-{i}"), "action": "deny"}
                     }),
@@ -28,7 +28,7 @@ fn concurrent_rule_additions_stay_atomic_and_parsable() {
     for thread in threads {
         thread.join().unwrap();
     }
-    let rules = common::invoke_ok("reflect_list_permission_rules", serde_json::json!({}));
+    let rules = common::invoke_ok("zhuye_list_permission_rules", serde_json::json!({}));
     let rules = rules.as_array().unwrap();
     assert!(
         rules.iter().any(|rule| rule["tool"]

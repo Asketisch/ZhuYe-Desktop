@@ -6,9 +6,9 @@
  */
 import { invoke } from '@/utils/bridge';
 
-export type ReflectImageFormat = 'png' | 'jpeg' | 'gif' | 'webp' | 'bmp';
+export type ZhuyeImageFormat = 'png' | 'jpeg' | 'gif' | 'webp' | 'bmp';
 
-export interface ReflectMediaAsset {
+export interface ZhuyeMediaAsset {
   path: string;
   filename: string;
   sizeBytes: number;
@@ -18,24 +18,24 @@ export interface ReflectMediaAsset {
   modifiedAtMs: number;
 }
 
-export interface ReflectImageProcessSpec {
+export interface ZhuyeImageProcessSpec {
   inputPath: string;
   outputPath: string;
-  format?: ReflectImageFormat | null;
+  format?: ZhuyeImageFormat | null;
   width?: number | null;
   height?: number | null;
   quality?: number | null;
 }
 
-export interface ReflectImageProcessResult {
+export interface ZhuyeImageProcessResult {
   outputPath: string;
   width: number;
   height: number;
-  format: ReflectImageFormat;
+  format: ZhuyeImageFormat;
   bytes: number;
 }
 
-export type ReflectComputerUseAction =
+export type ZhuyeComputerUseAction =
   | { kind: 'screenshot'; params: null }
   | { kind: 'mouseMove'; params: { x: number; y: number } }
   | { kind: 'mouseClick'; params: { x: number; y: number; button?: string } }
@@ -43,28 +43,28 @@ export type ReflectComputerUseAction =
   | { kind: 'keyCombo'; params: { keys: string } }
   | { kind: 'scroll'; params: { dx: number; dy: number } };
 
-export interface ReflectMediaCapabilities {
+export interface ZhuyeMediaCapabilities {
   imageBackend: string;
   computerBackend: string;
   note: string;
 }
 
-export function reflect_list_media(dir: string): Promise<ReflectMediaAsset[]> {
-  return invoke('reflect_list_media', { dir });
+export function zhuye_list_media(dir: string): Promise<ZhuyeMediaAsset[]> {
+  return invoke('zhuye_list_media', { dir });
 }
 
-export function reflect_image_process(spec: ReflectImageProcessSpec): Promise<ReflectImageProcessResult> {
-  return invoke('reflect_image_process', { spec });
+export function zhuye_image_process(spec: ZhuyeImageProcessSpec): Promise<ZhuyeImageProcessResult> {
+  return invoke('zhuye_image_process', { spec });
 }
 
-export function reflect_screenshot(): Promise<string> {
-  return invoke('reflect_screenshot');
+export function zhuye_screenshot(): Promise<string> {
+  return invoke('zhuye_screenshot');
 }
 
-export function reflect_computer_use(action: ReflectComputerUseAction): Promise<void> {
-  return invoke('reflect_computer_use', { action });
+export function zhuye_computer_use(action: ZhuyeComputerUseAction): Promise<void> {
+  return invoke('zhuye_computer_use', { action });
 }
 
-export function reflect_media_capabilities(): Promise<ReflectMediaCapabilities> {
-  return invoke('reflect_media_capabilities');
+export function zhuye_media_capabilities(): Promise<ZhuyeMediaCapabilities> {
+  return invoke('zhuye_media_capabilities');
 }

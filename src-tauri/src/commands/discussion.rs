@@ -1,17 +1,17 @@
 //! 多 agent 讨论命令面。
 //!
-//! 薄包装 `reflect_app_core::discussion`,GUI 对应 CLI `reflect discussion`。
-//! `reflect_run_discussion` 把编排器的 Collab* 事件包成协议信封推入
+//! 薄包装 `zhuye_app_core::discussion`,GUI 对应 CLI `zhuye discussion`。
+//! `zhuye_run_discussion` 把编排器的 Collab* 事件包成协议信封推入
 //! MinimalAgent 的 session broadcast —— 前端 reducer 既有 collab_* case
 //! 实时渲染,无需新事件通道。
 
 use std::sync::Arc;
 
 use chrono::Utc;
-use reflect_app_core::discussion::{
+use zhuye_app_core::discussion::{
     DiscussionError, DiscussionEventSink, DiscussionRunOutcome, DiscussionSessionInfo,
 };
-use reflect_protocol::{EVENT_ID_NONE, Event, EventMsg, RolloutRecord};
+use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg, RolloutRecord};
 use tauri::State;
 
 use super::CommandResult;
@@ -36,11 +36,11 @@ impl From<DiscussionError> for super::error::CommandError {
 
 /// 列出含讨论记录的 session(可按 discussion id 过滤)。
 #[tauri::command]
-pub async fn reflect_list_discussions(
+pub async fn zhuye_list_discussions(
     _agent: State<'_, MinimalAgent>,
     discussion_id: Option<String>,
 ) -> CommandResult<Vec<DiscussionSessionInfo>> {
-    Ok(reflect_app_core::discussion::list_discussions(
+    Ok(zhuye_app_core::discussion::list_discussions(
         discussion_id.as_deref(),
     )?)
 }
@@ -49,7 +49,7 @@ pub async fn reflect_list_discussions(
 ///
 /// Collab 事件经 session broadcast 转发;返回 transcript + 结构化结果。
 #[tauri::command]
-pub async fn reflect_run_discussion(
+pub async fn zhuye_run_discussion(
     agent: State<'_, MinimalAgent>,
     config_path: String,
 ) -> CommandResult<DiscussionRunOutcome> {
@@ -69,8 +69,8 @@ pub async fn reflect_run_discussion(
     });
     let recorder = agent.session_recorder();
     if let (Some(recorder), Some(session_id)) = (recorder.clone(), agent.bound_session_id()) {
-        let base = reflect_rollout::path::default_base();
-        if reflect_rollout::index::find_file_by_session_id(&base, &session_id)?.is_none() {
+        let base = zhuye_rollout::path::default_base();
+        if zhuye_rollout::index::find_file_by_session_id(&base, &session_id)?.is_none() {
             recorder
                 .record(RolloutRecord::SessionMeta {
                     session_id,
@@ -84,7 +84,7 @@ pub async fn reflect_run_discussion(
                 })?;
         }
     }
-    let result = reflect_app_core::discussion::run_discussion_with_cancel(
+    let result = zhuye_app_core::discussion::run_discussion_with_cancel(
         std::path::Path::new(&config_path),
         Some(sink),
         recorder,
@@ -99,6 +99,6 @@ pub async fn reflect_run_discussion(
 ///
 /// 返回被触发的讨论数量；没有运行中讨论时为 0（幂等）。
 #[tauri::command]
-pub fn reflect_cancel_discussions(agent: State<'_, MinimalAgent>) -> CommandResult<usize> {
+pub fn zhuye_cancel_discussions(agent: State<'_, MinimalAgent>) -> CommandResult<usize> {
     Ok(agent.cancel_discussions())
 }

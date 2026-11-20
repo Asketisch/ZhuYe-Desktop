@@ -1,5 +1,5 @@
 import { BookOpen, Plus, Search, Trash2, FileText } from 'lucide-react';
-import type { KmsViewProps, ReflectPage, ReflectSearchResult, ReflectWikiInfo } from '@/contracts/kms';
+import type { KmsViewProps, ZhuyePage, ZhuyeSearchResult, ZhuyeWikiInfo } from '@/contracts/kms';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';
@@ -36,7 +36,7 @@ export function KmsView({ t, ctrl }: KmsViewProps) {
         </div>
         {searchResults.data && searchResults.data.length > 0 && (
           <div className={s.searchResults}>
-            {searchResults.data.map((r: ReflectSearchResult, i: number) => (
+            {searchResults.data.map((r: ZhuyeSearchResult, i: number) => (
               <div key={i} className={s.searchItem}>
                 <Badge variant="info">{r.wiki}/{r.page}</Badge>
                 <span className={s.snippet}>{r.lines[0]}</span>
@@ -49,7 +49,7 @@ export function KmsView({ t, ctrl }: KmsViewProps) {
 
       {/* Wiki selector */}
       <div className={s.wikiBar}>
-        {wikisQuery.data?.map((wiki: ReflectWikiInfo) => (
+        {wikisQuery.data?.map((wiki: ZhuyeWikiInfo) => (
           <button
             key={wiki.name}
             type="button"
@@ -179,7 +179,7 @@ export function KmsView({ t, ctrl }: KmsViewProps) {
             />
           ) : (
             <div className={s.pageList}>
-              {pagesQuery.data?.map((page: ReflectPage) => (
+              {pagesQuery.data?.map((page: ZhuyePage) => (
                 <Card
                   key={page.name}
                   level="outlined"

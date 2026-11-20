@@ -1,5 +1,5 @@
 import { Bot, Plus, Pencil, Trash2, Check } from 'lucide-react';
-import type { AgentsViewProps, ReflectAgentDef } from '@/contracts/agents';
+import type { AgentsViewProps, ZhuyeAgentDef } from '@/contracts/agents';
 import { PageShell } from '../shell/PageShell';
 import { Badge } from '../design-system/Badge';
 import { Card } from '../design-system/Card';
@@ -147,7 +147,7 @@ function AgentRow({
   onEdit,
   onRemove,
 }: {
-  def: ReflectAgentDef;
+  def: ZhuyeAgentDef;
   active: boolean;
   switching: boolean;
   onActivate: () => void;

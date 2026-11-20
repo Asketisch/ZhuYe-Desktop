@@ -11,13 +11,13 @@ const save = vi.fn(async (_command: string, args?: Record<string, unknown>) => a
 beforeEach(() => {
   resetMockInvoke();
   save.mockClear();
-  mockInvoke('reflect_kms_list', async () => [
+  mockInvoke('zhuye_kms_list', async () => [
     { name: 'first', description: null, path: '/first', pageCount: 1, modifiedAtMs: 0 },
     { name: 'second', description: null, path: '/second', pageCount: 0, modifiedAtMs: 0 },
   ]);
-  mockInvoke('reflect_kms_list_pages', async (_command, args) => args?.wiki === 'first'
+  mockInvoke('zhuye_kms_list_pages', async (_command, args) => args?.wiki === 'first'
     ? [{ name: 'page', wiki: 'first', content, title: 'Title', tags: ['tag'], modifiedAtMs: 0 }] : []);
-  mockInvoke('reflect_kms_save_page', save);
+  mockInvoke('zhuye_kms_save_page', save);
 });
 
 function renderView() {
@@ -31,7 +31,7 @@ it('keeps the draft tied to its wiki and saves the full page unchanged', async (
   expect((screen.getByText('second') as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByPlaceholderText('Write your page content in Markdown...') as HTMLTextAreaElement).value).toBe(content);
   fireEvent.click(screen.getByText('Save'));
-  await waitFor(() => expect(save).toHaveBeenCalledWith('reflect_kms_save_page', {
+  await waitFor(() => expect(save).toHaveBeenCalledWith('zhuye_kms_save_page', {
     wiki: 'first', page: 'page', content, title: null, tags: null, expectedContent: content,
   }));
   await waitFor(() => expect((screen.getByText('second') as HTMLButtonElement).disabled).toBe(false));
@@ -58,13 +58,13 @@ it('keeps an edited draft when the original page has changed', async () => {
   fireEvent.click(screen.getByText('Save'));
   expect((await screen.findByRole('alert')).textContent).toContain('Page changed or was deleted');
   expect(editor.value).toBe('my draft');
-  expect(save).toHaveBeenCalledWith('reflect_kms_save_page', {
+  expect(save).toHaveBeenCalledWith('zhuye_kms_save_page', {
     wiki: 'first', page: 'page', content: 'my draft', title: null, tags: null, expectedContent: content,
   });
 });
 
 it('reports failure to load knowledge bases', async () => {
-  mockInvoke('reflect_kms_list', async () => { throw new Error('list unavailable'); });
+  mockInvoke('zhuye_kms_list', async () => { throw new Error('list unavailable'); });
   renderView();
   expect((await screen.findByRole('alert')).textContent).toContain('list unavailable');
   expect(screen.queryByText('No knowledge bases')).toBeNull();
@@ -78,7 +78,7 @@ it('uses exclusive creation for a new page and keeps the draft if the name exist
   fireEvent.change(screen.getByPlaceholderText('Page name (e.g. api-design)'), { target: { value: 'page' } });
   fireEvent.change(screen.getByPlaceholderText('Write your page content in Markdown...'), { target: { value: 'draft' } });
   fireEvent.click(screen.getByText('Save'));
-  await waitFor(() => expect(save).toHaveBeenCalledWith('reflect_kms_save_page', {
+  await waitFor(() => expect(save).toHaveBeenCalledWith('zhuye_kms_save_page', {
     wiki: 'first', page: 'page', content: 'draft', title: null, tags: null, createOnly: true,
   }));
   expect(await screen.findByText('Failed to save the page. Your draft is still available.')).toBeDefined();
@@ -91,13 +91,13 @@ it('uses exclusive creation when an existing page is saved under a different nam
   fireEvent.click(await screen.findByText('page'));
   fireEvent.change(screen.getByPlaceholderText('Page name (e.g. api-design)'), { target: { value: 'other' } });
   fireEvent.click(screen.getByText('Save'));
-  await waitFor(() => expect(save).toHaveBeenCalledWith('reflect_kms_save_page', {
+  await waitFor(() => expect(save).toHaveBeenCalledWith('zhuye_kms_save_page', {
     wiki: 'first', page: 'other', content, title: null, tags: null, createOnly: true,
   }));
 });
 
 it('shows creation errors and preserves the entered name and description', async () => {
-  mockInvoke('reflect_kms_create', async () => { throw { msg: 'Wiki already exists' }; });
+  mockInvoke('zhuye_kms_create', async () => { throw { msg: 'Wiki already exists' }; });
   renderView();
   fireEvent.click(await screen.findByText('New'));
   fireEvent.change(screen.getByPlaceholderText('Wiki name (e.g. engineering)'), { target: { value: 'first' } });
@@ -109,7 +109,7 @@ it('shows creation errors and preserves the entered name and description', async
 });
 
 it('reports page loading errors instead of showing an empty page list', async () => {
-  mockInvoke('reflect_kms_list_pages', async () => { throw { msg: 'Access denied' }; });
+  mockInvoke('zhuye_kms_list_pages', async () => { throw { msg: 'Access denied' }; });
   renderView();
   fireEvent.click(await screen.findByText('first'));
   expect((await screen.findByRole('alert')).textContent).toContain('Access denied');
@@ -118,7 +118,7 @@ it('reports page loading errors instead of showing an empty page list', async ()
 
 it('does not allow edits to a wiki creation form while the request is pending', async () => {
   let resolve!: (value: unknown) => void;
-  mockInvoke('reflect_kms_create', () => new Promise((done) => { resolve = done; }));
+  mockInvoke('zhuye_kms_create', () => new Promise((done) => { resolve = done; }));
   renderView();
   fireEvent.click(await screen.findByText('New'));
   const name = screen.getByPlaceholderText('Wiki name (e.g. engineering)') as HTMLInputElement;
@@ -132,10 +132,10 @@ it('does not allow edits to a wiki creation form while the request is pending', 
 
 it('refreshes page counts and active search results after a page is saved', async () => {
   let saved = false;
-  mockInvoke('reflect_kms_list', async () => [
+  mockInvoke('zhuye_kms_list', async () => [
     { name: 'first', description: null, path: '/first', pageCount: saved ? 2 : 1, modifiedAtMs: 0 },
   ]);
-  mockInvoke('reflect_kms_search', async () => [{
+  mockInvoke('zhuye_kms_search', async () => [{
     wiki: 'first', page: 'page', lines: [saved ? 'updated result' : 'old result'], lineCount: 1,
   }]);
   save.mockImplementationOnce(async (_command, args) => { saved = true; return args; });
@@ -151,13 +151,13 @@ it('refreshes page counts and active search results after a page is saved', asyn
 
 it('refreshes active search results after deleting a wiki', async () => {
   let deleted = false;
-  mockInvoke('reflect_kms_list', async () => deleted ? [] : [
+  mockInvoke('zhuye_kms_list', async () => deleted ? [] : [
     { name: 'first', description: null, path: '/first', pageCount: 1, modifiedAtMs: 0 },
   ]);
-  mockInvoke('reflect_kms_search', async () => deleted ? [] : [{
+  mockInvoke('zhuye_kms_search', async () => deleted ? [] : [{
     wiki: 'first', page: 'page', lines: ['old result'], lineCount: 1,
   }]);
-  mockInvoke('reflect_kms_delete', async () => { deleted = true; });
+  mockInvoke('zhuye_kms_delete', async () => { deleted = true; });
   renderView();
   fireEvent.change(screen.getByPlaceholderText('Search across all knowledge bases...'), { target: { value: 'result' } });
   expect(await screen.findByText('old result')).toBeDefined();

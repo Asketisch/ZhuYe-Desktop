@@ -8,7 +8,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use reflect_protocol::{Event, EventMsg, PluginLoadedEvent};
+use zhuye_protocol::{Event, EventMsg, PluginLoadedEvent};
 use tokio::sync::{broadcast, mpsc, watch};
 
 const BARRIER_PREFIX: &str = "desktop-plugin-status-barrier-";

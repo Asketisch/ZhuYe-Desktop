@@ -29,21 +29,21 @@ fn submit_accepts_a_wellformed_submission() {
         "id": "capability-probe-sub",
         "op": { "type": "user_input", "items": [{ "type": "text", "text": "探针" }] },
     });
-    let v = invoke_ok("reflect_submit", json!({ "submission": submission }));
+    let v = invoke_ok("zhuye_submit", json!({ "submission": submission }));
     assert!(v.is_string(), "submit 应返回 submission id: {v}");
 }
 
 #[test]
 fn submit_rejects_malformed_submission() {
     // 缺 op → 结构化错误,不得 panic。
-    let e = invoke_err("reflect_submit", json!({ "submission": { "id": "x" } }));
+    let e = invoke_err("zhuye_submit", json!({ "submission": { "id": "x" } }));
     assert!(!e.is_null(), "错误响应不应为 null");
 }
 
 #[test]
 fn interrupt_is_idempotent() {
-    invoke_ok("reflect_interrupt", json!({}));
-    invoke_ok("reflect_interrupt", json!({}));
+    invoke_ok("zhuye_interrupt", json!({}));
+    invoke_ok("zhuye_interrupt", json!({}));
 }
 
 // ============================================================================
@@ -52,10 +52,10 @@ fn interrupt_is_idempotent() {
 
 #[test]
 fn compact_and_rewind_are_accepted() {
-    assert_submission_id(&invoke_ok("reflect_compact", json!({})));
-    assert_submission_id(&invoke_ok("reflect_rewind", json!({})));
+    assert_submission_id(&invoke_ok("zhuye_compact", json!({})));
+    assert_submission_id(&invoke_ok("zhuye_rewind", json!({})));
     assert_submission_id(&invoke_ok(
-        "reflect_rewind",
+        "zhuye_rewind",
         json!({ "toTurnId": "turn-probe" }),
     ));
 }
@@ -73,7 +73,7 @@ fn tool_approval_accepts_all_decision_shapes() {
         json!("approve_for_session"),
     ] {
         let v = invoke_ok(
-            "reflect_tool_approval",
+            "zhuye_tool_approval",
             json!({ "id": "apr-probe", "decision": decision }),
         );
         assert_submission_id(&v);
@@ -84,7 +84,7 @@ fn tool_approval_accepts_all_decision_shapes() {
 fn hook_approval_accepts_all_decision_shapes() {
     for decision in [json!("approve"), json!("approve_for_session")] {
         let v = invoke_ok(
-            "reflect_hook_approval",
+            "zhuye_hook_approval",
             json!({ "id": "hk-probe", "decision": decision }),
         );
         assert_submission_id(&v);
@@ -94,7 +94,7 @@ fn hook_approval_accepts_all_decision_shapes() {
 #[test]
 fn invalid_approval_decision_is_rejected() {
     let e = invoke_err(
-        "reflect_tool_approval",
+        "zhuye_tool_approval",
         json!({ "id": "apr-probe", "decision": "nonsense" }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");
@@ -107,17 +107,17 @@ fn invalid_approval_decision_is_rejected() {
 #[test]
 fn plan_mode_enter_and_exit() {
     assert_submission_id(&invoke_ok(
-        "reflect_enter_plan_mode",
+        "zhuye_enter_plan_mode",
         json!({ "task": "能力覆盖层 plan 探针" }),
     ));
-    assert_submission_id(&invoke_ok("reflect_exit_plan_mode", json!({})));
+    assert_submission_id(&invoke_ok("zhuye_exit_plan_mode", json!({})));
 }
 
 #[test]
 fn plan_approval_accepts_all_three_choices() {
     for choice in [json!("auto_mode"), json!("manual_approve"), json!("revise")] {
         let v = invoke_ok(
-            "reflect_plan_approval",
+            "zhuye_plan_approval",
             json!({ "id": "plan-probe", "choice": choice }),
         );
         assert_submission_id(&v);
@@ -131,16 +131,16 @@ fn plan_approval_accepts_all_three_choices() {
 #[test]
 fn effort_accepts_valid_levels_and_rejects_invalid() {
     for level in ["low", "medium", "high", "HIGH"] {
-        let v = invoke_ok("reflect_set_effort", json!({ "level": level }));
+        let v = invoke_ok("zhuye_set_effort", json!({ "level": level }));
         assert_submission_id(&v);
     }
-    let e = invoke_err("reflect_set_effort", json!({ "level": "extreme" }));
+    let e = invoke_err("zhuye_set_effort", json!({ "level": "extreme" }));
     assert!(!e.is_null(), "非法 effort 必须报错");
 }
 
 #[test]
 fn effort_is_readable() {
-    let v = invoke_ok("reflect_get_effort", json!({}));
+    let v = invoke_ok("zhuye_get_effort", json!({}));
     assert!(v.is_string(), "effort 应为字符串: {v}");
 }
 
@@ -155,16 +155,16 @@ fn permission_mode_accepts_known_modes() {
         "bubble",
         "bypass",
     ] {
-        let v = invoke_ok("reflect_set_permission_mode", json!({ "mode": mode }));
+        let v = invoke_ok("zhuye_set_permission_mode", json!({ "mode": mode }));
         assert_submission_id(&v);
     }
-    let e = invoke_err("reflect_set_permission_mode", json!({ "mode": "nonsense" }));
+    let e = invoke_err("zhuye_set_permission_mode", json!({ "mode": "nonsense" }));
     assert!(!e.is_null(), "非法权限模式必须报错");
 }
 
 #[test]
 fn permission_mode_can_be_cycled() {
-    let v = invoke_ok("reflect_cycle_permission_mode", json!({}));
+    let v = invoke_ok("zhuye_cycle_permission_mode", json!({}));
     assert_submission_id(&v);
 }
 
@@ -175,13 +175,13 @@ fn permission_mode_can_be_cycled() {
 #[test]
 fn ask_user_responses_are_accepted() {
     let v = invoke_ok(
-        "reflect_ask_user_question_response",
+        "zhuye_ask_user_question_response",
         json!({ "id": "q-probe", "answers": { "answers": [{ "selected": [0] }] } }),
     );
     assert_submission_id(&v);
 
     let v = invoke_ok(
-        "reflect_ask_user_input_response",
+        "zhuye_ask_user_input_response",
         json!({ "id": "q-probe-2", "text": "探针回答" }),
     );
     assert_submission_id(&v);
@@ -194,7 +194,7 @@ fn ask_user_responses_are_accepted() {
 #[test]
 fn steer_accepts_items() {
     let v = invoke_ok(
-        "reflect_steer",
+        "zhuye_steer",
         json!({ "items": [{ "type": "text", "text": "补充说明" }] }),
     );
     assert_submission_id(&v);
@@ -202,7 +202,7 @@ fn steer_accepts_items() {
 
 #[test]
 fn steer_rejects_malformed_items() {
-    let e = invoke_err("reflect_steer", json!({ "items": "not-an-array" }));
+    let e = invoke_err("zhuye_steer", json!({ "items": "not-an-array" }));
     assert!(!e.is_null(), "错误响应不应为 null");
 }
 
@@ -214,22 +214,22 @@ fn steer_rejects_malformed_items() {
 fn goal_mode_enter_and_exit() {
     // 最小形态:仅 goal 必填。
     let v = invoke_ok(
-        "reflect_enter_goal_mode",
+        "zhuye_enter_goal_mode",
         json!({ "goal": "让能力覆盖层全绿" }),
     );
     assert_submission_id(&v);
 
     // 完整形态:校验命令 + token 预算(camelCase 线格式)。
     let v = invoke_ok(
-        "reflect_enter_goal_mode",
+        "zhuye_enter_goal_mode",
         json!({ "goal": "让能力覆盖层全绿", "verifyCommand": "cargo test", "tokenBudget": 100_000 }),
     );
     assert_submission_id(&v);
 
-    assert_submission_id(&invoke_ok("reflect_exit_goal_mode", json!({})));
+    assert_submission_id(&invoke_ok("zhuye_exit_goal_mode", json!({})));
 }
 
-/// 目标模式的**权威状态**读口(v1.7:`reflect_goal_snapshot`,直读
+/// 目标模式的**权威状态**读口(v1.7:`zhuye_goal_snapshot`,直读
 /// `AgentThread::goal_snapshot()`)。
 ///
 /// 目标模式没有协议事件 —— 「跑到第几轮 / LM 判定 / 累计 token」只能
@@ -238,15 +238,15 @@ fn goal_mode_enter_and_exit() {
 #[test]
 fn goal_snapshot_is_readable() {
     // 无活跃目标 → null。
-    let v = invoke_ok("reflect_goal_snapshot", json!({}));
+    let v = invoke_ok("zhuye_goal_snapshot", json!({}));
     assert!(
         v.is_null(),
-        "没有活跃目标时 reflect_goal_snapshot 应返回 null,实际:{v}"
+        "没有活跃目标时 zhuye_goal_snapshot 应返回 null,实际:{v}"
     );
 
     // 进入目标模式 → 命令层正常受理。
     assert_submission_id(&invoke_ok(
-        "reflect_enter_goal_mode",
+        "zhuye_enter_goal_mode",
         json!({ "goal": "让能力覆盖层全绿" }),
     ));
 
@@ -257,11 +257,11 @@ fn goal_snapshot_is_readable() {
     // 的幽灵状态(前端徽标会据此显示「第 N 轮」,而引擎里根本没有
     // controller)。**「有 provider」的完整生命周期由 ipc_goal.rs 覆盖。**
     //
-    // `reflect_enter_goal_mode` 是异步 Op:controller 要等 submission loop
+    // `zhuye_enter_goal_mode` 是异步 Op:controller 要等 submission loop
     // 处理到那条 Op 才构造 → 轮询留足窗口,断言全程保持 null。
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
     loop {
-        let v = invoke_ok("reflect_goal_snapshot", json!({}));
+        let v = invoke_ok("zhuye_goal_snapshot", json!({}));
         assert!(
             v.is_null(),
             "目标模式没开成时快照必须返回 null(不能有幽灵目标),实际:{v}"
@@ -279,10 +279,10 @@ fn goal_snapshot_is_readable() {
 
 #[test]
 fn subagent_query_is_readable() {
-    let v = invoke_ok("reflect_query_subagents", json!({}));
+    let v = invoke_ok("zhuye_query_subagents", json!({}));
     assert!(v.is_string(), "子代理查询应返回字符串: {v}");
     let v = invoke_ok(
-        "reflect_query_subagents",
+        "zhuye_query_subagents",
         json!({ "childId": "no-such-child" }),
     );
     assert!(v.is_string(), "子代理查询应返回字符串: {v}");
@@ -296,7 +296,7 @@ fn subagent_query_is_readable() {
 fn fork_session_of_missing_session_is_rejected_or_empty() {
     // 不存在的会话 → 结构化错误或空 id,不得 panic。
     let out = common::invoke(
-        "reflect_fork_session",
+        "zhuye_fork_session",
         json!({ "id": "00000000-0000-0000-0000-000000000002" }),
     );
     match out {
@@ -310,7 +310,7 @@ fn generate_session_title_requires_a_user_message() {
     // 空会话没有可归纳的用户消息 → 结构化错误("session has no user
     // message to summarize"),不得 panic。这条守住的是**前置守卫**。
     let e = invoke_err(
-        "reflect_generate_session_title",
+        "zhuye_generate_session_title",
         json!({ "id": "00000000-0000-0000-0000-000000000003", "force": true }),
     );
     assert!(!e.is_null(), "错误响应不应为 null");

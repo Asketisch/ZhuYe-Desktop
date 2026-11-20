@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use parking_lot::RwLock;
-use reflect_hooks::{Hook, HookDecision, HookEngine, HookError, HookEvent, HookEventKind};
+use zhuye_hooks::{Hook, HookDecision, HookEngine, HookError, HookEvent, HookEventKind};
 
 pub(crate) type HookTarget = Arc<RwLock<Option<Arc<HookEngine>>>>;
 
@@ -69,9 +69,9 @@ mod tests {
     async fn task_manager_uses_current_engine_after_switch() {
         let dir = tempfile::tempdir().unwrap();
         let (bridge, target) = task_hook_bridge();
-        let manager = reflect_task::TaskManager::new(
-            Arc::new(reflect_task::FileTaskStore::new(dir.path())),
-            Arc::new(reflect_task::FileTeamStore::new(dir.path())),
+        let manager = zhuye_task::TaskManager::new(
+            Arc::new(zhuye_task::FileTaskStore::new(dir.path())),
+            Arc::new(zhuye_task::FileTeamStore::new(dir.path())),
         )
         .with_hook_engine(bridge);
         let first_count = Arc::new(AtomicUsize::new(0));

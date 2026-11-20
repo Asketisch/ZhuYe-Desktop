@@ -1,6 +1,6 @@
 //! 插件运行时接线 —— `[plugins] enabled_plugins` 挂载 + `/plugin:*` 输入展开。
 //!
-//! 上游(`reflect-exec`)在 headless bootstrap 里挂插件、在 submit 前展开
+//! 上游(`zhuye-exec`)在 headless bootstrap 里挂插件、在 submit 前展开
 //! slash 命令;桌面端 thread 走自装配(`thread_factory::construct_thread`),
 //! 本模块把同样的两件事接到 GUI 生命周期上:
 //!
@@ -31,14 +31,14 @@
 
 use std::sync::Arc;
 
-use reflect_core::AgentThread;
-use reflect_core::config::M4Deps;
-use reflect_hooks::HookEngine;
-use reflect_llm::SharedModelRegistry;
-use reflect_mcp::McpConnectionManager;
-use reflect_plugin::{SharedPluginRuntime, bootstrap_plugins, reload_plugins};
-use reflect_protocol::{Op, Submission, ThreadId, UserInputItem};
-use reflect_subagent::SubAgentFactory;
+use zhuye_core::AgentThread;
+use zhuye_core::config::M4Deps;
+use zhuye_hooks::HookEngine;
+use zhuye_llm::SharedModelRegistry;
+use zhuye_mcp::McpConnectionManager;
+use zhuye_plugin::{SharedPluginRuntime, bootstrap_plugins, reload_plugins};
+use zhuye_protocol::{Op, Submission, ThreadId, UserInputItem};
+use zhuye_subagent::SubAgentFactory;
 
 use super::MinimalAgent;
 
@@ -48,7 +48,7 @@ pub(crate) fn canonical_enabled(enabled: &[String]) -> Vec<String> {
     enabled
         .iter()
         .map(|id| {
-            reflect_plugin::PluginId::parse_user_input(id)
+            zhuye_plugin::PluginId::parse_user_input(id)
                 .map_or_else(|_| id.clone(), |parsed| parsed.to_string())
         })
         .filter(|id| seen.insert(id.clone()))
@@ -57,12 +57,12 @@ pub(crate) fn canonical_enabled(enabled: &[String]) -> Vec<String> {
 
 #[derive(Clone)]
 pub(crate) struct PluginRuntimeContext {
-    tools: Arc<reflect_tools::ToolRegistry>,
+    tools: Arc<zhuye_tools::ToolRegistry>,
     hooks: Arc<HookEngine>,
     mcp: Arc<McpConnectionManager>,
-    skills: Arc<reflect_skills::SkillsCatalog>,
+    skills: Arc<zhuye_skills::SkillsCatalog>,
     factory: Arc<SubAgentFactory>,
-    event_tx: tokio::sync::mpsc::Sender<reflect_protocol::Event>,
+    event_tx: tokio::sync::mpsc::Sender<zhuye_protocol::Event>,
     pub(crate) status: Arc<super::plugin_status::PluginStatus>,
     pub(crate) owner: std::sync::Weak<AgentThread>,
     bridge: Arc<super::plugin_hooks::PluginHookBridge>,
@@ -207,7 +207,7 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
         //    (Started/Failed)复用 mcp.rs 的转换器推 session broadcast,
         //    前端与用户 MCP 同一通道可见插件的 server 启动/失败。
         let (lifecycle_tx, lifecycle_rx) =
-            tokio::sync::mpsc::channel::<reflect_mcp::McpLifecycleEvent>(16);
+            tokio::sync::mpsc::channel::<zhuye_mcp::McpLifecycleEvent>(16);
         let mcp = Arc::new(McpConnectionManager::new(lifecycle_tx));
         crate::mcp::spawn_mcp_lifecycle_forwarder(lifecycle_rx, session_tx);
 
@@ -260,7 +260,7 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
         *inner.mounted_plugin_bridge.lock() = Some(bridge);
         ready.send_replace(true);
         tracing::debug!(
-            "[reflect-gui] plugin runtime mounted (enabled={:?})",
+            "[zhuye-gui] plugin runtime mounted (enabled={:?})",
             enabled
         );
     });
@@ -290,7 +290,7 @@ pub(crate) async fn expand_submission(
 /// 展开内核(生产路径与单测共用):对 `Op::UserInput` 首个 Text 条目做
 /// 插件命令匹配与替换;其余 op 原样透传。
 fn expand_with_registry(
-    registry: &reflect_plugin::CommandRegistry,
+    registry: &zhuye_plugin::CommandRegistry,
     mut submission: Submission,
 ) -> anyhow::Result<Submission> {
     let text = match &submission.op {
@@ -305,7 +305,7 @@ fn expand_with_registry(
         return Ok(submission);
     };
 
-    match reflect_plugin::expand_user_input(&text, registry) {
+    match zhuye_plugin::expand_user_input(&text, registry) {
         None => Ok(submission),
         Some(Ok(expanded)) => {
             tracing::info!(command = %expanded.name, "plugin command expanded");
@@ -341,7 +341,7 @@ fn replace_first_text(submission: &mut Submission, body: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reflect_plugin::{CommandRegistry, LoadedCommand};
+    use zhuye_plugin::{CommandRegistry, LoadedCommand};
     use std::path::PathBuf;
 
     fn submission_with_text(text: &str) -> Submission {

@@ -1,6 +1,6 @@
 # 无头守护进程管理
 
-> **状态：计划于 M3.x 实现**。ZhuYe-Desktop 将提供一个可选的守护进程二进制文件，以无头方式运行 `reflect_core::AgentThread`，接受来自 Tauri 适配层（以及通过 Tailscale 连接的 iOS 客户端）的 JSON-RPC 连接。
+> **状态：计划于 M3.x 实现**。ZhuYe-Desktop 将提供一个可选的守护进程二进制文件，以无头方式运行 `zhuye_core::AgentThread`，接受来自 Tauri 适配层（以及通过 Tailscale 连接的 iOS 客户端）的 JSON-RPC 连接。
 >
 > 本文档记录预期的接口，以便贡献者了解构建目标。
 
@@ -20,30 +20,30 @@
 
 ```bash
 cd src-tauri
-cargo build --bin reflect-desktop-daemon
-cargo build --bin reflect-desktop-daemonctl
+cargo build --bin zhuye-desktop-daemon
+cargo build --bin zhuye-desktop-daemonctl
 ```
 
-- `reflect-desktop-daemon` — 无头服务器。从应用数据目录读取 `settings.json` 和 `workspaces.json`；通过 stdio（本地）或 TLS（远程）提供 JSON-RPC。
-- `reflect-desktop-daemonctl` — 生命周期 CLI：`status` / `start` / `stop` / `command-preview`。
+- `zhuye-desktop-daemon` — 无头服务器。从应用数据目录读取 `settings.json` 和 `workspaces.json`；通过 stdio（本地）或 TLS（远程）提供 JSON-RPC。
+- `zhuye-desktop-daemonctl` — 生命周期 CLI：`status` / `start` / `stop` / `command-preview`。
 
 ## 守护进程生命周期
 
 ```bash
 # 显示当前守护进程状态
-./target/debug/reflect-desktop-daemonctl status
+./target/debug/zhuye-desktop-daemonctl status
 
 # 使用 settings.json 中的 host/token 启动守护进程
-./target/debug/reflect-desktop-daemonctl start
+./target/debug/zhuye-desktop-daemonctl start
 
 # 停止守护进程
-./target/debug/reflect-desktop-daemonctl stop
+./target/debug/zhuye-desktop-daemonctl stop
 
 # 打印等效的守护进程启动命令（用于 systemd / launchd）
-./target/debug/reflect-desktop-daemonctl command-preview
+./target/debug/zhuye-desktop-daemonctl command-preview
 
 # 机器可读输出
-./target/debug/reflect-desktop-daemonctl --json status
+./target/debug/zhuye-desktop-daemonctl --json status
 ```
 
 ## 有用覆盖选项
@@ -58,7 +58,7 @@ cargo build --bin reflect-desktop-daemonctl
 
 ## JSON-RPC 接口（计划中）
 
-方法名镜像 `src-tauri/src/lib.rs` 中的 Tauri 命令（如 `reflect_submit`、`reflect_list_sessions`）。域处理器位于 `src-tauri/src/bin/reflect-desktop-daemon/rpc/*`，镜像 Tauri 命令文件。
+方法名镜像 `src-tauri/src/lib.rs` 中的 Tauri 命令（如 `zhuye_submit`、`zhuye_list_sessions`）。域处理器位于 `src-tauri/src/bin/zhuye-desktop-daemon/rpc/*`，镜像 Tauri 命令文件。
 
 完整计划接口，参见 [`codebase-map.md` 守护进程导航](codebase-map.md#backend-navigation)（守护进程落地时添加）。
 
@@ -80,11 +80,11 @@ cargo build --bin reflect-desktop-daemonctl
 守护进程 intended 由操作系统服务管理器管理。`command-preview` 打印所需的确切命令：
 
 ```bash
-./target/debug/reflect-desktop-daemonctl command-preview
-# reflect-desktop-daemon \
-#   --data-dir ~/Library/Application Support/com.asketisch.reflectdesktop \
+./target/debug/zhuye-desktop-daemonctl command-preview
+# zhuye-desktop-daemon \
+#   --data-dir ~/Library/Application Support/com.asketisch.zhuyedesktop \
 #   --listen 0.0.0.0:4732 \
-#   --token $(cat ~/Library/Application Support/com.asketisch.reflectdesktop/remote.token)
+#   --token $(cat ~/Library/Application Support/com.asketisch.zhuyedesktop/remote.token)
 ```
 
 ## 参见

@@ -38,7 +38,7 @@ fn stream(tool: bool) -> String {
 
 fn events() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -48,7 +48,7 @@ fn events() -> Receiver<Value> {
 
 fn submit_and_wait(rx: &Receiver<Value>, id: &str, prompt: &str) -> Vec<Value> {
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":id,"op":{"type":"user_input","items":[{"type":"text","text":prompt}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(45);
@@ -68,9 +68,9 @@ fn submit_and_wait(rx: &Receiver<Value>, id: &str, prompt: &str) -> Vec<Value> {
 fn session_note_survives_restart_and_is_injected() {
     if std::env::var(PHASE).as_deref() == Ok("child") {
         let rx = events();
-        let session = common::invoke_ok("reflect_create_session", json!({}));
-        common::invoke_ok("reflect_bind_session", json!({"id":session}));
-        common::invoke_ok("reflect_set_permission_mode", json!({"mode":"auto"}));
+        let session = common::invoke_ok("zhuye_create_session", json!({}));
+        common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+        common::invoke_ok("zhuye_set_permission_mode", json!({"mode":"auto"}));
         let seen = submit_and_wait(&rx, "note-before-restart", "create-restart-note");
         assert!(
             seen.iter()
@@ -125,8 +125,8 @@ fn session_note_survives_restart_and_is_injected() {
         std::env::set_var(BASE, shared.path());
     }
     let rx = events();
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    let notes = common::invoke_ok("reflect_list_session_notes", json!({"id":session}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    let notes = common::invoke_ok("zhuye_list_session_notes", json!({"id":session}));
     assert!(
         notes
             .as_array()

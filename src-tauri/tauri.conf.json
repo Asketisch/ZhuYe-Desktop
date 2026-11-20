@@ -1,7 +1,7 @@
 {
   "productName": "ZhuYe",
   "version": "0.0.6",
-  "identifier": "com.asketisch.reflectdesktop",
+  "identifier": "com.asketisch.zhuyedesktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",

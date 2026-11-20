@@ -10,7 +10,7 @@
  * 聚焦时重取（用户常在终端切分支，状态栏不再轮询兜底）。
  */
 import { useEffect, useState } from 'react';
-import { reflect_git_status } from '@/utils/commands/git';
+import { zhuye_git_status } from '@/utils/commands/git';
 
 export interface GitStatusSummary {
   /** 当前分支名；非 repo / 不可用时为 null。 */
@@ -26,7 +26,7 @@ export function useGitStatusSummary(workspace: string | null): GitStatusSummary 
     if (!workspace) return;
     let cancelled = false;
     const load = () => {
-      reflect_git_status()
+      zhuye_git_status()
         .then((status) => {
           if (cancelled) return;
           setSummary({

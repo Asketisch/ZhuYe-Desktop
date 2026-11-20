@@ -36,7 +36,7 @@ fn stream(tool: Option<(&str, Value)>) -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -91,21 +91,21 @@ fn saved_deny_rule_blocks_the_next_bash_call() {
         provider.uri()
     ));
     common::invoke_ok(
-        "reflect_add_permission_rule",
+        "zhuye_add_permission_rule",
         json!({"rule":{"tool":"bash","action":"deny","shell_pattern":"*permission-deny-marker*"}}),
     );
-    let rules = common::invoke_ok("reflect_list_permission_rules", json!({}));
+    let rules = common::invoke_ok("zhuye_list_permission_rules", json!({}));
     assert!(
         rules.to_string().contains("bash"),
         "saved rule not visible: {rules}"
     );
 
     let rx = listen();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    common::invoke_ok("reflect_set_permission_mode", json!({"mode":"auto"}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    common::invoke_ok("zhuye_set_permission_mode", json!({"mode":"auto"}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"permission-deny-turn","op":{"type":"user_input","items":[{"type":"text","text":"permission-deny-marker"}]}}}),
     );
     let seen = wait_terminal(&rx, "permission-deny-turn");

@@ -5,12 +5,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import {
-  reflect_agent_status,
-  reflect_get_config,
-  reflect_set_effort,
-  reflect_set_model,
+  zhuye_agent_status,
+  zhuye_get_config,
+  zhuye_set_effort,
+  zhuye_set_model,
 } from '@/utils/commands';
-import { reflect_get_effort } from '@/utils/commands/permissions';
+import { zhuye_get_effort } from '@/utils/commands/permissions';
 import { ALL_EFFORTS, useEffortCapability, type Effort } from '@/logic/composer/useEffortCapability';
 import { useModelAbilities } from '@/logic/models/useModelAbilities';
 import { useI18n } from '@/utils/i18n';
@@ -27,10 +27,10 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
   const [saved, setSaved] = useState(false);
   const capability = useEffortCapability();
 
-  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: reflect_agent_status, staleTime: 30_000 });
+  const statusQuery = useQuery({ queryKey: ['agent-status'], queryFn: zhuye_agent_status, staleTime: 30_000 });
   useEffect(() => {
     let cancelled = false;
-    reflect_get_effort()
+    zhuye_get_effort()
       .then((level) => {
         if (!cancelled && REASONING_EFFORTS.includes(level as Effort)) setEffort(level as Effort);
       })
@@ -38,7 +38,7 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
     return () => { cancelled = true; };
   }, []);
 
-  const configQuery = useQuery({ queryKey: ['config'], queryFn: reflect_get_config, staleTime: 30_000 });
+  const configQuery = useQuery({ queryKey: ['config'], queryFn: zhuye_get_config, staleTime: 30_000 });
 
   const effortOptions = useMemo(() => {
     const options = new Set<Effort>(capability.options);
@@ -47,7 +47,7 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
   }, [capability.options, effort]);
 
   const effortMutation = useMutation({
-    mutationFn: async (level: Effort) => reflect_set_effort(level),
+    mutationFn: async (level: Effort) => zhuye_set_effort(level),
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -56,7 +56,7 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
 
   const switchProviderMutation = useMutation({
     mutationFn: async ({ provider, model, label }: Pick<PlanEntry, 'provider' | 'model' | 'label'>) =>
-      reflect_set_model(provider, model, label).then((spec) => spec),
+      zhuye_set_model(provider, model, label).then((spec) => spec),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agent-status'] });
       qc.invalidateQueries({ queryKey: ['config'] });

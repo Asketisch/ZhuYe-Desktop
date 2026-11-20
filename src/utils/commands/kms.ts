@@ -7,7 +7,7 @@ import { invoke } from '@/utils/bridge';
 
 // ── 类型（camelCase，对齐 Rust serde(rename_all = "camelCase")）────────────────────
 
-export interface ReflectWikiInfo {
+export interface ZhuyeWikiInfo {
   name: string;
   description: string | null;
   path: string;
@@ -15,7 +15,7 @@ export interface ReflectWikiInfo {
   modifiedAtMs: number;
 }
 
-export interface ReflectPage {
+export interface ZhuyePage {
   name: string;
   wiki: string;
   content: string;
@@ -24,14 +24,14 @@ export interface ReflectPage {
   modifiedAtMs: number;
 }
 
-export interface ReflectSearchResult {
+export interface ZhuyeSearchResult {
   wiki: string;
   page: string;
   lines: string[];
   lineCount: number;
 }
 
-export interface ReflectDreamResult {
+export interface ZhuyeDreamResult {
   insights: string[];
   sessionsAnalyzed: number;
   wiki: string;
@@ -40,22 +40,22 @@ export interface ReflectDreamResult {
 
 // ── Wrappers ──
 
-export function reflect_kms_list(): Promise<ReflectWikiInfo[]> {
-  return invoke('reflect_kms_list');
+export function zhuye_kms_list(): Promise<ZhuyeWikiInfo[]> {
+  return invoke('zhuye_kms_list');
 }
 
-export function reflect_kms_create(
+export function zhuye_kms_create(
   name: string,
   description: string | null,
-): Promise<ReflectWikiInfo> {
-  return invoke('reflect_kms_create', { name, description });
+): Promise<ZhuyeWikiInfo> {
+  return invoke('zhuye_kms_create', { name, description });
 }
 
-export function reflect_kms_delete(name: string): Promise<void> {
-  return invoke('reflect_kms_delete', { name });
+export function zhuye_kms_delete(name: string): Promise<void> {
+  return invoke('zhuye_kms_delete', { name });
 }
 
-export function reflect_kms_save_page(
+export function zhuye_kms_save_page(
   wiki: string,
   page: string,
   content: string,
@@ -63,22 +63,22 @@ export function reflect_kms_save_page(
   tags: string[] | null,
   createOnly = false,
   expectedContent?: string,
-): Promise<ReflectPage> {
-  return invoke('reflect_kms_save_page', { wiki, page, content, title, tags, ...(createOnly ? { createOnly } : {}), ...(expectedContent !== undefined ? { expectedContent } : {}) });
+): Promise<ZhuyePage> {
+  return invoke('zhuye_kms_save_page', { wiki, page, content, title, tags, ...(createOnly ? { createOnly } : {}), ...(expectedContent !== undefined ? { expectedContent } : {}) });
 }
 
-export function reflect_kms_get_page(wiki: string, page: string): Promise<ReflectPage> {
-  return invoke('reflect_kms_get_page', { wiki, page });
+export function zhuye_kms_get_page(wiki: string, page: string): Promise<ZhuyePage> {
+  return invoke('zhuye_kms_get_page', { wiki, page });
 }
 
-export function reflect_kms_list_pages(wiki: string): Promise<ReflectPage[]> {
-  return invoke('reflect_kms_list_pages', { wiki });
+export function zhuye_kms_list_pages(wiki: string): Promise<ZhuyePage[]> {
+  return invoke('zhuye_kms_list_pages', { wiki });
 }
 
-export function reflect_kms_search(query: string): Promise<ReflectSearchResult[]> {
-  return invoke('reflect_kms_search', { query });
+export function zhuye_kms_search(query: string): Promise<ZhuyeSearchResult[]> {
+  return invoke('zhuye_kms_search', { query });
 }
 
-export function reflect_dream(insights: string[], sessionsAnalyzed: number): Promise<ReflectDreamResult> {
-  return invoke('reflect_dream', { insights, sessionsAnalyzed });
+export function zhuye_dream(insights: string[], sessionsAnalyzed: number): Promise<ZhuyeDreamResult> {
+  return invoke('zhuye_dream', { insights, sessionsAnalyzed });
 }

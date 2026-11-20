@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/utils/i18n';
-import { reflect_query_plan_quota, reflect_list_provider_models, reflect_test_provider_chat } from '@/utils/commands';
+import { zhuye_query_plan_quota, zhuye_list_provider_models, zhuye_test_provider_chat } from '@/utils/commands';
 import { PlansSection } from './PlansSection';
 import { AUTO_FAILOVER_PREF_KEY } from '@/stores/agent/planFailover';
 
@@ -10,9 +10,9 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_query_plan_quota: vi.fn(),
-    reflect_list_provider_models: vi.fn(),
-    reflect_test_provider_chat: vi.fn(),
+    zhuye_query_plan_quota: vi.fn(),
+    zhuye_list_provider_models: vi.fn(),
+    zhuye_test_provider_chat: vi.fn(),
   };
 });
 
@@ -54,7 +54,7 @@ function renderSection(rawToml: string, onChange = vi.fn(), onCommit = vi.fn()) 
 describe('PlansSection', () => {
   beforeEach(() => {
     localStorage.removeItem(AUTO_FAILOVER_PREF_KEY);
-    vi.mocked(reflect_query_plan_quota).mockReset();
+    vi.mocked(zhuye_query_plan_quota).mockReset();
   });
   afterEach(() => {
     localStorage.removeItem(AUTO_FAILOVER_PREF_KEY);
@@ -100,11 +100,11 @@ describe('PlansSection', () => {
   });
 
   it('查询余量 → 调 IPC 并渲染百分比 / 剩余 / 重置时间', async () => {
-    vi.mocked(reflect_query_plan_quota).mockResolvedValueOnce(QUOTA_OK);
+    vi.mocked(zhuye_query_plan_quota).mockResolvedValueOnce(QUOTA_OK);
     renderSection(SAMPLE_TOML);
     fireEvent.click(screen.getByTestId('quota-query-glm-plan'));
     await waitFor(() => expect(screen.getByTestId('quota-result-glm-plan')).toBeTruthy());
-    expect(vi.mocked(reflect_query_plan_quota)).toHaveBeenCalledWith(
+    expect(vi.mocked(zhuye_query_plan_quota)).toHaveBeenCalledWith(
       'https://open.bigmodel.cn/api/anthropic',
       'sk-glm-abcd',
       'zhipu',
@@ -116,7 +116,7 @@ describe('PlansSection', () => {
   });
 
   it('查询失败（鉴权/网络）→ 卡片内展示错误而非抛出', async () => {
-    vi.mocked(reflect_query_plan_quota).mockResolvedValueOnce({
+    vi.mocked(zhuye_query_plan_quota).mockResolvedValueOnce({
       success: false,
       error: 'Authentication failed (HTTP 401)',
       utilization: null,
@@ -142,7 +142,7 @@ describe('PlansSection', () => {
   });
 
   it('填入 base_url + api_key 后可从接口拉取模型列表', async () => {
-    vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
+    vi.mocked(zhuye_list_provider_models).mockResolvedValueOnce({
       endpoint: 'anthropic',
       models: [
         { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: 200000, max_output_tokens: 64000, supports_reasoning: true },
@@ -156,7 +156,7 @@ describe('PlansSection', () => {
     fireEvent.change(screen.getByPlaceholderText('sk-…'), { target: { value: 'sk-new' } });
     fireEvent.click(screen.getByTestId('plans-fetch-models'));
     await waitFor(() =>
-      expect(vi.mocked(reflect_list_provider_models)).toHaveBeenCalledWith(
+      expect(vi.mocked(zhuye_list_provider_models)).toHaveBeenCalledWith(
         'https://open.bigmodel.cn/api/anthropic',
         'sk-new',
         'anthropic',
@@ -176,7 +176,7 @@ describe('PlansSection', () => {
   });
 
   it('点选模型一键填充「最大上下文」(披露窗口且输入框留空时)', async () => {
-    vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
+    vi.mocked(zhuye_list_provider_models).mockResolvedValueOnce({
       endpoint: 'anthropic',
       models: [
         { id: 'glm-4.7', display_name: 'glm-4.7', supports_vision: null, is_free: null, context_window: 200000, max_output_tokens: 128000, supports_reasoning: true },
@@ -202,7 +202,7 @@ describe('PlansSection', () => {
   });
 
   it('测试连接：调模型列表接口（零 token），成功显示 ✓', async () => {
-    vi.mocked(reflect_list_provider_models).mockResolvedValueOnce({
+    vi.mocked(zhuye_list_provider_models).mockResolvedValueOnce({
       endpoint: 'anthropic',
       models: [{ id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5', supports_vision: null, is_free: null, context_window: null, max_output_tokens: null, supports_reasoning: null }],
     });
@@ -214,7 +214,7 @@ describe('PlansSection', () => {
     fireEvent.change(screen.getByPlaceholderText('sk-…'), { target: { value: 'sk-new' } });
     fireEvent.click(screen.getByTestId('plans-test-connection'));
     await waitFor(() =>
-      expect(vi.mocked(reflect_list_provider_models)).toHaveBeenCalledWith(
+      expect(vi.mocked(zhuye_list_provider_models)).toHaveBeenCalledWith(
         'https://open.bigmodel.cn/api/anthropic',
         'sk-new',
         'anthropic',
@@ -224,13 +224,13 @@ describe('PlansSection', () => {
   });
 
   it('发送测试消息：以表单模型调 chat 测试并展示回复', async () => {
-    vi.mocked(reflect_test_provider_chat).mockResolvedValueOnce({ reply: '你好！有什么可以帮你？' });
+    vi.mocked(zhuye_test_provider_chat).mockResolvedValueOnce({ reply: '你好！有什么可以帮你？' });
     renderSection(SAMPLE_TOML);
     // 编辑 glm-plan 回填 base_url/api_key/model。
     fireEvent.click(within(screen.getByText('glm-plan').closest('div[class*="providerCard"]') as HTMLElement).getByText('Edit'));
     fireEvent.click(screen.getByTestId('plans-test-chat'));
     await waitFor(() =>
-      expect(vi.mocked(reflect_test_provider_chat)).toHaveBeenCalledWith(
+      expect(vi.mocked(zhuye_test_provider_chat)).toHaveBeenCalledWith(
         'https://open.bigmodel.cn/api/anthropic',
         'sk-glm-abcd',
         'anthropic',

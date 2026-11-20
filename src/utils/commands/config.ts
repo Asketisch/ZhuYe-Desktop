@@ -1,14 +1,14 @@
 /**
  * Agent 状态 / config TOML / 工具注册表 封装。
  *
- * `ReflectAgentStatus` 驱动状态徽标与降级模式 CTA。
+ * `ZhuyeAgentStatus` 驱动状态徽标与降级模式 CTA。
  * TOML 命令封装 `~/.zhuye/config.toml` 的原始读写 —— 后端在写入磁盘前
  * 仍会进行合法性校验与解析。
  */
 import { invoke } from '../bridge';
 
 /** agent 状态快照 —— 前端状态徽标 + 降级引导用。 */
-export interface ReflectAgentStatus {
+export interface ZhuyeAgentStatus {
   ready: boolean;
   has_model: boolean;
   model: string;
@@ -17,24 +17,24 @@ export interface ReflectAgentStatus {
 }
 
 /** 单个工具的 name + description。 */
-export interface ReflectToolInfo {
+export interface ZhuyeToolInfo {
   name: string;
   description: string;
 }
 
 /** 返回 agent 状态(ready / has_model / model / workspace / degraded_reason)。 */
-export async function reflect_agent_status(): Promise<ReflectAgentStatus> {
-  return invoke<ReflectAgentStatus>('reflect_agent_status');
+export async function zhuye_agent_status(): Promise<ZhuyeAgentStatus> {
+  return invoke<ZhuyeAgentStatus>('zhuye_agent_status');
 }
 
 /** 读取 ~/.zhuye/config.toml 的 TOML 字符串。Settings 页加载用。 */
-export async function reflect_get_config(): Promise<string> {
-  return invoke<string>('reflect_get_config');
+export async function zhuye_get_config(): Promise<string> {
+  return invoke<string>('zhuye_get_config');
 }
 
 /** 写回 ~/.zhuye/config.toml(写盘前校验合法性)。 */
-export async function reflect_save_config(toml: string): Promise<void> {
-  return invoke<void>('reflect_save_config', { toml });
+export async function zhuye_save_config(toml: string): Promise<void> {
+  return invoke<void>('zhuye_save_config', { toml });
 }
 
 /**
@@ -48,20 +48,20 @@ export async function reflect_save_config(toml: string): Promise<void> {
  * 返回解析后的完整 spec(如 `openai/gpt-4o`);无任何显式 model 时返回
  * 空串(后端不再编造内置默认,由 UI 如实显示"未配置模型")。
  */
-export async function reflect_set_model(
+export async function zhuye_set_model(
   provider: string,
   model: string,
   label?: string,
 ): Promise<string> {
-  return invoke<string>('reflect_set_model', { provider, model, label: label ?? '' });
+  return invoke<string>('zhuye_set_model', { provider, model, label: label ?? '' });
 }
 
 /** 列出当前 ToolRegistry 中所有工具(name + description)。 */
-export async function reflect_list_tools(): Promise<ReflectToolInfo[]> {
-  return invoke<ReflectToolInfo[]>('reflect_list_tools');
+export async function zhuye_list_tools(): Promise<ZhuyeToolInfo[]> {
+  return invoke<ZhuyeToolInfo[]>('zhuye_list_tools');
 }
 
-/** coding plan 余量快照 —— 对齐后端 `PlanQuotaSnapshot` / `reflect_llm::QuotaSnapshot`。 */
+/** coding plan 余量快照 —— 对齐后端 `PlanQuotaSnapshot` / `zhuye_llm::QuotaSnapshot`。 */
 export interface PlanQuotaSnapshot {
   /** false = 鉴权/解析/网络失败,原因见 error。 */
   success: boolean;
@@ -81,12 +81,12 @@ export interface PlanQuotaSnapshot {
  * `checkVia` = plan 配置的 `quota.check_via`(kimi / zhipu / minimax / zenmux);
  * 传显式 baseUrl/apiKey,编辑中未保存的表单也能直接试查。
  */
-export async function reflect_query_plan_quota(
+export async function zhuye_query_plan_quota(
   base_url: string,
   api_key: string,
   check_via: string,
 ): Promise<PlanQuotaSnapshot> {
-  return invoke<PlanQuotaSnapshot>('reflect_query_plan_quota', {
+  return invoke<PlanQuotaSnapshot>('zhuye_query_plan_quota', {
     baseUrl: base_url,
     apiKey: api_key,
     checkVia: check_via,

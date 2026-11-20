@@ -31,13 +31,13 @@
 
 **共同前置**（全平台）：BatchMode 密钥免密（密码交互不支持）；**首次连接前 known_hosts 需已含该主机**（BatchMode 下主机密钥确认弹窗会直接失败，引导用户先手动 ssh 一次）；远端 zhuye CLI 可经 bootstrap 一键安装。
 
-**远端安装（bootstrap，已实现）**：`reflect_remote_bootstrap` 经 ssh 送 POSIX sh 脚本到远端执行 —— 探测 OS/架构 → 解析上游 latest tag → 下载 `zhuye-<版本>-<triple>.tar.gz`（curl/wget 二选一）→ 装到 `~/.local/bin`（免 sudo）→ 自验。传输侧配套：serve/probe 一律经 `sh -lc`（登录 shell）执行，保证安装位置进入 PATH（非交互 ssh 命令的默认 PATH 不含 `~/.local/bin`）。
+**远端安装（bootstrap，已实现）**：`zhuye_remote_bootstrap` 经 ssh 送 POSIX sh 脚本到远端执行 —— 探测 OS/架构 → 解析上游 latest tag → 下载 `zhuye-<版本>-<triple>.tar.gz`（curl/wget 二选一）→ 装到 `~/.local/bin`（免 sudo）→ 自验。传输侧配套：serve/probe 一律经 `sh -lc`（登录 shell）执行，保证安装位置进入 PATH（非交互 ssh 命令的默认 PATH 不含 `~/.local/bin`）。
 
 ## 2. 现状地基
 
 - 上游：`zhuye serve` stdin 收 `Submission`、stdout 写 `Event`，主动发 `session_configured` 握手；`Op::RegisterTools`/`ToolExecutionResponse` + `EventMsg::ToolExecutionRequest`（`ToolSource::Remote`/`RemoteBridge`）反向工具通道已预留——桌面 `docs/capabilities.md` §2 明确记录这 2 个 Op「有意不接线」，本功能点亮消费面。
-- 桌面：`reflect_run_shell` 的 `sshHost` 参数（`ssh -o BatchMode=yes -o ConnectTimeout=10` argv 模式）可复用为传输形态；`RemoteConfig` 进程内存占位、`/remote` 路由已有（Tailscale 探测 + 状态服务器）；`app-core/tailscale.rs` 产出 `suggested_remote_host`。
-- 事件路由：前台 `session_tx`（`reflect_event` 单通道）已按 sid 处理前台/后台双源，远程会话事件注入同一总线即可被 reducer 消费。
+- 桌面：`zhuye_run_shell` 的 `sshHost` 参数（`ssh -o BatchMode=yes -o ConnectTimeout=10` argv 模式）可复用为传输形态；`RemoteConfig` 进程内存占位、`/remote` 路由已有（Tailscale 探测 + 状态服务器）；`app-core/tailscale.rs` 产出 `suggested_remote_host`。
+- 事件路由：前台 `session_tx`（`zhuye_event` 单通道）已按 sid 处理前台/后台双源，远程会话事件注入同一总线即可被 reducer 消费。
 - 远端前置：已装 `zhuye` CLI（连接时版本探测，失败给安装引导文案）。
 
 ## 3. 后端改动（src-tauri/）
@@ -48,7 +48,7 @@
    - `session_configured` 握手确认、stderr 捕获为诊断日志、存活监测（进程退出 → 会话标记断开）
    - 事件注入既有 `session_tx`（按 sid）
 2. **命令面**（`src/commands/remote.rs` 扩展，替换 not-implemented 占位）：
-   - `reflect_remote_hosts`（CRUD + 连通性测试）、`reflect_remote_connect/disconnect`
+   - `zhuye_remote_hosts`（CRUD + 连通性测试）、`zhuye_remote_connect/disconnect`
    - `state/submit.rs` 按 workspace 类型分流：本地 AgentThread / 远程 `RemoteAgentClient`（实现与本地相同的 submit/interrupt 命令面）；`ensure_workspace_matches` 扩展远端标识 `ssh://host/path`；协议 `SessionMeta.workspace` 是 String，v0 冻结不受影响
 3. **会话生命周期**：切走 = 断开 serve 子进程（远端 rollout 已落盘，符合「切走必降级」）；切回 = serve resume 路径恢复；远端会话在侧栏独立「远程」分组
 

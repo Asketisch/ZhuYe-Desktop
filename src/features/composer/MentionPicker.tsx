@@ -1,7 +1,7 @@
 /**
  * MentionPicker —— `@` 弹层（v1.x：当前工作区文件浅层列表）。
  *
- * 数据源：`listDirForMention(2)`（薄包装 `reflect_list_dir`，后端已跳过 dotfile /
+ * 数据源：`listDirForMention(2)`（薄包装 `zhuye_list_dir`，后端已跳过 dotfile /
  * node_modules / target / dist / .git）。
  *
  * 路径语义：后端 `DirEntry.path` 是**绝对路径**；本层在过滤前剥离
@@ -14,8 +14,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   listDirForMention,
-  type ReflectDirEntry,
-  type ReflectDirListing,
+  type ZhuyeDirEntry,
+  type ZhuyeDirListing,
 } from '@/utils/commands';
 import { fuzzy } from '@/features/command-palette/fuzzy';
 import { useI18n } from '@/utils/i18n';
@@ -41,7 +41,7 @@ export function MentionPicker({
   workspaceLabel,
 }: MentionPickerProps) {
   const { t } = useI18n();
-  const [entries, setEntries] = useState<ReflectDirEntry[]>([]);
+  const [entries, setEntries] = useState<ZhuyeDirEntry[]>([]);
   const [root, setRoot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -50,7 +50,7 @@ export function MentionPicker({
     let alive = true;
     setLoading(true);
     listDirForMention(2)
-      .then((listing: ReflectDirListing) => {
+      .then((listing: ZhuyeDirListing) => {
         if (!alive) return;
         setEntries(listing.entries);
         setRoot(listing.root);

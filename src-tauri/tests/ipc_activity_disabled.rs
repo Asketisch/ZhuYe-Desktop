@@ -38,7 +38,7 @@ fn reply() -> String {
 
 fn listen() -> Receiver<Value> {
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -67,10 +67,10 @@ fn disabled_telemetry_does_not_start_activity_audit() {
         provider.uri()
     ));
     let rx = listen();
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"activity-off-turn","op":{"type":"user_input","items":[{"type":"text","text":"activity-off-marker"}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -83,9 +83,9 @@ fn disabled_telemetry_does_not_start_activity_audit() {
         }
     }
     std::thread::sleep(Duration::from_millis(100));
-    assert_eq!(common::invoke_ok("reflect_activity_count", json!({})), 0);
+    assert_eq!(common::invoke_ok("zhuye_activity_count", json!({})), 0);
     assert_eq!(
-        common::invoke_ok("reflect_list_activity", json!({})),
+        common::invoke_ok("zhuye_list_activity", json!({})),
         json!([])
     );
     assert!(

@@ -33,7 +33,7 @@ beforeEach(() => {
   window.localStorage.clear();
   useAgentStore.getState().reset();
   // 此文件单独挂载 Composer，模拟路由导航后 ChatView 完成会话绑定。
-  mockInvoke('reflect_create_session', async () => {
+  mockInvoke('zhuye_create_session', async () => {
     useAgentStore.setState({ loadedSessionId: 'sess-stub-new' });
     return 'sess-stub-new';
   });
@@ -43,7 +43,7 @@ describe('Composer prompt-history integration', () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.localStorage.setItem(
-      'reflect.history.default',
+      'zhuye.history.default',
       JSON.stringify(['first prompt', 'latest prompt']),
     );
   });
@@ -120,17 +120,17 @@ describe('Composer drag & drop fallback (DOM)', () => {
 
 describe('Composer send shortcut', () => {
   // 注意:不要 resetMockInvoke() —— setup.ts 的 beforeEach 已注册
-  // reflect_list_sessions / reflect_rename_session 等默认 handler
+  // zhuye_list_sessions / zhuye_rename_session 等默认 handler
   // (useSessions 的 useQuery 依赖);mockInvoke 本身即覆盖语义。
   //
   // mock invoke 的 handler 签名为 (cmd, args),其中
-  // args = { submission } —— 见 src/utils/commands/agent.ts::reflect_submit。
+  // args = { submission } —— 见 src/utils/commands/agent.ts::zhuye_submit。
   interface Submission {
     id: string;
     op: { type: string; items: unknown[] };
   }
   function trackSubmit(submitted: Submission[]) {
-    mockInvoke('reflect_submit', async (_cmd, args) => {
+    mockInvoke('zhuye_submit', async (_cmd, args) => {
       const submission = (args as { submission: Submission }).submission;
       submitted.push(submission);
       return submission.id;
@@ -138,14 +138,14 @@ describe('Composer send shortcut', () => {
   }
 
   it('keeps the draft when submission fails', async () => {
-    mockInvoke('reflect_submit', async () => { throw new Error('channel closed'); });
+    mockInvoke('zhuye_submit', async () => { throw new Error('channel closed'); });
     renderComposer();
     const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: 'keep this draft' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(useAgentStore.getState().lastError).toBe('channel closed'));
     expect(input.value).toBe('keep this draft');
-    expect(localStorage.getItem('reflect.draft.__new__')).toBe('keep this draft');
+    expect(localStorage.getItem('zhuye.draft.__new__')).toBe('keep this draft');
   });
 
   it('submits on plain Enter', async () => {
@@ -206,7 +206,7 @@ describe('Composer send shortcut', () => {
 
 describe('Composer @ file mention (v1.x)', () => {
   function mockWorkspaceFiles() {
-    mockInvoke('reflect_list_dir', async () => ({
+    mockInvoke('zhuye_list_dir', async () => ({
       root: '/tmp/proj',
       entries: [
         { name: 'README.md', path: 'README.md', kind: 'file', size: 10, mtime: 0, depth: 1 },
@@ -243,7 +243,7 @@ describe('Composer @ file mention (v1.x)', () => {
   });
 
   it('typing @ with no files shows the empty state', async () => {
-    mockInvoke('reflect_list_dir', async () => ({
+    mockInvoke('zhuye_list_dir', async () => ({
       root: '/tmp/proj',
       entries: [],
       truncated: false,
@@ -274,7 +274,7 @@ describe('Composer @ file mention (v1.x)', () => {
 
   it('file attachment is sent as a file UserInputItem', async () => {
     const submitted: Array<{ op: { type: string; items: unknown[] } }> = [];
-    mockInvoke('reflect_submit', async (_cmd, args) => {
+    mockInvoke('zhuye_submit', async (_cmd, args) => {
       const s = (args as { submission: { op: { type: string; items: unknown[] } } }).submission;
       submitted.push(s);
       return 'sub-ok';
@@ -302,7 +302,7 @@ describe('Composer @ file mention (v1.x)', () => {
 describe('Composer run-state controls (E/C)', () => {
   it('shows a stop button while a turn is running; clicking interrupts', async () => {
     const interrupts: number[] = [];
-    mockInvoke('reflect_interrupt', async () => {
+    mockInvoke('zhuye_interrupt', async () => {
       interrupts.push(1);
       return null;
     });
@@ -375,7 +375,7 @@ describe('Composer queue vs steer (C)', () => {
   }
 
   function trackSubmit(submitted: unknown[]) {
-    mockInvoke('reflect_submit', async (_cmd, args) => {
+    mockInvoke('zhuye_submit', async (_cmd, args) => {
       const s = (args as { submission: unknown }).submission;
       submitted.push(s);
       return 'sub-ok';
@@ -419,12 +419,12 @@ describe('Composer queue vs steer (C)', () => {
     const submitted: unknown[] = [];
     trackSubmit(submitted);
     const interrupts: number[] = [];
-    mockInvoke('reflect_interrupt', async () => {
+    mockInvoke('zhuye_interrupt', async () => {
       interrupts.push(1);
       return null;
     });
     const steered: Array<{ items: unknown; priority: unknown }> = [];
-    mockInvoke('reflect_steer', async (_cmd: string, args?: { items: unknown; priority: unknown }) => {
+    mockInvoke('zhuye_steer', async (_cmd: string, args?: { items: unknown; priority: unknown }) => {
       steered.push({ items: args?.items, priority: args?.priority });
       return 'sub-steer';
     });
@@ -438,7 +438,7 @@ describe('Composer queue vs steer (C)', () => {
     fireEvent.change(input, { target: { value: '转向：改用方案 B' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    // v1.4 A2 真·转向：不打断当前 turn，消息经 reflect_steer 注入；
+    // v1.4 A2 真·转向：不打断当前 turn，消息经 zhuye_steer 注入；
     // 纯文本 → priority 'now'。
     await waitFor(() => expect(steered).toHaveLength(1));
     expect(steered[0].priority).toBe('now');
@@ -455,7 +455,7 @@ describe('Composer queue vs steer (C)', () => {
     const submitted: unknown[] = [];
     trackSubmit(submitted);
     const steered: Array<{ priority: unknown }> = [];
-    mockInvoke('reflect_steer', async (_cmd: string, args?: { priority: unknown }) => {
+    mockInvoke('zhuye_steer', async (_cmd: string, args?: { priority: unknown }) => {
       steered.push({ priority: args?.priority });
       return 'sub-steer';
     });
@@ -479,7 +479,7 @@ describe('Composer queue vs steer (C)', () => {
 describe('Composer inline controls', () => {
   it('switches permission mode from the segmented control', async () => {
     const calls: string[] = [];
-    mockInvoke('reflect_set_permission_mode', async (_cmd: string, args?: { mode: string }) => {
+    mockInvoke('zhuye_set_permission_mode', async (_cmd: string, args?: { mode: string }) => {
       calls.push(args?.mode ?? '');
       return 'ok';
     });
@@ -510,13 +510,13 @@ describe('Composer inline controls', () => {
     expect(group.textContent).not.toContain('accept_edits');
   });
 
-  it('lists coding plans and switches model via reflect_set_model', async () => {
+  it('lists coding plans and switches model via zhuye_set_model', async () => {
     mockInvoke(
-      'reflect_get_config',
+      'zhuye_get_config',
       async () =>
         '[active]\nprovider = "openai"\n\n[openai]\nmodel = "gpt-5"\napi_key = "sk-1"\n\n[[openai.credentials]]\nlabel = "plan-a"\nmodel = "gpt-5-mini"\n',
     );
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: true,
       model: 'openai/gpt-5',
@@ -525,7 +525,7 @@ describe('Composer inline controls', () => {
     }));
     const calls: Array<{ provider: string; model: string; label: string }> = [];
     mockInvoke(
-      'reflect_set_model',
+      'zhuye_set_model',
       async (_cmd: string, args?: { provider: string; model: string; label?: string }) => {
         calls.push({ provider: args?.provider ?? '', model: args?.model ?? '', label: args?.label ?? '' });
         return 'openai/gpt-5-mini';
@@ -547,11 +547,11 @@ describe('Composer inline controls', () => {
     // spec 后缀匹配 + 空 model 兜底链,切到 MiniMax 会弹回 default;
     // 修复后选中态单一事实源是 [active].credential 钉住。
     mockInvoke(
-      'reflect_get_config',
+      'zhuye_get_config',
       async () =>
         '[active]\nprovider = "anthropic"\ncredential = "MiniMax"\n\n[anthropic]\napi_key = "sk-top"\n\n[[anthropic.credentials]]\nlabel = "MiniMax"\napi_key = "sk-mm"\n',
     );
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: false,
       model: 'stub/test',
@@ -560,7 +560,7 @@ describe('Composer inline controls', () => {
     }));
     const calls: Array<{ provider: string; model: string; label: string }> = [];
     mockInvoke(
-      'reflect_set_model',
+      'zhuye_set_model',
       async (_cmd: string, args?: { provider: string; model: string; label?: string }) => {
         calls.push({ provider: args?.provider ?? '', model: args?.model ?? '', label: args?.label ?? '' });
         return '';
@@ -582,11 +582,11 @@ describe('Composer inline controls', () => {
 
   it('fetches models from provider API and switches to one of them', async () => {
     mockInvoke(
-      'reflect_get_config',
+      'zhuye_get_config',
       async () =>
         '[active]\nprovider = "openai"\n\n[openai]\napi_key = "sk-1"\nbase_url = "https://api.example.com/v1"\n',
     );
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_agent_status', async () => ({
       ready: true,
       has_model: true,
       model: 'openai/gpt-5',
@@ -595,7 +595,7 @@ describe('Composer inline controls', () => {
     }));
     const listCalls: Array<{ baseUrl: string; apiKey: string; endpoint: string }> = [];
     mockInvoke(
-      'reflect_list_provider_models',
+      'zhuye_list_provider_models',
       async (_cmd: string, args?: { baseUrl: string; apiKey: string; endpoint: string }) => {
         // eslint-disable-next-line no-console
         console.log('PROBE list_provider_models invoked', args);
@@ -610,7 +610,7 @@ describe('Composer inline controls', () => {
       },
     );
     const switchCalls: string[] = [];
-    mockInvoke('reflect_set_model', async (_cmd: string, args?: { provider: string; model: string }) => {
+    mockInvoke('zhuye_set_model', async (_cmd: string, args?: { provider: string; model: string }) => {
       switchCalls.push(args?.model ?? '');
       return 'openai/gpt-4o';
     });
@@ -633,7 +633,7 @@ describe('Composer inline controls', () => {
     );
     // eslint-disable-next-line no-console
     console.log('STEP5: listCalls ok');
-    // 拉取结果进入下拉(带能力标记);选择后以该 model id 走 reflect_set_model。
+    // 拉取结果进入下拉(带能力标记);选择后以该 model id 走 zhuye_set_model。
     const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
     const option = Array.from(select.options).find((o) => o.value === 'model:gpt-4o');
     expect(option?.textContent).toContain('gpt-4o · vision');
@@ -642,9 +642,9 @@ describe('Composer inline controls', () => {
   });
 
   it('initializes effort from backend readback and applies changes', async () => {
-    mockInvoke('reflect_get_effort', async () => 'high');
+    mockInvoke('zhuye_get_effort', async () => 'high');
     const calls: string[] = [];
-    mockInvoke('reflect_set_effort', async (_cmd: string, args?: { level: string }) => {
+    mockInvoke('zhuye_set_effort', async (_cmd: string, args?: { level: string }) => {
       calls.push(args?.level ?? '');
       return 'ok';
     });
@@ -664,32 +664,32 @@ describe('Composer inline controls', () => {
 describe('Composer bang (!) shell passthrough', () => {
   it('retains output and exit events arriving before the shell response', async () => {
     let finish!: (session: { id: string; command: string; cwd: string }) => void;
-    mockInvoke('reflect_run_shell', () => new Promise((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_run_shell', () => new Promise((resolve) => { finish = resolve; }));
     renderComposer();
     const input = screen.getByRole('textbox', { name: /message ZhuYe/i });
     fireEvent.change(input, { target: { value: '! echo hi' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(finish).toBeDefined());
-    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'stdout', data: 'one', seq: 1 });
-    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'stdout', data: 'two', seq: 2 });
-    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'exit', data: '0', seq: 3 });
+    emitMockEvent('zhuye_terminal_output', { session_id: 'early', stream: 'stdout', data: 'one', seq: 1 });
+    emitMockEvent('zhuye_terminal_output', { session_id: 'early', stream: 'stdout', data: 'two', seq: 2 });
+    emitMockEvent('zhuye_terminal_output', { session_id: 'early', stream: 'exit', data: '0', seq: 3 });
     finish({ id: 'early', command: 'echo hi', cwd: '/tmp' });
     await waitFor(() => expect(screen.getByTestId('bang-run-early').getAttribute('data-status')).toBe('done'));
-    emitMockEvent('reflect_terminal_output', { session_id: 'early', stream: 'stderr', data: 'late error', seq: 4 });
+    emitMockEvent('zhuye_terminal_output', { session_id: 'early', stream: 'stderr', data: 'late error', seq: 4 });
     await waitFor(() => expect(screen.getByTestId('bang-run-early').querySelector('pre')?.textContent).toBe('one\ntwo\nlate error\n'));
   });
 
-  it('runs `! cmd` locally via reflect_run_shell without submitting to the agent', async () => {
+  it('runs `! cmd` locally via zhuye_run_shell without submitting to the agent', async () => {
     const runShell: string[] = [];
     const submitted: Array<{ id: string }> = [];
     const trackSubmit = (sink: Array<{ id: string }>) => {
-      mockInvoke('reflect_submit', async (_cmd: string, args?: unknown) => {
+      mockInvoke('zhuye_submit', async (_cmd: string, args?: unknown) => {
         const submission = (args as { submission: { id: string } }).submission;
         sink.push(submission);
         return submission.id;
       });
     };
-    mockInvoke('reflect_run_shell', async (_cmd: string, args?: { cmd: string }) => {
+    mockInvoke('zhuye_run_shell', async (_cmd: string, args?: { cmd: string }) => {
       runShell.push(args?.cmd ?? '');
       return { id: 'shell-bang-1', command: args?.cmd ?? '', cwd: '/tmp' };
     });
@@ -707,7 +707,7 @@ describe('Composer bang (!) shell passthrough', () => {
     // 本地输出面板出现。
     expect(screen.getByTestId('composer-bang-runs').textContent).toContain('! echo hi');
     // exit 事件收尾 → done。
-    emitMockEvent('reflect_terminal_output', { session_id: 'shell-bang-1', stream: 'exit', data: '', seq: 1 });
+    emitMockEvent('zhuye_terminal_output', { session_id: 'shell-bang-1', stream: 'exit', data: '', seq: 1 });
     await waitFor(() => expect(screen.getByText('done')).toBeDefined());
   });
 });
@@ -733,7 +733,7 @@ describe('Composer slash popup (stub 下架 + 键盘导航)', () => {
   it('navigates candidates with ArrowDown and picks with Enter instead of submitting', async () => {
     const submitted: Array<{ id: string }> = [];
     const trackSubmit = (sink: Array<{ id: string }>) => {
-      mockInvoke('reflect_submit', async (_cmd: string, args?: unknown) => {
+      mockInvoke('zhuye_submit', async (_cmd: string, args?: unknown) => {
         const submission = (args as { submission: { id: string } }).submission;
         sink.push(submission);
         return submission.id;
@@ -762,8 +762,8 @@ describe('Composer context bar (workspace + git branch)', () => {
     window.localStorage.clear();
     useAgentStore.getState().reset();
     resetMockInvoke();
-    mockInvoke('reflect_current_workspace', async () => '/Users/me/Code/alpha');
-    mockInvoke('reflect_git_status', async () => ({
+    mockInvoke('zhuye_current_workspace', async () => '/Users/me/Code/alpha');
+    mockInvoke('zhuye_git_status', async () => ({
       branch: 'main',
       upstream: 'origin/main',
       ahead: 1,
@@ -788,7 +788,7 @@ describe('Composer context bar (workspace + git branch)', () => {
   });
 
   it('hides the branch segment outside a git repo', async () => {
-    mockInvoke('reflect_git_status', async () => ({
+    mockInvoke('zhuye_git_status', async () => ({
       branch: null,
       upstream: null,
       ahead: 0,
@@ -815,15 +815,15 @@ describe('Composer /goal — 开目标会话', () => {
     window.localStorage.clear();
     useAgentStore.getState().reset();
     resetMockInvoke();
-    mockInvoke('reflect_get_effort', async () => 'low');
-    mockInvoke('reflect_agent_status', async () => ({
+    mockInvoke('zhuye_get_effort', async () => 'low');
+    mockInvoke('zhuye_agent_status', async () => ({
       has_model: true,
       model: 'stub/test',
       provider: 'local',
       ready: true,
     }));
-    mockInvoke('reflect_enter_goal_mode', async () => 'goal-mode');
-    mockInvoke('reflect_exit_goal_mode', async () => 'goal-exit');
+    mockInvoke('zhuye_enter_goal_mode', async () => 'goal-mode');
+    mockInvoke('zhuye_exit_goal_mode', async () => 'goal-exit');
   });
 
   function trackGoalFlow(opts: { createdId: string }) {
@@ -832,15 +832,15 @@ describe('Composer /goal — 开目标会话', () => {
       arm: [],
       submit: [],
     };
-    mockInvoke('reflect_create_session', async () => {
+    mockInvoke('zhuye_create_session', async () => {
       calls.create += 1;
       return opts.createdId;
     });
-    mockInvoke('reflect_enter_goal_mode', async (_cmd: string, args?: { goal: string }) => {
+    mockInvoke('zhuye_enter_goal_mode', async (_cmd: string, args?: { goal: string }) => {
       calls.arm.push(args?.goal ?? '');
       return 'goal-mode';
     });
-    mockInvoke('reflect_submit', async (_cmd: string, args?: unknown) => {
+    mockInvoke('zhuye_submit', async (_cmd: string, args?: unknown) => {
       const submission = (args as { submission: { id: string; op: { type: string; items: Array<{ type: string; text?: string }> } } }).submission;
       const first = submission.op.items[0];
       calls.submit.push(first?.text ?? '');

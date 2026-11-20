@@ -1,29 +1,29 @@
 /**
  * 协作视图编排控制器 —— discussion / pipeline 的 GUI 触发面。
  *
- * - 历史讨论列表:`reflect_list_discussions`(只读);
- * - 运行讨论:TOML 配置(`reflect_pick_file` 原生文件选择)→
- *   `reflect_run_discussion`。运行期间的 Collab* 事件经事件通道进入
+ * - 历史讨论列表:`zhuye_list_discussions`(只读);
+ * - 运行讨论:TOML 配置(`zhuye_pick_file` 原生文件选择)→
+ *   `zhuye_run_discussion`。运行期间的 Collab* 事件经事件通道进入
  *   agent store 的 `collabSessions`(视图侧订阅事件状态);
- * - team pipeline:已注册 team + topic → `reflect_run_team_pipeline`,
+ * - team pipeline:已注册 team + topic → `zhuye_run_team_pipeline`,
  *   返回结构化 `PipelineReport`。
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
 import {
-  reflect_list_discussions,
-  reflect_run_discussion,
-  reflect_cancel_discussions,
+  zhuye_list_discussions,
+  zhuye_run_discussion,
+  zhuye_cancel_discussions,
   type DiscussionRunOutcome,
   type DiscussionSessionInfo,
 } from '@/utils/commands/discussion';
 import {
-  reflect_run_team_pipeline,
+  zhuye_run_team_pipeline,
   type PipelineReport,
 } from '@/utils/commands/pipeline';
-import { reflect_list_teams } from '@/utils/commands/teams';
-import { reflect_pick_file } from '@/utils/commands/workspaces';
+import { zhuye_list_teams } from '@/utils/commands/teams';
+import { zhuye_pick_file } from '@/utils/commands/workspaces';
 
 export interface OrchestrationController {
   // —— 历史讨论 ——
@@ -62,20 +62,20 @@ export function useOrchestrationController(): OrchestrationController {
 
   const historyQ = useQuery({
     queryKey: ['discussions', 'list'],
-    queryFn: () => reflect_list_discussions(),
+    queryFn: () => zhuye_list_discussions(),
     staleTime: 30_000,
   });
 
   const teamsQ = useQuery({
     queryKey: ['teams', 'list'],
-    queryFn: () => reflect_list_teams(),
+    queryFn: () => zhuye_list_teams(),
     staleTime: 30_000,
   });
 
   const runDiscussion = useMutation({
     mutationFn: async () => {
       if (!configPath) throw new Error('pick a discussion.toml first');
-      return reflect_run_discussion(configPath);
+      return zhuye_run_discussion(configPath);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['discussions'] });
@@ -83,19 +83,19 @@ export function useOrchestrationController(): OrchestrationController {
   });
 
   const cancelDiscussion = useMutation({
-    mutationFn: reflect_cancel_discussions,
+    mutationFn: zhuye_cancel_discussions,
   });
 
   const runPipeline = useMutation({
     mutationFn: async () => {
       if (!pipelineTeam) throw new Error('select a team first');
       if (!pipelineTopic.trim()) throw new Error('topic must be non-empty');
-      return reflect_run_team_pipeline(pipelineTeam, pipelineTopic.trim());
+      return zhuye_run_team_pipeline(pipelineTeam, pipelineTopic.trim());
     },
   });
 
   const pickConfig = async () => {
-    const picked = await reflect_pick_file(['toml']);
+    const picked = await zhuye_pick_file(['toml']);
     if (picked) setConfigPath(picked);
   };
 

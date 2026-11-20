@@ -1,5 +1,5 @@
 /**
- * ContextBanner —— 上下文窗口主动压缩预警（P2，对标 Reasonix 阈值提示）。
+ * ContextBanner —— 上下文窗口主动压缩预警（P2，阈值提示）。
  *
  * 此前只有 Composer 角落 80% 变色的 tooltip —— 属于被动发现；这里在
  * 消息流顶部主动出横幅：≥ 80% 显示 warning 横幅 + 一键 /compact。

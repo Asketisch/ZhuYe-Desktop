@@ -2,7 +2,7 @@
  * src/services/agentEventBus.ts —— B1-06 扇出事件总线。
  *
  * 架构:
- *   - 此模块持有唯一的 Tauri `reflect_event` 订阅。
+ *   - 此模块持有唯一的 Tauri `zhuye_event` 订阅。
  *   - 多个 consumer(agentStore、Inspector、Notifications、DevTools 等)
  *     调用 `subscribeAgentEvent(callback)`,各自接收每个事件。
  *   - Fan-out 为一对多:共享底层 Tauri `listen`,避免为同一通道
@@ -25,10 +25,10 @@
  * 首次调用 `subscribeAgentEvent` 时打开 Tauri listener(幂等);
  * 最后一个 `unsubscribe` 调用时关闭它。这由内部引用计数处理。
  */
-import { onReflectEvent } from '@/utils/commands';
-import type { ReflectEvent } from '@/types/protocol';
+import { onZhuyeEvent } from '@/utils/commands';
+import type { ZhuyeEvent } from '@/types/protocol';
 
-type AgentEventHandler = (event: ReflectEvent) => void;
+type AgentEventHandler = (event: ZhuyeEvent) => void;
 
 let __listeners: Set<AgentEventHandler> = new Set();
 let __unlisten: (() => void) | null = null;
@@ -36,7 +36,7 @@ let __refCount = 0;
 let __opening: Promise<void> | null = null;
 
 /**
- * 订阅所有 `reflect_event` 事件。返回取消订阅函数。
+ * 订阅所有 `zhuye_event` 事件。返回取消订阅函数。
  *
  * 延迟连接:首次订阅时才打开底层 Tauri `listen`,并保持打开直到所有
  * 订阅者都取消订阅。
@@ -65,7 +65,7 @@ function unsubscribeAgentEvent(handler: AgentEventHandler): void {
 
 async function openListener(): Promise<void> {
   try {
-    const un = await onReflectEvent((e) => {
+    const un = await onZhuyeEvent((e) => {
       // Fan-out:遍历快照,允许 handler 在 dispatch 中同步取消自身,
       // 不会破坏迭代。
       for (const handler of Array.from(__listeners)) {

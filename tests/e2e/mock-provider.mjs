@@ -5,7 +5,7 @@ import { writeFileSync } from 'node:fs';
 const portFile = process.argv[2];
 if (!portFile) throw new Error('缺少端口文件');
 function textEvents(text) { return [
-  ['message_start', { type: 'message_start', message: { id: 'window-test', model: 'claude-mock', usage: { input_tokens: 10 } } }],
+  ['message_start', { type: 'message_start', message: { id: 'window-test', model: 'mock-model', usage: { input_tokens: 10 } } }],
   ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
   ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
   ['content_block_stop', { type: 'content_block_stop', index: 0 }],
@@ -14,7 +14,7 @@ function textEvents(text) { return [
 ]; }
 
 function toolEvents(id, args, name = 'bash') { return [
-  ['message_start', { type: 'message_start', message: { id: 'window-tool', model: 'claude-mock', usage: { input_tokens: 10 } } }],
+  ['message_start', { type: 'message_start', message: { id: 'window-tool', model: 'mock-model', usage: { input_tokens: 10 } } }],
   ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name } }],
   ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(typeof args === 'string' ? { cmd: args } : args) } }],
   ['content_block_stop', { type: 'content_block_stop', index: 0 }],

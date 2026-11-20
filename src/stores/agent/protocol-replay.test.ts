@@ -21,7 +21,7 @@ import fc from 'fast-check';
 
 import { reduceEvent } from './reducer';
 import type { AgentState } from './types';
-import type { ReflectEvent, ReflectEventMsg } from '@/types/protocol';
+import type { ZhuyeEvent, ZhuyeEventMsg } from '@/types/protocol';
 
 // ====== 夹具:核心仓协议契约样本(submodule 只读) ======
 
@@ -106,11 +106,11 @@ const emptyState = (): AgentState => ({
   reset: () => {},
 });
 
-const ev = (id: string, msg: unknown): ReflectEvent =>
-  ({ id, msg: msg as ReflectEventMsg });
+const ev = (id: string, msg: unknown): ZhuyeEvent =>
+  ({ id, msg: msg as ZhuyeEventMsg });
 
 /** 顺序应用事件流;每步把 reducer 的 patch 合并进状态(与 store.subscribe 同语义)。 */
-function applyAll(state: AgentState, events: ReflectEvent[]): AgentState {
+function applyAll(state: AgentState, events: ZhuyeEvent[]): AgentState {
   const current = { ...state };
   for (const event of events) {
     Object.assign(current, reduceEvent(current, event));
@@ -216,7 +216,7 @@ describe('属性:流式等价与回放幂等', () => {
   it('完整回合序列(以 agent_message 收尾)重放不重复、不变形', () => {
     fc.assert(
       fc.property(fc.array(pieceArb, { maxLength: 24 }), (pieces) => {
-        const events: ReflectEvent[] = [
+        const events: ZhuyeEvent[] = [
           ev('t1', { type: 'turn_started', turn_id: 't1' }),
           ...pieces.map((delta) => ev('t1', { type: 'agent_message_delta', delta })),
           ev('t1', { type: 'agent_message', text: pieces.join('') }),

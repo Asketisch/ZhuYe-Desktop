@@ -1,7 +1,7 @@
 //! 能力覆盖层 · 事件回传通路 —— 真实命令体 over 真实 IPC 通路。
 //!
 //! 这一层盯的是**链路最后一环**:agent 产生的事件 → session broadcast →
-//! Tauri `reflect_event` 通道 → 前端。前端 `src/services/agentEventBus.ts`
+//! Tauri `zhuye_event` 通道 → 前端。前端 `src/services/agentEventBus.ts`
 //! 订阅的就是这个通道,`src/stores/agent/reducer.ts` 按 `msg.type` 分派。
 //!
 //! ## 为什么值得单独一层
@@ -9,7 +9,7 @@
 //! 前面几层验的是「命令进得来、结果出得去」;这一层验的是
 //! **事件**的线上形状 —— 而 `AGENTS.md` 里写死的协议不变量正好落在这里:
 //!
-//! - 线格式为 `reflect_protocol::Event`(snake_case JSON);
+//! - 线格式为 `zhuye_protocol::Event`(snake_case JSON);
 //! - Submission id ↔ Event id 配对用于流关联;
 //! - `EVENT_ID_NONE = ""` 用于生命周期事件(无匹配提交)。
 //!
@@ -25,13 +25,13 @@ use serde_json::Value;
 
 use common::{invoke_ok, listen};
 
-/// 订阅 `reflect_event`,把每个事件的**线上载荷**收进队列。
+/// 订阅 `zhuye_event`,把每个事件的**线上载荷**收进队列。
 fn collect_events() -> Receiver<Value> {
     let (tx, rx): (Sender<Value>, Receiver<Value>) = channel();
     // 用夹具的 `listen` 助手而不是直接攥着 `harness()` 的守卫 ——
     // 后者跨 `invoke` 会死锁。
-    listen("reflect_event", move |event: tauri::Event| {
-        // 载荷是 serde_json::Value —— 与前端 `onReflectEvent` 收到的一致。
+    listen("zhuye_event", move |event: tauri::Event| {
+        // 载荷是 serde_json::Value —— 与前端 `onZhuyeEvent` 收到的一致。
         if let Ok(v) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(v);
         }
@@ -42,7 +42,7 @@ fn collect_events() -> Receiver<Value> {
 /// 提交一条用户输入(与前端 Composer 走同一条命令),返回 submission id。
 fn submit(submission_id: &str, text: &str) {
     invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         serde_json::json!({
             "submission": {
                 "id": submission_id,
@@ -94,7 +94,7 @@ fn event_id(e: &Value) -> &str {
 }
 
 #[test]
-fn events_arrive_with_the_reflect_event_envelope() {
+fn events_arrive_with_the_zhuye_event_envelope() {
     let _guard = common::state_lock();
     let rx = collect_events();
     let submission_id = "capability-event-sub-1";
@@ -106,7 +106,7 @@ fn events_arrive_with_the_reflect_event_envelope() {
         |e| event_id(e) == submission_id && msg_type(e).is_some(),
         Duration::from_secs(20),
     )
-    .expect("提交后没有任何事件到达 reflect_event 通道");
+    .expect("提交后没有任何事件到达 zhuye_event 通道");
 
     // 信封形状:{ id: string, msg: { type: string, ... } }
     assert!(
@@ -127,8 +127,8 @@ fn events_arrive_with_the_reflect_event_envelope() {
 fn lifecycle_event_uses_the_none_id() {
     let _guard = common::state_lock();
     // SessionConfigured 每个线程只发一次，必须使用全新的绑定会话。
-    let id = invoke_ok("reflect_create_session", serde_json::json!({}));
-    invoke_ok("reflect_bind_session", serde_json::json!({ "id": id }));
+    let id = invoke_ok("zhuye_create_session", serde_json::json!({}));
+    invoke_ok("zhuye_bind_session", serde_json::json!({ "id": id }));
     let rx = collect_events();
     submit("capability-event-sub-2", "生命周期探针");
 
@@ -193,7 +193,7 @@ fn turn_failure_is_reported_on_the_same_channel() {
     let submission_id = "capability-event-sub-4";
     submit(submission_id, "失败路径探针");
 
-    // 无可用凭证时,失败也必须走**同一条** `reflect_event` 通道回到前端 ——
+    // 无可用凭证时,失败也必须走**同一条** `zhuye_event` 通道回到前端 ——
     // 前端 reducer 靠 `msg.type == "error"` 显示错误条。
     let err = wait_until(
         &rx,
@@ -215,10 +215,10 @@ fn turn_failure_is_reported_on_the_same_channel() {
 /// 容量只有 4 的通道单独驱动一个 `forward_agent_events`,并用
 /// **单线程** runtime 保证它在 64 条突发**之后**才第一次被调度:它的第一个
 /// `recv()` 必然拿到 `Lagged`。之后再发一条探针 —— 探针能到达
-/// `reflect_event`,就证明转发器没死。
+/// `zhuye_event`,就证明转发器没死。
 #[test]
 fn forwarder_survives_a_lagged_receiver() {
-    use reflect_protocol::{Event, EventMsg};
+    use zhuye_protocol::{Event, EventMsg};
     use tokio::sync::broadcast;
 
     let rx_events = collect_events();
@@ -232,7 +232,7 @@ fn forwarder_survives_a_lagged_receiver() {
         .enable_all()
         .build()
         .expect("build single-thread runtime");
-    let forwarder = rt.spawn(reflect_desktop_lib::events::forward_agent_events(
+    let forwarder = rt.spawn(zhuye_desktop_lib::events::forward_agent_events(
         app_handle, rx,
     ));
 
@@ -282,7 +282,7 @@ fn forwarder_survives_a_lagged_receiver() {
         }
     }
 
-    let probe = probe.expect("转发器在 Lagged 之后死了 —— 探针事件没有到达 reflect_event");
+    let probe = probe.expect("转发器在 Lagged 之后死了 —— 探针事件没有到达 zhuye_event");
     assert_eq!(msg_type(&probe), Some("submission_closed"));
     assert!(
         burst_received <= 4,

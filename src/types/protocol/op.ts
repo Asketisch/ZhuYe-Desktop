@@ -1,7 +1,7 @@
 /**
- * Reflect protocol —— Submission Op 判别联合。
+ * 上游协议 —— Submission Op 判别联合。
  *
- * 对应 `zhuye-agent/crates/protocol/reflect-protocol/src/op.rs` 中的 `Op`。每个变体使用
+ * 对应 `zhuye-agent/crates/protocol/zhuye-protocol/src/op.rs` 中的 `Op`。每个变体使用
  * `type` discriminator 标记,与 Rust 的
  * `#[serde(rename_all = "snake_case")]` 枚举对齐。下方的 `OpType` 字符串
  * 联合即为这些 discriminator 的原始列表。
@@ -64,7 +64,7 @@ export interface W3cTraceContext {
   trace_flags?: string;
 }
 
-export type ReflectSubmissionOp =
+export type ZhuyeSubmissionOp =
   | { type: 'user_input'; items: UserInputItem[]; thread_settings?: ThreadSettingsOverrides }
   | { type: 'interrupt'; child_id?: string | null }
   | { type: 'shutdown' }
@@ -73,12 +73,12 @@ export type ReflectSubmissionOp =
   /**
    * v1.4 A2:回合中途转向 —— 对正在跑的回合投喂补充指示(`priority:
    * 'now'`)或参考资料(`'attachment'`,默认)。不打断当前 turn,消息在
-   * 下一个安全点进入模型上下文。桥接:`reflect_steer`(GUI Steer 模式)。
+   * 下一个安全点进入模型上下文。桥接:`zhuye_steer`(GUI Steer 模式)。
    */
   | { type: 'steer'; priority?: 'attachment' | 'now'; items: UserInputItem[] }
   /**
    * v1.4 C1:查询子代理状态。应答为 `subagent_status` 事件。
-   * `child_id` 缺省 = 列出全部。桥接:`reflect_query_subagents`。
+   * `child_id` 缺省 = 列出全部。桥接:`zhuye_query_subagents`。
    */
   | { type: 'query_subagents'; child_id?: string }
   | { type: 'tool_approval'; id: string; decision: ReviewDecision }

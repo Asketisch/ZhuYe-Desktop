@@ -1,7 +1,7 @@
 import type { ApprovalPolicy } from '@/types/protocol';
 
 export type UserApprovalPolicy = Extract<ApprovalPolicy, 'auto' | 'prompt' | 'auto_approve' | 'full_access'>;
-const KEY = 'reflect.approvalPolicy.';
+const KEY = 'zhuye.approvalPolicy.';
 const memory = new Map<string, UserApprovalPolicy>();
 
 export function readApprovalPolicy(sessionId: string | null | undefined): UserApprovalPolicy {

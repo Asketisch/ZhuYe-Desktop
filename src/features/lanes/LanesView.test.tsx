@@ -5,7 +5,7 @@
  *   - 每个子代理快照一条泳道(store `subagents.lastStatus` 投影)+ 空态
  *   - side-channel 泳道与汇总行(在途 / 已完成 / 失败)
  *   - 中止全部:side-channel 走 cancel、运行中子代理走 interrupt
- *   - 手动刷新触发 `reflect_query_subagents`
+ *   - 手动刷新触发 `zhuye_query_subagents`
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -66,17 +66,17 @@ function seedLanes(opts: { children?: SubagentStatusSnapshot[]; channels?: unkno
     loadedSessionId: 'sess-abcd1234',
     subagents: { feed: [], lastStatus: children },
   });
-  mockInvoke('reflect_list_side_channels', async () => opts.channels ?? []);
-  mockInvoke('reflect_query_subagents', async (_cmd: string, args: unknown) => {
-    record('reflect_query_subagents', args);
+  mockInvoke('zhuye_list_side_channels', async () => opts.channels ?? []);
+  mockInvoke('zhuye_query_subagents', async (_cmd: string, args: unknown) => {
+    record('zhuye_query_subagents', args);
     return 'sub-fake';
   });
-  mockInvoke('reflect_interrupt', async (_cmd: string, args: unknown) => {
-    record('reflect_interrupt', args);
+  mockInvoke('zhuye_interrupt', async (_cmd: string, args: unknown) => {
+    record('zhuye_interrupt', args);
     return 'interrupted';
   });
-  mockInvoke('reflect_cancel_side_channel', async (_cmd: string, args: unknown) => {
-    record('reflect_cancel_side_channel', args);
+  mockInvoke('zhuye_cancel_side_channel', async (_cmd: string, args: unknown) => {
+    record('zhuye_cancel_side_channel', args);
     return true;
   });
 }
@@ -168,18 +168,18 @@ describe('LanesView', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(btn);
 
-    await waitFor(() => expect(calls.reflect_cancel_side_channel?.[0]).toEqual({ id: 'side-1' }));
-    await waitFor(() => expect(calls.reflect_interrupt?.[0]).toEqual({ childId: 'child-1' }));
+    await waitFor(() => expect(calls.zhuye_cancel_side_channel?.[0]).toEqual({ id: 'side-1' }));
+    await waitFor(() => expect(calls.zhuye_interrupt?.[0]).toEqual({ childId: 'child-1' }));
   });
 
-  it('refresh button triggers reflect_query_subagents', async () => {
+  it('refresh button triggers zhuye_query_subagents', async () => {
     seedLanes();
     renderView();
     await waitFor(() => expect(screen.getByTestId('lanes-record-0')).toBeDefined());
 
     // 挂载本身已拉过一次快照;手动刷新再拉一次。
-    const before = calls.reflect_query_subagents.length;
+    const before = calls.zhuye_query_subagents.length;
     fireEvent.click(screen.getByTestId('lanes-refresh'));
-    await waitFor(() => expect(calls.reflect_query_subagents.length).toBeGreaterThan(before));
+    await waitFor(() => expect(calls.zhuye_query_subagents.length).toBeGreaterThan(before));
   });
 });

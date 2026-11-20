@@ -1,12 +1,12 @@
 /**
- * Inspector —— 右侧可折叠面板（v1.x P2：概览 / 文件 / 改动 三 tab，对标 Reasonix）。
+ * Inspector —— 右侧可折叠面板（v1.x P2：概览 / 文件 / 改动 三 tab）。
  *
  * - **概览**：上下文窗口仪表（占比条 + 压缩阈值提示 + 压缩次数/节省 tokens
  *   聚合统计）+ Token 构成堆叠条
  *   （输入/缓存命中/缓存写入/输出）+ 会话指标（turn 数、累计 token、费用、
  *   命中 provider/凭证）+ 运行时状态（pending 交互、MCP/LSP、最近错误）。
  * - **文件**：当前工作区文件树（depth 2，复用 FilesView 的 FileTree）。
- * - **改动**：工作区 git diff（`reflect_git_diff` + DiffViewer，同 ChatView 分屏）。
+ * - **改动**：工作区 git diff（`zhuye_git_diff` + DiffViewer，同 ChatView 分屏）。
  *
  * 数据获取用 useEffect + useState（Inspector 可能脱离 QueryClientProvider
  * 挂载，如独立测试），失败静默为空态。
@@ -19,8 +19,8 @@ import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore
 import type { SubagentProgressEntry } from '@/stores/agentStore';
 import { ListTodo, GitCommitHorizontal } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
-import { reflect_list_dir, type ReflectDirEntry } from '@/utils/commands/files';
-import { reflect_git_diff } from '@/utils/commands/git';
+import { zhuye_list_dir, type ZhuyeDirEntry } from '@/utils/commands/files';
+import { zhuye_git_diff } from '@/utils/commands/git';
 import { FileTree } from '@/features/files/FileTree';
 import { DiffViewer } from '@/features/git/DiffViewer';
 import { useContextRatio } from './useContextRatio';
@@ -497,12 +497,12 @@ function SubagentFeedRow({ entry }: { entry: SubagentProgressEntry }) {
 
 function FilesTab() {
   const { t } = useI18n();
-  const [entries, setEntries] = useState<ReflectDirEntry[]>([]);
+  const [entries, setEntries] = useState<ZhuyeDirEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    reflect_list_dir(null, 2)
+    zhuye_list_dir(null, 2)
       .then((listing) => {
         if (!cancelled) setEntries(listing.entries ?? []);
       })
@@ -535,7 +535,7 @@ function ChangesTab() {
 
   useEffect(() => {
     let cancelled = false;
-    reflect_git_diff(false)
+    zhuye_git_diff(false)
       .then((d) => {
         if (!cancelled) setDiff(d);
       })
@@ -621,14 +621,14 @@ function PlanTab() {
 
 function GitTab() {
   const { t } = useI18n();
-  type ReflectGitStatusT = import('@/utils/commands/git').ReflectGitStatus;
-  const [status, setStatus] = useState<ReflectGitStatusT | null>(null);
-  const [log, setLog] = useState<import('@/utils/commands/git').ReflectGitLogEntry[]>([]);
+  type ZhuyeGitStatusT = import('@/utils/commands/git').ZhuyeGitStatus;
+  const [status, setStatus] = useState<ZhuyeGitStatusT | null>(null);
+  const [log, setLog] = useState<import('@/utils/commands/git').ZhuyeGitLogEntry[]>([]);
   useEffect(() => {
     let alive = true;
     void import('@/utils/commands/git').then((m) => {
-      void m.reflect_git_status().then((r) => { if (alive) setStatus(r); }).catch(() => undefined);
-      void m.reflect_git_log(8).then((r) => { if (alive) setLog(r); }).catch(() => undefined);
+      void m.zhuye_git_status().then((r) => { if (alive) setStatus(r); }).catch(() => undefined);
+      void m.zhuye_git_log(8).then((r) => { if (alive) setLog(r); }).catch(() => undefined);
     });
     return () => { alive = false; };
   }, []);

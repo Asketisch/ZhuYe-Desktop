@@ -4,7 +4,7 @@
  * 基于模拟 IPC 的冒烟 + 行为测试：
  *   - 页面标题 + 5 张卡片渲染
  *   - iOS 设置卡片：config.isReady 时显示就绪徽标，点击打开表单
- *   - 表单 Save 转发到 reflect_update_remote_config
+ *   - 表单 Save 转发到 zhuye_update_remote_config
  *   - Tailscale 卡片渲染检测到的状态字段
  *   - 守护进程提示卡片渲染预览文本
  */
@@ -20,8 +20,8 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_get_remote_config: vi.fn(async () => {
-      calls.push({ cmd: 'reflect_get_remote_config', args: undefined });
+    zhuye_get_remote_config: vi.fn(async () => {
+      calls.push({ cmd: 'zhuye_get_remote_config', args: undefined });
       return {
         host: 'node.tail.net',
         port: 4732,
@@ -31,8 +31,8 @@ vi.mock('@/utils/commands', async () => {
         isReady: true,
       };
     }),
-    reflect_update_remote_config: vi.fn(async (args: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_update_remote_config', args });
+    zhuye_update_remote_config: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_update_remote_config', args });
       return {
         host: (args.host as string) ?? '',
         port: (args.port as number) ?? 4732,
@@ -42,13 +42,13 @@ vi.mock('@/utils/commands', async () => {
         isReady: true,
       };
     }),
-    reflect_get_remote_status: vi.fn(async () => ({
+    zhuye_get_remote_status: vi.fn(async () => ({
       state: 'disconnected',
       message: 'remote transport driver not yet implemented (Phase 2 follow-up)',
       endpoint: null,
       sinceMs: 100,
     })),
-    reflect_tailscale_status: vi.fn(async () => ({
+    zhuye_tailscale_status: vi.fn(async () => ({
       installed: true,
       running: true,
       version: '1.78.0',
@@ -60,46 +60,46 @@ vi.mock('@/utils/commands', async () => {
       suggestedRemoteHost: 'node.tail.net:4732',
       message: null,
     })),
-    reflect_tailscale_daemon_command_preview: vi.fn(async () =>
+    zhuye_tailscale_daemon_command_preview: vi.fn(async () =>
       'tailscaled --tun=userspace-networking &\nlisten 0.0.0.0:4732',
     ),
-    reflect_tailscale_daemon_start: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
-    reflect_tailscale_daemon_stop: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
-    reflect_tailscale_daemon_status: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
+    zhuye_tailscale_daemon_start: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
+    zhuye_tailscale_daemon_stop: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
+    zhuye_tailscale_daemon_status: vi.fn(async () => 'not implemented yet (Phase 2 follow-up)'),
     // v1.11 基建#12:远程网页访问状态服务器。
-    reflect_status_server_start: vi.fn(async (port?: number) => {
-      calls.push({ cmd: 'reflect_status_server_start', args: { port: port ?? null } });
+    zhuye_status_server_start: vi.fn(async (port?: number) => {
+      calls.push({ cmd: 'zhuye_status_server_start', args: { port: port ?? null } });
       return port ?? 4732;
     }),
-    reflect_status_server_state: vi.fn(async () => null),
-    reflect_status_server_stop: vi.fn(async () => {
-      calls.push({ cmd: 'reflect_status_server_stop', args: undefined });
+    zhuye_status_server_state: vi.fn(async () => null),
+    zhuye_status_server_stop: vi.fn(async () => {
+      calls.push({ cmd: 'zhuye_status_server_stop', args: undefined });
       return undefined;
     }),
     // SSH 远程开发(state/remote.rs 会话层接缝)。
-    reflect_remote_hosts: vi.fn(async () => [
+    zhuye_remote_hosts: vi.fn(async () => [
       { name: 'build-box', host: '10.0.0.5', port: 22, user: null },
     ]),
-    reflect_remote_host_save: vi.fn(async (args: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_remote_host_save', args });
+    zhuye_remote_host_save: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_remote_host_save', args });
       return [{ name: args.name as string, host: args.host as string, port: (args.port as number) ?? 22, user: (args.user as string | null) ?? null }];
     }),
-    reflect_remote_host_remove: vi.fn(async () => []),
-    reflect_remote_test: vi.fn(async (args: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_remote_test', args });
+    zhuye_remote_host_remove: vi.fn(async () => []),
+    zhuye_remote_test: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_remote_test', args });
       return 'zhuye 0.1.15';
     }),
-    reflect_remote_bootstrap: vi.fn(async (host: string) => {
-      calls.push({ cmd: 'reflect_remote_bootstrap', args: { host } });
+    zhuye_remote_bootstrap: vi.fn(async (host: string) => {
+      calls.push({ cmd: 'zhuye_remote_bootstrap', args: { host } });
       return 'zhuye 0.1.15 (installed)';
     }),
-    reflect_remote_connect: vi.fn(async (host: string, cwd: string) => {
-      calls.push({ cmd: 'reflect_remote_connect', args: { host, cwd } });
+    zhuye_remote_connect: vi.fn(async (host: string, cwd: string) => {
+      calls.push({ cmd: 'zhuye_remote_connect', args: { host, cwd } });
       return '00000000-0000-4000-8000-0000000000aa';
     }),
-    reflect_remote_bind: vi.fn(async () => undefined),
-    reflect_remote_disconnect: vi.fn(async () => undefined),
-    reflect_remote_sessions: vi.fn(async () => []),
+    zhuye_remote_bind: vi.fn(async () => undefined),
+    zhuye_remote_disconnect: vi.fn(async () => undefined),
+    zhuye_remote_sessions: vi.fn(async () => []),
   };
 });
 
@@ -154,7 +154,7 @@ describe('RemoteView', () => {
     });
   });
 
-  it('Save forwards to reflect_update_remote_config with the new host', async () => {
+  it('Save forwards to zhuye_update_remote_config with the new host', async () => {
     render(wrap(<RemoteView />));
     await waitFor(() => screen.getByTestId('remote-edit-btn'));
     fireEvent.click(screen.getByTestId('remote-edit-btn'));
@@ -166,7 +166,7 @@ describe('RemoteView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_update_remote_config' &&
+            c.cmd === 'zhuye_update_remote_config' &&
             (c.args as { host: string }).host === 'updated.tail.net',
         ),
       ).toBe(true);
@@ -190,7 +190,7 @@ describe('RemoteView', () => {
     await waitFor(() => {
       expect(
         calls.some(
-          (c) => c.cmd === 'reflect_status_server_start' && (c.args as { port: number }).port === 4732,
+          (c) => c.cmd === 'zhuye_status_server_start' && (c.args as { port: number }).port === 4732,
         ),
       ).toBe(true);
     });
@@ -198,8 +198,8 @@ describe('RemoteView', () => {
 
   it('status server badge shows the running port when state reports one', async () => {
     // state 返回端口 → running 徽标;Start 禁用,Stop 可点并转发。
-    const { reflect_status_server_state } = await import('@/utils/commands');
-    (reflect_status_server_state as ReturnType<typeof vi.fn>).mockResolvedValue(4732);
+    const { zhuye_status_server_state } = await import('@/utils/commands');
+    (zhuye_status_server_state as ReturnType<typeof vi.fn>).mockResolvedValue(4732);
     render(wrap(<RemoteView />));
     await waitFor(() => {
       expect(screen.getByText(/running on :4732/)).toBeDefined();
@@ -210,7 +210,7 @@ describe('RemoteView', () => {
     expect(stopBtn.disabled).toBe(false);
     fireEvent.click(stopBtn);
     await waitFor(() => {
-      expect(calls.some((c) => c.cmd === 'reflect_status_server_stop')).toBe(true);
+      expect(calls.some((c) => c.cmd === 'zhuye_status_server_stop')).toBe(true);
     });
   });
 
@@ -220,18 +220,18 @@ describe('RemoteView', () => {
       expect(screen.getByTestId('remote-ssh-fill-build-box')).toBeDefined();
     });
 
-    // 填表 → 连接 → 调 reflect_remote_connect(name, cwd)。
+    // 填表 → 连接 → 调 zhuye_remote_connect(name, cwd)。
     fireEvent.change(screen.getByTestId('remote-ssh-name'), { target: { value: 'build-box' } });
     fireEvent.change(screen.getByTestId('remote-ssh-cwd'), { target: { value: '/home/me/proj' } });
     fireEvent.click(screen.getByTestId('remote-ssh-connect'));
     await waitFor(() => {
-      const connect = calls.find((c) => c.cmd === 'reflect_remote_connect');
+      const connect = calls.find((c) => c.cmd === 'zhuye_remote_connect');
       expect(connect).toBeDefined();
       expect(connect?.args).toEqual({ host: 'build-box', cwd: '/home/me/proj' });
     });
   });
 
-  it('SSH 一键安装:点击后调 reflect_remote_bootstrap 并自动重测主机', async () => {
+  it('SSH 一键安装:点击后调 zhuye_remote_bootstrap 并自动重测主机', async () => {
     render(wrap(<RemoteView />));
     await waitFor(() => {
       expect(screen.getByTestId('remote-ssh-bootstrap')).toBeDefined();
@@ -239,13 +239,13 @@ describe('RemoteView', () => {
     fireEvent.change(screen.getByTestId('remote-ssh-name'), { target: { value: 'fresh-box' } });
     fireEvent.click(screen.getByTestId('remote-ssh-bootstrap'));
     await waitFor(() => {
-      const boot = calls.find((c) => c.cmd === 'reflect_remote_bootstrap');
+      const boot = calls.find((c) => c.cmd === 'zhuye_remote_bootstrap');
       expect(boot).toBeDefined();
       expect(boot?.args).toEqual({ host: 'fresh-box' });
     });
-    // 装完自动重测(reflect_remote_test 被再次调用)。
+    // 装完自动重测(zhuye_remote_test 被再次调用)。
     await waitFor(() => {
-      expect(calls.some((c) => c.cmd === 'reflect_remote_test')).toBe(true);
+      expect(calls.some((c) => c.cmd === 'zhuye_remote_test')).toBe(true);
     });
   });
 });

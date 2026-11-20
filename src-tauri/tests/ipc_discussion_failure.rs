@@ -30,7 +30,7 @@ fn provider_failure_emits_a_terminal_discussion_event() {
         provider.uri()
     ));
     let (tx, rx) = channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
@@ -51,7 +51,7 @@ system_prompt = "respond"
     )
     .unwrap();
     let result = common::invoke(
-        "reflect_run_discussion",
+        "zhuye_run_discussion",
         json!({"configPath":"discussion-error.toml"}),
     );
     assert!(result.is_err(), "{result:?}");

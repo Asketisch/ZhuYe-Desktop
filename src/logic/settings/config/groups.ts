@@ -1,7 +1,7 @@
 /**
  * 模型组（[[provider_group]]）的纯 TOML 辅助函数（与 plans.ts 同风格）。
  *
- * 概念映射（与后端 reflect-config 的 ProviderGroupSection 一一对应）：
+ * 概念映射（与后端 zhuye-config 的 ProviderGroupSection 一一对应）：
  *  - 一个「模型组」= 一个命名 provider 条目：组 id 直接注册为
  *    ModelRegistry 的池名，模型 spec 前缀 = 组 id（`<id>/<model>`）。
  *  - endpoint = 线格式（openai | anthropic），与内置两个接入端口同义，
@@ -10,7 +10,7 @@
  *    嵌套数组保留给高级用户，本文件的 GUI 编辑面**不**触碰它 —— 替换
  *    组块时只替换组自身 kv 行（嵌套子表按 TOML 顺序仍归属该组）。
  *
- * 全部为字符串手术；后端 `reflect_save_config` 的 `load_from_str`
+ * 全部为字符串手术；后端 `zhuye_save_config` 的 `load_from_str`
  * 是最终校验闸阀。
  */
 

@@ -7,42 +7,42 @@
 //! model_call 节点 —— 调用成功后记录用量,窗口耗尽 → `QuotaExhausted`
 //! 事件 + credential 冷却,graph 层自动 failover 到池中下一个凭证。
 //!
-//! 逻辑与 `zhuye-agent/crates/runtime/reflect-exec/src/runtime_config.rs`
+//! 逻辑与 `zhuye-agent/crates/runtime/zhuye-exec/src/runtime_config.rs`
 //! 的 `build_quota_tracker` 保持一致(该文件为 headless 参考实现;桌面端
-//! 不依赖 reflect-exec,故在此平移)。submodule 不动。
+//! 不依赖 zhuye-exec,故在此平移)。submodule 不动。
 
-use reflect_llm::SharedQuotaTracker;
+use zhuye_llm::SharedQuotaTracker;
 use tracing::info;
 
 use crate::state::MinimalAgent;
 
-/// 把 `reflect_config::QuotaSource` 映射为运行时 `QuotaProvider` 实例。
+/// 把 `zhuye_config::QuotaSource` 映射为运行时 `QuotaProvider` 实例。
 /// 返回 `None` 表示该厂商的用量 API 暂未实现(火山需 AK/SK 签名;
 /// Anthropic/OpenAI usage 需 OAuth 凭据)——此时仅做本地 token 统计。
-/// `commands/config.rs` 的 `reflect_query_plan_quota` 手动查询也复用此映射。
+/// `commands/config.rs` 的 `zhuye_query_plan_quota` 手动查询也复用此映射。
 pub(crate) fn make_provider(
-    src: &reflect_config::QuotaSource,
-) -> Option<std::sync::Arc<dyn reflect_llm::QuotaProvider>> {
-    use reflect_llm::{
+    src: &zhuye_config::QuotaSource,
+) -> Option<std::sync::Arc<dyn zhuye_llm::QuotaProvider>> {
+    use zhuye_llm::{
         KimiQuotaProvider, MinimaxQuotaProvider, ZenmuxQuotaProvider, ZhipuQuotaProvider,
     };
     use std::sync::Arc as StdArc;
     match src {
-        reflect_config::QuotaSource::Kimi => {
-            Some(StdArc::new(KimiQuotaProvider) as StdArc<dyn reflect_llm::QuotaProvider>)
+        zhuye_config::QuotaSource::Kimi => {
+            Some(StdArc::new(KimiQuotaProvider) as StdArc<dyn zhuye_llm::QuotaProvider>)
         }
-        reflect_config::QuotaSource::Zhipu => {
-            Some(StdArc::new(ZhipuQuotaProvider) as StdArc<dyn reflect_llm::QuotaProvider>)
+        zhuye_config::QuotaSource::Zhipu => {
+            Some(StdArc::new(ZhipuQuotaProvider) as StdArc<dyn zhuye_llm::QuotaProvider>)
         }
-        reflect_config::QuotaSource::Minimax => {
-            Some(StdArc::new(MinimaxQuotaProvider) as StdArc<dyn reflect_llm::QuotaProvider>)
+        zhuye_config::QuotaSource::Minimax => {
+            Some(StdArc::new(MinimaxQuotaProvider) as StdArc<dyn zhuye_llm::QuotaProvider>)
         }
-        reflect_config::QuotaSource::Zenmux => {
-            Some(StdArc::new(ZenmuxQuotaProvider) as StdArc<dyn reflect_llm::QuotaProvider>)
+        zhuye_config::QuotaSource::Zenmux => {
+            Some(StdArc::new(ZenmuxQuotaProvider) as StdArc<dyn zhuye_llm::QuotaProvider>)
         }
-        reflect_config::QuotaSource::Volcengine
-        | reflect_config::QuotaSource::AnthropicUsage
-        | reflect_config::QuotaSource::OpenAIUsage => None,
+        zhuye_config::QuotaSource::Volcengine
+        | zhuye_config::QuotaSource::AnthropicUsage
+        | zhuye_config::QuotaSource::OpenAIUsage => None,
     }
 }
 
@@ -50,26 +50,26 @@ pub(crate) fn make_provider(
 /// 注册到 `QuotaTracker`。任一 provider 有 quota 声明 → `Some(tracker)`;
 /// 全无 → `None`(向后兼容:不配 quota 时零开销)。
 pub(crate) fn build_quota_tracker(
-    cfg: &reflect_config::ReflectConfig,
+    cfg: &zhuye_config::ReflectConfig,
 ) -> Option<SharedQuotaTracker> {
-    let tracker = std::sync::Arc::new(reflect_llm::QuotaTracker::new());
+    let tracker = std::sync::Arc::new(zhuye_llm::QuotaTracker::new());
     let mut any = false;
 
-    let mut register_provider = |provider: &str, creds: &[reflect_config::CredentialConfig]| {
+    let mut register_provider = |provider: &str, creds: &[zhuye_config::CredentialConfig]| {
         for c in creds {
             let Some(q) = &c.quota else { continue };
             let rt_source = q.check_via.as_ref().map(|s| match s {
-                reflect_config::QuotaSource::Kimi => reflect_llm::QuotaSource::Kimi,
-                reflect_config::QuotaSource::Zhipu => reflect_llm::QuotaSource::Zhipu,
-                reflect_config::QuotaSource::Minimax => reflect_llm::QuotaSource::Minimax,
-                reflect_config::QuotaSource::Zenmux => reflect_llm::QuotaSource::Zenmux,
-                reflect_config::QuotaSource::Volcengine => reflect_llm::QuotaSource::Volcengine,
-                reflect_config::QuotaSource::AnthropicUsage => {
-                    reflect_llm::QuotaSource::AnthropicUsage
+                zhuye_config::QuotaSource::Kimi => zhuye_llm::QuotaSource::Kimi,
+                zhuye_config::QuotaSource::Zhipu => zhuye_llm::QuotaSource::Zhipu,
+                zhuye_config::QuotaSource::Minimax => zhuye_llm::QuotaSource::Minimax,
+                zhuye_config::QuotaSource::Zenmux => zhuye_llm::QuotaSource::Zenmux,
+                zhuye_config::QuotaSource::Volcengine => zhuye_llm::QuotaSource::Volcengine,
+                zhuye_config::QuotaSource::AnthropicUsage => {
+                    zhuye_llm::QuotaSource::AnthropicUsage
                 }
-                reflect_config::QuotaSource::OpenAIUsage => reflect_llm::QuotaSource::OpenAIUsage,
+                zhuye_config::QuotaSource::OpenAIUsage => zhuye_llm::QuotaSource::OpenAIUsage,
             });
-            let rt = reflect_llm::QuotaConfig {
+            let rt = zhuye_llm::QuotaConfig {
                 window_secs: q.window_secs,
                 max_tokens: q.max_tokens,
                 check_via: rt_source,
@@ -112,7 +112,7 @@ pub(crate) fn build_quota_tracker(
 
 /// install 阶段调用:构建 tracker 并写入 inner(随 `construct_thread` 进入
 /// 每个 AgentConfig)。
-pub(crate) fn install_quota_tracker(agent: &MinimalAgent, cfg: &reflect_config::ReflectConfig) {
+pub(crate) fn install_quota_tracker(agent: &MinimalAgent, cfg: &zhuye_config::ReflectConfig) {
     let tracker = build_quota_tracker(cfg);
     *agent.inner.quota_tracker.lock() = tracker;
 }
@@ -124,7 +124,7 @@ mod tests {
     /// 无 quota 声明 → None(向后兼容)。
     #[test]
     fn no_quota_section_yields_none() {
-        let cfg = reflect_config::load_from_str("").expect("empty config parses");
+        let cfg = zhuye_config::load_from_str("").expect("empty config parses");
         assert!(build_quota_tracker(&cfg).is_none());
     }
 
@@ -153,7 +153,7 @@ check_via = "zhipu"
 label = "no-quota"
 api_key = "sk-oai"
 "#;
-        let cfg = reflect_config::load_from_str(toml).expect("config parses");
+        let cfg = zhuye_config::load_from_str(toml).expect("config parses");
         let tracker = build_quota_tracker(&cfg).expect("quota declared → tracker");
         assert!(tracker.is_tracked("anthropic", "glm-plan"));
         assert!(

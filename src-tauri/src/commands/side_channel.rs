@@ -5,20 +5,20 @@
 //! `SideChannelDriver`(在 `state/thread_factory.rs` 构造注入)真正执行;
 //! 应答经与 submission id 配对的 `Event` 返回(`SideChannelStarted` /
 //! `SideChannelFinished` / `SideChannelStatus`),并同样扇出到会话
-//! broadcast —— 前端在 `reflect_event` 通道上与 TUI 消费同一份协议信封。
+//! broadcast —— 前端在 `zhuye_event` 通道上与 TUI 消费同一份协议信封。
 //!
 //! ## 命令清单(与旧 app-core registry 版 wire 兼容)
 //!
-//! - `reflect_start_side_channel` — 启动一条 side-channel(等待配对的
+//! - `zhuye_start_side_channel` — 启动一条 side-channel(等待配对的
 //!   Started 事件拿回 id;driver 缺失 / 启动失败以 Error 应答)
-//! - `reflect_cancel_side_channel` — 取消指定 id(先查快照保住
+//! - `zhuye_cancel_side_channel` — 取消指定 id(先查快照保住
 //!   boolean 语义:未知 / 已终态 → `false`)
-//! - `reflect_list_side_channels` — 拉取快照(`QuerySideChannels`)
-//! - `reflect_get_side_channel` — 单条快照
+//! - `zhuye_list_side_channels` — 拉取快照(`QuerySideChannels`)
+//! - `zhuye_get_side_channel` — 单条快照
 
 use std::time::Duration;
 
-use reflect_protocol::{Event, EventMsg, Op, SideChannelEvent, SideChannelInfo};
+use zhuye_protocol::{Event, EventMsg, Op, SideChannelEvent, SideChannelInfo};
 use serde::Serialize;
 use tauri::State;
 
@@ -51,7 +51,7 @@ async fn submit_and_wait(agent: &MinimalAgent, op: Op) -> CommandResult<Event> {
     }
 }
 
-/// `reflect_start_side_channel` 的返回值。前端用 id 订阅事件 / 取消。
+/// `zhuye_start_side_channel` 的返回值。前端用 id 订阅事件 / 取消。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartSideChannelResult {
@@ -65,7 +65,7 @@ pub struct StartSideChannelResult {
 /// 引擎以 `SideChannelFinished(Error)` 应答(driver 未配置 / 工厂失败 /
 /// 并发满)时转为命令错误。
 #[tauri::command]
-pub async fn reflect_start_side_channel(
+pub async fn zhuye_start_side_channel(
     agent: State<'_, MinimalAgent>,
     agent_name: String,
     prompt: String,
@@ -110,7 +110,7 @@ pub async fn reflect_start_side_channel(
 /// 终止返回 `false`。引擎的 Cancel 对未知 id 是 noop(无应答事件),
 /// 先查快照保住 boolean 语义。
 #[tauri::command]
-pub async fn reflect_cancel_side_channel(
+pub async fn zhuye_cancel_side_channel(
     agent: State<'_, MinimalAgent>,
     id: String,
 ) -> CommandResult<bool> {
@@ -144,10 +144,10 @@ async fn list_channels(
     }
 }
 
-/// 列出当前所有 side-channel。实时更新走 `reflect_event` 通道上的
+/// 列出当前所有 side-channel。实时更新走 `zhuye_event` 通道上的
 /// `side_channel_*` 事件;该命令用于按需拉取快照(如页面刷新)。
 #[tauri::command]
-pub async fn reflect_list_side_channels(
+pub async fn zhuye_list_side_channels(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<SideChannelInfo>> {
     list_channels(&agent, None).await
@@ -155,7 +155,7 @@ pub async fn reflect_list_side_channels(
 
 /// 获取单条 side-channel 的快照。
 #[tauri::command]
-pub async fn reflect_get_side_channel(
+pub async fn zhuye_get_side_channel(
     agent: State<'_, MinimalAgent>,
     id: String,
 ) -> CommandResult<SideChannelInfo> {

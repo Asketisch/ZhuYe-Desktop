@@ -33,12 +33,12 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim
 
 ```bash
 cd src-tauri
-cargo build --bin reflect-desktop-daemon --bin reflect-desktop-daemonctl
-./target/debug/reflect-desktop-daemonctl status
-./target/debug/reflect-desktop-daemonctl start
-./target/debug/reflect-desktop-daemonctl stop
-./target/debug/reflect-desktop-daemonctl command-preview
-./target/debug/reflect-desktop-daemonctl --listen 0.0.0.0:4732 --token <token> --data-dir ~/Library/Application Support/com.asketisch.reflectdesktop start
+cargo build --bin zhuye-desktop-daemon --bin zhuye-desktop-daemonctl
+./target/debug/zhuye-desktop-daemonctl status
+./target/debug/zhuye-desktop-daemonctl start
+./target/debug/zhuye-desktop-daemonctl stop
+./target/debug/zhuye-desktop-daemonctl command-preview
+./target/debug/zhuye-desktop-daemonctl --listen 0.0.0.0:4732 --token <token> --data-dir ~/Library/Application Support/com.asketisch.zhuyedesktop start
 ```
 
 有用覆盖选项：
@@ -46,7 +46,7 @@ cargo build --bin reflect-desktop-daemon --bin reflect-desktop-daemonctl
 - `--data-dir <path>`：包含 `settings.json` / `workspaces.json` 的应用数据目录
 - `--listen <addr>`：绑定地址覆盖
 - `--token <token>`：令牌覆盖
-- `--daemon-path <path>`：显式 `reflect-desktop-daemon` 二进制路径
+- `--daemon-path <path>`：显式 `zhuye-desktop-daemon` 二进制路径
 - `--json`：机器可读输出
 
 ## iOS 模拟器

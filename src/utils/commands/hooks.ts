@@ -3,7 +3,7 @@
  */
 import { invoke } from '../bridge';
 
-export interface ReflectHookInfo {
+export interface ZhuyeHookInfo {
   name: string;
   kind: string;
   enabled: boolean;
@@ -11,13 +11,13 @@ export interface ReflectHookInfo {
 }
 
 /** 列出已注册的 hooks。 */
-export async function reflect_list_hooks(): Promise<ReflectHookInfo[]> {
-  return invoke<ReflectHookInfo[]>('reflect_list_hooks');
+export async function zhuye_list_hooks(): Promise<ZhuyeHookInfo[]> {
+  return invoke<ZhuyeHookInfo[]>('zhuye_list_hooks');
 }
 
 /** 按名称启用或禁用某个 hook。 */
-export async function reflect_toggle_hook(name: string, enabled: boolean): Promise<void> {
-  return invoke<void>('reflect_toggle_hook', { name, enabled });
+export async function zhuye_toggle_hook(name: string, enabled: boolean): Promise<void> {
+  return invoke<void>('zhuye_toggle_hook', { name, enabled });
 }
 
 /**
@@ -37,6 +37,6 @@ export interface HookEventInfo {
 }
 
 /** 列出核心支持的 hook 事件类型与可用决策。 */
-export function reflect_list_hook_events(): Promise<HookEventInfo[]> {
-  return invoke('reflect_list_hook_events');
+export function zhuye_list_hook_events(): Promise<HookEventInfo[]> {
+  return invoke('zhuye_list_hook_events');
 }

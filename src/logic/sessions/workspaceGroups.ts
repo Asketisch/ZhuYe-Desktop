@@ -4,7 +4,7 @@
  * 纯函数，便于测试与跨 feature 复用。
  * 时间分桶（buckets.ts）仍服务于 HomeView / ThreadsView；侧边栏用本项目录分组。
  */
-import type { ReflectSessionInfo, ReflectWorkspaceInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo, ZhuyeWorkspaceInfo } from '@/utils/commands';
 
 /** 未归属分组（旧会话 / CLI 创建，`workspace` 为空）的哨兵 key。 */
 export const UNASSIGNED_GROUP_KEY = '@@unassigned';
@@ -17,7 +17,7 @@ export interface WorkspaceSessionGroup {
   /** 显示名：目录 basename；未归属分组为空串（由 UI 用 i18n 文案渲染）。 */
   label: string;
   /** 组内会话，`started_at` 倒序。 */
-  sessions: ReflectSessionInfo[];
+  sessions: ZhuyeSessionInfo[];
   /** 组内最近会话的 started_at（毫秒）；空项目组为 0。 */
   lastActivity: number;
 }
@@ -34,7 +34,7 @@ export function basename(p: string): string {
 }
 
 /**
- * 后端 `reflect_list_workspaces` 空历史的兜底占位（`$HOME/.`，label "default"）。
+ * 后端 `zhuye_list_workspaces` 空历史的兜底占位（`$HOME/.`，label "default"）。
  * 不是真实项目目录，不进侧边栏。
  * v1.x 修复:根目录 "/" 同样是占位（历史 json 里出现过的无效条目），一并过滤。
  */
@@ -43,12 +43,12 @@ export function isPlaceholderWorkspace(path: string): boolean {
   return trimmed.endsWith('/.') || trimmed.endsWith('\\.') || trimmed === '.' || trimmed === '';
 }
 
-function startedAtMs(session: ReflectSessionInfo): number {
+function startedAtMs(session: ZhuyeSessionInfo): number {
   const t = Date.parse(session.started_at);
   return Number.isNaN(t) ? 0 : t;
 }
 
-function sortByRecency(sessions: ReflectSessionInfo[]): ReflectSessionInfo[] {
+function sortByRecency(sessions: ZhuyeSessionInfo[]): ZhuyeSessionInfo[] {
   return [...sessions].sort((a, b) => startedAtMs(b) - startedAtMs(a));
 }
 
@@ -63,11 +63,11 @@ function sortByRecency(sessions: ReflectSessionInfo[]): ReflectSessionInfo[] {
  *   未归属分组固定最后。
  */
 export function groupSessionsByWorkspace(
-  sessions: ReflectSessionInfo[],
-  knownWorkspaces: ReflectWorkspaceInfo[] = [],
+  sessions: ZhuyeSessionInfo[],
+  knownWorkspaces: ZhuyeWorkspaceInfo[] = [],
 ): WorkspaceSessionGroup[] {
   const hidden = new Set(knownWorkspaces.filter((ws) => ws.hidden).map((ws) => ws.path));
-  const byPath = new Map<string, ReflectSessionInfo[]>();
+  const byPath = new Map<string, ZhuyeSessionInfo[]>();
   for (const s of sessions) {
     if (s.workspace && hidden.has(s.workspace)) continue;
     const key = groupKeyFor(s.workspace ?? null);

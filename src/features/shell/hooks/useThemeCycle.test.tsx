@@ -2,7 +2,7 @@
  * useThemeCycle —— 主题切换状态机测试。
  *
  * 行为契约:
- *   - 初始 mode 取自 localStorage(`reflect-theme`)。
+ *   - 初始 mode 取自 localStorage(`zhuye-theme`)。
  *   - cycleTheme:dark → light → system → dark。
  *   - setThemeMode 持久化并更新 React state。
  */
@@ -46,6 +46,6 @@ describe('useThemeCycle', () => {
     const { result } = renderHook(() => useThemeCycle());
     act(() => result.current.setThemeMode('dark'));
     expect(result.current.mode).toBe('dark');
-    expect(localStorage.getItem('reflect-theme')).toBe('dark');
+    expect(localStorage.getItem('zhuye-theme')).toBe('dark');
   });
 });

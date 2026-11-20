@@ -6,15 +6,15 @@
  * 抽到这里后 Composer 与命令面板共用同一条管线。
  */
 import {
-  reflect_compact,
-  reflect_interrupt,
-  reflect_enter_plan_mode,
-  reflect_exit_plan_mode,
-  reflect_enter_goal_mode,
-  reflect_exit_goal_mode,
-  reflect_set_effort,
-  reflect_set_permission_mode,
-  reflect_export_session,
+  zhuye_compact,
+  zhuye_interrupt,
+  zhuye_enter_plan_mode,
+  zhuye_exit_plan_mode,
+  zhuye_enter_goal_mode,
+  zhuye_exit_goal_mode,
+  zhuye_set_effort,
+  zhuye_set_permission_mode,
+  zhuye_export_session,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import type { LocaleKey } from '@/utils/i18n';
@@ -53,14 +53,14 @@ export async function dispatchSubmission(
   const { activeSessionId, pushToast, t, rename } = ctx;
   switch (kind) {
     case 'compact':
-      await reflect_compact();
+      await zhuye_compact();
       pushToast({ kind: 'info', message: t('composer.compactRequested') });
       break;
     case 'enter_plan_mode':
-      await reflect_enter_plan_mode(args.join(' ') || 'unspecified');
+      await zhuye_enter_plan_mode(args.join(' ') || 'unspecified');
       break;
     case 'exit_plan_mode':
-      await reflect_exit_plan_mode();
+      await zhuye_exit_plan_mode();
       break;
     case 'start_goal': {
       // GUI 的 /goal = 开目标会话。core 的 EnterGoalMode 只挂载自校验
@@ -74,7 +74,7 @@ export async function dispatchSubmission(
       await ctx.ensureSessionReady(activeSessionId);
       // 顺序敏感：先 arm 再发消息 —— 两个 op 经同一 mpsc 保序处理，
       // turn 结束时校验器必然已就位。
-      await reflect_enter_goal_mode(goal);
+      await zhuye_enter_goal_mode(goal);
       useAgentStore.getState().setGoalActive(true);
       await useAgentStore.getState().submit(goal, ctx.workspace ?? null);
       ctx.invalidateSessions?.();
@@ -85,21 +85,21 @@ export async function dispatchSubmission(
       break;
     }
     case 'exit_goal_mode':
-      await reflect_exit_goal_mode();
+      await zhuye_exit_goal_mode();
       useAgentStore.getState().setGoalActive(false);
       break;
     case 'set_effort':
-      await reflect_set_effort((args[0] ?? '').toLowerCase());
+      await zhuye_set_effort((args[0] ?? '').toLowerCase());
       break;
     case 'set_permission_mode':
-      await reflect_set_permission_mode((args[0] ?? '').toLowerCase());
+      await zhuye_set_permission_mode((args[0] ?? '').toLowerCase());
       break;
     case 'interrupt':
-      await reflect_interrupt();
+      await zhuye_interrupt();
       break;
     case 'export_session':
       if (activeSessionId) {
-        const path = await reflect_export_session(activeSessionId);
+        const path = await zhuye_export_session(activeSessionId);
         pushToast({
           kind: 'info',
           message: path ? t('composer.exported', { path }) : t('composer.exportedNoPath'),

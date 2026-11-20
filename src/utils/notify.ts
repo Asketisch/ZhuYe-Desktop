@@ -1,7 +1,7 @@
 /**
  * useAgentNotifications —— agent 事件 → 声音 / 系统通知 / dock badge。
  *
- * 对标 CodexMonitor 的通知门控（B→D 阶段借鉴）:
+ * 通知门控(三层:失焦 / 时长 / 节流):
  *   - 失焦门控:窗口聚焦时不弹系统通知(避免「人就在屏幕前」被打扰);
  *   - 时长门控:turn 运行不足 `minDurationMs` 不通知(秒回无需召回);
  *   - 节流:同一 turn 1.5s 内只发一条;
@@ -14,7 +14,7 @@
 import { useEffect, useRef } from 'react';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_set_dock_badge } from '@/utils/commands/notifications';
+import { zhuye_set_dock_badge } from '@/utils/commands/notifications';
 
 export interface AgentNotifyOptions {
   /** 是否启用声音(默认 true 直到用户在 Settings 里关闭)。 */
@@ -33,7 +33,7 @@ export interface AgentNotifyOptions {
   dockBadge?: boolean;
 }
 
-const KEY = 'reflect.notify.options';
+const KEY = 'zhuye.notify.options';
 const DEFAULTS: Required<AgentNotifyOptions> = {
   sound: false,
   system: false,
@@ -110,7 +110,7 @@ export interface AgentNotificationHooks {
   onOpenSession?: (sessionId: string) => void;
   /** 当前激活会话 id(通知点击的跳转目标)。 */
   sessionId?: string | null;
-  /** 通知标题(默认 "Reflect")。 */
+  /** 通知标题(默认 "ZhuYe")。 */
   title?: string;
   /** 「需要你处理」通知正文(i18n 由调用方注入)。 */
   approvalBody?: string;
@@ -191,11 +191,11 @@ export function useAgentNotifications(
   );
   useEffect(() => {
     if (!options.dockBadge) return;
-    void reflect_set_dock_badge(pendingTotal > 0 ? String(pendingTotal) : null).catch(() => {
+    void zhuye_set_dock_badge(pendingTotal > 0 ? String(pendingTotal) : null).catch(() => {
       /* 后端不可达时静默 */
     });
     return () => {
-      if (pendingTotal > 0) void reflect_set_dock_badge(null).catch(() => {});
+      if (pendingTotal > 0) void zhuye_set_dock_badge(null).catch(() => {});
     };
   }, [options.dockBadge, pendingTotal]);
 
@@ -209,10 +209,10 @@ export function useAgentNotifications(
     if ((options.onlyUnfocused ?? true) && focusedRef.current) return;
     try {
       if ('Notification' in window && Notification.permission === 'granted') {
-        const notification = new Notification(hooksRef.current.title ?? 'Reflect', {
+        const notification = new Notification(hooksRef.current.title ?? 'ZhuYe', {
           body: truncateBody(
             hooksRef.current.approvalBody ??
-              'Reflect needs your attention (approval / question pending).',
+              'ZhuYe needs your attention (approval / question pending).',
           ),
         });
         notification.onclick = () => {
@@ -271,7 +271,7 @@ export function useAgentNotifications(
                 lastMessageRef.current.get(turnId) ??
                 hooksRef.current.turnFinishedBody ??
                 'Turn finished.';
-              const notification = new Notification(hooksRef.current.title ?? 'Reflect', {
+              const notification = new Notification(hooksRef.current.title ?? 'ZhuYe', {
                 body: truncateBody(body),
               });
               notification.onclick = () => {

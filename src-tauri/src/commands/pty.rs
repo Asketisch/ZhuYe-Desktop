@@ -52,7 +52,7 @@ fn powershell_or_default() -> String {
 }
 
 #[tauri::command]
-pub async fn reflect_pty_start(
+pub async fn zhuye_pty_start(
     agent: State<'_, MinimalAgent>,
     id: String,
     cols: u16,
@@ -101,7 +101,7 @@ pub async fn reflect_pty_start(
                 Ok(n) => {
                     if let Some(app) = &app {
                         let _ = app.emit(
-                            "reflect_pty_output",
+                            "zhuye_pty_output",
                             Output {
                                 id: id.clone(),
                                 data: buffer[..n].to_vec(),
@@ -112,14 +112,14 @@ pub async fn reflect_pty_start(
             }
         }
         if let Some(app) = &app {
-            let _ = app.emit("reflect_pty_exit", id);
+            let _ = app.emit("zhuye_pty_exit", id);
         }
     });
     Ok(())
 }
 
 #[tauri::command]
-pub async fn reflect_pty_write(id: String, data: String) -> CommandResult<()> {
+pub async fn zhuye_pty_write(id: String, data: String) -> CommandResult<()> {
     let mut terminals = TERMINALS.lock().map_err(error)?;
     let terminal = terminals
         .get_mut(&id)
@@ -128,7 +128,7 @@ pub async fn reflect_pty_write(id: String, data: String) -> CommandResult<()> {
 }
 
 #[tauri::command]
-pub async fn reflect_pty_resize(id: String, cols: u16, rows: u16) -> CommandResult<()> {
+pub async fn zhuye_pty_resize(id: String, cols: u16, rows: u16) -> CommandResult<()> {
     let terminals = TERMINALS.lock().map_err(error)?;
     let terminal = terminals
         .get(&id)
@@ -145,7 +145,7 @@ pub async fn reflect_pty_resize(id: String, cols: u16, rows: u16) -> CommandResu
 }
 
 #[tauri::command]
-pub async fn reflect_pty_close(id: String) -> CommandResult<()> {
+pub async fn zhuye_pty_close(id: String) -> CommandResult<()> {
     let terminal = TERMINALS.lock().map_err(error)?.remove(&id);
     if let Some(mut terminal) = terminal {
         let _ = terminal.child.kill();

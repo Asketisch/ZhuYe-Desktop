@@ -10,11 +10,11 @@
 //! `stop_one_server`)。
 //!
 //! 精选 catalog(内置离线清单 + 安装提示)经核心的
-//! `reflect_mcp::registry` 暴露 —— 解决「我不知道能装哪些 MCP」。
+//! `zhuye_mcp::registry` 暴露 —— 解决「我不知道能装哪些 MCP」。
 
 use std::collections::BTreeMap;
 
-use reflect_config::{McpServerEntry, McpTransport, ReflectConfig};
+use zhuye_config::{McpServerEntry, McpTransport, ReflectConfig};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -66,7 +66,7 @@ pub struct McpCatalogEntry {
 /// 立即可用;但此前列表只取自 `[mcp_servers]` 配置段 —— 插件 server
 /// 在 MCP 视图里**看不见**(用户「装了却看不到」)。此处并入插件快照。
 #[tauri::command]
-pub async fn reflect_list_mcp_servers(
+pub async fn zhuye_list_mcp_servers(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<McpServerInfo>> {
     let cfg = agent.inner.cfg.read().clone();
@@ -96,8 +96,8 @@ pub async fn reflect_list_mcp_servers(
             out.push(McpServerInfo {
                 name: srv.scoped_name.clone(),
                 transport: match srv.transport {
-                    reflect_plugin::capabilities::mcp::McpTransportKind::Stdio => "stdio",
-                    reflect_plugin::capabilities::mcp::McpTransportKind::Http => "http",
+                    zhuye_plugin::capabilities::mcp::McpTransportKind::Stdio => "stdio",
+                    zhuye_plugin::capabilities::mcp::McpTransportKind::Http => "http",
                 }
                 .to_string(),
                 command: srv.config.command.clone(),
@@ -117,8 +117,8 @@ pub async fn reflect_list_mcp_servers(
 pub(crate) async fn plugin_capabilities(
     agent: &MinimalAgent,
 ) -> Vec<(
-    reflect_plugin::PluginId,
-    reflect_plugin::capabilities::LoadedPlugin,
+    zhuye_plugin::PluginId,
+    zhuye_plugin::capabilities::LoadedPlugin,
 )> {
     let runtime = agent.plugin_runtime();
     let guard = runtime.lock().await;
@@ -133,11 +133,11 @@ pub(crate) async fn plugin_capabilities(
 
 /// 列出内置精选 MCP catalog(离线清单 + 安装提示)。
 #[tauri::command]
-pub async fn reflect_mcp_catalog() -> CommandResult<Vec<McpCatalogEntry>> {
-    Ok(reflect_mcp::registry::curated_catalog()
+pub async fn zhuye_mcp_catalog() -> CommandResult<Vec<McpCatalogEntry>> {
+    Ok(zhuye_mcp::registry::curated_catalog()
         .into_iter()
         .map(|e| {
-            let hint = reflect_mcp::registry::install_hint(&e);
+            let hint = zhuye_mcp::registry::install_hint(&e);
             McpCatalogEntry {
                 id: e.id,
                 name: e.name,
@@ -159,7 +159,7 @@ pub async fn reflect_mcp_catalog() -> CommandResult<Vec<McpCatalogEntry>> {
 /// - 更新 → 先停旧 server(反注册旧工具)再起新的;
 /// - 删除 → 停 server + 反注册工具。
 #[tauri::command]
-pub async fn reflect_upsert_mcp_server(
+pub async fn zhuye_upsert_mcp_server(
     agent: State<'_, MinimalAgent>,
     name: String,
     entry: McpServerEntry,
@@ -181,7 +181,7 @@ pub async fn reflect_upsert_mcp_server(
         .ok_or_else(|| CommandError {
             msg: format!("MCP server {name} not found after insert"),
         })?;
-    let mcp_cfg = reflect_mcp::McpServerConfig::from(shape);
+    let mcp_cfg = zhuye_mcp::McpServerConfig::from(shape);
 
     // 落盘(共享 persist_config:写盘 + 换内存快照)。
     crate::commands::config::persist_config(&agent, cfg)?;
@@ -216,7 +216,7 @@ pub async fn reflect_upsert_mcp_server(
 
 /// 删除一个 MCP server:落盘配置 + 运行时停服。
 #[tauri::command]
-pub async fn reflect_delete_mcp_server(
+pub async fn zhuye_delete_mcp_server(
     agent: State<'_, MinimalAgent>,
     name: String,
 ) -> CommandResult<()> {
@@ -275,7 +275,7 @@ pub struct McpPromptInfo {
 /// 本命令直接问 rmcp peer(`list_all_resources()`),与核心的
 /// `ListMcpResourcesTool` 同源。
 #[tauri::command]
-pub async fn reflect_list_mcp_resources(
+pub async fn zhuye_list_mcp_resources(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<McpResourceInfo>> {
     let mgr = agent.inner.mcp_manager.lock().clone();
@@ -309,7 +309,7 @@ pub async fn reflect_list_mcp_resources(
 /// 列出所有 MCP server 暴露的 **prompt** 模板(与核心
 /// `ListMcpPromptsTool` 同源)。
 #[tauri::command]
-pub async fn reflect_list_mcp_prompts(
+pub async fn zhuye_list_mcp_prompts(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<McpPromptInfo>> {
     let mgr = agent.inner.mcp_manager.lock().clone();

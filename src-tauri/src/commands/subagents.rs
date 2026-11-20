@@ -6,7 +6,7 @@
 //! - `~/.zhuye/subagents/*.md` —— **子代理 spec**(`call_<role>` 工具的
 //!   来源),**没有任何编辑面**。
 //!
-//! 合并口径与运行时同款(`reflect-exec` 的 `bootstrap_m5`):
+//! 合并口径与运行时同款(`zhuye-exec` 的 `bootstrap_m5`):
 //! **TOML `[[subagents]]` > workspace `.zhuye/subagents/*.md` >
 //! home `~/.zhuye/subagents/*.md` > 硬编码 explorer**。
 //!
@@ -15,7 +15,7 @@
 
 use std::path::Path;
 
-use reflect_config::SubagentSpecConfig;
+use zhuye_config::SubagentSpecConfig;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -62,7 +62,7 @@ pub struct SubagentSpecInfo {
 
 /// 列出当前生效的全部子代理 spec(按合并口径,高优先级覆盖低)。
 #[tauri::command]
-pub async fn reflect_list_subagent_specs(
+pub async fn zhuye_list_subagent_specs(
     agent: State<'_, MinimalAgent>,
 ) -> CommandResult<Vec<SubagentSpecInfo>> {
     let cfg = agent.inner.cfg.read().clone();
@@ -72,11 +72,11 @@ pub async fn reflect_list_subagent_specs(
     // 优先级从低到高:home md → workspace md → TOML。
     for (dir, source) in [
         (
-            reflect_config::paths::data_path_or_relative(&["subagents"]),
+            zhuye_config::paths::data_path_or_relative(&["subagents"]),
             SubagentSpecSource::User,
         ),
         (
-            reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"]),
+            zhuye_config::paths::project_data_path(&agent.workspace(), &["subagents"]),
             SubagentSpecSource::Workspace,
         ),
     ] {
@@ -127,17 +127,17 @@ pub async fn reflect_list_subagent_specs(
 /// `parse_subagent_str` 一致。写前**先解析校验**:非法 frontmatter 直接
 /// 报错,不落盘(避免写坏文件让 agent 起不来)。
 #[tauri::command]
-pub async fn reflect_save_subagent_spec(
+pub async fn zhuye_save_subagent_spec(
     agent: State<'_, MinimalAgent>,
     role: String,
     markdown: String,
 ) -> CommandResult<()> {
     validate_role(&role)?;
     // 校验:能解析才算合法 spec。
-    let parsed = reflect_subagent::parse_subagent_str(&markdown).map_err(|e| CommandError {
+    let parsed = zhuye_subagent::parse_subagent_str(&markdown).map_err(|e| CommandError {
         msg: format!("invalid subagent spec: {e}"),
     })?;
-    let dir = reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"]);
+    let dir = zhuye_config::paths::project_data_path(&agent.workspace(), &["subagents"]);
     std::fs::create_dir_all(&dir)?;
     let path = dir.join(format!("{role}.md"));
     crate::persistence::write_atomic(&path, markdown.as_bytes())?;
@@ -147,12 +147,12 @@ pub async fn reflect_save_subagent_spec(
 
 /// 删除一个子代理 spec(只删工作区 md;用户级 / TOML 来源不动)。
 #[tauri::command]
-pub async fn reflect_delete_subagent_spec(
+pub async fn zhuye_delete_subagent_spec(
     agent: State<'_, MinimalAgent>,
     role: String,
 ) -> CommandResult<()> {
     validate_role(&role)?;
-    let path = reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"])
+    let path = zhuye_config::paths::project_data_path(&agent.workspace(), &["subagents"])
         .join(format!("{role}.md"));
     if path.exists() {
         std::fs::remove_file(&path)?;
@@ -162,19 +162,19 @@ pub async fn reflect_delete_subagent_spec(
 
 /// 读取一个子代理 spec 的原始 md 文本(供编辑器回填)。
 #[tauri::command]
-pub async fn reflect_get_subagent_spec(
+pub async fn zhuye_get_subagent_spec(
     agent: State<'_, MinimalAgent>,
     role: String,
 ) -> CommandResult<Option<String>> {
     validate_role(&role)?;
-    let path = reflect_config::paths::project_data_path(&agent.workspace(), &["subagents"])
+    let path = zhuye_config::paths::project_data_path(&agent.workspace(), &["subagents"])
         .join(format!("{role}.md"));
     Ok(std::fs::read_to_string(path).ok())
 }
 
 /// 目录内的所有 spec(按 role 索引)。
 fn load_dir(dir: &Path, source: SubagentSpecSource) -> Vec<(String, SubagentSpecInfo)> {
-    let Ok(specs) = reflect_subagent::load_subagents_dir(dir) else {
+    let Ok(specs) = zhuye_subagent::load_subagents_dir(dir) else {
         return Vec::new();
     };
     specs

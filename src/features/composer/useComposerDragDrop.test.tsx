@@ -1,7 +1,7 @@
 /**
  * useComposerDragDrop —— 原生拖拽路径分流测试。
  *
- * ingestPaths:图片路径 → reflect_read_image_base64 → inline image 附件;
+ * ingestPaths:图片路径 → zhuye_read_image_base64 → inline image 附件;
  * 其余路径 → file mention;读取失败 → error toast。非 Tauri(jsdom)下
  * 原生订阅降级为 null,nativeDrop 恒 false(DOM 兜底保持可用)。
  */
@@ -43,7 +43,7 @@ describe('useComposerDragDrop', () => {
   });
 
   it('routes image paths to inline attachments and others to file mentions', async () => {
-    mockInvoke('reflect_read_image_base64', async (_cmd: string, args?: { path: string }) => ({
+    mockInvoke('zhuye_read_image_base64', async (_cmd: string, args?: { path: string }) => ({
       path: args?.path ?? '',
       mime_type: 'image/png',
       base64: 'AAAA',
@@ -67,7 +67,7 @@ describe('useComposerDragDrop', () => {
   });
 
   it('pushes an error toast when image read fails', async () => {
-    mockInvoke('reflect_read_image_base64', async () => {
+    mockInvoke('zhuye_read_image_base64', async () => {
       throw new Error('not a supported image file');
     });
     const { result } = renderHook(

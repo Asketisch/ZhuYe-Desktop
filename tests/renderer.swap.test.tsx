@@ -73,7 +73,7 @@ describe('替代渲染入口', () => {
     await waitFor(() => expect((input as HTMLTextAreaElement).value).not.toBe(''));
     fireEvent.change(input, { target: { value: '[active]\nprovider = "anthropic"' } });
     fireEvent.click(screen.getByText('alternate save'));
-    await waitFor(() => expect(backend.calls.some((call) => call.cmd === 'reflect_save_config')).toBe(true));
+    await waitFor(() => expect(backend.calls.some((call) => call.cmd === 'zhuye_save_config')).toBe(true));
   });
 
 });

@@ -37,7 +37,7 @@ test('detects additions and missing variants in either TypeScript union', () => 
   assert.match(missingName.stderr, /OpType 缺少: exit_goal_mode/);
   const missingShape = run(rust, ts.replace("  | { type: 'exit_goal_mode' }\n", ''));
   assert.notEqual(missingShape.status, 0);
-  assert.match(missingShape.stderr, /ReflectSubmissionOp 缺少: exit_goal_mode/);
+  assert.match(missingShape.stderr, /ZhuyeSubmissionOp 缺少: exit_goal_mode/);
   const changedSamples = structuredClone(samples);
   delete changedSamples.ops.exit_goal_mode;
   const missingSample = run(rust, ts, changedSamples);

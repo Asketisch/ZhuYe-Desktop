@@ -9,7 +9,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/utils/i18n';
-import { reflect_list_provider_models } from '@/utils/commands';
+import { zhuye_list_provider_models } from '@/utils/commands';
 import {
   AUTO_FAILOVER_PREF_KEY,
 } from '@/stores/agent/planFailover';
@@ -23,7 +23,7 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_list_provider_models: vi.fn(),
+    zhuye_list_provider_models: vi.fn(),
   };
 });
 
@@ -37,16 +37,16 @@ api_key = "sk-top-9999"
 api_key = "sk-oai-1234"
 
 [[provider_group]]
-id = "magpie"
-label = "Magpie 网关"
+id = "demo"
+label = "示例网关"
 endpoint = "anthropic"
 base_url = "http://127.0.0.1:3425"
-api_key = "magpie"
-model = "cursor/auto"
+api_key = "demo"
+model = "demo/model-a"
 `;
 
 const FETCHED_MODELS = [
-  { id: 'cursor/auto', display_name: 'Auto · Cursor', supports_vision: true, is_free: null, context_window: 200000, max_output_tokens: null, supports_reasoning: null },
+  { id: 'demo/model-a', display_name: 'Auto', supports_vision: true, is_free: null, context_window: 200000, max_output_tokens: null, supports_reasoning: null },
   { id: 'zcode/GLM-5.3-Flash-Trial', display_name: '', supports_vision: null, is_free: true, context_window: 1000000, max_output_tokens: null, supports_reasoning: null },
 ];
 
@@ -62,7 +62,7 @@ function renderSection(rawToml: string, onChange = vi.fn(), onCommit = vi.fn()) 
 describe('GroupsSection 统一模型组页', () => {
   beforeEach(() => {
     localStorage.removeItem(AUTO_FAILOVER_PREF_KEY);
-    vi.mocked(reflect_list_provider_models).mockReset();
+    vi.mocked(zhuye_list_provider_models).mockReset();
     clearModelCatalogCache();
   });
 
@@ -74,10 +74,10 @@ describe('GroupsSection 统一模型组页', () => {
     expect(screen.getByTestId('provider-default-anthropic')).toBeTruthy();
     expect(screen.getByTestId('provider-default-openai')).toBeTruthy();
     // 自定义组卡片。
-    expect(screen.getByTestId('provider-default-group-magpie')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('provider-default-group-magpie'));
+    expect(screen.getByTestId('provider-default-group-demo')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('provider-default-group-demo'));
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(readActiveProvider(onChange.mock.calls[0][0] as string)).toBe('magpie');
+    expect(readActiveProvider(onChange.mock.calls[0][0] as string)).toBe('demo');
     // 落盘回调收到同一份 TOML(「保存了却选不到」的回归锚)。
     expect(onCommit.mock.calls[0][0]).toBe(onChange.mock.calls[0][0]);
   });
@@ -97,11 +97,11 @@ describe('GroupsSection 统一模型组页', () => {
     const compact = screen.getByTestId('plans-auto-compact') as HTMLInputElement;
     expect(compact.checked).toBe(true);
     fireEvent.click(compact);
-    expect(localStorage.getItem('reflect.autoCompact')).toBe('off');
+    expect(localStorage.getItem('zhuye.autoCompact')).toBe('off');
   });
 
   it('编辑既有组 → 自动拉取组内模型 → 点选模型写组默认模型并落盘', async () => {
-    vi.mocked(reflect_list_provider_models).mockResolvedValue({
+    vi.mocked(zhuye_list_provider_models).mockResolvedValue({
       endpoint: 'anthropic',
       models: FETCHED_MODELS,
     });
@@ -109,11 +109,11 @@ describe('GroupsSection 统一模型组页', () => {
     const onCommit = vi.fn();
     renderSection(SAMPLE_TOML, onChange, onCommit);
     // 打开编辑表单 → 触发自动拉取(命中 TTL 缓存前打一次网络)。
-    fireEvent.click(screen.getByTestId('group-edit-magpie'));
+    fireEvent.click(screen.getByTestId('group-edit-demo'));
     await waitFor(() =>
-      expect(vi.mocked(reflect_list_provider_models)).toHaveBeenCalledWith(
+      expect(vi.mocked(zhuye_list_provider_models)).toHaveBeenCalledWith(
         'http://127.0.0.1:3425',
-        'magpie',
+        'demo',
         'anthropic',
       ),
     );
@@ -124,13 +124,13 @@ describe('GroupsSection 统一模型组页', () => {
     fireEvent.click(within(options).getByText('zcode/GLM-5.3-Flash-Trial'));
     await waitFor(() => expect(onCommit).toHaveBeenCalled());
     const committed = onCommit.mock.calls.at(-1)![0] as string;
-    expect(committed).toContain('id = "magpie"');
+    expect(committed).toContain('id = "demo"');
     expect(committed).toContain('model = "zcode/GLM-5.3-Flash-Trial"');
     expect(listGroups(committed)[0]?.model).toBe('zcode/GLM-5.3-Flash-Trial');
   });
 
   it('新增组:保存 → 自动拉取 → 组条目落盘', async () => {
-    vi.mocked(reflect_list_provider_models).mockResolvedValue({
+    vi.mocked(zhuye_list_provider_models).mockResolvedValue({
       endpoint: 'openai',
       models: [{ id: 'm1', display_name: '', supports_vision: null, is_free: null, context_window: null, max_output_tokens: null, supports_reasoning: null }],
     });
@@ -145,7 +145,7 @@ describe('GroupsSection 统一模型组页', () => {
     fireEvent.click(screen.getByText('Save group'));
     // 保存触发自动拉取(免 Key openai 端点)。
     await waitFor(() =>
-      expect(vi.mocked(reflect_list_provider_models)).toHaveBeenCalledWith(
+      expect(vi.mocked(zhuye_list_provider_models)).toHaveBeenCalledWith(
         'https://free.example.test',
         '',
         'openai',
@@ -172,7 +172,7 @@ describe('GroupsSection 统一模型组页', () => {
     const onChange = vi.fn();
     const onCommit = vi.fn();
     renderSection(SAMPLE_TOML, onChange, onCommit);
-    fireEvent.click(screen.getByTestId('group-delete-magpie'));
+    fireEvent.click(screen.getByTestId('group-delete-demo'));
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(listGroups(onChange.mock.calls[0][0] as string)).toHaveLength(0);
     expect(onCommit.mock.calls[0][0]).toBe(onChange.mock.calls[0][0]);

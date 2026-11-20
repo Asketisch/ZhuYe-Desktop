@@ -160,7 +160,7 @@ describe.each(ROUTES)('visual $route', ({ route }) => {
     await page.goto(`http://127.0.0.1:${port}/${route === '/' ? '' : route.replace(/^\//, '')}`, { waitUntil: 'networkidle' });
     // 固定主题:写 localStorage + data-theme,与 tokens.css 的三态语义一致。
     await page.evaluate((t) => {
-      localStorage.setItem('reflect-theme', t);
+      localStorage.setItem('zhuye-theme', t);
       document.documentElement.dataset.theme = t;
     }, theme);
     // 首页数据管道接通后再截(命令已被调用、fixture 文本已渲染)。

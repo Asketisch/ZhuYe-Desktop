@@ -1,11 +1,11 @@
-//! DAG 流水线 —— GUI 对应 CLI `reflect pipeline run / team`。
+//! DAG 流水线 —— GUI 对应 CLI `zhuye pipeline run / team`。
 //!
 //! 两条入口,均镜像 CLI 的组装(registry 从配置引导、`REFLECT_MODEL=mock`
 //! 可离线跑通、factory 不带 recorder):
 //! - [`run_team_pipeline`]:用已注册 team(`~/.zhuye/teams/`)跑四阶段
-//!   预设(plan → prd → exec → verify),对应 `reflect pipeline team`;
+//!   预设(plan → prd → exec → verify),对应 `zhuye pipeline team`;
 //! - [`run_pipeline_config`]:读 TOML DAG 配置跑任意拓扑,
-//!   对应 `reflect pipeline run -c`。
+//!   对应 `zhuye pipeline run -c`。
 //!
 //! 返回结构化 `PipelineReport`(不打印 stdout、不写输出文件)。
 
@@ -15,12 +15,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use reflect_pipeline::{FailurePolicy, Pipeline, PipelineContext, PipelineReport};
-use reflect_protocol::ThreadId;
-use reflect_subagent::SubAgentFactory;
-use reflect_task::{FileTaskStore, FileTeamStore, TaskManager};
-use reflect_tools::Tool as _;
-use reflect_tools::ToolRegistry;
+use zhuye_pipeline::{FailurePolicy, Pipeline, PipelineContext, PipelineReport};
+use zhuye_protocol::ThreadId;
+use zhuye_subagent::SubAgentFactory;
+use zhuye_task::{FileTaskStore, FileTeamStore, TaskManager};
+use zhuye_tools::Tool as _;
+use zhuye_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
@@ -70,11 +70,11 @@ pub fn build_task_manager() -> Result<Arc<TaskManager>, PipelineRunError> {
 /// `async`:`model = "free"`(运行时从 provider 清单里挑免费模型)在此
 /// 解析成具体 id —— 子 agent 拿到的必须是真实模型名(与上游 CLI 同口径)。
 pub async fn build_subagent_factory() -> Result<Arc<SubAgentFactory>, PipelineRunError> {
-    let cfg = reflect_config::load_default();
-    let registry = Arc::new(reflect_llm::ModelRegistry::new());
+    let cfg = zhuye_config::load_default();
+    let registry = Arc::new(zhuye_llm::ModelRegistry::new());
     cfg.apply_to_registry(&registry)
         .map_err(|e| PipelineRunError::Factory(format!("build provider from config: {e}")))?;
-    let model = reflect_config::resolve_model_spec(&cfg, &registry)
+    let model = zhuye_config::resolve_model_spec(&cfg, &registry)
         .await
         .map_err(|e| PipelineRunError::Factory(format!("resolve model: {e}")))?
         .unwrap_or_else(|| "openai/gpt-4o".to_string());
@@ -99,7 +99,7 @@ pub async fn run_team_pipeline(
         return Err(PipelineRunError::Config("topic must be non-empty".into()));
     }
     let factory = build_subagent_factory().await?;
-    reflect_pipeline::run_team_pipeline(
+    zhuye_pipeline::run_team_pipeline(
         manager,
         team_name,
         topic.to_string(),
@@ -172,7 +172,7 @@ pub async fn validate_pipeline_config(
 
     // 真实校验:核心的 `from_toml`(与运行同一条路径)。
     let validation = Pipeline::from_toml(toml_src, |label, runner, params| {
-        reflect_pipeline::nodes::default_runner_for(label, runner, params, |name| {
+        zhuye_pipeline::nodes::default_runner_for(label, runner, params, |name| {
             team_index.get(name).cloned()
         })
     });
@@ -199,7 +199,7 @@ pub async fn validate_pipeline_config(
     })
 }
 
-/// 读 TOML DAG 配置跑任意拓扑(对应 CLI `reflect pipeline run -c`)。
+/// 读 TOML DAG 配置跑任意拓扑(对应 CLI `zhuye pipeline run -c`)。
 ///
 /// `failure_policy`:`"abort"` / `"continue_collect"`(可选);
 /// `inputs`:模板 `{{input.<key>}}` 引用的自定义输入。
@@ -226,7 +226,7 @@ pub async fn run_pipeline_config(
         if runner == "shell" {
             return desktop_shell_runner(label, params, inputs.clone());
         }
-        reflect_pipeline::nodes::default_runner_for(label, runner, params, |name| {
+        zhuye_pipeline::nodes::default_runner_for(label, runner, params, |name| {
             team_index.get(name).cloned()
         })
     })
@@ -269,7 +269,7 @@ impl DesktopShellNodeRunner {
         params: &toml::Value,
         inputs: HashMap<String, String>,
     ) -> Option<Self> {
-        let parsed: reflect_pipeline::nodes::shell::ShellNodeParams =
+        let parsed: zhuye_pipeline::nodes::shell::ShellNodeParams =
             match params.clone().try_into() {
                 Ok(parsed) => parsed,
                 Err(e) => {
@@ -280,7 +280,7 @@ impl DesktopShellNodeRunner {
                 }
             };
         let runner =
-            match reflect_pipeline::nodes::shell::ShellNodeRunner::from_params(name, &parsed) {
+            match zhuye_pipeline::nodes::shell::ShellNodeRunner::from_params(name, &parsed) {
                 Ok(runner) => runner,
                 Err(e) => {
                     tracing::warn!("pipeline shell node `{name}` rejected ({e}); node dropped");
@@ -298,29 +298,29 @@ impl DesktopShellNodeRunner {
 }
 
 #[async_trait]
-impl reflect_pipeline::runner::NodeRunner for DesktopShellNodeRunner {
+impl zhuye_pipeline::runner::NodeRunner for DesktopShellNodeRunner {
     fn name(&self) -> &str {
         &self.name
     }
 
     async fn run(
         &self,
-        ctx: &reflect_pipeline::runner::NodeContext,
-    ) -> Result<reflect_pipeline::runner::NodeOutcome, reflect_pipeline::PipelineError> {
+        ctx: &zhuye_pipeline::runner::NodeContext,
+    ) -> Result<zhuye_pipeline::runner::NodeOutcome, zhuye_pipeline::PipelineError> {
         let upstream: HashMap<String, serde_json::Value> = ctx.inputs.clone();
         let command =
-            reflect_pipeline::template::render(&self.command, &ctx.topic, &self.inputs, &upstream)
+            zhuye_pipeline::template::render(&self.command, &ctx.topic, &self.inputs, &upstream)
                 .map_err(|error| {
-                    reflect_pipeline::PipelineError::node_msg(
+                    zhuye_pipeline::PipelineError::node_msg(
                         self.name.clone(),
                         format!("template render failed: {error}"),
                     )
                 })?;
-        let mut tool_context = reflect_tools::ToolContext::for_workspace(self.workspace.clone());
+        let mut tool_context = zhuye_tools::ToolContext::for_workspace(self.workspace.clone());
         tool_context.timeout = self.timeout;
         tool_context.cancel = ctx.cancel.clone();
         let started = std::time::Instant::now();
-        let output = reflect_tools::builtins::BashTool::default()
+        let output = zhuye_tools::builtins::BashTool::default()
             .execute(tool_context, serde_json::json!({ "cmd": command }))
             .await;
         let elapsed_ms = started.elapsed().as_millis() as u64;
@@ -334,7 +334,7 @@ impl reflect_pipeline::runner::NodeRunner for DesktopShellNodeRunner {
                     .content
                     .iter()
                     .filter_map(|block| match block {
-                        reflect_protocol::ContentBlock::Text { text } => Some(text.clone()),
+                        zhuye_protocol::ContentBlock::Text { text } => Some(text.clone()),
                         _ => None,
                     })
                     .collect::<Vec<_>>()
@@ -345,14 +345,14 @@ impl reflect_pipeline::runner::NodeRunner for DesktopShellNodeRunner {
                     "elapsed_ms": elapsed_ms,
                 });
                 if exit_code == Some(0) && !output.is_error {
-                    Ok(reflect_pipeline::runner::NodeOutcome {
-                        status: reflect_pipeline::runner::NodeStatus::Success,
+                    Ok(zhuye_pipeline::runner::NodeOutcome {
+                        status: zhuye_pipeline::runner::NodeStatus::Success,
                         outputs,
                         error: None,
                     })
                 } else {
-                    Ok(reflect_pipeline::runner::NodeOutcome {
-                        status: reflect_pipeline::runner::NodeStatus::Failed(format!(
+                    Ok(zhuye_pipeline::runner::NodeOutcome {
+                        status: zhuye_pipeline::runner::NodeStatus::Failed(format!(
                             "command exited with {exit_code:?}"
                         )),
                         outputs,
@@ -360,7 +360,7 @@ impl reflect_pipeline::runner::NodeRunner for DesktopShellNodeRunner {
                     })
                 }
             }
-            Err(error) => Ok(reflect_pipeline::runner::NodeOutcome::failure(format!(
+            Err(error) => Ok(zhuye_pipeline::runner::NodeOutcome::failure(format!(
                 "shell node '{}' failed: {error}",
                 self.name
             ))),
@@ -372,15 +372,15 @@ fn desktop_shell_runner(
     label: &str,
     params: Option<&toml::Value>,
     inputs: HashMap<String, String>,
-) -> Option<Arc<dyn reflect_pipeline::runner::NodeRunner>> {
+) -> Option<Arc<dyn zhuye_pipeline::runner::NodeRunner>> {
     DesktopShellNodeRunner::from_params(label, params?, inputs)
-        .map(|runner| Arc::new(runner) as Arc<dyn reflect_pipeline::runner::NodeRunner>)
+        .map(|runner| Arc::new(runner) as Arc<dyn zhuye_pipeline::runner::NodeRunner>)
 }
 
 /// 预加载 `~/.zhuye/teams/` 下全部 team(节点 label → TeamFile)。
 async fn build_team_index(
     manager: &Arc<TaskManager>,
-) -> Result<HashMap<String, reflect_task::TeamFile>, PipelineRunError> {
+) -> Result<HashMap<String, zhuye_task::TeamFile>, PipelineRunError> {
     let teams = manager
         .list_teams()
         .await

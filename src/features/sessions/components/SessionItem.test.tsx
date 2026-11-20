@@ -13,9 +13,9 @@ import { render, screen } from '@testing-library/react';
 import { SessionItem } from './SessionItem';
 import { useAgentStore } from '@/stores/agentStore';
 import { __resetBackgroundScratchesForTests, useBackgroundSessions } from '@/stores/backgroundSessions';
-import type { ReflectSessionInfo } from '@/utils/commands';
+import type { ZhuyeSessionInfo } from '@/utils/commands';
 
-function sess(id: string): ReflectSessionInfo {
+function sess(id: string): ZhuyeSessionInfo {
   return {
     session_id: id,
     model: 'stub/test',

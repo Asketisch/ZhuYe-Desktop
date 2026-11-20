@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import { reflect_list_tools } from '@/utils/commands';
+import { zhuye_list_tools } from '@/utils/commands';
 import { useOrchestrationController } from './useOrchestrationController';
 import type { CollaborationViewProps } from '@/contracts/collaboration';
 
@@ -14,7 +14,7 @@ export function CollaborationBinding({ view: View, McpManager, PluginsPanel, Pip
 }) {
   const { t } = useI18n();
   const lspServers = useAgentStore((state) => state.lspServers);
-  const toolsQuery = useQuery({ queryKey: ['tools'], queryFn: reflect_list_tools, staleTime: 30_000 });
+  const toolsQuery = useQuery({ queryKey: ['tools'], queryFn: zhuye_list_tools, staleTime: 30_000 });
   const orch = useOrchestrationController();
   const mcpToolCount = (toolsQuery.data ?? []).filter((tool) => tool.name.startsWith('mcp__')).length;
   return <View t={t} lspServers={lspServers} mcpToolCount={mcpToolCount} orch={orch}

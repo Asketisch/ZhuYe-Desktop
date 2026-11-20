@@ -28,7 +28,7 @@
 
 1. **新 crate `crates/integrations/zhuye-browser/`**（仿 zhuye-computer-use）：
    - `src/cdp.rs`：极简 CDP 客户端——ws 连接（`tokio-tungstenite`，加进上游根 `[workspace.dependencies]`）、JSON-RPC id 匹配、事件订阅
-   - `src/chrome.rs`：浏览器发现（三平台常见路径 + env 覆盖）、launch（隔离 user-data-dir 置于 `$ZHUYE_HOME/browser-profile`，经 `reflect_config::paths`，`--remote-debugging-port=0`）、从 `DevToolsActivePort` 文件解析 ws 端点、attach 已运行实例
+   - `src/chrome.rs`：浏览器发现（三平台常见路径 + env 覆盖）、launch（隔离 user-data-dir 置于 `$ZHUYE_HOME/browser-profile`，经 `zhuye_config::paths`，`--remote-debugging-port=0`）、从 `DevToolsActivePort` 文件解析 ws 端点、attach 已运行实例
    - `src/backend.rs`：`BrowserBackend` trait + CDP 实现（navigate / snapshot / click / type / key / scroll / screenshot / evaluate / close）；复用 `zhuye-computer-use` 的 a11y 类型；连接入口强制 `BrowserSecurity`（v1 启用 loopback_only + single_target；require_token 留接口不启用，理由记录在代码）
    - `src/bin/zhuye-browser-server.rs`：MCP stdio server，工具 `browser_navigate/browser_snapshot/browser_click/browser_type/browser_press_key/browser_scroll/browser_screenshot/browser_close`
    - `Cargo.toml`：`real` feature 默认关（含 ws 依赖），关闭时统一 `Unavailable`
@@ -40,8 +40,8 @@
 ## 4. 桌面改动
 
 1. `app-core/src/browser.rs`：浏览器会话 trait + 配置/状态类型（UI 无关，仿 media.rs；真实实现放 src-tauri，同 media_backend.rs 先例）
-2. `src-tauri/src/browser_backend.rs`：launch/attach 共用 `DevToolsActivePort` 发现契约（与插件共享 profile 目录，先到先得、后到 attach）；screencast 帧节流 ~10fps → base64 JPEG → `reflect_browser_frame` 事件推前端
-3. `src-tauri/src/commands/browser.rs`：`reflect_browser_status/start/stop`
+2. `src-tauri/src/browser_backend.rs`：launch/attach 共用 `DevToolsActivePort` 发现契约（与插件共享 profile 目录，先到先得、后到 attach）；screencast 帧节流 ~10fps → base64 JPEG → `zhuye_browser_frame` 事件推前端
+3. `src-tauri/src/commands/browser.rs`：`zhuye_browser_status/start/stop`
 4. 前端切片 `browser/`（渲染/逻辑分离）：`features/browser/BrowserView.tsx`（薄）→ `logic/browser/useBrowserController.ts` → `render/browser/BrowserPanel.tsx`（URL 栏 + 画面 + 启停 + agent 操作中徽标）；路由 `/browser` + ZRail 入口 + routeMatrix
 5. IPC：`src/utils/commands/browser.ts` + fakeBackend + payload 样本（四方一致）
 6. 设置：config schema `[browser]`（executable 覆盖、默认 headless）→ advanced 段

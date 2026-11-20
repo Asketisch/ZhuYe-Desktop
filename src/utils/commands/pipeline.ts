@@ -1,8 +1,8 @@
 /**
  * DAG 流水线 IPC 包装。
  *
- * 薄包装 `reflect_run_team_pipeline` / `reflect_run_pipeline` 两个命令,
- * 对应 CLI `reflect pipeline team / run`。`PipelineReport` 为 submodule
+ * 薄包装 `zhuye_run_team_pipeline` / `zhuye_run_pipeline` 两个命令,
+ * 对应 CLI `zhuye pipeline team / run`。`PipelineReport` 为 submodule
  * 类型直传(snake_case,与 CLI `--output` JSON 同构)。
  *
  * 另含**配置编辑**面(校验 / 列表 / 落盘)—— 此前 GUI 只能跑一个已有的
@@ -30,11 +30,11 @@ export interface PipelineReport {
 }
 
 /** 用已注册 team 跑四阶段预设 pipeline(plan → prd → exec → verify)。 */
-export function reflect_run_team_pipeline(
+export function zhuye_run_team_pipeline(
   teamName: string,
   topic: string,
 ): Promise<PipelineReport> {
-  return invoke('reflect_run_team_pipeline', { teamName, topic });
+  return invoke('zhuye_run_team_pipeline', { teamName, topic });
 }
 
 /**
@@ -43,13 +43,13 @@ export function reflect_run_team_pipeline(
  * `failurePolicy`:`'abort' | 'continue_collect'`(可选);
  * `inputs`:模板 `{{input.<key>}}` 引用的自定义输入。
  */
-export function reflect_run_pipeline(
+export function zhuye_run_pipeline(
   configPath: string,
   topic: string,
   failurePolicy?: string,
   inputs?: Record<string, string>,
 ): Promise<PipelineReport> {
-  return invoke('reflect_run_pipeline', {
+  return invoke('zhuye_run_pipeline', {
     configPath,
     topic,
     failurePolicy: failurePolicy ?? null,
@@ -93,15 +93,15 @@ export interface PipelineConfigFile {
  * 校验走核心的 `Pipeline::from_toml`(与实际运行同一条路径)——
  * 配置级 + wiring 级错误都如实返回。
  */
-export function reflect_validate_pipeline(
+export function zhuye_validate_pipeline(
   tomlSrc: string,
 ): Promise<PipelineConfigSummary> {
-  return invoke('reflect_validate_pipeline', { tomlSrc });
+  return invoke('zhuye_validate_pipeline', { tomlSrc });
 }
 
 /** 列出已保存的 pipeline 配置(`~/.zhuye/pipelines/*.toml`)。 */
-export function reflect_list_pipeline_configs(): Promise<PipelineConfigFile[]> {
-  return invoke('reflect_list_pipeline_configs');
+export function zhuye_list_pipeline_configs(): Promise<PipelineConfigFile[]> {
+  return invoke('zhuye_list_pipeline_configs');
 }
 
 /**
@@ -109,9 +109,9 @@ export function reflect_list_pipeline_configs(): Promise<PipelineConfigFile[]> {
  *
  * 写前由后端跑一次核心校验 —— 非法配置**不落盘**。
  */
-export function reflect_save_pipeline_config(
+export function zhuye_save_pipeline_config(
   name: string,
   tomlSrc: string,
 ): Promise<PipelineConfigFile> {
-  return invoke('reflect_save_pipeline_config', { name, tomlSrc });
+  return invoke('zhuye_save_pipeline_config', { name, tomlSrc });
 }

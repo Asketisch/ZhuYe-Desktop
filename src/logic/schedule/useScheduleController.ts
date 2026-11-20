@@ -2,7 +2,7 @@
  * Schedule controller hook（阶段 1 任务 2）。
  *
  * 职责：
- *   - TanStack `useQuery` 用于 `reflect_list_schedules` + `reflect_get_schedule_status`
+ *   - TanStack `useQuery` 用于 `zhuye_list_schedules` + `zhuye_get_schedule_status`
  *   - 三个 mutation：add / update / remove，各带 toast + cache 失效
  *   - 创建表单 UI 状态（schedule / prompt / name）
  *
@@ -11,13 +11,13 @@
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_add_schedule,
-  reflect_get_schedule_status,
-  reflect_list_schedules,
-  reflect_remove_schedule,
-  reflect_update_schedule,
-  type ReflectCronJob,
-  type ReflectScheduleStatus,
+  zhuye_add_schedule,
+  zhuye_get_schedule_status,
+  zhuye_list_schedules,
+  zhuye_remove_schedule,
+  zhuye_update_schedule,
+  type ZhuyeCronJob,
+  type ZhuyeScheduleStatus,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
@@ -33,8 +33,8 @@ function errorMessage(error: unknown): string {
 
 export interface ScheduleController {
   // 查询
-  jobs: ReflectCronJob[];
-  status: ReflectScheduleStatus | null;
+  jobs: ZhuyeCronJob[];
+  status: ZhuyeScheduleStatus | null;
   loading: boolean;
   error: unknown;
   refetch: () => void;
@@ -51,8 +51,8 @@ export interface ScheduleController {
 
   // 突变操作
   create: () => Promise<void>;
-  toggle: (job: ReflectCronJob) => Promise<void>;
-  remove: (job: ReflectCronJob) => Promise<void>;
+  toggle: (job: ZhuyeCronJob) => Promise<void>;
+  remove: (job: ZhuyeCronJob) => Promise<void>;
 
   isMutating: boolean;
 }
@@ -69,13 +69,13 @@ export function useScheduleController(): ScheduleController {
 
   const jobsQ = useQuery({
     queryKey: [...SCHEDULE_QUERY_KEY],
-    queryFn: () => reflect_list_schedules(),
+    queryFn: () => zhuye_list_schedules(),
     staleTime: SCHEDULE_STALE_MS,
   });
 
   const statusQ = useQuery({
     queryKey: [...SCHEDULE_QUERY_KEY, 'status'],
-    queryFn: () => reflect_get_schedule_status(),
+    queryFn: () => zhuye_get_schedule_status(),
     staleTime: SCHEDULE_STALE_MS,
   });
 
@@ -86,7 +86,7 @@ export function useScheduleController(): ScheduleController {
 
   const addMut = useMutation({
     mutationFn: (args: { schedule: string; prompt: string; name?: string }) =>
-      reflect_add_schedule({
+      zhuye_add_schedule({
         schedule: args.schedule,
         prompt: args.prompt,
         name: args.name || null,
@@ -96,12 +96,12 @@ export function useScheduleController(): ScheduleController {
 
   const updateMut = useMutation({
     mutationFn: (args: { id: string; enabled?: boolean }) =>
-      reflect_update_schedule({ id: args.id, enabled: args.enabled }),
+      zhuye_update_schedule({ id: args.id, enabled: args.enabled }),
     onSuccess: () => void invalidate(),
   });
 
   const removeMut = useMutation({
-    mutationFn: ({ id }: { id: string }) => reflect_remove_schedule(id),
+    mutationFn: ({ id }: { id: string }) => zhuye_remove_schedule(id),
     onSuccess: () => void invalidate(),
   });
 
@@ -137,7 +137,7 @@ export function useScheduleController(): ScheduleController {
   }, [addMut, newName, newPrompt, newSchedule, pushToast, t]);
 
   const toggle = useCallback(
-    async (job: ReflectCronJob) => {
+    async (job: ZhuyeCronJob) => {
       try {
         await updateMut.mutateAsync({ id: job.id, enabled: !job.enabled });
         pushToast({
@@ -155,7 +155,7 @@ export function useScheduleController(): ScheduleController {
   );
 
   const remove = useCallback(
-    async (job: ReflectCronJob) => {
+    async (job: ZhuyeCronJob) => {
       try {
         const removed = await removeMut.mutateAsync({ id: job.id });
         pushToast({ kind: removed ? 'success' : 'warn', message: t(removed ? 'schedule.removed' : 'schedule.alreadyRemoved', { name: job.name ?? job.id }) });

@@ -110,16 +110,16 @@ fn targeted_interrupt_cancels_child_and_parent_continues() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    common::invoke_ok("reflect_set_permission_mode", json!({"mode":"prompt"}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    common::invoke_ok("zhuye_set_permission_mode", json!({"mode":"prompt"}));
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"cancel-parent", "op":{
             "type":"user_input", "items":[{"type":"text","text":"cancel-parent-marker"}]
         }}}),
@@ -130,13 +130,13 @@ fn targeted_interrupt_cancels_child_and_parent_continues() {
             && event["msg"]["kind"]["tool_name"] == "call_explorer"
     });
     common::invoke_ok(
-        "reflect_tool_approval",
+        "zhuye_tool_approval",
         json!({"id":approval["msg"]["request_id"],"decision":"approve"}),
     );
     waiting_rx
         .recv_timeout(Duration::from_secs(20))
         .expect("child request did not start");
-    let query = common::invoke_ok("reflect_query_subagents", json!({}));
+    let query = common::invoke_ok("zhuye_query_subagents", json!({}));
     let active = wait_for(&rx, &mut seen, |event| {
         event["id"] == query && event["msg"]["type"] == "subagent_status"
     });
@@ -149,14 +149,14 @@ fn targeted_interrupt_cancels_child_and_parent_continues() {
         .as_str()
         .unwrap()
         .to_string();
-    common::invoke_ok("reflect_interrupt", json!({"childId":child}));
+    common::invoke_ok("zhuye_interrupt", json!({"childId":child}));
     let stopped = wait_for(&rx, &mut seen, |event| {
         event["id"] == "cancel-parent"
             && event["msg"]["type"] == "tool_call_end"
             && event["msg"]["call_id"] == "toolu_cancel_child"
     });
     assert_eq!(stopped["msg"]["is_error"], true, "{stopped}");
-    let query = common::invoke_ok("reflect_query_subagents", json!({"childId":child}));
+    let query = common::invoke_ok("zhuye_query_subagents", json!({"childId":child}));
     let final_status = wait_for(&rx, &mut seen, |event| {
         event["id"] == query && event["msg"]["type"] == "subagent_status"
     });

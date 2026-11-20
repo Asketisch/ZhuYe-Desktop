@@ -2,7 +2,7 @@
  * Vitest —— HtmlPreviewView 测试(v1.11 D1 轻版:HTML 产物预览)。
  *
  * 覆盖:
- * - 路径输入 + 打开按钮 / Enter 提交 → reflect_read_file 转发该路径
+ * - 路径输入 + 打开按钮 / Enter 提交 → zhuye_read_file 转发该路径
  * - HTML 内容经 iframe srcDoc 渲染(沙箱:不执行脚本)
  * - 非 .html 文件 → 原文兜底块(pre,截断 4000 字符口径)
  * - 读失败 → 警告徽标(不炸视图);空输入禁用打开按钮
@@ -26,9 +26,9 @@ describe('HtmlPreviewView — html artifact preview', () => {
     vi.restoreAllMocks();
   });
 
-  it('forwards the submitted path to reflect_read_file and renders srcDoc iframe', async () => {
+  it('forwards the submitted path to zhuye_read_file and renders srcDoc iframe', async () => {
     const reads: string[] = [];
-    mockInvoke('reflect_read_file', async (_cmd: string, args: { path: string }) => {
+    mockInvoke('zhuye_read_file', async (_cmd: string, args: { path: string }) => {
       reads.push(args.path);
       return { content: '<h1>agent-made page</h1>', truncated: false };
     });
@@ -51,7 +51,7 @@ describe('HtmlPreviewView — html artifact preview', () => {
 
   it('Enter key submits the path without clicking the button', async () => {
     const reads: string[] = [];
-    mockInvoke('reflect_read_file', async (_cmd: string, args: { path: string }) => {
+    mockInvoke('zhuye_read_file', async (_cmd: string, args: { path: string }) => {
       reads.push(args.path);
       return { content: '<p>x</p>', truncated: false };
     });
@@ -66,7 +66,7 @@ describe('HtmlPreviewView — html artifact preview', () => {
   });
 
   it('non-html files fall back to a raw pre block', async () => {
-    mockInvoke('reflect_read_file', async () => ({
+    mockInvoke('zhuye_read_file', async () => ({
       content: 'plain text artifact body',
       truncated: false,
     }));
@@ -81,7 +81,7 @@ describe('HtmlPreviewView — html artifact preview', () => {
   });
 
   it('read failure shows a warning badge and keeps the view usable', async () => {
-    mockInvoke('reflect_read_file', async () => {
+    mockInvoke('zhuye_read_file', async () => {
       throw new Error('path escapes workspace');
     });
     render(wrap(<HtmlPreviewView />));
@@ -99,7 +99,7 @@ describe('HtmlPreviewView — html artifact preview', () => {
 
 describe('LivePorts (F50 live 端口自动发现)', () => {
   it('renders open ports as clickable external links', async () => {
-    mockInvoke('reflect_scan_local_ports', async () => [
+    mockInvoke('zhuye_scan_local_ports', async () => [
       { port: 5173, open: true, url: 'http://127.0.0.1:5173' },
       { port: 8080, open: false, url: 'http://127.0.0.1:8080' },
     ]);
@@ -111,7 +111,7 @@ describe('LivePorts (F50 live 端口自动发现)', () => {
   });
 
   it('shows none placeholder when all ports closed', async () => {
-    mockInvoke('reflect_scan_local_ports', async () => [
+    mockInvoke('zhuye_scan_local_ports', async () => [
       { port: 8080, open: false, url: 'http://127.0.0.1:8080' },
     ]);
     render(wrap(<HtmlPreviewView />));

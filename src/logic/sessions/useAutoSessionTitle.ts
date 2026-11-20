@@ -10,7 +10,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
-import { reflect_generate_session_title } from '@/utils/commands';
+import { zhuye_generate_session_title } from '@/utils/commands';
 import { SESSIONS_QUERY_KEY } from './useSessions';
 
 export function useAutoSessionTitle(sessionId: string | null | undefined): void {
@@ -23,7 +23,7 @@ export function useAutoSessionTitle(sessionId: string | null | undefined): void 
       void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
       if (!sessionId || attemptedRef.current.has(sessionId)) return;
       attemptedRef.current.add(sessionId);
-      void reflect_generate_session_title(sessionId)
+      void zhuye_generate_session_title(sessionId)
         .then(() => qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY }))
         .catch(() => {
           /* 生成失败 → 回退派生标题，不打扰用户。 */

@@ -179,7 +179,7 @@ fn malformed_memory_keys_and_unreadable_files_are_rejected() {
 /// 导致「GUI 里编辑的记忆,agent 根本读不到」。
 #[test]
 fn memory_path_matches_core_resolution() {
-    let ws = PathBuf::from("/tmp/reflect-memory-path-test");
+    let ws = PathBuf::from("/tmp/zhuye-memory-path-test");
     let home = dirs::home_dir().unwrap_or_default();
     let agent = AgentState::active_agent();
     let store = MemoryStore;
@@ -197,7 +197,7 @@ fn memory_path_matches_core_resolution() {
 /// 迁移把文件搬到了当前活跃 agent 的目录。
 #[test]
 fn legacy_dir_is_not_the_active_path() {
-    let ws = PathBuf::from("/tmp/reflect-memory-legacy-test");
+    let ws = PathBuf::from("/tmp/zhuye-memory-legacy-test");
     let home = dirs::home_dir().unwrap_or_default();
     let active = AgentState::active_agent();
     if active == LEGACY_AGENT_DIR {

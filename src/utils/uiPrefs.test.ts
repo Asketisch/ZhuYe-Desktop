@@ -20,7 +20,7 @@ describe('uiPrefs', () => {
   });
 
   it('loads appearance defaults for older persisted preferences', () => {
-    localStorage.setItem('reflect.uiprefs.v1', JSON.stringify({ chatDiffSplit: true }));
+    localStorage.setItem('zhuye.uiprefs.v1', JSON.stringify({ chatDiffSplit: true }));
     const prefs = getUiPrefs();
     expect(prefs.chatDiffSplit).toBe(true);
     expect(prefs.accentColor).toBe(DEFAULT_ACCENT_COLOR);
@@ -37,17 +37,17 @@ describe('uiPrefs', () => {
     setUiPrefs({ sendOnEnter: false });
     expect(getUiPrefs().sendOnEnter).toBe(false);
     expect(
-      JSON.parse(localStorage.getItem('reflect.uiprefs.v1') ?? '{}').sendOnEnter,
+      JSON.parse(localStorage.getItem('zhuye.uiprefs.v1') ?? '{}').sendOnEnter,
     ).toBe(false);
     // 旧版本持久化里没有该键 → 回退默认 true。
     resetUiPrefsForTests();
     localStorage.clear();
-    localStorage.setItem('reflect.uiprefs.v1', JSON.stringify({ chatDiffSplit: true }));
+    localStorage.setItem('zhuye.uiprefs.v1', JSON.stringify({ chatDiffSplit: true }));
     expect(getUiPrefs().sendOnEnter).toBe(true);
     // 非法类型(手改 localStorage)→ 回退默认 true,不炸。
     resetUiPrefsForTests();
     localStorage.clear();
-    localStorage.setItem('reflect.uiprefs.v1', JSON.stringify({ sendOnEnter: 'yes' }));
+    localStorage.setItem('zhuye.uiprefs.v1', JSON.stringify({ sendOnEnter: 'yes' }));
     expect(getUiPrefs().sendOnEnter).toBe(true);
   });
 
@@ -58,7 +58,7 @@ describe('uiPrefs', () => {
     expect(getUiPrefs().surfaceOpacity).toBe(0.5);
     expect(getUiPrefs().backgroundImageOpacity).toBe(1);
     expect(listener).toHaveBeenCalledOnce();
-    expect(JSON.parse(localStorage.getItem('reflect.uiprefs.v1') ?? '{}').surfaceOpacity).toBe(0.5);
+    expect(JSON.parse(localStorage.getItem('zhuye.uiprefs.v1') ?? '{}').surfaceOpacity).toBe(0.5);
     unsubscribe();
   });
 

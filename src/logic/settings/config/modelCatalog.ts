@@ -2,7 +2,7 @@
  * 供应商模型清单的前端 TTL 缓存 —— 「自动拉取」的编排层。
  *
  * 引擎侧的清单发现（fetch_catalog）自带进程内 300s TTL 缓存，但 GUI
- * 展示走的是直连 HTTP 的 `reflect_list_provider_models`（保留了
+ * 展示走的是直连 HTTP 的 `zhuye_list_provider_models`（保留了
  * display_name / supports_vision 等展示字段）。这里在前端补一层
  * 5 分钟 memo + 在途去重，让「保存组后自动拉取 / 打开卡片自动拉取 /
  * Composer 挂载自动拉取」不会每次都打网络 —— 频繁打开设置页时
@@ -12,7 +12,7 @@
  * localStorage；API key 不离开进程）。
  */
 
-import { reflect_list_provider_models, type ProviderModelInfo } from '@/utils/commands';
+import { zhuye_list_provider_models, type ProviderModelInfo } from '@/utils/commands';
 
 /** 缓存 TTL：与引擎清单发现缓存的 300s 同量级。 */
 const CACHE_TTL_MS = 5 * 60_000;
@@ -44,7 +44,7 @@ export async function fetchProviderModels(
     const pending = inflight.get(key);
     if (pending) return pending;
   }
-  const promise = reflect_list_provider_models(baseUrl, apiKey, endpoint)
+  const promise = zhuye_list_provider_models(baseUrl, apiKey, endpoint)
     .then((res) => {
       cache.set(key, { at: Date.now(), models: res.models });
       return res.models;

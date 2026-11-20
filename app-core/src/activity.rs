@@ -1,4 +1,4 @@
-//! Activity 审计 —— 实现已收编进上游 `reflect_telemetry::activity`
+//! Activity 审计 —— 实现已收编进上游 `zhuye_telemetry::activity`
 //! （类型 / 存储 / rotate / `map_event` / `pump_events` 全部为上游单一
 //! 事实源，语义逐字一致）。本模块只保留桌面侧需要的补充：
 //!
@@ -7,7 +7,7 @@
 //!   —— 磁盘 append-only 文件不动，rotate 计数由上游从文件长度续算。
 //! - 全量再导出上游类型，消费方 import 路径不变。
 
-pub use reflect_telemetry::activity::{
+pub use zhuye_telemetry::activity::{
     ActivityEvent, ActivityFilter, ActivityKind, ActivityLevel, ActivityLogger, map_event,
     pump_events,
 };
@@ -94,7 +94,7 @@ impl ActivityLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reflect_protocol::Actor;
+    use zhuye_protocol::Actor;
 
     #[test]
     fn clear_memory_swaps_to_a_fresh_buffer() {
@@ -122,11 +122,11 @@ mod tests {
 
     #[test]
     fn upstream_map_event_is_reachable() {
-        use reflect_protocol::{Event, EventMsg, TurnStartedEvent};
+        use zhuye_protocol::{Event, EventMsg, TurnStartedEvent};
         let e = Event {
             id: "evt".into(),
             msg: EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: reflect_protocol::TurnId::new(),
+                turn_id: zhuye_protocol::TurnId::new(),
                 user_message_id: None,
             }),
         };

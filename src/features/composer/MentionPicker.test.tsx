@@ -2,7 +2,7 @@
  * Vitest — MentionPicker（`@` 文件弹层）。
  *
  * 验证:
- * 1. visible=true 时拉取 `reflect_list_dir`（path=null, maxDepth=2）
+ * 1. visible=true 时拉取 `zhuye_list_dir`（path=null, maxDepth=2）
  * 2. 仅文件可被选取, 目录不出现在选项中
  * 3. query 走 fuzzy 过滤（name / path 命中）
  * 4. 点击条目触发 onPickFile(相对路径) + onClose
@@ -15,9 +15,9 @@ import { I18nProvider } from '@/utils/i18n';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { MentionPicker } from './MentionPicker';
 import type { MentionPickerProps } from './MentionPicker';
-import type { ReflectDirEntry } from '@/utils/commands';
+import type { ZhuyeDirEntry } from '@/utils/commands';
 
-function entry(name: string, path: string, kind: 'file' | 'dir' = 'file'): ReflectDirEntry {
+function entry(name: string, path: string, kind: 'file' | 'dir' = 'file'): ZhuyeDirEntry {
   return { name, path, kind, size: 10, mtime: 0, depth: 1 };
 }
 
@@ -39,8 +39,8 @@ beforeEach(() => {
   resetMockInvoke();
 });
 
-function mockListing(entries: ReflectDirEntry[]) {
-  mockInvoke('reflect_list_dir', async () => ({
+function mockListing(entries: ZhuyeDirEntry[]) {
+  mockInvoke('zhuye_list_dir', async () => ({
     root: '/tmp/proj',
     entries,
     truncated: false,
@@ -50,7 +50,7 @@ function mockListing(entries: ReflectDirEntry[]) {
 describe('MentionPicker', () => {
   it('does not render or fetch when hidden', async () => {
     let fetched = false;
-    mockInvoke('reflect_list_dir', async () => {
+    mockInvoke('zhuye_list_dir', async () => {
       fetched = true;
       return { root: '/tmp/proj', entries: [], truncated: false };
     });
@@ -61,7 +61,7 @@ describe('MentionPicker', () => {
 
   it('fetches the workspace listing and lists files (not dirs)', async () => {
     const seenArgs: unknown[] = [];
-    mockInvoke('reflect_list_dir', async (_cmd, args) => {
+    mockInvoke('zhuye_list_dir', async (_cmd, args) => {
       seenArgs.push(args);
       return {
         root: '/tmp/proj',

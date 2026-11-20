@@ -11,11 +11,11 @@ runner = "shell"
 command = "printf '{{input.value}}' > input-result.txt"
 "#;
     let saved = common::invoke_ok(
-        "reflect_save_pipeline_config",
+        "zhuye_save_pipeline_config",
         json!({ "name": "input-probe", "tomlSrc": source }),
     );
     let report = common::invoke_ok(
-        "reflect_run_pipeline",
+        "zhuye_run_pipeline",
         json!({
             "configPath": saved["path"], "topic": "input probe", "inputs": {"value": "fixture-value"}
         }),

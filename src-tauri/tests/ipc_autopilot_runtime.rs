@@ -46,7 +46,7 @@ fn reply() -> String {
 fn wait_history_success(events_rx: &std::sync::mpsc::Receiver<Value>) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         assert!(history.is_array(), "{history}");
         if history
             .as_array()
@@ -70,7 +70,7 @@ fn wait_history_success(events_rx: &std::sync::mpsc::Receiver<Value>) -> Value {
 fn wait_history_success_count(minimum: usize) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         let count = history
             .as_array()
             .map(|runs| runs.iter().filter(|run| run["status"] == "success").count())
@@ -90,7 +90,7 @@ fn force_next_due() {
     let config_path = root.join("config.json");
     let history_path = root.join("history.json");
     let old = std::time::SystemTime::now() - Duration::from_secs(120);
-    let mut history = common::invoke_ok("reflect_autopilot_history", json!({}));
+    let mut history = common::invoke_ok("zhuye_autopilot_history", json!({}));
     if let Some(runs) = history.as_array_mut()
         && let Some(first) = runs.first_mut()
     {
@@ -113,7 +113,7 @@ fn force_next_due() {
 fn wait_for_failure_reason(_events_rx: &std::sync::mpsc::Receiver<Value>, reason: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         if let Some(run) = history.as_array().and_then(|runs| {
             runs.iter()
                 .find(|run| run["status"] == "failed" && run["error"].as_str() == Some(reason))
@@ -130,7 +130,7 @@ fn wait_for_failure_reason(_events_rx: &std::sync::mpsc::Receiver<Value>, reason
 fn wait_for_provider_failure(_events_rx: &std::sync::mpsc::Receiver<Value>) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        let history = common::invoke_ok("reflect_autopilot_history", json!({}));
+        let history = common::invoke_ok("zhuye_autopilot_history", json!({}));
         if let Some(run) = history.as_array().and_then(|runs| {
             runs.iter().find(|run| {
                 run["status"] == "failed"
@@ -180,15 +180,15 @@ enabled = []
         provider.uri()
     ));
     let (events_tx, events_rx) = channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = events_tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled": true,
             "schedule": "* * * * *",
@@ -219,7 +219,7 @@ enabled = []
     assert_eq!(body["messages"][0]["role"], "user");
 
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled": false,
             "schedule": "* * * * *",
@@ -239,10 +239,10 @@ enabled = []
     assert_eq!(before, after, "disabled autopilot triggered again");
     assert!(!history.as_array().unwrap().is_empty(), "{history}");
 
-    let rebound_session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id": rebound_session}));
+    let rebound_session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id": rebound_session}));
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled": true,
             "schedule": "* * * * *",
@@ -280,10 +280,10 @@ enabled = []
             .mount(&provider)
             .await;
     });
-    let cancellation_session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id": cancellation_session}));
+    let cancellation_session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id": cancellation_session}));
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled": true,
             "schedule": "* * * * *",
@@ -304,7 +304,7 @@ enabled = []
     waiting_rx
         .recv_timeout(Duration::from_secs(5))
         .expect("gated cancellation model request did not start");
-    common::invoke_ok("reflect_interrupt", json!({}));
+    common::invoke_ok("zhuye_interrupt", json!({}));
     let cancelled = wait_for_failure_reason(&events_rx, "autopilot turn aborted");
     assert_eq!(cancelled["status"], "failed", "{cancelled}");
     {
@@ -322,10 +322,10 @@ enabled = []
             .mount(&provider)
             .await;
     });
-    let failure_session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id": failure_session}));
+    let failure_session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id": failure_session}));
     common::invoke_ok(
-        "reflect_update_autopilot_config",
+        "zhuye_update_autopilot_config",
         json!({"config":{
             "enabled": true,
             "schedule": "* * * * *",

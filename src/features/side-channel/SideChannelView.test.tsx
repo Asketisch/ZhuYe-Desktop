@@ -4,7 +4,7 @@
  * 基于模拟 IPC 的冒烟 + 行为测试：
  *   - 页面标题 + 状态徽标渲染
  *   - Start 表单点击打开；以 agent_name + prompt 提交
- *   - 运行中的通道暴露 Cancel 按钮，转发到 reflect_cancel_side_channel
+ *   - 运行中的通道暴露 Cancel 按钮，转发到 zhuye_cancel_side_channel
  *   - 终态通道（done/cancelled/error）隐藏 Cancel 按钮
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -13,9 +13,9 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { SideChannelView } from './SideChannelView';
 import { createTestQueryClient, emitMockEvent, resetMockInvoke } from '@/test/setup';
 import {
-  reflect_cancel_side_channel,
-  reflect_list_side_channels,
-  reflect_start_side_channel,
+  zhuye_cancel_side_channel,
+  zhuye_list_side_channels,
+  zhuye_start_side_channel,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 
@@ -25,8 +25,8 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_list_side_channels: vi.fn(async () => {
-      calls.push({ cmd: 'reflect_list_side_channels', args: undefined });
+    zhuye_list_side_channels: vi.fn(async () => {
+      calls.push({ cmd: 'zhuye_list_side_channels', args: undefined });
       return [
         {
           id: 'side-running01',
@@ -46,8 +46,8 @@ vi.mock('@/utils/commands', async () => {
         },
       ];
     }),
-    reflect_start_side_channel: vi.fn(async (args: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_start_side_channel', args });
+    zhuye_start_side_channel: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_start_side_channel', args });
       return {
         id: 'side-new0003',
         agentName: args.agent_name as string,
@@ -55,11 +55,11 @@ vi.mock('@/utils/commands', async () => {
         startedAtMs: 2000,
       };
     }),
-    reflect_cancel_side_channel: vi.fn(async (id: string) => {
-      calls.push({ cmd: 'reflect_cancel_side_channel', args: { id } });
+    zhuye_cancel_side_channel: vi.fn(async (id: string) => {
+      calls.push({ cmd: 'zhuye_cancel_side_channel', args: { id } });
       return true;
     }),
-    reflect_get_side_channel: vi.fn(async () => null),
+    zhuye_get_side_channel: vi.fn(async () => null),
   };
 });
 
@@ -96,16 +96,16 @@ describe('SideChannelView', () => {
   });
 
   it('refetches the list when a side_channel lifecycle event arrives on the bus', async () => {
-    // v1.x WP9:控制器订阅 `reflect_event` 上的 side_channel_started /
+    // v1.x WP9:控制器订阅 `zhuye_event` 上的 side_channel_started /
     // side_channel_finished,收到即失效查询缓存 —— 不等 5s 轮询。
     render(wrap(<SideChannelView />));
     await waitFor(() => screen.getByTestId('side-channel-row-side-running01'));
-    const listCalls = () => calls.filter((c) => c.cmd === 'reflect_list_side_channels').length;
+    const listCalls = () => calls.filter((c) => c.cmd === 'zhuye_list_side_channels').length;
     const before = listCalls();
     // 总线监听是异步挂上的(mock listen):在 waitFor 里重复投递,
     // 挂上后第一条就会触发 invalidate → refetch。
     await waitFor(() => {
-      emitMockEvent('reflect_event', {
+      emitMockEvent('zhuye_event', {
         id: '',
         msg: { type: 'side_channel_finished', kind: 'done', id: 'side-running01', finished_at_ms: 2 },
       });
@@ -116,9 +116,9 @@ describe('SideChannelView', () => {
   it('ignores unrelated events (no spurious refetch)', async () => {
     render(wrap(<SideChannelView />));
     await waitFor(() => screen.getByTestId('side-channel-row-side-running01'));
-    const listCalls = () => calls.filter((c) => c.cmd === 'reflect_list_side_channels').length;
+    const listCalls = () => calls.filter((c) => c.cmd === 'zhuye_list_side_channels').length;
     const before = listCalls();
-    emitMockEvent('reflect_event', { id: 'evt', msg: { type: 'agent_message', text: 'hi' } });
+    emitMockEvent('zhuye_event', { id: 'evt', msg: { type: 'agent_message', text: 'hi' } });
     // 给异步 invalidate 一个机会 —— 不应有新的列表调用。
     await new Promise((r) => setTimeout(r, 50));
     expect(listCalls()).toBe(before);
@@ -127,9 +127,9 @@ describe('SideChannelView', () => {
   it('updates a running row to its terminal state from a live finished event', async () => {
     let status: 'running' | 'done' = 'running';
     const originalList = vi
-      .mocked(reflect_list_side_channels)
+      .mocked(zhuye_list_side_channels)
       .getMockImplementation();
-    vi.mocked(reflect_list_side_channels).mockImplementation(async () => [
+    vi.mocked(zhuye_list_side_channels).mockImplementation(async () => [
       {
         id: 'side-live0001',
         agentName: 'reviewer',
@@ -144,7 +144,7 @@ describe('SideChannelView', () => {
       await waitFor(() => screen.getByTestId('side-channel-cancel-side-live0001'));
       status = 'done';
       await waitFor(() => {
-        emitMockEvent('reflect_event', {
+        emitMockEvent('zhuye_event', {
           id: '',
           msg: {
             type: 'side_channel_finished',
@@ -158,7 +158,7 @@ describe('SideChannelView', () => {
       expect(await screen.findByText('done')).toBeDefined();
       expect(screen.getByText('0.3s')).toBeDefined();
     } finally {
-      vi.mocked(reflect_list_side_channels).mockImplementation(originalList!);
+      vi.mocked(zhuye_list_side_channels).mockImplementation(originalList!);
     }
   });
 
@@ -191,7 +191,7 @@ describe('SideChannelView', () => {
 
     await waitFor(
       () => {
-        const startCall = calls.find((c) => c.cmd === 'reflect_start_side_channel');
+        const startCall = calls.find((c) => c.cmd === 'zhuye_start_side_channel');
         expect(startCall).toBeDefined();
         expect((startCall?.args as { agent_name: string }).agent_name).toBe('reviewer');
         expect((startCall?.args as { prompt: string }).prompt).toBe('double-check the diff');
@@ -202,7 +202,7 @@ describe('SideChannelView', () => {
   });
 
   it('shows serialized backend errors and preserves the draft', async () => {
-    vi.mocked(reflect_start_side_channel).mockRejectedValueOnce({ msg: 'agent unavailable' });
+    vi.mocked(zhuye_start_side_channel).mockRejectedValueOnce({ msg: 'agent unavailable' });
     render(wrap(<SideChannelView />));
     fireEvent.click(screen.getByTestId('side-channel-add-btn'));
     fireEvent.change(screen.getByTestId('side-channel-start-prompt'), { target: { value: 'keep me' } });
@@ -212,13 +212,13 @@ describe('SideChannelView', () => {
   });
 
   it('shows serialized cancellation errors', async () => {
-    vi.mocked(reflect_cancel_side_channel).mockRejectedValueOnce({ msg: 'cancel unavailable' });
+    vi.mocked(zhuye_cancel_side_channel).mockRejectedValueOnce({ msg: 'cancel unavailable' });
     render(wrap(<SideChannelView />));
     fireEvent.click(await screen.findByTestId('side-channel-cancel-side-running01'));
     await waitFor(() => expect(useAgentStore.getState().toasts.some((toast) => toast.message.includes('cancel unavailable'))).toBe(true));
   });
 
-  it('Cancel click forwards reflect_cancel_side_channel', async () => {
+  it('Cancel click forwards zhuye_cancel_side_channel', async () => {
     render(wrap(<SideChannelView />));
     await waitFor(() => screen.getByTestId('side-channel-cancel-side-running01'));
     fireEvent.click(screen.getByTestId('side-channel-cancel-side-running01'));
@@ -226,7 +226,7 @@ describe('SideChannelView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_cancel_side_channel' &&
+            c.cmd === 'zhuye_cancel_side_channel' &&
             (c.args as { id: string }).id === 'side-running01',
         ),
       ).toBe(true);

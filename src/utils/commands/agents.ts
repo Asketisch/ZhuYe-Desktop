@@ -9,11 +9,11 @@
  */
 import { invoke } from '../bridge';
 
-// ── 类型(对应 `reflect_agent_def::AgentDefinition`,snake_case) ──────────
+// ── 类型(对应 `zhuye_agent_def::AgentDefinition`,snake_case) ──────────
 
-export type ReflectMemoryScope = 'project' | 'user' | 'session';
+export type ZhuyeMemoryScope = 'project' | 'user' | 'session';
 
-export interface ReflectAgentDef {
+export interface ZhuyeAgentDef {
   /** 稳定标识,同时作为文件名(`<name>.md`)。 */
   name: string;
   /** 人类可读的描述(必填)。 */
@@ -31,7 +31,7 @@ export interface ReflectAgentDef {
   /** 单轮迭代次数硬上限。 */
   max_turns: number | null;
   /** 需要加载并注入的 memory 范围。 */
-  memory: ReflectMemoryScope[];
+  memory: ZhuyeMemoryScope[];
   /** 预留给 v1 MCP 支持。 */
   mcp_collections: string[];
   /** Markdown 正文(即 system prompt)。 */
@@ -50,13 +50,13 @@ export interface ReflectAgentDef {
 // ── Commands ───────────────────────────────────────────────────────────
 
 /** 列出所有 agent 定义(按名称排序)。 */
-export async function reflect_list_agent_defs(): Promise<ReflectAgentDef[]> {
-  return invoke<ReflectAgentDef[]>('reflect_list_agent_defs');
+export async function zhuye_list_agent_defs(): Promise<ZhuyeAgentDef[]> {
+  return invoke<ZhuyeAgentDef[]>('zhuye_list_agent_defs');
 }
 
 /** 按名称读取单个 agent 定义,未找到时抛错。 */
-export async function reflect_get_agent_def(name: string): Promise<ReflectAgentDef> {
-  return invoke<ReflectAgentDef>('reflect_get_agent_def', { name });
+export async function zhuye_get_agent_def(name: string): Promise<ZhuyeAgentDef> {
+  return invoke<ZhuyeAgentDef>('zhuye_get_agent_def', { name });
 }
 
 /**
@@ -64,18 +64,18 @@ export async function reflect_get_agent_def(name: string): Promise<ReflectAgentD
  * `~/.zhuye/agents/<name>.md` 并做往返校验。
  * `name` 与 `description` 为必填项。
  */
-export async function reflect_save_agent_def(def: ReflectAgentDef, createOnly = false): Promise<ReflectAgentDef> {
-  return invoke<ReflectAgentDef>('reflect_save_agent_def', createOnly ? { def, createOnly: true } : { def });
+export async function zhuye_save_agent_def(def: ZhuyeAgentDef, createOnly = false): Promise<ZhuyeAgentDef> {
+  return invoke<ZhuyeAgentDef>('zhuye_save_agent_def', createOnly ? { def, createOnly: true } : { def });
 }
 
 /** 删除 agent 定义文件。返回 `true` 表示已删除,`false` 表示未找到。 */
-export async function reflect_delete_agent_def(name: string): Promise<boolean> {
-  return invoke<boolean>('reflect_delete_agent_def', { name });
+export async function zhuye_delete_agent_def(name: string): Promise<boolean> {
+  return invoke<boolean>('zhuye_delete_agent_def', { name });
 }
 
 /** 将 markdown 字符串解析/校验为 agent 定义(无副作用)。 */
-export async function reflect_parse_agent_md(text: string): Promise<ReflectAgentDef> {
-  return invoke<ReflectAgentDef>('reflect_parse_agent_md', { text });
+export async function zhuye_parse_agent_md(text: string): Promise<ZhuyeAgentDef> {
+  return invoke<ZhuyeAgentDef>('zhuye_parse_agent_md', { text });
 }
 
 // ====== 活跃 agent ======
@@ -108,8 +108,8 @@ export interface ActiveAgentInfo {
 }
 
 /** 查询当前活跃 agent(及其记忆作用域 / 注入预算)。 */
-export function reflect_get_active_agent(): Promise<ActiveAgentInfo> {
-  return invoke('reflect_get_active_agent');
+export function zhuye_get_active_agent(): Promise<ActiveAgentInfo> {
+  return invoke('zhuye_get_active_agent');
 }
 
 /**
@@ -118,6 +118,6 @@ export function reflect_get_active_agent(): Promise<ActiveAgentInfo> {
  * 桌面端此前硬编码 agent 名 —— GUI 的 Agents 视图是死胡同:能编辑定义,
  * 但运行时永远不加载。设置后 replay 当前会话历史并强制重建线程。
  */
-export function reflect_set_active_agent(name: string): Promise<ActiveAgentInfo> {
-  return invoke('reflect_set_active_agent', { name });
+export function zhuye_set_active_agent(name: string): Promise<ActiveAgentInfo> {
+  return invoke('zhuye_set_active_agent', { name });
 }

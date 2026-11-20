@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { reflect_get_effective_prompt, reflect_prompt_command } from '@/utils/commands/prompts';
+import { zhuye_get_effective_prompt, zhuye_prompt_command } from '@/utils/commands/prompts';
 import type { PromptSelection } from '@/utils/commands/prompts';
 import { ModalShell } from './ModalShell';
 import s from '@/render/modals/PromptLayersModal.module.css';
@@ -36,7 +36,7 @@ export function PromptLayersModal() {
       prompt?.selection,
       prompt?.switchedAt,
     ],
-    queryFn: () => reflect_get_effective_prompt(),
+    queryFn: () => zhuye_get_effective_prompt(),
     enabled: open && showBody,
     staleTime: 30_000,
   });
@@ -76,7 +76,7 @@ export function PromptLayersModal() {
               ? { mode: 'manual', profile: prompt?.available.find((name) => name !== 'default') ?? 'default' }
               : { mode: mode === 'auto' ? 'auto' : 'default' };
             setSelection(selection);
-            void reflect_prompt_command({ type: 'select', selection });
+            void zhuye_prompt_command({ type: 'select', selection });
           }}
         >
           <option value="default">{t('promptLayers.default')}</option>
@@ -90,7 +90,7 @@ export function PromptLayersModal() {
             onChange={(event) => {
               const next: PromptSelection = { mode: 'manual', profile: event.target.value };
               setSelection(next);
-              void reflect_prompt_command({ type: 'select', selection: next });
+              void zhuye_prompt_command({ type: 'select', selection: next });
             }}
           >
             {(prompt?.available ?? []).map((name) => <option key={name} value={name}>{name}</option>)}
@@ -98,10 +98,10 @@ export function PromptLayersModal() {
         )}
         <p>{t('promptLayers.effectiveProfile')}: {prompt?.profile ?? 'default'}</p>
         {prompt?.fallbackReason && <p role="status">{prompt.fallbackReason}</p>}
-        <button type="button" onClick={() => void reflect_prompt_command({
+        <button type="button" onClick={() => void zhuye_prompt_command({
           type: 'save_default', selection,
         })}>{t('promptLayers.saveDefault')}</button>{' '}
-        <button type="button" onClick={() => void reflect_prompt_command({ type: 'select', selection: null })}>
+        <button type="button" onClick={() => void zhuye_prompt_command({ type: 'select', selection: null })}>
           {t('promptLayers.followDefault')}
         </button>
       </section>

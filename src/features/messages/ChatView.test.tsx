@@ -2,7 +2,7 @@
  * ChatView 组件测试 —— 验证会话加载 / 空态 / 错误 / 重试状态。
  *
  * 模拟 @tanstack/react-router 的 `useParams` 控制活动 sessionId，
- * 并模拟 `reflect_replay_session` 驱动加载 / 错误 / 成功流程。
+ * 并模拟 `zhuye_replay_session` 驱动加载 / 错误 / 成功流程。
  */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -30,7 +30,7 @@ declare global {
 import { ChatView } from './ChatView';
 import { ConfirmDialogHost } from '@/features/modals/ConfirmDialog';
 
-// 真实 rollout 线格式:reflect_protocol::RolloutRecord tagged union。
+// 真实 rollout 线格式:zhuye_protocol::RolloutRecord tagged union。
 const T1 = '075f8a83-d84b-4f9d-93eb-9c428881bb43';
 const SAMPLE_RECORDS = [
   {
@@ -58,7 +58,7 @@ describe('ChatView', () => {
     navigateSpy.mockClear();
     // v1.x:ChatView 加载序列第一步是 bind;默认 mock 为 no-op
     // (resetMockInvoke 会清掉 setup 里的默认 mock,需在本文件重注册)。
-    mockInvoke('reflect_bind_session', async () => 'auto');
+    mockInvoke('zhuye_bind_session', async () => 'auto');
     saveLocale('en');
     window.__chatTestSessionId = undefined;
     window.__chatTestPath = '/chat';
@@ -77,7 +77,7 @@ describe('ChatView', () => {
 
   it('shows loading state, then hydrates turns on successful replay', async () => {
     let resolveReplay!: (records: typeof SAMPLE_RECORDS) => void;
-    mockInvoke('reflect_replay_session', async () => new Promise((resolve) => { resolveReplay = resolve; }));
+    mockInvoke('zhuye_replay_session', async () => new Promise((resolve) => { resolveReplay = resolve; }));
     window.__chatTestSessionId = 'sess-42';
     window.__chatTestPath = '/chat/sess-42';
 
@@ -109,7 +109,7 @@ describe('ChatView', () => {
 
   it('clears old interactions before the new backend bind finishes', async () => {
     let finish!: (mode: string) => void;
-    mockInvoke('reflect_bind_session', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_bind_session', () => new Promise<string>((resolve) => { finish = resolve; }));
     useAgentStore.setState({ loadedSessionId: 'old', pendingApprovals: [
       { id: 'approval', kind: 'tool', turnId: 'turn' },
     ] });
@@ -122,7 +122,7 @@ describe('ChatView', () => {
   });
 
   it('shows empty session state when replay returns no records', async () => {
-    mockInvoke('reflect_replay_session', async () => []);
+    mockInvoke('zhuye_replay_session', async () => []);
     window.__chatTestSessionId = 'sess-empty';
     window.__chatTestPath = '/chat/sess-empty';
 
@@ -135,9 +135,9 @@ describe('ChatView', () => {
   });
 
   it('forks the current session from the banner button', async () => {
-    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    mockInvoke('zhuye_replay_session', async () => SAMPLE_RECORDS);
     const forkCalls: Array<{ id?: string; branch?: string }> = [];
-    mockInvoke('reflect_fork_session', async (_cmd: string, args?: { id: string; branch: string }) => {
+    mockInvoke('zhuye_fork_session', async (_cmd: string, args?: { id: string; branch: string }) => {
       forkCalls.push(args ?? {});
       return 'child-1';
     });
@@ -168,8 +168,8 @@ describe('ChatView', () => {
 
   it('does not navigate away when an old session fork completes', async () => {
     let finish!: (id: string) => void;
-    mockInvoke('reflect_fork_session', () => new Promise<string>((resolve) => { finish = resolve; }));
-    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    mockInvoke('zhuye_fork_session', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_replay_session', async () => SAMPLE_RECORDS);
     window.__chatTestSessionId = 'sess-42';
     window.__chatTestPath = '/chat/sess-42';
     const view = renderWithProviders(<ChatView />);
@@ -183,9 +183,9 @@ describe('ChatView', () => {
   });
 
   it('forks up to a specific turn from the per-turn fork button', async () => {
-    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    mockInvoke('zhuye_replay_session', async () => SAMPLE_RECORDS);
     const forkCalls: Array<{ id?: string; branch?: string; upToTurnId?: string }> = [];
-    mockInvoke('reflect_fork_session', async (_cmd: string, args?: { id: string; branch: string; upToTurnId: string }) => {
+    mockInvoke('zhuye_fork_session', async (_cmd: string, args?: { id: string; branch: string; upToTurnId: string }) => {
       forkCalls.push(args ?? {});
       return 'child-2';
     });
@@ -218,8 +218,8 @@ describe('ChatView', () => {
 
   it('does not rewind a different session after a delayed confirmation', async () => {
     const rewind = vi.fn(async () => 'ok');
-    mockInvoke('reflect_rewind', rewind);
-    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    mockInvoke('zhuye_rewind', rewind);
+    mockInvoke('zhuye_replay_session', async () => SAMPLE_RECORDS);
     window.__chatTestSessionId = 'sess-42';
     window.__chatTestPath = '/chat/sess-42';
     const view = renderWithProviders(<><ChatView /><ConfirmDialogHost /></>);
@@ -234,7 +234,7 @@ describe('ChatView', () => {
 
   it('shows localized error and recovers via Retry button', async () => {
     let attempts = 0;
-    mockInvoke('reflect_replay_session', async () => {
+    mockInvoke('zhuye_replay_session', async () => {
       attempts += 1;
       if (attempts === 1) throw new Error('replay failed');
       return SAMPLE_RECORDS;
@@ -262,7 +262,7 @@ describe('ChatView', () => {
 
   it('renders Chinese copy after switching locale to zh-CN', async () => {
     saveLocale('zh-CN');
-    mockInvoke('reflect_replay_session', async () => []);
+    mockInvoke('zhuye_replay_session', async () => []);
     window.__chatTestSessionId = 'sess-zh';
     window.__chatTestPath = '/chat/sess-zh';
 
@@ -277,11 +277,11 @@ describe('ChatView', () => {
   it('binds the backend session before replaying history (bind → replay order)', async () => {
     // mock invoke handler 实际签名为 (cmd, args) —— args 是线上参数对象。
     const order: string[] = [];
-    mockInvoke('reflect_bind_session', async (_cmd: string, args?: { id: string }) => {
+    mockInvoke('zhuye_bind_session', async (_cmd: string, args?: { id: string }) => {
       order.push(`bind:${args?.id ?? ''}`);
       return 'auto';
     });
-    mockInvoke('reflect_replay_session', async () => {
+    mockInvoke('zhuye_replay_session', async () => {
       order.push('replay');
       return SAMPLE_RECORDS;
     });
@@ -305,11 +305,11 @@ describe('ChatView', () => {
   it('re-binds the backend session when switching to another session', async () => {
     // mock invoke handler 签名为 (cmd, args) —— args 是线上参数对象。
     const binds: string[] = [];
-    mockInvoke('reflect_bind_session', async (_cmd: string, args?: { id: string }) => {
+    mockInvoke('zhuye_bind_session', async (_cmd: string, args?: { id: string }) => {
       binds.push(args?.id ?? '');
       return 'auto';
     });
-    mockInvoke('reflect_replay_session', async () => []);
+    mockInvoke('zhuye_replay_session', async () => []);
 
     // 首次加载 sess-1 并水合。
     window.__chatTestSessionId = 'sess-1';
@@ -338,7 +338,7 @@ describe('ChatView', () => {
   });
 
   it('clears the loaded session when navigating to /chat (no id)', async () => {
-    mockInvoke('reflect_replay_session', async () => SAMPLE_RECORDS);
+    mockInvoke('zhuye_replay_session', async () => SAMPLE_RECORDS);
     window.__chatTestSessionId = 'sess-1';
     window.__chatTestPath = '/chat/sess-1';
 
@@ -370,7 +370,7 @@ describe('ChatView', () => {
 describe('ChatView hero (new-chat home)', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('reflect_bind_session', async () => 'auto');
+    mockInvoke('zhuye_bind_session', async () => 'auto');
     saveLocale('en');
     window.__chatTestSessionId = undefined;
     window.__chatTestPath = '/chat';
@@ -388,7 +388,7 @@ describe('ChatView hero (new-chat home)', () => {
   });
 
   it('renders greeting, workspace hint and quick prompt chips', async () => {
-    mockInvoke('reflect_current_workspace', async () => '/Users/me/Code/alpha');
+    mockInvoke('zhuye_current_workspace', async () => '/Users/me/Code/alpha');
 
     const { container } = renderWithProviders(<ChatView />);
 

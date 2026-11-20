@@ -34,9 +34,9 @@ describe('ContextBanner', () => {
     expect(container.querySelector('[data-testid="context-warning-banner"]')).toBeNull();
   });
 
-  it('appears at ≥80% and compact button calls reflect_compact', async () => {
+  it('appears at ≥80% and compact button calls zhuye_compact', async () => {
     const compacts: number[] = [];
-    mockInvoke('reflect_compact', async () => {
+    mockInvoke('zhuye_compact', async () => {
       compacts.push(1);
       return 'op-1';
     });

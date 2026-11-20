@@ -12,7 +12,7 @@
  */
 import { invoke } from '../bridge';
 
-export interface ReflectPluginCommandInfo {
+export interface ZhuyePluginCommandInfo {
   /** 命令全名(`plugin:ns:name` 形式,如 `demo:hello`),前端拼 `/<name>`。 */
   name: string;
   /** 命令说明(md frontmatter `description`,可缺省)。 */
@@ -20,23 +20,23 @@ export interface ReflectPluginCommandInfo {
 }
 
 /** 列出当前已挂载插件的全部 slash 命令。 */
-export async function reflect_list_plugin_commands(): Promise<ReflectPluginCommandInfo[]> {
-  return invoke<ReflectPluginCommandInfo[]>('reflect_list_plugin_commands');
+export async function zhuye_list_plugin_commands(): Promise<ZhuyePluginCommandInfo[]> {
+  return invoke<ZhuyePluginCommandInfo[]>('zhuye_list_plugin_commands');
 }
 
 // ====== 插件管理 ======
 
 /** 插件安装 scope(与核心 `PluginScope` 的 serde 一致:小写)。 */
-export type ReflectPluginScope = 'managed' | 'user' | 'project' | 'local';
+export type ZhuyePluginScope = 'managed' | 'user' | 'project' | 'local';
 
 /** 一个已安装插件。 */
-export interface ReflectPluginInfo {
+export interface ZhuyePluginInfo {
   /** 插件 id。 */
   id: string;
   /** 版本号。 */
   version: string;
   /** 安装 scope。 */
-  scope: ReflectPluginScope;
+  scope: ZhuyePluginScope;
   /** 安装路径(绝对路径)。 */
   installPath: string;
   /** 安装时间(RFC3339)。 */
@@ -56,7 +56,7 @@ export interface ReflectPluginInfo {
 }
 
 /** 一个已知 marketplace。 */
-export interface ReflectMarketplaceInfo {
+export interface ZhuyeMarketplaceInfo {
   name: string;
   /** 源类型:`directory` / `file` / `github` / `url`。 */
   source: string;
@@ -67,41 +67,41 @@ export interface ReflectMarketplaceInfo {
 }
 
 /** 列出已安装插件 + 是否启用。 */
-export function reflect_list_plugins(): Promise<ReflectPluginInfo[]> {
-  return invoke<ReflectPluginInfo[]>('reflect_list_plugins');
+export function zhuye_list_plugins(): Promise<ZhuyePluginInfo[]> {
+  return invoke<ZhuyePluginInfo[]>('zhuye_list_plugins');
 }
 
 /** 列出已知 marketplace(config 的 `[plugins].marketplaces`)。 */
-export function reflect_list_marketplaces(): Promise<ReflectMarketplaceInfo[]> {
-  return invoke<ReflectMarketplaceInfo[]>('reflect_list_marketplaces');
+export function zhuye_list_marketplaces(): Promise<ZhuyeMarketplaceInfo[]> {
+  return invoke<ZhuyeMarketplaceInfo[]>('zhuye_list_marketplaces');
 }
 
 /** 启用 / 停用一个插件(落盘 config + 运行时挂/卸 diff 同步)。 */
-export function reflect_toggle_plugin(id: string, enabled: boolean): Promise<void> {
-  return invoke('reflect_toggle_plugin', { id, enabled });
+export function zhuye_toggle_plugin(id: string, enabled: boolean): Promise<void> {
+  return invoke('zhuye_toggle_plugin', { id, enabled });
 }
 
 /** 卸载一个插件(按 scope 精确卸载)。 */
-export function reflect_uninstall_plugin(
+export function zhuye_uninstall_plugin(
   id: string,
-  scope: ReflectPluginScope,
+  scope: ZhuyePluginScope,
 ): Promise<void> {
-  return invoke('reflect_uninstall_plugin', { id, scope });
+  return invoke('zhuye_uninstall_plugin', { id, scope });
 }
 
 /** 从本地目录安装一个插件(目录里需有 `plugin.toml` 或 `.claude-plugin/plugin.json`)。 */
-export function reflect_install_plugin(
+export function zhuye_install_plugin(
   path: string,
   marketplace: string,
-  scope: ReflectPluginScope,
+  scope: ZhuyePluginScope,
 ): Promise<void> {
-  return invoke('reflect_install_plugin', { path, marketplace, scope });
+  return invoke('zhuye_install_plugin', { path, marketplace, scope });
 }
 
 // ── v1.11 桌面#2:插件市场(浏览 + 一键安装) ─────────────────────────
 
 /** 市场内一个可安装插件的展示信息。 */
-export interface ReflectMarketplacePluginInfo {
+export interface ZhuyeMarketplacePluginInfo {
   name: string;
   description: string;
   version?: string | null;
@@ -115,16 +115,16 @@ export interface ReflectMarketplacePluginInfo {
  * 浏览一个 marketplace 的可安装插件清单(读该市场的缓存 manifest)。
  * 市场未注册 / 缓存未物化时 reject(提示先 marketplace add / refresh)。
  */
-export function reflect_browse_marketplace(
+export function zhuye_browse_marketplace(
   name: string,
-): Promise<ReflectMarketplacePluginInfo[]> {
-  return invoke<ReflectMarketplacePluginInfo[]>('reflect_browse_marketplace', { name });
+): Promise<ZhuyeMarketplacePluginInfo[]> {
+  return invoke<ZhuyeMarketplacePluginInfo[]>('zhuye_browse_marketplace', { name });
 }
 
 /** 从 marketplace 一键安装插件(含依赖解析;装完挂载进运行时)。 */
-export function reflect_install_from_marketplace(
+export function zhuye_install_from_marketplace(
   marketplace: string,
   plugin: string,
 ): Promise<void> {
-  return invoke('reflect_install_from_marketplace', { marketplace, plugin });
+  return invoke('zhuye_install_from_marketplace', { marketplace, plugin });
 }

@@ -6,15 +6,15 @@
  *   - 状态查询解析后状态徽标渲染
  *   - 创建表单打开并以正确的参数提交
  *   - 任务行渲染带切换 / 移除按钮
- *   - 切换转发到 reflect_update_schedule，enabled 取反
- *   - remove 转发到 reflect_remove_schedule
+ *   - 切换转发到 zhuye_update_schedule，enabled 取反
+ *   - remove 转发到 zhuye_remove_schedule
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ScheduleView } from './ScheduleView';
 import { createTestQueryClient, resetMockInvoke } from '@/test/setup';
-import { reflect_add_schedule, reflect_remove_schedule } from '@/utils/commands';
+import { zhuye_add_schedule, zhuye_remove_schedule } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 
 const calls: Array<{ cmd: string; args: unknown }> = [];
@@ -23,8 +23,8 @@ vi.mock('@/utils/commands', async () => {
   const actual = await vi.importActual<typeof import('@/utils/commands')>('@/utils/commands');
   return {
     ...actual,
-    reflect_list_schedules: vi.fn(async () => {
-      calls.push({ cmd: 'reflect_list_schedules', args: undefined });
+    zhuye_list_schedules: vi.fn(async () => {
+      calls.push({ cmd: 'zhuye_list_schedules', args: undefined });
       return [
         {
           id: 'job-1',
@@ -38,20 +38,20 @@ vi.mock('@/utils/commands', async () => {
         },
       ];
     }),
-    reflect_get_schedule_status: vi.fn(async () => {
-      calls.push({ cmd: 'reflect_get_schedule_status', args: undefined });
+    zhuye_get_schedule_status: vi.fn(async () => {
+      calls.push({ cmd: 'zhuye_get_schedule_status', args: undefined });
       return { status: 'has_jobs', line: 'cron-scheduler: 1 job', total: 1, enabled: 1 };
     }),
-    reflect_add_schedule: vi.fn(async (args: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_add_schedule', args });
+    zhuye_add_schedule: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_add_schedule', args });
       return { id: 'new-1', schedule: args.schedule, prompt: args.prompt, name: args.name, enabled: true, created_at: '2026-07-28T00:00:00Z' };
     }),
-    reflect_update_schedule: vi.fn(async (args: Record<string, unknown>) => {
-      calls.push({ cmd: 'reflect_update_schedule', args });
+    zhuye_update_schedule: vi.fn(async (args: Record<string, unknown>) => {
+      calls.push({ cmd: 'zhuye_update_schedule', args });
       return { id: args.id, schedule: '0 * * * *', prompt: 'standup', enabled: args.enabled, created_at: '2026-07-28T00:00:00Z' };
     }),
-    reflect_remove_schedule: vi.fn(async (id: string) => {
-      calls.push({ cmd: 'reflect_remove_schedule', args: { id } });
+    zhuye_remove_schedule: vi.fn(async (id: string) => {
+      calls.push({ cmd: 'zhuye_remove_schedule', args: { id } });
       return true;
     }),
   };
@@ -103,14 +103,14 @@ describe('ScheduleView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_add_schedule' &&
+            c.cmd === 'zhuye_add_schedule' &&
             (c.args as { prompt: string }).prompt === 'hello cron',
         ),
       ).toBe(true);
     });
   });
 
-  it('forwards toggle to reflect_update_schedule with enabled flipped', async () => {
+  it('forwards toggle to zhuye_update_schedule with enabled flipped', async () => {
     render(wrap(<ScheduleView />));
     await waitFor(() => screen.getByTestId('schedule-toggle-job-1'));
     fireEvent.click(screen.getByTestId('schedule-toggle-job-1'));
@@ -118,7 +118,7 @@ describe('ScheduleView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_update_schedule' &&
+            c.cmd === 'zhuye_update_schedule' &&
             (c.args as { id: string; enabled: boolean }).id === 'job-1' &&
             (c.args as { enabled: boolean }).enabled === false,
         ),
@@ -126,7 +126,7 @@ describe('ScheduleView', () => {
     });
   });
 
-  it('forwards remove to reflect_remove_schedule', async () => {
+  it('forwards remove to zhuye_remove_schedule', async () => {
     render(wrap(<ScheduleView />));
     await waitFor(() => screen.getByTestId('schedule-remove-job-1'));
     fireEvent.click(screen.getByTestId('schedule-remove-job-1'));
@@ -134,7 +134,7 @@ describe('ScheduleView', () => {
       expect(
         calls.some(
           (c) =>
-            c.cmd === 'reflect_remove_schedule' &&
+            c.cmd === 'zhuye_remove_schedule' &&
             (c.args as { id: string }).id === 'job-1',
         ),
       ).toBe(true);
@@ -142,7 +142,7 @@ describe('ScheduleView', () => {
   });
 
   it('retains the draft and displays serialized creation errors', async () => {
-    vi.mocked(reflect_add_schedule).mockRejectedValueOnce({ msg: 'invalid cron' });
+    vi.mocked(zhuye_add_schedule).mockRejectedValueOnce({ msg: 'invalid cron' });
     render(wrap(<ScheduleView />));
     fireEvent.click(screen.getByTestId('schedule-add-btn'));
     fireEvent.change(screen.getByTestId('schedule-create-prompt'), { target: { value: 'keep draft' } });
@@ -152,15 +152,15 @@ describe('ScheduleView', () => {
   });
 
   it('reports a missing job instead of claiming it was removed', async () => {
-    vi.mocked(reflect_remove_schedule).mockResolvedValueOnce(false);
+    vi.mocked(zhuye_remove_schedule).mockResolvedValueOnce(false);
     render(wrap(<ScheduleView />));
     fireEvent.click(await screen.findByTestId('schedule-remove-job-1'));
     await waitFor(() => expect(useAgentStore.getState().toasts.some((toast) => toast.kind === 'warn' && toast.message.includes('already removed'))).toBe(true));
   });
 
   it('disables create while its request is pending', async () => {
-    let resolve!: (value: Awaited<ReturnType<typeof reflect_add_schedule>>) => void;
-    vi.mocked(reflect_add_schedule).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    let resolve!: (value: Awaited<ReturnType<typeof zhuye_add_schedule>>) => void;
+    vi.mocked(zhuye_add_schedule).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
     render(wrap(<ScheduleView />));
     fireEvent.click(screen.getByTestId('schedule-add-btn'));
     fireEvent.change(screen.getByTestId('schedule-create-prompt'), { target: { value: 'once' } });

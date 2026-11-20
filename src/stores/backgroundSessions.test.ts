@@ -14,10 +14,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { __resetBackgroundScratchesForTests, useBackgroundSessions } from './backgroundSessions';
 import { useAgentStore } from './agentStore';
-import type { ReflectEvent } from '@/types/protocol';
+import type { ZhuyeEvent } from '@/types/protocol';
 
-function ev(id: string, msg: Record<string, unknown>): ReflectEvent {
-  return { id, msg } as unknown as ReflectEvent;
+function ev(id: string, msg: Record<string, unknown>): ZhuyeEvent {
+  return { id, msg } as unknown as ZhuyeEvent;
 }
 
 const SESSION_A = 'sess-bg-a';

@@ -79,7 +79,7 @@ fn first_message_is_emitted_before_the_next_participant_finishes() {
         provider.uri()
     ));
     let (events_tx, events_rx) = channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = events_tx.send(value);
         }
@@ -101,7 +101,7 @@ system_prompt = "ROLE_SLOW"
     .unwrap();
     let worker = std::thread::spawn(|| {
         common::invoke(
-            "reflect_run_discussion",
+            "zhuye_run_discussion",
             json!({"configPath":"discussion-live.toml"}),
         )
     });

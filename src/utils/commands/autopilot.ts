@@ -7,7 +7,7 @@ import { invoke } from '@/utils/bridge';
 
 // ── 类型 ──
 
-export interface ReflectAutopilotConfig {
+export interface ZhuyeAutopilotConfig {
   enabled: boolean;
   schedule: string;
   taskTemplate: string;
@@ -15,7 +15,7 @@ export interface ReflectAutopilotConfig {
   maxConcurrent: number;
 }
 
-export interface ReflectAutopilotRun {
+export interface ZhuyeAutopilotRun {
   id: string;
   executedAtMs: number;
   taskId: string | null;
@@ -25,14 +25,14 @@ export interface ReflectAutopilotRun {
 
 // ── Wrappers ──
 
-export function reflect_get_autopilot_config(): Promise<ReflectAutopilotConfig> {
-  return invoke('reflect_get_autopilot_config');
+export function zhuye_get_autopilot_config(): Promise<ZhuyeAutopilotConfig> {
+  return invoke('zhuye_get_autopilot_config');
 }
 
-export function reflect_update_autopilot_config(config: ReflectAutopilotConfig): Promise<void> {
-  return invoke('reflect_update_autopilot_config', { config });
+export function zhuye_update_autopilot_config(config: ZhuyeAutopilotConfig): Promise<void> {
+  return invoke('zhuye_update_autopilot_config', { config });
 }
 
-export function reflect_autopilot_history(): Promise<ReflectAutopilotRun[]> {
-  return invoke('reflect_autopilot_history');
+export function zhuye_autopilot_history(): Promise<ZhuyeAutopilotRun[]> {
+  return invoke('zhuye_autopilot_history');
 }

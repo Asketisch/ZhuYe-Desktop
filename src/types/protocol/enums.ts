@@ -1,5 +1,5 @@
 /**
- * Reflect protocol —— 共享核心枚举（字符串联合），所有领域模块共用。
+ * 上游协议 —— 共享核心枚举（字符串联合），所有领域模块共用。
  * 本文件仅包含*类型级*枚举（无 payload 结构体、无判别联合），
  * 可安全地被任何模块导入而不产生循环引用。
  *
@@ -54,7 +54,7 @@ export type ReviewDecision =
 
 /**
  * PlanApprovalChoice — plan 模式审批的三选一(对应后端
- * `reflect_protocol::PlanApprovalChoice`,`#[serde(rename_all = "snake_case")]`)。
+ * `zhuye_protocol::PlanApprovalChoice`,`#[serde(rename_all = "snake_case")]`)。
  *
  * - `auto_mode`:切到 AcceptEdits(自动批准编辑/写入类,Bash 等仍走审批;
  *   引擎当前产物,桌面经 `normalizePermissionMode` 归一为 auto 展示)。

@@ -6,7 +6,7 @@ mod common;
 fn adding_a_rule_rejects_read_only_permission_file() {
     use std::os::unix::fs::PermissionsExt;
     common::invoke_ok(
-        "reflect_add_permission_rule",
+        "zhuye_add_permission_rule",
         serde_json::json!({
             "rule": {"tool": "initial-probe", "action": "deny"}
         }),
@@ -16,7 +16,7 @@ fn adding_a_rule_rejects_read_only_permission_file() {
     let original = std::fs::read(&path).unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).unwrap();
     common::invoke_err(
-        "reflect_add_permission_rule",
+        "zhuye_add_permission_rule",
         serde_json::json!({
             "rule": {"tool": "later-probe", "action": "allow"}
         }),

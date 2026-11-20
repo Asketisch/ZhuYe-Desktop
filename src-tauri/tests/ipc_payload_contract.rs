@@ -10,7 +10,7 @@
 //! ## 为什么需要这一层
 //!
 //! L2 的全部前端测试都跑在 `fakeBackend` 上。模拟层一旦与真后端的参数形状
-//! 走样(历史实例:`reflect_save_allowlist` 的 `entries` vs 真后端的
+//! 走样(历史实例:`zhuye_save_allowlist` 的 `entries` vs 真后端的
 //! `prefixes`),前端测试会继续全绿,而线上调用会被 Tauri 以
 //! `invalid args` 拒绝。把同一份样本同时喂给两边,漂移就无处可藏。
 //!
@@ -29,7 +29,7 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-/// 1×1 像素的合法 PNG —— `reflect_image_process` / `reflect_read_image_base64`
+/// 1×1 像素的合法 PNG —— `zhuye_image_process` / `zhuye_read_image_base64`
 /// 样本指向它。
 const PROBE_PNG: &[u8] = &[
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -109,7 +109,7 @@ fn is_deserialization_error(err: &Value) -> bool {
 
 /// 建本次运行的临时目录并放好样本引用的文件。
 fn prepare_tmp() -> String {
-    let dir = std::env::temp_dir().join(format!("reflect-desktop-contract-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("zhuye-desktop-contract-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create contract tmp dir");
     std::fs::write(dir.join("contract-probe.txt"), "hello contract\n").expect("write probe txt");
     std::fs::write(dir.join("contract-probe.png"), PROBE_PNG).expect("write probe png");
@@ -137,13 +137,13 @@ fn every_payload_sample_deserializes_on_the_real_backend() {
         "skipOnRealBackend 里有不在样本表中的命令: {skip:?}"
     );
 
-    // `reflect_shutdown` 会关掉 AgentThread —— 必须最后跑,否则后面的命令
+    // `zhuye_shutdown` 会关掉 AgentThread —— 必须最后跑,否则后面的命令
     // 会因为「agent 已关闭」失败,把反序列化检查的信号盖掉。
     let mut ordered: Vec<(&String, &Value)> = payloads
         .iter()
-        .filter(|(cmd, _)| cmd.as_str() != "reflect_shutdown")
+        .filter(|(cmd, _)| cmd.as_str() != "zhuye_shutdown")
         .collect();
-    if let Some(shutdown) = payloads.get_key_value("reflect_shutdown") {
+    if let Some(shutdown) = payloads.get_key_value("zhuye_shutdown") {
         ordered.push(shutdown);
     }
 
@@ -176,7 +176,7 @@ fn every_payload_sample_deserializes_on_the_real_backend() {
 #[test]
 fn the_detector_recognizes_the_historical_allowlist_drift() {
     let e = common::invoke_err(
-        "reflect_save_allowlist",
+        "zhuye_save_allowlist",
         json!({ "list": { "entries": ["git status"] } }),
     );
     assert!(
@@ -189,7 +189,7 @@ fn the_detector_recognizes_the_historical_allowlist_drift() {
 #[test]
 fn the_detector_ignores_business_errors() {
     let e = common::invoke_err(
-        "reflect_get_trace",
+        "zhuye_get_trace",
         json!({ "id": "no-such-trace-for-contract-check" }),
     );
     assert!(

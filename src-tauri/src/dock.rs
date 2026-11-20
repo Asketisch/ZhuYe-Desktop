@@ -13,7 +13,7 @@
 //!
 //! `NSApplication::sharedApplication()` 要求在 main thread 调用。
 //! 我们用 Tauri 的 `app.run_on_main_thread()` 切到主线程,这样
-//! `reflect_set_dock_badge` command 在任意线程 invoke 都安全。
+//! `zhuye_set_dock_badge` command 在任意线程 invoke 都安全。
 
 #![allow(dead_code)]
 
@@ -81,6 +81,6 @@ pub fn set_dock_badge<R: Runtime>(app: &AppHandle<R>, label: Option<String>) {
     }
 }
 
-// Tauri command `reflect_set_dock_badge` 已按领域约定移至
+// Tauri command `zhuye_set_dock_badge` 已按领域约定移至
 // `src-tauri/src/commands/dock.rs`(薄包装,调用本模块的
 // [`set_dock_badge`]);lib.rs 经 `commands` 重导出注册。

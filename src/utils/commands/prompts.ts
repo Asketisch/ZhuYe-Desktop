@@ -1,8 +1,8 @@
 /**
  * 提示词层(prompt library)IPC 包装。
  *
- * 薄包装 `reflect_prompt_command` → `Op::PromptCommand`(v1.6.1)。
- * 引擎动作不开 turn，应答经单一 `reflect_event` 通道回流:
+ * 薄包装 `zhuye_prompt_command` → `Op::PromptCommand`(v1.6.1)。
+ * 引擎动作不开 turn，应答经单一 `zhuye_event` 通道回流:
  * - `list`  → `EventMsg::PromptList`(可用层 + 生效层)
  * - `switch`→ `EventMsg::PromptSwitched`(重扫完成 + 新命中层)
  * - `select` / `save_default` → 选择会话方案或保存共享默认
@@ -33,8 +33,8 @@ export type PromptAction =
  * - `{ type: 'switch', layer: null }` → 引擎重扫提示词库,应答
  *   `EventMsg::PromptSwitched`(`layer` 槽位预留,当前固定走全量重扫)
  */
-export function reflect_prompt_command(action: PromptAction): Promise<string> {
-  return invoke('reflect_prompt_command', { action });
+export function zhuye_prompt_command(action: PromptAction): Promise<string> {
+  return invoke('zhuye_prompt_command', { action });
 }
 
 // ====== 生效提示词正文 ======
@@ -60,9 +60,9 @@ export interface EffectivePrompt {
 /**
  * 查询当前模型实际生效的提示词正文。
  *
- * 与 `reflect_prompt_command` 的 `list` 动作互补:后者只报**层文件名**
+ * 与 `zhuye_prompt_command` 的 `list` 动作互补:后者只报**层文件名**
  * (哪些层命中了),本命令报**层解析后的正文** —— 模型真正吃到的那段提示词。
  */
-export function reflect_get_effective_prompt(): Promise<EffectivePrompt> {
-  return invoke('reflect_get_effective_prompt');
+export function zhuye_get_effective_prompt(): Promise<EffectivePrompt> {
+  return invoke('zhuye_get_effective_prompt');
 }

@@ -160,6 +160,41 @@ check_no_junk() {
 }
 tcase "无垃圾文件入库(node_modules / .DS_Store / dist / target)" check_no_junk
 
+# ── 6b. 品牌名卫生:自有代码不出现第三方 agent 产品名 ────────────────────
+# 豁免(逐条对齐,新增豁免须写明理由):
+#   - 导入线格式:`claude_code` / `codex` / `zcode` —— 协议枚举在上游
+#     zhuye-import,是线格式数据不是品牌宣传;
+#   - import 域 UI 来源名(`import.kind.*` / `import.subtitle`)与
+#     ImportBinding 的 value —— 用户要区分从哪个 harness 导入;
+#   - 真实模型 id 测试数据(`claude-sonnet-*` / `anthropic/*` 等)与
+#     fakeBackend 定价逻辑(按模型 id 匹配)—— 生态数据;
+#   - 厂商提示词层名(`claude` / `gpt`)与 `.claude-plugin/` 目录格式名
+#     —— 外部生态约定;
+#   - changelog 历史条目 —— 史实记录;
+#   - zhuye-agent submodule —— 只读上游。
+check_brand_names() {
+    local hits
+    hits=$(git -C "$ROOT" ls-files \
+        | grep -vE '^zhuye-agent/|^tests/static/run.sh|^docs/changelog\.md|^src/utils/i18n/strings/import\.ts$|^src/logic/import/|^src/features/import/|^src-tauri/src/commands/import_sessions\.rs$|^src/utils/commands/importSessions\.ts$' \
+        | xargs grep -lniE 'codex|magpie|claude[ _-]?code|codexmonitor|cursor review|cursor 式' 2>/dev/null \
+        | grep -vE 'fakeBackend|model_catalog|i18n\.test|e2e/' || true)
+    # 进一步豁免文件内合法行:线格式枚举 / 模型 id / 格式名。
+    local real=""
+    for f in $hits; do
+        local leaked
+        leaked=$(grep -niE 'codex|magpie|claude[ _-]?code|codexmonitor|cursor review|cursor 式' "$f" \
+            | grep -viE 'claude_code|"codex"|HarnessKind|import\.|claude-[a-z0-9]|anthropic|claude"|"claude|claude-plugin|claude-plugin' || true)
+        [ -n "$leaked" ] && real="$real$f: $(echo "$leaked" | head -2 | tr '\n' ' '); "
+    done
+    if [ -z "$real" ]; then
+        echo "自有代码无第三方品牌名残留"
+        return 0
+    fi
+    echo "发现第三方品牌名残留(注释/文案/测试数据须中性化):$real"
+    return 1
+}
+tcase "品牌名卫生(codex / magpie / claude code)" check_brand_names
+
 # ── 7. 协议文档与代码地图存在 ────────────────────────────────────────────
 check_docs_exist() {
     local missing=""

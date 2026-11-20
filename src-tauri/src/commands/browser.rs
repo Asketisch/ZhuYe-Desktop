@@ -23,7 +23,7 @@ pub struct BrowserEnvInfo {
 
 /// 启动浏览器(必要时)并开始面板帧流。重复调用幂等。
 #[tauri::command]
-pub async fn reflect_browser_start(
+pub async fn zhuye_browser_start(
     agent: tauri::State<'_, MinimalAgent>,
 ) -> CommandResult<BrowserStatusDto> {
     browser_backend::start(&agent)
@@ -33,7 +33,7 @@ pub async fn reflect_browser_start(
 
 /// 停止面板帧流;本模块拉起的实例一并回收,外部实例保留。
 #[tauri::command]
-pub async fn reflect_browser_stop(
+pub async fn zhuye_browser_stop(
     agent: tauri::State<'_, MinimalAgent>,
 ) -> CommandResult<BrowserStatusDto> {
     browser_backend::stop(&agent)
@@ -43,7 +43,7 @@ pub async fn reflect_browser_stop(
 
 /// 查询浏览器状态(**无副作用**:不启动、不连接页面级通道)。
 #[tauri::command]
-pub async fn reflect_browser_status(
+pub async fn zhuye_browser_status(
     agent: tauri::State<'_, MinimalAgent>,
 ) -> CommandResult<BrowserStatusDto> {
     browser_backend::status(&agent)
@@ -53,7 +53,7 @@ pub async fn reflect_browser_status(
 
 /// 诊断:profile 目录与可执行文件覆盖状态(设置页展示)。
 #[tauri::command]
-pub async fn reflect_browser_env() -> CommandResult<BrowserEnvInfo> {
+pub async fn zhuye_browser_env() -> CommandResult<BrowserEnvInfo> {
     Ok(BrowserEnvInfo {
         executable_override: std::env::var("ZHUYE_BROWSER_EXECUTABLE").is_ok(),
         profile_dir: browser_backend::profile_dir().display().to_string(),
@@ -63,7 +63,7 @@ pub async fn reflect_browser_env() -> CommandResult<BrowserEnvInfo> {
 /// 地址栏导航:输入规范化(无 scheme 补 `https://`)→ `Page.navigate` →
 /// best-effort 等加载完成(≤10s)。浏览器未运行时报结构化错误。
 #[tauri::command]
-pub async fn reflect_browser_navigate(
+pub async fn zhuye_browser_navigate(
     agent: tauri::State<'_, MinimalAgent>,
     url: String,
 ) -> CommandResult<BrowserStatusDto> {
@@ -74,7 +74,7 @@ pub async fn reflect_browser_navigate(
 
 /// 后退一步(导航历史越界时 no-op)。
 #[tauri::command]
-pub async fn reflect_browser_back(
+pub async fn zhuye_browser_back(
     agent: tauri::State<'_, MinimalAgent>,
 ) -> CommandResult<BrowserStatusDto> {
     browser_backend::back(&agent)
@@ -84,7 +84,7 @@ pub async fn reflect_browser_back(
 
 /// 前进一步(导航历史越界时 no-op)。
 #[tauri::command]
-pub async fn reflect_browser_forward(
+pub async fn zhuye_browser_forward(
     agent: tauri::State<'_, MinimalAgent>,
 ) -> CommandResult<BrowserStatusDto> {
     browser_backend::forward(&agent)
@@ -94,7 +94,7 @@ pub async fn reflect_browser_forward(
 
 /// 刷新当前页(`ignoreCache: false`)。
 #[tauri::command]
-pub async fn reflect_browser_reload(
+pub async fn zhuye_browser_reload(
     agent: tauri::State<'_, MinimalAgent>,
 ) -> CommandResult<BrowserStatusDto> {
     browser_backend::reload(&agent)
@@ -104,7 +104,7 @@ pub async fn reflect_browser_reload(
 
 /// 应用设备模拟尺寸(0/0 = 清除 override 复位;预设清单在前端)。
 #[tauri::command]
-pub async fn reflect_browser_set_device(
+pub async fn zhuye_browser_set_device(
     agent: tauri::State<'_, MinimalAgent>,
     width: u32,
     height: u32,

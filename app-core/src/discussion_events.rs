@@ -1,7 +1,7 @@
 //! Event and history helpers for the desktop discussion adapter.
 
-use reflect_discussion::models::{DiscussionId, DiscussionMessage, MessageKind};
-use reflect_protocol::{CollabMessageEvent, EventMsg, RolloutRecord};
+use zhuye_discussion::models::{DiscussionId, DiscussionMessage, MessageKind};
+use zhuye_protocol::{CollabMessageEvent, EventMsg, RolloutRecord};
 
 use crate::discussion::{DiscussionError, DiscussionEventSink};
 
@@ -64,15 +64,15 @@ pub struct DiscussionSessionInfo {
 pub fn list_discussions(
     discussion_id: Option<&str>,
 ) -> Result<Vec<DiscussionSessionInfo>, DiscussionError> {
-    let base = reflect_rollout::path::default_base();
+    let base = zhuye_rollout::path::default_base();
     let sessions = match discussion_id {
-        Some(id) => reflect_rollout::index::list_sessions_with_discussion(&base, id)
+        Some(id) => zhuye_rollout::index::list_sessions_with_discussion(&base, id)
             .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?,
-        None => reflect_rollout::index::list_sessions(&base)
+        None => zhuye_rollout::index::list_sessions(&base)
             .map_err(|e| DiscussionError::Orchestrator(e.to_string()))?
             .into_iter()
             .filter(|session| {
-                reflect_rollout::index::find_file_by_session_id(&base, &session.session_id)
+                zhuye_rollout::index::find_file_by_session_id(&base, &session.session_id)
                     .is_ok_and(|path| path.is_some_and(|path| path_has_discussion(&path)))
             })
             .collect(),

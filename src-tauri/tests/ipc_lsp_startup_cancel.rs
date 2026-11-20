@@ -22,13 +22,13 @@ fn disabling_during_initialization_does_not_emit_started() {
          LSP_SHUTDOWN_MARKER = {shutdown_json}\n"
     ));
     let (tx, rx) = std::sync::mpsc::channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str::<Value>(event.payload()) {
             let _ = tx.send(value);
         }
     });
     assert_eq!(
-        common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": true }))["enabled"],
+        common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": true }))["enabled"],
         true
     );
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -37,7 +37,7 @@ fn disabling_during_initialization_does_not_emit_started() {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert_eq!(
-        common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": false }))["enabled"],
+        common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": false }))["enabled"],
         false
     );
     let deadline = Instant::now() + Duration::from_secs(3);
@@ -49,21 +49,21 @@ fn disabling_during_initialization_does_not_emit_started() {
     }
     assert!(shutdown_marker.exists(), "握手后应关闭已过期的 LSP 进程");
     assert_eq!(
-        common::invoke_ok("reflect_lsp_status", json!({}))["enabled"],
+        common::invoke_ok("zhuye_lsp_status", json!({}))["enabled"],
         false
     );
 
     // 第二轮在旧握手仍未完成时立即重开；只能收到新实例的一次启动事件。
     std::fs::remove_file(&marker).unwrap();
     std::fs::remove_file(&shutdown_marker).unwrap();
-    common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": true }));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": true }));
     let deadline = Instant::now() + Duration::from_secs(10);
     while !marker.exists() {
         assert!(Instant::now() < deadline, "第二轮 LSP 没有开始握手");
         std::thread::sleep(Duration::from_millis(20));
     }
-    common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": false }));
-    common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": true }));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": false }));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": true }));
     let deadline = Instant::now() + Duration::from_secs(4);
     let mut started = 0;
     while let Ok(event) = rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
@@ -73,10 +73,10 @@ fn disabling_during_initialization_does_not_emit_started() {
     }
     assert_eq!(started, 1, "重开后应只有新服务发出启动事件");
     assert!(shutdown_marker.exists(), "被替换的旧服务应关闭");
-    let status = common::invoke_ok("reflect_lsp_status", json!({}));
+    let status = common::invoke_ok("zhuye_lsp_status", json!({}));
     assert_eq!(status["enabled"], true);
     assert_eq!(status["servers"], json!(["slow"]));
-    common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": false }));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": false }));
 
     // 并发启用必须共享一个管理器，不能启动重复子进程。
     std::fs::remove_file(&marker).unwrap();
@@ -86,7 +86,7 @@ fn disabling_during_initialization_does_not_emit_started() {
             let barrier = barrier.clone();
             std::thread::spawn(move || {
                 barrier.wait();
-                common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": true }))
+                common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": true }))
             })
         })
         .collect();
@@ -107,5 +107,5 @@ fn disabling_during_initialization_does_not_emit_started() {
             event["msg"]["type"] == "lsp_server_started" && event["msg"]["server"] == "slow";
     }
     assert_eq!(std::fs::read_to_string(&marker).unwrap().lines().count(), 1);
-    common::invoke_ok("reflect_lsp_set_enabled", json!({ "enabled": false }));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({ "enabled": false }));
 }

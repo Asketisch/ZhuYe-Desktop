@@ -14,40 +14,77 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
-use reflect_hooks::decision::{HookDecision, SystemMessage};
-use reflect_hooks::event::{HookEvent, HookEventKind};
-use reflect_hooks::hook::{Hook, HookError};
+use zhuye_hooks::decision::{HookDecision, SystemMessage};
+use zhuye_hooks::event::{HookEvent, HookEventKind};
+use zhuye_hooks::hook::{Hook, HookError};
 
-/// 单文件注入字符上限（与上游 `zhuye-exec` 实现一致）。
-const AGENTS_MD_MAX_CHARS: usize = 32 * 1024;
+/// 单文件字节上限策略：`None` = 不截断（完整注入，缺省）；`Some(n)` =
+/// 单文件最多注入 n 字节，超限在**字符边界**截断并附提示（不静默）。
+///
+/// 上限由桌面偏好 `~/.zhuye/desktop.json` 的 `agents_md_max_bytes` 控制，
+/// 由 thread_factory 读入后传入 —— app-core 不直接读偏好（依赖方向：
+/// src-tauri → app-core）。
+pub type AgentsMdMaxBytes = Option<usize>;
 
-/// 读取单个 AGENTS.md 文件并加来源标注；超长截断（上游同款）。
-fn read_capped(path: &Path) -> Option<String> {
+/// 把 `s` 截到不超过 `max_bytes` 字节的最大字符边界处（防切碎 UTF-8
+/// 多字节序列产生 U+FFFD）。
+fn truncate_at_char_boundary(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
+/// 读取单个 AGENTS.md 文件并加来源标注；`max_bytes = Some(n)` 且超限时
+/// 截断（字符边界）并附可见提示 + `tracing::warn`（截断不静默）。
+fn read_capped(path: &Path, max_bytes: AgentsMdMaxBytes) -> Option<String> {
     let raw = std::fs::read_to_string(path).ok()?;
     let raw = raw.trim();
     if raw.is_empty() {
         return None;
     }
     let mut out = format!("Source: {}\n\n", path.display());
-    if raw.chars().count() > AGENTS_MD_MAX_CHARS {
-        out.push_str(&raw.chars().take(AGENTS_MD_MAX_CHARS).collect::<String>());
-        out.push_str("\n\n[AGENTS.md 超长已截断,完整内容请用 read 工具查看该文件]");
-    } else {
-        out.push_str(raw);
+    match max_bytes {
+        None => out.push_str(raw),
+        Some(limit) => {
+            if raw.len() > limit {
+                let kept = truncate_at_char_boundary(raw, limit);
+                out.push_str(kept);
+                out.push_str(&format!(
+                    "\n\n[已按 agents_md_max_bytes={limit} 截断(原 {} 字节);可调大或删除该配置以完整注入]",
+                    raw.len()
+                ));
+                tracing::warn!(
+                    "AGENTS.md {} 超出 agents_md_max_bytes={limit}(原 {} 字节),已截断注入",
+                    path.display(),
+                    raw.len()
+                );
+            } else {
+                out.push_str(raw);
+            }
+        }
     }
     Some(out)
 }
 
 /// 合并用户级（`<data_dir>/AGENTS.md`）与项目级（`<workspace>/AGENTS.md`）。
 /// 用户级在前、项目级在后（项目级更具体）。与上游同逻辑。
-fn read_agents_md_merged(workspace: &Path, user_data_dir: Option<PathBuf>) -> String {
+fn read_agents_md_merged(
+    workspace: &Path,
+    user_data_dir: Option<PathBuf>,
+    max_bytes: AgentsMdMaxBytes,
+) -> String {
     let mut parts: Vec<String> = vec![];
     if let Some(dir) = user_data_dir {
-        if let Some(text) = read_capped(&dir.join("AGENTS.md")) {
+        if let Some(text) = read_capped(&dir.join("AGENTS.md"), max_bytes) {
             parts.push(text);
         }
     }
-    if let Some(text) = read_capped(&workspace.join("AGENTS.md")) {
+    if let Some(text) = read_capped(&workspace.join("AGENTS.md"), max_bytes) {
         parts.push(text);
     }
     parts.join("\n\n---\n\n")
@@ -57,17 +94,25 @@ fn read_agents_md_merged(workspace: &Path, user_data_dir: Option<PathBuf>) -> St
 pub struct AgentsMdHook {
     workspace: PathBuf,
     user_data_dir: Option<PathBuf>,
+    /// 单文件字节上限（`None` = 不截断，缺省）。
+    max_bytes: AgentsMdMaxBytes,
     /// 每会话只注一次（hook 实例随 thread 生命周期）。
     injected: AtomicBool,
 }
 
 impl AgentsMdHook {
     /// `workspace` 为项目级 AGENTS.md 所在目录；`user_data_dir` 为用户级
-    /// 数据目录（`None` 跳过用户级）。
-    pub fn new(workspace: impl Into<PathBuf>, user_data_dir: Option<PathBuf>) -> Self {
+    /// 数据目录（`None` 跳过用户级）；`max_bytes` 为单文件字节上限
+    /// （`None` 不截断）。
+    pub fn new(
+        workspace: impl Into<PathBuf>,
+        user_data_dir: Option<PathBuf>,
+        max_bytes: AgentsMdMaxBytes,
+    ) -> Self {
         Self {
             workspace: workspace.into(),
             user_data_dir,
+            max_bytes,
             injected: AtomicBool::new(false),
         }
     }
@@ -92,14 +137,14 @@ impl Hook for AgentsMdHook {
         if self.injected.swap(true, Ordering::Relaxed) {
             return Ok(HookDecision::Allow);
         }
-        let content = read_agents_md_merged(&self.workspace, self.user_data_dir.clone());
+        let content = read_agents_md_merged(&self.workspace, self.user_data_dir.clone(), self.max_bytes);
         if content.trim().is_empty() {
             return Ok(HookDecision::Allow);
         }
         // 段格式经 `append_agents_md_section` 生成，与 core prompt 块 /
         // exec 注入通道不漂移（`## Project Instructions` 段头）。
         let mut core = String::new();
-        reflect_prompt::append_agents_md_section(&mut core, &content);
+        zhuye_prompt::append_agents_md_section(&mut core, &content);
         Ok(HookDecision::InjectMessage(SystemMessage::new(core)))
     }
 }
@@ -264,8 +309,8 @@ impl Hook for EnvContextHook {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reflect_hooks::event::HookContext;
-    use reflect_protocol::{PermissionMode, ThreadId, TurnId};
+    use zhuye_hooks::event::HookContext;
+    use zhuye_protocol::{PermissionMode, ThreadId, TurnId};
 
     /// 构造 UserPromptSubmit 事件（hook 只看 kind，不读载荷）。
     fn prompt_event() -> HookEvent {
@@ -290,7 +335,7 @@ mod tests {
         std::fs::create_dir_all(&project).unwrap();
         std::fs::write(user.join("AGENTS.md"), "user rules").unwrap();
         std::fs::write(project.join("AGENTS.md"), "project rules").unwrap();
-        let merged = read_agents_md_merged(&project, Some(user));
+        let merged = read_agents_md_merged(&project, Some(user), None);
         let user_at = merged.find("Source:").unwrap();
         assert!(merged.contains("user rules"));
         assert!(merged.contains("project rules"));
@@ -299,15 +344,56 @@ mod tests {
         let _ = user_at;
     }
 
-    /// 单文件截断：超过 32K 字符的内容被截断并带提示（标注不超限）。
+    /// 无上限（缺省）：超大文件完整注入，不截断、无提示。
     #[test]
-    fn read_capped_truncates_oversized_file() {
+    fn read_capped_without_limit_keeps_full_content() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("AGENTS.md");
-        std::fs::write(&file, "x".repeat(AGENTS_MD_MAX_CHARS + 100)).unwrap();
-        let text = read_capped(&file).unwrap();
-        assert!(text.contains("超长已截断"));
-        assert!(text.chars().count() < AGENTS_MD_MAX_CHARS + 200);
+        let big = "x".repeat(200 * 1024);
+        std::fs::write(&file, &big).unwrap();
+        let text = read_capped(&file, None).unwrap();
+        assert!(text.contains(&big));
+        assert!(!text.contains("截断"));
+    }
+
+    /// 有上限：超限截断且在字符边界（多字节中文不被切碎为 U+FFFD），
+    /// 并附可见提示（含上限与原字节数）。
+    #[test]
+    fn read_capped_with_limit_truncates_at_char_boundary_with_notice() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("AGENTS.md");
+        // 每个「烛」3 字节；10 字节上限 → 回退到边界 9 字节 = 保留 3 个
+        // 整字，第 4 个字符跨边界被丢弃，绝不出现半个字符。
+        std::fs::write(&file, "烛夜烛夜烛夜烛夜").unwrap();
+        let text = read_capped(&file, Some(10)).unwrap();
+        assert!(text.contains("烛夜烛"));
+        assert!(!text.contains("烛夜烛夜"));
+        assert!(!text.contains('\u{FFFD}'));
+        assert!(text.contains("agents_md_max_bytes=10"));
+        assert!(text.contains("原 24 字节"));
+    }
+
+    /// 有上限但未超限：完整注入、无提示。
+    #[test]
+    fn read_capped_with_limit_keeps_small_file_intact() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("AGENTS.md");
+        std::fs::write(&file, "small rules").unwrap();
+        let text = read_capped(&file, Some(1024)).unwrap();
+        assert!(text.contains("small rules"));
+        assert!(!text.contains("截断"));
+    }
+
+    /// 字符边界回退：上限落在多字节字符中间时向前回退到边界。
+    #[test]
+    fn truncate_at_char_boundary_never_splits_multibyte() {
+        let s = "烛夜"; // 6 字节,每字 3 字节
+        assert_eq!(truncate_at_char_boundary(s, 100), s);
+        assert_eq!(truncate_at_char_boundary(s, 4), "烛");
+        assert_eq!(truncate_at_char_boundary(s, 3), "烛");
+        assert_eq!(truncate_at_char_boundary(s, 2), "");
+        assert_eq!(truncate_at_char_boundary(s, 0), "");
+        assert_eq!(truncate_at_char_boundary("abc", 2), "ab");
     }
 
     /// 空文件 / 缺文件返回 None（不注入）。
@@ -315,8 +401,8 @@ mod tests {
     fn read_capped_skips_empty_or_missing() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("AGENTS.md"), "   \n").unwrap();
-        assert!(read_capped(&dir.path().join("AGENTS.md")).is_none());
-        assert!(read_capped(&dir.path().join("missing.md")).is_none());
+        assert!(read_capped(&dir.path().join("AGENTS.md"), None).is_none());
+        assert!(read_capped(&dir.path().join("missing.md"), None).is_none());
     }
 
     /// 环境块格式：必含工作目录/平台/日期；可选行按探测结果增减。
@@ -345,7 +431,7 @@ mod tests {
     async fn agents_md_hook_injects_once() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("AGENTS.md"), "be concise").unwrap();
-        let hook = AgentsMdHook::new(dir.path(), None);
+        let hook = AgentsMdHook::new(dir.path(), None, None);
         assert_eq!(hook.events(), &[HookEventKind::UserPromptSubmit]);
 
         let first = hook.handle(&prompt_event()).await.unwrap();
@@ -359,11 +445,27 @@ mod tests {
         assert_eq!(second, HookDecision::Allow);
     }
 
+    /// 带上限的 hook：超限文件注入截断版并带提示。
+    #[tokio::test]
+    async fn agents_md_hook_respects_max_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("AGENTS.md"), "a".repeat(500)).unwrap();
+        let hook = AgentsMdHook::new(dir.path(), None, Some(100));
+        let first = hook.handle(&prompt_event()).await.unwrap();
+        let HookDecision::InjectMessage(msg) = first else {
+            panic!("首轮必须注入,实得 {first:?}");
+        };
+        assert!(msg.content.contains("agents_md_max_bytes=100"));
+        assert!(msg.content.contains('a'));
+        // 截断后正文 + Source 标注 + 提示,总长可控。
+        assert!(msg.content.chars().count() < 500);
+    }
+
     /// 无 AGENTS.md 时首轮也 Allow（不注入空段）。
     #[tokio::test]
     async fn agents_md_hook_allows_when_no_file() {
         let dir = tempfile::tempdir().unwrap();
-        let hook = AgentsMdHook::new(dir.path(), None);
+        let hook = AgentsMdHook::new(dir.path(), None, None);
         assert_eq!(
             hook.handle(&prompt_event()).await.unwrap(),
             HookDecision::Allow

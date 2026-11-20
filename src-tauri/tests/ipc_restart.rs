@@ -30,27 +30,27 @@ fn phase_one_mutations() {
 
     // 配置:真后端会重新序列化,值(而非注释)才能读回。
     invoke_ok(
-        "reflect_save_config",
+        "zhuye_save_config",
         json!({ "toml": "[hooks]\nenabled = []\n\n[sandbox]\nwritable_dirs = [\"/tmp/restart-recovery-marker\"]\n" }),
     );
     // 记忆。
     invoke_ok(
-        "reflect_add_memory",
+        "zhuye_add_memory",
         json!({ "scope": "user", "key": "restart-recovery-key", "value": "pnpm test after restart" }),
     );
     // 审批白名单。
     invoke_ok(
-        "reflect_save_allowlist",
+        "zhuye_save_allowlist",
         json!({ "list": { "prefixes": ["git restart-probe"] } }),
     );
     // agent 定义。
     invoke_ok(
-        "reflect_save_agent_def",
+        "zhuye_save_agent_def",
         json!({ "def": { "name": "restart-recovery-agent", "description": "重启恢复探针", "prompt": "你是探针。" } }),
     );
     // squad。
     invoke_ok(
-        "reflect_create_squad",
+        "zhuye_create_squad",
         json!({ "spec": {
             "name": "restart-recovery-squad",
             "description": "重启恢复 squad",
@@ -61,18 +61,18 @@ fn phase_one_mutations() {
     );
     // 任务。
     invoke_ok(
-        "reflect_create_task",
+        "zhuye_create_task",
         json!({ "list": "restart-recovery-list", "subject": "restart recovery task subject", "description": "阶段一创建" }),
     );
     // 定时任务:上游 scheduler 支持原子落盘,重启后应恢复同一 job id。
     invoke_ok(
-        "reflect_add_schedule",
+        "zhuye_add_schedule",
         json!({ "schedule": "0 3 * * *", "prompt": "restart recovery schedule", "name": "restart-schedule" }),
     );
     // 工作区历史:指向共享基目录下的 workspace(夹具已创建)。
     let home = std::env::var(HOME_ENV).expect("子进程应有共享 HOME");
     invoke_ok(
-        "reflect_set_workspace",
+        "zhuye_set_workspace",
         json!({ "path": format!("{home}/workspace") }),
     );
 }
@@ -81,7 +81,7 @@ fn phase_one_mutations() {
 fn phase_two_assertions() {
     drop(common::harness());
 
-    let config = invoke_ok("reflect_get_config", json!({}));
+    let config = invoke_ok("zhuye_get_config", json!({}));
     assert!(
         config
             .as_str()
@@ -90,25 +90,25 @@ fn phase_two_assertions() {
         "配置未在重启后读回: {config}"
     );
 
-    let memory = invoke_ok("reflect_list_memory", json!({}));
+    let memory = invoke_ok("zhuye_list_memory", json!({}));
     assert!(
         memory.to_string().contains("restart-recovery-key"),
         "记忆未在重启后读回: {memory}"
     );
 
-    let allowlist = invoke_ok("reflect_load_allowlist", json!({}));
+    let allowlist = invoke_ok("zhuye_load_allowlist", json!({}));
     assert!(
         allowlist.to_string().contains("git restart-probe"),
         "审批白名单未在重启后读回: {allowlist}"
     );
     let hit = invoke_ok(
-        "reflect_check_allowlist",
+        "zhuye_check_allowlist",
         json!({ "prefix": "git restart-probe --short" }),
     );
     assert_eq!(hit, json!(true), "白名单前缀匹配未恢复: {hit}");
 
     let def = invoke_ok(
-        "reflect_get_agent_def",
+        "zhuye_get_agent_def",
         json!({ "name": "restart-recovery-agent" }),
     );
     assert_eq!(
@@ -118,7 +118,7 @@ fn phase_two_assertions() {
     );
 
     let squad = invoke_ok(
-        "reflect_get_squad",
+        "zhuye_get_squad",
         json!({ "name": "restart-recovery-squad" }),
     );
     assert_eq!(
@@ -128,7 +128,7 @@ fn phase_two_assertions() {
     );
 
     let tasks = invoke_ok(
-        "reflect_list_tasks",
+        "zhuye_list_tasks",
         json!({ "list": "restart-recovery-list" }),
     );
     assert!(
@@ -136,7 +136,7 @@ fn phase_two_assertions() {
         "任务未在重启后读回: {tasks}"
     );
 
-    let schedules = invoke_ok("reflect_list_schedules", json!({}));
+    let schedules = invoke_ok("zhuye_list_schedules", json!({}));
     assert!(
         schedules
             .as_array()
@@ -146,7 +146,7 @@ fn phase_two_assertions() {
         "定时任务未在重启后读回: {schedules}"
     );
 
-    let ws = invoke_ok("reflect_current_workspace", json!({}));
+    let ws = invoke_ok("zhuye_current_workspace", json!({}));
     assert!(
         ws.as_str().unwrap_or_default().contains("workspace"),
         "工作区未在重启后读回: {ws}"
@@ -162,7 +162,7 @@ fn persistent_state_survives_a_process_restart() {
 
     // 父进程:共享基目录 → 起子进程跑阶段一 → 自己以同一 HOME 跑阶段二。
     let shared =
-        std::env::temp_dir().join(format!("reflect-desktop-restart-{}", std::process::id()));
+        std::env::temp_dir().join(format!("zhuye-desktop-restart-{}", std::process::id()));
     std::fs::create_dir_all(&shared).expect("create shared restart home base");
 
     let exe = std::env::current_exe().expect("locate test binary");

@@ -40,7 +40,7 @@ export async function onWebviewDragDrop(
     });
     return unlisten;
   } catch {
-    console.warn('[reflect-gui] webview drag-drop events unavailable outside Tauri context');
+    console.warn('[zhuye-gui] webview drag-drop events unavailable outside Tauri context');
     return null;
   }
 }

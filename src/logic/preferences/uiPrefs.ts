@@ -1,7 +1,7 @@
 /**
  * uiPrefs —— 顶层 UI 偏好持久化(localStorage)。
  *
- * 所有偏好持久化在同一个 JSON blob(`reflect.uiprefs.v1`)。
+ * 所有偏好持久化在同一个 JSON blob(`zhuye.uiprefs.v1`)。
  */
 import { useSyncExternalStore } from 'react';
 
@@ -24,7 +24,7 @@ const DEFAULTS: UiPrefs = {
   sendOnEnter: true,
 };
 
-const KEY = 'reflect.uiprefs.v1';
+const KEY = 'zhuye.uiprefs.v1';
 const listeners = new Set<() => void>();
 let cached: UiPrefs | null = null;
 

@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use reflect_tools::ToolRegistry;
+use zhuye_tools::ToolRegistry;
 
 use super::MinimalAgent;
 
@@ -65,7 +65,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //     解析要打网络。解析失败 → 降级原因如实上报,model 落 `stub/test`
     //     —— 绝不落占位串 `"provider/free"`:那是发给 provider 的假模型名,
     //     表现为难诊断的「模型不存在」。
-    reflect_config::discovery::clear_catalog_cache();
+    zhuye_config::discovery::clear_catalog_cache();
     let (resolved_spec, discovery_error) =
         super::model_spec::resolve_model_spec_with_discovery(&cfg_snapshot, &registry).await;
     let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());
@@ -78,7 +78,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
 
     // 4. 构造占位 AgentThread(sid = None,不挂 recorder / 不固定 id)。
     //    占位 thread 给首条消息前的 health-check / 状态命令兜底;
-    //    `reflect_bind_session` 会触发 rebind 把它换成带 recorder 的真 thread。
+    //    `zhuye_bind_session` 会触发 rebind 把它换成带 recorder 的真 thread。
     let thread = match super::thread_factory::construct_thread(agent, None, vec![], None) {
         Ok(thread) => thread,
         Err(error) => {
@@ -105,7 +105,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
 
     // 6a-2. 启动 side-channel 终态补发:引擎 driver 的 Done / Cancelled /
     //     Error 只推进 registry,不发协议事件;桌面端订阅进程级共享
-    //     registry 的广播,把终态映射回 `reflect_event` 通道,前端才能
+    //     registry 的广播,把终态映射回 `zhuye_event` 通道,前端才能
     //     实时感知旁路 agent 完成(而非等下一次快照查询)。
     if let Some(app) = agent.app_handle() {
         super::side_channel_forwarder::spawn_side_channel_forwarder(
@@ -141,7 +141,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //    在 async runtime 里跑(bootstrap 内部 tokio::spawn + 网络 I/O)。
     // MCP 保持安装即启动;LSP 改为按工作区手动开启(见 commands/lsp.rs):
     // 默认不注册 `lsp` tool、不起 server,避免多项目同时撑起多份语言
-    // 服务拖累系统。前端在用户开启后调 `reflect_lsp_set_enabled`。
+    // 服务拖累系统。前端在用户开启后调 `zhuye_lsp_set_enabled`。
     {
         // 与设置命令串行化，发布 manager 后才允许后台启动或修改配置。
         let _config = agent.inner.config_write_lock.lock().await;
@@ -155,20 +155,20 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
         .await;
         *agent.inner.mcp_manager.lock() = Some(manager.clone());
         *agent.inner.mcp_invoked_tx.lock() = Some(invoked_tx);
-        tools.register(Arc::new(reflect_mcp::ListMcpResourcesTool::new(
+        tools.register(Arc::new(zhuye_mcp::ListMcpResourcesTool::new(
             manager.clone(),
         )));
-        tools.register(Arc::new(reflect_mcp::ReadMcpResourceTool::new(
+        tools.register(Arc::new(zhuye_mcp::ReadMcpResourceTool::new(
             manager.clone(),
         )));
-        tools.register(Arc::new(reflect_mcp::ListMcpPromptsTool::new(
+        tools.register(Arc::new(zhuye_mcp::ListMcpPromptsTool::new(
             manager.clone(),
         )));
-        tools.register(Arc::new(reflect_mcp::GetMcpPromptTool::new(manager)));
+        tools.register(Arc::new(zhuye_mcp::GetMcpPromptTool::new(manager)));
     }
 
     tracing::info!(
-        "[reflect-gui] AgentThread installed (model={}, workspace={}, degraded={})",
+        "[zhuye-gui] AgentThread installed (model={}, workspace={}, degraded={})",
         model_spec,
         workspace.display(),
         agent.inner.degraded_reason.lock().is_some()
@@ -177,10 +177,10 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
 
 /// 与上游运行时共用内置工具清单，AST 实现由桌面侧注入。
 fn register_builtin_tools(tools: &Arc<ToolRegistry>, max_questions: Option<u32>) {
-    reflect_tools::register_builtin_tools(
+    zhuye_tools::register_builtin_tools(
         tools,
         max_questions,
-        Arc::new(reflect_ast::AstTool::new()),
+        Arc::new(zhuye_ast::AstTool::new()),
     );
 }
 
@@ -194,7 +194,7 @@ mod tests {
         let tools = Arc::new(ToolRegistry::new());
         register_builtin_tools(&tools, Some(2));
         let names = tools.list();
-        assert_eq!(names.len(), reflect_tools::BUILTIN_TOOL_COUNT);
+        assert_eq!(names.len(), zhuye_tools::BUILTIN_TOOL_COUNT);
         let question = serde_json::json!({
             "header": "Probe", "question": "Choose?", "multi_select": false,
             "options": [{ "label": "A", "description": "a" }, { "label": "B", "description": "b" }]
@@ -203,7 +203,7 @@ mod tests {
             .get("ask_user_question")
             .unwrap()
             .execute(
-                reflect_tools::ToolContext::for_workspace(std::env::temp_dir()),
+                zhuye_tools::ToolContext::for_workspace(std::env::temp_dir()),
                 serde_json::json!({ "questions": [question.clone(), question.clone(), question] }),
             )
             .await
@@ -242,11 +242,11 @@ mod tests {
     /// 任务工具必须注册 —— GUI 里有任务板,agent 也得能驱动它。
     ///
     /// 此前桌面端只注册 15 个基础工具,任务工具**缺失** → GUI 建的 task
-    /// agent 既看不到也改不了(CLI 侧经 `reflect_task::register_task_tools`
+    /// agent 既看不到也改不了(CLI 侧经 `zhuye_task::register_task_tools`
     /// 注册)。
     #[test]
     fn task_tools_are_registered() {
-        use reflect_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager};
+        use zhuye_task::{InMemoryTaskStore, InMemoryTeamStore, TaskManager};
         use std::sync::Arc;
 
         let tools = Arc::new(ToolRegistry::new());
@@ -336,7 +336,7 @@ mod tests {
         // 机器上有历史任务时本断言(restarted 只含本用例 1 条)必假失败。
         let tmp = tempfile::tempdir().unwrap();
         let isolated =
-            reflect_stream::cron::CronScheduler::new(None, reflect_protocol::ThreadId::new())
+            zhuye_stream::cron::CronScheduler::new(None, zhuye_protocol::ThreadId::new())
                 .with_store(tmp.path().join("cron").join("schedules.json"));
         *agent.inner.cron_scheduler.write() = Some(isolated);
         let old = agent.cron_scheduler().unwrap();

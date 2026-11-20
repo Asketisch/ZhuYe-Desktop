@@ -37,7 +37,7 @@ export type SlashResultKind =
 
 export interface SlashResult {
   kind: SlashResultKind;
-  /** 可选的 Submission kind（与 `reflect_*` 命令对应）。 */
+  /** 可选的 Submission kind（与 `zhuye_*` 命令对应）。 */
   submission?: string;
   /** `kind === 'submit'` 时的纯文本 payload。 */
   payload?: string;

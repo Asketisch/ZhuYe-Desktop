@@ -169,13 +169,13 @@ const defaultQueryClient = new QueryClient({
 });
 
 export function AppProviders({ children, queryClient = defaultQueryClient }: { children: React.ReactNode; queryClient?: QueryClient }) {
-  // 阶段 3a:在 provider mount 时建立唯一的 reflect_event 订阅。
+  // 阶段 3a:在 provider mount 时建立唯一的 zhuye_event 订阅。
   // store.subscribe() 是幂等的(防止 React 18 StrictMode 双 mount 重复订阅)。
   // unmount 时清理(返回的 cleanup 调 unlisten + 标记未订阅)。
   useEffect(() => {
     const unsubscribeAgent = useAgentStore.getState().subscribe();
     // editorStore 也订阅同一 agent event bus,把 tool_call_end 中的
-    // Diff 内容累计到 FilesView 的 pending 编辑列表(Cursor 式 review)。
+    // Diff 内容累计到 FilesView 的 pending 编辑列表(逐块 review)。
     const unsubscribeEditor = useEditorStore.getState().subscribe();
     // v1.x 后台持续运行:后台会话事件走独立通道,本 store 维护运行徽标
     // 与待确认交互投影(主 reducer 只管前台会话)。

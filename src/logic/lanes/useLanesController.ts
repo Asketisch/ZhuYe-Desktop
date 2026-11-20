@@ -5,23 +5,23 @@
  *   - 引擎子代理快照:store 的 `subagents.lastStatus`(`Op::QuerySubagents`
  *     的 `subagent_status` 事件应答,reducer 落 store)—— 挂载拉一次,
  *     会话 turn 在飞时每 5s 轮询;
- *   - side-channel:`reflect_list_side_channels` 查询,运行中同样 5s
+ *   - side-channel:`zhuye_list_side_channels` 查询,运行中同样 5s
  *     轮询,生命周期事件到达即失效缓存。
  *
- * 「中止全部」对运行中的 side-channel 走 `reflect_cancel_side_channel`,
+ * 「中止全部」对运行中的 side-channel 走 `zhuye_cancel_side_channel`,
  * 对运行中的引擎子代理走 store 的 `interruptSubagent`(`Op::Interrupt`
  * 的 child 形态)—— 两类在飞代理一起停。
  *
  * 「派生子代理」按钮刻意缺省:安全派生需要 agent 名 + prompt 输入面
- * (`reflect_start_side_channel` 必须携带两者),泳道页没有表单承载,
+ * (`zhuye_start_side_channel` 必须携带两者),泳道页没有表单承载,
  * 不做假按钮 —— 派生入口由 SideChannelView(/side-channels)承担。
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  reflect_list_side_channels,
-  reflect_cancel_side_channel,
-  type ReflectSideChannelInfo,
+  zhuye_list_side_channels,
+  zhuye_cancel_side_channel,
+  type ZhuyeSideChannelInfo,
 } from '@/utils/commands';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { useAgentStore } from '@/stores/agentStore';
@@ -53,7 +53,7 @@ function childTone(state: string): LaneTone {
 }
 
 /** side-channel 状态 → 泳道基调。 */
-function channelTone(status: ReflectSideChannelInfo['status']): LaneTone {
+function channelTone(status: ZhuyeSideChannelInfo['status']): LaneTone {
   if (status === 'running') return 'run';
   if (status === 'done') return 'ok';
   if (status === 'error') return 'err';
@@ -88,7 +88,7 @@ export function useLanesController(): UseLanesControllerResult {
   // ── side-channel 查询:会话在飞时 5s 轮询,否则挂载拉一次 ──
   const channelsQ = useQuery({
     queryKey: [...LANES_SIDECHANNELS_KEY],
-    queryFn: reflect_list_side_channels,
+    queryFn: zhuye_list_side_channels,
     refetchInterval: isTurnRunning ? POLL_MS : false,
   });
   const channels = useMemo(
@@ -217,7 +217,7 @@ export function useLanesController(): UseLanesControllerResult {
         (c) => c && c.state === 'running' && c.child_id,
       );
       const results = await Promise.allSettled([
-        ...cancelTargets.map((c) => reflect_cancel_side_channel(c.id)),
+        ...cancelTargets.map((c) => zhuye_cancel_side_channel(c.id)),
         ...interruptTargets.map((c) => interruptSubagent(c.child_id)),
       ]);
       void qc.invalidateQueries({ queryKey: [...LANES_SIDECHANNELS_KEY] });

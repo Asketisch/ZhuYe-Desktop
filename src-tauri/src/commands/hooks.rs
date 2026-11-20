@@ -15,7 +15,7 @@ pub struct HookInfo {
 }
 
 #[tauri::command]
-pub async fn reflect_list_hooks(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<HookInfo>> {
+pub async fn zhuye_list_hooks(agent: State<'_, MinimalAgent>) -> CommandResult<Vec<HookInfo>> {
     let _transition = agent.inner.session_transition_lock.lock().await;
     let _mount = agent.inner.plugin_mount_lock.lock().await;
     agent
@@ -24,7 +24,7 @@ pub async fn reflect_list_hooks(agent: State<'_, MinimalAgent>) -> CommandResult
 }
 
 #[tauri::command]
-pub async fn reflect_toggle_hook(
+pub async fn zhuye_toggle_hook(
     agent: State<'_, MinimalAgent>,
     name: String,
     enabled: bool,
@@ -52,8 +52,8 @@ pub struct HookEventInfo {
 ///
 /// `decisions` 只列当前运行时会处理的决策；空列表表示仅通知。
 #[tauri::command]
-pub async fn reflect_list_hook_events() -> CommandResult<Vec<HookEventInfo>> {
-    use reflect_hooks::HookEventKind;
+pub async fn zhuye_list_hook_events() -> CommandResult<Vec<HookEventInfo>> {
+    use zhuye_hooks::HookEventKind;
     const TOOL_DECISIONS: &[&str] = &[
         "allow",
         "deny",
@@ -134,8 +134,8 @@ pub async fn reflect_list_hook_events() -> CommandResult<Vec<HookEventInfo>> {
 }
 
 /// `HookEventKind` → 线格式字符串(与核心变体同名,snake_case)。
-fn hook_event_kind_str(kind: reflect_hooks::HookEventKind) -> &'static str {
-    use reflect_hooks::HookEventKind::*;
+fn hook_event_kind_str(kind: zhuye_hooks::HookEventKind) -> &'static str {
+    use zhuye_hooks::HookEventKind::*;
     match kind {
         PreToolUse => "pre_tool_use",
         PostToolUse => "post_tool_use",

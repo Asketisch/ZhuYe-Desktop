@@ -5,11 +5,11 @@ use serde_json::json;
 
 #[test]
 fn corrupt_history_is_not_replaced_during_workspace_switch() {
-    common::invoke_ok("reflect_list_workspaces", json!({}));
+    common::invoke_ok("zhuye_list_workspaces", json!({}));
     let path =
         std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join(".zhuye/workspaces.json");
     std::fs::write(&path, "broken history").unwrap();
-    let error = common::invoke_err("reflect_list_workspaces", json!({}));
+    let error = common::invoke_err("zhuye_list_workspaces", json!({}));
     assert!(error.to_string().contains("workspaces.json"));
     let workspace = common::temp_workspace("corrupt-history");
     common::set_workspace(&workspace);

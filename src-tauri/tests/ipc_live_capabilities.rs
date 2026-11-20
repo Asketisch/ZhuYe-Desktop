@@ -7,8 +7,8 @@
 //! 中断、压缩、回退、任务、子代理、追问、编排(流水线 / 讨论 / 团队),
 //! 以及会话标题生成。
 //!
-//! 走**生产同一条链**:`reflect_submit` / 各 Op 命令 → AgentThread →
-//! 真 provider → 真 SSE → `reflect_event` 通道。
+//! 走**生产同一条链**:`zhuye_submit` / 各 Op 命令 → AgentThread →
+//! 真 provider → 真 SSE → `zhuye_event` 通道。
 //!
 //! ## 断言口径(与 `ipc_live_free_model.rs` 同纪律)
 //!
@@ -62,7 +62,7 @@ fn report(name: &str, v: &Verdict) {
 // 事件收集
 // ============================================================================
 
-/// 全局事件汇 —— Tauri `reflect_event` 通道上的所有事件按序落这里。
+/// 全局事件汇 —— Tauri `zhuye_event` 通道上的所有事件按序落这里。
 ///
 /// 场景用「游标」切分自己那一段(`mark()` → `since()`),因此**多个场景
 /// 共用一个 AgentThread** 也能各自断言干净的事件子集。
@@ -74,7 +74,7 @@ fn sink() -> &'static Arc<Mutex<Vec<Value>>> {
         let sink = s.clone();
         // ⚠️ `common::listen` 内部会触发 `harness()` → 安装 AgentThread。
         // 所以 `set_config_before_install` 必须**先于**本函数调用。
-        common::listen("reflect_event", move |event| {
+        common::listen("zhuye_event", move |event| {
             if let Ok(v) = serde_json::from_str::<Value>(event.payload()) {
                 sink.lock().expect("event sink lock").push(v);
             }
@@ -145,7 +145,7 @@ fn approve_pending(evs: &[Value]) {
         }
         drop(approved);
         let _ = op(
-            "reflect_tool_approval",
+            "zhuye_tool_approval",
             json!({ "id": id, "decision": "approve" }),
         );
         return;
@@ -232,7 +232,7 @@ fn submit(text: &str) -> Result<String, String> {
             }
         }
     });
-    common::invoke("reflect_submit", body)
+    common::invoke("zhuye_submit", body)
         .map(|v| v.as_str().unwrap_or_default().to_string())
         .map_err(|e| format!("{e}"))
 }
@@ -246,7 +246,7 @@ fn op(cmd: &str, body: Value) -> Result<String, String> {
 
 /// 设置权限模式(`prompt` / `bypass` / `auto` / `deny` / `plan` / …)。
 fn set_permission_mode(mode: &str) -> Result<(), String> {
-    op("reflect_set_permission_mode", json!({ "mode": mode })).map(|_| ())
+    op("zhuye_set_permission_mode", json!({ "mode": mode })).map(|_| ())
 }
 
 /// 一轮回合的通用预算。
@@ -334,7 +334,7 @@ fn quota_ish(text: &str) -> bool {
 fn scenario_agent_loop() -> Verdict {
     let m = mark();
     if let Err(e) = submit("Reply with exactly: PONG. Do not use any tools.") {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     if !wait_terminal(m, turn_budget()) {
         return Verdict::Failed("等待回合终态超时".into());
@@ -387,7 +387,7 @@ fn scenario_agent_loop() -> Verdict {
 
 fn scenario_tool_call() -> Verdict {
     // ⚠️ 模式选 `bubble` 而不是 `bypass`:`bypass` 是 legacy 值,核心按
-    // v1.3 安全基线**一律降级为 `prompt`**(见 reflect-core 的
+    // v1.3 安全基线**一律降级为 `prompt`**(见 zhuye-core 的
     // `sanitize_permission_mode_for_baseline`)—— 它并不"绕过审批"。
     // 真正的自动批准是 `bubble`(自动批准 + 非阻塞 bubble 通知)。
     if let Err(e) = set_permission_mode("bubble") {
@@ -398,7 +398,7 @@ fn scenario_tool_call() -> Verdict {
         "Call the bash tool with the argument cmd set to exactly: echo live-tool-ok . \
          Then tell me the output. You must use the tool, do not answer from memory.",
     ) {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     if !wait_terminal(m, turn_budget()) {
         let evs = since(m);
@@ -419,7 +419,7 @@ fn scenario_tool_call() -> Verdict {
             .collect::<Vec<_>>()
             .join("\n");
         if begins > 0 && begins == ends && outputs.contains("live-tool-ok") {
-            let _ = op("reflect_interrupt", json!({}));
+            let _ = op("zhuye_interrupt", json!({}));
             let _ = wait_terminal(m, Duration::from_secs(30));
             return Verdict::Skipped(format!(
                 "模型 {begins} 次工具调用全部成对且输出含预期串,但预算内不收敛 \
@@ -484,7 +484,7 @@ fn scenario_tool_approval() -> Verdict {
         "Call the bash tool with the argument cmd set to exactly: echo live-approval-ok . \
          You must use the tool, do not answer from memory.",
     ) {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     let got = wait_until(m, turn_budget(), |evs| {
         count(evs, "approval_request") > 0 || evs.iter().any(is_terminal)
@@ -532,7 +532,7 @@ fn scenario_tool_approval() -> Verdict {
                 if answered.is_empty() {
                     return Verdict::Failed("批准后等待回合终态超时(且无任何已批准门)".into());
                 }
-                let _ = op("reflect_interrupt", json!({}));
+                let _ = op("zhuye_interrupt", json!({}));
                 let _ = wait_terminal(m, Duration::from_secs(30));
                 return Verdict::Skipped(format!(
                     "批准 {answered_n} 道后模型在预算内不收敛(模型行为;审批-执行链已验证)",
@@ -545,14 +545,14 @@ fn scenario_tool_approval() -> Verdict {
             // 超限收摊:先中断把卡在第 13 道审批门上的回合终止掉 ——
             // 留着这道没人应答的门会污染后续场景(submit 排队 → 无事件)。
             // 批准-执行链已发生 12 跳,照常断言。
-            let _ = op("reflect_interrupt", json!({}));
+            let _ = op("zhuye_interrupt", json!({}));
             let _ = wait_terminal(m, Duration::from_secs(30));
             capped = true;
             break;
         }
         for rid in pending {
             if let Err(e) = op(
-                "reflect_tool_approval",
+                "zhuye_tool_approval",
                 json!({ "id": rid, "decision": "approve" }),
             ) {
                 return Verdict::Failed(format!("批准失败:{e}"));
@@ -605,7 +605,7 @@ fn scenario_interrupt() -> Verdict {
     let m = mark();
     if let Err(e) = submit("Write a very long story, at least 2000 words, one sentence at a time.")
     {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     // 回合**开始**即可中断 —— 不强依赖「先流出增量」:小模型可能把整段
     // 文本攒成一次输出,等增量会把验证拖成纯超时。
@@ -622,7 +622,7 @@ fn scenario_interrupt() -> Verdict {
     wait_until(m, Duration::from_secs(20), |evs| {
         count(evs, "agent_message_delta") > 0
     });
-    if let Err(e) = op("reflect_interrupt", json!({})) {
+    if let Err(e) = op("zhuye_interrupt", json!({})) {
         return Verdict::Failed(format!("interrupt 失败:{e}"));
     }
     if !wait_terminal(m, Duration::from_secs(30)) {
@@ -650,7 +650,7 @@ fn scenario_interrupt() -> Verdict {
 fn scenario_compact() -> Verdict {
     let m = mark();
     if let Err(e) = submit("Reply with exactly: PONG. Do not use any tools.") {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     if !wait_terminal(m, turn_budget()) {
         return Verdict::Failed("前置回合未终止".into());
@@ -660,8 +660,8 @@ fn scenario_compact() -> Verdict {
         return Verdict::Skipped(reason);
     }
     let c = mark();
-    if let Err(e) = op("reflect_compact", json!({})) {
-        return Verdict::Failed(format!("reflect_compact 失败:{e}"));
+    if let Err(e) = op("zhuye_compact", json!({})) {
+        return Verdict::Failed(format!("zhuye_compact 失败:{e}"));
     }
     let done = wait_until(c, Duration::from_secs(60), |evs| {
         count(evs, "context_compacted") > 0 || evs.iter().any(is_terminal)
@@ -689,7 +689,7 @@ fn scenario_rewind() -> Verdict {
         if let Err(e) = submit(&format!(
             "Reply with exactly: PONG{i}. Do not use any tools."
         )) {
-            return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+            return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
         }
         if !wait_terminal(round, turn_budget()) {
             return Verdict::Failed(format!(
@@ -711,8 +711,8 @@ fn scenario_rewind() -> Verdict {
         return Verdict::Skipped("不足两轮,无法验证回退".into());
     }
     let r = mark();
-    if let Err(e) = op("reflect_rewind", json!({ "toTurnId": turn_ids[0] })) {
-        return Verdict::Failed(format!("reflect_rewind 失败:{e}"));
+    if let Err(e) = op("zhuye_rewind", json!({ "toTurnId": turn_ids[0] })) {
+        return Verdict::Failed(format!("zhuye_rewind 失败:{e}"));
     }
     let done = wait_until(r, Duration::from_secs(30), |evs| {
         count(evs, "turn_rewound") > 0 || evs.iter().any(is_terminal)
@@ -740,10 +740,10 @@ fn scenario_rewind() -> Verdict {
 fn scenario_plan_mode() -> Verdict {
     let m = mark();
     if let Err(e) = op(
-        "reflect_enter_plan_mode",
+        "zhuye_enter_plan_mode",
         json!({ "task": "Write a one-paragraph plan for testing the plan mode." }),
     ) {
-        return Verdict::Failed(format!("reflect_enter_plan_mode 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_enter_plan_mode 失败:{e}"));
     }
     let requested = wait_until(m, turn_budget(), |evs| {
         count(evs, "plan_request") > 0 || evs.iter().any(is_terminal)
@@ -768,8 +768,8 @@ fn scenario_plan_mode() -> Verdict {
 
     // 退出 plan 模式 → 应当产出 plan_ready。
     let r = mark();
-    if let Err(e) = op("reflect_exit_plan_mode", json!({})) {
-        return Verdict::Failed(format!("reflect_exit_plan_mode 失败:{e}"));
+    if let Err(e) = op("zhuye_exit_plan_mode", json!({})) {
+        return Verdict::Failed(format!("zhuye_exit_plan_mode 失败:{e}"));
     }
     let ready = wait_until(r, Duration::from_secs(60), |evs| {
         count(evs, "plan_ready") > 0 || evs.iter().any(is_terminal)
@@ -795,10 +795,10 @@ fn scenario_plan_mode() -> Verdict {
     // 批准(auto_mode)→ 应当产出 plan_approved。
     let a = mark();
     if let Err(e) = op(
-        "reflect_plan_approval",
+        "zhuye_plan_approval",
         json!({ "id": ready_id, "choice": "auto_mode" }),
     ) {
-        return Verdict::Failed(format!("reflect_plan_approval 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_plan_approval 失败:{e}"));
     }
     let approved = wait_until(a, Duration::from_secs(30), |evs| {
         count(evs, "plan_approved") > 0 || evs.iter().any(is_terminal)
@@ -826,14 +826,14 @@ fn scenario_plan_mode() -> Verdict {
 fn scenario_goal_mode() -> Verdict {
     let m = mark();
     if let Err(e) = op(
-        "reflect_enter_goal_mode",
+        "zhuye_enter_goal_mode",
         json!({
             "goal": "Reply with exactly: GOALDONE and do not use tools.",
             "verifyCommand": null,
             "tokenBudget": 40000
         }),
     ) {
-        return Verdict::Failed(format!("reflect_enter_goal_mode 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_enter_goal_mode 失败:{e}"));
     }
     // 与 GUI `dispatchSubmission.ts::start_goal` 同款顺序:core 的
     // EnterGoalMode 只挂载自校验控制器、**不启动 turn** —— 不先发一条
@@ -853,7 +853,7 @@ fn scenario_goal_mode() -> Verdict {
     let finished = wait_until(m, goal_budget, |evs| count(evs, "turn_complete") > 0);
     let evs = since(m);
     // 无论判定如何都先退出 goal 模式,别把后续场景拖进自动续作。
-    let _ = op("reflect_exit_goal_mode", json!({}));
+    let _ = op("zhuye_exit_goal_mode", json!({}));
     if let Some(reason) = blocked_by_upstream(&evs) {
         return Verdict::Skipped(reason);
     }
@@ -880,7 +880,7 @@ fn scenario_goal_mode() -> Verdict {
 fn scenario_session_title() -> Verdict {
     let m = mark();
     if let Err(e) = submit("Reply with exactly: PONG. Do not use any tools.") {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     if !wait_terminal(m, turn_budget()) {
         return Verdict::Failed("前置回合未终止".into());
@@ -889,28 +889,28 @@ fn scenario_session_title() -> Verdict {
     if let Some(reason) = blocked_by_upstream(&evs) {
         return Verdict::Skipped(reason);
     }
-    // 会话必须**先绑定**才会存在:rollout recorder 只在 `reflect_bind_session`
-    // 重建线程时挂上 —— 没绑定的回合不落盘,`reflect_list_sessions` 自然是空的。
-    let Ok(new_id) = common::invoke("reflect_create_session", json!({})) else {
+    // 会话必须**先绑定**才会存在:rollout recorder 只在 `zhuye_bind_session`
+    // 重建线程时挂上 —— 没绑定的回合不落盘,`zhuye_list_sessions` 自然是空的。
+    let Ok(new_id) = common::invoke("zhuye_create_session", json!({})) else {
         return Verdict::Skipped("建会话失败,跳过标题生成".into());
     };
     let id = new_id.as_str().unwrap_or_default().to_string();
     if id.is_empty() {
         return Verdict::Skipped("会话 id 为空,跳过标题生成".into());
     }
-    if common::invoke("reflect_bind_session", json!({ "id": id })).is_err() {
+    if common::invoke("zhuye_bind_session", json!({ "id": id })).is_err() {
         return Verdict::Skipped("绑定会话失败,跳过标题生成".into());
     }
     // 绑定后再跑一轮,让 recorder 有内容。
     let m2 = mark();
     if let Err(e) = submit("Reply with exactly: PONG. Do not use any tools.") {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     if !wait_terminal(m2, turn_budget()) {
         return Verdict::Failed("绑定后的回合未终止".into());
     }
     match op(
-        "reflect_generate_session_title",
+        "zhuye_generate_session_title",
         json!({ "id": id, "force": true }),
     ) {
         Ok(title) if !title.trim().is_empty() => {
@@ -938,7 +938,7 @@ fn scenario_task_tool() -> Verdict {
         "Create a task named live-task-probe with the description 'created by the live layer'. \
          You must use the task creation tool.",
     ) {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     if !wait_terminal(m, turn_budget()) {
         return Verdict::Failed("等待回合终态超时".into());
@@ -999,8 +999,8 @@ fn scenario_task_tool() -> Verdict {
         return Verdict::Failed("任务对象缺 list_id".into());
     }
     // 任务板可见:按工具回填的 listId 查。
-    let Some(tasks) = common::invoke("reflect_list_tasks", json!({ "list": list_id })).ok() else {
-        return Verdict::Failed("reflect_list_tasks 失败".into());
+    let Some(tasks) = common::invoke("zhuye_list_tasks", json!({ "list": list_id })).ok() else {
+        return Verdict::Failed("zhuye_list_tasks 失败".into());
     };
     let arr = tasks.as_array().cloned().unwrap_or_default();
     let hit = arr
@@ -1027,7 +1027,7 @@ fn scenario_subagent() -> Verdict {
         "Delegate this to a sub-agent: ask it to reply with exactly: SUBOK . \
          You must use the sub-agent tool.",
     ) {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     if !wait_until(m, turn_budget(), |evs| {
         approve_pending(evs);
@@ -1063,7 +1063,7 @@ fn scenario_ask_user() -> Verdict {
         "Before answering, ask the user exactly one question using the ask-user tool \
          (for example which language to use). Then wait for the answer.",
     ) {
-        return Verdict::Failed(format!("reflect_submit 失败:{e}"));
+        return Verdict::Failed(format!("zhuye_submit 失败:{e}"));
     }
     let asked = wait_until(m, turn_budget(), |evs| {
         approve_pending(evs);
@@ -1093,7 +1093,7 @@ fn scenario_ask_user() -> Verdict {
         return Verdict::Failed("追问事件缺少 request_id".into());
     }
     if let Err(e) = op(
-        "reflect_ask_user_question_response",
+        "zhuye_ask_user_question_response",
         json!({ "id": qid, "answers": { "answers": [] } }),
     ) {
         return Verdict::Failed(format!("回执失败:{e}"));
@@ -1127,14 +1127,14 @@ allowed_tools = ["send_message", "read_messages", "finish_discussion"]
         Err(e) => return Verdict::Failed(e),
     };
     let m = mark();
-    let out = match common::invoke("reflect_run_discussion", json!({ "configPath": path })) {
+    let out = match common::invoke("zhuye_run_discussion", json!({ "configPath": path })) {
         Ok(v) => v,
         Err(e) => {
             let msg = format!("{e}");
             return if quota_ish(&msg) {
                 Verdict::Skipped(format!("讨论因上游配额/限流未跑起来:{msg}"))
             } else {
-                Verdict::Failed(format!("reflect_run_discussion 失败:{msg}"))
+                Verdict::Failed(format!("zhuye_run_discussion 失败:{msg}"))
             };
         }
     };
@@ -1179,7 +1179,7 @@ fn ensure_team(name: &str) -> Result<(), String> {
         }],
         "created_at": { "secs_since_epoch": 1700000000, "nanos_since_epoch": 0 }
     });
-    common::invoke("reflect_upsert_team", json!({ "team": team }))
+    common::invoke("zhuye_upsert_team", json!({ "team": team }))
         .map(|_| ())
         .map_err(|e| format!("{e}"))
 }
@@ -1200,7 +1200,7 @@ runner = "team"
     };
     let m = mark();
     let out = match common::invoke(
-        "reflect_run_pipeline",
+        "zhuye_run_pipeline",
         json!({ "configPath": path, "topic": "say PONG", "failurePolicy": "abort" }),
     ) {
         Ok(v) => v,
@@ -1209,7 +1209,7 @@ runner = "team"
             return if quota_ish(&msg) {
                 Verdict::Skipped(format!("流水线因上游配额/限流未跑起来:{msg}"))
             } else {
-                Verdict::Failed(format!("reflect_run_pipeline 失败:{msg}"))
+                Verdict::Failed(format!("zhuye_run_pipeline 失败:{msg}"))
             };
         }
     };
@@ -1251,7 +1251,7 @@ fn scenario_team_pipeline() -> Verdict {
     }
     let m = mark();
     let out = match common::invoke(
-        "reflect_run_team_pipeline",
+        "zhuye_run_team_pipeline",
         json!({ "teamName": "live-team", "topic": "say PONG" }),
     ) {
         Ok(v) => v,
@@ -1260,7 +1260,7 @@ fn scenario_team_pipeline() -> Verdict {
             return if quota_ish(&msg) {
                 Verdict::Skipped(format!("团队流水线因上游配额/限流未跑起来:{msg}"))
             } else {
-                Verdict::Failed(format!("reflect_run_team_pipeline 失败:{msg}"))
+                Verdict::Failed(format!("zhuye_run_team_pipeline 失败:{msg}"))
             };
         }
     };

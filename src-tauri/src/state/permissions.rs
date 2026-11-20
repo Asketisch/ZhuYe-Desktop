@@ -1,8 +1,8 @@
-//! 权限层装配 —— 与 CLI(`reflect-exec` 的 `apply_permission_layers`)同构。
+//! 权限层装配 —— 与 CLI(`zhuye-exec` 的 `apply_permission_layers`)同构。
 //!
 //! ## 为什么桌面端必须装
 //!
-//! 核心的权限规则(`reflect-permissions`)决定工具调用是否被拒。CLI 装了
+//! 核心的权限规则(`zhuye-permissions`)决定工具调用是否被拒。CLI 装了
 //! 三层链式 store,更具体的作用域在前；匹配的 deny 优先于其他规则:
 //!
 //! 1. `config.toml` 的 `[permissions]` 段(会话级,只读)
@@ -33,8 +33,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use reflect_core::AgentConfig;
-use reflect_permissions::{
+use zhuye_core::AgentConfig;
+use zhuye_permissions::{
     ChainedPermissionStore, FilePermissionStore, HeuristicYoloClassifier, InMemoryPermissionStore,
     PermissionResolver, PermissionStore, RuleMatch, evaluate_with_context,
 };
@@ -78,13 +78,13 @@ impl PermissionResolver for FailsafePermissionResolver {
 /// - `workspace`:项目级权限文件所在的工作区根目录。
 pub(crate) fn apply_permission_layers(
     cfg: AgentConfig,
-    initial_cfg: &reflect_config::ReflectConfig,
+    initial_cfg: &zhuye_config::ReflectConfig,
     workspace: &Path,
 ) -> AgentConfig {
     let user_store = match FilePermissionStore::with_default_home() {
         Ok(store) => Some(Arc::new(store) as Arc<dyn PermissionStore>),
         Err(error) => {
-            warn!(%error, "[reflect-gui] 用户级权限文件不可用，保留配置与项目规则");
+            warn!(%error, "[zhuye-gui] 用户级权限文件不可用，保留配置与项目规则");
             None
         }
     };
@@ -93,7 +93,7 @@ pub(crate) fn apply_permission_layers(
 
 fn apply_permission_layers_with_user(
     mut cfg: AgentConfig,
-    initial_cfg: &reflect_config::ReflectConfig,
+    initial_cfg: &zhuye_config::ReflectConfig,
     workspace: &Path,
     user_store: Option<Arc<dyn PermissionStore>>,
 ) -> AgentConfig {
@@ -110,12 +110,12 @@ fn apply_permission_layers_with_user(
         });
         tracing::info!(
             rules = rules.len(),
-            "[reflect-gui] 已加载 config.toml [permissions] 规则"
+            "[zhuye-gui] 已加载 config.toml [permissions] 规则"
         );
     }
 
     // 项目级权限 —— `<workspace>/.zhuye/permissions.toml`(与 CLI 同一路径)。
-    let project_path = reflect_config::paths::project_data_path(workspace, &["permissions.toml"]);
+    let project_path = zhuye_config::paths::project_data_path(workspace, &["permissions.toml"]);
     let project_store: Arc<dyn PermissionStore> =
         Arc::new(FilePermissionStore::with_path(project_path));
 
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn apply_permission_layers_mounts_resolver_and_classifier() {
         let cfg = AgentConfig::new("stub/test", Path::new("/tmp"));
-        let initial = reflect_config::ReflectConfig::default();
+        let initial = zhuye_config::ReflectConfig::default();
         let out = apply_permission_layers(cfg, &initial, Path::new("/tmp"));
         assert!(out.permission_resolver.is_some(), "必须挂上权限解析器");
         assert!(out.yolo_classifier.is_some(), "必须挂上 YOLO 分类器");
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn apply_permission_layers_tolerates_missing_workspace() {
         let cfg = AgentConfig::new("stub/test", Path::new("/tmp"));
-        let initial = reflect_config::ReflectConfig::default();
+        let initial = zhuye_config::ReflectConfig::default();
         let missing = Path::new("/nonexistent/workspace/xyz");
         let out = apply_permission_layers(cfg, &initial, missing);
         assert!(out.permission_resolver.is_some());
@@ -162,27 +162,27 @@ mod tests {
     fn missing_user_store_keeps_config_and_project_denies() {
         let dir = tempfile::tempdir().unwrap();
         // 路径取自同一个助手，避免测试与实现的目录名各说各话。
-        let permissions_dir = reflect_config::paths::project_data_dir(dir.path());
+        let permissions_dir = zhuye_config::paths::project_data_dir(dir.path());
         std::fs::create_dir_all(&permissions_dir).unwrap();
         std::fs::write(
             permissions_dir.join("permissions.toml"),
             "[[rule]]\ntool = \"Write\"\naction = \"deny\"\n",
         )
         .unwrap();
-        let initial = reflect_config::load_from_str("[[permissions.rule]]\ntool = \"Bash\"\naction = \"deny\"\n\n[[permissions.rule]]\ntool = \"Read\"\naction = \"allow\"\n").unwrap();
+        let initial = zhuye_config::load_from_str("[[permissions.rule]]\ntool = \"Bash\"\naction = \"deny\"\n\n[[permissions.rule]]\ntool = \"Read\"\naction = \"allow\"\n").unwrap();
         let cfg = AgentConfig::new("stub/test", dir.path());
         let out = apply_permission_layers_with_user(cfg, &initial, dir.path(), None);
         let resolver = out.permission_resolver.expect("缺少用户目录时仍须挂载规则");
         for tool in ["Bash", "Write"] {
             assert_eq!(
                 futures::executor::block_on(resolver.resolve(tool)),
-                reflect_permissions::RuleMatch::Deny,
+                zhuye_permissions::RuleMatch::Deny,
                 "{tool} 的拒绝规则不能被跳过"
             );
         }
         assert_eq!(
             futures::executor::block_on(resolver.resolve("Read")),
-            reflect_permissions::RuleMatch::Ask,
+            zhuye_permissions::RuleMatch::Ask,
             "未知用户规则时不能静默放行"
         );
     }

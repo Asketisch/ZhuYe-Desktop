@@ -1,56 +1,56 @@
 /**
  * Squad + Leader 委派 IPC 封装(Phase 3 第 11 项)。
  *
- * 薄封装 6 个 squad 命令。与后端 `reflect_app_core::squad::SquadSpec`
- * camelCase 类型对齐;Task 类型复用 `./tasks` 中的 `ReflectTask`。
+ * 薄封装 6 个 squad 命令。与后端 `zhuye_app_core::squad::SquadSpec`
+ * camelCase 类型对齐;Task 类型复用 `./tasks` 中的 `ZhuyeTask`。
  */
 import { invoke } from '@/utils/bridge';
-import type { ReflectActor } from './activity';
-import type { ReflectTask } from './tasks';
+import type { ZhuyeActor } from './activity';
+import type { ZhuyeTask } from './tasks';
 
-export interface ReflectSquadMember {
-  actor: ReflectActor;
+export interface ZhuyeSquadMember {
+  actor: ZhuyeActor;
   role: string;
   model?: string | null;
   systemPrompt: string;
   allowedTools: string[];
 }
 
-export interface ReflectSquadSpec {
+export interface ZhuyeSquadSpec {
   name: string;
   description?: string | null;
-  leaderActor: ReflectActor;
-  members: ReflectSquadMember[];
+  leaderActor: ZhuyeActor;
+  members: ZhuyeSquadMember[];
   createdAtMs: number;
 }
 
-export function reflect_list_squads(): Promise<ReflectSquadSpec[]> {
-  return invoke('reflect_list_squads');
+export function zhuye_list_squads(): Promise<ZhuyeSquadSpec[]> {
+  return invoke('zhuye_list_squads');
 }
 
-export function reflect_create_squad(spec: ReflectSquadSpec): Promise<void> {
-  return invoke('reflect_create_squad', { spec });
+export function zhuye_create_squad(spec: ZhuyeSquadSpec): Promise<void> {
+  return invoke('zhuye_create_squad', { spec });
 }
 
-export function reflect_get_squad(name: string): Promise<ReflectSquadSpec> {
-  return invoke('reflect_get_squad', { name });
+export function zhuye_get_squad(name: string): Promise<ZhuyeSquadSpec> {
+  return invoke('zhuye_get_squad', { name });
 }
 
-export function reflect_delete_squad(name: string): Promise<void> {
-  return invoke('reflect_delete_squad', { name });
+export function zhuye_delete_squad(name: string): Promise<void> {
+  return invoke('zhuye_delete_squad', { name });
 }
 
-export function reflect_delegate_next(
+export function zhuye_delegate_next(
   name: string,
   leaderActorId: string,
-): Promise<ReflectTask | null> {
-  return invoke('reflect_delegate_next', { name, leaderActorId });
+): Promise<ZhuyeTask | null> {
+  return invoke('zhuye_delegate_next', { name, leaderActorId });
 }
 
-export function reflect_assign_squad_task(
+export function zhuye_assign_squad_task(
   name: string,
   taskId: number,
   assignee: string | null,
-): Promise<ReflectTask> {
-  return invoke('reflect_assign_squad_task', { name, taskId, assignee });
+): Promise<ZhuyeTask> {
+  return invoke('zhuye_assign_squad_task', { name, taskId, assignee });
 }

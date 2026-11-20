@@ -1,9 +1,9 @@
 /**
- * CodeMirrorEditor —— CodeMirror 6 编辑器 + agent 变更装饰(Cursor 式)。
+ * CodeMirrorEditor —— CodeMirror 6 编辑器 + agent 变更装饰(逐块)。
  *
  * 取代旧 prism 只读预览:支持直接编辑(语法高亮经 language-data 覆盖主流
  * 语言),并叠加 pending 变更装饰——新增行绿色行背景,被删除的行以红色
- * 块 widget 呈现在新增区域上方(见 Cursor review 视图),每块顶部挂
+ * 块 widget 呈现在新增区域上方(见逐块 review 视图),每块顶部挂
  * Accept / Reject 控件;Reject 经 inverse-patch 重建原文并由调用方落盘。
  *
  * 数据边界:组件不直接读 store/IPC——hunks 与回调由 FilesView 注入;

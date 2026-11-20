@@ -12,13 +12,13 @@ fn unexpected_disconnect_emits_failure_and_can_restart() {
         "[hooks]\nenabled = []\n[lsp_servers.fixture]\ncommand = \"node\"\nargs = [{fixture}]\nfile_patterns = [{{ glob = \"**/*.rs\", language_id = \"rust\" }}]\n"
     ));
     let (tx, rx) = std::sync::mpsc::channel::<Value>();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
     std::fs::write("disconnect.rs", "fn fixture_lsp_exit_now() {}\n").unwrap();
-    common::invoke_ok("reflect_lsp_set_enabled", json!({"enabled":true}));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({"enabled":true}));
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
         let event = rx
@@ -28,7 +28,7 @@ fn unexpected_disconnect_emits_failure_and_can_restart() {
             break;
         }
     }
-    common::invoke_ok("reflect_lsp_warmup", json!({"path":"disconnect.rs"}));
+    common::invoke_ok("zhuye_lsp_warmup", json!({"path":"disconnect.rs"}));
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         let event = rx
@@ -40,12 +40,12 @@ fn unexpected_disconnect_emits_failure_and_can_restart() {
         }
     }
     assert_eq!(
-        common::invoke_ok("reflect_lsp_status", json!({}))["servers"],
+        common::invoke_ok("zhuye_lsp_status", json!({}))["servers"],
         json!([])
     );
-    common::invoke_ok("reflect_lsp_set_enabled", json!({"enabled":false}));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({"enabled":false}));
     std::fs::write("disconnect.rs", "fn fixture_lsp_source() {}\n").unwrap();
-    common::invoke_ok("reflect_lsp_set_enabled", json!({"enabled":true}));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({"enabled":true}));
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
         let event = rx
@@ -56,8 +56,8 @@ fn unexpected_disconnect_emits_failure_and_can_restart() {
         }
     }
     assert_eq!(
-        common::invoke_ok("reflect_lsp_warmup", json!({"path":"disconnect.rs"}))["warmed"],
+        common::invoke_ok("zhuye_lsp_warmup", json!({"path":"disconnect.rs"}))["warmed"],
         true
     );
-    common::invoke_ok("reflect_lsp_set_enabled", json!({"enabled":false}));
+    common::invoke_ok("zhuye_lsp_set_enabled", json!({"enabled":false}));
 }

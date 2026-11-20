@@ -28,7 +28,7 @@ fn browser_status_reports_not_running_without_instance() {
     let _guard = state_lock();
     // 隔离 HOME 下无 DevToolsActivePort → running=false 的结构化状态,
     // 不 panic、不启动浏览器(status 无副作用)。
-    let status = invoke_ok("reflect_browser_status", json!({}));
+    let status = invoke_ok("zhuye_browser_status", json!({}));
     assert_eq!(status["running"], false, "{status}");
     assert_eq!(status["streaming"], false, "{status}");
     assert!(status["url"].is_null(), "{status}");
@@ -39,7 +39,7 @@ fn browser_start_fails_structured_without_app_handle() {
     let _guard = state_lock();
     // 夹具不注入句柄 → 启动必须返回结构化错误(且**早于**任何浏览器探测
     // / 启动动作 —— 顺序错了会真的拉起本机 Chrome)。
-    let result = invoke("reflect_browser_start", json!({}));
+    let result = invoke("zhuye_browser_start", json!({}));
     assert!(result.is_err(), "无句柄时 start 不应成功: {result:?}");
     let err = result.unwrap_err().to_string();
     assert!(
@@ -52,7 +52,7 @@ fn browser_start_fails_structured_without_app_handle() {
 fn browser_stop_is_idempotent_without_instance() {
     let _guard = state_lock();
     // 无运行实例 → stop 幂等返回结构化状态(streaming=false)。
-    let status = invoke_ok("reflect_browser_stop", json!({}));
+    let status = invoke_ok("zhuye_browser_stop", json!({}));
     assert_eq!(status["streaming"], false, "{status}");
     // message 说明处置方式(外部实例保留 / 本应用实例回收)。
     assert!(status["message"].is_string(), "{status}");
@@ -61,7 +61,7 @@ fn browser_stop_is_idempotent_without_instance() {
 #[test]
 fn browser_env_reports_profile_dir_and_override() {
     let _guard = state_lock();
-    let env = invoke_ok("reflect_browser_env", json!({}));
+    let env = invoke_ok("zhuye_browser_env", json!({}));
     // 隔离 HOME:profile 目录在隔离数据目录下,不含真实用户路径。
     assert!(env["profileDir"].is_string(), "{env}");
     let profile = env["profileDir"].as_str().unwrap();
@@ -77,24 +77,24 @@ fn browser_env_reports_profile_dir_and_override() {
 fn browser_navigate_fails_structured_without_instance() {
     // 无实例 → 结构化错误,不拉起浏览器;地址规范化在后端单测覆盖
     // (browser_backend/nav.rs)。
-    assert_navigation_fails_structured("reflect_browser_navigate", json!({ "url": "example.com" }));
+    assert_navigation_fails_structured("zhuye_browser_navigate", json!({ "url": "example.com" }));
 }
 
 #[test]
 fn browser_back_forward_fail_structured_without_instance() {
-    assert_navigation_fails_structured("reflect_browser_back", json!({}));
-    assert_navigation_fails_structured("reflect_browser_forward", json!({}));
+    assert_navigation_fails_structured("zhuye_browser_back", json!({}));
+    assert_navigation_fails_structured("zhuye_browser_forward", json!({}));
 }
 
 #[test]
 fn browser_reload_fails_structured_without_instance() {
-    assert_navigation_fails_structured("reflect_browser_reload", json!({}));
+    assert_navigation_fails_structured("zhuye_browser_reload", json!({}));
 }
 
 #[test]
 fn browser_set_device_fails_structured_without_instance() {
     assert_navigation_fails_structured(
-        "reflect_browser_set_device",
+        "zhuye_browser_set_device",
         json!({ "width": 390, "height": 844 }),
     );
 }

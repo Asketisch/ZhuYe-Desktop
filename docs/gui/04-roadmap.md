@@ -20,7 +20,7 @@
 
 详见 [`../../changelog.md#0.1.0`](../../changelog.md) 与 `git log`（commits `2c73335` … `76d7717`）。
 
-- ✅ M1.1 基础设施（脚手架 + `ReflectAgentApp` 占位 + 5 icon）
+- ✅ M1.1 基础设施（脚手架 + `ZhuyeAgentApp` 占位 + 5 icon）
 - ✅ M1.2 协议桥（19 Tauri command + Event 转发，4/4 E2E）
 - ✅ M1.3 三栏布局 + Session 列表
 - ✅ M1.4 Chat 渲染 + Composer + Slash popup
@@ -42,7 +42,7 @@
 
 ### M2.x 真后端（已落地 · commit `65bff4b`）
 
-- ✅ `MinimalAgent` → `reflect_core::AgentThread`（stub model + `EchoTool`，无网络依赖）
+- ✅ `MinimalAgent` → `zhuye_core::AgentThread`（stub model + `EchoTool`，无网络依赖）
 - ✅ Session event broadcast (`tokio::sync::broadcast` 多订阅 fan-out)
 - ✅ 4 product linkages：`tray.rs` / `menu.rs` / `shortcut.rs` / `dock.rs`
 - ✅ macOS close-to-tray
@@ -91,13 +91,13 @@
 
 ### ADR-001: 选用 Tauri 2 而非 Electron ✅
 
-**理由**：体积 ~10MB vs ~100MB；性能（Rust vs Node+Chromium）；与现有 `reflect-*` Rust crate 同语言，零序列化；macOS vibrancy / private API 原生支持。**代价**：Tauri 2 生态较小、iOS 仍在 beta、调试略复杂。
+**理由**：体积 ~10MB vs ~100MB；性能（Rust vs Node+Chromium）；与现有 `zhuye-*` Rust crate 同语言，零序列化；macOS vibrancy / private API 原生支持。**代价**：Tauri 2 生态较小、iOS 仍在 beta、调试略复杂。
 
-### ADR-002: 共享 reducer 用 `reflect-app-core` crate ✅（已演化为 `app-core/`）
+### ADR-002: 共享 reducer 用 `zhuye-app-core` crate ✅（已演化为 `app-core/`）
 
 **理由**：TUI 与 GUI 共享同一份 reducer → 行为一致；清晰的边界（不依赖 ratatui/crossterm/tauri）。**代价**：新 crate 增加编译单元；抽取工作 ~3 周（实际仅 M1 阶段局部完成，M2.x 通过 vendor mirror 替代）。
 
-### ADR-003: 复用 `reflect-protocol::EventMsg` 作为 IPC 载荷 ✅
+### ADR-003: 复用 `zhuye-protocol::EventMsg` 作为 IPC 载荷 ✅
 
 **理由**：稳定、serde-friendly、additive 演化；零序列化成本；TUI 已用多年。**代价**：协议改动需双向同步；不能为了 GUI 破坏性变更协议。
 
@@ -107,7 +107,7 @@
 
 ### ADR-005: 进程拓扑 — 单进程 Tauri shim（M1–M3.x）✅
 
-**理由**：当前 Rust 端 `reflect-core`/`reflect-*` 仍在快速迭代，强做 daemon 会陷入 envelope + state shape 双重维护。**当前**：GUI 直接 in-process 持有 `AgentThread`。**未来（reflect-core 冻结后）**：抽 `reflect-runtime` crate → spawn `reflect-agent-daemon` → Tauri shim 变 thin RPC client。详见 [`05-decision.md`](05-decision.md) §1 + `docs/todo/21-gui/10-strategy.md`。
+**理由**：当前 Rust 端 `zhuye-core`/`zhuye-*` 仍在快速迭代，强做 daemon 会陷入 envelope + state shape 双重维护。**当前**：GUI 直接 in-process 持有 `AgentThread`。**未来（zhuye-core 冻结后）**：抽 `zhuye-runtime` crate → spawn `zhuye-agent-daemon` → Tauri shim 变 thin RPC client。详见 [`05-decision.md`](05-decision.md) §1 + `docs/todo/21-gui/10-strategy.md`。
 
 ---
 
@@ -119,7 +119,7 @@
 | 流式大量消息性能 | 虚拟列表 (`@tanstack/react-virtual` 已装) + 批渲染 + 节流 |
 | 远程 daemon TLS 复杂度 | TLS pinning + self-signed cert 流程（M3.2） |
 | 多平台 auto-update 失败 | Tauri `tauri-plugin-updater` 完整测试（M3.x） |
-| Reflect 主版本协议变更 | 严格 additive 演进，Serde `untagged` 容错 |
+| ZhuYe 主版本协议变更 | 严格 additive 演进，Serde `untagged` 容错 |
 
 ---
 

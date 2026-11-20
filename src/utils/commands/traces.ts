@@ -1,9 +1,9 @@
 /**
  * Traces(LLM 调用记录)IPC 包装。
  *
- * 薄包装 `reflect_list_traces` / `reflect_get_trace` 两个命令,对应
- * CLI `reflect traces ls / show`。类型与后端
- * `reflect_app_core::traces::{TraceSessionSummary, TraceCall}` 的
+ * 薄包装 `zhuye_list_traces` / `zhuye_get_trace` 两个命令,对应
+ * CLI `zhuye traces ls / show`。类型与后端
+ * `zhuye_app_core::traces::{TraceSessionSummary, TraceCall}` 的
  * camelCase 出线对齐。
  */
 import { invoke } from '@/utils/bridge';
@@ -59,13 +59,13 @@ export interface TraceCall {
 }
 
 /** 列出有 LLM 调用记录的 session(按最近降序,默认 20 条)。 */
-export function reflect_list_traces(limit?: number): Promise<TraceSessionSummary[]> {
-  return invoke('reflect_list_traces', { limit: limit ?? null });
+export function zhuye_list_traces(limit?: number): Promise<TraceSessionSummary[]> {
+  return invoke('zhuye_list_traces', { limit: limit ?? null });
 }
 
 /** 展开某 session 的逐条调用详情(id 支持前 8 字符前缀)。 */
-export function reflect_get_trace(id: string): Promise<TraceCall[]> {
-  return invoke('reflect_get_trace', { id });
+export function zhuye_get_trace(id: string): Promise<TraceCall[]> {
+  return invoke('zhuye_get_trace', { id });
 }
 
 // ====== Span 日志(turn → model → tool 父子链) ======
@@ -84,7 +84,7 @@ export interface TraceSpan {
   parentSpanId?: string | null;
   /** 事件判别器(`turn.started` / `model.request.completed` / `tool.call.ended` …)。 */
   event: string;
-  /** 发射模块(`reflect_core::submission_loop` / `reflect_goal` …)。 */
+  /** 发射模块(`zhuye_core::submission_loop` / `zhuye_goal` …)。 */
   module: string;
   /** 日志级别。 */
   level: string;
@@ -104,8 +104,8 @@ export interface TraceSpan {
 }
 
 /** 列出最近若干天的 span 日志文件(最近在前)。 */
-export function reflect_list_span_logs(days?: number): Promise<SpanLogFile[]> {
-  return invoke('reflect_list_span_logs', { days: days ?? null });
+export function zhuye_list_span_logs(days?: number): Promise<SpanLogFile[]> {
+  return invoke('zhuye_list_span_logs', { days: days ?? null });
 }
 
 /**
@@ -113,9 +113,9 @@ export function reflect_list_span_logs(days?: number): Promise<SpanLogFile[]> {
  *
  * `sessionId` 缺省 = 读该天全部事件。
  */
-export function reflect_read_span_log(
+export function zhuye_read_span_log(
   day: string,
   sessionId?: string | null,
 ): Promise<TraceSpan[]> {
-  return invoke('reflect_read_span_log', { day, sessionId: sessionId ?? null });
+  return invoke('zhuye_read_span_log', { day, sessionId: sessionId ?? null });
 }

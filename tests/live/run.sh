@@ -10,19 +10,19 @@
 # 过程、真实限流(429)、真实截断续作、真实 provider 的工具调用质量。
 # 这一层把**免费模型池**接进同一条真链路:
 #
-#   reflect_submit → AgentThread → HTTP → SSE 解析 → reflect_event 通道
+#   zhuye_submit → AgentThread → HTTP → SSE 解析 → zhuye_event 通道
 #
 # 与 GUI 点一次「发送」是同一条链(同一个 `generate_handler!` 注册表、
 # 同一个 AgentThread、同一个事件通道)。
 #
 # ## 默认跳过
 #
-# 未设 `REFLECT_LIVE=1` 时整层 SKIP —— **不发起任何网络请求**。
+# 未设 `ZHUYE_LIVE=1` 时整层 SKIP —— **不发起任何网络请求**。
 # 与 submodule `tests/live/` 同一口径:实模型层是**可选演练**,不进 CI
 # 门禁(免费池配额是全局的,CI 上跑只会制造噪声)。
 #
 # 跑法:
-#   REFLECT_LIVE=1 bash tests/run_all.sh live
+#   ZHUYE_LIVE=1 bash tests/run_all.sh live
 #
 # ## 断言口径
 #
@@ -41,8 +41,8 @@ cd "$ROOT"
 
 suite_begin "live"
 
-if [ "${REFLECT_LIVE:-}" != "1" ]; then
-    tskip "实模型演练层" "未设 REFLECT_LIVE=1 —— 默认不发网络请求"
+if [ "${ZHUYE_LIVE:-}" != "1" ]; then
+    tskip "实模型演练层" "未设 ZHUYE_LIVE=1 —— 默认不发网络请求"
     tfinish
     exit 0
 fi
@@ -64,7 +64,7 @@ RAW="$RESULT_DIR/live-cases.raw"
 # `--nocapture` 让 `LIVE_CASE` 行直接落到 stdout(否则被测试框架吞掉)。
 (
     cd "$ROOT/src-tauri" &&
-    REFLECT_LIVE=1 cargo test \
+    ZHUYE_LIVE=1 cargo test \
         --test ipc_live_free_model --test ipc_live_capabilities --no-fail-fast \
         -- --ignored --nocapture --test-threads=1
 ) > "$LOG" 2>&1

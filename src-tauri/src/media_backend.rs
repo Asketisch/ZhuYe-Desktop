@@ -26,7 +26,7 @@ use enigo::{
     Enigo, Key, Keyboard, Mouse, Settings,
 };
 use image::{DynamicImage, ImageFormat as ImgFmt};
-use reflect_app_core::media::{
+use zhuye_app_core::media::{
     BackendCapability, ComputerBackend, ComputerUseAction, ImageBackend, ImageFormat,
     ImageProcessResult, ImageProcessSpec, MediaAsset, MediaError,
 };
@@ -257,7 +257,7 @@ impl ComputerBackend for RealComputerBackend {
             ComputerUseAction::Screenshot => {
                 // `screenshot` 走 `screenshot()` 独立命令;这里报告重复请求。
                 Err(MediaError::Other {
-                    message: "use reflect_screenshot for captures".into(),
+                    message: "use zhuye_screenshot for captures".into(),
                 })
             }
             ComputerUseAction::MouseMove { x, y } => {

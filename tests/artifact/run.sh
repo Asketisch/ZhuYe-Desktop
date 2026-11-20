@@ -107,7 +107,7 @@ fi
 
 # ── 0.5 读取 .app 的真实可执行文件名 ─────────────────────────────────────
 # 可执行文件名**不等于**产品名 —— 它取自 Cargo 的 bin 名(本项目是
-# `reflect-desktop`),权威来源是 Info.plist 的 CFBundleExecutable。
+# `zhuye-desktop`),权威来源是 Info.plist 的 CFBundleExecutable。
 # 顺带这本身就是一条审查:plist 声明的名字必须真有那个文件。
 app_executable() {
     local bundle="$1"
@@ -221,9 +221,9 @@ if [ -n "$APP_BUNDLE" ]; then
     tcase "bundle 内无开发残留(.DS_Store / sourcemap / node_modules)" check_no_dev_leftovers
 
     check_installer_upgrade() {
-        ZHUYE_INSTALL_BIN="$RELEASE_DIR/reflect-desktop" \
+        ZHUYE_INSTALL_BIN="$RELEASE_DIR/zhuye-desktop" \
             ZHUYE_INSTALL_APP="$APP_BUNDLE" installer_upgrade_ok \
-            "$ROOT" "$RELEASE_DIR/reflect-desktop" "$APP_BUNDLE"
+            "$ROOT" "$RELEASE_DIR/zhuye-desktop" "$APP_BUNDLE"
     }
     tcase "安装脚本覆盖升级替换二进制与 .app" check_installer_upgrade
 
@@ -233,7 +233,7 @@ if [ -n "$APP_BUNDLE" ]; then
         home="$tmp/home"
         prefix="$tmp/bin"
         mkdir -p "$home"
-        if ! HOME="$home" ZHUYE_INSTALL_BIN="$RELEASE_DIR/reflect-desktop" \
+        if ! HOME="$home" ZHUYE_INSTALL_BIN="$RELEASE_DIR/zhuye-desktop" \
             ZHUYE_INSTALL_APP="$APP_BUNDLE" bash "$ROOT/scripts/install.sh" \
             --prefix="$prefix" --app-dir="$tmp/Applications" >/dev/null; then
             rm -rf "$tmp"
@@ -242,19 +242,19 @@ if [ -n "$APP_BUNDLE" ]; then
         local log="$RESULT_DIR/installed-binary-launch.log"
         local rc=0
         HOME="$home" ZHUYE_HEADLESS=1 run_with_timeout 10 \
-            "$prefix/reflect-desktop" --help >"$log" 2>&1 || rc=$?
+            "$prefix/zhuye-desktop" --help >"$log" 2>&1 || rc=$?
         if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
             echo "已安装二进制启动失败(退出码 $rc):"
             tail -8 "$log" 2>/dev/null | sed 's/^/         │ /'
             return 1
         fi
-        [ -x "$prefix/reflect-desktop" ] || {
-            echo "安装升级后二进制缺失:$prefix/reflect-desktop"
+        [ -x "$prefix/zhuye-desktop" ] || {
+            echo "安装升级后二进制缺失:$prefix/zhuye-desktop"
             return 1
         }
-        rm "$prefix/reflect-desktop"
-        [ -e "$prefix/reflect-desktop" ] && {
-            echo "卸载后二进制仍存在:$prefix/reflect-desktop"
+        rm "$prefix/zhuye-desktop"
+        [ -e "$prefix/zhuye-desktop" ] && {
+            echo "卸载后二进制仍存在:$prefix/zhuye-desktop"
             return 1
         }
         rm -rf "$tmp"
@@ -305,7 +305,7 @@ if [ -n "$APP_BUNDLE" ]; then
         if require_cmd hdiutil; then
             check_dmg_signature() {
                 local mount
-                mount=$(mktemp -d "${TMPDIR:-/tmp}/reflect-dmg-audit.XXXXXX")
+                mount=$(mktemp -d "${TMPDIR:-/tmp}/zhuye-dmg-audit.XXXXXX")
                 if ! run_with_timeout 120 hdiutil attach -readonly -nobrowse -noautoopen \
                     -mountpoint "$mount" "$DMG_FILE" >/dev/null 2>&1; then
                     echo "DMG 挂载失败/超时:$DMG_FILE"
@@ -352,11 +352,11 @@ if [ -n "$DEB_FILE" ]; then
             fi
             # 解包验真实布局:可执行文件 / .desktop / 图标。
             local root
-            root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-deb-audit.XXXXXX")
+            root=$(mktemp -d "${TMPDIR:-/tmp}/zhuye-deb-audit.XXXXXX")
             dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null || { echo "dpkg-deb -x 解包失败"; return 1; }
-            local exe="$root/usr/bin/reflect-desktop"
+            local exe="$root/usr/bin/zhuye-desktop"
             if [ ! -x "$exe" ]; then
-                echo ".deb 缺少可执行文件 usr/bin/reflect-desktop(实际:$(ls "$root/usr/bin" 2>/dev/null))"
+                echo ".deb 缺少可执行文件 usr/bin/zhuye-desktop(实际:$(ls "$root/usr/bin" 2>/dev/null))"
                 return 1
             fi
             local desktop
@@ -384,7 +384,7 @@ if [ -n "$APPIMAGE_FILE" ]; then
     if require_cmd file; then
         check_appimage() {
             local root
-            root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-appimage-audit.XXXXXX")
+            root=$(mktemp -d "${TMPDIR:-/tmp}/zhuye-appimage-audit.XXXXXX")
             cp "$APPIMAGE_FILE" "$root/app.AppImage"
             # APPIMAGE_EXTRACT_AND_RUN=1:强制走内嵌的 squashfs 离线解包,
             # 不试 FUSE —— CI 无 /dev/fuse,默认路径会阻塞或提示挂载失败。
@@ -427,7 +427,7 @@ if [ -n "$MSI_FILE" ]; then
         # 管理解包路径 A:msiexec /a(服务参与,CI 上偶发挂死 —— 必须
         # 加看门狗,否则审查步骤无限等,烧光整个 job)。
         local dir
-        dir=$(mktemp -d "${TMPDIR:-/tmp}/reflect-msi-audit.XXXXXX")
+        dir=$(mktemp -d "${TMPDIR:-/tmp}/zhuye-msi-audit.XXXXXX")
         # cygpath:git-bash 的 mktemp 路径要转成 Windows 路径给 msiexec。
         local windir="$dir"
         command -v cygpath >/dev/null 2>&1 && windir=$(cygpath -w "$dir")
@@ -436,7 +436,7 @@ if [ -n "$MSI_FILE" ]; then
         echo "msiexec 管理映像解包(看门狗 180s)..."
         if run_with_timeout 180 msiexec /a "$msi_win" /qn TARGETDIR="$windir"; then
             local exe
-            exe=$(find "$dir" -name 'reflect-desktop*.exe' -o -name 'ReflectDesktop*.exe' -o -name 'ZhuYe*.exe' 2>/dev/null | head -1)
+            exe=$(find "$dir" -name 'zhuye-desktop*.exe' -o -name 'ZhuYe*.exe' 2>/dev/null | head -1)
             [ -n "$exe" ] || { echo ".msi 解包后未找到主 exe"; rm -rf "$dir"; return 1; }
             local ver
             ver=$(powershell -NoProfile -Command "(Get-Item '$(cygpath -w "$exe" 2>/dev/null || echo "$exe")').VersionInfo.ProductVersion" 2>/dev/null | tr -d '\r')
@@ -472,7 +472,7 @@ while ($true) {
     $row = $v2.GetType().InvokeMember('Fetch','InvokeMethod',$null,$v2,$null)
     if ($null -eq $row) { break }
     $n = $row.GetType().InvokeMember('StringData','GetProperty',$null,$row,@(1))
-    if ($n -match '(reflect|zhuye).*\.exe$') { $found = 1; Write-Output ("EXE=" + $n) }
+    if ($n -match '(zhuye|ZhuYe).*\.exe$') { $found = 1; Write-Output ("EXE=" + $n) }
 }
 Write-Output ("EXE_FOUND=" + $found)
 PSEOF
@@ -531,9 +531,9 @@ if launch_smoke_enabled; then
                 local target=""
                 if [ -n "$DEB_FILE" ]; then
                     local root
-                    root=$(mktemp -d "${TMPDIR:-/tmp}/reflect-launch-deb.XXXXXX")
+                    root=$(mktemp -d "${TMPDIR:-/tmp}/zhuye-launch-deb.XXXXXX")
                     dpkg-deb -x "$DEB_FILE" "$root" 2>/dev/null
-                    target="$root/usr/bin/reflect-desktop"
+                    target="$root/usr/bin/zhuye-desktop"
                 elif [ -n "$APPIMAGE_FILE" ]; then
                     target="$APPIMAGE_FILE"
                     chmod +x "$target" 2>/dev/null

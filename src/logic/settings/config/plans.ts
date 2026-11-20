@@ -1,7 +1,7 @@
 /**
  * Coding plan（编码计划）的纯 TOML 辅助函数。
  *
- * 概念映射（与后端 reflect-config 的凭证池一一对应）：
+ * 概念映射（与后端 zhuye-config 的凭证池一一对应）：
  *  - provider = **接入端口**（API 协议端点），只有两种：anthropic / openai。
  *    多数模型供应商（GLM / Kimi / MiniMax 或本地 Ollama 服务）对两种端口
  *    都有兼容实现，接入时选其一作为 base_url 即可；Ollama 走 OpenAI 兼容
@@ -11,12 +11,12 @@
  *  - 顶层 `[<provider>]` 的 `api_key` 视为隐式 plan（label='default'，
  *    upstream `to_registry` 会把它包装成池中 label="default" 的条目）。
  *  - "默认供应商" = `[active].provider`；凭证池内 429/401/5xx 的
- *    冷却 + failover 由上游 graph 层自动完成（reflect-core model_call）。
+ *    冷却 + failover 由上游 graph 层自动完成（zhuye-core model_call）。
  *  - quota 子表（window_secs / max_tokens / check_via）声明订阅配额，
  *    配合后端 QuotaTracker 在额度耗尽时产生 `quota_exhausted` 事件；
  *    用量查询（check_via）只对 coding plan / token plan 订阅有意义。
  *
- * 全部为字符串手术（与 toml.ts 同风格），后端 `reflect_save_config`
+ * 全部为字符串手术（与 toml.ts 同风格），后端 `zhuye_save_config`
  * 的 `load_from_str` 是最终校验闸阀。
  */
 
@@ -27,7 +27,7 @@ export type PlanProvider = 'anthropic' | 'openai';
 
 export const PLAN_PROVIDERS: readonly PlanProvider[] = ['anthropic', 'openai'];
 
-/** 配额查询源（与 reflect_config::QuotaSource 对齐；'' = 不查询）。
+/** 配额查询源（与 zhuye_config::QuotaSource 对齐；'' = 不查询）。
  * 注意 `open_a_i_usage`：serde snake_case 对连续大写逐字母拆词
  * （OpenAIUsage → open_a_i_usage），写成 `openai_usage` 等常见拼法
  * 后端 `load_from_str` 会解析失败。 */
@@ -233,7 +233,7 @@ const SUBTABLE_RE = /^\[([^\]]+)\]\s*$/;
 /**
  * 剥离 `[provider]` 段内的内联 `credentials = ...` 行。
  *
- * `toml::to_string_pretty(&ReflectConfig)` 会把空 `Vec` 序列化为
+ * `toml::to_string_pretty(&ZhuyeConfig)` 会把空 `Vec` 序列化为
  * `credentials = []`；TOML v1.0 规范不允许同一 key 既是普通数组又被
  * `[[provider.credentials]]` 数组表扩展（toml crate 报
  * "Cannot mutate immutable namespace"）。追加首个 credentials 块前调用；

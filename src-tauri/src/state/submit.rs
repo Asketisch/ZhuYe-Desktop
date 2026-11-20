@@ -12,7 +12,7 @@ use super::MinimalAgent;
 use std::path::Path;
 use std::sync::Arc;
 
-fn current_thread(agent: &MinimalAgent) -> anyhow::Result<Arc<reflect_core::AgentThread>> {
+fn current_thread(agent: &MinimalAgent) -> anyhow::Result<Arc<zhuye_core::AgentThread>> {
     agent
         .inner
         .thread
@@ -36,7 +36,7 @@ async fn wait_for_rebind(rx: &mut tokio::sync::watch::Receiver<u64>, generation_
 
 fn ensure_current_thread(
     agent: &MinimalAgent,
-    thread: &Arc<reflect_core::AgentThread>,
+    thread: &Arc<zhuye_core::AgentThread>,
 ) -> anyhow::Result<()> {
     if !agent
         .inner
@@ -78,14 +78,14 @@ fn ensure_workspace_matches(
 /// `source_command` 标注;未命中透传,详见 `state/plugins.rs`)。
 pub(crate) async fn submit(
     agent: &MinimalAgent,
-    submission: reflect_protocol::Submission,
+    submission: zhuye_protocol::Submission,
 ) -> anyhow::Result<()> {
     // 0. 必须先 install_agent_thread。
     let thread = current_thread(agent)?;
     // 插件挂载可能耗时；等待时不占用会话切换锁，切换或关闭可取消等待。
     // v1.x 后台持续运行:换绑不再 cancel 旧线程,等待改由 rebind 代数
     // 显式解除 —— 会话切走时快速失败,不无限挂在可能卡死的挂载上。
-    if matches!(submission.op, reflect_protocol::Op::UserInput { .. }) {
+    if matches!(submission.op, zhuye_protocol::Op::UserInput { .. }) {
         let mut generation_rx = agent.inner.rebind_generation.subscribe();
         let generation_at_wait = *generation_rx.borrow();
         tokio::select! {
@@ -99,7 +99,7 @@ pub(crate) async fn submit(
     }
     let _transition = agent.inner.session_transition_lock.lock().await;
     ensure_current_thread(agent, &thread)?;
-    if matches!(submission.op, reflect_protocol::Op::UserInput { .. }) {
+    if matches!(submission.op, zhuye_protocol::Op::UserInput { .. }) {
         ensure_workspace_matches(
             &thread.config().current_workspace(),
             &agent.workspace(),
@@ -114,8 +114,8 @@ pub(crate) async fn submit(
     let submission = stamp_sandbox_policy(agent, submission);
 
     // 1. 拿 per-turn handle。
-    let mut handle: reflect_core::TurnHandle = thread.submit(submission.clone()).await;
-    if matches!(submission.op, reflect_protocol::Op::Shutdown) {
+    let mut handle: zhuye_core::TurnHandle = thread.submit(submission.clone()).await;
+    if matches!(submission.op, zhuye_protocol::Op::Shutdown) {
         // 在释放切换锁前标记关闭，阻止 Shutdown 排队后的提交被静默丢弃。
         thread.cancel_token().cancel();
     }
@@ -130,7 +130,7 @@ pub(crate) async fn submit(
         while let Some(event) = handle.next().await {
             super::session::route_event(&inner, &thread, sid, event);
         }
-        tracing::debug!("[reflect-gui] turn {} forwarder closed", sub_id);
+        tracing::debug!("[zhuye-gui] turn {} forwarder closed", sub_id);
     });
 
     Ok(())
@@ -143,14 +143,14 @@ pub(crate) async fn submit(
 /// 供 `commands/mod.rs` 的 12 个 Op 命令统一调用。
 pub(crate) async fn submit_op(
     agent: &MinimalAgent,
-    op: reflect_protocol::Op,
+    op: zhuye_protocol::Op,
 ) -> anyhow::Result<String> {
     // 前台远程会话:op(interrupt / 审批 / compact / permission …)直接写
     // 远端 stdin;submission id 由远端回执事件按 id 关联(无本地 per-turn
     // 通道,泵统一分流)。
     if let Some(sid) = super::remote::foreground_remote(agent) {
         let submission =
-            reflect_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
+            zhuye_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
         let id = submission.id.clone();
         super::remote::submit_to_session(agent, &sid, submission).await?;
         return Ok(id);
@@ -158,15 +158,15 @@ pub(crate) async fn submit_op(
     let thread = current_thread(agent)?;
     let _transition = agent.inner.session_transition_lock.lock().await;
     ensure_current_thread(agent, &thread)?;
-    if matches!(op, reflect_protocol::Op::Steer { .. }) {
+    if matches!(op, zhuye_protocol::Op::Steer { .. }) {
         ensure_workspace_matches(
             &thread.config().current_workspace(),
             &agent.workspace(),
             None,
         )?;
     }
-    let shutdown = matches!(op, reflect_protocol::Op::Shutdown);
-    let submission = reflect_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
+    let shutdown = matches!(op, zhuye_protocol::Op::Shutdown);
+    let submission = zhuye_protocol::Submission::with_id(uuid::Uuid::new_v4().to_string(), op);
     let id = submission.id.clone();
     // 这类 op 通常无 per-turn 流式输出(审批/effort/permission 立即生效),
     // 但仍走 submit 以保持生命周期事件(SessionConfigured / PermissionModeChanged 等)
@@ -182,7 +182,7 @@ pub(crate) async fn submit_op(
         while let Some(event) = handle.next().await {
             super::session::route_event(&inner, &thread, sid, event);
         }
-        tracing::debug!("[reflect-gui] op turn {} forwarder closed", sub_id);
+        tracing::debug!("[zhuye-gui] op turn {} forwarder closed", sub_id);
     });
     Ok(id)
 }
@@ -202,8 +202,8 @@ pub(crate) async fn submit_op(
 /// 保持原样。
 fn stamp_sandbox_policy(
     agent: &MinimalAgent,
-    submission: reflect_protocol::Submission,
-) -> reflect_protocol::Submission {
+    submission: zhuye_protocol::Submission,
+) -> zhuye_protocol::Submission {
     // load/save 两条路径都已把 os_level 归一成 Some(有效值);
     // unwrap_or(true) 兜底 = 核心基线(默认要求 OS sandbox)。
     let cfg_os_level = agent.cfg().read().sandbox.os_level.unwrap_or(true);
@@ -214,11 +214,11 @@ fn stamp_sandbox_policy(
 /// 纯函数版:给定生效开关,盖上对应的协议策略。
 fn stamp_sandbox_policy_with(
     enabled: bool,
-    submission: reflect_protocol::Submission,
-) -> reflect_protocol::Submission {
-    let policy = reflect_app_core::sandbox::sandbox_policy_for(enabled);
+    submission: zhuye_protocol::Submission,
+) -> zhuye_protocol::Submission {
+    let policy = zhuye_app_core::sandbox::sandbox_policy_for(enabled);
     let mut submission = submission;
-    if let reflect_protocol::Op::UserInput {
+    if let zhuye_protocol::Op::UserInput {
         thread_settings, ..
     } = &mut submission.op
     {
@@ -242,13 +242,13 @@ fn stamp_sandbox_policy_with(
 /// 正确做法是提交 `Op::Interrupt` —— 核心按**回合**粒度取消在飞回合的
 /// 令牌(`active_turns` 表),会话本身不受影响。
 pub(crate) async fn interrupt(agent: &MinimalAgent) -> anyhow::Result<String> {
-    submit_op(agent, reflect_protocol::Op::Interrupt { child_id: None }).await
+    submit_op(agent, zhuye_protocol::Op::Interrupt { child_id: None }).await
 }
 
 #[cfg(test)]
 mod tests {
     use crate::state::MinimalAgent;
-    use reflect_protocol::{Op, Submission, ThreadSettingsOverrides};
+    use zhuye_protocol::{Op, Submission, ThreadSettingsOverrides};
 
     /// UserInput 的 submission,带空 thread_settings。
     fn user_input_submission() -> Submission {
@@ -274,7 +274,7 @@ mod tests {
     #[tokio::test]
     async fn queued_submissions_reject_a_replaced_thread() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
         agent.install_agent_thread().await;
         let transition = agent.inner.session_transition_lock.lock().await;
 
@@ -286,7 +286,7 @@ mod tests {
 
         super::super::rebind::rebind_session(
             &agent,
-            reflect_protocol::ThreadId::new(),
+            zhuye_protocol::ThreadId::new(),
             vec![],
             None,
         )
@@ -309,12 +309,12 @@ mod tests {
     #[tokio::test]
     async fn pending_plugin_mount_does_not_block_session_switch() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
         agent.install_agent_thread().await;
         let mount = agent.inner.plugin_mount_lock.lock().await;
         super::super::rebind::rebind_session(
             &agent,
-            reflect_protocol::ThreadId::new(),
+            zhuye_protocol::ThreadId::new(),
             vec![],
             None,
         )
@@ -330,7 +330,7 @@ mod tests {
         .expect("plugin wait must not hold the transition lock");
         super::super::rebind::rebind_session(
             &agent,
-            reflect_protocol::ThreadId::new(),
+            zhuye_protocol::ThreadId::new(),
             vec![],
             None,
         )
@@ -356,9 +356,9 @@ mod tests {
     #[tokio::test]
     async fn closed_thread_rejects_submissions_and_can_be_rebound() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = reflect_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
         agent.install_agent_thread().await;
-        let sid = reflect_protocol::ThreadId::new();
+        let sid = zhuye_protocol::ThreadId::new();
         super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
         let old = super::current_thread(&agent).unwrap();
         super::submit_op(&agent, Op::Shutdown).await.unwrap();
@@ -376,7 +376,7 @@ mod tests {
     }
 
     /// 取 submission 上的 sandbox_policy。
-    fn policy_of(sub: &Submission) -> Option<reflect_protocol::SandboxPolicy> {
+    fn policy_of(sub: &Submission) -> Option<zhuye_protocol::SandboxPolicy> {
         match &sub.op {
             Op::UserInput {
                 thread_settings, ..
@@ -391,7 +391,7 @@ mod tests {
         let sub = super::stamp_sandbox_policy_with(true, user_input_submission());
         assert_eq!(
             policy_of(&sub),
-            Some(reflect_protocol::SandboxPolicy::OsSandbox)
+            Some(zhuye_protocol::SandboxPolicy::OsSandbox)
         );
     }
 
@@ -401,7 +401,7 @@ mod tests {
         let sub = super::stamp_sandbox_policy_with(false, user_input_submission());
         assert_eq!(
             policy_of(&sub),
-            Some(reflect_protocol::SandboxPolicy::WorkspaceOnly)
+            Some(zhuye_protocol::SandboxPolicy::WorkspaceOnly)
         );
     }
 
@@ -414,7 +414,7 @@ mod tests {
             Op::UserInput {
                 items: vec![],
                 thread_settings: ThreadSettingsOverrides {
-                    sandbox_policy: Some(reflect_protocol::SandboxPolicy::FullAccess),
+                    sandbox_policy: Some(zhuye_protocol::SandboxPolicy::FullAccess),
                     ..Default::default()
                 },
             },
@@ -422,7 +422,7 @@ mod tests {
         let stamped = super::stamp_sandbox_policy_with(true, sub);
         assert_eq!(
             policy_of(&stamped),
-            Some(reflect_protocol::SandboxPolicy::OsSandbox),
+            Some(zhuye_protocol::SandboxPolicy::OsSandbox),
             "客户端指定的策略必须被后端配置覆盖"
         );
     }
@@ -437,7 +437,7 @@ mod tests {
             Op::UserInput {
                 items: vec![],
                 thread_settings: ThreadSettingsOverrides {
-                    approval_policy: Some(reflect_protocol::ApprovalPolicy::FullAccess),
+                    approval_policy: Some(zhuye_protocol::ApprovalPolicy::FullAccess),
                     ..Default::default()
                 },
             },
@@ -451,11 +451,11 @@ mod tests {
         };
         assert_eq!(
             thread_settings.approval_policy,
-            Some(reflect_protocol::ApprovalPolicy::FullAccess)
+            Some(zhuye_protocol::ApprovalPolicy::FullAccess)
         );
         assert_eq!(
             thread_settings.sandbox_policy,
-            Some(reflect_protocol::SandboxPolicy::OsSandbox)
+            Some(zhuye_protocol::SandboxPolicy::OsSandbox)
         );
     }
 
@@ -473,7 +473,7 @@ mod tests {
     #[tokio::test]
     async fn submit_op_returns_err_when_not_installed() {
         let agent = MinimalAgent::new_empty();
-        let result = agent.submit_op(reflect_protocol::Op::Compact).await;
+        let result = agent.submit_op(zhuye_protocol::Op::Compact).await;
         assert!(
             result.is_err(),
             "submit_op before install must error, got: {result:?}"

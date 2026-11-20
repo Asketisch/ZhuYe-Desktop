@@ -51,7 +51,7 @@ fn stream(tool: bool) -> String {
 
 fn wait_for_rescan(rx: &Receiver<Value>) {
     let id = common::invoke_ok(
-        "reflect_rescan_extensions",
+        "zhuye_rescan_extensions",
         json!({"skills":true,"commands":true}),
     );
     let deadline = Instant::now() + Duration::from_secs(20);
@@ -96,14 +96,14 @@ fn model_loads_a_rescanned_skill_and_receives_its_body() {
         provider.uri()
     ));
     let (tx, rx) = channel();
-    common::listen("reflect_event", move |event: tauri::Event| {
+    common::listen("zhuye_event", move |event: tauri::Event| {
         if let Ok(value) = serde_json::from_str(event.payload()) {
             let _ = tx.send(value);
         }
     });
-    let session = common::invoke_ok("reflect_create_session", json!({}));
-    common::invoke_ok("reflect_bind_session", json!({"id":session}));
-    let skill = reflect_config::paths::data_path_or_relative(&["skills", "runtime-skill"]);
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    let skill = zhuye_config::paths::data_path_or_relative(&["skills", "runtime-skill"]);
     std::fs::create_dir_all(&skill).unwrap();
     std::fs::write(
         skill.join("SKILL.md"),
@@ -111,7 +111,7 @@ fn model_loads_a_rescanned_skill_and_receives_its_body() {
     )
     .unwrap();
     wait_for_rescan(&rx);
-    let listed = common::invoke_ok("reflect_list_skills", json!({}));
+    let listed = common::invoke_ok("zhuye_list_skills", json!({}));
     assert!(
         listed
             .as_array()
@@ -122,7 +122,7 @@ fn model_loads_a_rescanned_skill_and_receives_its_body() {
     );
 
     common::invoke_ok(
-        "reflect_submit",
+        "zhuye_submit",
         json!({"submission":{"id":"skill-runtime-turn","op":{"type":"user_input","items":[{"type":"text","text":"load-runtime-skill"}]}}}),
     );
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -141,7 +141,7 @@ fn model_loads_a_rescanned_skill_and_receives_its_body() {
                     && prior["msg"]["call_id"] == "skill_runtime_tool"
             }));
             common::invoke_ok(
-                "reflect_tool_approval",
+                "zhuye_tool_approval",
                 json!({"id":event["msg"]["request_id"],"decision":"approve"}),
             );
         }

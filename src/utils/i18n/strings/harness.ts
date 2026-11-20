@@ -215,6 +215,32 @@ const harness: Record<string, StringEntry> = {
   'harness.usage.rates':         { en: 'Model rate cards',              'zh-CN': '模型费率' },
   'harness.usage.ratesIn':       { en: 'in {in} · out {out} / 1M',      'zh-CN': '输入 {in} · 输出 {out} / 1M' },
   'harness.usage.unpriced':      { en: 'unpriced',                      'zh-CN': '未定价' },
+
+  // ===== 右上角交互栈（CornerStack）=====
+  'harness.corner.collapse':     { en: 'Collapse',                      'zh-CN': '折叠' },
+  'harness.corner.expand':       { en: 'Expand',                        'zh-CN': '展开' },
+  'harness.corner.todo.title':   { en: 'Todos',                         'zh-CN': '任务清单' },
+  'harness.corner.goal.title':   { en: 'Goal',                          'zh-CN': '目标' },
+  'harness.corner.goal.setIdle': { en: 'Set goal',                      'zh-CN': '设目标' },
+  'harness.corner.goal.placeholder': { en: 'Describe the goal…',        'zh-CN': '描述目标…' },
+  'harness.corner.goal.budget':  { en: 'Token budget (optional)',       'zh-CN': 'Token 预算(可选)' },
+  'harness.corner.goal.enter':   { en: 'Start',                         'zh-CN': '进入' },
+  'harness.corner.goal.exit':    { en: 'Exit goal mode',                'zh-CN': '退出目标模式' },
+  'harness.corner.goal.refresh': { en: 'Refresh',                       'zh-CN': '刷新' },
+  'harness.corner.goal.noSnapshot': { en: 'Snapshot not ready yet',     'zh-CN': '快照尚未就绪' },
+  'harness.corner.goal.turns':   { en: '{turns} turns',                 'zh-CN': '第 {turns} 轮' },
+  'harness.corner.goal.tokens':  { en: '{tokens} tokens',               'zh-CN': '{tokens} token' },
+  'harness.corner.goal.budgetShort': { en: '{budget} budget',           'zh-CN': '预算 {budget}' },
+  'harness.corner.goal.status.active': { en: 'running',                 'zh-CN': '推进中' },
+  'harness.corner.goal.status.paused': { en: 'paused',                  'zh-CN': '已暂停' },
+  'harness.corner.goal.status.blocked': { en: 'blocked',                'zh-CN': '受阻' },
+  'harness.corner.goal.status.budgetLimited': { en: 'budget capped',    'zh-CN': '预算耗尽' },
+  'harness.corner.goal.status.complete': { en: 'done',                  'zh-CN': '已完成' },
+  'harness.corner.subagents.title': { en: 'Subagents',                  'zh-CN': '子代理' },
+  'harness.corner.subagents.refresh': { en: 'Refresh',                  'zh-CN': '刷新' },
+  'harness.corner.subagents.openAll': { en: 'Open dock',                'zh-CN': '查看全部' },
+  'harness.corner.subagents.interrupt': { en: 'Stop',                  'zh-CN': '中断' },
+  'harness.corner.suggestions.title': { en: 'Suggestions',              'zh-CN': '建议' },
 };
 
 export default harness;

@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use reflect_core::AgentThread;
-use reflect_hooks::{Hook, HookDecision, HookEngine, HookError, HookEvent, HookEventKind};
-use reflect_protocol::ThreadId;
+use zhuye_core::AgentThread;
+use zhuye_hooks::{Hook, HookDecision, HookEngine, HookError, HookEvent, HookEventKind};
+use zhuye_protocol::ThreadId;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicU8, Ordering};
 use tokio::sync::watch;

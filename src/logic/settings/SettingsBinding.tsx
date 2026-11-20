@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import type { SettingsPermissionMode, SettingsSection, SettingsSlots, SettingsViewProps } from '@/contracts/settings';
-import { reflect_get_config, reflect_save_config, reflect_agent_status, reflect_set_permission_mode } from '@/utils/commands';
+import { zhuye_get_config, zhuye_save_config, zhuye_agent_status, zhuye_set_permission_mode } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
@@ -37,12 +37,12 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
 
   const configQuery = useQuery({
     queryKey: ['config'],
-    queryFn: reflect_get_config,
+    queryFn: zhuye_get_config,
     staleTime: 0,
   });
   const statusQuery = useQuery({
     queryKey: ['agent-status'],
-    queryFn: reflect_agent_status,
+    queryFn: zhuye_agent_status,
     staleTime: 30_000,
   });
 
@@ -58,7 +58,7 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
   }, [configQuery.data]);
 
   const saveMutation = useMutation({
-    mutationFn: async (toml: string) => reflect_save_config(toml),
+    mutationFn: async (toml: string) => zhuye_save_config(toml),
     onSuccess: (_result, savedToml) => {
       setSaved(true);
       setError(null);
@@ -75,7 +75,7 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
   });
 
   const permMutation = useMutation({
-    mutationFn: async (mode: string) => reflect_set_permission_mode(mode),
+    mutationFn: async (mode: string) => zhuye_set_permission_mode(mode),
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);

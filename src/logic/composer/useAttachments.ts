@@ -8,7 +8,7 @@
  * `pending` 入列(useFileIngest 落盘),成功后 settle 为 `ready` 的真实路径
  * file mention,失败标 `error` 可重试。任一非 ready 时发送被禁用。
  *
- * 不直接调 `reflect_*` —— 暴露 `items` + `text` 给 caller 自行组装。
+ * 不直接调 `zhuye_*` —— 暴露 `items` + `text` 给 caller 自行组装。
  */
 import { useCallback, useState } from 'react';
 import type { FileRange, UserInputItem } from '@/types/protocol';

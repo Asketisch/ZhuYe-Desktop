@@ -7,4 +7,4 @@
  */
 export * from './bridge';
 export * from './commands';
-export type { ReflectSessionInfo, ReflectRolloutRecord, ReviewDecision } from './types';
+export type { ZhuyeSessionInfo, ZhuyeRolloutRecord, ReviewDecision } from './types';
