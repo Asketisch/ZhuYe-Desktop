@@ -45,6 +45,9 @@ let chatSessionPath = '';
 
 async function openMorePage(label: string) {
   // v3 harness:侧栏「更多」菜单(plain button,无 role=menuitem)。
+  // 「更多」按钮是开关:若上一用例失败把菜单留在打开态,直接点会把它
+  // 关掉 —— 先 Esc 走壳层的 Esc 关闭链,保证从闭合态出发。
+  await driver!.findElement(By.css('body')).sendKeys(Key.ESCAPE);
   await driver!.findElement(By.css('[data-testid="harness-nav-more"]')).click();
   const menu = await driver!.wait(until.elementLocated(By.css('[data-testid="harness-more-menu"]')), 10_000);
   const inViewport = await driver!.executeScript<boolean>(

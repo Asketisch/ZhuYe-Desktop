@@ -107,7 +107,7 @@ export function AppShell({
               {moreMenuOpen && (
                 <div
                   className="sess-menu"
-                  style={{ left: 8, right: 'auto', minWidth: 200, maxHeight: '55vh', overflowY: 'auto' }}
+                  style={{ left: 8, right: 'auto', minWidth: 200, maxHeight: '50vh', overflowY: 'auto' }}
                   data-testid="harness-more-menu"
                 >
                   {data.morePages.map((page) => (
