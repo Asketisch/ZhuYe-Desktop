@@ -21,6 +21,22 @@ pub struct BrowserEnvInfo {
     pub profile_dir: String,
 }
 
+/// 注入一次输入事件(鼠标 / 滚轮 / 键盘)到受控页面。
+///
+/// 坐标为**归一化值**(0..1,相对面板里渲染出来的画面),后端按页面
+/// CSS 视口换算 —— 详见 `browser_backend::input` 模块。
+///
+/// 浏览器未启动 / 页面会话已结束 → 结构化错误(面板如实展示)。
+#[tauri::command]
+pub async fn zhuye_browser_input(
+    agent: tauri::State<'_, MinimalAgent>,
+    event: browser_backend::BrowserInputEvent,
+) -> CommandResult<()> {
+    browser_backend::dispatch_input(&agent, event)
+        .await
+        .map_err(crate::commands::error::CommandError::from)
+}
+
 /// 启动浏览器(必要时)并开始面板帧流。重复调用幂等。
 #[tauri::command]
 pub async fn zhuye_browser_start(

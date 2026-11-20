@@ -56,5 +56,5 @@
 ## 6. 风险
 
 - 本机无 Chrome/Chromium：工具层与面板层双降级（Unavailable + 空态引导）。
-- 多 CDP 客户端并存是 Chrome 支持的行为，但同一 target 双控制端可能互相干扰——桌面 screencast 连接只读画面不注入输入，规避冲突。
+- 多 CDP 客户端并存是 Chrome 支持的行为，但同一 target 双控制端可能互相干扰——桌面页面连接同时用于帧流与面板输入；agent 与用户同时控制同一页面时可能互相干扰。
 - `require_token` 未启用意味着本机任意进程可连 CDP 端点；loopback + 隔离 profile 已是 v1 边界，token 代理列为后续项。

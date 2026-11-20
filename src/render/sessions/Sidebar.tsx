@@ -5,7 +5,7 @@
  * .sb-scroll 内容：置顶 / 工作区 / 会话（状态点 + 待办旗标 + 计时 + ⋯ 菜单）。
  * 全部交互状态（搜索开关 / 仅看待处理 / 菜单 / 计时）由 SidebarBinding 持有。
  */
-import { Filter, Plus, RotateCw, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, Plus, RotateCw, Search, X } from 'lucide-react';
 import type { SidebarViewProps } from '@/contracts/sidebar';
 import type { SessionBadge } from '@/contracts/shell';
 import { Icon } from '../design-system/Icon';
@@ -52,8 +52,8 @@ function fmtElapsed(ms: number): string {
 export function Sidebar({
   t, loading, error, activeId, currentWorkspace, query,
   pinnedGroup, filtered, showEmpty, badges,
-  menuFor, onOpenMenu, menuActions, searchOpen, onToggleSearch, pendingOnly, onTogglePendingOnly,
-  elapsedNow,
+  menuFor, onOpenMenu, menuActions, SessionMenu, renameId, renameValue, onRenameValueChange, onSubmitRename, onCancelRename, searchOpen, onToggleSearch, pendingOnly, onTogglePendingOnly,
+  elapsedNow, isCollapsed, onToggleGroup, searching,
   onSelect, onNewChat, onNewChatIn, onQueryChange, onRefresh,
   onOpenProject, onRemoveWorkspace,
 }: SidebarViewProps) {
@@ -68,7 +68,9 @@ export function Sidebar({
     const elapsed = dot === 'run' ? Math.max(0, elapsedNow - Date.parse(sess.started_at)) : 0;
     return (
       <div key={sess.session_id} className="row-shell">
-        <button
+        {renameId === sess.session_id ? <input className="ask-field session-rename" autoFocus
+          aria-label={t('sidebar.renamePrompt')} value={renameValue} onChange={(e) => onRenameValueChange(e.target.value)}
+          onBlur={onSubmitRename} onKeyDown={(e) => { if (e.key === 'Enter') onSubmitRename(); if (e.key === 'Escape') onCancelRename(); }} /> : <button
           type="button"
           className={[
             'row-item', 'sess',
@@ -96,7 +98,7 @@ export function Sidebar({
           {dot === 'run'
             ? <span className="sess-timer">{fmtElapsed(elapsed)}</span>
             : <span className="tm">{relativeTime(sess.started_at, elapsedNow, t)}</span>}
-        </button>
+        </button>}
         <button
           type="button"
           className="sess-more"
@@ -105,6 +107,9 @@ export function Sidebar({
           aria-label={t('harness.sb.moreMenu')}
           onClick={() => onOpenMenu(sess.session_id)}
         >⋯</button>
+        {menuFor === sess.session_id && menuActions.length > 0 && (
+          <SessionMenu sessionId={sess.session_id} actions={menuActions} onClose={() => onOpenMenu(null)} />
+        )}
       </div>
     );
   };
@@ -115,8 +120,7 @@ export function Sidebar({
       ? list.filter((s) => badges?.[s.session_id]?.pending || badges?.[s.session_id]?.unread)
       : list;
 
-  // 全量会话（跨工作区扁平列表，按 started_at 倒序）。
-  // 置顶区已渲染的会话不再进扁平列表，避免同一会话出现两行。
+  // 统计过滤后的会话，以判断加载和空状态。
   const seen = new Set<string>(pinnedGroup ? pinnedGroup.sessions.map((s) => s.session_id) : []);
   const flat: SessionRow[] = [];
   for (const g of filtered) {
@@ -125,8 +129,6 @@ export function Sidebar({
     }
   }
   flat.sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
-
-  const menuSession = menuFor ? flat.find((s) => s.session_id === menuFor) : null;
 
   return (
     <div className="sb-scroll" data-testid="harness-sidebar-scroll">
@@ -169,30 +171,6 @@ export function Sidebar({
           onChange={(e) => onQueryChange(e.target.value)}
         />
       )}
-      {filtered.map((g) => (
-        <div key={g.key} className="row-shell">
-          <button
-            type="button"
-            className={`row-item${g.path === currentWorkspace ? ' sel' : ''}`}
-            title={g.path ?? t('sidebar.group.noWorkspace')}
-            onClick={() => { if (g.path && onNewChatIn) onNewChatIn(g.path); }}
-          >
-            <span className="t">{g.label || t('sidebar.group.noWorkspace')}</span>
-          </button>
-          {g.path && onRemoveWorkspace && (
-            <button
-              type="button"
-              className="sess-more"
-              aria-label={t('sidebar.group.remove')}
-              title={t('sidebar.group.remove')}
-              onClick={() => onRemoveWorkspace(g.path!)}
-            >
-              <Icon icon={X} size={12} />
-            </button>
-          )}
-        </div>
-      ))}
-
       {/* 会话 */}
       <div className="sb-label">
         {t('harness.sb.sessions')}
@@ -219,18 +197,25 @@ export function Sidebar({
           </button>
         </span>
       </div>
-      {visibleSessions(flat).map(renderSession)}
 
-      {/* 会话 ⋯ 浮层菜单（动作回调由绑定层闭包，视图只渲染） */}
-      {menuSession && menuActions.length > 0 && (
-        <div className="sess-menu" data-testid="harness-session-menu">
-          {menuActions.map((action) => (
-            <button key={action.key} type="button" onClick={action.run}>
-              {action.label}
+      {filtered.map((g) => {
+        const collapsed = !searching && isCollapsed(g.key);
+        return <div key={g.key}>
+          <div className="row-shell">
+            <button type="button" className={`row-item${g.path === currentWorkspace ? ' sel' : ''}`}
+              title={g.path ?? t('sidebar.group.noWorkspace')} aria-expanded={!collapsed}
+              onClick={() => onToggleGroup(g.key)}>
+              <Icon icon={collapsed ? ChevronRight : ChevronDown} size={13} />
+              <span className="t">{g.label || t('sidebar.group.noWorkspace')}</span>
             </button>
-          ))}
-        </div>
-      )}
+            {g.path && onNewChatIn && <button type="button" className="workspace-new" data-testid={`workspace-new-${g.key}`} title={t('sidebar.newChat')} aria-label={t('sidebar.newChat')} onClick={() => onNewChatIn(g.path!)}><Icon icon={Plus} size={12} /></button>}
+            {g.path && onRemoveWorkspace && <button type="button" className="sess-more" aria-label={t('sidebar.group.remove')} title={t('sidebar.group.remove')} onClick={() => onRemoveWorkspace(g.path!)}><Icon icon={X} size={12} /></button>}
+          </div>
+          {!collapsed && <div className="workspace-sessions">{visibleSessions(g.sessions).map(renderSession)}</div>}
+        </div>;
+      })}
+
+
     </div>
   );
 }

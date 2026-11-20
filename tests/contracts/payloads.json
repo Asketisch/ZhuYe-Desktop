@@ -666,6 +666,14 @@
       "width": 390,
       "height": 844
     },
+    "zhuye_browser_input": {
+      "event": {
+        "type": "mouseMove",
+        "x": 0.5,
+        "y": 0.5,
+        "modifiers": 0
+      }
+    },
     "zhuye_browse_marketplace": {
       "name": "fake-mkt"
     },

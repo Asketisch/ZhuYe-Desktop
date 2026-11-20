@@ -21,12 +21,15 @@ function mount(ui: React.ReactElement) {
 /* ===== ZDock ===== */
 
 describe('ZDock', () => {
-  it('无 todo / goal / 排队时不渲染任何 chip', () => {
+  it('无 todo / 排队时不渲染这两枚 chip；目标与建议入口常驻', () => {
     useAgentStore.setState({ todos: [], queuedMessages: [], goalActive: false });
     const { container } = mount(<ZDock goalActive={false} goalText="" turnRunning={false} />);
     expect(container.querySelector('[data-testid="zcode-dock-todo"]')).toBeNull();
     expect(container.querySelector('[data-testid="zcode-dock-queue"]')).toBeNull();
-    expect(container.querySelector('[data-testid="zcode-dock-goal"]')).toBeNull();
+    // v3：原「右上角角标栈」的任务/目标/子代理/建议并入本行 ——
+    // 目标（设目标入口）与建议（快捷 prompt）是常驻入口，不再是窗口级浮层。
+    expect(container.querySelector('[data-testid="zcode-dock-goal"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="zcode-dock-suggestions"]')).not.toBeNull();
   });
 
   it('todo chip 显示进度并在 popover 中列出三态清单', () => {

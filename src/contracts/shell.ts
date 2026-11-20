@@ -66,6 +66,8 @@ export interface ShellSlots {
   ViewErrorBoundary: ComponentType<{ children: ReactNode }>;
   /** harness 扩展槽位 */
   DockPanel: ComponentType;
+  /** 右 dock 左缘的拖拽分隔条（宽度可调）。 */
+  DockResizer: ComponentType;
   TerminalDock: ComponentType;
   InboxPanel: ComponentType<{ inboxTab: InboxTab; onNavigateSession: (id: string) => void }>;
   SettingsHost: ComponentType<{ open: boolean; onClose: () => void }>;

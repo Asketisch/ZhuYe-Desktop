@@ -52,6 +52,7 @@ const harness: Record<string, StringEntry> = {
   'harness.dock.agents':         { en: 'Subagents',                     'zh-CN': '子代理' },
   'harness.dock.usage':          { en: 'Usage',                         'zh-CN': '用量' },
   'harness.dock.wide':           { en: 'Expand panel',                  'zh-CN': '展开面板' },
+  'harness.dock.resize':         { en: 'Drag to resize the panel',      'zh-CN': '拖拽调整面板宽度' },
 
   'harness.browser.back':        { en: 'Back',                          'zh-CN': '后退' },
   'harness.browser.forward':     { en: 'Forward',                       'zh-CN': '前进' },
@@ -63,6 +64,7 @@ const harness: Record<string, StringEntry> = {
   'harness.browser.emptyTitle':  { en: 'Browser not running',           'zh-CN': '浏览器未启动' },
   'harness.browser.emptyHint':   { en: 'Start a headless Chrome / Chromium to watch the page the agent is driving, in real time.', 'zh-CN': '启动无头 Chrome / Chromium,实时查看 agent 正在操作的页面。' },
   'harness.browser.waitFrame':   { en: 'Waiting for the first frame…',  'zh-CN': '等待画面帧…' },
+  'harness.browser.frameLabel':  { en: 'Controlled browser page (click, type and scroll to interact)', 'zh-CN': '受控浏览器页面(可点击、输入、滚动)' },
   'harness.browser.devDesktop':  { en: 'Desktop',                       'zh-CN': '桌面' },
   'harness.browser.devTablet':   { en: 'Tablet',                        'zh-CN': '平板' },
   'harness.browser.devPhone':    { en: 'Phone',                         'zh-CN': '手机' },

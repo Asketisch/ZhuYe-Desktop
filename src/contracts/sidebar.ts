@@ -39,6 +39,12 @@ export interface SidebarViewProps {
   onOpenMenu: (id: string | null) => void;
   /** 当前打开菜单的会话动作清单（重命名 / AI 改名 / fork / 导出 / 置顶 / 归档 / 删除）。 */
   menuActions: SidebarMenuAction[];
+  SessionMenu: ComponentType<{ sessionId: string; actions: SidebarMenuAction[]; onClose: () => void }>;
+  renameId: string | null;
+  renameValue: string;
+  onRenameValueChange: (value: string) => void;
+  onSubmitRename: () => void;
+  onCancelRename: () => void;
   /** 内联搜索框开关。 */
   searchOpen: boolean;
   onToggleSearch: () => void;

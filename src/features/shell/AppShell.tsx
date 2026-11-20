@@ -6,6 +6,7 @@ import { TitleBar } from './TitleBar';
 import { StatusBar } from './StatusBar';
 import { Inspector } from './Inspector';
 import { DockPanel } from './DockPanel';
+import { DockResizer } from './DockResizer';
 import { TerminalDock } from './TerminalDock';
 import { InboxPanel } from './InboxPanel';
 import { SettingsHost } from './SettingsHost';
@@ -17,7 +18,7 @@ import { Toast } from '@/features/design-system';
 import { ViewErrorBoundary } from './ErrorBoundary';
 
 /** harness 壳层槽位：dock / 终端面板 / 任务中心 / 设置弹窗随壳层一并换新。 */
-const slots = { TitleBar, StatusBar, Inspector, DockPanel, TerminalDock, InboxPanel,
+const slots = { TitleBar, StatusBar, Inspector, DockPanel, DockResizer, TerminalDock, InboxPanel,
   SettingsHost, Sidebar, ModalStack, ConfirmDialogHost, CommandPalette, Toast, ViewErrorBoundary };
 
 export function AppShell() {

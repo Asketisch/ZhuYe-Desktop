@@ -246,6 +246,13 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   useEffect(() => {
     document.documentElement.setAttribute('data-semantic', ui.semantic);
   }, [ui.semantic]);
+  // 用户拖拽出的 dock 宽度投影为 CSS 变量；未拖过（null）时不写，
+  // 由 harness.css 回落到各档位默认宽度。
+  useEffect(() => {
+    const root = document.documentElement;
+    if (ui.dockWidth === null) root.style.removeProperty('--dock-user-width');
+    else root.style.setProperty('--dock-user-width', `${ui.dockWidth}px`);
+  }, [ui.dockWidth]);
   const viewMode = pathnameToViewMode(pathname);
   const workspaceLabel = useMemo(() => {
     if (!currentWorkspace) return t('harness.title.workspace');

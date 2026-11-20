@@ -93,8 +93,54 @@ fn browser_reload_fails_structured_without_instance() {
 
 #[test]
 fn browser_set_device_fails_structured_without_instance() {
-    assert_navigation_fails_structured(
+    let _guard = state_lock();
+    let result = invoke(
         "zhuye_browser_set_device",
         json!({ "width": 390, "height": 844 }),
+    );
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("浏览器面板未启动"));
+}
+
+#[test]
+fn browser_input_fails_structured_without_running_browser() {
+    let _guard = state_lock();
+    // 浏览器未启动 → 输入注入必须返回结构化错误(面板如实展示),
+    // 且**绝不**在测试环境拉起真浏览器。
+    let result = invoke(
+        "zhuye_browser_input",
+        json!({ "event": { "type": "mouseMove", "x": 0.5, "y": 0.5, "modifiers": 0 } }),
+    );
+    assert!(
+        result.is_err(),
+        "未启动浏览器时输入注入不应成功: {result:?}"
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("未启动") || err.contains("面板") || err.contains("浏览器"),
+        "错误应说明浏览器不可用: {err}"
+    );
+}
+
+#[test]
+fn browser_input_key_event_fails_structured_without_running_browser() {
+    let _guard = state_lock();
+    // 键盘事件走同一条通道 → 同样的结构化错误。
+    let result = invoke(
+        "zhuye_browser_input",
+        json!({
+            "event": {
+                "type": "key",
+                "action": "down",
+                "key": "a",
+                "code": "KeyA",
+                "text": "a",
+                "modifiers": 0,
+            }
+        }),
+    );
+    assert!(
+        result.is_err(),
+        "未启动浏览器时按键注入不应成功: {result:?}"
     );
 }

@@ -115,7 +115,7 @@
   gap: var(--space-1);
 }
 
-/* 上下文用量指示（ContextUsage）—— 细条 + 百分比，≥80% 转 warning 色。 */
+/* 上下文用量指示：圆形进度，≥80% 转 warning 色。 */
 .usage {
   display: flex;
   align-items: center;
@@ -123,36 +123,8 @@
   padding: 0 var(--space-1);
   color: var(--text-muted);
 }
-
-.usageBar {
-  display: inline-block;
-  width: 48px;
-  height: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--border-subtle);
-  overflow: hidden;
-}
-
-.usageFill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-  transition: width 0.3s ease;
-}
-
-.usagePct {
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.usage[data-warn] .usageFill {
-  background: var(--warning);
-}
-
-.usage[data-warn] .usagePct {
-  color: var(--warning);
-}
+.usagePct { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.usage[data-warn] { color: var(--warning); }
 
 /* Queue/Steer 模式切换（仅 turn 运行中显示）。 */
 .modeSwitch {

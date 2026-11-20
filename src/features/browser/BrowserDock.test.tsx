@@ -33,6 +33,7 @@ const RUNNING = {
 describe('BrowserDock', () => {
   beforeEach(() => {
     resetMockInvoke();
+    sessionStorage.removeItem('zhuye.browser.device');
   });
   afterEach(() => cleanup());
 
@@ -54,7 +55,7 @@ describe('BrowserDock', () => {
     mockInvoke('zhuye_browser_status', async () => NOT_RUNNING);
     render(<BrowserDock />);
     await waitFor(() => {
-      expect(screen.getByTestId('browser-dock-start')).toBeDefined();
+      expect((screen.getByTestId('browser-dock-start') as HTMLButtonElement).disabled).toBe(false);
     });
 
     const start = vi.fn(async () => RUNNING);
@@ -69,6 +70,53 @@ describe('BrowserDock', () => {
     await waitFor(() => {
       expect((screen.getByTestId('browser-dock-url').querySelector('input') as HTMLInputElement).value).toBe('about:blank');
     });
+  });
+
+  it('启动时应用预先选择的设备尺寸', async () => {
+    mockInvoke('zhuye_browser_status', async () => NOT_RUNNING);
+    const setDevice = vi.fn(async () => RUNNING);
+    mockInvoke('zhuye_browser_start', async () => RUNNING);
+    mockInvoke('zhuye_browser_set_device', setDevice);
+    render(<BrowserDock />);
+    const start = screen.getByTestId('browser-dock-start') as HTMLButtonElement;
+    await waitFor(() => expect(start.disabled).toBe(false));
+    fireEvent.click(screen.getByTestId('browser-dock-device-phone'));
+    fireEvent.click(start);
+    await waitFor(() => expect(setDevice).toHaveBeenCalledWith('zhuye_browser_set_device', { width: 390, height: 844 }));
+    expect(screen.getByTestId('browser-dock-stop')).toBeDefined();
+  });
+
+  it('设备尺寸设置失败时保留已启动浏览器的停止入口', async () => {
+    mockInvoke('zhuye_browser_status', async () => NOT_RUNNING);
+    mockInvoke('zhuye_browser_start', async () => RUNNING);
+    mockInvoke('zhuye_browser_set_device', async () => { throw new Error('设备设置失败'); });
+    render(<BrowserDock />);
+    const start = screen.getByTestId('browser-dock-start') as HTMLButtonElement;
+    await waitFor(() => expect(start.disabled).toBe(false));
+    fireEvent.click(start);
+    expect((await screen.findByTestId('browser-dock-error')).textContent).toContain('设备设置失败');
+    expect(screen.getByTestId('browser-dock-stop')).toBeDefined();
+  });
+
+  it('重进运行中的浏览器时先订阅再重放最近画面', async () => {
+    mockInvoke('zhuye_browser_status', async () => RUNNING);
+    const replay = vi.fn(async () => { emitMockEvent('zhuye_browser_frame', { data: 'cmVwbGF5' }); return RUNNING; });
+    mockInvoke('zhuye_browser_start', replay);
+    render(<BrowserDock />);
+    const frame = await screen.findByTestId('browser-dock-frame') as HTMLImageElement;
+    expect(frame.src).toBe('data:image/jpeg;base64,cmVwbGF5');
+    expect(replay).toHaveBeenCalledTimes(1);
+  });
+
+  it('重新打开浏览器时恢复设备尺寸', async () => {
+    sessionStorage.setItem('zhuye.browser.device', 'phone');
+    mockInvoke('zhuye_browser_status', async () => RUNNING);
+    mockInvoke('zhuye_browser_start', async () => RUNNING);
+    const setDevice = vi.fn(async () => RUNNING);
+    mockInvoke('zhuye_browser_set_device', setDevice);
+    render(<BrowserDock />);
+    await waitFor(() => expect(setDevice).toHaveBeenCalledWith('zhuye_browser_set_device', { width: 390, height: 844 }));
+    expect(screen.getByTestId('browser-dock-device-phone').className).toContain('on');
   });
 
   it('地址栏 Enter → zhuye_browser_navigate 收到 trim 后的地址', async () => {
@@ -114,6 +162,42 @@ describe('BrowserDock', () => {
     expect(setDevice.mock.calls[0][1]).toEqual({ width: 390, height: 844 });
     // 档位即时高亮(本地状态)。
     expect(screen.getByTestId('browser-dock-device-phone').className).toContain('on');
+  });
+
+  it('设备切换失败时保留原档位', async () => {
+    mockInvoke('zhuye_browser_status', async () => RUNNING);
+    mockInvoke('zhuye_browser_start', async () => RUNNING);
+    mockInvoke('zhuye_browser_set_device', async (_cmd, args) => {
+      if (args?.width === 390) throw new Error('设备切换失败');
+      return RUNNING;
+    });
+    render(<BrowserDock />);
+    const phone = screen.getByTestId('browser-dock-device-phone') as HTMLButtonElement;
+    await waitFor(() => expect(phone.disabled).toBe(false));
+    fireEvent.click(phone);
+    expect((await screen.findByTestId('browser-dock-error')).textContent).toContain('设备切换失败');
+    expect(phone.className).not.toContain('on');
+    expect(screen.getByTestId('browser-dock-device-desktop').className).toContain('on');
+  });
+
+  it('按顺序发送鼠标按下和抬起', async () => {
+    mockInvoke('zhuye_browser_status', async () => RUNNING);
+    mockInvoke('zhuye_browser_start', async () => RUNNING);
+    let release!: () => void;
+    const first = new Promise<void>((resolve) => { release = resolve; });
+    const input = vi.fn().mockImplementationOnce(() => first).mockResolvedValue(undefined);
+    mockInvoke('zhuye_browser_input', input);
+    render(<BrowserDock />);
+    await waitFor(() => expect(screen.getByTestId('browser-dock-stop')).toBeDefined());
+    act(() => emitMockEvent('zhuye_browser_frame', { data: 'ZmFrZQ==' }));
+    const frame = screen.getByTestId('browser-dock-frame');
+    fireEvent.pointerDown(frame, { button: 0, clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(frame, { button: 0, clientX: 10, clientY: 10 });
+    await waitFor(() => expect(input).toHaveBeenCalledTimes(1));
+    expect(input.mock.calls[0][1].event.type).toBe('mouseDown');
+    await act(async () => { release(); await first; });
+    await waitFor(() => expect(input).toHaveBeenCalledTimes(2));
+    expect(input.mock.calls[1][1].event.type).toBe('mouseUp');
   });
 
   it('运行中帧事件 → 画面渲染为 <img>(等比缩放)', async () => {

@@ -98,6 +98,7 @@ describe('UsageDock', () => {
     // 大数字 + 消息数;顶栏子标题 #短id · 会话标题。
     const total = await screen.findByTestId('usage-dock-total');
     expect(total.textContent).toBe('1,200');
+    expect(screen.getByTestId('usage-dock-cache-rate').textContent).toContain('25.0%');
     expect(total.parentElement?.textContent).toContain('12 messages');
     expect(screen.getByTestId('usage-dock').textContent).toContain('#sess-1 · First session');
 

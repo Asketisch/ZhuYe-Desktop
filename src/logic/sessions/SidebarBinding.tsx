@@ -36,6 +36,7 @@ export interface SidebarBindingProps {
   view: ComponentType<SidebarViewProps>;
   WorkspaceGroup: ComponentType<SidebarViewProps['WorkspaceGroup'] extends ComponentType<infer P> ? P : never>;
   SessionItem: ComponentType<SidebarViewProps['SessionItem'] extends ComponentType<infer P> ? P : never>;
+  SessionMenu: SidebarViewProps['SessionMenu'];
 }
 
 const PINNED_GROUP_KEY = '__pinned__';
@@ -50,6 +51,8 @@ export function SidebarBinding(props: SidebarBindingProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [pendingOnly, setPendingOnly] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [elapsedNow, setElapsedNow] = useState(() => Date.now());
   const { toggle, isCollapsed } = useCollapsedGroups();
 
@@ -61,7 +64,7 @@ export function SidebarBinding(props: SidebarBindingProps) {
     return () => window.clearInterval(id);
   }, [props.badges]);
 
-  // 会话 ⋯ 菜单动作：对当前 menuFor 的会话闭包（prompt/confirm 在逻辑层）。
+  // 会话 ⋯ 菜单动作：对当前 menuFor 的会话闭包（重命名为行内编辑，确认框在逻辑层）。
   // 置顶会话是 groups 会话的子集，groups 查找即覆盖全部行。
   const menuSession = useMemo(() => {
     if (!menuFor) return null;
@@ -77,8 +80,8 @@ export function SidebarBinding(props: SidebarBindingProps) {
         key: 'rename', label: t('threads.rename'),
         run: () => {
           close();
-          const name = window.prompt(t('sidebar.renamePrompt'), displayTitle(menuSession) || '');
-          if (name && name.trim()) void props.onRename?.(menuSession.session_id, name.trim());
+          setRenameValue(displayTitle(menuSession) || '');
+          setRenameId(menuSession.session_id);
         },
       });
     }
@@ -189,7 +192,12 @@ export function SidebarBinding(props: SidebarBindingProps) {
     onDeleteSelected={() => { void deleteSelected(); }} onToggleSelect={toggleSelected}
     onToggleArchived={() => setArchivedOpen((value) => !value)} onToggleGroup={toggle}
     menuFor={menuFor} onOpenMenu={setMenuFor}
-    menuActions={menuActions}
+    menuActions={menuActions} renameId={renameId} renameValue={renameValue} onRenameValueChange={setRenameValue}
+    onCancelRename={() => setRenameId(null)} onSubmitRename={() => {
+      const name = renameValue.trim();
+      if (renameId && name) void props.onRename?.(renameId, name);
+      setRenameId(null);
+    }}
     searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((value) => !value)}
     pendingOnly={pendingOnly} onTogglePendingOnly={() => setPendingOnly((value) => !value)}
     elapsedNow={elapsedNow} />;

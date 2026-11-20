@@ -2158,6 +2158,8 @@ export function installFakeBackend(): FakeBackend {
     streaming: true,
     message: null,
   })));
+  // 输入注入 —— 假后端只回执,不真注入(真后端走 CDP Input 域命令)。
+  handle('zhuye_browser_input', handler(() => undefined));
   // 线格式与 `app-core::autopilot::AutopilotConfig` 一致（camelCase）；update 落状态后读回。
   handle('zhuye_get_autopilot_config', handler(() => wire(backend.state.autopilotConfig)));
   handle(

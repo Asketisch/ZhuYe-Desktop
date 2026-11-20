@@ -7,10 +7,16 @@
 //!
 //! ## 面板帧流
 //!
-//! Page 级 CDP 连接 + `Page.startScreencast`(jpeg,everyNthFrame=2 节流),
+//! Page 级 CDP 连接 + `Page.startScreencast`(JPEG，逐帧确认),
 //! 帧经 `zhuye_browser_frame` 事件推前端(`<img src=data:...>` 渲染;
-//! CSP `img-src data:` 已允许)。screencast 连接**只读画面、不注入输入**
-//! —— agent 控制与面板显示是两条独立连接,互不抢输入。
+//! CSP `img-src data:` 已允许)。
+//!
+//! ## 面板输入
+//!
+//! 同一条 page 级连接兼作**输入通道**:桌面面板的鼠标 / 滚轮 / 键盘
+//! 经 `Input.dispatchMouseEvent` / `Input.dispatchKeyEvent` 注入页面,
+//! 面板因此是真可交互的浏览器(此前只有只读画面)。坐标由前端送归一化
+//! 值(0..1),后端按页面 CSS 视口换算 —— 见 [`input`] 模块。
 //!
 //! ## 面板导航
 //!
@@ -18,17 +24,30 @@
 //! **短连接**(connect → attach → send → 回复 → drop),不与 screencast
 //! 连接互抢。screencast 循环顺带跟踪 `Page.frameNavigated` 把最新 URL
 //! 记入 [`BrowserManager`],供状态查询在 CDP target 扑空时兜底。
-
+//! 设备尺寸则必须走持续的页面会话：临时 CDP 会话断开时覆盖会失效。
+//!
+//! ## 子模块分工
+//!
+//! - `input` —— 输入事件模型与「事件 → CDP 命令」的换算(纯函数);
+//! - `nav` —— 导航面命令(各自开短连接);
+//! - `page` —— page 级连接上的会话循环(帧流 + 输入 + 视口量测)。
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
 use zhuye_browser::chrome;
 
+mod input;
 mod nav;
+mod page;
 
+pub use input::{BrowserInputEvent, dispatch as dispatch_input};
 pub use nav::{back, forward, navigate, reload, set_device};
+pub use page::PageCommand;
+
+use page::{connect_page_session, run_page_session};
 
 /// 面板状态 DTO(camelCase 出线)。
 #[derive(Debug, Clone, Serialize)]
@@ -64,6 +83,10 @@ pub struct BrowserManager {
     process: Option<chrome::BrowserProcess>,
     /// screencast 帧流任务取消令牌(运行中为 Some)。
     screencast_cancel: Option<CancellationToken>,
+    /// 页面会话的输入通道 —— 帧流与输入共用一条 page 级连接。
+    input_tx: Option<tokio::sync::mpsc::Sender<PageCommand>>,
+    /// 最近帧供面板重新挂载时重放；每次重连使用新的缓存。
+    last_frame: Arc<Mutex<Option<String>>>,
     /// 最近已知页面 URL(screencast 跟踪 `Page.frameNavigated` 写入;
     /// 状态查询的 CDP target 扑空时兜底显示)。
     last_url: Option<String>,
@@ -95,7 +118,7 @@ fn browser_ws_endpoint() -> Result<String, String> {
 }
 
 /// 浏览器级连接上取第一个 page target(targetInfo 带 url / title /
-/// webSocketDebuggerUrl / targetId)。
+/// targetId)。
 async fn first_page_target_on(
     conn: &mut zhuye_browser::cdp::CdpConnection,
 ) -> Result<Value, String> {
@@ -123,6 +146,18 @@ async fn first_page_target(ws_url: &str) -> Result<Value, String> {
     first_page_target_on(&mut conn).await
 }
 
+/// 从浏览器目标信息构造页面级连接地址。
+fn page_endpoint(browser_ws: &str, target: &Value) -> Result<String, String> {
+    let target_id = target
+        .get("targetId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "page target 缺 targetId".to_string())?;
+    let (origin, _) = browser_ws
+        .split_once("/devtools/browser/")
+        .ok_or_else(|| "浏览器连接地址格式异常".to_string())?;
+    Ok(format!("{origin}/devtools/page/{target_id}"))
+}
+
 /// 启动浏览器(必要时)并开始 screencast 帧流。
 ///
 /// 返回启动后的状态;已连接外部实例时只 attach(不回收);重复调用
@@ -138,7 +173,16 @@ pub async fn start(agent: &crate::state::MinimalAgent) -> Result<BrowserStatusDt
 
     // 已在流 → 直接回报状态(幂等)。
     if manager.streaming() {
-        return status_locked(&manager).await;
+        let status = status_locked(&manager).await?;
+        let frame = manager
+            .last_frame
+            .lock()
+            .ok()
+            .and_then(|value| value.clone());
+        if let Some(data) = frame {
+            let _ = tauri::Emitter::emit(&app, "zhuye_browser_frame", BrowserFramePayload { data });
+        }
+        return Ok(status);
     }
 
     // 1) 已有实例 → attach;失败(陈旧端口文件)→ 清掉后启动新实例。
@@ -165,30 +209,52 @@ pub async fn start(agent: &crate::state::MinimalAgent) -> Result<BrowserStatusDt
         }
     };
 
-    // 2) page 级 ws 直连 screencast(只读画面)。
-    let page_ws_url = target
-        .get("webSocketDebuggerUrl")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "page target 缺 webSocketDebuggerUrl".to_string())?
-        .to_string();
+    // 2) 建立 page 级连接并等待帧流确认。
+    let page_ws_url = page_endpoint(&browser_ws_endpoint()?, &target)?;
 
+    let (page_socket, early_frame) = connect_page_session(&page_ws_url).await?;
     let cancel = CancellationToken::new();
+    // 帧流与输入共用一条 page 级连接:页面会话任务同时处理 screencast
+    // 事件流与输入指令(见 page::run_page_session)。
+    let (input_tx, input_rx) = tokio::sync::mpsc::channel::<PageCommand>(64);
     // screencast 任务顺带跟踪导航事件:经共享 inner 写回 last_url
     // (锁短暂持有;start 返回后即释放,不会与锁互等)。
     // MinimalAgent Clone 廉价(内部全 Arc),整只传入即可。
-    tokio::spawn(run_screencast(
-        page_ws_url,
-        app,
+    let last_frame = Arc::new(Mutex::new(early_frame.clone()));
+    let stream_frame = last_frame.clone();
+    let stream_app = app.clone();
+    tokio::spawn(run_page_session(
+        page_socket,
+        move |data| {
+            if let Ok(mut latest) = stream_frame.lock() {
+                *latest = Some(data.clone());
+            }
+            let _ = tauri::Emitter::emit(
+                &stream_app,
+                "zhuye_browser_frame",
+                BrowserFramePayload { data },
+            );
+        },
         cancel.clone(),
         agent.clone(),
+        input_rx,
     ));
-    manager.process = process;
+    // 重连自己持有的浏览器时保留进程句柄，避免覆盖时 Drop 终止进程。
+    if process.is_some() {
+        manager.process = process;
+    }
     manager.screencast_cancel = Some(cancel);
+    manager.input_tx = Some(input_tx);
+    manager.last_frame = last_frame;
     manager.last_url = target.get("url").and_then(Value::as_str).map(String::from);
     manager.last_title = target
         .get("title")
         .and_then(Value::as_str)
         .map(String::from);
+
+    if let Some(data) = early_frame {
+        let _ = tauri::Emitter::emit(&app, "zhuye_browser_frame", BrowserFramePayload { data });
+    }
 
     Ok(BrowserStatusDto {
         running: true,
@@ -221,6 +287,9 @@ pub async fn stop(agent: &crate::state::MinimalAgent) -> Result<BrowserStatusDto
     if let Some(token) = manager.screencast_cancel.take() {
         token.cancel();
     }
+    // 页面会话随之结束 → 输入通道一并失效(否则会等到对端关闭才报错)。
+    manager.input_tx = None;
+    manager.last_frame = Arc::default();
     // 面板已离场:记忆值一并清掉,避免状态查询回退到陈旧 URL。
     manager.last_url = None;
     manager.last_title = None;
@@ -280,105 +349,6 @@ async fn status_locked(manager: &BrowserManager) -> Result<BrowserStatusDto, Str
     }
 }
 
-/// screencast 帧流任务:page 级 ws + Page.startScreencast → 事件转发。
-///
-/// 只读事件流,不注入任何输入;连接断开静默结束(面板可重新 start)。
-/// 顺带跟踪 `Page.frameNavigated` 把主 frame 的最新 URL 记入共享的
-/// [`BrowserManager`](导航/刷新期间 target 查询扑空时的状态兜底;
-/// `Page.frameStartedLoading` 只带 frameId 没有 URL,无法用于跟踪)。
-async fn run_screencast(
-    page_ws_url: String,
-    app: tauri::AppHandle,
-    cancel: CancellationToken,
-    agent: crate::state::MinimalAgent,
-) {
-    use futures_util::{SinkExt, StreamExt};
-    use tokio_tungstenite::tungstenite::Message;
-
-    let connect = tokio_tungstenite::connect_async(&page_ws_url).await;
-    let Ok((ws, _resp)) = connect else {
-        tracing::warn!(target: "zhuye_browser", "screencast 连接失败:{connect:?}");
-        return;
-    };
-    let (mut sink, mut stream) = ws.split();
-    let start = json!({
-        "id": 1,
-        "method": "Page.startScreencast",
-        "params": {
-            "format": "jpeg",
-            "quality": 70,
-            "maxWidth": 1280,
-            "maxHeight": 800,
-            "everyNthFrame": 2,
-        }
-    });
-    if sink
-        .send(Message::Text(start.to_string().into()))
-        .await
-        .is_err()
-    {
-        return;
-    }
-    loop {
-        tokio::select! {
-            _ = cancel.cancelled() => {
-                // 优雅收尾:停 screencast 再断连。
-                let _ = sink.send(Message::Text(
-                    json!({"id": 2, "method": "Page.stopScreencast", "params": {}})
-                        .to_string().into(),
-                )).await;
-                break;
-            }
-            msg = stream.next() => match msg {
-                Some(Ok(Message::Text(text))) => {
-                    let Ok(v) = serde_json::from_str::<Value>(&text) else { continue };
-                    let method = v.get("method").and_then(Value::as_str).unwrap_or_default();
-                    if method == "Page.frameNavigated" {
-                        // 主 frame 判定:无 parentId(iframe 导航不覆盖面板 URL)。
-                        let frame = v.pointer("/params/frame");
-                        let is_main = frame.and_then(|f| f.get("parentId")).is_none();
-                        let url = frame
-                            .and_then(|f| f.get("url"))
-                            .and_then(Value::as_str)
-                            .filter(|u| !u.is_empty());
-                        if is_main {
-                            if let Some(url) = url {
-                                let mut manager = agent.inner.browser.lock().await;
-                                manager.last_url = Some(url.to_string());
-                            }
-                        }
-                        continue;
-                    }
-                    if method != "Page.screencastFrame" {
-                        continue;
-                    }
-                    // 必须回 ack,否则浏览器节流到 1 帧。
-                    let frame_session = v
-                        .pointer("/params/sessionId")
-                        .and_then(Value::as_str)
-                        .unwrap_or_default()
-                        .to_string();
-                    let _ = sink.send(Message::Text(json!({
-                        "id": 3,
-                        "method": "Page.screencastFrameAck",
-                        "params": {"sessionId": frame_session},
-                    }).to_string().into())).await;
-                    if let Some(data) = v.pointer("/params/data").and_then(Value::as_str) {
-                        let payload = BrowserFramePayload { data: data.to_string() };
-                        let _ = tauri::Emitter::emit(&app, "zhuye_browser_frame", &payload);
-                    }
-                }
-                Some(Ok(_)) => continue,
-                Some(Err(err)) => {
-                    tracing::warn!(target: "zhuye_browser", %err, "screencast 连接错误");
-                    break;
-                }
-                None => break,
-            }
-        }
-    }
-}
-
 /// profile 目录暴露给诊断(与上游发现契约一致)。
 pub fn profile_dir() -> PathBuf {
     chrome::profile_dir()
@@ -387,6 +357,16 @@ pub fn profile_dir() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn page_endpoint_uses_target_id_from_cdp_target_info() {
+        let target = json!({"targetId": "ABC", "type": "page"});
+        assert_eq!(
+            page_endpoint("ws://127.0.0.1:9222/devtools/browser/xyz", &target).unwrap(),
+            "ws://127.0.0.1:9222/devtools/page/ABC"
+        );
+        assert!(page_endpoint("ws://127.0.0.1:9222/devtools/browser/xyz", &json!({})).is_err());
+    }
 
     #[test]
     fn status_dto_is_camel_case() {

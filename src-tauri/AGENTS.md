@@ -21,6 +21,7 @@
 
 | 文件 | 一句话职责 |
 |---|---|
+| `src/browser_backend.rs` + `src/browser_backend/` | 浏览器进程与页面会话：CDP 帧流确认、最近帧重放、导航、持久连接上的设备尺寸与输入注入；输入字段使用 camelCase，重新挂载面板需先订阅再调用幂等启动以重放最近帧 |
 | `src/events.rs` | 事件转发器：broadcast `Event` → `app.emit("zhuye_event")` 单一通道 |
 | `src/agent_state.rs` | 活跃 agent 定义选择（当前生效的 agent def） |
 | `src/mcp.rs` | MCP/LSP 运行时接入 |

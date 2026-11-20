@@ -137,6 +137,10 @@ export function UsageDock() {
                       <b data-testid="usage-dock-total">{(stats.totalTokens ?? 0).toLocaleString()}</b>
                       <span>{t('harness.usage.msgs', { n: stats.messageCount ?? 0 })}</span>
                     </div>
+                    <div className="us-kv" data-testid="usage-dock-cache-rate">
+                      <span>{t('usage.cacheHitRate')}</span>
+                      <b>{stats.cacheHitRate == null ? '—' : `${(stats.cacheHitRate * 100).toFixed(1)}%`}</b>
+                    </div>
                     {segments.length > 0 && (
                       <>
                         <div className="us-split" role="img" aria-label={t('harness.usage.total')}>

@@ -3,7 +3,7 @@
  *
  * 行为契约:
  *   - 初始 mode 取自 localStorage(`zhuye-theme`)。
- *   - cycleTheme:dark → light → system → dark。
+ *   - cycleTheme 在实际深浅主题之间切换。
  *   - setThemeMode 持久化并更新 React state。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -27,7 +27,7 @@ describe('useThemeCycle', () => {
     expect(result.current.resolved).toBeTypeOf('string');
   });
 
-  it('cycleTheme moves dark → light → system → dark', () => {
+  it('cycleTheme switches the visible theme on every click', () => {
     setTheme('dark');
     const { result } = renderHook(() => useThemeCycle());
     expect(result.current.mode).toBe('dark');
@@ -36,10 +36,8 @@ describe('useThemeCycle', () => {
     expect(result.current.mode).toBe('light');
 
     act(() => result.current.cycleTheme());
-    expect(result.current.mode).toBe('system');
-
-    act(() => result.current.cycleTheme());
     expect(result.current.mode).toBe('dark');
+    expect(result.current.resolved).toBe('dark');
   });
 
   it('setThemeMode updates React state and persists to localStorage', () => {

@@ -30,7 +30,7 @@ export function SettingsHost({ open, onClose }: { open: boolean; onClose: () => 
               <X size={14} strokeWidth={1.5} aria-hidden />
             </button>
           </div>
-          <div className="ms-body" style={{ padding: 0 }}>
+          <div className="ms-body flush">
             <SettingsView />
           </div>
         </div>

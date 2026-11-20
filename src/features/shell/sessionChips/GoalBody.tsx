@@ -1,9 +1,9 @@
 /**
- * GoalWidget —— 右上角目标模式。
+ * GoalBody —— 会话内 chips「目标」的内容体。
  *
  * 活跃时展示目标 / 状态 / 进度 / 最近校验结论，可退出、可刷新快照
  * （`syncGoalSnapshot` 是 store 既有的权威校准 action）；空闲时提供
- * 内联「设目标」表单（目标文本 + 可选 token 预算）。
+ * 「设目标」表单（目标文本 + 可选 token 预算）。
  */
 import { useState } from 'react';
 import { Loader2, RefreshCw, Target, XCircle } from 'lucide-react';
@@ -15,8 +15,7 @@ import {
   zhuye_exit_goal_mode,
   type GoalSnapshotPayload,
 } from '@/utils/commands/goal';
-import { CornerWidget } from './CornerWidget';
-import s from '@/render/shell/CornerWidgets.module.css';
+import s from '@/render/shell/SessionChips.module.css';
 
 const STATUS_KEY: Record<string, string> = {
   active: 'harness.corner.goal.status.active',
@@ -30,7 +29,12 @@ function statusLabel(t: (k: string) => string, status: string | undefined): stri
   return status ? (STATUS_KEY[status] ? t(STATUS_KEY[status]) : status) : t('harness.corner.goal.noSnapshot');
 }
 
-export function GoalWidget() {
+/** 目标状态的短标签（chip 徽标用）。 */
+export function goalStatusLabel(t: (k: string) => string, status: string | undefined): string {
+  return statusLabel(t, status);
+}
+
+export function GoalBody() {
   const { t } = useI18n();
   const goalActive = useAgentStore((st) => st.goalActive);
   const snapshot = useAgentStore((st) => st.goalSnapshot);
@@ -70,14 +74,7 @@ export function GoalWidget() {
   const status = snapshot?.status;
 
   return (
-    <CornerWidget
-      testId="goal"
-      icon={<Target size={13} />}
-      label={t('harness.corner.goal.title')}
-      badge={goalActive ? statusLabel(t, status) : t('harness.corner.goal.setIdle')}
-      active={goalActive}
-      defaultOpen={goalActive}
-    >
+    <div className={s.body} data-testid="corner-goal-body">
       {goalActive ? (
         <div className={s.goalBody} data-testid="corner-goal-active">
           <p className={s.goalText}>{snapshot?.goal ?? t('harness.corner.goal.noSnapshot')}</p>
@@ -152,7 +149,7 @@ export function GoalWidget() {
           </button>
         </div>
       )}
-    </CornerWidget>
+    </div>
   );
 }
 

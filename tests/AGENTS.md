@@ -52,8 +52,14 @@
 - Shell 用例一律 source `lib.sh`，用 `tcase` / `tcase_log` / `tfinish` / `assert_*` 助手；mktemp HOME 隔离，不污染真实 `~/.zhuye`。
 - `helpers/fakeBackend.ts` 依赖 `../src/test/setup.tsx` 的 `mockInvoke` / `emitMockEvent`——改 IPC mock 面时两处联动。
 - `contracts/` 四份 JSON 是线格式契约证据，协议变更须同步更新（上游规范见 `../docs/protocol-bridge.md`）。
-- 视觉基线按平台三份（linux / macos / windows），重写必须 `VISUAL_UPDATE=1` 显式声明；路由矩阵以 `helpers/routeMatrix.ts` 的 `ROUTES` 表为唯一源，新增路由三处（行为 / axe / 视觉）自动跟进。
-- e2e 真窗口路径分平台：Linux（tauri-driver + WebKitWebDriver）与 Windows（msedgedriver）走 WebDriver；macOS 无 WKWebView WebDriver，走系统窗口层冒烟（`e2e/macos_window_smoke.sh`）。
+- **视觉基线按平台三份**（linux / macos / windows），重写必须 `VISUAL_UPDATE=1` 显式声明；路由矩阵以 `helpers/routeMatrix.ts` 的 `ROUTES` 表为唯一源，新增路由三处（行为 / axe / 视觉）自动跟进。
+- **⚠️ 像素判定当前关闭**：`visual/visual.spec.ts` 的 `VISUAL_DIFF_DETECTION = false` —— v3 harness 界面高频改版，逐像素判定带来的基线重生成 churn 大于收益。现行行为：**只出图、不判定**（截图写 `.test-results/visual-current/` 供人工翻看，基线保持原样、绝不被悄悄覆盖；缺基线/陈旧基线也不点名）。界面稳定后把开关改回 `true` 即恢复判定，基线用 `VISUAL_UPDATE=1` 重生成。
+- **会话侧栏交互实浏览器断言**：`visual/visual.spec.ts` 检查菜单锚点与视口边界、工作区折叠、单击主题切换及跟随系统变化，附菜单截图供人工审查。
+- **交互面（弹窗）也要进视觉门禁**：`visual/visual.spec.ts` 的 `SURFACES` 表登记「非路由的可见界面」（v3 起：设置弹窗）。路由矩阵只覆盖「一页一面」，弹窗对门禁隐形 —— 设置弹窗曾整页空白而路由基线张张正常。基线集合完整性校验的口径是「路由矩阵 + 交互面」× 双主题**恰好相等**。
+- 视觉构建入口 `visual/main.tsx` **必须引入被测应用的真实样式表**（v3 起为 `src/render/styles/harness.css`）——只引 `tokens.css`/`base.css` 会拍到无布局骨架的空页面，基线从此失真。`visual.spec.ts` 有守卫断言「构建入口引入了 harness.css」，漏引即红。
+- 主题在**应用启动前**注入：`page.addInitScript` 必须在应用脚本执行前写 `localStorage['zhuye-theme']`，否则 `getTheme()` 读不到当轮主题，亮/暗基线会整体颠倒且跨用例互相污染。
+- **基线必须与消费它的 CI job 同平台生成**：字体渲染差异会逐像素失配。macOS 基线本机生成，linux / windows 走 `.github/workflows/visual-baselines.yml`（`workflow_dispatch` → 下载 artifact 覆盖入库），不要拿本机产物冒充。
+- e2e 真窗口路径分平台：Linux（tauri-driver + WebKitWebDriver）与 Windows（msedgedriver）走 WebDriver；macOS 无 WKWebView WebDriver，走系统窗口层冒烟（`e2e/macos_window_smoke.sh`）；Vite 在仓库根运行，应用必须在 `ISO_CWD` 启动以隔离工作区数据。
 - 仓库根 `vitest.config.ts` 收集 `src/**` + `tests/**`，但排除 `tests/e2e/**` 与 `tests/visual/**`（L5 各自用独立 vitest.config.ts 跑）。
 - 无法自动测试的后端命令在 `command-test-exclusions.json` 登记原因；无测试且无登记会被静态门禁拒绝。
 - 新增能力域时同步补 `COVERAGE.md`（能力→套侧行）与 `RUNTIME_COVERAGE.md`（三证据清单行）。

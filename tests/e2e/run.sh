@@ -352,7 +352,7 @@ elif [ "$PLATFORM" = "Darwin" ] && [ "${E2E_SKIP_WINDOW:-0}" != "1" ]; then
             tcase "macOS 原生窗口隔离环境" false
         elif tcase_log "macOS 原生窗口冒烟(真实进程 + CoreGraphics + 截图)" \
             "$RESULT_DIR/e2e-macos-smoke.log" \
-            bash "$HERE/macos_window_smoke.sh" "$APP_BIN" "$RESULT_DIR"; then
+            bash "$HERE/macos_window_smoke.sh" "$APP_BIN" "$RESULT_DIR" "$ISO_CWD"; then
             PASS_COUNT+=1
             echo "  [ok]   macOS 原生窗口冒烟(截图落 .test-results/e2e-window-macos.png)"
             printf 'PASS\tmacOS 原生窗口冒烟(真实进程/系统窗口层)\n' >> "$RESULT_DIR/$SUITE_NAME.cases"

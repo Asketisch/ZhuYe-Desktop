@@ -1,6 +1,6 @@
-//! 面板导航命令的后端实现(地址栏 / 后退 / 前进 / 刷新 / 设备模拟)。
+//! 面板导航与设备模拟命令的后端实现。
 //!
-//! 与 screencast 的常驻连接分开:每条命令开一条**短连接**
+//! 导航与 screencast 的常驻连接分开:每条导航命令开一条**短连接**
 //! (connect → getTargets → attachToTarget → send → 回复 → drop),
 //! 用完即断,互不抢通道。浏览器未运行时 `browser_ws_endpoint()`
 //! 返回结构化错误,前端如实展示。
@@ -109,21 +109,29 @@ pub async fn reload(agent: &crate::state::MinimalAgent) -> Result<BrowserStatusD
     super::status(agent).await
 }
 
-/// 应用设备模拟尺寸(0/0 = 清除 override 复位;预设清单在前端)。
+/// 应用设备模拟尺寸；覆盖与页面会话同寿命，断开临时 CDP 会话会撤销覆盖。
 pub async fn set_device(
     agent: &crate::state::MinimalAgent,
     width: u32,
     height: u32,
 ) -> Result<BrowserStatusDto, String> {
-    if width == 0 || height == 0 {
-        page_command("Emulation.clearDeviceMetricsOverride", json!({})).await?;
-    } else {
-        page_command(
-            "Emulation.setDeviceMetricsOverride",
-            json!({ "width": width, "height": height, "deviceScaleFactor": 1, "mobile": false }),
-        )
-        .await?;
+    let tx = {
+        let manager = agent.inner.browser.lock().await;
+        manager.input_tx.clone()
     }
+    .ok_or_else(|| "浏览器面板未启动，无法设置设备尺寸".to_string())?;
+    let (reply, result) = tokio::sync::oneshot::channel();
+    tx.send(super::PageCommand::SetDevice {
+        width,
+        height,
+        reply,
+    })
+    .await
+    .map_err(|_| "浏览器会话已结束，请重新启动浏览器".to_string())?;
+    tokio::time::timeout(Duration::from_secs(10), result)
+        .await
+        .map_err(|_| "设置设备尺寸超时".to_string())?
+        .map_err(|_| "浏览器会话已结束，请重新启动浏览器".to_string())??;
     super::status(agent).await
 }
 

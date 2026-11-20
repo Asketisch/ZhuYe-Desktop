@@ -177,6 +177,10 @@ function OverviewTab() {
               </Tooltip>
               <span className={s.value}>{tokens.cached.toLocaleString()}</span>
             </li>
+            <li className={s.row} data-testid="inspector-cache-rate">
+              <span className={s.name}>{t('usage.cacheHitRate')}</span>
+              <span className={s.value}>{tokens.input > 0 ? `${(tokens.cached / tokens.input * 100).toFixed(1)}%` : '—'}</span>
+            </li>
             {tokens.cacheWrite > 0 && (
               <li className={s.row}>
                 <Tooltip label={t('inspector.tokenCacheWriteHint')} side="left">

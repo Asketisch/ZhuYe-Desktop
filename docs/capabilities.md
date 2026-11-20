@@ -333,12 +333,22 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 
 上游 `zhuye-browser` crate + `plugins/browser` 落地后,桌面接线**显示通道**:
 `zhuye_browser_start/stop/status/env` 命令(`commands/browser.rs`)+
-`zhuye_browser_frame` 事件(base64 JPEG,`Page.startScreencast` 只读帧流,
-`everyNthFrame=2` 节流)。与 agent 控制通道共享 `$ZHUYE_HOME/browser-profile`
+`zhuye_browser_frame` 事件(base64 JPEG,`Page.startScreencast` 帧流,
+`everyNthFrame=1`，逐帧确认)。与 agent 控制通道共享 `$ZHUYE_HOME/browser-profile`
 的 `DevToolsActivePort` 发现契约(先启动者持有,后到 attach)。`status`
 无副作用(不拉起浏览器);`start` 的应用句柄检查先于一切浏览器探测 ——
 能力覆盖层不会误启真浏览器(L3 `ipc_browser.rs`)。**控制通道**(MCP 工具)
-需装 browser 插件;真机画面与 agent 联动为实机验收项。
+需装 browser 插件；隔离 Chrome 测试覆盖帧流、导航与鼠标键盘输入，agent 联动仍为实机验收项。
+
+**面板输入注入**(桌面半边自足,不依赖 browser 插件):`zhuye_browser_input`
+命令把面板上的鼠标 / 滚轮 / 键盘转成 CDP Input 域命令
+(`Input.dispatchMouseEvent` / `Input.dispatchKeyEvent`)—— 右 dock 的浏览器
+是**真可交互**的(点击、双击、拖动、滚轮、页面内打字),此前只有只读画面。
+坐标由前端送**归一化值**(0..1,相对面板画面),后端按页面 CSS 视口
+(`Page.getLayoutMetrics` → `cssVisualViewport`)换算 —— 面板缩放不影响落点。
+输入与帧流**共用同一条 page 级连接**(每帧另开 websocket 会让拖动手感崩),
+页面会话任务(`browser_backend/page.rs::run_page_session`)同时跑帧流事件与输入
+指令;`Emulation.setFocusEmulationEnabled` 保证无头页面恒持焦点,按键能进页面。
 
 ### 3.39 Git worktree 完整管理（桌面侧）
 

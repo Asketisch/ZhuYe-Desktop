@@ -38,7 +38,64 @@ export interface ZhuyeBrowserFrame {
   data: string;
 }
 
-/** 启动浏览器(必要时)并开始帧流;重复调用幂等。 */
+/**
+ * 面板输入事件（与后端 `BrowserInputEvent` 同构）。
+ *
+ * `x` / `y` 是**归一化坐标**（0..1，相对面板里渲染出来的画面）——
+ * 后端按页面 CSS 视口换算成页面坐标，故面板缩放不影响落点。
+ */
+export type ZhuyeBrowserInputEvent =
+  | { type: 'mouseMove'; x: number; y: number; modifiers: number }
+  | {
+      type: 'mouseDown' | 'mouseUp';
+      x: number;
+      y: number;
+      button: string;
+      clickCount: number;
+      modifiers: number;
+    }
+  | {
+      type: 'mouseWheel';
+      x: number;
+      y: number;
+      deltaX: number;
+      deltaY: number;
+      modifiers: number;
+    }
+  | {
+      type: 'key';
+      action: 'down' | 'up';
+      key: string;
+      code: string;
+      text?: string;
+      virtualKeyCode?: number;
+      modifiers: number;
+    };
+
+/** CDP 修饰键位掩码：Alt=1 / Ctrl=2 / Meta=4 / Shift=8。 */
+export const BROWSER_MODIFIER_ALT = 1;
+export const BROWSER_MODIFIER_CTRL = 2;
+export const BROWSER_MODIFIER_META = 4;
+export const BROWSER_MODIFIER_SHIFT = 8;
+
+/** 由 DOM 键盘/鼠标事件的修饰键布尔量合成 CDP 位掩码。 */
+export function browserModifiersFrom(
+  flags: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean },
+): number {
+  let mask = 0;
+  if (flags.altKey) mask |= BROWSER_MODIFIER_ALT;
+  if (flags.ctrlKey) mask |= BROWSER_MODIFIER_CTRL;
+  if (flags.metaKey) mask |= BROWSER_MODIFIER_META;
+  if (flags.shiftKey) mask |= BROWSER_MODIFIER_SHIFT;
+  return mask;
+}
+
+/** 注入一次输入事件到受控页面（未启动浏览器时后端返回结构化错误）。 */
+export async function zhuye_browser_input(event: ZhuyeBrowserInputEvent): Promise<void> {
+  return invoke<void>('zhuye_browser_input', { event });
+}
+
+/** 启动浏览器并等待帧流确认；已在流时重放最近一帧。 */
 export async function zhuye_browser_start(): Promise<ZhuyeBrowserStatus> {
   return invoke<ZhuyeBrowserStatus>('zhuye_browser_start');
 }

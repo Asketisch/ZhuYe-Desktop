@@ -6,7 +6,7 @@
  * - 写 `document.documentElement.dataset.theme`，tokens.css 据此切换。
  * - 'system' 时清除 data-theme，由 `prefers-color-scheme` 媒体查询决定。
  *
- * 阶段 1 只建基础设施；UI 切换按钮在阶段 3 的 StatusBar 接入。
+ * 系统模式下监听系统深浅变化并重算外观偏好。
  */
 
 import type { ThemeMode } from '@/contracts/appearance';
@@ -25,7 +25,7 @@ function resolveSystem(): 'light' | 'dark' {
 function apply(mode: ThemeMode): 'light' | 'dark' {
   if (typeof document === 'undefined') return 'dark';
   applyThemeAppearance(mode);
-  return resolveSystem();
+  return mode === 'system' ? resolveSystem() : mode;
 }
 
 /** 读取持久化的主题模式（默认 'system'）。 */
@@ -69,7 +69,8 @@ export function initTheme(): () => void {
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
       if (getTheme() === 'system') {
-        notify(resolveSystem());
+        // 系统模式变化也要重算依赖主题的 body 背景偏好。
+        notify(apply('system'));
       }
     };
     // addEventListener 在现代浏览器可用；Safari < 14 用 addListener。

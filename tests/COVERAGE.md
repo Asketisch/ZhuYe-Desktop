@@ -16,7 +16,7 @@
 | L2 | `tests/frontend/` | 真实前端的行为：`tsc --noEmit` + vitest 全量；具体规模以运行报告为准 | **模拟**（`fakeBackend`） | 0 = 通过 |
 | L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / doc-test（`///` 示例绊网，`--all-targets` 不含 doctest）/ `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`）/ llvm-cov 行覆盖报告（装了才跑，可通过 `BACKEND_COVERAGE=0` 关闭；报告型无门槛） | **真** | 0 = 通过 |
 | L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / **签名封印 + 授权已嵌入**（`codesign_entitlements_ok`，自测 `codesign-entitlements.test.sh` 同步编排）/ DMG 内封印 | 真产物 | 0 = 通过 |
-| L5 | `tests/e2e/` | 视觉回归（全路由 × dark/light 截图基线，真实前端 + fakeBackend 浏览器态构建）+ 真窗口冒烟（Linux/Windows WebDriver；macOS CoreGraphics）；`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
+| L5 | `tests/e2e/` | 视觉回归（全路由 + 交互面(弹窗)× dark/light 截图产出，**像素判定当前关闭**，真实前端 + fakeBackend 浏览器态构建）+ 真窗口冒烟（Linux/Windows WebDriver；macOS CoreGraphics）；`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
 | L6 | `tests/live/` | **实模型演练**：`zhuye_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `zhuye_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`ZHUYE_LIVE=1` 开启 | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
 
 **为什么 L2、L3 与 L6 都要有**：L2 验前端行为与线格式（后端是模拟的），
@@ -65,7 +65,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | Git | `git_status` `git_diff` `git_log` `git_stage` `git_unstage` `git_commit` | L3 `ipc_workspace.rs`（临时仓库内、差异内容、撤销暂存及空提交错误） | `GitView` / `DiffViewer` |
 | 终端 | `run_shell`（含 v1.11 `sshHost` 远端分支）`kill_shell` `list_shell_sessions` `pty_start` `pty_write` `pty_resize` `pty_close`（交互终端真 PTY；shell 选择 macOS/Linux=$SHELL、Windows=pwsh/powershell，见 `commands/pty.rs`） | L3 `ipc_workspace.rs`、`ipc_shell_runtime.rs`（会话隔离、生命周期回收与终止副作用）；SSH 参数拼装（`BatchMode` / `ConnectTimeout` / host trim / 命令单参数）由 `commands/shell.rs` 单测覆盖，前缀剥离与会话 `ssh:<host>` 标注由 L2 `useTerminalController.test` 覆盖 | `TerminalView` |
 | 媒体 | `list_media` `media_capabilities` `image_process` | L3 `ipc_workspace.rs`（真实 PNG/JPEG、base64、资产及处理产物随文件变更） | `MediaView` |
-| 受控浏览器 | `browser_start` `browser_stop` `browser_status` `browser_env` `browser_navigate` `browser_back` `browser_forward` `browser_reload` `browser_set_device` | L3 `ipc_browser.rs`（无实例状态、start 结构化错误且不拉真浏览器、stop 幂等、env profile 路径、五个导航命令无实例时结构化失败） | `BrowserView`（替身:空态/帧事件/启停;真画面实机验）+ `BrowserDock`（替身:URL 导航/历史/设备档/帧事件） |
+| 受控浏览器 | `browser_start` `browser_stop` `browser_status` `browser_env` `browser_navigate` `browser_back` `browser_forward` `browser_reload` `browser_set_device` `browser_input` | L3 `ipc_browser.rs`（无实例状态、start 结构化错误且不拉真浏览器、stop 幂等、env profile 路径、导航与设备尺寸命令无实例时结构化失败、`browser_input` 鼠标/键盘两条路径无实例时结构化失败）；Rust 单测 `browser_backend/input.rs`（输入字段反序列化、坐标映射与键鼠转换）及 `browser_backend/page.rs`（帧确认、启动错误）；手动运行的隔离 Chrome 测试覆盖真实帧流、导航、设备尺寸与鼠标键盘输入 | `BrowserView`（替身:空态/帧事件/启停/重新挂载）+ `BrowserDock`（替身:URL 导航/历史/设备档/帧事件/重新挂载；真实窗口画面仍需实机验）+ `logic/browser/browserInput.test.ts`（归一化坐标/可打印文本/双击序号/修饰键合成） |
 | SSH 远程开发 | `remote_hosts` `remote_host_save/remove` `remote_test` `remote_bootstrap` `remote_connect` `remote_bind` `remote_disconnect` `remote_sessions` | L3 `ipc_remote.rs`（stub-ssh 按远端命令分支:注册表持久化往返、握手 sid 提取、前台插槽与 isForeground、bind 未知 sid 拒绝、坏握手/未知 host 结构化错误、断开清理、bootstrap 安装自验输出;argv 登录 shell 形态与 bootstrap 脚本内容单测钉死） | `RemoteView`（替身:SSH 卡片主机列表/连接表单/一键安装+自动重测/断开;真机连接实机验） |
 | 任务 | `list/create/get/update/claim/stop/release/delete_task` `get_task_output` | L3 `ipc_domains.rs` | `TasksBoardView` |
 | 团队 | `list/upsert/get/delete_team` | L3 `ipc_domains.rs` | `TeamEditor` |
@@ -97,7 +97,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | **宿主壳层(菜单)** | 自定义菜单 id ↔ 常量表 ↔ 事件分支对齐;每个发事件的 id 逐个驱动,恰好发出对应 `menu-*` 事件 | `menu.rs` 内嵌单测(mock runtime) | — |
 | **视图渲染错误边界** | 视图 render 抛错 → 回退 + 壳层存活 / Retry 恢复 / 切路由复位(此前整树白屏) | — | `errors.boundary` |
 | **产物深度(Linux/Windows)** | .deb 解包(usr/bin 可执行 + .desktop(Exec) + 图标 + control 版本) / .AppImage(AppRun + .desktop) / .msi 管理映像(exe + ProductVersion) / 启动冒烟(CI 门控) | L4 `artifact/run.sh` | — |
-| **视觉回归** | 路由矩阵 × dark/light 截图与基线解码后的像素零容差比对；比较器自测覆盖编码、尺寸和像素差异；真实前端 + `fakeBackend` 浏览器态构建 | L5 `visual/visual.spec.ts` + `visual/png-compare.spec.ts` | — |
+| **视觉回归** | 路由矩阵 + 交互面(设置弹窗)× dark/light 截图产出（像素比对**当前关闭**：`VISUAL_DIFF_DETECTION = false`，只出图不判定，截图落 `.test-results/visual-current/`）；比较器自测覆盖编码、尺寸和像素差异；真实浏览器断言侧栏菜单锚定、分组折叠、单击主题切换与系统主题变化；真实前端 + `fakeBackend` 浏览器态构建；构建入口必须引 `harness.css`（否则拍到无壳层样式的页面） | L5 `visual/visual.spec.ts` + `visual/png-compare.spec.ts` | — |
 | **真窗口 E2E** | 聊天和工具审批回路、批准后沙箱写盘、流中中断与后续消息恢复、两条会话侧栏往返切换与历史隔离、Goal 控制器挂载/清除、压缩请求回执、终端 stdout/退出码/终止、文件编辑回读、任务创建推进与切页回读、导航浮层、路由矩阵和错误边界 | L5 `e2e/window.smoke.test.ts` + `e2e/mock-provider.mjs`（`tauri-driver` + WebKitWebDriver + Xvfb） | — |
 | **实模型全链路** | 有**真模型**的完整一轮:`zhuye_submit` → AgentThread → 真 provider(免费模型池)→ 真 SSE → `zhuye_event` 通道。断言:model spec 解析成真实 id(非占位串)、turn 有终态、usage 字段齐全、工具调用成对。**不断言回答文本** | L6 `ipc_live_free_model.rs`(默认 SKIP,`ZHUYE_LIVE=1` 开启) | — |
 | **模型发现(清单实时拉取)** | `model = "free"` → 运行时查 provider 清单 → 按免费规则挑一个 → 写进运行时配置;失败**如实上报**(不回落占位串) | L6 `ipc_live_free_model.rs`(随实模型层跑) | — |

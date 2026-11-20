@@ -1,19 +1,18 @@
 /**
- * SubagentsWidget —— 右上角子代理速览。
+ * SubagentsBody —— 会话内 chips「子代理」的内容体。
  *
- * chip 显示运行中数量；面板复用 store 的 `subagents.lastStatus`（children
- * 快照）+ `feed`（进度流尾部），提供刷新 / 逐 child 中断 / 跳检查器
- * 子代理档。无任何子代理活动时整体隐藏。
+ * 复用 store 的 `subagents.lastStatus`（children 快照）+ `feed`
+ * （进度流尾部），提供刷新 / 逐 child 中断 / 跳检查器子代理档。
+ * 无任何子代理活动时返回 null（chip 随之隐藏）。
  */
 import { AlertOctagon, Bot, Loader2, RefreshCw } from 'lucide-react';
 import { Badge, Icon } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
 import { useI18n } from '@/utils/i18n';
-import { CornerWidget } from './CornerWidget';
-import s from '@/render/shell/CornerWidgets.module.css';
+import s from '@/render/shell/SessionChips.module.css';
 
-export function SubagentsWidget() {
+export function SubagentsBody() {
   const { t } = useI18n();
   const feed = useAgentStore((st) => st.subagents.feed);
   const lastStatus = useAgentStore((st) => st.subagents.lastStatus);
@@ -24,17 +23,8 @@ export function SubagentsWidget() {
 
   if (feed.length === 0 && (lastStatus === null || lastStatus.length === 0)) return null;
 
-  const running = (lastStatus ?? []).filter((c) => c.state === 'running');
-  const badge = running.length > 0 ? `${running.length}` : `${(lastStatus ?? []).length}`;
-
   return (
-    <CornerWidget
-      testId="subagents"
-      icon={<Bot size={13} />}
-      label={t('harness.corner.subagents.title')}
-      badge={badge}
-      active={running.length > 0}
-    >
+    <div className={s.body} data-testid="corner-subagents-body">
       <div className={s.btnRow}>
         <button type="button" className={s.btn} onClick={() => void querySubagents().catch(() => {})} data-testid="corner-subagents-refresh">
           <Icon icon={RefreshCw} size={12} /> {t('harness.corner.subagents.refresh')}
@@ -85,6 +75,18 @@ export function SubagentsWidget() {
           </li>
         ))}
       </ul>
-    </CornerWidget>
+    </div>
   );
 }
+
+/** 运行中的子代理数量（chip 徽标用；无活动时 0）。 */
+export function useRunningSubagentCount(): number {
+  const lastStatus = useAgentStore((st) => st.subagents.lastStatus);
+  const feed = useAgentStore((st) => st.subagents.feed);
+  if (feed.length === 0 && (lastStatus === null || lastStatus.length === 0)) return 0;
+  const running = (lastStatus ?? []).filter((c) => c.state === 'running');
+  return running.length > 0 ? running.length : (lastStatus ?? []).length;
+}
+
+/** 子代理 chip 的图标（与内容体同源）。 */
+export const SUBAGENTS_ICON = Bot;

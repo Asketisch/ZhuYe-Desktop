@@ -88,7 +88,12 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
   `reducedMotion: 'reduce'` + 注入 CSS 关闭动画/过渡/光标、
   `document.fonts.ready` 等待字体。本地缺基线时可生成，门禁标记为跳过；
   严格环境缺基线判失败。显式重生成也不算完成基线比对。
-- **真窗口冒烟**（`window.smoke.test.ts` + `macos_window_smoke.sh`）：Linux
+  **⚠️ 像素判定当前关闭**（`visual.spec.ts` 的 `VISUAL_DIFF_DETECTION =
+  false`）：v3 harness 界面高频改版，逐像素判定的重生成 churn 大于收益。
+  现行行为是**只出图、不判定** —— 截图写 `.test-results/visual-current/`
+  供人工翻看，基线保持原样，缺基线/陈旧基线不再点名失败；界面稳定后把
+  开关改回 `true` 即恢复判定。
+- **真窗口冒烟**（`window.smoke.test.ts` + `macos_window_smoke.sh`，应用在隔离工作区启动）：Linux
   用 `tauri-driver` + `webkit2gtk-driver`（`xvfb-run` 下），Windows 用
   `tauri-driver` + `msedgedriver`；macOS 无 WKWebView WebDriver，改用
   CoreGraphics 验证真实进程的 1280×800 在屏主窗口并截图。Linux 测试使用

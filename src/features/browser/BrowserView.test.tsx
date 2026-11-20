@@ -49,7 +49,7 @@ describe('BrowserView', () => {
     }));
     render(<BrowserView />);
     await waitFor(() => {
-      expect(screen.getByTestId('browser-start')).toBeDefined();
+      expect((screen.getByTestId('browser-start') as HTMLButtonElement).disabled).toBe(false);
     });
 
     mockInvoke('zhuye_browser_start', async () => ({
@@ -72,6 +72,15 @@ describe('BrowserView', () => {
     });
     const frame = screen.getByTestId('browser-frame') as HTMLImageElement;
     expect(frame.src).toBe('data:image/jpeg;base64,ZmFrZWpwZWc=');
+  });
+
+  it('重新打开运行中的页面时恢复最近画面', async () => {
+    const running = { running: true, url: 'about:blank', title: null, streaming: true, message: null };
+    mockInvoke('zhuye_browser_status', async () => running);
+    mockInvoke('zhuye_browser_start', async () => { emitMockEvent('zhuye_browser_frame', { data: 'cmVwbGF5' }); return running; });
+    render(<BrowserView />);
+    const frame = await screen.findByTestId('browser-frame') as HTMLImageElement;
+    expect(frame.src).toBe('data:image/jpeg;base64,cmVwbGF5');
   });
 
   it('停止 → 帧清空回空态', async () => {
@@ -116,7 +125,7 @@ describe('BrowserView', () => {
     }));
     render(<BrowserView />);
     await waitFor(() => {
-      expect(screen.getByTestId('browser-start')).toBeDefined();
+      expect((screen.getByTestId('browser-start') as HTMLButtonElement).disabled).toBe(false);
     });
     mockInvoke('zhuye_browser_start', async () => {
       throw new Error('本机未找到 Chrome/Chromium/Edge');

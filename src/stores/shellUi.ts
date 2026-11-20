@@ -23,6 +23,8 @@ interface ShellUiPersist {
   dockOpen: boolean;
   termOpen: boolean;
   semantic: 'on' | 'off';
+  /** 用户拖拽出来的 dock 宽度（null = 未拖过，用各档位默认宽度）。 */
+  dockWidth: number | null;
 }
 
 const STORAGE_KEY = 'zhuye-harness-ui';
@@ -45,6 +47,7 @@ function savePersisted(state: ShellUiPersist): void {
       dockOpen: state.dockOpen,
       termOpen: state.termOpen,
       semantic: state.semantic,
+      dockWidth: state.dockWidth,
     } satisfies ShellUiPersist));
   } catch {
     /* 存储不可用时静默降级为内存态 */
@@ -73,6 +76,15 @@ interface ShellUiState extends ShellUiPersist {
   toggleRail: () => void;
   setDockMode: (mode: DockMode) => void;
   toggleDockWide: () => void;
+  /**
+   * 设置 dock 宽度（拖拽中高频调用）。
+   *
+   * 只改内存态：拖拽每帧都写 localStorage 会造成 IO 抖动，
+   * 落盘由 {@link commitDockWidth} 在松手时做一次。
+   */
+  setDockWidth: (width: number | null) => void;
+  /** 把当前 dock 宽度落盘（拖拽结束 / 键盘调整结束时调用）。 */
+  commitDockWidth: () => void;
   setTermOpen: (open: boolean) => void;
   toggleTerm: () => void;
   openInbox: (tab?: InboxTab) => void;
@@ -97,6 +109,7 @@ export const useShellUi = create<ShellUiState>((set, get) => ({
   dockOpen: persisted.dockOpen ?? false,
   termOpen: persisted.termOpen ?? false,
   semantic: persisted.semantic ?? 'on',
+  dockWidth: persisted.dockWidth ?? null,
   inboxOpen: false,
   inboxTab: 'todo',
   settingsOpen: false,
@@ -126,6 +139,19 @@ export const useShellUi = create<ShellUiState>((set, get) => ({
     savePersisted(next);
     return { dockWide: next.dockWide };
   }),
+  setDockWidth: (width) => set(() => ({ dockWidth: width })),
+  commitDockWidth: () => {
+    const s = get();
+    savePersisted({
+      rail: s.rail,
+      dockMode: s.dockMode,
+      dockWide: s.dockWide,
+      dockOpen: s.dockOpen,
+      termOpen: s.termOpen,
+      semantic: s.semantic,
+      dockWidth: s.dockWidth,
+    });
+  },
   setTermOpen: (open) => set(() => {
     const next = { ...get(), termOpen: open };
     savePersisted(next);

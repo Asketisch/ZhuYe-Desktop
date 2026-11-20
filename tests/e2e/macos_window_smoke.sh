@@ -6,6 +6,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 APP_BIN="${1:?缺少调试二进制路径}"
 RESULT_DIR="${2:?缺少结果目录}"
+APP_CWD="${3:?缺少隔离工作目录}"
 
 cd "$ROOT"
 mkdir -p "$RESULT_DIR"
@@ -47,7 +48,8 @@ if [ "$ready" -ne 1 ]; then
     exit 2
 fi
 
-"$APP_BIN" >"$RESULT_DIR/e2e-macos-window.log" 2>&1 &
+# Vite 必须在仓库根启动；应用本身必须在隔离工作区启动。
+(cd "$APP_CWD" && exec "$APP_BIN") >"$RESULT_DIR/e2e-macos-window.log" 2>&1 &
 APP_PID=$!
 
 probe_log="$RESULT_DIR/e2e-macos-window-probe.log"

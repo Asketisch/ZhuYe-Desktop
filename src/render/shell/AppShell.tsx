@@ -15,7 +15,7 @@ export function AppShell({
   suppressInteraction, toasts, onDismissToast, content, slots, harness,
 }: ShellViewProps) {
   const { TitleBar, Sidebar, CommandPalette, ModalStack, Toast,
-    ConfirmDialogHost, ViewErrorBoundary, DockPanel, TerminalDock, InboxPanel, SettingsHost } = slots;
+    ConfirmDialogHost, ViewErrorBoundary, DockPanel, DockResizer, TerminalDock, InboxPanel, SettingsHost } = slots;
   const { data } = harness;
   const { t } = data;
   const { moreMenuOpen } = data;
@@ -195,6 +195,8 @@ export function AppShell({
               <Icon icon={ChevronRight} size={14} />
             </button>
           </div>
+          {/* 左缘分隔条：按住拖动改 dock 宽度（宽度真源在 shellUi）。 */}
+          <DockResizer />
           <DockPanel />
         </aside>
       </div>

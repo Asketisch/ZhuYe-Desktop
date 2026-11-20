@@ -5,7 +5,7 @@
  * context window 大小），无后端往返。无数据（未知窗口大小 / 尚无
  * token 上报）时不渲染。
  *
- * - < 80%：accent 色细条 + 百分比；
+ * - < 80%：圆形进度 + 百分比；
  * - ≥ 80%：warning 色，tooltip 提示 /compact。
  */
 import { useAgentStore } from '@/stores/agentStore';
@@ -47,9 +47,11 @@ export function ContextUsage() {
       data-testid="composer-context-usage"
       aria-label={tooltip}
     >
-      <span className={s.usageBar} aria-hidden="true">
-        <span className={s.usageFill} style={{ width: `${Math.max(2, pct)}%` }} />
-      </span>
+      <svg width="28" height="28" viewBox="0 0 36 36" aria-hidden="true">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="var(--line-2)" strokeWidth="3" />
+        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3"
+          pathLength="100" strokeDasharray={`${pct} 100`} transform="rotate(-90 18 18)" />
+      </svg>
       <span className={s.usagePct}>{pct}%</span>
     </div>
   );

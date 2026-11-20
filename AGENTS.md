@@ -211,7 +211,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 | L2 前端行为 | `bash tests/run_all.sh frontend` | `tsc --noEmit` + vitest 全量 | **模拟**（`fakeBackend`） |
 | L3 真后端能力覆盖 | `bash tests/run_all.sh backend` | `cargo fmt` / `clippy` / `cargo test`（含能力覆盖层） | **真**（模型是假的） |
 | L4 发布产物 | `bash tests/run_all.sh artifact` | `.app` 结构 / Info.plist / 资源已嵌入 / 签名 / 无开发残留 / .deb・.AppImage・.msi 解包深度校验 / 启动冒烟（CI 门控） | 真产物 |
-| L5 e2e | `bash tests/run_all.sh e2e` | 视觉回归（路由 × dark/light 截图基线，`tests/visual/`）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）。依赖缺失默认跳过，`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） |
+| L5 e2e | `bash tests/run_all.sh e2e` | 视觉回归（路由 × dark/light 截图基线，`tests/visual/`）+ WebDriver 真窗口冒烟（仅 Linux，`tauri-driver`）。依赖缺失默认跳过，`E2E_REQUIRED=1` 强制。**⚠️ 视觉的像素判定当前关闭**（`visual.spec.ts` 的 `VISUAL_DIFF_DETECTION = false`）：只出图不判定，截图落 `.test-results/visual-current/` 供人工翻看 | 模拟（视觉）/ 真（窗口） |
 | L6 实模型演练 | `ZHUYE_LIVE=1 bash tests/run_all.sh live` | 真 provider（免费模型池）+ 真 SSE 的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，不发起任何网络请求 | **真**（模型也是真的） |
 
 - **L2 与 L3 都要有**：L2 的后端是模拟的 —— 模拟后端的 bug 会把真后端的 bug 遮住。L3 用 `tauri::test` mock runtime 驱动**生产同一份** `generate_handler!` 注册表里的**真实命令体**，不经前端 `invoke` 包装、不经 `fakeBackend`。

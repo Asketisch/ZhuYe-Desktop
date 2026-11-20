@@ -37,6 +37,25 @@ export interface BrowserDockViewProps {
   onDeviceChange: (id: string) => void;
   onStart: () => void;
   onStop: () => void;
+  /* ===== 输入注入(由 feature 层注入,本层不碰 DOM 几何) ===== */
+  /** 画面获得键盘焦点。 */
+  onFrameFocus?: () => void;
+  /** 画面失去键盘焦点。 */
+  onFrameBlur?: () => void;
+  /** 鼠标按下(画面坐标 → 归一化坐标由上层算)。 */
+  onFramePointerDown?: (e: React.PointerEvent<HTMLImageElement>) => void;
+  /** 鼠标移动(hover / 拖动)。 */
+  onFramePointerMove?: (e: React.PointerEvent<HTMLImageElement>) => void;
+  /** 鼠标抬起。 */
+  onFramePointerUp?: (e: React.PointerEvent<HTMLImageElement>) => void;
+  /** 指针离开画面。 */
+  onFramePointerLeave?: (e: React.PointerEvent<HTMLImageElement>) => void;
+  /** 滚轮。 */
+  onFrameWheel?: (e: React.WheelEvent<HTMLImageElement>) => void;
+  /** 按键按下。 */
+  onFrameKeyDown?: (e: React.KeyboardEvent<HTMLImageElement>) => void;
+  /** 按键抬起。 */
+  onFrameKeyUp?: (e: React.KeyboardEvent<HTMLImageElement>) => void;
   /** 已翻译文案集合。 */
   labels: {
     back: string;
@@ -49,6 +68,8 @@ export interface BrowserDockViewProps {
     emptyTitle: string;
     emptyHint: string;
     waitFrame: string;
+    /** 画面区域的无障碍标签(可交互浏览器)。 */
+    frameLabel: string;
   };
 }
 
@@ -56,6 +77,9 @@ export function BrowserDockView({
   running, frame, url, busy, error, urlDraft, onUrlDraftChange,
   onNavigate, onBack, onForward, onReload, device, devices, onDeviceChange,
   onStart, onStop, labels,
+  onFrameFocus, onFrameBlur,
+  onFramePointerDown, onFramePointerMove, onFramePointerUp, onFramePointerLeave,
+  onFrameWheel, onFrameKeyDown, onFrameKeyUp,
 }: BrowserDockViewProps) {
   return (
     <div className="browser" data-testid="browser-dock">
@@ -173,6 +197,20 @@ export function BrowserDockView({
                 // 等比缩放到面板宽度(screencast 帧最大 1280×800)。
                 style={{ maxWidth: '100%', height: 'auto' }}
                 data-testid="browser-dock-frame"
+                /* 可交互浏览器:画面本身可聚焦并接收指针 / 键盘事件,
+                   事件由 feature 层转成 CDP Input 域命令注入页面。 */
+                tabIndex={0}
+                role="application"
+                aria-label={labels.frameLabel}
+                onFocus={onFrameFocus}
+                onBlur={onFrameBlur}
+                onPointerDown={onFramePointerDown}
+                onPointerMove={onFramePointerMove}
+                onPointerUp={onFramePointerUp}
+                onPointerLeave={onFramePointerLeave}
+                onWheel={onFrameWheel}
+                onKeyDown={onFrameKeyDown}
+                onKeyUp={onFrameKeyUp}
               />
             ) : (
               <div className="bw-empty" data-testid="browser-dock-waiting">

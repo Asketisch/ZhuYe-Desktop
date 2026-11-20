@@ -13,6 +13,10 @@ import { bootstrapAppearance } from '../../src/logic/webview/bootstrapAppearance
 import { mountVisualGlobals } from './shims/tauriCore';
 import '../../src/render/styles/tokens.css';
 import '../../src/render/styles/base.css';
+// harness.css 必须一起进视觉构建 —— 少了它,基线拍到的是**没有任何壳层
+// 布局样式**的页面(v3 harness 换装后基线全部失真,视觉门禁形同虚设)。
+// 守卫见 tests/visual/visual.spec.ts 的「视觉构建必须引入 harness.css」。
+import '../../src/render/styles/harness.css';
 
 bootstrapAppearance(renderer.appearance);
 mountVisualGlobals();

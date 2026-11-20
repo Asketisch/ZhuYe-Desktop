@@ -17,7 +17,7 @@
 | `tauri.ts` / `commands.ts` / `i18n.ts` | 三个兼容桶，仅保留向后兼容 re-export，文件头明令不再新增 |
 | `i18n/` | 运行时拆分：`context.tsx`（Provider / `useI18n`）、`locale.ts`、`lookup.ts`、`interpolate.ts`、`types.ts` + `strings/` 领域文案目录 |
 | `notify.ts` | 系统通知（本目录最大单文件，约 330 行）；读 agentStore 做通知决策，是 utils → stores 的已知反向边 |
-| `theme.ts` / `uiPrefs.ts` | 主题与 UI 偏好兼容导出；持久化位于 `logic/preferences/`，外观映射位于 `render/appearance.ts` |
+| `theme.ts` / `uiPrefs.ts` | 主题与 UI 偏好兼容导出；持久化位于 `logic/preferences/`，外观映射位于 `render/appearance.ts`（**主题 → body 底色的重算契约在 `logic/webview/appearance.ts`**：body 背景色是行内样式且依赖当前主题的 `--bg-app-rgb`，显式切主题或系统主题变化时必须重放一次偏好，否则会话区底色冻结在旧主题） |
 
 ## commands/ 领域登记（全量，以文件系统为准）
 

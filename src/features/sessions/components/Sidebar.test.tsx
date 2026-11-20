@@ -1,8 +1,7 @@
 /**
  * Vitest —— Sidebar 组件测试（v3 harness 侧栏）。
  *
- * 新侧栏为扁平会话列表 + 工作区行：无分组折叠 / 多选模式 / 刷新按钮
- * （能力保留在契约与绑定层，UI 由设计稿定稿去掉）。会话动作集中在
+ * 会话按工作区分组，可折叠。会话动作集中在
  * 行内 ⋯ 菜单（重命名 / AI 改名 / fork / 导出 / 置顶 / 归档 / 删除）。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -136,11 +135,13 @@ describe('Sidebar (harness)', () => {
         onRefresh={vi.fn()}
       />,
     );
-    expect(screen.getByText('Unassigned')).toBeDefined();
+    const row = screen.getByText('Unassigned');
+    expect(screen.queryByTestId('harness-session-u1')).toBeNull();
+    fireEvent.click(row);
     expect(screen.getByTestId('harness-session-u1')).toBeDefined();
   });
 
-  it('calls onNewChatIn with the project path when a workspace row is clicked', () => {
+  it('collapses workspace sessions and starts a chat with the workspace button', () => {
     const onNewChatIn = vi.fn();
     render(
       <Sidebar
@@ -155,6 +156,8 @@ describe('Sidebar (harness)', () => {
       />,
     );
     fireEvent.click(screen.getByText('alpha'));
+    expect(screen.queryByTestId('harness-session-s1')).toBeNull();
+    fireEvent.click(screen.getByTestId(`workspace-new-${groupA.key}`));
     expect(onNewChatIn).toHaveBeenCalledWith(WS_A);
   });
 
@@ -259,6 +262,39 @@ describe('Sidebar (harness)', () => {
     // 归档经应用内确认框（Tauri WKWebView 无 window.confirm）。
     fireEvent.click(await screen.findByTestId('confirm-dialog-confirm'));
     await waitFor(() => expect(onArchive).toHaveBeenCalledWith('s1'));
+  });
+
+  it('keeps a session menu inside the viewport near its lower edge', () => {
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      return { x: 100, y: 740, left: 100, top: 740, right: 120, bottom: 760, width: 20, height: 20, toJSON: () => ({}) };
+    });
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(180);
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(200);
+    try {
+      render(<Sidebar groups={[groupA]} loading={false} error={null} activeId={null}
+        currentWorkspace={null} onSelect={vi.fn()} onRefresh={vi.fn()} onRename={vi.fn()} />);
+      fireEvent.click(screen.getByTestId('session-more-s1'));
+      const menu = screen.getByTestId('harness-session-menu');
+      expect(menu.parentElement).toBe(document.body);
+      expect(Number.parseFloat(menu.style.top) + 200).toBeLessThanOrEqual(window.innerHeight - 8);
+      expect(Number.parseFloat(menu.style.left)).toBeGreaterThanOrEqual(8);
+      fireEvent.scroll(screen.getByTestId('harness-sidebar-scroll'));
+      expect(screen.queryByTestId('harness-session-menu')).toBeNull();
+    } finally { rect.mockRestore(); width.mockRestore(); height.mockRestore(); }
+  });
+
+  it('renames a session inline from its anchored menu', () => {
+    const onRename = vi.fn().mockResolvedValue(undefined);
+    render(<Sidebar groups={[groupA]} loading={false} error={null} activeId={null}
+      currentWorkspace={null} onSelect={vi.fn()} onRefresh={vi.fn()} onRename={onRename} />);
+    fireEvent.click(screen.getByTestId('session-more-s1'));
+    const menu = screen.getByTestId('harness-session-menu');
+    expect(menu.parentElement).toBe(document.body);
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '新名称' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onRename).toHaveBeenCalledWith('s1', '新名称');
   });
 
   it('delete goes through the in-app confirm dialog', async () => {
