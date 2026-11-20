@@ -252,6 +252,15 @@ codegen-units = 16
 opt-level = 2
 incremental = true
 
+# ── dev profile ─────────────────────────────────────────
+# 关掉增量编译:cargo 不会 GC `incremental/`,profile/feature 变更也不自动
+# 清理,目录无界膨胀(此前 target/debug/incremental 已达 17G)。对齐上游
+# ZhuYe 的 profile 口径(dev 关增量 + scripts/gc.sh 分层清理);代价是改动
+# 后 app crate 重编略慢,链接步骤不变。release-fast 仍保留增量,其遗留
+# 目录由 scripts/gc.sh 统一回收。
+[profile.dev]
+incremental = false
+
 [profile.test]
 debug = 1
 codegen-units = 256

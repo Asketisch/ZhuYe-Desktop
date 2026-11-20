@@ -13,7 +13,7 @@
 | `run_all.sh` + `lib.sh` | 门禁入口 + 公共助手（断言 / HOME 隔离 / 便携超时 / 结果落盘） |
 | `static/` | L1 静态审查：命令面四方一致、版本一致、大小预算棘轮等校验器（`*.mjs`）+ 自测（`*.test.sh`） |
 | `frontend/` | L2 前端行为：`pnpm typecheck` + vitest 全量（模拟后端） |
-| `backend/` | L3 真后端：cargo fmt / clippy / test |
+| `backend/` | L3 真后端：cargo fmt / clippy / test（+ 可选 llvm-cov 行覆盖报告，重建树落 `target/llvm-cov-target/`，报告型无门槛，可经 `scripts/gc.sh` 回收） |
 | `artifact/` | L4 发布产物：.app / .deb / .AppImage / .msi 解包深度校验 + `stage.sh` |
 | `e2e/` | L5：WebDriver 真窗口冒烟 + 视觉回归（`run_visual()` 在此层内执行） |
 | `visual/` | 视觉回归 spec + `shims/` + `__baselines__/{linux,macos,windows}/` |

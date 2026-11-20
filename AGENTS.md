@@ -79,9 +79,13 @@ git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 
 # 定向测试（迭代时用定向测试，而不是全量）
 pnpm test -- src/features/settings/SettingsView.test.tsx
+
+# 磁盘治理（cargo 不自动 GC incremental / 覆盖率重建树，契约见 scripts/AGENTS.md）
+bash scripts/gc.sh            # 清 target/**/incremental + llvm-cov-target + examples，保留 .rlib（不全量重编）
+bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷构建，仅磁盘告急时用）
 ```
 
-脚本契约（打包前图标检查、版本四处同步等）见 [scripts/AGENTS.md](scripts/AGENTS.md)。
+脚本契约（打包前图标检查、磁盘治理 gc、版本四处同步等）见 [scripts/AGENTS.md](scripts/AGENTS.md)。
 
 > 历史：本仓库曾用 `vendor/` + `scripts/vendor-sync.sh`（rsync 手动同步）复用核心 crate，已迁移为 git submodule。旧的 vendor 运行手册不再适用。
 

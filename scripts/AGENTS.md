@@ -1,10 +1,10 @@
-# scripts/ —— 构建、发版、安装与图标自动化脚本
+# scripts/ —— 构建、发版、安装、图标与磁盘治理自动化脚本
 
-> **何时读我**：要新增或修改构建打包、发版打 tag、产物安装、图标再生成、协议类型生成这类仓库级脚本时，先读本文。
+> **何时读我**：要新增或修改构建打包、发版打 tag、产物安装、图标再生成、协议类型生成、target/ 磁盘治理这类仓库级脚本时，先读本文。
 
 ## 目录职责
 
-本目录是仓库级自动化的唯一脚本集：release 构建、发版流水线、本机安装、图标再生成与生成型 TS 协议类型，不含日常开发命令（见根 AGENTS.md「常用命令」）。本篇正文里的文件路径一律相对仓库根目录。
+本目录是仓库级自动化的唯一脚本集：release 构建、发版流水线、本机安装、图标再生成、生成型 TS 协议类型与 target/ 磁盘治理，不含日常开发命令（见根 AGENTS.md「常用命令」）。本篇正文里的文件路径一律相对仓库根目录。
 
 ## 脚本速览（以文件系统为准）
 
@@ -13,6 +13,7 @@
 | check-render-boundaries.mjs | 检查已迁移渲染与逻辑目录的依赖边界 | `pnpm typecheck` / `pnpm build` |
 | build.sh | 按 OS 选默认打包目标的 release 构建 | `--fast` / `--universal` / `--bundles=` / `--no-frontend` / `--dry-run`；`pnpm build:native` |
 | create_tag.sh | 一站式发版：版本 bump + CHANGELOG 转正 + 提交 + tag + 推送 | `--dry-run` / `--no-push` / `--yes` |
+| gc.sh | 磁盘治理：清 target/ 中 cargo 不 GC 的 incremental（全 profile）/ llvm-cov-target / examples | `bash scripts/gc.sh` / `gc-deep` |
 | gen-update-keys.sh | 生成 OTA 自更新的 minisign 密钥对（私钥不入库） | 直接运行；公钥填 tauri.conf.json > plugins.updater.pubkey |
 | gen-latest-json.sh | 汇总各平台 updater 产物生成更新清单 latest.json（release CI 专用） | `gen-latest-json.sh <目录> <版本> <owner/repo> <输出>` |
 | dump-ts-types.sh | Rust 协议类型经 JSON Schema 生成 TS 类型 | `pnpm types:gen` |
@@ -41,6 +42,13 @@
 - 流程：前置校验（main 分支 + 工作区干净 + 不落后远端 + submodule 指针已推上 ZhuYe 远端）→ bump → CHANGELOG「未发布」段转正 → 本地跑静态门禁 → 提交 + annotated tag + 推送。
 - 推送 `v*` tag 触发 `.github/workflows/release.yml`：门禁全绿后打包发 GitHub Release。
 - 发布前置（一次性，仓库外）：OTA 更新签名的 `TAURI_SIGNING_*` secrets 已配置（生成见 gen-update-keys.sh）—— 未配置时 release.yml 构建硬失败，属预期门禁。
+
+### gc.sh —— 磁盘治理契约
+
+- 两档：`gc`（默认）只清缓存类产物——`target/**/incremental`（dev 已在根 `Cargo.toml` `[profile.dev]` 关增量，但 release-fast 与交叉 target 仍会生成，故清理面覆盖全 profile 与交叉 target）+ `target/llvm-cov-target/`（L3 覆盖率重建树，曾达 32G）+ `target/debug/examples`；保留 deps 的 .rlib 与 .fingerprint，下次构建不全量重编。
+- `gc-deep` 再清 `target/debug/deps`（下次构建 ≈ 冷构建），仅磁盘告急时用。
+- **有意不删** `target/debug/.fingerprint`（偏离上游 ZhuYe `make gc`，勿「对齐」改回）：对照实验确认删它会让 cargo 把所有单元判为过期、下次构建全量重编依赖，而体积仅 ~38M——省盘收益可忽略、重编代价是整个 deps 树。
+- 前置关系：`[profile.dev] incremental = false` 属 profile 变更，本身会使指纹失效，调整 profile 后的首次构建预期为一次冷构建。
 
 ### install.sh / dump-ts-types.sh / render-display-png.py
 
