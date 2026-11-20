@@ -83,7 +83,7 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
   `@tauri-apps/api/{core,event}` 与 `@/test/setup` 指到 `tests/visual/shims/`
   （复刻 `setup.tsx` 的 mockInvoke 注册表语义，fakeBackend 在浏览器闭环，
   生产代码零改动）。Playwright 对 38 条路由 × dark/light 截图，与
-  `tests/visual/__baselines__/<platform>/` 的解码像素逐个比对，零容差。确定性由三件套保证：
+  `tests/visual/__baselines__/<platform>/` 的解码像素带容差比对（单通道 ±2 吸收字体反锯齿抖动，不同像素占比 ≤0.05% 视为一致；真实回归为十万像素级，仍硬失败）。确定性由三件套保证：
   `addInitScript` 冻结 `Date`（fakeBackend 时间戳相对 `Date.now` 播种）、
   `reducedMotion: 'reduce'` + 注入 CSS 关闭动画/过渡/光标、
   `document.fonts.ready` 等待字体。本地缺基线时可生成，门禁标记为跳过；
