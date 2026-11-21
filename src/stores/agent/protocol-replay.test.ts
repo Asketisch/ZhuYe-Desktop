@@ -44,6 +44,7 @@ const emptyState = (): AgentState => ({
   pendingQuestions: [],
   pendingAskUser: [],
   pendingPlan: null,
+  contextComposition: null,
   plan: null,
   planDraft: null,
   mcpServers: [],
@@ -107,7 +108,7 @@ const emptyState = (): AgentState => ({
 });
 
 const ev = (id: string, msg: unknown): ZhuyeEvent =>
-  ({ id, msg: msg as ZhuyeEventMsg });
+  ({ id, msg: msg as ZhuyeEventMsg, seq: 0 });
 
 /** 顺序应用事件流;每步把 reducer 的 patch 合并进状态(与 store.subscribe 同语义)。 */
 function applyAll(state: AgentState, events: ZhuyeEvent[]): AgentState {

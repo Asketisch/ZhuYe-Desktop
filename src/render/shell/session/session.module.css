@@ -969,6 +969,23 @@
 .wbMeter[data-warn] i {
   background: var(--warning);
 }
+/* v1.12:六类构成迷你条 —— 嵌在 wbKvRow 内,label 与 token 值之间。 */
+.wbMeterMini {
+  flex: 1 1 auto;
+  min-width: 32px;
+  max-width: 96px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+.wbMeterMini i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
 .wbKvRow {
   display: flex;
   align-items: center;

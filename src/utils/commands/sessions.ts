@@ -8,6 +8,7 @@
 import { invoke } from '../bridge';
 import { waitForWorkspaceSwitches } from './workspaces';
 import type { ZhuyeRolloutRecord, ZhuyeSessionInfo } from '../types';
+import type { PendingGateSnapshot } from '@/types/protocol';
 
 /** `zhuye_list_sessions` 返回的 session 元数据。 */
 export type { ZhuyeSessionInfo } from '../types';
@@ -51,10 +52,21 @@ export async function zhuye_create_session(): Promise<string> {
  */
 let bindQueue: Promise<void> = Promise.resolve();
 
-export function zhuye_bind_session(id: string): Promise<string> {
+/**
+ * v1.12:`zhuye_bind_session` 的返回结构(有意协议扩展:命令名不变,
+ * 由单一 mode 字符串改为结构体)。
+ */
+export interface BindSessionOutput {
+  /** 绑定后线程的当前 PermissionMode(线格式字符串,如 `"plan"`)。 */
+  permission_mode: string;
+  /** 引擎侧挂起交互快照(审批/问答/询问/plan),reload/换绑重水合数据源。 */
+  pending_gates: PendingGateSnapshot[];
+}
+
+export function zhuye_bind_session(id: string): Promise<BindSessionOutput> {
   const result = bindQueue.then(async () => {
     await waitForWorkspaceSwitches();
-    return invoke<string>('zhuye_bind_session', { id });
+    return invoke<BindSessionOutput>('zhuye_bind_session', { id });
   });
   bindQueue = result.then(() => {}, () => {});
   return result;

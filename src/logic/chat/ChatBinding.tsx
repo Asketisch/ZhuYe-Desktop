@@ -8,6 +8,7 @@ import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import { userItemsFromTurn } from '@/stores/agent/turns';
 import { zhuye_replay_session, zhuye_git_diff } from '@/utils/commands';
 import { zhuye_bind_session, zhuye_fork_session, zhuye_export_session_markdown } from '@/utils/commands/sessions';
+import type { PendingGateSnapshot } from '@/types/protocol';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { useActiveSession, useSessions } from '@/logic/sessions/useSessions';
 import { useUiPrefs } from '@/logic/preferences/uiPrefs';
@@ -91,6 +92,9 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const sessionEpoch = useRef({ id: sessionId, value: 0 });
+  // v1.12:bind 返回的引擎侧挂起交互快照暂存位 —— mergePendingInto
+  // (整体替换 pending)之后才水合,暂存到闭包 ref 跨两个 then 传递。
+  const bindGatesRef = useRef<PendingGateSnapshot[] | null>(null);
   if (sessionEpoch.current.id !== sessionId) {
     sessionEpoch.current = { id: sessionId, value: sessionEpoch.current.value + 1 };
   }
@@ -241,9 +245,13 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
     // 返回值是该会话恢复出的权限模式 —— 模式绑定会话而非进程,切换
     // 会话后用返回值同步本地徽标/切换器,避免沿用上一会话的显示。
     void zhuye_bind_session(sessionId)
-      .then((mode) => {
+      .then(({ permission_mode, pending_gates }) => {
         if (requestIdRef.current !== myId) return null;
-        syncPermissionMode(mode);
+        syncPermissionMode(permission_mode);
+        // v1.12:引擎侧挂起交互快照暂存 —— hydrate 后水合(mergePendingInto
+        // 整体替换 pending,先注会丢;hydratePendingGates 按 request_id
+        // 去重,两侧同 id 不重复)。
+        bindGatesRef.current = pending_gates;
         // 已水合同 id:bind 已完成,不再重复 replay。读 store 实时值而非
         // 闭包快照 —— `loadedSessionId` 不能进 deps(水合成功后会让本
         // effect 重跑第二遍:多余 bind + loading banner 闪断)。
@@ -256,6 +264,11 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
         // v1.x 后台持续运行:该会话在后台期间积攒的待确认交互(gate 请求
         // 不落 rollout)合并进主 store,否则会话会静默卡在审批上。
         useBackgroundSessions.getState().mergePendingInto(sessionId);
+        // v1.12:引擎侧挂起交互水合(reload 后 pending 不再依赖前端内存
+        // 投影;后台 scratch 注回的同 id 挂起态不重复)。
+        const gates = bindGatesRef.current;
+        bindGatesRef.current = null;
+        if (gates?.length) useAgentStore.getState().hydratePendingGates?.(gates);
       })
       .catch((e: unknown) => {
       if (requestIdRef.current !== myId) return;
@@ -317,16 +330,21 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
   setLoading(true);
   // 与主加载序列同构:bind(幂等)→ replay → hydrate。
   void zhuye_bind_session(sessionId)
-    .then((mode) => {
+    .then(({ permission_mode, pending_gates }) => {
       // 与主路径同源守卫:点 Retry 后立刻切走会话时,
       // 旧会话恢复出的权限模式不得覆盖新会话。
       if (requestIdRef.current !== myId) return null;
-      syncPermissionMode(mode);
+      syncPermissionMode(permission_mode);
+      bindGatesRef.current = pending_gates;
       return zhuye_replay_session(sessionId);
     })
     .then((r) => {
       if (requestIdRef.current !== myId || !r) return;
       hydrateSession(sessionId, r);
+      // v1.12:retry 路径同样水合引擎侧挂起交互。
+      const gates = bindGatesRef.current;
+      bindGatesRef.current = null;
+      if (gates?.length) useAgentStore.getState().hydratePendingGates?.(gates);
     }).catch((e: unknown) => {
       if (requestIdRef.current !== myId) return;
       setError(e instanceof Error ? e.message : String(e));

@@ -106,6 +106,14 @@ const zh = {
   'statusPanel.cacheHit':     { en: 'Cache hit rate',     'zh-CN': '平均缓存命中率' },
   'statusPanel.inputOutput':  { en: 'Input / Output',     'zh-CN': '输入 / 输出' },
   'statusPanel.pool':         { en: 'Credential pool',    'zh-CN': '凭据池' },
+  // v1.12:上下文组成六类分解(对齐引擎 ContextComposition)
+  'statusPanel.composition':        { en: 'Composition',                 'zh-CN': '上下文构成' },
+  'statusPanel.comp.systemPrompt':  { en: 'System prompt',               'zh-CN': '系统提示词' },
+  'statusPanel.comp.memory':        { en: 'Memory',                      'zh-CN': '记忆' },
+  'statusPanel.comp.skills':        { en: 'Skills & ephemeral',          'zh-CN': '技能与临时层' },
+  'statusPanel.comp.toolSchemas':   { en: 'Tool schemas',                'zh-CN': '工具 schema' },
+  'statusPanel.comp.mcpTools':      { en: 'MCP tools',                   'zh-CN': '外部工具' },
+  'statusPanel.comp.messages':      { en: 'Messages',                    'zh-CN': '消息' },
   'statusPanel.workbenchIdle': { en: 'Nothing running yet — goal, plan and usage appear here.', 'zh-CN': '还没有进行中的工作 —— 目标 / 计划 / 用量会显示在这里。' },
 };
 

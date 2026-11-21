@@ -116,7 +116,7 @@ describe('CollaborationView — orchestration', () => {
   it('shows an LSP disconnect and clears its error when the server restarts', () => {
     render(wrap(<CollaborationView />));
     const dispatch = (msg: Parameters<typeof reduceEvent>[1]['msg']) => {
-      act(() => useAgentStore.setState((state) => reduceEvent(state, { id: '', msg })));
+      act(() => useAgentStore.setState((state) => reduceEvent(state, { id: '', msg, seq: 0 })));
     };
     dispatch({ type: 'lsp_server_started', server: 'fixture', methods: ['textDocument/hover'], language_ids: ['rust'] });
     expect(screen.getByText('fixture')).toBeDefined();

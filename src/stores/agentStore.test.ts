@@ -20,6 +20,7 @@ const emptyState = (): AgentState => ({
   pendingQuestions: [],
   pendingAskUser: [],
   pendingPlan: null,
+  contextComposition: null,
   plan: null,
   planDraft: null,
   mcpServers: [],
@@ -83,7 +84,7 @@ const emptyState = (): AgentState => ({
   reset: () => {},
 });
 
-const ev = (id: string, msg: ZhuyeEventMsg): ZhuyeEvent => ({ id, msg });
+const ev = (id: string, msg: ZhuyeEventMsg): ZhuyeEvent => ({ id, msg, seq: 0 });
 
 // ====== Lifecycle (6) ======
 

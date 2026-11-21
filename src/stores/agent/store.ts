@@ -15,6 +15,8 @@ import {
   zhuye_plan_approval,
   zhuye_prompt_command,
   zhuye_query_guard_stats,
+  zhuye_replay_session,
+  onZhuyeEventGap,
   zhuye_query_subagents,
   zhuye_rewind,
   zhuye_set_effort,
@@ -40,10 +42,27 @@ import { wireApprovalPolicy } from './approvalPolicy';
 import { createQueueActions } from './queue';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
+import type { PendingGateSnapshot } from '@/types/protocol';
+import { gatesToSyntheticEvents } from './pendingGates';
+import { createSessionSeqTracker } from './eventGap';
 export const useAgentStore = create<AgentState>((set, get) => {
   // 会话作用域的子代理可观测投影的空态(复用引用,避免每处字面量)。
   const EMPTY_SUBAGENTS: SubagentsState = { feed: [], lastStatus: null };
   let goalSnapshotGeneration = 0;
+  // v1.12:seq 缺口跟踪器(实现见 ./eventGap)—— Event.seq 缺口与
+  // zhuye_event_gap(转发器 Lagged)两条触发路径共用同一收敛:当前会话
+  // re-replay(重放覆盖落盘部分;半截流式文本本就不入盘)。
+  const seqTracker = createSessionSeqTracker(() => {
+    const sid = get().loadedSessionId;
+    if (!sid) return;
+    void zhuye_replay_session(sid)
+      .then((records) => {
+        if (get().loadedSessionId === sid && records) {
+          get().hydrateSession?.(sid, records);
+        }
+      })
+      .catch(() => {});
+  });
   // 按 plan 最大上下文自动压缩控制器(内部有开关/节流/触发闩)。
   const autoCompact = createAutoCompactController({
     getConfig: () => zhuye_get_config(),
@@ -73,6 +92,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
     // plan 终稿从最后一条 plan_ready record 恢复;草稿不持久化,重载即清空。
     const plan = planFromRollout(records);
     const changedSession = get().loadedSessionId !== id;
+    // v1.12:换会话 → 扇出序号水位复位(引擎 per-session 计数)。
+    if (changedSession) seqTracker.reset();
     // goalActive/goalSnapshot 一并复位:goal 挂在后端线程上,rebind 造新
     // 线程即丢,换会话后旧投影不可信（同 id 重放也复位 —— goal 本就不入盘）。
     // 复位后立即向后端快照校准（zhuye_goal_snapshot,v1.7 读口）;subagents
@@ -97,8 +118,26 @@ export const useAgentStore = create<AgentState>((set, get) => {
       planDraft: null,
       tokens: null,
       contextWindowSize: null,
+      contextComposition: null,
     });
     void get().syncGoalSnapshot();
+  },
+
+  // v1.12:引擎侧挂起交互快照水合(reload / 换绑后审批 UI 不再依赖前端
+  // 内存投影)。快照行 → 合成事件走同一份 reduceEvent(零语义复制,
+  // 见 ./pendingGates);按 request_id 去重 —— mergePendingInto 的后台
+  // scratch 投影更鲜,已在场的挂起态不重复添加。
+  hydratePendingGates: (gates: PendingGateSnapshot[]) => {
+    const knownIds = [
+      ...get().pendingApprovals.map((a) => a.id),
+      ...get().pendingQuestions.map((q) => q.id),
+      ...get().pendingAskUser.map((u) => u.id),
+      ...(get().pendingPlan ? [get().pendingPlan!.id] : []),
+    ];
+    for (const msg of gatesToSyntheticEvents(gates, knownIds)) {
+      const patch = reduceEvent(get(), { id: '', msg, seq: 0 });
+      if (Object.keys(patch).length > 0) set(patch);
+    }
   },
   clearSession: () => {
     goalSnapshotGeneration += 1;
@@ -118,6 +157,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       session: null,
       tokens: null,
       contextWindowSize: null,
+      contextComposition: null,
       compactions: { count: 0, removedMessages: 0, tokensSaved: 0, last: null, records: [] },
       lastRouting: null,
       subagents: EMPTY_SUBAGENTS,
@@ -129,6 +169,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   },
   tokens: null,
   contextWindowSize: null,
+  contextComposition: null,
   queuedMessages: [],
   collabSessions: [],
   mcpInvocations: [],
@@ -171,6 +212,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
     if (get().subscribed) return () => {};
     set({ subscribed: true });
     const unsubscribe = subscribeAgentEvent((event: ZhuyeEvent) => {
+      // v1.12:seq 缺口检测 + 重放收敛(实现见 ./eventGap)。
+      seqTracker.observe(event);
       const patch = reduceEvent(get(), event);
       if (Object.keys(patch).length > 0) set(patch);
       // C：turn 收尾后自动排空跟进队列（reduce 完成后再取最新状态判断）。
@@ -202,8 +245,18 @@ export const useAgentStore = create<AgentState>((set, get) => {
         void autoCompact(event.msg.input_tokens ?? 0, eventModel, sameModel ? state.contextWindowSize : null);
       }
     });
+    // v1.12:转发器 Lagged 缺口通知 —— seq 检测覆盖不到的丢事件
+    // (per-turn 快路的 broadcast 丢包)由此兜底;后台缺口由
+    // backgroundSessions 自己的 gap 监听定向重灌。
+    let unlistenGap: (() => void) | null = null;
+    void onZhuyeEventGap((gap) => {
+      if (gap.scope === 'foreground') seqTracker.forceResync();
+    }).then((un) => {
+      unlistenGap = un;
+    });
     return () => {
       unsubscribe();
+      unlistenGap?.();
       set({ subscribed: false });
     };
   },

@@ -1,9 +1,13 @@
 import type {
   AskUserAnswer,
+  CompositionCategory,
+  PendingGateSnapshot,
   SubagentStatusSnapshot,
   UserInputItem,
 } from '@/types/protocol';
-import type { RiskLevel } from '@/types/protocol/enums';
+import type { PendingApproval, PendingAskUser, PendingPlan, PendingQuestion } from './pendingTypes';
+
+export type { PendingApproval, PendingAskUser, PendingPlan, PendingQuestion };
 import type { GoalSnapshotPayload } from '@/utils/commands/goal';
 import type { PlanApprovalChoice, ZhuyeRolloutRecord, ReviewDecision } from '@/utils/types';
 import type { TokenSnapshot } from './tokenTypes';
@@ -123,42 +127,6 @@ export interface QueuedMessage {
   createdAt: number;
 }
 
-export interface PendingApproval {
-  id: string;
-  /** tool / hook 审批;plan 审批走独立的 PendingPlan + PlanReadyModal(ApprovePlan)。 */
-  kind: 'tool' | 'hook';
-  toolName?: string;
-  argsSummary?: string;
-  /**
-   * 工具调用的**原始参数**(仅 tool 审批)。
-   *
-   * 审批弹窗要据此推导「始终允许这条命令」的匹配模式(如 Bash 的
-   * `args.cmd`),所以必须保留原值 —— `argsSummary` 是截断过的展示串。
-   */
-  args?: unknown;
-  /** Permission bubble 审批的 risk level(非 bubble 流程省略)。 */
-  risk?: RiskLevel;
-  turnId: string;
-}
-
-export interface PendingQuestion {
-  id: string;
-  payload: unknown;
-  turnId: string;
-}
-
-export interface PendingAskUser {
-  id: string;
-  payload: unknown;
-  turnId: string;
-}
-
-export interface PendingPlan {
-  id: string;
-  kind?: 'request' | 'ready';
-  payload: unknown;
-  turnId: string;
-}
 
 /**
  * plan 终稿文档(Inspector「计划」tab 正文)。来源:`plan_ready` 事件(live)
@@ -356,6 +324,18 @@ export interface AgentState {
   contextWindowSize: number | null;
   /** 前端侧跟进消息队列(C)。仅在 turn 运行时入队;切会话即清空。 */
   queuedMessages: QueuedMessage[];
+  /**
+   * v1.12:上下文组成快照(六类估算分解)。来源:`context_composition`
+   * 事件(引擎 model_call 组装后计量,指纹去重);工作台容量卡分解条形
+   * 据此渲染。null = 尚未收到。
+   */
+  contextComposition: CompositionCategory[] | null;
+  /**
+   * v1.12:把引擎侧挂起交互快照(bind 返回的 pending_gates)水合进
+   * pending 四字段 —— reload / 换绑后审批弹窗不再依赖前端内存投影。
+   * 按 request_id 去重,已存在的挂起态不重复添加。
+   */
+  hydratePendingGates?: (gates: PendingGateSnapshot[]) => void;
   collabSessions: CollabSession[];
   mcpInvocations: McpInvocation[];
   lastRouting: RoutingSnapshot | null;

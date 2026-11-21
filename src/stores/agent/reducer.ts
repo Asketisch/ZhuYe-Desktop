@@ -648,6 +648,26 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
       return { toasts: [...state.toasts, toast] };
     }
 
+    case 'context_composition': {
+      // v1.12:上下文组成快照(六类估算分解)—— 工作台容量卡分解条形
+      // 的数据源。整体覆盖式更新(引擎侧指纹去重,到达即有变化)。
+      return { contextComposition: msg.categories };
+    }
+
+    case 'interaction_resolved': {
+      // v1.12:挂起交互已按任意路径了结(应答 / TTL 过期 / 取消 / 中断 /
+      // 通道关闭)—— 无条件清理本地挂起态。TTL 过期与取消路径不会有
+      // 对应回执事件,不清理的话弹窗永久悬挂。四个 pending 字段逐一按
+      // request_id 过滤;plan 单例仅 id 匹配时清除。
+      const { request_id } = msg;
+      return {
+        pendingApprovals: state.pendingApprovals.filter((a) => a.id !== request_id),
+        pendingQuestions: state.pendingQuestions.filter((q) => q.id !== request_id),
+        pendingAskUser: state.pendingAskUser.filter((u) => u.id !== request_id),
+        ...(state.pendingPlan?.id === request_id ? { pendingPlan: null } : {}),
+      };
+    }
+
     default: {
       // 穷尽性守卫:联合类型新增变体而上方无对应 case 时,此赋值编译报错,
       // 提醒补 case。运行时(submodule 已发新事件、前端类型未同步)走到

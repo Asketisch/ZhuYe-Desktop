@@ -42,6 +42,8 @@ export type EventMsgType =
   | 'agent_message_reset'
   | 'thinking_delta'
   | 'token_count'
+  // v1.12:上下文组成快照(六类估算分解;组成无变化时省略不发)
+  | 'context_composition'
   // 工具 (5)
   | 'tool_call_begin'
   | 'tool_call_args_delta'
@@ -57,6 +59,8 @@ export type EventMsgType =
   | 'side_channel_status'
   // 审批 (1)
   | 'approval_request'
+  // v1.12:挂起交互(审批/问答/询问/plan)已按任意路径了结的广播
+  | 'interaction_resolved'
   // 用户提问 (2)
   | 'ask_user_question'
   | 'ask_user_input'
@@ -619,6 +623,60 @@ export interface SideChannelStatusPayload {
 // EventMsgByType —— 判别联合
 // ============================================================================
 
+/** v1.12:上下文组成类别 id(六类;`unknown` 为前向容错值)。 */
+export type CompositionCategoryId =
+  | 'system_prompt'
+  | 'memory'
+  | 'skills'
+  | 'tool_schemas'
+  | 'mcp_tools'
+  | 'messages'
+  | 'unknown';
+
+/** v1.12:一个类别的估算 token 量(估算值,非精确计量)。 */
+export interface CompositionCategory {
+  id: CompositionCategoryId;
+  tokens: number;
+}
+
+/** v1.12:`context_composition` —— 上下文组成快照(六类估算分解)。 */
+export interface ContextCompositionPayload {
+  categories: CompositionCategory[];
+}
+
+/** v1.12:挂起交互类别(snake_case tag 联合,同 Rust InteractionKind)。 */
+export type InteractionKindPayload =
+  | { type: 'tool'; tool_name: string }
+  | { type: 'hook'; hook_name: string }
+  | { type: 'question' }
+  | { type: 'ask_user' }
+  | { type: 'plan'; plan_id: string };
+
+/** v1.12:挂起交互了结路径(引擎侧 fail-closed / 通道级了结含在内)。 */
+export type InteractionOutcome = 'answered' | 'expired' | 'cancelled' | 'interrupted' | 'channel_closed';
+
+/** v1.12:`interaction_resolved` —— 挂起交互已了结,客户端按 request_id 清理挂起态。 */
+export interface InteractionResolvedPayload {
+  request_id: string;
+  kind: InteractionKindPayload;
+  outcome: InteractionOutcome;
+}
+
+/**
+ * v1.12:引擎侧挂起交互快照行(`zhuye_bind_session` 返回的
+ * `pending_gates` 数组元素;对应 Rust `PendingInteraction`)。
+ * `payload` 与对应 `EventMsg` 变体字段同构(不含 request_id),
+ * reload / 换绑后据此完整重建审批 / 问答 UI。
+ */
+export interface PendingGateSnapshot {
+  request_id: string;
+  kind: InteractionKindPayload;
+  summary: string;
+  created_at_ms: number;
+  expires_at_ms?: number | null;
+  payload?: unknown;
+}
+
 /**
  * `EventMsgType` → payload 形状的映射。这是 Rust `EventMsg` 枚举的类型层镜像,
  * 让 TS 可以通过 `event.msg.type` 收窄。
@@ -640,6 +698,8 @@ export interface EventMsgByType {
   agent_message_reset: AgentMessageResetPayload;
   thinking_delta: ThinkingDeltaPayload;
   token_count: TokenCountPayload;
+  // v1.12:上下文组成快照
+  context_composition: ContextCompositionPayload;
   // 工具
   tool_call_begin: ToolCallBeginPayload;
   tool_call_args_delta: ToolCallArgsDeltaPayload;
@@ -651,6 +711,8 @@ export interface EventMsgByType {
   subagent_status: SubagentStatusPayload;
   // 审批
   approval_request: ApprovalRequestPayload;
+  // v1.12:挂起交互了结通知
+  interaction_resolved: InteractionResolvedPayload;
   ask_user_question: AskUserQuestionPayload;
   ask_user_input: AskUserInputPayload;
   permission_bubble: PermissionBubblePayload;
@@ -706,6 +768,12 @@ export type ZhuyeEventMsg = {
 export interface ZhuyeEvent {
   id: string;
   msg: ZhuyeEventMsg;
+  /**
+   * v1.12:会话扇出序号(引擎 `Event.seq`)。会话扇出流上从 1 起单调
+   * 递增;`0` = per-turn 专属流(如逐 token delta 的 SDK 快路),不参与
+   * 缺口判定。前端据此检测缺口(>last+1 → 触发重放重同步)。
+   */
+  seq: number;
 }
 
 /** 外层 Tauri `zhuye_session_event` payload(v1.x 后台持续运行)。 */

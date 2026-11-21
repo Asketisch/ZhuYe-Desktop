@@ -25,9 +25,10 @@
  * 该会话操作;徽标 + toast 引导用户切回。
  */
 import { create } from 'zustand';
-import { onZhuyeSessionEvent } from '@/utils/commands';
+import { onZhuyeSessionEvent, onZhuyeEventGap, zhuye_replay_session } from '@/utils/commands';
 import { t } from '@/utils/i18n/lookup';
 import { reduceEvent } from './agent/reducer';
+import { turnsFromRollout } from './replay';
 import { useAgentStore } from './agentStore';
 import type {
   AgentState,
@@ -224,6 +225,7 @@ export const useBackgroundSessions = create<BackgroundSessionsState>((set, get) 
   subscribe: () => {
     let active = true;
     let unlisten: (() => void) | null = null;
+    let unlistenGap: (() => void) | null = null;
     void onZhuyeSessionEvent((payload) => {
       if (active) get().ingest(payload.session_id, payload.event);
     }).then((un) => {
@@ -234,10 +236,36 @@ export const useBackgroundSessions = create<BackgroundSessionsState>((set, get) 
         un();
       }
     });
+    // v1.12:后台缺口 → scratch 的 turns 投影发散,按 replay 重灌各后台
+    // 会话(pending 不动:后台广播丢的 gate 在切回时由 bind 的
+    // pending_gates 水合兜底 —— 引擎侧注册表是权威)。gap 载荷不辨
+    // session(broadcast 级丢弃),对注册表内全部后台会话重灌;数量小
+    // 且重灌仅在后台有投影时发生,代价可忽略。
+    void onZhuyeEventGap((gap) => {
+      if (!active || gap.scope !== 'background') return;
+      const scratchIds = [...scratches.keys()];
+      for (const sid of scratchIds) {
+        void zhuye_replay_session(sid)
+          .then((records) => {
+            const scratch = scratches.get(sid);
+            if (!scratch) return;
+            const { turns } = turnsFromRollout(records);
+            // 只重灌 scratch(mergePendingInto 的数据源);快照上的
+            // pendingCount 不动 —— pending 以引擎注册表为权威,切回时兜底。
+            scratch.turns = turns;
+          })
+          .catch(() => {});
+      }
+    }).then((un) => {
+      if (active) unlistenGap = un;
+      else un();
+    });
     return () => {
       active = false;
       unlisten?.();
       unlisten = null;
+      unlistenGap?.();
+      unlistenGap = null;
     };
   },
 }));

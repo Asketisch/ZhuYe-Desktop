@@ -12,11 +12,13 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 |---|---|
 | `agent/reducer.ts` | `reduceEvent`：EventMsg → 状态 patch 的纯函数核心（约 670 行）；未知 `msg.type` 走 default 分支返回空 patch |
 | `agent/store.ts` | 活跃 Zustand store：`useAgentStore` 与 `subscribe()`（建立事件订阅，幂等） |
-| `agent/types.ts` | AgentState / Turn / 交互等待等状态类型联合（约 480 行） |
+| `agent/types.ts` | AgentState / Turn 等状态类型联合（约 470 行）；挂起交互类型拆在 `agent/pendingTypes.ts` |
+| `agent/pendingGates.ts` | v1.12：引擎挂起交互快照（bind 返回 `pending_gates`）→ 合成事件流（零语义复制，走同一份 reducer）；`hydratePendingGates` 按 request_id 去重水合 |
+| `agent/eventGap.ts` | v1.12：`Event.seq` 缺口跟踪器 + 重放收敛（缺口与 `zhuye_event_gap` 合成通知两条触发路径共用） |
 | `agent/turns.ts` | Turn / TurnItem 构建与工具入参、输出摘要；含 `userAttachmentsFromItems`（提交 items → 附件元数据）与 `userItemsFromTurn`（轮内用户内容逆转回可重发 items，重生成用） |
 | `agent/selectors.ts` | 细粒度 selector（`selectHasPendingInteraction` 等），配合 `useAgent` 防过宽 re-render |
 | `agent/index.ts` | 桶导出 `useAgentStore` / `reduceEvent` / `useAgent` 与类型联合；新导出只进这里 |
-| `backgroundSessions.ts` | 后台会话注册表（v1.x 后台持续运行）：消化 `zhuye_session_event` 通道（`{session_id, event}`），每会话持一份主 reducer scratch 投影 running / pending / **实时 turns**（形状零漂移）；`demote` 在切走时把前台投影播种进 scratch，`mergePendingInto` 在切回水合后把待确认交互与在飞 turns 整体注回主 store |
+| `backgroundSessions.ts` | 后台会话注册表（v1.x 后台持续运行）：消化 `zhuye_session_event` 通道（`{session_id, event}`），每会话持一份主 reducer scratch 投影 running / pending / **实时 turns**（形状零漂移）；`demote` 在切走时把前台投影播种进 scratch，`mergePendingInto` 在切回水合后把待确认交互与在飞 turns 整体注回主 store。v1.12：订阅 `zhuye_event_gap` 后台缺口 → 按 replay 重灌各后台会话 scratch 的 turns（pending 以引擎注册表为权威，切回时 bind 兜底） |
 | `editorStore.ts` | agent 编辑的 pending hunk 列表，自订阅 agentEventBus；Accept 保留内容、Reject 用 inverse patch 经 `zhuye_write_file` 落盘 |
 | `replay.ts` | `zhuye_replay_session` 返回的 RolloutRecord 流 → turns + 压缩聚合统计；剥除引擎注入的 `<system-reminder>` 块（注入内容不冒充用户发言） |
 | `shellUi.ts` | harness 壳层 UI 状态（v3 设计）：rail / dockMode（五档）/ dockOpen / dockWide / dockWidth（用户拖拽出的 dock 宽度，`null` = 未拖过，用各档位默认宽度）/ termOpen / inbox / settings / palette / moreMenu / inspectorTab（检查器页签，StatusPanel「计划」行可编程切到 plan）/ dropHint / unread（后台完成未读产出）。rail·dock·term·semantic·dockWidth 持久化到 localStorage（`zhuye-harness-ui`；dockWidth 拖拽中只改内存态、松手 `commitDockWidth` 落盘一次）；快捷键（`logic/shell/useHarnessShortcuts`）与标题条/侧栏/壳视图全部消费本 store，不另设组件内状态 |

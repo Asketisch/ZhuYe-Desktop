@@ -39,6 +39,29 @@ function formatElapsed(startedAt: string | undefined, now: number): string {
   return `${Math.floor(m / 60)}小时${String(m % 60).padStart(2, '0')}分`;
 }
 
+/** v1.12:六类构成条形的展示行(按声明序,零值类别跳过;条宽以最大类为基准)。 */
+const COMPOSITION_LABELS: Record<string, string> = {
+  system_prompt: 'statusPanel.comp.systemPrompt',
+  memory: 'statusPanel.comp.memory',
+  skills: 'statusPanel.comp.skills',
+  tool_schemas: 'statusPanel.comp.toolSchemas',
+  mcp_tools: 'statusPanel.comp.mcpTools',
+  messages: 'statusPanel.comp.messages',
+};
+
+function compositionRowsOf(categories: { id: string; tokens: number }[] | null) {
+  if (!categories || categories.length === 0) return [];
+  const max = Math.max(...categories.map((c) => c.tokens), 1);
+  return categories
+    .filter((c) => c.tokens > 0 && COMPOSITION_LABELS[c.id])
+    .map((c) => ({
+      id: c.id,
+      labelKey: COMPOSITION_LABELS[c.id],
+      tokens: c.tokens,
+      pct: Math.max(2, Math.round((c.tokens / max) * 100)),
+    }));
+}
+
 export function StatusPanel({ goalActive, turnRunning }: {
   goalActive: boolean;
   goalText: string;
@@ -50,11 +73,13 @@ export function StatusPanel({ goalActive, turnRunning }: {
     goal: true, plan: true, todo: true, context: true, pool: true,
   });
   const todos = useAgentStore((st) => st.todos);
+  const contextComposition = useAgentStore((st) => st.contextComposition);
   const goalSnapshot = useAgentStore((st) => st.goalSnapshot);
   const plan = useAgentStore((st) => st.plan);
   const planDraft = useAgentStore((st) => st.planDraft);
   const tokens = useAgentStore((st) => st.tokens);
   const context = useContextRatio();
+  const compositionRows = compositionRowsOf(contextComposition);
   const setDockOpen = useShellUi((st) => st.setDockOpen);
   const setDockMode = useShellUi((st) => st.setDockMode);
   const setInspectorTab = useShellUi((st) => st.setInspectorTab);
@@ -211,10 +236,9 @@ export function StatusPanel({ goalActive, turnRunning }: {
         </section>
       )}
 
-      {/* 上下文容量（总进度 + 输入/输出/缓存分解条 + 缓存命中率）。
-          引擎 token_count 只报 input/output/cached/cacheWrite —— 分解条按
-          真实可用维度呈现；六类语义分解（消息/系统工具/MCP…）待引擎上报
-          后接入（见 docs/visual-parity.md #3）。 */}
+      {/* 上下文容量（总进度 + 输入/输出分解 + 缓存命中率 + v1.12 六类构成条）。
+          构成数据来自引擎 context_composition 事件（model_call 组装后计量,
+          指纹去重)—— 收到即渲染,未收到(旧引擎/无 turn)不占位。 */}
       {context.ratio != null && (
         <section className={s.statusSection} data-status-section="context">
           <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('context')} aria-expanded={openSections.context}>
@@ -253,6 +277,22 @@ export function StatusPanel({ goalActive, turnRunning }: {
                   {(tokens?.input ?? 0).toLocaleString()} / {(tokens?.output ?? 0).toLocaleString()}
                 </span>
               </div>
+              {compositionRows.length > 0 && (
+                <div data-testid="status-panel-composition">
+                  <div className={s.wbKvRow}>
+                    <span>{t('statusPanel.composition')}</span>
+                  </div>
+                  {compositionRows.map((row) => (
+                    <div key={row.id} className={s.wbKvRow}>
+                      <span>{t(row.labelKey)}</span>
+                      <span className={s.wbMeterMini} data-testid={`status-panel-comp-${row.id}`}>
+                        <i style={{ width: `${row.pct}%` }} />
+                      </span>
+                      <span className={s.wbKvVal}>{row.tokens.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
