@@ -124,10 +124,19 @@
 }
 .chatpane {
   position: relative;
-  /* 状态面板的 auto 态靠容器查询（≥1280px 展开面板 / 否则胶囊）。 */
+  /* 会话列 + 常驻工作台右列的横向 flex。 */
   container: conversation / inline-size;
   flex: 1;
   min-height: 0;
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+/* 会话主列（横幅 / 消息区 / chips / composer 都在这里）。 */
+.chatMain {
+  display: flex;
+  min-width: 0;
+  flex: 1;
   flex-direction: column;
 }

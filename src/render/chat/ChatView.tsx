@@ -26,10 +26,7 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
         <TrajView />
       ) : (
       <div className={s.chatpane} data-testid="session-chatpane">
-      {/* 右上角浮动状态面板（目标 / 计划 / 进程）；定位锚在 chatpane 上。 */}
-      {!loading && !error && (
-        <StatusPanel goalActive={goalActive} goalText={goalText} turnRunning={turnRunning} />
-      )}
+      <div className={s.chatMain}>
       {sessionId && loading && (
         <div className={s.sessionBanner} role="status" aria-live="polite">
           <Spinner size={14} />
@@ -90,6 +87,10 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
       {!loading && !error && askUser && <AskUserTakeover askUser={askUser} />}
       {!loading && !error && !takeover && <Composer />}
       {hero && <QuickPromptRow />}
+      </div>
+      {!loading && !error && (
+        <StatusPanel goalActive={goalActive} goalText={goalText} turnRunning={turnRunning} />
+      )}
       </div>
       )}
       <BottomTabs open={bottomOpen} onClose={onCloseTerminal} />

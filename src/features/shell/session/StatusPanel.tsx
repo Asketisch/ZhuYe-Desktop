@@ -1,57 +1,90 @@
 /**
- * StatusPanel —— 会话区右上角的浮动状态面板。
+ * StatusPanel —— 会话区右侧**常驻工作台列**（zai 工作台同款形态）。
  *
- * 三节：目标 / 计划 / 进程（todolist）。两态：
- * - mini：单行胶囊（优先级链 = 进行中的 todo → 活动目标 → 计划态 → 完成计数），
- *   点击任意段展开为面板；
- * - panel：w-80 圆角卡片，分节可折叠；右上角按钮收回 mini。
- * 宽度充足（≥1280px 容器）时 auto 态默认展开面板，否则胶囊。
+ * 五段（无内容的段自动隐藏）：
+ * - 目标：激活时显示计时（⏱ 分秒）+ GoalBody 快照/设目标表单；
+ * - 计划：plan 终稿/草稿行，点击 → 检查器 plan 页签；
+ * - 进程：todolist 三态清单 + 完成计数；
+ * - 上下文容量：总进度条 + 输入/输出/缓存读写分解条 + 缓存命中率；
+ * - 凭据池：模型组内凭据健康（healthy/total）。
  *
- * 数据全部来自 agentStore（goal / plan / todos），不新增 IPC。
- * 「计划」行点击 → 打开右侧 dock 检查器并切到 plan 页签（shellUi）。
+ * 布局为 chatpane 的 flex 右列（非 absolute 浮层），可折叠为 44px 窄条。
+ * 数据全部来自 store / 既有 IPC（zhuye_credential_pool_status），无新增命令。
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowRight, CheckCircle2, ChevronDown, ChevronRight, FileText, ListChecks,
-  Maximize2, Minimize2, Target,
+  CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Database,
+  FileText, Gauge, ListChecks, Target,
 } from 'lucide-react';
-import { useShallow } from 'zustand/react/shallow';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
 import { useI18n } from '@/utils/i18n';
-import { GoalBody, goalStatusLabel } from '@/features/shell/sessionChips/GoalBody';
+import { zhuye_credential_pool_status } from '@/utils/commands/runtimeStatus';
+import { GoalBody } from '@/features/shell/sessionChips/GoalBody';
+import { useContextRatio } from '@/logic/shell/useContextRatio';
 import s from '@/render/shell/session/session.module.css';
 
-type Variant = 'auto' | 'mini' | 'panel';
-type SectionKey = 'goal' | 'plan' | 'todo';
+type SectionKey = 'goal' | 'plan' | 'todo' | 'context' | 'pool';
 
-export function StatusPanel({ goalActive, goalText, turnRunning }: {
+/** 把 RFC3339 起始时间格式化为「X分Y秒 / X小时Y分」。 */
+function formatElapsed(startedAt: string | undefined, now: number): string {
+  if (!startedAt) return '';
+  const started = Date.parse(startedAt);
+  if (Number.isNaN(started)) return '';
+  const secs = Math.max(0, Math.floor((now - started) / 1000));
+  const m = Math.floor(secs / 60);
+  const sec = secs % 60;
+  if (m < 60) return `${m}分${String(sec).padStart(2, '0')}秒`;
+  return `${Math.floor(m / 60)}小时${String(m % 60).padStart(2, '0')}分`;
+}
+
+export function StatusPanel({ goalActive, turnRunning }: {
   goalActive: boolean;
   goalText: string;
   turnRunning: boolean;
 }) {
   const { t } = useI18n();
-  const [variant, setVariant] = useState<Variant>('auto');
+  const [collapsed, setCollapsed] = useState(false);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    goal: true, plan: true, todo: true,
+    goal: true, plan: true, todo: true, context: true, pool: true,
   });
   const todos = useAgentStore((st) => st.todos);
   const goalSnapshot = useAgentStore((st) => st.goalSnapshot);
   const plan = useAgentStore((st) => st.plan);
-  const planDraft = useAgentStore(useShallow((st) => st.planDraft));
+  const planDraft = useAgentStore((st) => st.planDraft);
+  const tokens = useAgentStore((st) => st.tokens);
+  const context = useContextRatio();
   const setDockOpen = useShellUi((st) => st.setDockOpen);
   const setDockMode = useShellUi((st) => st.setDockMode);
   const setInspectorTab = useShellUi((st) => st.setInspectorTab);
 
+  // 目标计时（goal 激活时每秒跳动；非激活不跑定时器）。
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!goalActive) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [goalActive]);
+  const goalElapsed = goalActive ? formatElapsed(goalSnapshot?.started_at, now) : '';
+
+  const poolQ = useQuery({
+    queryKey: ['workbench-pool'],
+    queryFn: zhuye_credential_pool_status,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+  const pools = poolQ.data ?? [];
+
   const doneCount = todos.filter((td) => td.status === 'completed').length;
-  const inProgress = todos.find((td) => td.status === 'in_progress');
-  const goalTitle = goalActive
-    ? (goalText || goalStatusLabel(t, goalSnapshot?.status))
-    : t('harness.corner.goal.setIdle');
   const planState = plan ? 'ready' : planDraft ? 'draft' : null;
   const planTitle = plan?.markdown?.split('\n').find((l) => l.trim())?.replace(/^#+\s*/, '')
     ?? planDraft?.markdown?.split('\n').find((l) => l.trim())?.replace(/^#+\s*/, '')
     ?? t('statusPanel.planDraft');
+
+  const hasGoal = goalActive || goalSnapshot != null;
+  const hasContent = todos.length > 0 || hasGoal || planState != null || turnRunning
+    || context.ratio != null || pools.length > 0;
 
   const toggleSection = (key: SectionKey) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -62,44 +95,42 @@ export function StatusPanel({ goalActive, goalText, turnRunning }: {
     setDockOpen(true);
   };
 
-  /* ===== mini 胶囊（单行优先级链） ===== */
-  const mini = (
-    <button
-      type="button"
-      className={s.statusPill}
-      data-testid="status-panel-pill"
-      aria-label={t('statusPanel.expand')}
-      onClick={() => setVariant('panel')}
-    >
-      {inProgress && (
-        <span className={s.statusMetric}>
-          <ArrowRight size={14} strokeWidth={1.5} aria-hidden />
-          <span className={s.statusMetricTxt}>{inProgress.active_form ?? inProgress.content}</span>
-        </span>
-      )}
-      <span className={s.statusMetric} data-goal-active={goalActive || undefined}>
-        <Target size={14} strokeWidth={1.5} aria-hidden />
-        <span className={s.statusMetricTxt}>{goalTitle}</span>
-      </span>
-      {planState && (
-        <span className={s.statusMetric}>
-          <FileText size={14} strokeWidth={1.5} aria-hidden />
-          <span className={s.statusMetricTxt}>{t('statusPanel.plan')}</span>
-        </span>
-      )}
-      {todos.length > 0 && (
-        <span className={`${s.statusMetric} ${s.statusDone}`}>
-          <CheckCircle2 size={14} strokeWidth={1.5} aria-hidden />
-          <span className={s.statusMetricTxt}>{doneCount}/{todos.length}</span>
-        </span>
-      )}
-      <Maximize2 size={13} strokeWidth={1.5} className={s.statusExpandIcon} aria-hidden />
-    </button>
-  );
+  /* ===== 折叠窄条（44px，图标直达各段） ===== */
+  if (collapsed) {
+    return (
+      <aside className={s.workbenchCollapsed} data-testid="workbench-collapsed">
+        <button
+          type="button"
+          className={s.statusPanelBtn}
+          aria-label={t('statusPanel.expand')}
+          title={t('statusPanel.expand')}
+          data-testid="workbench-expand"
+          onClick={() => setCollapsed(false)}
+        >
+          <ChevronLeft strokeWidth={1.5} aria-hidden />
+        </button>
+        <button type="button" className={s.wbMiniIcon} aria-label={t('statusPanel.goal')} title={t('statusPanel.goal')} onClick={() => setCollapsed(false)}>
+          <Target size={15} strokeWidth={1.5} aria-hidden />
+        </button>
+        {planState && (
+          <button type="button" className={s.wbMiniIcon} aria-label={t('statusPanel.plan')} title={t('statusPanel.plan')} onClick={() => { setCollapsed(false); openPlanInDock(); }}>
+            <FileText size={15} strokeWidth={1.5} aria-hidden />
+          </button>
+        )}
+        {todos.length > 0 && (
+          <button type="button" className={s.wbMiniIcon} aria-label={t('statusPanel.todo')} title={t('statusPanel.todo')} onClick={() => setCollapsed(false)}>
+            <ListChecks size={15} strokeWidth={1.5} aria-hidden />
+          </button>
+        )}
+        <button type="button" className={s.wbMiniIcon} aria-label={t('statusPanel.context')} title={t('statusPanel.context')} onClick={() => setCollapsed(false)}>
+          <Gauge size={15} strokeWidth={1.5} aria-hidden />
+        </button>
+      </aside>
+    );
+  }
 
-  /* ===== 展开面板 ===== */
-  const panel = (
-    <aside className={s.statusPanel} data-testid="status-panel" data-turn-running={turnRunning || undefined}>
+  return (
+    <aside className={s.workbench} data-testid="workbench-panel" data-turn-running={turnRunning || undefined}>
       <div className={s.statusPanelCtl}>
         <button
           type="button"
@@ -107,29 +138,30 @@ export function StatusPanel({ goalActive, goalText, turnRunning }: {
           aria-label={t('statusPanel.collapse')}
           title={t('statusPanel.collapse')}
           data-testid="status-panel-collapse"
-          onClick={() => setVariant('mini')}
+          onClick={() => setCollapsed(true)}
         >
-          <Minimize2 size={13} strokeWidth={1.5} aria-hidden />
+          <ChevronRight strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
-      {/* 目标（常驻：空闲时 GoalBody 提供设目标表单） */}
-      {(
-        <section className={s.statusSection} data-status-section="goal">
-          <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('goal')} aria-expanded={openSections.goal}>
-            {openSections.goal
-              ? <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
-              : <ChevronRight size={14} strokeWidth={1.5} aria-hidden />}
-            <span className={s.statusSectionTitle}>{t('statusPanel.goal')}</span>
-          </button>
-          {openSections.goal && (
-            <div className={s.statusRows} data-testid="status-panel-goal">
-              {/* GoalBody 自带目标快照展示与设目标表单（含迭代轮次控制）。 */}
-              <GoalBody />
-            </div>
+      {/* 目标（常驻：激活显示计时；空闲时 GoalBody 提供设目标表单） */}
+      <section className={s.statusSection} data-status-section="goal">
+        <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('goal')} aria-expanded={openSections.goal}>
+          {openSections.goal
+            ? <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
+            : <ChevronRight size={14} strokeWidth={1.5} aria-hidden />}
+          <span className={s.statusSectionTitle}>{t('statusPanel.goal')}</span>
+          {goalActive && goalElapsed && (
+            <span className={s.statusSide} data-testid="status-panel-goal-elapsed">⏱ {goalElapsed}</span>
           )}
-        </section>
-      )}
+        </button>
+        {openSections.goal && (
+          <div className={s.statusRows} data-testid="status-panel-goal">
+            {/* GoalBody 自带目标快照展示与设目标表单（含迭代轮次控制）。 */}
+            <GoalBody />
+          </div>
+        )}
+      </section>
 
       {/* 计划（右侧 dock 的 plan 页签入口） */}
       {planState && (
@@ -152,7 +184,7 @@ export function StatusPanel({ goalActive, goalText, turnRunning }: {
         </section>
       )}
 
-      {/* 进程（todolist） */}
+      {/* 进程（todolist 进度） */}
       {todos.length > 0 && (
         <section className={s.statusSection} data-status-section="todo">
           <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('todo')} aria-expanded={openSections.todo}>
@@ -178,18 +210,89 @@ export function StatusPanel({ goalActive, goalText, turnRunning }: {
           )}
         </section>
       )}
-    </aside>
-  );
 
-  // auto：容器 ≥1280px 展开面板，否则胶囊（容器查询见 session.module.css）。
-  return (
-    <div className={s.statusWrap} data-variant={variant}>
-      {variant === 'mini' ? mini : variant === 'panel' ? panel : (
-        <>
-          <span className={s.statusAutoMini}>{mini}</span>
-          <span className={s.statusAutoPanel}>{panel}</span>
-        </>
+      {/* 上下文容量（总进度 + 输入/输出/缓存分解条 + 缓存命中率）。
+          引擎 token_count 只报 input/output/cached/cacheWrite —— 分解条按
+          真实可用维度呈现；六类语义分解（消息/系统工具/MCP…）待引擎上报
+          后接入（见 docs/visual-parity.md #3）。 */}
+      {context.ratio != null && (
+        <section className={s.statusSection} data-status-section="context">
+          <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('context')} aria-expanded={openSections.context}>
+            {openSections.context
+              ? <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
+              : <ChevronRight size={14} strokeWidth={1.5} aria-hidden />}
+            <span className={s.statusSectionTitle}>{t('statusPanel.context')}</span>
+            <span className={s.statusSide} data-warn={context.warn || undefined} data-testid="status-panel-context-pct">
+              {context.pct}%
+            </span>
+          </button>
+          {openSections.context && (
+            <div className={s.statusRows} data-testid="status-panel-context">
+              <div className={s.wbMeter} data-warn={context.warn || undefined}>
+                <i style={{ width: `${context.pct}%` }} />
+              </div>
+              <div className={s.wbKvRow}>
+                <span>{t('statusPanel.contextUsed')}</span>
+                <span className={s.wbKvVal}>{(context.usedTokens ?? 0).toLocaleString()}</span>
+              </div>
+              <div className={s.wbKvRow}>
+                <span>{t('statusPanel.contextWindow')}</span>
+                <span className={s.wbKvVal}>{(context.windowSize ?? 0).toLocaleString()}</span>
+              </div>
+              <div className={s.wbKvRow}>
+                <span>{t('statusPanel.cacheHit')}</span>
+                <span className={s.wbKvVal} data-testid="status-panel-cache-hit">
+                  {tokens && tokens.input > 0
+                    ? `${Math.round((tokens.cached / tokens.input) * 100)}%`
+                    : '—'}
+                </span>
+              </div>
+              <div className={s.wbKvRow}>
+                <span>{t('statusPanel.inputOutput')}</span>
+                <span className={s.wbKvVal}>
+                  {(tokens?.input ?? 0).toLocaleString()} / {(tokens?.output ?? 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          )}
+        </section>
       )}
-    </div>
+
+      {/* 凭据池（模型组内凭据健康，30s 轮询） */}
+      {pools.length > 0 && (
+        <section className={s.statusSection} data-status-section="pool">
+          <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('pool')} aria-expanded={openSections.pool}>
+            {openSections.pool
+              ? <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
+              : <ChevronRight size={14} strokeWidth={1.5} aria-hidden />}
+            <span className={s.statusSectionTitle}>{t('statusPanel.pool')}</span>
+            <Database size={12} strokeWidth={1.5} className={s.statusRowIcon} aria-hidden />
+          </button>
+          {openSections.pool && (
+            <div className={s.statusRows} data-testid="status-panel-pool">
+              {pools.map((p) => (
+                <div key={p.group} className={s.statusRow}>
+                  <span className={s.statusRowTxt}>{p.group}</span>
+                  <span className={`${s.statusSide} ${s.wbPoolCount}`} data-ok={p.healthy >= p.total || undefined}>
+                    {p.healthy}/{p.total}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 无内容兜底：提示 + 保持面板可折叠 */}
+      {!hasContent && (
+        <div className={s.statusRows}>
+          <div className={s.statusRow}>
+            <span className={s.statusRowTxt} style={{ color: 'var(--text-muted)' }}>
+              {t('statusPanel.workbenchIdle')}
+            </span>
+          </div>
+        </div>
+      )}
+    </aside>
   );
 }

@@ -14,14 +14,24 @@ import { deriveTrajEntries } from '@/features/shell/session/traj';
 import { useAgentStore } from '@/stores/agentStore';
 import type { Turn, TodoItem } from '@/stores/agentStore';
 import { I18nProvider } from '@/utils/i18n';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createTestQueryClient, mockInvoke } from '@/test/setup';
 
 function mount(ui: React.ReactElement) {
-  return render(<I18nProvider>{ui}</I18nProvider>);
+  return render(
+    <I18nProvider>
+      <QueryClientProvider client={createTestQueryClient()}>{ui}</QueryClientProvider>
+    </I18nProvider>,
+  );
 }
 
 /* ===== SessionDock ===== */
 
 describe('SessionDock', () => {
+  beforeEach(() => {
+    mockInvoke('zhuye_credential_pool_status', async () => []);
+  });
+
   it('无排队时不出排队 chip；任务/目标已迁移到状态面板，本行不再承载', () => {
     useAgentStore.setState({ todos: [], queuedMessages: [], goalActive: false });
     const { container } = mount(<SessionDock goalActive={false} goalText="" turnRunning={false} />);
@@ -40,10 +50,8 @@ describe('SessionDock', () => {
     ];
     useAgentStore.setState({ todos, queuedMessages: [], goalActive: false });
     mount(<StatusPanel goalActive={false} goalText="" turnRunning={false} />);
-    const pill = screen.getByTestId('status-panel-pill');
-    expect(pill.textContent).toContain('1/3');
-    expect(pill.textContent).toContain('收口中');
-    fireEvent.click(pill);
+    expect(screen.getByText('1/3')).toBeTruthy();
+    expect(screen.getByText('收口中')).toBeTruthy();
     expect(screen.getAllByText('定位根因').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/收口中/).length).toBeGreaterThanOrEqual(1);
   });

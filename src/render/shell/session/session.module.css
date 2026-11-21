@@ -907,3 +907,84 @@
     display: none;
   }
 }
+
+/* ===== 常驻工作台右列（chatpane 的 flex 子项，非浮层） ===== */
+.workbench {
+  position: relative;
+  display: flex;
+  width: 300px;
+  flex: none;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--bg-2);
+  padding: 8px 8px 12px;
+}
+
+.workbenchCollapsed {
+  display: flex;
+  width: 44px;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--bg-2);
+  padding: 8px 4px;
+}
+
+.wbMiniIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.wbMiniIcon:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 容量总进度条 + 键值行 */
+.wbMeter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  margin: 4px 8px 8px;
+}
+.wbMeter i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.wbMeter[data-warn] i {
+  background: var(--warning);
+}
+.wbKvRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.wbKvVal {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.wbPoolCount {
+  font-variant-numeric: tabular-nums;
+}
+.wbPoolCount[data-ok] {
+  color: var(--success);
+}

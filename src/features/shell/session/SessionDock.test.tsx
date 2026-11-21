@@ -6,8 +6,10 @@
  * （SessionDock）。本文件同时钉住两块的行为。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
+import { createTestQueryClient } from '@/test/setup';
 import { SessionDock } from '@/features/shell/session/SessionDock';
 import { StatusPanel } from '@/features/shell/session/StatusPanel';
 import { useAgentStore } from '@/stores/agentStore';
@@ -24,11 +26,13 @@ function renderDock() {
 function renderPanel(props: { goalActive?: boolean; goalText?: string } = {}) {
   return render(
     <I18nProvider>
-      <StatusPanel
-        goalActive={props.goalActive ?? false}
-        goalText={props.goalText ?? ''}
-        turnRunning={false}
-      />
+      <QueryClientProvider client={createTestQueryClient()}>
+        <StatusPanel
+          goalActive={props.goalActive ?? false}
+          goalText={props.goalText ?? ''}
+          turnRunning={false}
+        />
+      </QueryClientProvider>
     </I18nProvider>,
   );
 }
@@ -75,22 +79,24 @@ describe('SessionDock · 会话内速控行', () => {
   });
 });
 
-describe('StatusPanel · 右上角状态面板', () => {
+describe('StatusPanel · 常驻工作台右列', () => {
   beforeEach(() => {
     resetMockInvoke();
     localStorage.clear();
     useAgentStore.getState().reset();
+    mockInvoke('zhuye_credential_pool_status', async () => []);
   });
   afterEach(() => cleanup());
 
-  it('空会话仅显示目标胶囊（常驻设目标入口）', () => {
+  it('空会话显示空闲提示（面板常驻 + 设目标入口）', () => {
     renderPanel();
-    const pill = screen.getByTestId('status-panel-pill');
-    expect((pill.textContent ?? '').toLowerCase()).toContain('goal');
-    expect(screen.queryByText('1/2')).toBeNull();
+    expect(screen.getByTestId('workbench-panel')).toBeTruthy();
+    expect(screen.getByText(/Nothing running yet/)).toBeTruthy();
+    expect(screen.getByTestId('status-panel-goal')).toBeTruthy();
+    expect(screen.getByTestId('corner-goal-form')).toBeTruthy();
   });
 
-  it('mini 胶囊显示进行中的 todo，点击展开为面板', () => {
+  it('进程节直接列出 todo 三态与完成计数', () => {
     useAgentStore.setState({
       todos: [
         { content: '读需求', status: 'completed' },
@@ -98,35 +104,25 @@ describe('StatusPanel · 右上角状态面板', () => {
       ],
     });
     renderPanel();
-    const pill = screen.getByTestId('status-panel-pill');
-    expect(pill.textContent ?? '').toContain('正在写实现');
-    expect(pill.textContent).toContain('1/2');
-    fireEvent.click(pill);
-    expect(screen.getByTestId('status-panel')).toBeTruthy();
-    // 展开后「进程」节列出三态清单。
     expect(screen.getAllByTestId('status-panel-todo-row').length).toBe(2);
     expect(screen.getByText('读需求')).toBeTruthy();
+    expect(screen.getByText('正在写实现')).toBeTruthy();
+    expect(screen.getByText('1/2')).toBeTruthy();
   });
 
-  it('面板提供「设目标」表单（目标节）', () => {
-    mockInvoke('zhuye_enter_goal_mode', async () => undefined);
+  it('目标激活时显示计时（⏱ 分秒）', () => {
     useAgentStore.setState({
-      todos: [{ content: '任务一', status: 'pending' }],
-    });
-    renderPanel();
-    fireEvent.click(screen.getByTestId('status-panel-pill'));
-    expect(screen.getByTestId('status-panel-goal')).toBeTruthy();
-    expect(screen.getByTestId('corner-goal-form')).toBeTruthy();
-    expect(screen.getByTestId('corner-goal-input')).toBeTruthy();
-  });
-
-  it('目标活动时 mini 胶囊显示目标文本', () => {
-    useAgentStore.setState({
-      todos: [{ content: '任务一', status: 'pending' }],
-    });
+      goalSnapshot: {
+        goal: '把功能做完', verify_command: null, token_budget: null,
+        status: 'active', tokens_used: 0, turn_count: 0,
+        consecutive_blocked_turns: 0,
+        started_at: new Date(Date.now() - 90_000).toISOString(), turns: [],
+      },
+    } as never);
     renderPanel({ goalActive: true, goalText: '把功能做完' });
-    const pill = screen.getByTestId('status-panel-pill');
-    expect(pill.textContent ?? '').toContain('把功能做完');
+    const elapsed = screen.getByTestId('status-panel-goal-elapsed');
+    expect(elapsed.textContent).toContain('⏱');
+    expect(elapsed.textContent).toContain('分');
   });
 
   it('有 plan 终稿时「计划」节可见，点击打开 dock 检查器 plan 页签', () => {
@@ -136,29 +132,51 @@ describe('StatusPanel · 右上角状态面板', () => {
       plan: { planId: 'p1', markdown: '# 实施计划\n\n第一步', status: 'ready' },
     } as never);
     renderPanel();
-    fireEvent.click(screen.getByTestId('status-panel-pill'));
     expect(screen.getByTestId('status-panel-plan')).toBeTruthy();
     expect(screen.getByText('实施计划')).toBeTruthy();
     fireEvent.click(screen.getByTestId('status-panel-plan'));
-    // 打开 dock 检查器并切到 plan 页签（shellUi 状态断言）。
     expect(useShellUiGet().dockOpen).toBe(true);
     expect(useShellUiGet().dockMode).toBe('inspector');
     expect(useShellUiGet().inspectorTab).toBe('plan');
   });
 
-  it('面板可收起为胶囊（collapse 按钮）', () => {
+  it('可折叠为窄条并可展开（collapse / expand）', () => {
     useAgentStore.setState({
       todos: [{ content: '任务一', status: 'pending' }],
     });
     renderPanel();
-    fireEvent.click(screen.getByTestId('status-panel-pill'));
-    expect(screen.getByTestId('status-panel')).toBeTruthy();
+    expect(screen.getByTestId('workbench-panel')).toBeTruthy();
     fireEvent.click(screen.getByTestId('status-panel-collapse'));
-    expect(screen.getByTestId('status-panel-pill')).toBeTruthy();
-    expect(screen.queryByTestId('status-panel')).toBeNull();
+    expect(screen.getByTestId('workbench-collapsed')).toBeTruthy();
+    expect(screen.queryByTestId('workbench-panel')).toBeNull();
+    fireEvent.click(screen.getByTestId('workbench-expand'));
+    expect(screen.getByTestId('workbench-panel')).toBeTruthy();
+  });
+
+  it('上下文容量节：总进度 + 缓存命中率（有 token 上报时）', () => {
+    useAgentStore.setState({
+      tokens: { input: 1000, output: 500, cached: 800, cacheWrite: 0, total: 1500 },
+      contextWindowSize: 100_000,
+    } as never);
+    renderPanel();
+    expect(screen.getByTestId('status-panel-context')).toBeTruthy();
+    expect(screen.getByTestId('status-panel-context-pct').textContent).toBe('2%');
+    expect(screen.getByTestId('status-panel-cache-hit').textContent).toBe('80%');
+  });
+
+  it('凭据池节：组健康计数（healthy/total）', async () => {
+    mockInvoke('zhuye_credential_pool_status', async () => [
+      { group: 'demo', endpoint: 'openai', total: 2, healthy: 2, healthyLabels: ['a', 'b'] },
+    ]);
+    useAgentStore.setState({
+      todos: [{ content: '任务一', status: 'pending' }],
+    });
+    renderPanel();
+    await waitFor(() => expect(screen.getByTestId('status-panel-pool')).toBeTruthy());
+    expect(screen.getByText('demo')).toBeTruthy();
+    expect(screen.getByText('2/2')).toBeTruthy();
   });
 });
-
 /* ---- shellUi 测试辅助（避免直接 import store 类型噪音） ---- */
 import { useShellUi } from '@/stores/shellUi';
 function useShellUiGet() {

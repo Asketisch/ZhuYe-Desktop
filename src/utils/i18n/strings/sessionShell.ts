@@ -99,6 +99,14 @@ const zh = {
   'statusPanel.planDraft':  { en: 'Plan draft',            'zh-CN': '计划草稿' },
   'statusPanel.plan_ready': { en: 'Ready',                 'zh-CN': '已就绪' },
   'statusPanel.plan_draft': { en: 'Draft',                 'zh-CN': '草稿' },
+  // 常驻工作台列（上下文容量 / 凭据池）
+  'statusPanel.context':      { en: 'Context',            'zh-CN': '上下文容量' },
+  'statusPanel.contextUsed':  { en: 'Used',               'zh-CN': '已用' },
+  'statusPanel.contextWindow': { en: 'Window',            'zh-CN': '窗口' },
+  'statusPanel.cacheHit':     { en: 'Cache hit rate',     'zh-CN': '平均缓存命中率' },
+  'statusPanel.inputOutput':  { en: 'Input / Output',     'zh-CN': '输入 / 输出' },
+  'statusPanel.pool':         { en: 'Credential pool',    'zh-CN': '凭据池' },
+  'statusPanel.workbenchIdle': { en: 'Nothing running yet — goal, plan and usage appear here.', 'zh-CN': '还没有进行中的工作 —— 目标 / 计划 / 用量会显示在这里。' },
 };
 
 const entries: Record<string, StringEntry> = zh as unknown as Record<string, StringEntry>;
