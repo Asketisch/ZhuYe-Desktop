@@ -21,7 +21,7 @@
  * 由 `tests/e2e/run.sh` 调用(Playwright 由该脚本按需 `pnpm dlx` 安装)。
  */
 import { createServer, type Server } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -116,7 +116,16 @@ function serveStatic(root: string): Promise<{ server: Server; port: number }> {
   const server = createServer((req, res) => {
     const url = (req.url ?? '/').split('?')[0];
     let file = path.join(root, url);
-    if (!existsSync(file) || file.endsWith('/')) file = path.join(root, 'index.html');
+    // SPA fallback:目录请求或缺失文件一律回落 index.html。Windows 上
+    // path.join 产物以反斜杠结尾,原来的 file.endsWith('/') 判目录恒
+    // false → 根路径 '/' 读到目录本身,EISDIR 抛错 → 404「not found」
+    // —— windows 的 index 基线整页 not found、settings 表面 prepare
+    // 找不到 harness-settings 按钮均由此而来。改用 statSync 判目录。
+    try {
+      if (statSync(file).isDirectory()) file = path.join(root, 'index.html');
+    } catch {
+      file = path.join(root, 'index.html');
+    }
     try {
       const body = readFileSync(file);
       res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream' });
