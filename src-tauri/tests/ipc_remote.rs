@@ -63,12 +63,18 @@ fn compile_stub_ssh() -> PathBuf {
     std::fs::create_dir_all(&dir).expect("create stub dir");
     let src = dir.join("stub_ssh.rs");
     std::fs::write(&src, STUB_SSH_SRC).expect("write stub src");
-    let out = dir.join(if cfg!(windows) { "stub-ssh.exe" } else { "stub-ssh" });
+    let out = dir.join(if cfg!(windows) {
+        "stub-ssh.exe"
+    } else {
+        "stub-ssh"
+    });
     let status = std::process::Command::new("rustc")
         .arg("-O") // 与原脚本无差别的行为保真;优化让 serve 循环更跟手
-        .arg("--edition").arg("2021")
+        .arg("--edition")
+        .arg("2021")
         .arg(&src)
-        .arg("-o").arg(&out)
+        .arg("-o")
+        .arg(&out)
         .status()
         .expect("rustc 不在 PATH(测试进程必带);无法编译 stub ssh");
     assert!(status.success(), "stub ssh 编译失败:{status}");
