@@ -22,6 +22,8 @@ import { SkillsView as SkillsSection } from '@/features/skills/SkillsView';
 import { HooksView as HooksSection } from '@/features/hooks/HooksView';
 import { UsageView as UsageSection } from '@/features/usage/UsageView';
 
+import { useNavigate } from '@tanstack/react-router';
+
 const slots = { ConfigForm, DisplaySection, NotificationsSection, GroupsSection,
   PermissionRulesSection, ConfigInfoLine, SecurityScanCard, GuardStatsCard, ConfigHealthBanner, UpdatesSection,
   RemoteSection, MemorySection, AgentsSection, PluginsSection, McpSection, SkillsSection, HooksSection,
@@ -29,5 +31,10 @@ const slots = { ConfigForm, DisplaySection, NotificationsSection, GroupsSection,
 
 export function SettingsView({ onClose }: { onClose?: () => void }) {
   const renderer = useRenderer();
-  return <SettingsBinding view={renderer?.SettingsView ?? DefaultView} slots={slots} onClose={onClose} />;
+  const navigate = useNavigate();
+  // 覆盖层式挂载(SettingsHost)显式传 onClose;路由式挂载(/settings,经
+  // 命令面板「前往设置」)不传 —— 缺省回首页,否则「返回工作台」按钮
+  // onClick 为 undefined 永远无响应(实测 bug #4)。
+  const close = onClose ?? (() => void navigate({ to: '/' }));
+  return <SettingsBinding view={renderer?.SettingsView ?? DefaultView} slots={slots} onClose={close} />;
 }

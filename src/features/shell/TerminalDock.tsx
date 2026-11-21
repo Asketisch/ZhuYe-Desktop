@@ -37,9 +37,13 @@ export function TerminalDock() {
     setTabs((prev) => {
       const next = prev.filter((tab) => tab.id !== id);
       setActiveId((cur) => (cur === id ? (next[next.length - 1]?.id ?? null) : cur));
+      // 最后一个 tab 关闭 → 自动收起面板(实测 bug #7:否则留一条空白
+      // dock 条占位)。termOpen=false 会同步重置 createdRef,下次打开
+      // 自动补开新 tab,行为闭环。
+      if (next.length === 0) setTermOpen(false);
       return next;
     });
-  }, []);
+  }, [setTermOpen]);
 
   // 面板打开但没有任何标签 → 自动开一个。
   // createdRef 防护 StrictMode 双调用（两次 effect 共享同一份 stale 的

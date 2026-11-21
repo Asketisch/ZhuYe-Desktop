@@ -65,7 +65,10 @@ export function Sidebar({
     const dot = badge?.dot ?? 'idle';
     const pending = badge?.pending ?? null;
     const unread = badge?.unread ?? false;
-    const elapsed = dot === 'run' ? Math.max(0, elapsedNow - Date.parse(sess.started_at)) : 0;
+    // 回合计时口径:badge.since(当前回合起点) —— 不得用会话创建时间
+    // 冒充(实测 bug #9:历史会话计时 25h)。起点未知 → 只显示呼吸点。
+    const since = badge?.since ?? null;
+    const elapsed = dot === 'run' && since ? Math.max(0, elapsedNow - since) : 0;
     return (
       <div key={sess.session_id} className="row-shell">
         {renameId === sess.session_id ? <input className="ask-field session-rename" autoFocus
@@ -96,7 +99,9 @@ export function Sidebar({
           )}
           <span className="t">{titleOf(sess)}</span>
           {dot === 'run'
-            ? <span className="sess-timer">{fmtElapsed(elapsed)}</span>
+            ? (since
+              ? <span className="sess-timer">{fmtElapsed(elapsed)}</span>
+              : <span className="sess-timer" title={t('harness.sb.timeNow')}>●</span>)
             : <span className="tm">{relativeTime(sess.started_at, elapsedNow, t)}</span>}
         </button>}
         <button

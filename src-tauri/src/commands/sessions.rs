@@ -907,13 +907,46 @@ fn refine_session_titles(base: &Path, sessions: &mut [SessionInfo]) {
     for s in sessions.iter_mut() {
         let id = s.session_id.to_string();
         if let Some(name) = custom.get(&id) {
-            s.title = Some(name.clone());
+            s.title = Some(strip_injection(name));
         } else if let Some(title) = ai.get(&id) {
-            s.title = Some(title.clone());
+            s.title = Some(strip_injection(title));
         } else if let Some(title) = derived.get(&id) {
-            s.title = Some(title.clone());
+            s.title = Some(strip_injection(title));
         }
     }
+}
+
+/// 剥离首条 user 消息里的注入块(与前端 `replay.ts` 同语义)。
+///
+/// 标题源自首条 user 消息原文;消息正文可含 `<system-reminder>…</system-
+/// reminder>` 注入段 —— 原样进标题会在列表与顶栏裸露协议标记(实测 bug #1)。
+/// 剥除后按首行非空文本取标题骨架,再交由既有截断逻辑。
+fn strip_injection(title: &str) -> String {
+    let mut out = String::with_capacity(title.len());
+    let mut rest = title;
+    const CLOSE: &str = "</system-reminder>";
+    while let Some(start) = rest.find("<system-reminder>") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start..];
+        match after.find(CLOSE) {
+            Some(end) => {
+                rest = &after[end + CLOSE.len()..];
+            }
+            None => {
+                // 未闭合:剥到字符串尾(注入块不完整,余下内容不可信)。
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    let cleaned = out.trim();
+    if cleaned.is_empty() {
+        // 全文皆注入块 → 回退原标题(诚实保留,优于空标题)。
+        return title.trim().to_string();
+    }
+    // 剥除后可能残留前缀分隔符(如「echo hi  ## Project Instruction」的
+    // 双空格),折叠空白保持标题紧凑。
+    cleaned.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// 读 `<base>/_titles/*.title` → `session_id → AI 标题`。
@@ -1998,5 +2031,28 @@ mod tests {
         let mut info = vec![session_info(id, Some("已有标题".into()))];
         refine_session_titles(base, &mut info);
         assert_eq!(info[0].title.as_deref(), Some("已有标题"));
+    }
+
+    // 实测 bug #1:标题源自首条 user 消息原文,注入块会裸露在列表与顶栏。
+    #[test]
+    fn strip_injection_removes_system_reminder_blocks() {
+        // 常规:注入块剥除 + 空白折叠。
+        assert_eq!(
+            strip_injection("echo hi <system-reminder> ## Project Instruction…"),
+            "echo hi"
+        );
+        assert_eq!(
+            strip_injection("<system-reminder>前置注入</system-reminder>真实问题"),
+            "真实问题"
+        );
+        // 未闭合注入块:剥到尾。
+        assert_eq!(strip_injection("问题 <system-reminder>未闭合"), "问题");
+        // 全文皆注入块 → 回退原文(优于空标题)。
+        assert_eq!(
+            strip_injection("<system-reminder>x</system-reminder>"),
+            "<system-reminder>x</system-reminder>"
+        );
+        // 无注入块原样返回(折叠空白)。
+        assert_eq!(strip_injection("a  b\nc"), "a b c");
     }
 }

@@ -51,6 +51,8 @@ export interface BackgroundPending {
 /** 单个后台会话的投影快照(供会话列表徽标 / toast 消费)。 */
 export interface BackgroundSessionSnapshot {
   running: boolean;
+  /** 当前运行回合起点 epoch ms;非运行态为 null(实测 bug #9 的诚实口径)。 */
+  runningSince: number | null;
   pendingCount: number;
   pending: BackgroundPending;
   updatedAt: number;
@@ -144,14 +146,22 @@ export const useBackgroundSessions = create<BackgroundSessionsState>((set, get) 
         ttlMs: 6000,
       });
     }
+    const now = Date.now();
+    const running = scratch.turns.some((turn) => turn.status === 'streaming');
+    // 运行起点盖戳:非运行→运行 = now;持续运行保持原戳;运行→非运行清零
+    // (侧栏回合计时口径,实测 bug #9 —— 不得拿会话创建时间冒充)。
+    const runningSince = running
+      ? (previous?.runningSince ?? now)
+      : null;
     set((state) => ({
       sessions: {
         ...state.sessions,
         [sessionId]: {
-          running: scratch.turns.some((turn) => turn.status === 'streaming'),
+          running,
+          runningSince,
           pendingCount,
           pending,
-          updatedAt: Date.now(),
+          updatedAt: now,
         },
       },
     }));
@@ -176,11 +186,13 @@ export const useBackgroundSessions = create<BackgroundSessionsState>((set, get) 
     scratch.loadedSessionId = sessionId;
     const pending = pendingOf(scratch);
     const pendingCount = pendingCountOf(pending);
+    const running = scratch.turns.some((turn) => turn.status === 'streaming');
     set((state) => ({
       sessions: {
         ...state.sessions,
         [sessionId]: {
-          running: scratch.turns.some((turn) => turn.status === 'streaming'),
+          running,
+          runningSince: running ? Date.now() : null,
           pendingCount,
           pending,
           updatedAt: Date.now(),

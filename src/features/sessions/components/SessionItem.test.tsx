@@ -53,7 +53,7 @@ describe('SessionItem 运行态徽标', () => {
   it('非活动会话在后台运行 → 显示运行点', () => {
     useBackgroundSessions.setState({
       sessions: {
-        s2: { running: true, pendingCount: 0, pending: { approvals: [], questions: [], askUser: [], plan: null }, updatedAt: 0 },
+        s2: { running: true, runningSince: 0, pendingCount: 0, pending: { approvals: [], questions: [], askUser: [], plan: null }, updatedAt: 0 },
       },
     });
     render(<SessionItem session={sess('s2')} active={false} onClick={() => {}} />);
@@ -79,6 +79,7 @@ describe('SessionItem 运行态徽标', () => {
       sessions: {
         s2: {
           running: false,
+          runningSince: null,
           pendingCount: 2,
           pending: { approvals: [], questions: [], askUser: [], plan: null },
           updatedAt: 0,

@@ -8,7 +8,7 @@
  *
  * 输出直接对齐设计稿侧栏的「状态点 + 旗标 + 未读」三元组。
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import type { SessionBadge } from '@/contracts/shell';
@@ -55,6 +55,16 @@ export function useSessionBadges(
   const background = useBackgroundSessions((s) => s.sessions);
 
   const foregroundRunning = turns.some((turn) => turn.status === 'streaming');
+  // 前台回合计时起点:非运行→运行盖戳,运行→非运行清零(实测 bug #9 ——
+  // 不得拿会话创建时间冒充回合时长)。切会话后重置为重开回合盖新戳,
+  // 比显示几十小时的累计误差诚实。
+  const fgSinceRef = useRef<number | null>(null);
+  const fgWasRunning = useRef(false);
+  useEffect(() => {
+    if (foregroundRunning && !fgWasRunning.current) fgSinceRef.current = Date.now();
+    if (!foregroundRunning) fgSinceRef.current = null;
+    fgWasRunning.current = foregroundRunning;
+  }, [foregroundRunning]);
   const foregroundPending = useMemo(
     () => ({
       approvals: pendingApprovals,
@@ -84,6 +94,7 @@ export function useSessionBadges(
           dot: flag === 'plan' ? 'wait' : flag === 'ask' ? 'q' : foregroundRunning ? 'run' : 'idle',
           pending: flag,
           unread: false,
+          since: foregroundRunning ? (fgSinceRef.current ?? null) : null,
         };
         continue;
       }
@@ -94,6 +105,7 @@ export function useSessionBadges(
           dot: flag === 'plan' ? 'wait' : flag === 'ask' ? 'q' : snapshot.running ? 'run' : 'idle',
           pending: flag,
           unread: unread.unread[id] ?? false,
+          since: snapshot.running ? snapshot.runningSince : null,
         };
         continue;
       }

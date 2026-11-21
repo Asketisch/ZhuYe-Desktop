@@ -18,6 +18,12 @@ export interface SessionBadge {
   pending: 'plan' | 'ask' | null;
   /** 后台完成但未查看的产出。 */
   unread: boolean;
+  /**
+   * 运行起点 epoch ms（dot === 'run' 时侧栏据此显示回合计时）。
+   * `null`/缺省 = 起点未知（显示呼吸点即可，不出计时）—— 诚实缺失，
+   * 不拿会话创建时间冒充回合时长（实测 bug #9：历史会话计时 25h）。
+   */
+  since?: number | null;
 }
 
 /** 「更多」导航菜单项。 */

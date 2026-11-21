@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, CornerDownLeft, ArrowUp, ArrowDown } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
+import { t as tStatic } from '@/utils/i18n/lookup';
 import { buildPaletteItems, type PaletteItem } from './registry';
 import { fuzzy } from './fuzzy';
 import s from '@/render/command-palette/CommandPalette.module.css';
@@ -63,7 +64,13 @@ export function CommandPalette(props: CommandPaletteProps) {
     const r = fuzzy(query, items, {
       getLabel: (item) => (item.labelKey === 'palette.item.themeCurrent' ? t(item.labelKey, { theme: resolvedTheme }) : t(item.labelKey)),
       getHint: (item) => (item.hintKey ? t(item.hintKey) : undefined),
-      getKeywords: (item) => item.keywords,
+      // #3:搜索源附加 label/hint 的英文翻译 —— 中文 UI 下输入英文关键词
+      // (如 settings)也能命中,不再只匹配当前 locale 文本。
+      getKeywords: (item) => [
+        ...(item.keywords ?? []),
+        tStatic(item.labelKey, 'en'),
+        ...(item.hintKey ? [tStatic(item.hintKey, 'en')] : []),
+      ],
     });
     return r.slice(0, MAX_VISIBLE).map((h) => h.item);
   }, [query, items, t, resolvedTheme]);
