@@ -19,7 +19,7 @@ import s from './SettingsPage.module.css';
 export function SettingsView({ t, locale, onLocaleChange, section, onSectionChange, rawToml,
   onTomlChange, onCommit, showSecrets, onToggleSecret, approvalPolicy, onApprovalPolicyChange,
   status, loading, configLoading, saving, permissionPending, saved, error, onOpenPrompts, onPermission,
-  onSave, onClose, search, slots }: SettingsViewProps) {
+  onSave, onClose, permissionMode, search, slots }: SettingsViewProps) {
   const { ConfigInfoLine, ConfigForm, GroupsSection, PermissionRulesSection, DisplaySection,
     NotificationsSection, ConfigHealthBanner, GuardStatsCard, SecurityScanCard, UpdatesSection,
     RemoteSection, MemorySection, AgentsSection, PluginsSection, McpSection, SkillsSection,
@@ -154,7 +154,7 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
                           (accept_edits/bubble/deny/bypass)不再提供入口。 */}
                       <Row label={t('settings.permissionMode')} description={t('settings.permissionModeDesc')}>
                         <Segmented
-                          value=""
+                          value={permissionMode}
                           disabled={permissionPending}
                           onChange={(v) => onPermission(v as SettingsPermissionMode)}
                           options={[

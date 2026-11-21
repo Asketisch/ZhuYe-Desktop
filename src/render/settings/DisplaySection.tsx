@@ -18,7 +18,7 @@ export function DisplaySection({ t, prefs, themeMode, backgroundUrl, imageError,
     <div className={kit.secBody}>
       <SubHead title={<><Monitor size={16} strokeWidth={1.5} aria-hidden /> {t('settings.display.theme')}</>} description={t('settings.display.themeHelp')} />
       <GroupCard>
-        <Row label={t('settings.display.theme')}>
+        <Row label={t('settings.display.theme')} wide>
           <span className={kit.seg} role="group" aria-label={t('settings.display.theme')}>
             {([
               ['system', Monitor, 'settings.display.system'],

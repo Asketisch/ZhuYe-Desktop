@@ -86,6 +86,8 @@ export interface SettingsViewProps {
   configLoading: boolean;
   saving: boolean;
   permissionPending: boolean;
+  /** 当前会话工作模式（三态归一，分段选中态真源）。 */
+  permissionMode: string;
   saved: boolean;
   error: string | null;
   onOpenPrompts: () => void;

@@ -18,6 +18,8 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const { t, locale, setLocale } = useI18n();
   const sessionId = useAgentStore((state) => state.loadedSessionId);
+  // 会话工作模式（三态归一）—— 行为分区分段的选中态真源。
+  const permissionMode = useAgentStore((state) => state.permissionMode);
   const openPromptPanel = useAgentStore((state) => state.openPromptPanel);
   const promptList = useAgentStore((state) => state.promptList);
   const [approvalPolicy, setApprovalPolicy] = useState<UserApprovalPolicy>(() => readApprovalPolicy(sessionId));
@@ -103,6 +105,7 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
     loading={configQuery.isLoading || statusQuery.isLoading}
     configLoading={configQuery.isLoading}
     saving={saveMutation.isPending} permissionPending={permMutation.isPending}
+    permissionMode={permissionMode}
     saved={saved} error={error}
     onOpenPrompts={() => { openPromptPanel(); void promptList(); }}
     onPermission={onPermission} onSave={onSave} onClose={onClose} search={search} slots={slots}

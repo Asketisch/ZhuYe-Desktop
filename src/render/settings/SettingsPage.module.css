@@ -1010,7 +1010,10 @@
   background: var(--z-surface);
 }
 .segBtn {
+  display: inline-flex;
   height: 28px;
+  align-items: center;
+  flex: none;
   padding: 0 10px;
   border: none;
   border-radius: 999px;
@@ -1018,8 +1021,9 @@
   color: var(--z-fg-subtle);
   font-size: var(--z-text-base);
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 .segBtn:hover {
   color: var(--z-fg);
@@ -1027,6 +1031,12 @@
 .segBtn[data-active] {
   background: var(--z-bg);
   color: var(--z-fg);
+}
+
+/* 亮色下 bg(#f8f8f8) 与卡(#fff)对比不足 —— 选中项用白底 + 阴影浮起。 */
+:global([data-theme='light']) .segBtn[data-active] {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(13, 13, 13, 0.06);
 }
 .segBtn:disabled {
   opacity: 0.5;
