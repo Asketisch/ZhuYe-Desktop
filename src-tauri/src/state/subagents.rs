@@ -98,6 +98,8 @@ pub(crate) fn bootstrap_subagents(
     factory.set_subagent_registry(m4.subagent_registry.clone());
     // 注入父 skills catalog,让 subagent 也能 LoadSkill / 使用 skill。
     factory.set_parent_skills(m4.skills.clone());
+    // v1.12:子代理会话落盘(血缘挂父会话)—— 侧栏树形展示的数据源。
+    factory.set_rollout_base(zhuye_rollout::path::default_base());
 
     // 合并 spec(TOML > workspace md > home md)。
     let home_md =

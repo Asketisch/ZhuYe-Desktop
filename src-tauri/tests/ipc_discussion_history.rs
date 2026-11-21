@@ -17,6 +17,7 @@ fn discussion_history_filters_out_ordinary_sessions() {
         let mut records = vec![RolloutRecord::SessionMeta {
             session_id: session,
             model: "fixture/model".into(),
+            parent_session_id: None,
             started_at: Utc::now(),
             workspace: None,
         }];

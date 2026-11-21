@@ -5,6 +5,7 @@
  * .sb-scroll 内容：置顶 / 工作区 / 会话（状态点 + 待办旗标 + 计时 + ⋯ 菜单）。
  * 全部交互状态（搜索开关 / 仅看待处理 / 菜单 / 计时）由 SidebarBinding 持有。
  */
+import { useState } from 'react';
 import { ChevronDown, ChevronRight, Filter, Plus, RotateCw, Search, X } from 'lucide-react';
 import type { SidebarViewProps } from '@/contracts/sidebar';
 import type { SessionBadge } from '@/contracts/shell';
@@ -15,7 +16,13 @@ interface SessionRow {
   session_id: string;
   started_at: string;
   title?: string;
+  /** v1.12:子代理会话（血缘来自 SessionMeta.parent_session_id）——
+   * 渲染在父会话行下缩进展示（minimax code 形态）。 */
+  children?: SessionRow[];
 }
+
+/** 子会话折叠阈值：超过则默认折叠，行尾「显示全部 N 个」展开。 */
+const SUB_SESSION_FOLD_LIMIT = 3;
 
 /** 会话标题：title 优先，回退短 id（与 displayTitle 同口径的最小实现）。 */
 function titleOf(sess: SessionRow): string {
@@ -58,6 +65,8 @@ export function Sidebar({
   onOpenProject, onRemoveWorkspace,
 }: SidebarViewProps) {
   const pendingCount = countPending(badges);
+  // 子会话展开集合(本地 UI 态;> 阈值的父会话默认折叠)。
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
 
   /** 会话行（状态点 + 旗标 + 标题 + 时间/计时 + ⋯）。 */
   const renderSession = (sess: SessionRow) => {
@@ -69,6 +78,11 @@ export function Sidebar({
     // 冒充(实测 bug #9:历史会话计时 25h)。起点未知 → 只显示呼吸点。
     const since = badge?.since ?? null;
     const elapsed = dot === 'run' && since ? Math.max(0, elapsedNow - since) : 0;
+    const subKids = sess.children ?? [];
+    const subExpanded = expandedSubs.has(sess.session_id);
+    const subShown = subKids.length <= SUB_SESSION_FOLD_LIMIT || subExpanded
+      ? subKids
+      : subKids.slice(0, SUB_SESSION_FOLD_LIMIT);
     return (
       <div key={sess.session_id} className="row-shell">
         {renameId === sess.session_id ? <input className="ask-field session-rename" autoFocus
@@ -112,6 +126,40 @@ export function Sidebar({
           aria-label={t('harness.sb.moreMenu')}
           onClick={() => onOpenMenu(sess.session_id)}
         >⋯</button>
+        {subKids.length > 0 && (
+          <div className="sub-sessions" data-testid={`sub-sessions-${sess.session_id}`}>
+            {subShown.map((kid) => (
+              <button
+                key={kid.session_id}
+                type="button"
+                className={['row-item', 'sess', 'sub-session', kid.session_id === activeId ? 'sel' : ''].filter(Boolean).join(' ')}
+                data-testid={`harness-subsession-${kid.session_id}`}
+                aria-pressed={kid.session_id === activeId}
+                onClick={() => onSelect(kid.session_id)}
+              >
+                <span className="dot sub-dot" />
+                <span className="t">{titleOf(kid)}</span>
+                <span className="tm">{relativeTime(kid.started_at, elapsedNow, t)}</span>
+              </button>
+            ))}
+            {subKids.length > SUB_SESSION_FOLD_LIMIT && (
+              <button
+                type="button"
+                className="sub-fold-toggle"
+                onClick={() => {
+                  const next = new Set(expandedSubs);
+                  if (subExpanded) next.delete(sess.session_id);
+                  else next.add(sess.session_id);
+                  setExpandedSubs(next);
+                }}
+              >
+                {subExpanded
+                  ? t('harness.sb.subCollapse')
+                  : t('harness.sb.subExpand', { n: String(subKids.length) })}
+              </button>
+            )}
+          </div>
+        )}
         {menuFor === sess.session_id && menuActions.length > 0 && (
           <SessionMenu sessionId={sess.session_id} actions={menuActions} onClose={() => onOpenMenu(null)} />
         )}

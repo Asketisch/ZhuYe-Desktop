@@ -9,6 +9,12 @@ import type { ZhuyeSessionInfo, ZhuyeWorkspaceInfo } from '@/utils/commands';
 /** 未归属分组（旧会话 / CLI 创建，`workspace` 为空）的哨兵 key。 */
 export const UNASSIGNED_GROUP_KEY = '@@unassigned';
 
+/** 带子代理会话的会话行 —— `children` 非空 = 有子代理（v1.12 血缘）。 */
+export type SessionWithChildren = ZhuyeSessionInfo & {
+  /** 子代理会话（`parent_session_id` 指向本会话），`started_at` 倒序。 */
+  children?: ZhuyeSessionInfo[];
+};
+
 export interface WorkspaceSessionGroup {
   /** 项目目录绝对路径；null = 未归属分组。 */
   path: string | null;
@@ -16,8 +22,9 @@ export interface WorkspaceSessionGroup {
   key: string;
   /** 显示名：目录 basename；未归属分组为空串（由 UI 用 i18n 文案渲染）。 */
   label: string;
-  /** 组内会话，`started_at` 倒序。 */
-  sessions: ZhuyeSessionInfo[];
+  /** 组内会话，`started_at` 倒序；子代理会话挂在其父会话 `children` 下，
+   * 不在本数组出现（顶层列表只留主会话，minimax code 形态）。 */
+  sessions: SessionWithChildren[];
   /** 组内最近会话的 started_at（毫秒）；空项目组为 0。 */
   lastActivity: number;
 }
@@ -66,6 +73,31 @@ export function groupSessionsByWorkspace(
   sessions: ZhuyeSessionInfo[],
   knownWorkspaces: ZhuyeWorkspaceInfo[] = [],
 ): WorkspaceSessionGroup[] {
+  // v1.12:先把子代理会话挂到父会话 `children` 下(顶层只留主会话)。
+  // 父不在本批(被删/归档/列表过滤)的孤儿子会话按顶层处理 —— 不静默丢。
+  const parentIds = new Set(
+    sessions.flatMap((s) => (s.parent_session_id ? [s.parent_session_id] : [])),
+  );
+  const childrenByParent = new Map<string, ZhuyeSessionInfo[]>();
+  const topLevel: ZhuyeSessionInfo[] = [];
+  for (const s of sessions) {
+    const parent = s.parent_session_id;
+    if (parent && parentIds.has(parent)) {
+      const arr = childrenByParent.get(parent);
+      if (arr) arr.push(s);
+      else childrenByParent.set(parent, [s]);
+    } else {
+      topLevel.push(s);
+    }
+  }
+  for (const arr of childrenByParent.values()) {
+    arr.sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+  }
+  const withChildren = (s: ZhuyeSessionInfo): SessionWithChildren => {
+    const children = childrenByParent.get(s.session_id);
+    return children ? { ...s, children } : s;
+  };
+  sessions = topLevel.map(withChildren);
   const hidden = new Set(knownWorkspaces.filter((ws) => ws.hidden).map((ws) => ws.path));
   const byPath = new Map<string, ZhuyeSessionInfo[]>();
   for (const s of sessions) {

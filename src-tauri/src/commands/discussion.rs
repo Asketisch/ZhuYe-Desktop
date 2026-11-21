@@ -75,6 +75,7 @@ pub async fn zhuye_run_discussion(
         if zhuye_rollout::index::find_file_by_session_id(&base, &session_id)?.is_none() {
             recorder
                 .record(RolloutRecord::SessionMeta {
+                    parent_session_id: None,
                     session_id,
                     model: agent.model_spec(),
                     started_at: Utc::now(),

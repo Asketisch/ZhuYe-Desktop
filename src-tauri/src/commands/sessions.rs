@@ -1956,6 +1956,7 @@ mod tests {
             output_tokens: 0,
             total_tokens: 0,
             cost_usd: None,
+            parent_session_id: None,
             workspace: None,
         }
     }

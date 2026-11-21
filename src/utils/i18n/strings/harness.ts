@@ -25,6 +25,8 @@ const harness: Record<string, StringEntry> = {
   'harness.sb.pendingFlagPlan':  { en: 'Plan awaiting approval · click to open', 'zh-CN': '计划等待你批准 · 点击前往' },
   'harness.sb.pendingFlagAsk':   { en: 'A question awaits your answer · click to open', 'zh-CN': '有一个问题等待你回答 · 点击前往' },
   'harness.sb.unreadTip':        { en: 'Unread output · click to view', 'zh-CN': '有未读产出 · 点击查看' },
+  'harness.sb.subExpand':   { en: 'Show all {n} subagent sessions',  'zh-CN': '显示全部 {n} 个子代理会话' },
+  'harness.sb.subCollapse': { en: 'Collapse subagent sessions',        'zh-CN': '收起子代理会话' },
   'harness.sb.moreMenu':         { en: 'Session actions',               'zh-CN': '会话操作' },
   'harness.sb.menuDeepLink':     { en: 'Copy deep link',                'zh-CN': '复制深链' },
   'harness.sb.menuStop':         { en: 'Stop run',                      'zh-CN': '中止运行' },

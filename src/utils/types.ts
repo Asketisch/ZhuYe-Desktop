@@ -44,6 +44,12 @@ export interface ZhuyeSessionInfo {
    *   保证不会出现；TS 这里用 `string | null` 仅作类型防御。
    */
   workspace?: string | null;
+  /**
+   * v1.12:子代理会话的父会话 id（镜像 `SessionInfo.parent_session_id`，
+   * serde skip 缺省 undefined）。非 undefined = 子代理会话 —— 侧栏挂在
+   * 父会话下缩进展示，不进顶层列表。
+   */
+  parent_session_id?: string | null;
 }
 
 export interface ZhuyeRolloutRecord {

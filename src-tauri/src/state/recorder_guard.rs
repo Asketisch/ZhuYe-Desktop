@@ -183,6 +183,7 @@ mod tests {
         let record = RolloutRecord::SessionMeta {
             session_id: id,
             model: "test".into(),
+            parent_session_id: None,
             started_at: chrono::Utc::now(),
             workspace: None,
         };
@@ -211,7 +212,8 @@ mod tests {
                     .record(RolloutRecord::SessionMeta {
                         session_id: id,
                         model: "test".into(),
-                        started_at: chrono::Utc::now(),
+                        parent_session_id: None,
+            started_at: chrono::Utc::now(),
                         workspace: None,
                     })
                     .await

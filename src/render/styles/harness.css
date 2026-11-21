@@ -2119,3 +2119,31 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .workspace-new { position: absolute; right: 22px; top: 0; height: 100%; border: 0; background: transparent; color: var(--fg-3); cursor: pointer; }
 
 .session-rename { flex: 1; min-width: 0; }
+
+/* v1.12:子代理会话缩进树(minimax code 形态)—— 父会话行下内联渲染。 */
+.sub-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.row-item.sub-session {
+  padding-left: 26px;
+  opacity: 0.86;
+}
+.row-item.sub-session .dot.sub-dot {
+  width: 6px;
+  height: 6px;
+  opacity: 0.7;
+}
+.sub-fold-toggle {
+  border: 0;
+  background: none;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  font-size: 11px;
+  text-align: left;
+  padding: 3px 0 3px 26px;
+  cursor: pointer;
+}
+.sub-fold-toggle:hover {
+  color: var(--text-primary, rgba(255, 255, 255, 0.92));
+}
