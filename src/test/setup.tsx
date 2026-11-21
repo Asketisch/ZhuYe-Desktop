@@ -126,6 +126,12 @@ beforeEach(() => {
   mockInvoke('zhuye_set_model', async (_provider: string, _model: string) => 'stub/test');
   mockInvoke('zhuye_get_effort', async () => 'low');
   mockInvoke('zhuye_set_effort', async () => 'ok');
+  // ComposerControls 空会话态的提示词清单拉取(prompt_list 应答经事件通道
+  // 回流,stub 只需让 invoke 静默成功 —— 具体测试自行 override)。
+  mockInvoke('zhuye_prompt_command', async () => 'sub-stub');
+  mockInvoke('zhuye_get_effective_prompt', async () => ({
+    model: 'stub/test', layers: [], sections: [],
+  }));
 
   // v1.x P1-P3 新命令默认 stub（具体测试可自行 override）。
   mockInvoke('zhuye_git_status', async () => ({

@@ -19,12 +19,19 @@ import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/permissions
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
+import { readPromptSelection, writePromptSelection } from '@/stores/agent/promptSelection';
+import type { PromptSelection } from '@/utils/commands/prompts';
 import { ALL_EFFORTS, useEffortCapability } from './useEffortCapability';
 import s from '@/render/composer/ComposerControls.module.css';
 
 // 上游 v1.x 起 max / ultra 为新增档位(按模型能力表发送前钳制)。
 const EFFORTS = ALL_EFFORTS;
 type Effort = (typeof EFFORTS)[number];
+
+/** zustand selector 的稳定空引用 —— `?? []` 每次渲染新建数组会让
+ *  useSyncExternalStore 快照永不相等而无限重渲染(React 19 抛
+ *  Maximum update depth exceeded)。 */
+const NO_PROMPT_LAYERS: readonly string[] = [];
 
 /** 会话工作模式三段(Plan/Ask/默认);工具审批策略由独立选择器控制。
  *  与核心 PermissionMode 三段对齐(wire: plan/prompt/auto);
@@ -42,8 +49,27 @@ export function ComposerControls() {
   // 「实际生效」分开显示 —— 偏好保留,换模型后自动重算。
   const capability = useEffortCapability();
   const sessionId = useAgentStore((st) => st.loadedSessionId);
+  // 会话轮次:提示词预设入口只在「最初创建会话」窗口(turns 为空)显示,
+  // 会话开始后锁定 —— 系统提示词恒定是供应商 prompt cache 命中的前提。
+  const turnsEmpty = useAgentStore((st) => st.turns.length === 0);
+  const promptAvailable = useAgentStore((st) => st.prompt?.available ?? NO_PROMPT_LAYERS);
+  const promptFallback = useAgentStore((st) => st.prompt?.fallbackReason ?? null);
+  const promptList = useAgentStore((st) => st.promptList);
   const [approvalPolicy, setApprovalPolicy] = useState<UserApprovalPolicy>(() => readApprovalPolicy(sessionId));
   useEffect(() => { setApprovalPolicy(readApprovalPolicy(sessionId)); }, [sessionId]);
+  // 提示词预设:per-session localStorage(null 会话走 'new' 键,创建后转正);
+  // bind 恢复由 ChatBinding 的 syncSessionPromptSelection 负责,这里只管选择与回显。
+  const [promptSelection, setPromptSelection] = useState<PromptSelection>(
+    () => readPromptSelection(sessionId) ?? { mode: 'default' },
+  );
+  useEffect(() => { setPromptSelection(readPromptSelection(sessionId) ?? { mode: 'default' }); }, [sessionId]);
+  // 可用层清单(prompt_list 事件异步回流) —— 空会话挂载时拉一次。
+  // catch 防御:拉取失败不阻断 composer(选项退化为默认/智能两项)。
+  useEffect(() => {
+    if (turnsEmpty && useAgentStore.getState().prompt === null) {
+      promptList().catch(() => { /* 清单拉不到就用默认两项 */ });
+    }
+  }, [turnsEmpty, promptList]);
   const goalActive = useAgentStore((st) => st.goalActive);
   // v1.7 后端快照:徽标 tooltip 从「只有固定文案」升级为实际进度
   // (轮次 / token / 状态),数据来自 zhuye_goal_snapshot 读口。
@@ -117,6 +143,39 @@ export function ComposerControls() {
             </span>
           )}
         </label>
+        {turnsEmpty && (
+          <label className={s.control}>
+            <span className={s.controlLabel}>{t('composer.controls.prompt')}</span>
+            <select
+              className={s.controlSelect}
+              value={promptSelection.mode === 'manual' ? promptSelection.profile : promptSelection.mode}
+              onChange={(event) => {
+                const raw = event.target.value;
+                const value: PromptSelection = raw === 'default' || raw === 'auto'
+                  ? { mode: raw }
+                  : { mode: 'manual', profile: raw };
+                setPromptSelection(value);
+                writePromptSelection(sessionId, value);
+              }}
+              title={t('composer.controls.prompt.hint')}
+              aria-label={t('composer.controls.promptAria')}
+              data-testid="composer-prompt-select"
+            >
+              <option value="default">{t('composer.controls.prompt.follow')}</option>
+              <option value="auto" title={promptFallback ?? t('composer.controls.prompt.autoHint')}>
+                {t('composer.controls.prompt.auto')}
+              </option>
+              {promptAvailable.filter((layer) => layer !== 'default').map((layer) => (
+                <option key={layer} value={layer}>{layer}</option>
+              ))}
+            </select>
+            {promptSelection.mode === 'auto' && promptFallback && (
+              <span className={s.effectiveNote} data-testid="composer-prompt-fallback">
+                {promptFallback}
+              </span>
+            )}
+          </label>
+        )}
       </div>
 
       <div className={s.right}>

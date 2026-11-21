@@ -16,6 +16,8 @@
 import { useCallback } from 'react';
 import { zhuye_create_session } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
+import { moveApprovalPolicy } from '@/stores/agent/approvalPolicy';
+import { movePromptSelection } from '@/stores/agent/promptSelection';
 import { useActiveSession } from './useSessions';
 
 const BIND_TIMEOUT_MS = 10_000;
@@ -41,6 +43,10 @@ export function useEnsureSession() {
         return activeId;
       }
       const id = await zhuye_create_session();
+      // 首页 composer 的会话级偏好(审批策略 / 提示词预设)写在 'new' 键;
+      // id 落定即转正,bind 恢复与首条提交才能读到用户创建前选的值。
+      moveApprovalPolicy('new', id);
+      movePromptSelection('new', id);
       setActiveId(id);
       await waitLoadedSession(id);
       return id;

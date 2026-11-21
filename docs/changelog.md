@@ -4,6 +4,20 @@
 
 ## 未发布
 
+- **会话创建时的提示词预设选择入口（零协议接线）**：接通引擎既有
+  `PromptSelection`（跟随默认 / Auto 智能匹配 / Manual 指定方案）的会话
+  创建入口 —— composer 控制行在空会话态（turns 为空）新增「提示词」
+  下拉（跟随默认 / 智能匹配模型 / `prompt_list` 回流的可用层：内置
+  厂商层 + 用户 `~/.zhuye/prompts/*.md` 层），会话开始后入口消失：
+  系统提示词恒定是供应商 prompt cache 命中的前提，UI 层面锁定会话中
+  变更。选择存 per-session localStorage（`'new'` 预创建键，会话 id 落定
+  后转正 —— 顺带修复既有问题：首页选择的审批策略在首条提交时丢失）；
+  bind 会话时 `syncSessionPromptSelection` 恢复该会话自己的选择（无记录
+  恢复跟随默认，避免跨会话串味；已跟随默认则跳过不写冗余 rollout）。
+  Auto 语义如实展示引擎 `fallback_reason`（当前内置方案均 unverified，
+  Auto 等效跟随默认 + 原因说明）。纯前端接线：复用既有
+  `Op::PromptCommand` / `prompt_list` / `prompt_switched` 通道，无新增
+  命令、无线格式变更。
 - **子代理会话树形展示（侧栏父会话下缩进，minimax code 形态）**：上游
   submodule c0c41d94/c34c5a1f 落地子代理 JSONL 落盘 —— 子线程 rollout 从
   内存态改为持久化到 `sessions/` 树，`SessionMeta.parent_session_id` 记录

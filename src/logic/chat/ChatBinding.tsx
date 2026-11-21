@@ -5,6 +5,7 @@ import type { ChatSlots, ChatViewProps } from '@/contracts/chat';
 import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
 import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
+import { syncSessionPromptSelection } from '@/stores/agent/promptSelection';
 import { userItemsFromTurn } from '@/stores/agent/turns';
 import { zhuye_replay_session, zhuye_git_diff } from '@/utils/commands';
 import { zhuye_bind_session, zhuye_fork_session, zhuye_export_session_markdown } from '@/utils/commands/sessions';
@@ -259,6 +260,10 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       .then(({ permission_mode, pending_gates }) => {
         if (requestIdRef.current !== myId) return null;
         syncPermissionMode(permission_mode);
+        // 会话级提示词预设恢复:读 per-session 覆盖提交 Op::PromptCommand::
+        // Select(无记录恢复跟随默认)。Select 不开 turn;该会话内提示词
+        // 从此恒定 —— system 指纹稳定是供应商 prompt cache 命中的前提。
+        syncSessionPromptSelection(sessionId);
         // v1.12:引擎侧挂起交互快照暂存 —— hydrate 后水合(mergePendingInto
         // 整体替换 pending,先注会丢;hydratePendingGates 按 request_id
         // 去重,两侧同 id 不重复)。

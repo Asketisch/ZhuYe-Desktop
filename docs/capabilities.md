@@ -123,7 +123,7 @@ Inspector 只有一行 hover 摘要 → `CompactionStats.records` 逐次明细�
 
 ### 3.8 提示词选择与预览
 
-`/prompt` 与设置页选择器（ZhuYe 默认 / 智能选择 / 手动方案 + 共享默认 + 恢复跟随）；面板展示生效方案、回落原因、系统文案与工具描述；会话覆盖随 rollout 恢复。
+`/prompt` 与设置页选择器（ZhuYe 默认 / 智能选择 / 手动方案 + 共享默认 + 恢复跟随）；面板展示生效方案、回落原因、系统文案与工具描述；会话覆盖随 rollout 恢复。**会话创建时选择入口**（v1.12）：composer 控制行在空会话态提供「提示词」下拉（跟随默认 / Auto / `prompt_list` 可用层），选择存 per-session localStorage（`'new'` 键随会话 id 转正），bind 时 `syncSessionPromptSelection` 恢复该会话选择 —— 会话内提示词恒定（入口即消失），保证供应商 prompt cache 命中。
 
 ### 3.9 活跃 agent 接线（Agents 视图死胡同 + 记忆路径对不上）
 

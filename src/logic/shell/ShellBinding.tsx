@@ -7,6 +7,8 @@ import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
 import { unpin, useSessionPins } from '@/logic/sessions/pins';
 import { useAgentStore as useZAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
+import { moveApprovalPolicy } from '@/stores/agent/approvalPolicy';
+import { movePromptSelection } from '@/stores/agent/promptSelection';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
@@ -141,12 +143,15 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   // 新建会话:后端预分配 session id → navigate 到 /chat/<id>。
   // workspace 归属不在这里落盘,由首条 submission 携带 `workspace`
   // 触发后端写 `SessionMeta`(见 docs/protocol-bridge.md §2)。
+  // 会话级偏好(审批策略 / 提示词预设)若写在 'new' 预创建键,这里转正。
   const handleNewChat = () => {
     const mySeq = ++selectSeqRef.current;
     const pushToast = useAgentStore.getState().pushToast;
     void zhuye_create_session()
       .then((id) => {
         if (mySeq === selectSeqRef.current) {
+          moveApprovalPolicy('new', id);
+          movePromptSelection('new', id);
           showNewSession(id, currentWorkspace);
           setActiveId(id);
         }
@@ -175,6 +180,8 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
       .then(() => mySeq === selectSeqRef.current ? zhuye_create_session() : null)
       .then((id) => {
         if (id && mySeq === selectSeqRef.current) {
+          moveApprovalPolicy('new', id);
+          movePromptSelection('new', id);
           showNewSession(id, path);
           setActiveId(id);
         }
