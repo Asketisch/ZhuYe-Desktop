@@ -613,15 +613,19 @@ describe('window smoke (real process, real backend, local model stub)', () => {
   }, 150_000);
 
   it.each([...new Set(ROUTES.map(({ route }) => route))])('mounts %s with the real backend', async (route) => {
+    // 等待预算 60s / 用例 180s:本套件对每条路由做真实全量重载,
+    // Windows WebView2 在 ~30 次 reload 后明显变慢(单次导航可超 30s,
+    // 首次跑到深处即超时;macOS/Linux 无此压力),放宽到与窗口冒烟
+    // 其余慢预算同一档位。
     const actualPath = route === '/chat/sess-alpha' ? chatSessionPath : route;
     expect(actualPath).toBeTruthy();
     const url = new URL(actualPath, await driver!.getCurrentUrl()).toString();
     await driver!.get(url);
-    const main = await driver!.wait(until.elementLocated(By.css('main')), 30_000);
-    await driver!.wait(async () => (await main.getText()).trim().length > 0, 30_000);
+    const main = await driver!.wait(until.elementLocated(By.css('main')), 60_000);
+    await driver!.wait(async () => (await main.getText()).trim().length > 0, 60_000);
     expect(await driver!.findElements(By.css('[data-testid="view-error-boundary"]'))).toHaveLength(0);
     if (route === '/chat/sess-alpha') {
-      await driver!.wait(async () => (await main.getText()).includes('window second reply verified'), 30_000);
+      await driver!.wait(async () => (await main.getText()).includes('window second reply verified'), 60_000);
     }
-  }, 70_000);
+  }, 180_000);
 });
