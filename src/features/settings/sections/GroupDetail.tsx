@@ -14,11 +14,12 @@
  * 通道一致 —— 每个保存/点选都是完整意图，立即落盘。
  */
 import { useEffect, useState } from 'react';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button, Icon, Input, Select } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_test_provider_chat, type ProviderModelInfo } from '@/utils/commands';
 import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
+import { GroupFold } from './GroupFold';
 import {
   GROUP_ENDPOINTS,
   groupDisplayLabel,
@@ -420,12 +421,12 @@ export function GroupDetail({
         />
 
         {/* 高级配置(折叠)。key 随选中组重挂 —— 折叠态跟随组重置,凭据池同理。 */}
-        <Fold key={`${formKey}-advanced`} label={t('settings.groups.advanced')}>
+        <GroupFold key={`${formKey}-advanced`} label={t('settings.groups.advanced')}>
           <GroupAdvancedFields form={form} patch={patch} />
-        </Fold>
+        </GroupFold>
 
         {/* 组内凭据(折叠):原「编码套餐」层下沉到这里 */}
-        <Fold
+        <GroupFold
           key={`${formKey}-credentials`}
           label={t('settings.groups.credentialsTitle')}
           defaultOpen={(group?.credentials.length ?? 0) > 0}
@@ -434,7 +435,7 @@ export function GroupDetail({
             credentials={form.credentials}
             onChange={(credentials) => patch({ credentials })}
           />
-        </Fold>
+        </GroupFold>
 
         {/* 连通性测试:发「你好」,无 system 无 tools(最多 32 tokens) */}
         <div className={s.fieldRow}>
@@ -479,29 +480,3 @@ export function GroupDetail({
   );
 }
 
-/** 本地折叠区 —— 切片内实现,不跨切片引 messages/Collapsible。 */
-function Fold({
-  label,
-  defaultOpen = false,
-  children,
-}: {
-  label: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className={s.gFold}>
-      <button
-        type="button"
-        className={s.gFoldHead}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Icon icon={ChevronDown} size={13} className={s.gFoldChevron} />
-        <span>{label}</span>
-      </button>
-      {open && <div className={s.gFoldBody}>{children}</div>}
-    </div>
-  );
-}

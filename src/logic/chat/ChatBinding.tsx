@@ -41,6 +41,17 @@ export function editRewindTargetFor(
 }
 
 /**
+ * Tauri 命令 reject 的 `CommandError` 经 IPC 序列化为 `{ msg }` 对象 ——
+ * 直接 `String(e)` 会渲染成 "[object Object]"(实测:点击侧栏子代理会话,
+ * bind 被 workspace 校验拒绝时错误条不可读)。统一解包成可读文本。
+ */
+function commandErrorMsg(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  const msg = (e as { msg?: unknown } | null)?.msg;
+  return typeof msg === 'string' ? msg : String(e);
+}
+
+/**
  * 把旧会话降级进后台注册表:播种它在飞回合的实时投影与待确认交互。
  *
  * 为什么必须播种整份投影:
@@ -272,7 +283,7 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       })
       .catch((e: unknown) => {
       if (requestIdRef.current !== myId) return;
-      setError(e instanceof Error ? e.message : String(e));
+      setError(commandErrorMsg(e));
     }).finally(() => {
       if (requestIdRef.current !== myId) return;
       setLoading(false);
@@ -347,7 +358,7 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       if (gates?.length) useAgentStore.getState().hydratePendingGates?.(gates);
     }).catch((e: unknown) => {
       if (requestIdRef.current !== myId) return;
-      setError(e instanceof Error ? e.message : String(e));
+      setError(commandErrorMsg(e));
     }).finally(() => {
       if (requestIdRef.current !== myId) return;
       setLoading(false);

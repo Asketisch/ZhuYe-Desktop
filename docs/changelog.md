@@ -4,6 +4,18 @@
 
 ## 未发布
 
+- **子代理会话树形展示（侧栏父会话下缩进，minimax code 形态）**：上游
+  submodule c0c41d94/c34c5a1f 落地子代理 JSONL 落盘 —— 子线程 rollout 从
+  内存态改为持久化到 `sessions/` 树，`SessionMeta.parent_session_id` 记录
+  血缘、workspace 继承主会话。桌面端 `groupSessionsByWorkspace` 把带
+  `parent_session_id` 的会话挂到父会话 `children`（顶层只留主会话），
+  侧栏在父会话行下缩进渲染子会话（样式与主会话一致），超过 3 个默认
+  折叠为「显示全部 N 个」（展开态为 binding 持有的本地 UI 态，渲染层
+  无 hook）。孤儿子会话（父已删/归档）按顶层处理不静默丢。
+- **启动恢复上次工作区**：修复 Finder/Dock 启动时进程 cwd 为 `/` 成为
+  默认工作区 —— 首页新会话归属无意义根目录，叠加用户此前隐藏 `/` 项目
+  后表现为新会话在侧栏彻底消失。setup 首行恢复 `workspaces.json` 里
+  最近使用的非隐藏项目（无历史/全隐藏时退回 `$HOME`）。
 - **模型上下文窗口与默认思考强度可配置**：接通引擎既有但桌面未接的两条
   配置链 —— ①分组编辑器新增「上下文窗口 (tokens)」字段（写
   `[context_windows]` 表，键=组默认模型名，与引擎归一化/前缀匹配同口径），
