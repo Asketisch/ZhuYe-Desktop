@@ -26,6 +26,13 @@ const tasks: Record<string, StringEntry> = {
   'tasks.in_progress':             { en: 'In Progress',        'zh-CN': '进行中' },
   'tasks.completed':               { en: 'Completed',          'zh-CN': '已完成' },
   'tasks.deleted':                 { en: 'Deleted',            'zh-CN': '已删除' },
+  // 旧扁平 key 已改名 `tasks.status.*`(binding 侧命名),词条补齐 ——
+  // 缺失时 t() 回退输出 raw key,任务行徽章显示 `tasks.status.completed`
+  // 字面量,ubuntu CI 的 creates-a-task 用例据此前进断言永不满足。
+  'tasks.status.pending':          { en: 'Pending',            'zh-CN': '待处理' },
+  'tasks.status.inProgress':       { en: 'In Progress',        'zh-CN': '进行中' },
+  'tasks.status.completed':        { en: 'Completed',          'zh-CN': '已完成' },
+  'tasks.status.deleted':          { en: 'Deleted',            'zh-CN': '已删除' },
   'tasks.failed':                  { en: 'Failed to load tasks', 'zh-CN': '加载任务失败' },
   'tasks.failedDesc':              { en: 'Check the agent backend and try again.', 'zh-CN': '检查后端并重试。' },
   'tasks.empty':                   { en: 'No tasks',           'zh-CN': '暂无任务' },
