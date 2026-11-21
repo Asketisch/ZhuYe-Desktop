@@ -226,6 +226,8 @@ const harness: Record<string, StringEntry> = {
   'harness.corner.goal.title':   { en: 'Goal',                          'zh-CN': '目标' },
   'harness.corner.goal.setIdle': { en: 'Set goal',                      'zh-CN': '设目标' },
   'harness.corner.goal.placeholder': { en: 'Describe the goal…',        'zh-CN': '描述目标…' },
+  'harness.corner.goal.slashHint':   { en: 'Type /goal <goal> in the composer to start — the goal text becomes the first message.', 'zh-CN': '在输入框输入 /goal <目标> 回车即进入 —— 目标文本会作为首条消息启动循环。' },
+  'harness.corner.goal.slashFill':   { en: 'Fill /goal into composer',  'zh-CN': '填入 /goal 到输入框' },
   'harness.corner.goal.budget':  { en: 'Token budget (optional)',       'zh-CN': 'Token 预算(可选)' },
   'harness.corner.goal.enter':   { en: 'Start',                         'zh-CN': '进入' },
   'harness.corner.goal.exit':    { en: 'Exit goal mode',                'zh-CN': '退出目标模式' },

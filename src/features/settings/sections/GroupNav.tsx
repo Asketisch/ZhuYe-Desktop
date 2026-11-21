@@ -11,6 +11,7 @@ import { Badge } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_credential_pool_status } from '@/utils/commands';
 import { groupDisplayLabel, type GroupEntry } from '../config/groups';
+import { ProviderAvatar } from './ProviderAvatar';
 import s from '@/render/settings/SettingsView.module.css';
 
 export interface GroupNavProps {
@@ -50,9 +51,10 @@ export function GroupNav({ groups, activeId, selectedId, poolSignature, onSelect
             title={group.baseUrl || undefined}
             onClick={() => onSelect(group.id)}
           >
-            <span className={s.gNavAvatar} aria-hidden="true">
-              {(label.trim()[0] ?? '?').toUpperCase()}
-            </span>
+            <ProviderAvatar
+              group={group}
+              letter={(label.trim()[0] ?? '?').toUpperCase()}
+            />
             <span className={s.gNavItemMain}>
               <span className={s.gNavItemName}>
                 {label}

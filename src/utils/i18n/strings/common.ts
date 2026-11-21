@@ -15,6 +15,7 @@ const common: Record<string, StringEntry> = {
   'common.ctxTag': { en: 'context',        'zh-CN': '上下文' },
   'common.outTag': { en: 'output',         'zh-CN': '输出' },
   'common.reasoningTag': { en: 'reasoning', 'zh-CN': '支持思考' },
+  'common.effortTag':    { en: 'efforts', 'zh-CN': '思考档' },
   'common.noReasoningTag': { en: 'no reasoning', 'zh-CN': '不支持思考' },
   'common.confirm':   { en: 'Confirm',            'zh-CN': '确认' },
   'common.save':      { en: 'Save',               'zh-CN': '保存' },

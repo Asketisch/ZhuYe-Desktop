@@ -100,6 +100,8 @@
   white-space: nowrap;
 }
 .goalForm { display: flex; flex-direction: column; gap: 6px; }
+/* /goal 引导小字(harness.corner.goal.slashHint)。 */
+.goalSlashHint { margin: 0; font-size: 11px; line-height: 1.5; opacity: 0.72; }
 .goalInput {
   resize: vertical;
   min-height: 44px;

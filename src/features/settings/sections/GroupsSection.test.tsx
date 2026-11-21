@@ -65,8 +65,8 @@ api_key = "sk-backup"
 `;
 
 const FETCHED_MODELS = [
-  { id: 'demo/model-a', display_name: 'Auto', supports_vision: true, is_free: null, context_window: 200000, max_output_tokens: null, supports_reasoning: null },
-  { id: 'starter/GLM-5.3-Flash-Trial', display_name: '', supports_vision: null, is_free: true, context_window: 1000000, max_output_tokens: null, supports_reasoning: null },
+  { id: 'demo/model-a', display_name: 'Auto', supports_vision: true, is_free: null, context_window: 200000, max_output_tokens: null, effort_levels: null, supports_reasoning: null },
+  { id: 'starter/GLM-5.3-Flash-Trial', display_name: '', supports_vision: null, is_free: true, context_window: 1000000, max_output_tokens: null, effort_levels: null, supports_reasoning: null },
 ];
 
 function renderSection(rawToml: string, onChange = vi.fn(), onCommit = vi.fn()) {
@@ -187,7 +187,7 @@ describe('GroupsSection 模型组页（主从布局）', () => {
   it('新增组:进入空表单 → 保存 → 自动拉取 → 组条目落盘并跟随选中', async () => {
     vi.mocked(zhuye_list_provider_models).mockResolvedValue({
       endpoint: 'openai',
-      models: [{ id: 'm1', display_name: '', supports_vision: null, is_free: null, context_window: null, max_output_tokens: null, supports_reasoning: null }],
+      models: [{ id: 'm1', display_name: '', supports_vision: null, is_free: null, context_window: null, max_output_tokens: null, effort_levels: null, supports_reasoning: null }],
     });
     const onChange = vi.fn();
     const onCommit = vi.fn();

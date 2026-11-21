@@ -6,7 +6,7 @@
  * 「设目标」表单（目标文本 + 可选 token 预算）。
  */
 import { useState } from 'react';
-import { Loader2, RefreshCw, Target, XCircle } from 'lucide-react';
+import { CornerDownLeft, Loader2, RefreshCw, Target, XCircle } from 'lucide-react';
 import { Badge, Icon } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
@@ -15,6 +15,7 @@ import {
   zhuye_exit_goal_mode,
   type GoalSnapshotPayload,
 } from '@/utils/commands/goal';
+import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
 import s from '@/render/shell/SessionChips.module.css';
 
 const STATUS_KEY: Record<string, string> = {
@@ -121,6 +122,19 @@ export function GoalBody() {
         </div>
       ) : (
         <div className={s.goalForm} data-testid="corner-goal-form">
+          {/* 首选入口:输入框 /goal(目标文本作为首条消息启动循环,与
+              成熟 agent 工作台一致);下面的表单是免切换的次选。 */}
+          <p className={s.goalSlashHint} data-testid="corner-goal-slash-hint">
+            {t('harness.corner.goal.slashHint')}
+          </p>
+          <button
+            type="button"
+            className={s.btn}
+            onClick={() => emitComposerPrefill('/goal ')}
+            data-testid="corner-goal-fill-slash"
+          >
+            <CornerDownLeft size={12} /> {t('harness.corner.goal.slashFill')}
+          </button>
           <textarea
             className={s.goalInput}
             value={goalText}

@@ -33,10 +33,8 @@ import {
   setActiveGroup,
   setDefaultEffort,
 } from '../config/groups';
-/** 引擎支持的思考档位（与 Op::SetEffort / zhuye_set_effort 同口径）。 */
-const EFFORT_LEVELS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
-
 import { GroupNav } from './GroupNav';
+import { useEffortCapability } from '@/logic/composer/useEffortCapability';
 import { GroupDetail } from './GroupDetail';
 import s from '@/render/settings/SettingsView.module.css';
 
@@ -62,6 +60,12 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
   const hasModel = Boolean(status?.has_model);
   // 默认思考强度([model].reasoning_effort)—— 新会话的初始档位;运行时
   // Composer 仍可随时切换,每次重绑重新读配置。'' = 未设置(引擎默认 low)。
+  // 选项 = 当前活跃模型支持的档位(引擎按 models.dev effort_levels 投票
+  // 截断 5 档阶梯 —— 不同模型枚举不同);能力未知时回退全档。
+  const effortCapability = useEffortCapability();
+  const effortOptions = effortCapability.known && effortCapability.options.length > 0
+    ? effortCapability.options
+    : (['low', 'medium', 'high', 'max', 'ultra'] as const);
   const defaultEffort = readDefaultEffort(rawToml);
   const onPickDefaultEffort = (effort: string) => {
     const next = setDefaultEffort(rawToml, effort);
@@ -151,7 +155,7 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
             onChange={(e) => onPickDefaultEffort(e.target.value)}
           >
             <option value="">{t('settings.groups.defaultEffortUnset')}</option>
-            {EFFORT_LEVELS.map((level) => (
+            {effortOptions.map((level) => (
               <option key={level} value={level}>{level}</option>
             ))}
           </select>

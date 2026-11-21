@@ -46,6 +46,10 @@ pub struct ProviderModelInfo {
     pub max_output_tokens: Option<u32>,
     /// 是否具备思考能力(models.dev 目录投票;`None` = 未知)。
     pub supports_reasoning: Option<bool>,
+    /// 该模型的思考档位枚举(models.dev `reasoning_options` type=effort
+    /// values 投票;`None` = 目录未收录)。供模型列表展示「这个模型有哪些
+    /// 档位」—— 不同提供方的枚举不同(minimal/low/high、none/medium/xhigh…)。
+    pub effort_levels: Option<Vec<String>>,
 }
 
 /// 模型列表 + 查询端口。
@@ -194,6 +198,7 @@ pub(crate) fn parse_models_response(
             context_window: catalog_entry.context_window,
             max_output_tokens: extract_max_output_tokens(item),
             supports_reasoning: None,
+            effort_levels: None,
         });
     }
     // id 去重(部分网关同一 id 返回多条)并保持返回顺序。
@@ -221,6 +226,9 @@ pub(crate) fn enrich_with_catalog(models: &mut [ProviderModelInfo]) {
         }
         if m.supports_reasoning.is_none() {
             m.supports_reasoning = abilities.supports_reasoning;
+        }
+        if m.effort_levels.is_none() {
+            m.effort_levels = abilities.effort_levels.clone();
         }
     }
 }
@@ -400,6 +408,7 @@ mod tests {
                     context_window: Some(8_000),
                     max_output_tokens: None,
                     supports_reasoning: None,
+                    effort_levels: None,
                 },
                 // 目录没有的模型 → 字段原样(全 None)。
                 ProviderModelInfo {
@@ -410,6 +419,7 @@ mod tests {
                     context_window: None,
                     max_output_tokens: None,
                     supports_reasoning: None,
+                    effort_levels: None,
                 },
             ];
             enrich_with_catalog(&mut models);

@@ -114,8 +114,8 @@ describe('ModelPicker 模型组', () => {
     vi.mocked(zhuye_list_provider_models).mockResolvedValue({
       endpoint: 'anthropic',
       models: [
-        { id: 'demo/model-a', display_name: 'Auto', supports_vision: null, is_free: null, context_window: 200000, max_output_tokens: null, supports_reasoning: null },
-        { id: 'starter/GLM-5.3-Flash-Trial', display_name: '', supports_vision: null, is_free: true, context_window: 1000000, max_output_tokens: null, supports_reasoning: null },
+        { id: 'demo/model-a', display_name: 'Auto', supports_vision: null, is_free: null, context_window: 200000, max_output_tokens: null, effort_levels: null, supports_reasoning: null },
+        { id: 'starter/GLM-5.3-Flash-Trial', display_name: '', supports_vision: null, is_free: true, context_window: 1000000, max_output_tokens: null, effort_levels: null, supports_reasoning: null },
       ],
     });
   });

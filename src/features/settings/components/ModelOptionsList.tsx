@@ -44,6 +44,12 @@ export function ModelOptionsList({
     if (m.supports_vision === false) tags.push(t('common.noVisionTag'));
     if (m.supports_reasoning === true) tags.push(t('common.reasoningTag'));
     if (m.supports_reasoning === false) tags.push(t('common.noReasoningTag'));
+    // 思考档位枚举(models.dev reasoning_options 投票):不同提供方枚举
+    // 不同(minimal/low/high、none/medium/xhigh…)—— 列在徽标里让用户
+    // 知道该模型可选哪些档。
+    if (m.effort_levels && m.effort_levels.length > 0) {
+      tags.push(`${t('common.effortTag')}: ${m.effort_levels.join('/')}`);
+    }
     return tags;
   };
 

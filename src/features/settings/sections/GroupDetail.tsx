@@ -34,6 +34,7 @@ import {
 import { GroupCredentialsEditor } from './GroupCredentialsEditor';
 import { GroupModelList } from './GroupModelList';
 import { GroupAdvancedFields } from './GroupAdvancedFields';
+import { ProviderAvatar } from './ProviderAvatar';
 import s from '@/render/settings/SettingsView.module.css';
 
 export interface GroupDetailProps {
@@ -284,9 +285,10 @@ export function GroupDetail({
       <div className={s.gDetailHead}>
         {group ? (
           <>
-            <span className={s.gNavAvatar} aria-hidden="true">
-              {(groupDisplayLabel(group).trim()[0] ?? '?').toUpperCase()}
-            </span>
+            <ProviderAvatar
+              group={group}
+              letter={(groupDisplayLabel(group).trim()[0] ?? '?').toUpperCase()}
+            />
             <span className={s.gDetailTitle}>
               <span className={s.gDetailName}>{groupDisplayLabel(group)}</span>
               <span className={s.gDetailSub}>

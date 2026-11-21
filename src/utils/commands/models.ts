@@ -31,6 +31,11 @@ export interface ProviderModelInfo {
   max_output_tokens: number | null;
   /** 是否具备思考能力（models.dev 目录投票）；null = 未知。 */
   supports_reasoning: boolean | null;
+  /**
+   * 该模型的思考档位枚举（models.dev `reasoning_options` 投票）；null =
+   * 目录未收录。不同提供方的枚举不同（minimal/low/high、none/medium…）。
+   */
+  effort_levels: string[] | null;
 }
 
 /** 模型列表 + 查询端口。 */
