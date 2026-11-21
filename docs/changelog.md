@@ -4,6 +4,16 @@
 
 ## 未发布
 
+- **模型上下文窗口与默认思考强度可配置**：接通引擎既有但桌面未接的两条
+  配置链 —— ①分组编辑器新增「上下文窗口 (tokens)」字段（写
+  `[context_windows]` 表，键=组默认模型名，与引擎归一化/前缀匹配同口径），
+  本地扩窗模型（如 1M）不再吃内置回退表；②模型设置分区新增「默认思考强度」
+  下拉（写 `[model].reasoning_effort`，未设置/low/medium/high/max/ultra），
+  thread_factory 补 `with_initial_effort` 接线（此前桌面会话初始恒 low，
+  配置死信）+ `with_context_window_overrides` 装配（此前覆盖表恒空，
+  SessionConfigured 窗口分母错误）；composer 订阅 `config_reloaded`
+  重读档位。实测：qwen3.8-27b 配 1M 后容量卡分母 1,000,000、新会话
+  初始 medium。
 - **引擎三支柱升级（上游 submodule fe87e8e9，对标 ZCode 可靠性形态）**：
   gate 真相上收引擎（挂起交互注册表 + `AgentThread::pending_interactions()`
   查询 + `interaction_resolved` 了结广播 + rollout 审计落盘；webview reload /
