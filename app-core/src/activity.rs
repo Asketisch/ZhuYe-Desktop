@@ -125,6 +125,7 @@ mod tests {
         use zhuye_protocol::{Event, EventMsg, TurnStartedEvent};
         let e = Event {
             id: "evt".into(),
+            seq: 0,
             msg: EventMsg::TurnStarted(TurnStartedEvent {
                 turn_id: zhuye_protocol::TurnId::new(),
                 user_message_id: None,
