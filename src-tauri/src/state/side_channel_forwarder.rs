@@ -79,6 +79,8 @@ pub fn spawn_side_channel_forwarder<R: Runtime>(
                     let event = Event {
                         id: EVENT_ID_NONE.into(),
                         msg,
+                        // side-channel 终端事件不经会话扇出出口,seq 保持 0。
+                        seq: 0,
                     };
                     if let Err(e) = app.emit("zhuye_event", &event) {
                         tracing::error!("[zhuye-gui] emit side-channel terminal event failed: {e}");

@@ -21,7 +21,8 @@ use zhuye_llm::{
     UserContent,
 };
 use zhuye_protocol::{
-    MessageRole, PermissionMode, RolloutRecord, SessionInfo, ThreadId, TurnId, derive_title,
+    MessageRole, PendingInteraction, PermissionMode, RolloutRecord, SessionInfo, ThreadId, TurnId,
+    derive_title,
 };
 use zhuye_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
 
@@ -57,6 +58,20 @@ pub async fn zhuye_create_session() -> CommandResult<String> {
     Ok(ThreadId::new().to_string())
 }
 
+/// `zhuye_bind_session` 的返回结构(v1.12 有意协议扩展:命令名不变,
+/// 由单一 mode 字符串改为结构体,新增挂起交互快照)。
+#[derive(Debug, serde::Serialize)]
+pub struct BindSessionOutput {
+    /// 绑定后线程的当前 PermissionMode(线格式字符串,如 `"plan"`)。
+    pub permission_mode: String,
+    /// 该会话当前的挂起人机交互快照(审批 / 问答 / 询问 / plan,注册
+    /// 时刻升序)。前端 reload / 换绑后据此重新水合审批 UI —— 引擎侧
+    /// 权威,不再依赖前端内存投影。远程会话分支恒为空(已知限制:
+    /// 远端引擎的挂起态不随本命令返回)。
+    #[serde(default)]
+    pub pending_gates: Vec<PendingInteraction>,
+}
+
 /// v1.x:把后端 AgentThread 绑到指定 session id(回放历史 → preload → 重建)。
 ///
 /// ChatView 激活每个会话都调一次:
@@ -76,12 +91,17 @@ pub async fn zhuye_create_session() -> CommandResult<String> {
 pub async fn zhuye_bind_session(
     agent: State<'_, MinimalAgent>,
     id: ThreadId,
-) -> CommandResult<String> {
+) -> CommandResult<BindSessionOutput> {
     // 远程会话分流:活跃远程 sid → 前台插槽置位即返回(远端 rollout 在
     // 远端磁盘;本地不走 replay/rebind 机器)。bind 本地会话时插槽自动清。
     if crate::state::remote::is_remote_session(&agent, &id.to_string()).await {
         crate::state::remote::set_foreground_remote(&agent, Some(id.to_string()));
-        return Ok(id.to_string());
+        // 远程会话:远端 rollout 在远端磁盘,本地不走 replay/rebind;
+        // 挂起交互属远端引擎,本地查询面拿不到(已知限制,前端按空处理)。
+        return Ok(BindSessionOutput {
+            permission_mode: id.to_string(),
+            pending_gates: Vec::new(),
+        });
     }
     // 切回本地会话:清远程前台插槽(submit 回本地线程)。
     crate::state::remote::set_foreground_remote(&agent, None);
@@ -132,7 +152,18 @@ pub async fn zhuye_bind_session(
         || "auto".to_string(),
         |t| crate::commands::agent::permission_mode_str(t.config().permission_mode()).to_string(),
     );
-    Ok(mode)
+    // v1.12:随绑定返回引擎侧挂起交互快照(reload / 换绑重水合的数据源)。
+    let pending_gates = agent
+        .inner
+        .thread
+        .lock()
+        .as_ref()
+        .map(|t| t.pending_interactions())
+        .unwrap_or_default();
+    Ok(BindSessionOutput {
+        permission_mode: mode,
+        pending_gates,
+    })
 }
 
 /// 列出 session,支持可选 workspace 过滤 + 分页。

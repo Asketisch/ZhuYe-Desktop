@@ -65,6 +65,8 @@ pub async fn zhuye_run_discussion(
         let _ = tx.send(Event {
             id: EVENT_ID_NONE.to_string(),
             msg: evt,
+            // 讨论事件不经会话扇出出口,seq 保持 0(不参与缺口判定)。
+            seq: 0,
         });
     });
     let recorder = agent.session_recorder();
