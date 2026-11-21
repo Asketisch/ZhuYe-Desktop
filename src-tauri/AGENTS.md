@@ -33,7 +33,7 @@
 | `src/hook_store.rs` | hook 启停偏好持久化 |
 | `src/memory_store.rs` | Memory ↔ MEMORY.md（`memory_store/tests.rs` 就位测试） |
 | `src/shell_sessions.rs` | 仅类型锚点，实现已收编上游 `zhuye_shell` |
-| `src/workspace_state.rs` | 全局工作区路径覆盖（`Lazy` 单例） |
+| `src/workspace_state.rs` | 全局工作区路径覆盖（`Lazy` 单例）+ 启动恢复上次工作区（`restore_last_used`，setup 首行调用） |
 | `src/persistence.rs` | 桌面状态文件完整写入/替换 |
 | `src/status_server.rs` | Tailscale 远程状态 HTTP 端点 |
 

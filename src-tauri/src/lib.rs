@@ -62,6 +62,10 @@ pub fn run() {
         .on_menu_event(menu::handle_menu_event)
         // ====== Setup ======
         .setup(|app: &mut tauri::App<tauri::Wry>| {
+            // 0-. 恢复上次工作区:Finder/Dock 启动时进程 cwd 是 `/`,若不
+            //    恢复,首页新会话会归属无意义根目录(且常已被用户隐藏)。
+            //    必须先于一切会话/工作区消费方执行 —— 放在 setup 首行。
+            crate::workspace_state::WorkspaceState::restore_last_used();
             // 0. 把应用句柄注入托管状态 —— 命令层做 OS 交互(原生对话框 /
             //    dock 徽标 / 终端事件推送)时从这里取句柄,命令签名因此不必
             //    收 `AppHandle`,也就不与 runtime 绑死。
