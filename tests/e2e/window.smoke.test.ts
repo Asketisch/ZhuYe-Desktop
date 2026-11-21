@@ -384,8 +384,25 @@ describe('window smoke (real process, real backend, local model stub)', () => {
       const complete = await driver!.wait(until.elementLocated(By.css('[data-testid^="task-complete-"]')), 30_000,
         diag('complete 按钮未出现(start 未生效)'));
       await complete.click();
-      await driver!.wait(async () => (await (await driver!.findElement(task)).getText()).includes('Completed'), 30_000,
-        diag('任务状态未变为 Completed'));
+      // 失败取证:轮询期间同步记录 toast(update 成功/失败都会弹,自动
+      // 消散前必须实时抓);超时时把行文本与 toast 历史并入错误。
+      const seenToasts: string[] = [];
+      try {
+        await driver!.wait(async () => {
+          const msgs = await driver!.findElements(By.css('div[role="status"] .msg'));
+          for (const m of msgs) {
+            const txt = await m.getText();
+            if (txt && !seenToasts.includes(txt)) seenToasts.push(txt);
+          }
+          return (await (await driver!.findElement(task)).getText()).includes('Completed');
+        }, 30_000, diag('任务状态未变为 Completed'));
+      } catch (e) {
+        const rows = await driver!.findElements(task);
+        const rowText = rows.length ? await rows[0].getText() : '(行已消失)';
+        throw new Error(
+          `任务状态未变为 Completed;当前行文本:「${rowText}」;toast 历史:[${seenToasts.join(' | ') || '无'}];原始错误:${(e as Error).message}`,
+        );
+      }
       // 跨导航回读:切到轻量路由 /settings 再切回 /tasks,验证 task 状态
       // 持久化。不用 /terminal —— 它加载 xterm.js,与壳层常驻的终端 dock
       // 双实例在低端 WebView(Linux GTK / Windows WebView2)上竞争,拖慢

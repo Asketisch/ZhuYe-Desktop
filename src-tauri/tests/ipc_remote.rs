@@ -11,48 +11,73 @@ use common::{invoke, invoke_ok, state_lock};
 use serde_json::json;
 use std::path::PathBuf;
 
-/// 写 stub ssh 脚本并返回其路径。
+/// 写 stub ssh 并返回其路径。
 ///
 /// 行为:首行发 session_configured(固定 uuid),之后每收到一行(即一条
 /// Submission)回 turn_started → turn_complete → submission_closed。
+///
+/// Windows 没有 shebang 执行机制,直接写 bash 脚本 spawn 会报
+/// os error 193(not a valid Win32 application)—— 三个 remote 用例在
+/// windows CI 全红。改为把同语义的 Rust stub 源码写到临时目录,用
+/// `rustc`(测试进程必然自带)编成真可执行文件;`OnceLock` 保证每个
+/// 测试二进制进程只编一次。
 fn write_stub_ssh() -> PathBuf {
+    static STUB: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    STUB.get_or_init(compile_stub_ssh).clone()
+}
+
+/// stub ssh 的 Rust 源码(与原 bash 脚本同语义)。
+const STUB_SSH_SRC: &str = r#"// stub ssh:按远端命令分支(serve 握手+回显 / --version 探测 / bootstrap 安装)
+use std::io::{BufRead, Write};
+fn emit(line: &str) {
+    println!("{}", line);
+    let _ = std::io::stdout().flush();
+}
+fn main() {
+    let joined = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
+    if joined.contains("serve") {
+        emit("{\"id\":\"\",\"msg\":{\"type\":\"session_configured\",\"session_id\":\"00000000-0000-4000-8000-0000000000aa\",\"model\":\"mock\",\"provider\":\"mock\",\"approval_policy\":\"auto\",\"sandbox_policy\":\"workspace_only\"}}");
+        let stdin = std::io::stdin();
+        for _line in stdin.lock().lines() {
+            emit("{\"id\":\"stub\",\"msg\":{\"type\":\"turn_started\",\"turn_id\":\"00000000-0000-4000-8000-0000000000b1\"}}");
+            emit("{\"id\":\"stub\",\"msg\":{\"type\":\"turn_complete\",\"turn_id\":\"00000000-0000-4000-8000-0000000000b1\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cached_tokens\":0},\"status\":\"success\"}}");
+            emit("{\"id\":\"stub\",\"msg\":{\"type\":\"submission_closed\"}}");
+        }
+    } else if joined.contains("--version") {
+        println!("zhuye 0.1.15 (stub)");
+    } else if joined.contains("exec sh") {
+        // bootstrap:桌面送安装脚本经 stdin,这里模拟装完的自验输出。
+        use std::io::Read;
+        let _ = std::io::stdin().read_to_string(&mut String::new());
+        println!("zhuye 0.1.15 (installed by stub)");
+    } else {
+        eprintln!("stub: unknown remote command: {}", joined);
+        std::process::exit(9);
+    }
+}
+"#;
+
+/// 编译 stub 可执行文件(每测试进程一次)。
+fn compile_stub_ssh() -> PathBuf {
     let dir = std::env::temp_dir().join(format!("zhuye-remote-stub-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create stub dir");
-    let script = dir.join("stub-ssh");
-    let body = r#"#!/usr/bin/env bash
-# 按远端命令分支:serve(握手+回显)/ --version(探测)/ bootstrap(安装)。
-case "$*" in
-  *"serve"*)
-    SID="00000000-0000-4000-8000-0000000000aa"
-    TID="00000000-0000-4000-8000-0000000000b1"
-    echo "{\"id\":\"\",\"msg\":{\"type\":\"session_configured\",\"session_id\":\"$SID\",\"model\":\"mock\",\"provider\":\"mock\",\"approval_policy\":\"auto\",\"sandbox_policy\":\"workspace_only\"}}"
-    while IFS= read -r _line; do
-      echo "{\"id\":\"stub\",\"msg\":{\"type\":\"turn_started\",\"turn_id\":\"$TID\"}}"
-      echo "{\"id\":\"stub\",\"msg\":{\"type\":\"turn_complete\",\"turn_id\":\"$TID\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cached_tokens\":0},\"status\":\"success\"}}"
-      echo '{"id":"stub","msg":{"type":"submission_closed"}}'
-    done
-    ;;
-  *"--version"*)
-    echo "zhuye 0.1.15 (stub)"
-    ;;
-  *"exec sh"*)
-    # bootstrap:桌面送安装脚本经 stdin,这里模拟装完的自验输出。
-    cat > /dev/null
-    echo "zhuye 0.1.15 (installed by stub)"
-    ;;
-  *)
-    echo "stub: unknown remote command: $*" >&2
-    exit 9
-    ;;
-esac
-"#;
-    std::fs::write(&script, body).expect("write stub");
+    let src = dir.join("stub_ssh.rs");
+    std::fs::write(&src, STUB_SSH_SRC).expect("write stub src");
+    let out = dir.join(if cfg!(windows) { "stub-ssh.exe" } else { "stub-ssh" });
+    let status = std::process::Command::new("rustc")
+        .arg("-O") // 与原脚本无差别的行为保真;优化让 serve 循环更跟手
+        .arg("--edition").arg("2021")
+        .arg(&src)
+        .arg("-o").arg(&out)
+        .status()
+        .expect("rustc 不在 PATH(测试进程必带);无法编译 stub ssh");
+    assert!(status.success(), "stub ssh 编译失败:{status}");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        std::fs::set_permissions(&out, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     }
-    script
+    out
 }
 
 /// stub 注入的环境守卫(测试内设置,结束还原,防串扰并行用例)。
