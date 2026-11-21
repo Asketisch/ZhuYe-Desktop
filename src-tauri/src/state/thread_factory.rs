@@ -190,7 +190,7 @@ pub(crate) fn construct_thread(
 
     // 持久化:仅在 sid = Some 时挂 recorder + 固定 id。bind 命令前不挂,
     // 避免随机 id 产生空文件污染 `~/.zhuye/sessions/`。
-    let mut cfg = AgentConfig::new(model_spec, agent.workspace())
+    let mut cfg = AgentConfig::new(model_spec.clone(), agent.workspace())
         .with_approvals(true)
         .with_max_iterations(zhuye_core::config::max_iterations_from_env(
             cfg_snapshot.active.max_iterations,
@@ -222,7 +222,14 @@ pub(crate) fn construct_thread(
         // headless 同款接线,此前桌面端未接 —— GUI 会话初始恒为 low,用户
         // 配置的默认档位死信)。运行时 `Op::SetEffort` 仍可随时覆盖;每次
         // bind 重建线程都重新读配置,设置页改档后重绑即生效。
-        .with_initial_effort(cfg_snapshot.resolve_reasoning_effort());
+        .with_initial_effort(cfg_snapshot.resolve_reasoning_effort())
+        // 上下文窗口覆盖表:`[context_windows]` / `[model].context_window`
+        // → 运行时查找表(exec bootstrap 同款装配)。此前桌面未装配,
+        // SessionConfigured.context_window_size 恒走内置回退表 —— 本地
+        // 扩窗模型(如 1M)的配置死信,GUI 容量卡分母错误。
+        .with_context_window_overrides(
+            cfg_snapshot.effective_context_window_overrides(&model_spec),
+        );
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
