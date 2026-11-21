@@ -6,7 +6,7 @@
  * 主区内容由 TanStack Router 的 <Outlet/> 注入；harness.data.viewMode 仅
  * 用于样式钩子（data-viewmode）。全部状态与监听由 ShellBinding 持有。
  */
-import { ChevronRight, Circle, Ellipsis, Plus, Rows3, SquareTerminal } from 'lucide-react';
+import { AlarmClock, ChevronRight, Circle, Ellipsis, Plus } from 'lucide-react';
 import type { ShellViewProps } from '@/contracts/shell';
 import { Icon } from '../design-system/Icon';
 
@@ -71,31 +71,20 @@ export function AppShell({
               icon: <Icon icon={Plus} size={15} />,
               testid: 'harness-nav-new',
             })}
-            {navItem(t('harness.nav.terminal'), {
-              on: harness.termOpen,
-              kbd: '⌘`',
-              onClick: harness.onToggleTerm,
-              icon: <Icon icon={SquareTerminal} size={15} />,
-              testid: 'harness-nav-term',
+            {/* 侧栏入口对齐参考工作台三入口：新建任务 / 自动化 / 插件市场；
+                终端 / 泳道 / 任务看板收进「更多」菜单。 */}
+            {navItem(t('harness.nav.automation'), {
+              on: data.pathname === "/schedule",
+              onClick: () => data.navigate('/schedule'),
+              icon: <AlarmClock size={15} strokeWidth={1.5} aria-hidden />,
+              testid: 'harness-nav-automation',
             })}
             {navItem(t('harness.nav.market'), {
               on: data.viewMode === 'market',
               kbd: '⌘⇧P',
               onClick: () => data.navigate('/market'),
-              icon: <Circle size={15} strokeWidth={1.5} aria-hidden />,
-              testid: 'harness-nav-market',
-            })}
-            {navItem(t('harness.nav.lanes'), {
-              on: data.viewMode === 'lanes',
-              kbd: '⌘⇧A',
-              onClick: () => data.navigate('/lanes'),
-              icon: <Rows3 size={15} strokeWidth={1.5} aria-hidden />,
-              testid: 'harness-nav-lanes',
-            })}
-            {navItem(t('harness.nav.tasks'), {
-              onClick: () => data.navigate('/tasks'),
               icon: <Icon icon={Circle} size={15} />,
-              testid: 'harness-nav-tasks',
+              testid: 'harness-nav-market',
             })}
             {/* 更多：其余路由页 + 设置（开关状态在 shellUi，外部关闭在 ShellBinding） */}
             <div style={{ position: 'relative' }} data-more-menu-anchor="">

@@ -10,6 +10,7 @@ import type { StringEntry } from '../types';
 const harness: Record<string, StringEntry> = {
   'harness.brandBadge':          { en: 'HARNESS',                       'zh-CN': 'HARNESS' },
   'harness.nav.new':             { en: 'New session',                   'zh-CN': '新会话' },
+  'harness.nav.automation':   { en: 'Automations',            'zh-CN': '自动化' },
   'harness.nav.terminal':        { en: 'Terminal',                      'zh-CN': '终端' },
   'harness.nav.market':          { en: 'Plugins',                       'zh-CN': '插件' },
   'harness.nav.lanes':           { en: 'Subagents',                     'zh-CN': '子代理' },

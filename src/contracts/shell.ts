@@ -35,6 +35,8 @@ export interface HarnessData {
   t: (key: string, vars?: Record<string, string | number>) => string;
   /** 当前路由对应的视图形态。 */
   viewMode: ShellViewMode;
+  /** 当前路径（侧栏 automation 入口的 active 判定）。 */
+  pathname: string;
   /** 标题条主标题（工作区名 / 路径尾段）。 */
   workspaceLabel: string;
   /** 侧栏「更多」菜单的页面清单。 */

@@ -290,6 +290,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     { label: t('squad.title'), path: '/squad' },
     { label: t('sideChannel.title'), path: '/side-channels' },
     { label: t('tasks.title'), path: '/tasks' },
+    { label: t('harness.lanes.title'), path: '/lanes' },
     { label: t('schedule.title'), path: '/schedule' },
     { label: t('autopilot.title'), path: '/autopilot' },
     { label: t('remote.title'), path: '/remote' },
@@ -313,6 +314,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     workspaceLabel,
     morePages,
     navigate: harnessNavigate,
+    pathname,
     openSettings: () => ui.setSettingsOpen(true),
     moreMenuOpen: ui.moreMenuOpen,
     onToggleMoreMenu: () => ui.setMoreMenuOpen(!ui.moreMenuOpen),
@@ -320,7 +322,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     badges,
     pendingCount,
     runningCount,
-  }), [t, viewMode, workspaceLabel, morePages, harnessNavigate, ui.setSettingsOpen, ui.moreMenuOpen,
+  }), [t, viewMode, workspaceLabel, pathname, morePages, harnessNavigate, ui.setSettingsOpen, ui.moreMenuOpen,
     ui.setMoreMenuOpen, badges, pendingCount, runningCount]);
 
   // 「更多」菜单的外部点击 / Esc 关闭。
