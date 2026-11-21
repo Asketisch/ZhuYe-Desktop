@@ -50,6 +50,16 @@ export function SidebarBinding(props: SidebarBindingProps) {
   // harness 侧栏交互：内联搜索 / 仅看待处理 / 会话 ⋯ 菜单 / 计时。
   const [searchOpen, setSearchOpen] = useState(false);
   const [pendingOnly, setPendingOnly] = useState(false);
+  // v1.12:子会话折叠态(>3 默认折叠,展开集合本地 UI 态)。
+  const [expandedSubs, setExpandedSubs] = useState<ReadonlySet<string>>(new Set());
+  const toggleSubExpand = useCallback((sessionId: string) => {
+    setExpandedSubs((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }, []);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -200,5 +210,6 @@ export function SidebarBinding(props: SidebarBindingProps) {
     }}
     searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((value) => !value)}
     pendingOnly={pendingOnly} onTogglePendingOnly={() => setPendingOnly((value) => !value)}
+    subSessionsFold={{ expanded: expandedSubs, toggle: toggleSubExpand }}
     elapsedNow={elapsedNow} />;
 }

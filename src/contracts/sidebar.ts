@@ -13,9 +13,18 @@ export interface SidebarMenuAction {
   run: () => void;
 }
 
+/** v1.12:子会话折叠态（binding 持有，渲染层禁 hook）。 */
+export interface SubSessionsFold {
+  /** 已展开的父会话 id 集合（> 阈值的父会话默认折叠）。 */
+  expanded: ReadonlySet<string>;
+  toggle: (sessionId: string) => void;
+}
+
 export interface SidebarViewProps {
   t: I18nContextValue['t'];
   groups: WorkspaceSessionGroup[];
+  /** v1.12:子会话折叠态。 */
+  subSessionsFold: SubSessionsFold;
   loading: boolean;
   error: string | null;
   activeId: string | null;

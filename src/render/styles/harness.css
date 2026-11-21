@@ -2120,7 +2120,12 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 
 .session-rename { flex: 1; min-width: 0; }
 
-/* v1.12:子代理会话缩进树(minimax code 形态)—— 父会话行下内联渲染。 */
+/* v1.12:子代理会话缩进树(minimax code 形态)—— 父会话行下内联渲染。
+   row-shell 默认横向 flex(主按钮 + 绝对定位的 ⋯);含子会话的行必须
+   纵向化,否则 .sub-sessions 会被当作 flex item 排到主按钮右侧 —— 实测
+   子会话行与父行 y 重叠、父行被盖住。:has() 由 WKWebView(Safari 15.4+)
+   支持,不加类名保持渲染层无状态。 */
+.row-shell:has(> .sub-sessions) { flex-direction: column; }
 .sub-sessions {
   display: flex;
   flex-direction: column;

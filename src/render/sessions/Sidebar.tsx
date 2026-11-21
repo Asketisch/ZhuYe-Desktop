@@ -5,7 +5,6 @@
  * .sb-scroll 内容：置顶 / 工作区 / 会话（状态点 + 待办旗标 + 计时 + ⋯ 菜单）。
  * 全部交互状态（搜索开关 / 仅看待处理 / 菜单 / 计时）由 SidebarBinding 持有。
  */
-import { useState } from 'react';
 import { ChevronDown, ChevronRight, Filter, Plus, RotateCw, Search, X } from 'lucide-react';
 import type { SidebarViewProps } from '@/contracts/sidebar';
 import type { SessionBadge } from '@/contracts/shell';
@@ -23,6 +22,12 @@ interface SessionRow {
 
 /** 子会话折叠阈值：超过则默认折叠，行尾「显示全部 N 个」展开。 */
 const SUB_SESSION_FOLD_LIMIT = 3;
+
+export interface SubSessionsFold {
+  /** 已展开的父会话 id 集合（> 阈值的父会话默认折叠）。 */
+  expanded: ReadonlySet<string>;
+  toggle: (sessionId: string) => void;
+}
 
 /** 会话标题：title 优先，回退短 id（与 displayTitle 同口径的最小实现）。 */
 function titleOf(sess: SessionRow): string {
@@ -63,10 +68,10 @@ export function Sidebar({
   elapsedNow, isCollapsed, onToggleGroup, searching,
   onSelect, onNewChat, onNewChatIn, onQueryChange, onRefresh,
   onOpenProject, onRemoveWorkspace,
+  subSessionsFold,
 }: SidebarViewProps) {
   const pendingCount = countPending(badges);
-  // 子会话展开集合(本地 UI 态;> 阈值的父会话默认折叠)。
-  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
+  // 子会话展开集合 —— 状态由 SidebarBinding 持有(渲染层边界禁 hook)。
 
   /** 会话行（状态点 + 旗标 + 标题 + 时间/计时 + ⋯）。 */
   const renderSession = (sess: SessionRow) => {
@@ -79,7 +84,7 @@ export function Sidebar({
     const since = badge?.since ?? null;
     const elapsed = dot === 'run' && since ? Math.max(0, elapsedNow - since) : 0;
     const subKids = sess.children ?? [];
-    const subExpanded = expandedSubs.has(sess.session_id);
+    const subExpanded = subSessionsFold.expanded.has(sess.session_id);
     const subShown = subKids.length <= SUB_SESSION_FOLD_LIMIT || subExpanded
       ? subKids
       : subKids.slice(0, SUB_SESSION_FOLD_LIMIT);
@@ -135,7 +140,10 @@ export function Sidebar({
                 className={['row-item', 'sess', 'sub-session', kid.session_id === activeId ? 'sel' : ''].filter(Boolean).join(' ')}
                 data-testid={`harness-subsession-${kid.session_id}`}
                 aria-pressed={kid.session_id === activeId}
-                onClick={() => onSelect(kid.session_id)}
+                /* 子代理会话是主会话流的投影:引擎宿主不可 bind 子线程
+                 * (实测 bind 被 workspace 校验拒绝)。点击 = 打开父会话 ——
+                 * 子代理的调用记录与产出都在主会话流里。 */
+                onClick={() => onSelect(sess.session_id)}
               >
                 <span className="dot sub-dot" />
                 <span className="t">{titleOf(kid)}</span>
@@ -146,12 +154,7 @@ export function Sidebar({
               <button
                 type="button"
                 className="sub-fold-toggle"
-                onClick={() => {
-                  const next = new Set(expandedSubs);
-                  if (subExpanded) next.delete(sess.session_id);
-                  else next.add(sess.session_id);
-                  setExpandedSubs(next);
-                }}
+                onClick={() => subSessionsFold.toggle(sess.session_id)}
               >
                 {subExpanded
                   ? t('harness.sb.subCollapse')
