@@ -14,11 +14,13 @@ const palette: Record<string, StringEntry> = {
   'palette.select':                  { en: 'select',                              'zh-CN': '选择' },
   'palette.escClose':                { en: 'esc close',                           'zh-CN': 'esc 关闭' },
   'palette.esc':                     { en: 'esc',                                 'zh-CN': 'esc' },
-  'palette.kind.action':             { en: 'action',                              'zh-CN': '操作' },
-  'palette.kind.theme':              { en: 'theme',                               'zh-CN': '主题' },
-  'palette.kind.view':               { en: 'view',                                'zh-CN': '视图' },
+  // kind 键与 registry PaletteItemKind 五值一一对应(navigation/session/
+  // slash/theme/system)—— 曾漏 navigation 导致面板右侧裸显 i18n 键。
+  'palette.kind.navigation':         { en: 'navigation',                          'zh-CN': '导航' },
   'palette.kind.session':            { en: 'session',                             'zh-CN': '会话' },
   'palette.kind.slash':              { en: 'slash',                               'zh-CN': 'slash' },
+  'palette.kind.theme':              { en: 'theme',                               'zh-CN': '主题' },
+  'palette.kind.system':             { en: 'system',                              'zh-CN': '系统' },
   'palette.item.newSession':         { en: 'New session',                         'zh-CN': '新建会话' },
   'palette.item.newSessionHint':     { en: 'Start a fresh chat',                  'zh-CN': '开启新对话' },
   'palette.item.clearSessions':      { en: 'Clear all sessions',                  'zh-CN': '清空所有会话' },
