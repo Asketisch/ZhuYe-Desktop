@@ -17,7 +17,9 @@ fn groups_toml(n: usize) -> String {
             "[[model_group]]\nid = \"g{i}\"\nendpoint = \"openai\"\nbase_url = \"https://g{i}.test\"\nmodel = \"m{i}\"\n\n"
         ));
     }
-    out.push_str("[[model_group.credentials]]\ngroup = \"g1\"\nlabel = \"extra\"\napi_key = \"sk-x\"\n\n");
+    out.push_str(
+        "[[model_group.credentials]]\ngroup = \"g1\"\nlabel = \"extra\"\napi_key = \"sk-x\"\n\n",
+    );
     // credentials 是 model_group 数组的延续 —— 归属最后一组；此处简化：
     // 直接放组后（TOML 数组延续），上面 group 字段仅为可读性。
     out
@@ -32,9 +34,15 @@ fn model_groups_support_unlimited_entries() {
         let read = common::invoke_ok("zhuye_get_config", json!({}));
         let text = read.as_str().expect("config 必须是字符串");
         let count = text.matches("[[model_group]]").count();
-        assert_eq!(count, n, "{n} 个组保存后读回应有 {n} 个组头，实际 {count}:\n{text}");
+        assert_eq!(
+            count, n,
+            "{n} 个组保存后读回应有 {n} 个组头，实际 {count}:\n{text}"
+        );
         for i in 1..=n {
-            assert!(text.contains(&format!("id = \"g{i}\"")), "组 g{i} 丢失:\n{text}");
+            assert!(
+                text.contains(&format!("id = \"g{i}\"")),
+                "组 g{i} 丢失:\n{text}"
+            );
         }
     }
 }
