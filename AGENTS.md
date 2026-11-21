@@ -33,6 +33,7 @@
 | 上游核心 crate（submodule，只读镜像，不在本仓库建篇） | 下方「上游 submodule 体系索引」 · [SUBMODULE.md](SUBMODULE.md) |
 | 架构与系统文档（不建篇） | [docs/architecture.md](docs/architecture.md) · [docs/codebase-map.md](docs/codebase-map.md) · [docs/capabilities.md](docs/capabilities.md) · [docs/protocol-bridge.md](docs/protocol-bridge.md) · [docs/changelog.md](docs/changelog.md) · [docs/user-guide.md](docs/user-guide.md)（外链） |
 | 三大功能规划（应用自更新 / 内置浏览器 / SSH 远程） | [docs/plans/hot-update.md](docs/plans/hot-update.md) · [docs/plans/browser-control.md](docs/plans/browser-control.md) · [docs/plans/ssh-remote.md](docs/plans/ssh-remote.md) |
+| 协议上游升级（引擎三支柱落地记录 + roadmap） | [docs/plans/protocol-upstream.md](docs/plans/protocol-upstream.md) |
 
 ### 上游 submodule 体系索引（`zhuye-agent/`，只读）
 
@@ -223,6 +224,6 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 - **注释与提交一律中文** —— 行注释、doc-comment、测试说明等必须用中文书写；commit message 亦用中文，遵循 `type(scope): 描述` conventional 风格。
 - **导入别名** —— 前端导入使用项目别名 `@/*` → `src/*`（在 `tsconfig.json` + `vite.config.ts` 中定义）。
 - **文档双语** —— `docs/` 中文主篇命名用小写 kebab-case；英文对译以 `X.en.md` 同目录配对，顶部挂居中语言切换器（`<p align="center">` 换行缩进的 `<b>中文</b> · <a href="X.en.md">English</a>`，与上游 README 同款）；英文版不参与门禁，协议/能力变更后人工同步翻译；切换器仅在英文版产出后挂载。
-- **大文件预算** —— 自有生产文件 ≤ 500 行；入口文件需超限时优先将领域逻辑拆到 `app-core/` 独立模块、宿主编排逻辑拆到 `src-tauri/src/state/` 子模块，并在本节说明理由（当前无超限文件）。
+- **大文件预算** —— 自有生产文件 ≤ 500 行；存量超限文件由 `tests/static/baseline.json` 的 `file-size-budget` 棘轮登记（新增超限即 L1 静态门禁失败，存量须逐步消化而非豁免扩散），入口文件需超限时优先将领域逻辑拆到 `app-core/` 独立模块、宿主编排逻辑拆到 `src-tauri/src/state/` 子模块。
 - **安全与 Git 行为** —— 优先使用安全的 git 操作（`status`、`diff`、`log`）；不要重置或撤销无关的用户变更；修复根本原因，不打补丁；冲突影响正确性时指出问题并选择最安全的路径。
 - **submodule 只读** —— 不要直接修改 `zhuye-agent/crates/**/zhuye-*`；修改 ZhuYe 仓库后用 `git submodule update --remote` 升级（详见 `SUBMODULE.md`）。

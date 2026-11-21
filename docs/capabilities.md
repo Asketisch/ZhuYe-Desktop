@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `65c9e8e`（上一审计 `8da90e5`）：上游四修复批次 —— ①配置模型 v2 落地后功能测试断言对齐（dump_config / login / doctor 文案 / 免 key 组判定 / 一键导入读 `[[model_group]]` / cli_modules 报错文案，纯测试层）；②plan 审批回执改可靠广播：`apply_plan_approval_choice` 的 PermissionModeChanged / PlanApproved / PlanRejected 经新增 `fan_out_session_reliable`（订阅者通道满等待容量、单订阅者 5s 上限，而非 `try_send` 静默丢）投递，修 CI 慢管道下 test_A8b 断言落空（行为修复，Op/EventMsg 零变化）；③`zhuye-skills` tar 条目路径统一 `/` 分隔（Windows 上 PathBuf 反斜杠形态令布局探测整链失配，修下游 `cargo test (windows)` 的 marketplace 五连败）；④wasmtime 36.0.20→36.0.22（RUSTSEC-2026-0569/0566/0571/0587）+ xcb 1.7.0→1.7.1（连带 quick-xml 0.30 消失，RUSTSEC-2026-0194/0195）。桌面配套：本仓 wasmtime pin 同步 36.0.22，视觉 surfaces 用例超时 30s→90s（Windows runner 冷启动挂载 settings v3 十四分区超 30s，ubuntu/macOS 无此压力）。Op/EventMsg 与内置工具集合零变化，无新增命令。
+> 最近审计：submodule `fe87e8e`（v1.12 三支柱：§3.40）（上一审计 `8da90e5`）：上游四修复批次 —— ①配置模型 v2 落地后功能测试断言对齐（dump_config / login / doctor 文案 / 免 key 组判定 / 一键导入读 `[[model_group]]` / cli_modules 报错文案，纯测试层）；②plan 审批回执改可靠广播：`apply_plan_approval_choice` 的 PermissionModeChanged / PlanApproved / PlanRejected 经新增 `fan_out_session_reliable`（订阅者通道满等待容量、单订阅者 5s 上限，而非 `try_send` 静默丢）投递，修 CI 慢管道下 test_A8b 断言落空（行为修复，Op/EventMsg 零变化）；③`zhuye-skills` tar 条目路径统一 `/` 分隔（Windows 上 PathBuf 反斜杠形态令布局探测整链失配，修下游 `cargo test (windows)` 的 marketplace 五连败）；④wasmtime 36.0.20→36.0.22（RUSTSEC-2026-0569/0566/0571/0587）+ xcb 1.7.0→1.7.1（连带 quick-xml 0.30 消失，RUSTSEC-2026-0194/0195）。桌面配套：本仓 wasmtime pin 同步 36.0.22，视觉 surfaces 用例超时 30s→90s（Windows runner 冷启动挂载 settings v3 十四分区超 30s，ubuntu/macOS 无此压力）。Op/EventMsg 与内置工具集合零变化，无新增命令。
 
 > 上一轮审计：submodule `8da90e5`（上一审计 `0d51379`）：上游 0.1.16 门控型 bundled 插件基建 —— `zhuye-plugin::bundled`（`BUNDLED_PLUGIN_DEFAULTS` 表 + `bundled_plugin_enabled` / `bundled_tool_gates` 判定）+ `[plugins].disabled_plugins` 配置键（显式禁用 > 显式启用 > 默认开关；默认开 web-search / notebook，默认关 verify-hooks / lsp / goal-queue）+ 新增 `plugins/{lsp,notebook,verify-hooks,web-search}` 插件定义；另 `zhuye-kms` 从 abilities 归位 integrations（纯移动，桌面 Cargo.toml path 已随之改）。桌面配套接线：启动装配走 `register_builtin_tools_with_gates`、设置保存后 `apply_bundled_tool_gates` 差量同步共享工具表（web_search / notebook_edit register/unregister）、verify-hooks 门随线程构造注入 hook engine、lsp 手动开启在命令边界对禁用态显性报错、`zhuye_toggle_plugin` 语义对齐 CLI（bundled 停用写禁用表 / 启用清禁用表）；设置页 PluginsEditor 补 `disabled_plugins` 按行编辑。Op/EventMsg 零变化，无新增命令。
 
@@ -31,7 +31,7 @@
 
 | 能力族 | 核心 crate | 关键 API | GUI 状态 |
 |---|---|---|---|
-| 协议 Op / EventMsg | `zhuye-protocol` | `Op`（26 变体）/ `EventMsg`（50 变体） | 🟡 24 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证 |
+| 协议 Op / EventMsg | `zhuye-protocol` | `Op`（27 变体）/ `EventMsg`（54 变体） | 🟡 24 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证。**v1.12 三支柱**：`Event.seq` 缺口检测 + `interaction_resolved` 了结广播 + `context_composition` 六类分解已接线（§3.34） |
 | 线程运行时 | `zhuye-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 权限解析器已接线（§3.1）；运行态覆盖缺口见 `tests/RUNTIME_COVERAGE.md` |
 | LLM / Provider | `zhuye-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` / `output_budget` / `reasoning_effort` / `models_dev` | 🟡 plans / quota、凭证池健康度、自适应输出预算、`max` / `ultra` 档位与按模型钳制已接线；**models.dev 四维能力（窗口/输出/视觉/思考）经目录补齐并展示**（§3.33）；冷却原因在核心内不公开 |
 | 计价 | `zhuye-llm::providers` | `pricing_table` / `pricing_for` / `RateCard` | ✅ 费率卡直接读核心公开费率表（develop 收编;桌面反解 shim 已删） |
@@ -457,3 +457,12 @@ worktree 是 GUI 用户操作面而非 agent 能力，不上游化（agent 侧 `
 - **上一轮 `c728da8e → 8e72bc4c`** 为三项 Windows 平台行为修复：zhuye-git 命令超时用 Job Object 整树终止（孙进程不再逃逸，与 Unix 进程组对等）、zhuye-lsp / zhuye-mcp / zhuye-shell 的 stdio 子进程 `env_clear` 后透传运行时候选变量（缺 SystemRoot 会让 node.exe 等 CRT 程序在输出前即崩溃）、zhuye-shell 会话 kill 整树终止（GUI 终端 kill 按钮在 Windows 上自此清场）。均为能力内部实现，产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。上一轮 `1c09f6a4 → c728da8e` 为修正 Windows 文件锁句柄权限（`LockFileEx` 要求可读句柄），产品命令、事件、配置与 SDK 公开面零变更，桌面无适配。
 - **上一轮完整审计覆盖 `f4bb7057 → 57907d5b` 全部 538 个文件**，按协议、运行时、工具、LLM/配置、编排、插件/导入、CLI/SDK 七个能力族逐项对照桌面命令与前端消费面（详见 §3.30）。命令面由静态门禁验证 189 个注册命令全部有前端消费面；事件面由三方奇偶门禁验证 50 个 `EventMsg` 变体；提交面由 Rust/TS/样本奇偶验证 26 个 `Op` 变体；运行态证据按域登记在 `tests/RUNTIME_COVERAGE.md`。
 - **历史审计记录**：`d063a5f`（0.1.8 + 路径安全批次）复核过协议面、数据目录口径与核心文件工具；`e4560bc` / `c0377609` 批次闭合了 Goal 快照、todo 回灌、`os_level` schema、免 Key 端点、清单回灌、工具参数整包形态和审批门取消令牌观察。
+
+### 3.40 挂起交互查询面 + 事件可靠性 + 上下文构成（v1.12 三支柱）
+
+引擎 gate 真相上收（`AgentThread::pending_interactions()` + `zhuye_bind_session`
+返回 `pending_gates` + `interaction_resolved` 了结广播 + rollout 审计）、
+`Event.seq` 会话扇出序号（前端缺口检测 + `zhuye_event_gap` 合成通知双保险 →
+重放收敛）、`context_composition` 六类估算分解（工作台容量卡构成条形）。
+上游四提交 bcc75dc9…fe87e8e9，桌面接线与线格式见 `docs/protocol-bridge.md`
+§1/§2/§3.2/§3.4，roadmap 见 `docs/plans/protocol-upstream.md`。

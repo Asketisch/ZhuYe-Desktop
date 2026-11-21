@@ -19,7 +19,7 @@
 
 1. 前端调用点：`src/features/**`（hooks/controllers/组件）
 2. 前端 IPC API：`src/utils/commands/{domain}.ts`（兼容 re-export 位于 `src/utils/tauri.ts` 和 `src/utils/commands.ts`）
-3. Tauri 命令注册：`src-tauri/src/lib.rs`（`invoke_handler` 枚举每个 `zhuye_*` 命令）
+3. Tauri 命令注册：`src-tauri/src/commands_registry.rs`（`configure()` 的 `generate_handler!` 枚举每个 `zhuye_*` 命令；生产 `run()` 与 L3 测试夹具共用同一注册表）
 4. Tauri 命令主体：`src-tauri/src/commands/mod.rs` 从 `src-tauri/src/commands/<domain>.rs` re-export
 5. 应用状态（AgentThread 宿主）：`src-tauri/src/state.rs`（加上私有辅助 `hook_store.rs` / `memory_store.rs` / `shell_sessions.rs` / `workspace_state.rs`）
 6. 事件转发器：`src-tauri/src/events.rs`
@@ -34,7 +34,7 @@
 | 需求 | 主要文件 |
 | --- | --- |
 | 新增功能切片 / 路由 | `src/router.tsx`、`src/features/<slice>/<View>.tsx`、`src/features/shell/AppShell.tsx` |
-| 从前端新增/修改 Tauri 命令 | `src/utils/commands/<domain>.ts`、`src-tauri/src/commands/<domain>.rs`、`src-tauri/src/commands/mod.rs`（re-export）、`src-tauri/src/lib.rs`（handler 列表）|
+| 从前端新增/修改 Tauri 命令 | `src/utils/commands/<domain>.ts`、`src-tauri/src/commands/<domain>.rs`、`src-tauri/src/commands/mod.rs`（re-export）、`src-tauri/src/commands_registry.rs`（handler 列表）|
 | 在 UI 中新增/修改事件处理 | `src/services/agent.ts`（兼容 re-export）+ `src/services/agentEventBus.ts`（引用计数扇出）、`src/stores/agent/reducer.ts`、`src/features/<slice>/use*Controller.ts` |
 | 修改输入框（Composer）| `src/features/composer/{Composer,SlashPopup}.tsx`、`src/features/composer/{slashCommands,slashEngine}.ts`、`src/features/composer/{useComposerInput,useComposerSubmission,useAttachments,usePromptHistory}.ts`。旧路径 `src/features/messages/Composer.tsx` 是薄 re-export 层 —— 不要编辑。|
 | 修改聊天渲染 | `src/features/messages/{ChatView,MessageList,ToolCells,Collapsible}.tsx` |

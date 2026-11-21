@@ -48,7 +48,10 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | Goal 状态快照 | `goal_snapshot` | L3 `ipc_goal.rs`（挂载 / 覆盖 / 退出）+ `ipc_goal_runtime.rs`（Unix 下真实回合、模型校验和验证命令） | store `syncGoalSnapshot` + Composer goal 徽标 tooltip |
 | 权限 / 强度 / steer | `set/cycle_permission_mode` `set/get_effort` `steer` | L3 `ipc_agent_ops.rs` | `composer.slash-history-attachments` |
 | 追问 | `ask_user_question_response` `ask_user_input_response` | L3 `ipc_agent_ops.rs` + `ipc_question_runtime.rs`（结构化问答）+ `ipc_input_runtime.rs`（自由文本、敏感标志、持久化请求外部回执）+ `ipc_human_restart.rs`（跨进程保留请求并重试消费答案） | `modals.approvals-questions` |
-| 会话生命周期 | `create` `bind` `list` `rename` `fork` `delete` `archive` `unarchive` `list_archived` `replay` `export` `search_sessions` | L3 `ipc_core.rs` | `sessions.lifecycle` |
+| 会话生命周期 | `create` `bind` `list` `rename` `fork` `delete` `archive` `unarchive` `list_archived` `replay` `export` `search_sessions` | L3 `ipc_core.rs`、`ipc_session_lifecycle_restart.rs`（跨进程重启） | `sessions.lifecycle` |
+| 挂起交互查询面(v1.12) | `bind` 返回 `{permission_mode, pending_gates}`(引擎 gate 注册表快照) | L3 `ipc_pending_gates.rs`;上游 zhuye-tools/zhuye-core 覆盖注册表/落盘/广播 | 审批弹窗 reload 重水合(`hydratePendingGates`) |
+| 事件可靠性(v1.12) | `Event.seq` 缺口检测 + `zhuye_event_gap` 合成通知 | 上游 seq 单调契约(session_events)+ 桌面转发器 Lagged 分支 | store 重放收敛 / backgroundSessions 重灌 |
+| 上下文构成(v1.12) | `context_composition` 六类分解 | 上游 model_call 计量(指纹去重) | 工作台容量卡构成条(`StatusPanel`) |
 | 会话统计 | `session_stats` `all_model_usage` `model_rate_cards` | L3 `ipc_core.rs` | `usage` |
 | 配置 | `get_config` `save_config` `config_info` `set_model` `get_user_instructions` `save_user_instructions`（用户级自定义指令读写，设置页「个性化」） | L3 `ipc_core.rs` + `ipc_model_discovery.rs`（本地模拟清单失败及相同配置重试）+ `ipc_settings_restart.rs`（跨进程保存的预算约束新 Agent 回合）+ `ipc_settings_concurrency.rs`（并发模型切换不丢写） | `settings.config` |
 | 运行时状态 | `agent_status` `credential_pool_status` `recovery_state` `memory_sections` `sandbox_status` | L3 `ipc_core.rs` / `ipc_workspace.rs` | `StatusBar` / `AppShell` |

@@ -4,6 +4,18 @@
 
 ## 未发布
 
+- **引擎三支柱升级（上游 submodule fe87e8e9，对标 ZCode 可靠性形态）**：
+  gate 真相上收引擎（挂起交互注册表 + `AgentThread::pending_interactions()`
+  查询 + `interaction_resolved` 了结广播 + rollout 审计落盘；webview reload /
+  换绑后审批 UI 从引擎快照重建，不再依赖前端内存投影）、事件序号（`Event.seq`
+  会话扇出单调赋号，前端缺口检测 + 转发器 `zhuye_event_gap` 合成通知双保险，
+  触发重放收敛）、上下文构成（`context_composition` 六类估算分解 —— 系统提示
+  词/记忆/技能/工具 schema/外部工具/消息，工作台容量卡新增构成条形）。
+  `zhuye_bind_session` 返回由单一 mode 字符串扩展为
+  `{permission_mode, pending_gates}`（有意协议变更，线格式见
+  `docs/protocol-bridge.md` §2）。上游四提交：
+  `feat(protocol)` Event.seq+新变体 / `feat(tools)` 挂起交互注册表 /
+  `feat(core)` 查询面+序号+计量 / `feat(protocol)` payload 原始载荷。
 - **设置页重建为全屏两栏布局 + 14 分区**：设置从 harness 弹窗改为全屏
   覆盖层（268px 分组导航 + 圆角内容面板 + 896px 内容列，窄窗口收 68px
   图标栏），分区按「基础设置 / Agent 能力 / 数据与统计」三组组织：常规 /

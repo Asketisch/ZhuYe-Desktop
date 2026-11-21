@@ -17,8 +17,14 @@
 pub struct Event {
     pub id: String,     // matches Submission.id; EVENT_ID_NONE = "" for lifecycle
     pub msg: EventMsg,  // serde-tagged enum (snake_case)
+    pub seq: u64,       // v1.12:会话扇出序号(per-session 单调从 1 起;0 = per-turn 专属流)
 }
 ```
+
+> **v1.12 缺口检测**：`seq > last + 1` 即 broadcast 慢订阅丢过事件，前端触发
+> 当前会话 re-replay 收敛（`store.subscribe` 内联检测；`#[serde(default)]` 旧
+> wire 无 seq 解析为 0，不参与判定）。后端转发器在 broadcast `Lagged(n)` 时另发
+> `zhuye_event_gap` 合成通知（见下），覆盖 per-turn 快路丢包。
 
 两条通道：
 
@@ -29,6 +35,12 @@ pub struct Event {
   线程的事件经此通道带 session id 送达；前端 `src/stores/backgroundSessions.ts` 消化
   （运行徽标 / 待确认交互投影），**主 reducer 不处理**。会话切回（bind → promote）后，
   该线程事件回到 `zhuye_event` 前台通道。
+- **后端 → UI（缺口通知，v1.12）**：`listen('zhuye_event_gap', handler)` 载荷
+  `{ dropped: number, scope: "foreground" | "background", session_id?: string }`。
+  转发器 broadcast `Lagged(n)` 时的**合成应用级通知**（非 EventMsg 变体，不进引擎
+  协议）；前端据此重放当前会话 / 重灌后台投影。通道共 6 条：`zhuye_event` /
+  `zhuye_session_event` / `zhuye_terminal_output` / `zhuye_browser_frame` /
+  `zhuye_update_progress` / `zhuye_event_gap`。
 
 > 前端从不使用信封包装。Tauri 命令名是唯一框架。
 
@@ -95,7 +107,7 @@ pub struct Event {
 | `zhuye_test_provider_chat` | `{ baseUrl, apiKey, endpoint, model }` | `{ reply }` | `commands/models.rs` / `commands/models.ts`。发送测试消息「你好」验证鉴权/网络/推理链路：单条 user 消息，**刻意无 system 提示词、无 tools 定义**，`max_tokens = 32` 压低无效消耗。`openai` → `POST {base}/chat/completions`；`anthropic` → `POST {base}/v1/messages`（回复取 `content[]` text 块拼接）。Plans 表单「发送测试消息」按钮消费 |
 | `zhuye_list_sessions` / `zhuye_rename_session` / `zhuye_delete_session` / `zhuye_replay_session` | `{ workspace?, limit?, offset? }` / — / — / — | `SessionInfo[]` / — / — / — | `commands/sessions.rs` / `commands/sessions.ts`。`workspace` 为可选过滤（`SessionInfo.workspace` 精确匹配；旧会话 `workspace = None` 仅在全量列表出现）。`zhuye_replay_session` 返回该会话 rollout 全量记录（`RolloutRecord` tagged union）；**引擎注入块（`<system-reminder>` 包裹的环境上下文 / AGENTS.md 指令）在记录里 role 仍是 user**，前端回放时剥除（`src/stores/replay.ts::stripInjectedSystemBlocks`），后端 `records_to_preload` 保留 → 模型侧上下文不变 |
 | `zhuye_create_session` | `null` | `string`（ThreadId） | `commands/sessions.rs` / `commands/sessions.ts`。纯 ID 分配（New Chat 先拿路由 id），不触发后端绑定；会话文件在首条 `UserInput` 时由后端物化并写 `SessionMeta.workspace`（workspace 值取自任意类型首条 `Submission` 的顶层 `workspace`，缺省回退 `cfg.current_workspace()`） |
-| `zhuye_bind_session` | `{ id }` | `string`（绑定后线程的 PermissionMode，如 `"plan"`） | `commands/sessions.rs` / `commands/sessions.ts`。把后端 `AgentThread` 换绑到指定 session id：目标会话在后台线程表时 **promote 复用 warm 线程**（内存上下文即在，跳过重建）；否则 replay 该 id 的 JSONL → `records_to_preload` → 重建线程（`with_session_id` + M4 recorder 同 id）。**权限模式绑定会话**：审计轨迹末次 `PermissionModeChanged` 经 `with_initial_permission_mode` 恢复为新线程初始模式（`Bypass` 按 v1.3 安全基线降级 `Prompt`；无记录落默认 `Auto`），provider 热重载的强制重绑则透传旧线程当前模式。**后端幂等**（同 id 短路，仍返回线程实际模式）；未知 id（刚 `zhuye_create_session` 分配、未落盘）走空历史分支不报错。ChatView 挂载每个会话都调一次（bind → `syncPermissionMode(返回值)` → replay → hydrate 序列）。**v1.x 后台持续运行**：跨会话换绑不再 cancel 旧线程 —— 有会话归属的旧线程迁入后台表（上限 8，超限按「空闲优先、最旧兜底」驱逐）继续运行，事件经 `zhuye_session_event` 通道送达；原地重建（热重载 / pending error）与后台清场仍走 cancel。cron driver 换 sender 后重启（job uuid 保留） |
+| `zhuye_bind_session` | `{ id }` | `{ permission_mode: string, pending_gates: PendingInteraction[] }`（**v1.12 有意协议扩展**：命令名不变，单一 mode 字符串改结构体） | `commands/sessions.rs` / `commands/sessions.ts`。把后端 `AgentThread` 换绑到指定 session id：目标会话在后台线程表时 **promote 复用 warm 线程**（内存上下文即在，跳过重建）；否则 replay 该 id 的 JSONL → `records_to_preload` → 重建线程（`with_session_id` + M4 recorder 同 id）。**权限模式绑定会话**：审计轨迹末次 `PermissionModeChanged` 经 `with_initial_permission_mode` 恢复为新线程初始模式（`Bypass` 按 v1.3 安全基线降级 `Prompt`；无记录落默认 `Auto`），provider 热重载的强制重绑则透传旧线程当前模式。**后端幂等**（同 id 短路，仍返回线程实际模式）；未知 id（刚 `zhuye_create_session` 分配、未落盘）走空历史分支不报错。**v1.12**：返回体追加 `pending_gates`（引擎 `AgentThread::pending_interactions()` 的挂起交互快照 —— 审批/问答/询问/plan，注册时刻升序，`payload` 与对应 `EventMsg` 变体字段同构）。reload / 换绑后前端 `hydratePendingGates` 据此重建审批 UI，不再依赖前端内存投影；远程会话分支恒为空（已知限制）。ChatView 挂载每个会话都调一次（bind → `syncPermissionMode(返回值)` → replay → hydrate 序列）。**v1.x 后台持续运行**：跨会话换绑不再 cancel 旧线程 —— 有会话归属的旧线程迁入后台表（上限 8，超限按「空闲优先、最旧兜底」驱逐）继续运行，事件经 `zhuye_session_event` 通道送达；原地重建（热重载 / pending error）与后台清场仍走 cancel。cron driver 换 sender 后重启（job uuid 保留） |
 | `zhuye_fork_session` | `{ id, branch?, upToTurnId? }` | `string`（子会话 id） | `commands/sessions.rs` / `commands/sessions.ts`。GUI 入口对应 CLI `zhuye session fork`：`rollout_index::fork_with_history` 复制父会话 JSONL（`upToTurnId` 截至某 turn 含，`None` 全量）生成新子会话，父文件 append `Fork` 血缘 marker，子会话继承父 SessionMeta model 并把 `branch`（默认 `manual`）写成自定义名（`_names`）。纯文件操作不触碰运行中的 AgentThread（同步 IO 包 `spawn_blocking`）；前端拿到子 id 后自行路由切换（ChatView 挂载 → bind + replay 即得完整历史）。会话列表 kebab 菜单「Fork」入口（Sidebar + ThreadsView 共用） |
 | `zhuye_archive_session` / `zhuye_unarchive_session` / `zhuye_list_archived_sessions` | `{ id }` / `{ id }` / `null` | `null` / `null` / `SessionInfo[]` | `commands/sessions.rs` / `commands/sessions.ts`（归档树 `~/.zhuye/sessions-archive`，整树搬移、相对路径不变） |
 | `zhuye_generate_session_title` | `{ id, force? }` | `string`（最终标题） | `commands/sessions.rs` / `commands/sessions.ts`。AI 生成会话标题：replay 取首条 User + Assistant 文本 → MinimalAgent 的 SharedModelRegistry one-shot 调用（routing.main 模型）→ `derive_title` 清洗（≤48 字符）→ 写 `~/.zhuye/sessions/_titles/<id>.title`。标题优先级：自定义名（`_names`）> AI（`_titles`）> 首条消息派生 —— 自定义名存在时直接返回不调模型；`force = false`（默认，turn 收尾自动触发）幂等返回已有 AI 标题；`force = true`（菜单「AI 重命名」）重新生成覆盖。归档/删除与 `_names` 同步搬移/清理 |
@@ -275,7 +287,7 @@ pub struct Submission {
 | `submission_closed` | v1.3 SDK serve 模式的 per-submission 通道排空标记 | none —— Desktop 内嵌 AgentThread 不发本事件；TS 类型联合已补齐，reducer no-op 保穷尽 |
 | `shutdown_complete` | `Op::Shutdown` | Quit / hide |
 
-### 3.2 LLM output (4)
+### 3.2 LLM output (5)
 
 | 变体 | 字段 | UI |
 |---|---|---|
@@ -283,6 +295,7 @@ pub struct Submission {
 | `agent_message_delta` | `delta: String` | Stream chunk → append to last assistant bubble |
 | `thinking_delta` | `delta: String`、`kind?: "raw" \| "summary" \| "unknown"`（v1.x additive，上游 `#[serde(default)]` 旧事件兼容；`raw` = token 级流式默认，`summary` = 推理摘要） | Reasoning block (collapsible)；`kind` 前端类型已登记，渲染暂不区分（与旧行为一致） |
 | `token_count` | `TokenCountEvent` (info) | StatusBar token/cost indicator + Inspector "Token Usage" section (input/output/cached/cache_write/total/cost/provider/credential/model). `TokenCountEvent` 字段：`input_tokens`、`output_tokens`、`cached_tokens`、`cache_write_tokens`（M8，input 子集，不计入 total）、`total_tokens`、`cost_usd?`、`provider?`、`credential_label?`、`model?`（v1.x 模型级统计:本轮实际命中的模型 spec 如 `"openai/gpt-4o"`；旧引擎不上报 → 缺省） |
+| `context_composition` | `ContextCompositionEvent` (v1.12 additive)：`categories: [{ id, tokens }]`，id 枚举 `system_prompt / memory / skills / tool_schemas / mcp_tools / messages`（估算值，复用 compact 估计器；不保证求和 = input_tokens） | 工作台容量卡六类构成条形（`StatusPanel` 分解条）。引擎在 ChatRequest 组装后计量、按组成指纹去重（无变化不发）；reducer 整体覆盖 `contextComposition` |
 
 ### 3.3 Tools (5)
 
@@ -294,7 +307,7 @@ pub struct Submission {
 | `tool_call_output_delta` | `ToolCallOutputDeltaEvent` (v1.4 A3) | none —— 长工具执行期间逐段 stdout/stderr 增量预览（完整输出仍以 `tool_call_end` 为准）；reducer no-op 保穷尽，避免高频重渲染 |
 | `tool_execution_request` | `ToolExecutionRequestEvent` (v1.3 SDK) | none —— serve 模式下 core 请求客户端本地执行其经 `Op::RegisterTools` 注册的远程工具（回执 `Op::ToolExecutionResponse`，`call_id` 配对）。Desktop 内嵌 AgentThread 不注册远程工具，reducer no-op 保穷尽 |
 
-### 3.4 Approvals / AskUser (4)
+### 3.4 Approvals / AskUser (5)
 
 | 变体 | 前端响应 | 配对 Op |
 |---|---|---|
@@ -302,6 +315,13 @@ pub struct Submission {
 | `ask_user_question` | Open `QuestionModal` (multi-Q) | `ask_user_question_response` (id = request_id) |
 | `ask_user_input` | Open `AskUserModal` (free text; `secret` 时掩码显示) | `ask_user_input_response` |
 | `permission_bubble` | Non-blocking toast (Bubble mode) | none |
+| `interaction_resolved` (v1.12 additive) | 按 `request_id` **无条件**清理本地挂起态（四 pending 字段过滤；plan 单例匹配时清） | none（了结广播：应答 / TTL 过期 / 取消 / 中断 / 通道关闭 —— 后四者无对应回执事件，不清理则弹窗永久悬挂） |
+
+> **v1.12 挂起交互查询面**：gate 真相上收引擎 —— `ApprovalGate` 在 waiter 注册时
+> 写会话级 `PendingRegistry` 快照行（含 `payload` 原始载荷），了结（任意路径）时
+> 广播 `interaction_resolved` 并落 `InteractionRequest` / `InteractionResolution`
+> rollout 审计（不参与 resume 回放 —— 有意不跨进程重发，防幽灵弹窗）。
+> `AgentThread::pending_interactions()` 为活进程内权威查询；客户端内存投影只是缓存。
 
 ### 3.5 Compaction / Errors (3)
 
