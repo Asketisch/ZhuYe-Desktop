@@ -59,7 +59,7 @@ describe('syncSessionPromptSelection (bind 恢复三分支)', () => {
     useAgentStore.setState({ prompt: {
       available: [], currentSpec: 'openai/gpt-x', activeLayers: [],
       selection: { mode: 'manual', profile: 'qwen' }, profile: 'qwen',
-      fallbackReason: null, switchedAt: null,
+      switchedAt: null,
     } });
     syncSessionPromptSelection('s2');
     expect(promptCommand).toHaveBeenCalledWith({ type: 'select', selection: null });

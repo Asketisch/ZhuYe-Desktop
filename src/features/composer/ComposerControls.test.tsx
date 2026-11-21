@@ -49,7 +49,7 @@ describe('ComposerControls 提示词预设下拉', () => {
   it('available 层回流后作为手动项出现(不含 default 层)', () => {
     useAgentStore.setState({ prompt: {
       available: ['default', 'gpt', 'claude', 'qwen'], currentSpec: 'openai/gpt-x',
-      activeLayers: [], selection: null, profile: 'default', fallbackReason: null, switchedAt: null,
+      activeLayers: [], profile: 'default', switchedAt: null,
     } });
     renderControls();
     const select = screen.getByTestId('composer-prompt-select') as HTMLSelectElement;
@@ -73,7 +73,7 @@ describe('ComposerControls 提示词预设下拉', () => {
   it('选择 manual 层写入 per-session localStorage;null 会话走 new 键', () => {
     useAgentStore.setState({ prompt: {
       available: ['default', 'gpt'], currentSpec: 'openai/gpt-x',
-      activeLayers: [], selection: null, profile: 'default', fallbackReason: null, switchedAt: null,
+      activeLayers: [], profile: 'default', switchedAt: null,
     } });
     renderControls();
     fireEvent.change(screen.getByTestId('composer-prompt-select'), { target: { value: 'gpt' } });
