@@ -94,31 +94,31 @@
   /* ============================================================
      设计原生 token —— 暗色（默认）
      ============================================================ */
-  --bg: #0a0a0b;                    /* 主区 */
-  --bg-2: #0f0f11;                  /* 侧栏 */
-  --surface: #131316;              /* 输入框 / 浮层 */
-  --surface-2: #18181c;
-  --line: rgba(255, 255, 255, 0.065);   /* 发丝线 */
-  --line-2: rgba(255, 255, 255, 0.12);
-  --fg: #f4f4f5;
-  --fg-2: #9b9ba2;
-  --fg-3: #6a6a71;
-  --fill: rgba(255, 255, 255, 0.05);    /* hover / 选中底 */
-  --fill-2: rgba(255, 255, 255, 0.085);
+  --bg: #161616;                    /* 主区（zai-dark background） */
+  --bg-2: #161616;                  /* 侧栏（与主区同底，靠发丝线分隔） */
+  --surface: #2b2b2b;              /* 输入框 / 浮层（zai-dark card/input/popover） */
+  --surface-2: #202020;            /* 面板 / 页头（zai-dark panel/header） */
+  --line: rgba(255, 255, 255, 0.1);     /* 发丝线 */
+  --line-2: rgba(255, 255, 255, 0.15);
+  --fg: #f5f5f5;
+  --fg-2: #b3b3b3;
+  --fg-3: #8a8a8a;
+  --fill: rgba(255, 255, 255, 0.05);    /* hover（zai hover） */
+  --fill-2: rgba(255, 255, 255, 0.1);   /* 选中（zai selected/surface-hover） */
   --white: #ffffff;                /* 强调色 = 白 */
-  --on-white: #0a0a0b;
-  --ok: #3fb950;
-  --warn: #d29922;
-  --danger: #f85149;
+  --on-white: #000000;
+  --ok: #46bf72;
+  --warn: #ff8a30;
+  --danger: #ff5c5c;
   --diff-add-bg: rgba(63, 185, 80, 0.10);
   --diff-add-fg: #a5e9b3;
   --diff-del-bg: rgba(248, 81, 73, 0.10);
   --diff-del-fg: #ffb3ae;
   --diff-ctx-fg: #8b949e;
   --diff-gutter: #4d5560;
-  --term-bg: #0e0e10;
+  --term-bg: #161616;
   --term-fg: #c3c3c9;
-  --tip-bg: #1b1b20;               /* 悬浮气泡 / 浮层菜单底 */
+  --tip-bg: #2b2b2b;               /* 悬浮气泡 / 浮层菜单底 */
 
   /* ===== 旧名重映射 —— 暗色（消费方：既有视图 CSS Modules）===== */
   --bg-app: var(--bg);
@@ -127,9 +127,9 @@
   --bg-input: var(--surface);
   --bg-hover: var(--fill);
   --bg-active: var(--fill-2);
-  --bg-app-rgb: 10, 10, 11;
-  --bg-surface-rgb: 19, 19, 22;
-  --bg-elevated-rgb: 24, 24, 28;
+  --bg-app-rgb: 22, 22, 22;
+  --bg-surface-rgb: 43, 43, 43;
+  --bg-elevated-rgb: 32, 32, 32;
   --surface-opacity: 1;
   --background-image: none;
   --background-image-opacity: 0.35;
@@ -138,8 +138,8 @@
   --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
   --bg-sidebar: var(--bg-2);
-  --bg-panel: var(--bg-2);
-  --bg-header: var(--bg);
+  --bg-panel: var(--surface-2);
+  --bg-header: var(--surface-2);
   --bg-user-bubble: var(--fill);
   --bg-surface-faint: rgba(255, 255, 255, 0.03);
 
@@ -147,8 +147,8 @@
   --text-secondary: var(--fg-2);
   --text-muted: var(--fg-3);
   --text-disabled: #52525b;
-  --text-subtle: rgba(244, 244, 245, 0.6);
-  --text-subtlest: rgba(244, 244, 245, 0.4);
+  --text-subtle: rgba(212, 212, 212, 0.6);
+  --text-subtlest: rgba(212, 212, 212, 0.3);
 
   --border-subtle: var(--line);
   --border-default: var(--line-2);
@@ -171,18 +171,18 @@
   /* 语义色 —— 每个含 fg / bg / border 三态（harness 值）*/
   --success: var(--ok);
   --success-fg: var(--on-white);
-  --success-bg: rgba(63, 185, 80, 0.12);
-  --success-border: rgba(63, 185, 80, 0.3);
+  --success-bg: rgba(70, 191, 114, 0.16);
+  --success-border: rgba(70, 191, 114, 0.3);
 
   --warning: var(--warn);
   --warning-fg: var(--on-white);
-  --warning-bg: rgba(210, 153, 34, 0.12);
-  --warning-border: rgba(210, 153, 34, 0.3);
+  --warning-bg: rgba(255, 138, 48, 0.14);
+  --warning-border: rgba(255, 138, 48, 0.3);
 
   /* --danger 与设计原生名同名同值，无需重映射 */
   --danger-fg: var(--on-white);
-  --danger-bg: rgba(248, 81, 73, 0.12);
-  --danger-border: rgba(248, 81, 73, 0.3);
+  --danger-bg: rgba(255, 92, 92, 0.12);
+  --danger-border: rgba(255, 92, 92, 0.3);
 
   --info: var(--fg-2);
   --info-fg: var(--on-white);
@@ -216,22 +216,22 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #fbfbfc;
-  --bg-2: #f4f4f5;
-  --surface: #ffffff;
-  --surface-2: #f7f7f8;
-  --line: rgba(0, 0, 0, 0.07);
-  --line-2: rgba(0, 0, 0, 0.13);
-  --fg: #17171a;
-  --fg-2: #5d5d65;
-  --fg-3: #8b8b93;
-  --fill: rgba(0, 0, 0, 0.04);
-  --fill-2: rgba(0, 0, 0, 0.065);
-  --white: #111113;                 /* 强调色 = 近黑 */
+  --bg: #f8f8f8;                    /* zai-light background */
+  --bg-2: #f0f0f0;                  /* 侧栏（zai-light sidebar） */
+  --surface: #ffffff;               /* 卡 / 输入（zai-light card/input） */
+  --surface-2: #ffffff;             /* 面板 / 页头（zai-light panel/header） */
+  --line: rgba(13, 13, 13, 0.1);
+  --line-2: rgba(13, 13, 13, 0.15);
+  --fg: #171717;
+  --fg-2: #595959;
+  --fg-3: #8c8c8c;
+  --fill: rgba(13, 13, 13, 0.05);   /* hover */
+  --fill-2: rgba(13, 13, 13, 0.05); /* selected */
+  --white: #000000;                 /* 强调色 = 黑（zai-light primary） */
   --on-white: #ffffff;
-  --ok: #1f9d55;
-  --warn: #b7791f;
-  --danger: #d3453b;
+  --ok: #1e8a3e;
+  --warn: #e07b00;
+  --danger: #e03131;
   --diff-add-bg: rgba(31, 157, 85, 0.10);
   --diff-add-fg: #146c3a;
   --diff-del-bg: rgba(211, 69, 59, 0.09);
@@ -248,7 +248,7 @@
   --bg-input: var(--surface);
   --bg-hover: var(--fill);
   --bg-active: var(--fill-2);
-  --bg-app-rgb: 251, 251, 252;
+  --bg-app-rgb: 248, 248, 248;
   --bg-surface-rgb: 255, 255, 255;
   --bg-elevated-rgb: 247, 247, 248;
   --surface-opacity: 1;
@@ -259,8 +259,8 @@
   --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
   --bg-sidebar: var(--bg-2);
-  --bg-panel: var(--bg-2);
-  --bg-header: var(--bg);
+  --bg-panel: var(--surface-2);
+  --bg-header: var(--surface-2);
   --bg-user-bubble: var(--fill);
   --bg-surface-faint: rgba(0, 0, 0, 0.02);
 
@@ -332,17 +332,17 @@
   :root:not([data-theme="dark"]) {
     color-scheme: light;
 
-    --bg: #fbfbfc;
-    --bg-2: #f4f4f5;
+    --bg: #f8f8f8;
+    --bg-2: #f0f0f0;
     --surface: #ffffff;
-    --surface-2: #f7f7f8;
-    --line: rgba(0, 0, 0, 0.07);
-    --line-2: rgba(0, 0, 0, 0.13);
-    --fg: #17171a;
-    --fg-2: #5d5d65;
-    --fg-3: #8b8b93;
-    --fill: rgba(0, 0, 0, 0.04);
-    --fill-2: rgba(0, 0, 0, 0.065);
+    --surface-2: #ffffff;
+    --line: rgba(13, 13, 13, 0.1);
+    --line-2: rgba(13, 13, 13, 0.15);
+    --fg: #171717;
+    --fg-2: #595959;
+    --fg-3: #8c8c8c;
+    --fill: rgba(13, 13, 13, 0.05);
+    --fill-2: rgba(13, 13, 13, 0.05);
     --white: #111113;
     --on-white: #ffffff;
     --ok: #1f9d55;
@@ -364,7 +364,7 @@
     --bg-input: var(--surface);
     --bg-hover: var(--fill);
     --bg-active: var(--fill-2);
-    --bg-app-rgb: 251, 251, 252;
+    --bg-app-rgb: 248, 248, 248;
     --bg-surface-rgb: 255, 255, 255;
     --bg-elevated-rgb: 247, 247, 248;
     --surface-opacity: 1;
