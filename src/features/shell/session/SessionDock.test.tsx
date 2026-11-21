@@ -88,12 +88,18 @@ describe('StatusPanel · 常驻工作台右列', () => {
   });
   afterEach(() => cleanup());
 
-  it('空会话显示空闲提示（面板常驻 + 设目标入口）', () => {
+  it('空会话显示空闲提示（面板常驻 + /goal 引导，无输入表单）', () => {
     renderPanel();
     expect(screen.getByTestId('workbench-panel')).toBeTruthy();
     expect(screen.getByText(/Nothing running yet/)).toBeTruthy();
     expect(screen.getByTestId('status-panel-goal')).toBeTruthy();
+    // 只读面板:目标输入唯一入口是 composer /goal —— 面板只有引导按钮,
+    // 不提供 textarea / 预算输入 / 启动按钮(对标 ZCode ConversationStatusPanel)。
     expect(screen.getByTestId('corner-goal-form')).toBeTruthy();
+    expect(screen.getByTestId('corner-goal-fill-slash')).toBeTruthy();
+    expect(screen.queryByTestId('corner-goal-input')).toBeNull();
+    expect(screen.queryByTestId('corner-goal-budget')).toBeNull();
+    expect(screen.queryByTestId('corner-goal-start')).toBeNull();
   });
 
   it('进程节直接列出 todo 三态与完成计数', () => {

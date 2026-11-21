@@ -169,7 +169,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
         </button>
       </div>
 
-      {/* 目标（常驻：激活显示计时；空闲时 GoalBody 提供设目标表单） */}
+      {/* 目标（常驻只读投影：激活显示计时；空闲时 GoalBody 只给 /goal 引导） */}
       <section className={s.statusSection} data-status-section="goal">
         <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('goal')} aria-expanded={openSections.goal}>
           {openSections.goal
@@ -182,7 +182,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
         </button>
         {openSections.goal && (
           <div className={s.statusRows} data-testid="status-panel-goal">
-            {/* GoalBody 自带目标快照展示与设目标表单（含迭代轮次控制）。 */}
+            {/* GoalBody 纯只读展示目标快照（含迭代轮次）；输入唯一入口是 composer /goal。 */}
             <GoalBody />
           </div>
         )}

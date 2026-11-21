@@ -1,17 +1,19 @@
 /**
- * GoalBody —— 会话内 chips「目标」的内容体。
+ * GoalBody —— 会话内 chips「目标」的内容体（对标 ZCode ConversationStatusPanel
+ * 的 Goal 分区形态）。
  *
- * 活跃时展示目标 / 状态 / 进度 / 最近校验结论，可退出、可刷新快照
- * （`syncGoalSnapshot` 是 store 既有的权威校准 action）；空闲时提供
- * 「设目标」表单（目标文本 + 可选 token 预算）。
+ * 面板是**纯只读投影**：目标文本 / 状态 / 轮次 / token / 最近校验结论一律
+ * 展示，不带任何编辑入口 —— 目标的唯一输入路径是 composer 的 `/goal`
+ * 斜杠命令（空态只留引导：slash 说明 + 「填入 /goal 到输入框」一键预填）。
+ * 引擎协议目前只有 Enter/ExitGoalMode（无 pause Op），所以动作面是
+ * 「刷新快照 + 退出」；引擎补暂停协议后这里再加 暂停/恢复 按钮。
  */
 import { useState } from 'react';
-import { CornerDownLeft, Loader2, RefreshCw, Target, XCircle } from 'lucide-react';
+import { CornerDownLeft, RefreshCw, XCircle } from 'lucide-react';
 import { Badge, Icon } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import {
-  zhuye_enter_goal_mode,
   zhuye_exit_goal_mode,
   type GoalSnapshotPayload,
 } from '@/utils/commands/goal';
@@ -41,25 +43,7 @@ export function GoalBody() {
   const snapshot = useAgentStore((st) => st.goalSnapshot);
   const syncGoalSnapshot = useAgentStore((st) => st.syncGoalSnapshot);
   const setGoalActive = useAgentStore((st) => st.setGoalActive);
-  const [goalText, setGoalText] = useState('');
-  const [budget, setBudget] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const start = async () => {
-    const goal = goalText.trim();
-    if (!goal || busy) return;
-    setBusy(true);
-    try {
-      const parsed = budget.trim() === '' ? undefined : Number(budget.trim());
-      await zhuye_enter_goal_mode(goal, undefined, Number.isFinite(parsed) && parsed! > 0 ? parsed : undefined);
-      setGoalActive(true);
-      await syncGoalSnapshot();
-      setGoalText('');
-      setBudget('');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const exit = async () => {
     if (busy) return;
@@ -122,44 +106,18 @@ export function GoalBody() {
         </div>
       ) : (
         <div className={s.goalForm} data-testid="corner-goal-form">
-          {/* 首选入口:输入框 /goal(目标文本作为首条消息启动循环,与
-              成熟 agent 工作台一致);下面的表单是免切换的次选。 */}
+          {/* 只读面板:目标不在这里输入 —— composer 的 /goal 是唯一入口
+              (ZCode 同款)。这里只解释入口 + 一键把 /goal 预填进输入框。 */}
           <p className={s.goalSlashHint} data-testid="corner-goal-slash-hint">
             {t('harness.corner.goal.slashHint')}
           </p>
           <button
             type="button"
-            className={s.btn}
+            className={`${s.btn} ${s.btnPrimary}`}
             onClick={() => emitComposerPrefill('/goal ')}
             data-testid="corner-goal-fill-slash"
           >
             <CornerDownLeft size={12} /> {t('harness.corner.goal.slashFill')}
-          </button>
-          <textarea
-            className={s.goalInput}
-            value={goalText}
-            onChange={(e) => setGoalText(e.target.value)}
-            placeholder={t('harness.corner.goal.placeholder')}
-            rows={2}
-            data-testid="corner-goal-input"
-          />
-          <input
-            className={s.budgetInput}
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            placeholder={t('harness.corner.goal.budget')}
-            inputMode="numeric"
-            data-testid="corner-goal-budget"
-          />
-          <button
-            type="button"
-            className={`${s.btn} ${s.btnPrimary}`}
-            onClick={() => void start()}
-            disabled={busy || goalText.trim() === ''}
-            data-testid="corner-goal-start"
-          >
-            {busy ? <Loader2 size={12} className={s.spin} /> : <Target size={12} />}
-            {t('harness.corner.goal.enter')}
           </button>
         </div>
       )}
