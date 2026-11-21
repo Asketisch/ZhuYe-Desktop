@@ -374,6 +374,6 @@ describe('[model].reasoning_effort 读写', () => {
     expect(readDefaultEffort(toml)).toBe('medium');
     toml = setDefaultEffort(toml, '');
     expect(readDefaultEffort(toml)).toBe('');
-    expect(toml).toContain('[[model_group]]', '其余内容不动');
+    expect(toml).toContain('[[model_group]]');
   });
 });
