@@ -58,6 +58,22 @@ export function GroupAdvancedFields({ form, patch }: GroupAdvancedFieldsProps) {
             aria-label={t('settings.groups.maxTokens')}
           />
         </div>
+        <div className={s.fieldRow}>
+          <label
+            className={s.fieldLabel}
+            title={t('settings.groups.contextWindowHint')}
+          >
+            {t('settings.groups.contextWindow')}
+          </label>
+          <Input
+            value={form.contextWindow}
+            onChange={(e) => patch({ contextWindow: e.target.value.replace(/[^0-9]/g, '') })}
+            placeholder="1000000"
+            inputMode="numeric"
+            aria-label={t('settings.groups.contextWindow')}
+            data-testid="groups-context-window"
+          />
+        </div>
       </div>
       {form.endpoint === 'ollama' && (
         <div className={s.gFieldTriple}>

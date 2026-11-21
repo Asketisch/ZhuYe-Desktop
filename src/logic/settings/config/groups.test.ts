@@ -13,8 +13,12 @@ import {
   isValidGroupId,
   listGroups,
   readActiveGroup,
+  readContextWindows,
+  readDefaultEffort,
   removeGroup,
   setActiveGroup,
+  setDefaultEffort,
+  setGroupContextWindow,
   upsertGroup,
   type GroupEntry,
 } from './groups';
@@ -78,6 +82,7 @@ function emptyGroup(over: Partial<GroupEntry> = {}): GroupEntry {
     timeoutSecs: null,
     temperature: null,
     maxTokens: null,
+    contextWindow: null,
     keepAliveSecs: null,
     numCtx: null,
     numGpu: null,
@@ -303,5 +308,72 @@ describe('groups.ts 纯函数', () => {
         emptyGroup({ apiKey: '', credentials: [{ label: 'a', apiKey: '', baseUrl: '', model: '', weight: 1, quota: null }] }),
       ),
     ).toBe(false);
+  });
+});
+
+// ── [context_windows] / [model].reasoning_effort 读写 ──────────────────
+
+describe('[context_windows] 表读写', () => {
+  it('readContextWindows 解析顶层 kv(键小写化)', () => {
+    const toml = [
+      '[model_group_telemetry]', // 干扰段
+      'x = 1',
+      '',
+      '[context_windows]',
+      '"qwen3.8-27b-nvfp4" = 1000000',
+      'glm-5 = 128000',
+    ].join('\n');
+    const w = readContextWindows(toml);
+    expect(w['qwen3.8-27b-nvfp4']).toBe(1000000);
+    expect(w['glm-5']).toBe(128000);
+    expect(w['x']).toBeUndefined();
+  });
+
+  it('setGroupContextWindow 新建表 / 更新 / 删除键与空表摘除', () => {
+    let toml = '[[model_group]]\nid = "openai"\n';
+    // 新建表 + 键。
+    toml = setGroupContextWindow(toml, 'qwen3.8-27b-nvfp4', 1000000);
+    expect(toml).toContain('[context_windows]');
+    expect(toml).toContain('"qwen3.8-27b-nvfp4" = 1000000');
+    // listGroups 回填:组默认模型命中。
+    const groups = listGroups(toml);
+    expect(groups[0].model).toBe('');
+    // 更新值。
+    toml = setGroupContextWindow(toml, 'qwen3.8-27b-nvfp4', 500000);
+    expect(readContextWindows(toml)['qwen3.8-27b-nvfp4']).toBe(500000);
+    // 删除键 → 空表连同表头摘除。
+    toml = setGroupContextWindow(toml, 'qwen3.8-27b-nvfp4', null);
+    expect(toml).not.toContain('[context_windows]');
+  });
+
+  it('listGroups 按组默认模型回填 contextWindow', () => {
+    const toml = [
+      '[[model_group]]',
+      'id = "openai"',
+      'model = "qwen3.8-27b-nvfp4"',
+      '',
+      '[context_windows]',
+      '"qwen3.8-27b-nvfp4" = 1000000',
+    ].join('\n');
+    const groups = listGroups(toml);
+    expect(groups[0].contextWindow).toBe(1000000);
+  });
+});
+
+describe('[model].reasoning_effort 读写', () => {
+  it('readDefaultEffort 读已有值,无段返回空', () => {
+    expect(readDefaultEffort('[model]\nreasoning_effort = "high"\n')).toBe('high');
+    expect(readDefaultEffort('[[model_group]]\nid = "x"\n')).toBe('');
+  });
+
+  it('setDefaultEffort 新建 [model] 段 / 更新 / 删除键', () => {
+    let toml = '[[model_group]]\nid = "openai"\n';
+    toml = setDefaultEffort(toml, 'medium');
+    expect(toml).toContain('[model]');
+    expect(toml).toContain('reasoning_effort = "medium"');
+    expect(readDefaultEffort(toml)).toBe('medium');
+    toml = setDefaultEffort(toml, '');
+    expect(readDefaultEffort(toml)).toBe('');
+    expect(toml).toContain('[[model_group]]', '其余内容不动');
   });
 });

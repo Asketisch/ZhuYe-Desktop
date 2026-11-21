@@ -76,6 +76,14 @@ export interface GroupEntry {
   numCtx: number | null;
   /** Ollama GPU 层数（num_gpu）；null = 未设置。 */
   numGpu: number | null;
+  /**
+   * 组默认模型的上下文窗口（tokens）；null = 未设置（走引擎内置回退表）。
+   * 存储位置是引擎原生的 `[context_windows]` 表（键 = 裸模型名，与
+   * `normalize_model_key` 的归一化/前缀匹配同口径）—— **不写入**
+   * `[[model_group]]` 块（引擎 ModelGroupSection 无此字段）。由
+   * `listGroups` 回填、`setGroupContextWindow` 独立维护。
+   */
+  contextWindow: number | null;
   /** 组内多凭据池（空 = 单凭据组）。 */
   credentials: GroupCredentialEntry[];
 }
@@ -123,6 +131,7 @@ export function setActiveGroup(toml: string, id: string): string {
  * 的组条目（TOML 语义：子表属于前一个数组表元素）。 */
 export function listGroups(toml: string): GroupEntry[] {
   const groups: GroupEntry[] = [];
+  const windows = readContextWindows(toml);
   let current: GroupEntry | null = null;
   /** 当前组的前缀（'model_group' / 'provider_group'）—— 凭据表按同前缀归属。 */
   let currentPrefix = '';
@@ -190,6 +199,14 @@ export function listGroups(toml: string): GroupEntry[] {
       case 'num_gpu': current.numGpu = toInt(value); break;
     }
   }
+  // 组默认模型的上下文窗口回填（[context_windows][裸模型名]，引擎归一化
+  // 匹配键=模型名去 provider 前缀/小写 —— 组 id 不参与 spec 归一化）。
+  for (const g of groups) {
+    const model = g.model.trim().toLowerCase();
+    if (!model) continue;
+    const hit = windows[model] ?? Object.entries(windows).find(([k]) => model.startsWith(k))?.[1];
+    if (hit != null) g.contextWindow = hit;
+  }
   return groups.filter((g) => g.id.trim() !== '');
 }
 
@@ -240,6 +257,126 @@ export function removeGroup(toml: string, id: string): string {
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+/** 读 `[context_windows]` 表（键已小写化；值 = tokens）。表不存在 → 空。 */
+export function readContextWindows(toml: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  let inTable = false;
+  for (const raw of toml.split('\n')) {
+    const line = raw.trim();
+    const header = parseHeader(line);
+    if (header) {
+      inTable = header.kind === 'table' && header.name === 'context_windows';
+      continue;
+    }
+    if (!inTable) continue;
+    // 键可带引号（模型名含 '.' 必须引号）—— 宽松匹配引号或 bare key。
+    const kv = /^"?([^"=]+)"?\s*=\s*(\d+)\s*$/.exec(line);
+    if (!kv) continue;
+    out[kv[1].trim().toLowerCase()] = toInt(kv[2]) ?? 0;
+  }
+  return out;
+}
+
+/** 写/删 `[context_windows][<modelKey>]`（tokens = null 删除键；表空时
+ * 连同表头一并摘除，不留空段）。modelKey 用**裸模型名**（小写化与引擎
+ * 归一化对齐；前缀可覆盖同前缀家族，如 `qwen3.8` 命中 27b/flash）。 */
+export function setGroupContextWindow(
+  toml: string,
+  modelKey: string,
+  tokens: number | null,
+): string {
+  const key = modelKey.trim().toLowerCase();
+  if (!key) return toml;
+  const lines = toml.split('\n');
+  let start = -1;
+  let end = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    const header = parseHeader(lines[i].trim());
+    if (!header) continue;
+    if (start !== -1 && end === lines.length) end = i;
+    if (header.kind === 'table' && header.name === 'context_windows' && start === -1) start = i;
+  }
+  if (start === -1) {
+    if (tokens == null) return toml;
+    return `${toml.replace(/\s*$/, '')}\n\n[context_windows]\n${keyLineFor(key, tokens)}\n`;
+  }
+  for (let i = start + 1; i < end; i++) {
+    const kv = /^"?([^"=]+)"?\s*=\s*\d+\s*$/.exec(lines[i].trim());
+    if (kv && kv[1].trim().toLowerCase() === key) {
+      if (tokens == null) {
+        lines.splice(i, 1);
+        // 段空 → 连表头摘除。
+        if (!lines.slice(start + 1, end - 1).some((l) => l.trim())) {
+          lines.splice(start, end - start);
+        }
+        return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+      }
+      lines[i] = keyLineFor(key, tokens);
+      return lines.join('\n');
+    }
+  }
+  if (tokens == null) return toml;
+  lines.splice(end, 0, keyLineFor(key, tokens));
+  return lines.join('\n');
+}
+
+/** `[context_windows]` 条目行（键带引号 —— 模型名常含 '.'）。 */
+function keyLineFor(key: string, tokens: number): string {
+  return `${JSON.stringify(key)} = ${tokens}`;
+}
+
+/** 读 `[model].reasoning_effort`（全局活跃模型默认思考强度；'' = 未设置）。 */
+export function readDefaultEffort(toml: string): string {
+  const lines = toml.split('\n');
+  let inModel = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const header = parseHeader(line);
+    if (header) {
+      inModel = header.kind === 'table' && header.name === 'model';
+      continue;
+    }
+    if (!inModel) continue;
+    const kv = /^reasoning_effort\s*=\s*(.+)$/.exec(line);
+    if (!kv) continue;
+    return stripQuotes(kv[1].trim());
+  }
+  return '';
+}
+
+/** 写/删 `[model].reasoning_effort`（effort = '' 删除键）。引擎把它解析为
+ * 会话初始思考强度（`resolve_reasoning_effort` → `with_initial_effort`）；
+ * 运行时 `Op::SetEffort` 仍可覆盖，每次重绑重新读配置。 */
+export function setDefaultEffort(toml: string, effort: string): string {
+  const lines = toml.split('\n');
+  let start = -1;
+  let end = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    const header = parseHeader(lines[i].trim());
+    if (!header) continue;
+    if (start !== -1 && end === lines.length) end = i;
+    if (header.kind === 'table' && header.name === 'model' && start === -1) start = i;
+  }
+  const encoded = `reasoning_effort = ${JSON.stringify(effort)}`;
+  if (start === -1) {
+    if (!effort) return toml;
+    return `${toml.replace(/\s*$/, '')}\n\n[model]\n${encoded}\n`;
+  }
+  for (let i = start + 1; i < end; i++) {
+    if (/^reasoning_effort\s*=/.test(lines[i].trim())) {
+      if (!effort) {
+        lines.splice(i, 1);
+        return lines.join('\n');
+      }
+      lines[i] = encoded;
+      return lines.join('\n');
+    }
+  }
+  if (!effort) return toml;
+  lines.splice(end, 0, encoded);
+  return lines.join('\n');
+}
+
 /** 密钥展示遮罩：保留末 4 位。 */
 export function maskKey(key: string): string {
   if (key.length <= 4) return '••••';
@@ -263,6 +400,7 @@ function emptyGroup(): GroupEntry {
     keepAliveSecs: null,
     numCtx: null,
     numGpu: null,
+    contextWindow: null,
     credentials: [],
   };
 }

@@ -217,7 +217,12 @@ pub(crate) fn construct_thread(
         // 写进 toml 不被消费,bash 恒为禁网;设置页拨动后经 reload 的
         // sandbox 段重绑生效。true = Seatbelt `(allow network*)`,false =
         // 拒出站但放行 localhost 与 Unix socket(上游 os_sandbox)。
-        .with_sandbox_network(Some(cfg_snapshot.sandbox.allow_network));
+        .with_sandbox_network(Some(cfg_snapshot.sandbox.allow_network))
+        // 默认思考强度:`[model].reasoning_effort` → 会话初始档位(与 CLI
+        // headless 同款接线,此前桌面端未接 —— GUI 会话初始恒为 low,用户
+        // 配置的默认档位死信)。运行时 `Op::SetEffort` 仍可随时覆盖;每次
+        // bind 重建线程都重新读配置,设置页改档后重绑即生效。
+        .with_initial_effort(cfg_snapshot.resolve_reasoning_effort());
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());

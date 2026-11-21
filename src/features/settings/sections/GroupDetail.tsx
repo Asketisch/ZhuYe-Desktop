@@ -24,6 +24,7 @@ import {
   groupDisplayLabel,
   isValidGroupId,
   listGroups,
+  setGroupContextWindow,
   removeGroup,
   upsertGroup,
   type GroupCredentialEntry,
@@ -68,6 +69,9 @@ export interface FormState {
   keepAliveSecs: string;
   numCtx: string;
   numGpu: string;
+  /** 组默认模型的上下文窗口（tokens；空 = 引擎内置回退表）。写
+   * `[context_windows]` 表,不进 [[model_group]] 块。 */
+  contextWindow: string;
   credentials: GroupCredentialEntry[];
 }
 
@@ -85,6 +89,7 @@ const EMPTY_FORM: FormState = {
   keepAliveSecs: '',
   numCtx: '',
   numGpu: '',
+  contextWindow: '',
   credentials: [],
 };
 
@@ -112,6 +117,7 @@ function fromGroup(group: GroupEntry): FormState {
     keepAliveSecs: group.keepAliveSecs == null ? '' : String(group.keepAliveSecs),
     numCtx: group.numCtx == null ? '' : String(group.numCtx),
     numGpu: group.numGpu == null ? '' : String(group.numGpu),
+    contextWindow: group.contextWindow == null ? '' : String(group.contextWindow),
     credentials: group.credentials.map((c) => ({ ...c })),
   };
 }
@@ -196,6 +202,7 @@ export function GroupDetail({
     keepAliveSecs: numOrNull(form.keepAliveSecs),
     numCtx: numOrNull(form.numCtx),
     numGpu: numOrNull(form.numGpu),
+    contextWindow: numOrNull(form.contextWindow),
     credentials: form.credentials,
   });
 
@@ -227,6 +234,8 @@ export function GroupDetail({
       next = removeGroup(next, group.id);
     }
     next = upsertGroup(next, toGroup(id));
+    // 上下文窗口独立落 `[context_windows]` 表(键 = 组默认模型名)。
+    next = setGroupContextWindow(next, toGroup(id).model, numOrNull(form.contextWindow));
     onChange(next);
     onCommit?.(next);
     // 保存后自动拉取:端点配齐才拉,否则留给下次(输入 base_url/key 后)。

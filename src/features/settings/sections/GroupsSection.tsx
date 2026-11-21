@@ -28,9 +28,14 @@ import {
 import {
   listGroups,
   readActiveGroup,
+  readDefaultEffort,
   removeGroup,
   setActiveGroup,
+  setDefaultEffort,
 } from '../config/groups';
+/** 引擎支持的思考档位（与 Op::SetEffort / zhuye_set_effort 同口径）。 */
+const EFFORT_LEVELS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
+
 import { GroupNav } from './GroupNav';
 import { GroupDetail } from './GroupDetail';
 import s from '@/render/settings/SettingsView.module.css';
@@ -55,6 +60,14 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
   const groups = listGroups(rawToml);
   const activeGroup = readActiveGroup(rawToml);
   const hasModel = Boolean(status?.has_model);
+  // 默认思考强度([model].reasoning_effort)—— 新会话的初始档位;运行时
+  // Composer 仍可随时切换,每次重绑重新读配置。'' = 未设置(引擎默认 low)。
+  const defaultEffort = readDefaultEffort(rawToml);
+  const onPickDefaultEffort = (effort: string) => {
+    const next = setDefaultEffort(rawToml, effort);
+    onChange(next);
+    onCommit?.(next);
+  };
 
   // 选中组 id;null = 新增模式(空表单)。初始选中默认组,否则第一组。
   const [selectedId, setSelectedId] = useState<string | null>(() =>
@@ -120,6 +133,31 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
         </Button>
       </div>
       <p className={s.sectionDesc}>{t('settings.groups.desc')}</p>
+
+      {/* 默认思考强度(全局活跃模型字段;下拉即时落盘) */}
+      <div className={s.groupsHeader} data-testid="groups-default-effort">
+        <span className={s.gSwitchRow}>
+          <span
+            className={s.gSwitchLabel}
+            title={t('settings.groups.defaultEffortHint')}
+          >
+            {t('settings.groups.defaultEffort')}
+          </span>
+          <select
+            value={defaultEffort}
+            aria-label={t('settings.groups.defaultEffort')}
+            data-testid="groups-default-effort-select"
+            className={s.nativeSelect}
+            onChange={(e) => onPickDefaultEffort(e.target.value)}
+          >
+            <option value="">{t('settings.groups.defaultEffortUnset')}</option>
+            {EFFORT_LEVELS.map((level) => (
+              <option key={level} value={level}>{level}</option>
+            ))}
+          </select>
+        </span>
+        <span className={s.groupsHeaderSpacer} />
+      </div>
 
       {/* 主从布局:左列表 + 右详情 */}
       <div className={s.groupsLayout}>

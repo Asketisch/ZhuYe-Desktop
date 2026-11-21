@@ -14,6 +14,7 @@
  * 不引入 QueryClient 依赖，保证 Composer 在任意测试挂载环境可用。
  */
 import { useEffect, useMemo, useState } from 'react';
+import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/permissions';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
@@ -51,6 +52,14 @@ export function ComposerControls() {
 
   const [effort, setEffort] = useState<Effort>('low');
 
+  // 回读当前档位;配置重载(config_reloaded,含设置页保存 / 手改 TOML)
+  // 时重读 —— 默认思考强度落地后引擎重绑新线程带新 initial,这里跟上,
+  // 不等下次挂载。
+  const rereadEffort = () => {
+    zhuye_get_effort()
+      .then((level) => setEffort(normalizeEffort(level)))
+      .catch(() => {/* 回读失败保持当前显示 */});
+  };
   useEffect(() => {
     let cancelled = false;
     zhuye_get_effort()
@@ -58,9 +67,14 @@ export function ComposerControls() {
         if (!cancelled) setEffort(normalizeEffort(level));
       })
       .catch(() => {/* 回读失败保持默认 */});
+    const unsubscribe = subscribeAgentEvent((event) => {
+      if (event.msg.type === 'config_reloaded') rereadEffort();
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 可选档位 = 模型支持的档位 ∪ 用户当前选择(偏好保留,即使当前模型不支持)。
