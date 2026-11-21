@@ -32,6 +32,8 @@ const usage: Record<string, StringEntry> = {
   'usage.model':          { en: 'Model',                                                     'zh-CN': '模型' },
   'usage.provider':       { en: 'Provider',                                                  'zh-CN': '供应商' },
   'usage.calls':          { en: 'Calls',                                                     'zh-CN': '调用数' },
+  'usage.heatmap':        { en: 'Activity heatmap',                                          'zh-CN': '活动热力' },
+  'usage.heatmapHint':    { en: 'Sessions started per day over the last 13 weeks.',          'zh-CN': '近 13 周每日开始的会话数。' },
   'usage.empty':          { en: 'No usage yet',                                              'zh-CN': '暂无用量' },
   'usage.emptyHint':      { en: 'Usage appears after the first model call.',                 'zh-CN': '首次模型调用后即会出现用量。' },
   // 实时(本次会话进行中)与费率卡

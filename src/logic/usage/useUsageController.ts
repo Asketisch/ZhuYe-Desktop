@@ -15,6 +15,7 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
+import { zhuye_list_sessions } from '@/utils/commands/sessions';
 import type { LiveModelUsage } from '@/stores/agent/types';
 import {
   zhuye_all_model_usage,
@@ -46,6 +47,8 @@ export interface UsageController {
   rateCards: RateCard[];
   /** 手动刷新。 */
   refresh: () => void;
+  /** 近 91 天（13 周）每日活跃会话数（按 started_at 聚合，周对齐网格）。 */
+  dailyActivity: Array<{ date: string; count: number }>;
 }
 
 export function useUsageController(): UsageController {
@@ -65,6 +68,31 @@ export function useUsageController(): UsageController {
     queryFn: () => zhuye_all_model_usage(),
     staleTime: 30_000,
   });
+
+  // 会话活动热力数据源：会话列表按 started_at 聚合每日会话数（近 91 天，
+  // 起点对齐所在周的周一 —— 网格列 = 周、行 = weekday，与热力图布局同构）。
+  const sessionsQ = useQuery({
+    queryKey: ['usage', 'daily-activity'],
+    queryFn: () => zhuye_list_sessions({ limit: 1000 }),
+    staleTime: 60_000,
+  });
+  const dailyActivity = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of sessionsQ.data ?? []) {
+      const day = s.started_at.slice(0, 10);
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+    const out: Array<{ date: string; count: number }> = [];
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(start.getDate() - 90);
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    for (const d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      out.push({ date: key, count: counts.get(key) ?? 0 });
+    }
+    return out;
+  }, [sessionsQ.data]);
 
   // live 按模型累计(按 token 降序)。
   const live = useMemo(() => {
@@ -101,6 +129,7 @@ export function useUsageController(): UsageController {
     modelsError: errText(modelsQ.error),
     live,
     rateCards: rateQ.data ?? [],
+    dailyActivity,
     refresh: () => {
       void queryClient.invalidateQueries({ queryKey: ['usage'] });
     },

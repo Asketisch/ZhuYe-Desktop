@@ -108,7 +108,7 @@ describe('UsageView', () => {
     render(wrap(<UsageView />));
 
     // 表头先出现,数据行随查询落地 —— 等数据本身而不是等表。
-    expect(await screen.findByText('anthropic/claude-sonnet-4')).toBeDefined();
+    expect((await screen.findAllByText('anthropic/claude-sonnet-4')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('4,800')).toBeDefined();
   });
 

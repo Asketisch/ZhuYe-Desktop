@@ -14,7 +14,7 @@ export function UsageBinding({ view: View }: { view: ComponentType<UsageViewProp
       t={t} title={t('usage.title')} subtitle={t('usage.subtitle')} width="lg" iconName="gauge"
       sessionId={c.sessionId} stats={c.stats} statsError={c.statsError}
       models={c.models} modelsLoading={c.modelsLoading} modelsError={c.modelsError}
-      live={c.live} rateCards={c.rateCards} onRefresh={c.refresh}
+      live={c.live} rateCards={c.rateCards} dailyActivity={c.dailyActivity} onRefresh={c.refresh}
       labels={{
         refresh: t('usage.refresh'), currentSession: t('usage.currentSession'),
         noSession: t('usage.noSession'), noSessionHint: t('usage.noSessionHint'),
@@ -29,7 +29,7 @@ export function UsageBinding({ view: View }: { view: ComponentType<UsageViewProp
         rateCacheWrite: t('usage.rateCacheWrite'), notPriced: t('usage.notPriced'),
         messages: t('usage.messages'), toolCalls: t('usage.toolCalls'),
         cacheHitRate: t('usage.cacheHitRate'), tokensSaved: t('usage.tokensSaved'),
-        memoryAccess: t('usage.memoryAccess'), empty: t('usage.empty'),
+        memoryAccess: t('usage.memoryAccess'), empty: t('usage.empty'), heatmap: t('usage.heatmap'), heatmapHint: t('usage.heatmapHint'),
       }}
     />
   );

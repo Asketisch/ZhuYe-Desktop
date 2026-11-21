@@ -17,7 +17,7 @@ function fmtPrice(v: number | null | undefined): string { return v == null ? '�
 
 export function UsageView({
   title, subtitle, width, iconName, sessionId, stats, statsError, models, modelsLoading,
-  modelsError, live, rateCards, onRefresh, labels,
+  modelsError, live, rateCards, dailyActivity, onRefresh, labels,
 }: UsageViewProps) {
   return (
     <PageShell icon={ICONS[iconName]} title={title} subtitle={subtitle} width={width}
@@ -32,7 +32,7 @@ export function UsageView({
           <div className={kit.emptyBox}>{labels.noStats} —— {labels.emptyHint}</div>
         ) : (
           <>
-            <div className={s.stats} data-testid="usage-session-stats">
+            <div className={s.statGrid} data-testid="usage-session-stats">
               <Stat label={labels.model} value={stats.model} />
               <Stat label={labels.messages} value={fmtNum(stats.messageCount)} />
               <Stat label={labels.toolCalls} value={fmtNum(stats.toolCalls)} />
@@ -55,13 +55,36 @@ export function UsageView({
         )}
       </section>
 
+      <section className={s.section} aria-label={labels.heatmap}>
+        <h3 className={s.sectionTitle}>{labels.heatmap}</h3>
+        <p className={s.hint}>{labels.heatmapHint}</p>
+        {dailyActivity.length === 0 ? (
+          <div className={kit.emptyBox}>{labels.liveEmpty}</div>
+        ) : (
+          <div className={s.tableWrap} data-testid="usage-heatmap">
+            <Heatmap daily={dailyActivity} />
+          </div>
+        )}
+      </section>
+
+      <section className={s.section} aria-label={labels.perModel}>
+        <h3 className={s.sectionTitle}>{labels.perModel}</h3>
+        {modelsError ? (
+          <div className={kit.notice}><span>{modelsError}</span></div>
+        ) : models.length === 0 && !modelsLoading ? (
+          <div className={kit.emptyBox}>{labels.empty} —— {labels.emptyHint}</div>
+        ) : (
+          <ModelBars models={models} labels={labels} />
+        )}
+      </section>
+
       <section className={s.section} aria-label={labels.live}>
         <h3 className={s.sectionTitle}>{labels.live}</h3>
         <p className={s.hint}>{labels.liveHint}</p>
         {live.length === 0 ? (
           <div className={kit.emptyBox}>{labels.liveEmpty} —— {labels.liveEmptyHint}</div>
         ) : (
-          <div className={kit.tableWrap} data-testid="usage-live-table">
+          <div className={s.tableWrap} data-testid="usage-live-table">
             <table className={s.table}>
               <thead><tr><th>{labels.model}</th><th className={s.num}>{labels.calls}</th><th className={s.num}>{labels.input}</th><th className={s.num}>{labels.output}</th><th className={s.num}>{labels.cached}</th><th className={s.num}>{labels.total}</th><th className={s.num}>{labels.cost}</th></tr></thead>
               <tbody>{live.map((m) => (
@@ -82,44 +105,99 @@ export function UsageView({
         <h3 className={s.sectionTitle}>{labels.empty}</h3>
         {modelsError ? (
           <div className={kit.notice}><span>{modelsError}</span></div>
-        ) : models.length === 0 && !modelsLoading ? (
-          <div className={kit.emptyBox}>{labels.empty} —— {labels.emptyHint}</div>
-        ) : <ModelTable models={models} labels={labels} />}
+        ) : (
+          <details className={s.details}>
+            <summary>{labels.perModel}</summary>
+            <ModelTable models={models} labels={labels} testId="usage-model-details" />
+          </details>
+        )}
       </section>
     </PageShell>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
-  return <div className={s.stat}><span className={s.statLabel}>{label}</span><span className={s.statValue}>{value}</span></div>;
+  return (
+    <div className={s.statCard}>
+      <div className={s.statHead}><span>{label}</span></div>
+      <div className={s.statValue}>{value}</div>
+    </div>
+  );
 }
 
-function ModelTable({ models, labels }: { models: ModelUsage[]; labels: UsageViewProps['labels'] }) {
+/** 近 91 天会话活动热力：列 = 周、行 = weekday（周一在首行），5 档强度。 */
+function Heatmap({ daily }: { daily: Array<{ date: string; count: number }> }) {
+  const max = Math.max(1, ...daily.map((d) => d.count));
+  const level = (count: number) => (count === 0 ? 0 : Math.min(4, Math.ceil((count / max) * 4)));
   return (
-    <table className={s.table} data-testid="usage-model-table">
-      <thead><tr><th>{labels.model}</th><th>{labels.provider}</th><th className={s.num}>{labels.calls}</th><th className={s.num}>{labels.input}</th><th className={s.num}>{labels.output}</th><th className={s.num}>{labels.total}</th><th className={s.num}>{labels.cost}</th></tr></thead>
-      <tbody>{models.map((m) => (
-        <tr key={m.model}><td className={s.model}>{m.model}</td><td>{m.provider ?? '—'}</td><td className={s.num}>{fmtNum(m.calls)}</td><td className={s.num}>{fmtNum(m.inputTokens)}</td><td className={s.num}>{fmtNum(m.outputTokens)}</td><td className={s.num}>{fmtNum(m.totalTokens)}</td><td className={s.num}>{fmtCost(m.costUsd)}</td></tr>
-      ))}</tbody>
-    </table>
+    <div className={s.heatGrid} role="img" aria-label="activity heatmap">
+      {daily.map((d) => (
+        <div
+          key={d.date}
+          className={s.heatCell}
+          data-level={level(d.count)}
+          title={`${d.date} · ${d.count}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** 模型占比条：按总 token 降序，宽度 = 占最大模型的相对比例。 */
+function ModelBars({ models, labels }: { models: ModelUsage[]; labels: UsageViewProps['labels'] }) {
+  const sorted = [...models].sort((a, b) => b.totalTokens - a.totalTokens);
+  const max = Math.max(1, ...sorted.map((m) => m.totalTokens));
+  return (
+    <div className={s.barList}>
+      {sorted.map((m) => (
+        <div key={m.model} className={s.barRow} data-testid="usage-model-bars">
+          <div className={s.barMain}>
+            <div className={s.barLabel}>
+              <span className={s.barName}>{m.model}</span>
+              <span className={s.barValue}>
+                {fmtNum(m.totalTokens)} tok · {fmtNum(m.calls)} {labels.calls} · {fmtCost(m.costUsd)}
+              </span>
+            </div>
+            <div className={s.barTrack}>
+              <div className={s.barFill} style={{ width: `${Math.round((m.totalTokens / max) * 100)}%` }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ModelTable({ models, labels, testId = 'usage-model-table' }: { models: ModelUsage[]; labels: UsageViewProps['labels']; testId?: string }) {
+  return (
+    <div className={s.tableWrap}>
+      <table className={s.table} data-testid={testId}>
+        <thead><tr><th>{labels.model}</th><th>{labels.provider}</th><th className={s.num}>{labels.calls}</th><th className={s.num}>{labels.input}</th><th className={s.num}>{labels.output}</th><th className={s.num}>{labels.total}</th><th className={s.num}>{labels.cost}</th></tr></thead>
+        <tbody>{models.map((m) => (
+          <tr key={m.model}><td className={s.model}>{m.model}</td><td>{m.provider ?? '—'}</td><td className={s.num}>{fmtNum(m.calls)}</td><td className={s.num}>{fmtNum(m.inputTokens)}</td><td className={s.num}>{fmtNum(m.outputTokens)}</td><td className={s.num}>{fmtNum(m.totalTokens)}</td><td className={s.num}>{fmtCost(m.costUsd)}</td></tr>
+        ))}</tbody>
+      </table>
+    </div>
   );
 }
 
 function RateCardTable({ cards, labels }: { cards: UsageViewProps['rateCards']; labels: UsageViewProps['labels'] }) {
   if (cards.length === 0) return null;
   return (
-    <table className={s.table} data-testid="usage-rate-card-table">
-      <thead><tr><th>{labels.model}</th><th className={s.num}>{labels.rateInput}</th><th className={s.num}>{labels.rateOutput}</th><th className={s.num}>{labels.rateCacheRead}</th><th className={s.num}>{labels.rateCacheWrite}</th></tr></thead>
-      <tbody>{cards.map((c) => (
-        <tr key={c.model}><td className={s.model}>{c.model}</td>
-          {c.priced ? (
-            <>
-              <td className={s.num}>{fmtPrice(c.inputPrice)}</td><td className={s.num}>{fmtPrice(c.outputPrice)}</td>
-              <td className={s.num}>{fmtPrice(c.cacheReadPrice)}</td><td className={s.num}>{fmtPrice(c.cacheWritePrice)}</td>
-            </>
-          ) : <td colSpan={4} className={s.notPriced}>{labels.notPriced}</td>}
-        </tr>
-      ))}</tbody>
-    </table>
+    <div className={s.tableWrap}>
+      <table className={s.table} data-testid="usage-rate-card-table">
+        <thead><tr><th>{labels.model}</th><th className={s.num}>{labels.rateInput}</th><th className={s.num}>{labels.rateOutput}</th><th className={s.num}>{labels.rateCacheRead}</th><th className={s.num}>{labels.rateCacheWrite}</th></tr></thead>
+        <tbody>{cards.map((c) => (
+          <tr key={c.model}><td className={s.model}>{c.model}</td>
+            {c.priced ? (
+              <>
+                <td className={s.num}>{fmtPrice(c.inputPrice)}</td><td className={s.num}>{fmtPrice(c.outputPrice)}</td>
+                <td className={s.num}>{fmtPrice(c.cacheReadPrice)}</td><td className={s.num}>{fmtPrice(c.cacheWritePrice)}</td>
+              </>
+            ) : <td colSpan={4} className={s.notPriced}>{labels.notPriced}</td>}
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
   );
 }

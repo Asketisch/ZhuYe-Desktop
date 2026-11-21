@@ -17,6 +17,8 @@ export interface UsageViewProps {
   modelsError: string | null;
   live: LiveModelUsage[];
   rateCards: RateCard[];
+  /** 近 91 天每日活跃会话数（活动热力数据源）。 */
+  dailyActivity: Array<{ date: string; count: number }>;
   onRefresh: () => void;
   labels: {
     refresh: string; currentSession: string; noSession: string; noSessionHint: string;
@@ -26,6 +28,6 @@ export interface UsageViewProps {
     total: string; cost: string; cached: string; rateInput: string; rateOutput: string;
     rateCacheRead: string; rateCacheWrite: string; notPriced: string; messages: string;
     toolCalls: string; cacheHitRate: string; tokensSaved: string; memoryAccess: string;
-    empty: string;
+    empty: string; heatmap: string; heatmapHint: string;
   };
 }
