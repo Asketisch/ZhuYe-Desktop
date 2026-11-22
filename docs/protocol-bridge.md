@@ -416,6 +416,21 @@ fallback spec，**跨模型降级**）。
 | `side_channel_finished` | 同上,`kind: "done \| cancelled \| error"`:`id`、`finished_at_ms`、`summary?` / `message?` | 同上;终态语义由查询快照(`status`)呈现 |
 | `side_channel_status` | `SideChannelStatusSnapshot`（camelCase）:`channels: SideChannelInfo[]`（`id` / `agentName` / `prompt` / `startedAtMs` / `status` / `durationMs`） | `Op::QuerySideChannels` 的拉取式应答;reducer 写 `store.sideChannels.lastSnapshot`（进程级投影,不随会话复位） |
 
+### 3.14 Cache warming / stream recovery (5) — v1.x（develop）
+
+v1.x 可靠性与治理批次新增的诊断事件族,均为引擎主动推送（无对应 Op）。
+另随批次入线的协议常量:`MAX_STEER_INPUT_BYTES = 200_000`（`Op::Steer`
+输入按 wire 序列化后的 UTF-8 字节上限,超限引擎以 `steer_input_too_large`
+拒绝入队,客户端无需预判）。
+
+| 变体 | 字段 | UI |
+|---|---|---|
+| `cache_warming` | `CacheWarmingEvent`：`action`（`scheduled` / `executed` / `skipped` / `cancelled`）、`phase`（`turn` / `idle`）、`reason?`、`prompt_tokens?` / `warm_cached_tokens?` / `warm_cost_usd?` / `expected_savings_usd?`、`model?`、`at`（Unix 秒） | prompt cache 保温状态（config `[cache_warming]` 默认关闭）。桌面暂无独立消费面,reducer no-op 保穷尽（能力矩阵 🟡）;收益验证走 `token_count.cached_tokens` 对照 |
+| `stream_recovery_started` | `StreamRecoveryEvent`：`attempt`、`reason_code`、`transient?` | 流锚点恢复启动。reducer toast「流式输出中断,正在自动恢复（第 N 次尝试）」—— 半成品输出已被 `agent_message_reset` 清空,给用户显性反馈 |
+| `stream_recovery_anchor_selected` | 同上 + `anchor?` | 审计级诊断,暂无独立消费面（reducer no-op 保穷尽） |
+| `stream_recovery_tail_discarded` | 同上 + `discarded_text_chars?` / `discarded_thinking_chars?` | 同上;丢弃尾部另写 rollout（`RolloutRecord::StreamRecoveryDiscarded`,resume 不回放） |
+| `stream_recovery_retry_started` | 同上 + `retry_in_ms?` | 同上;随后到来的增量属于重试轮 |
+
 ---
 
 ## 4. ID 配对规则

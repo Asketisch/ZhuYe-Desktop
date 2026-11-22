@@ -46,6 +46,25 @@ reload / 换绑走引擎快照（跨进程兜底）。
 - 消费：工作台容量卡六类构成条形（`StatusPanel`）——
   `docs/visual-parity.md` #3 收口。
 
+## 已落地（第二批：v1.x 可靠性与治理能力，上游 feat/zcode-gap-v1x → develop `5fd69a08`，桌面 submodule 跟随 develop）
+
+- **流锚点恢复事件化**：`stream_recovery_started / anchor_selected /
+  tail_discarded / retry_started` 四变体（共享 `StreamRecoveryEvent` 载荷，
+  可重试错误 + 已有可见增量时从安全锚点重开流），不改变 `stream_error` /
+  `agent_message_reset` 既有语义与顺序；丢弃尾部写
+  `RolloutRecord::StreamRecoveryDiscarded`（resume 不回放）。桌面接线：
+  `stream_recovery_started` toast 显性反馈，其余审计级 no-op。
+- **协议常量**：`MAX_STEER_INPUT_BYTES = 200_000`（`Op::Steer` 输入 wire
+  字节上限，超限引擎以 `steer_input_too_large` 拒绝入队 —— 对标 ZCode
+  `MAX_TURN_STEER_INPUT_BYTES` 的字节数口径）。
+- **诊断与治理面**（诊断事件均无对应 Op）：`cache_warming`（保温状态，
+  `[cache_warming]` 默认关闭）；`RolloutRecord::PromptSnapshot`（跨重启
+  保前缀字节）+ `InputDisposition`（输入守恒 ledger，崩溃窗口永不静默
+  重放）；`[tool_results]` 结果预算 / tool-defer / rapid-refill 熔断 /
+  strict schema 折叠 / cache TTL 透传（引擎内部行为，无协议新增）。
+- 桌面接线与能力面缺口：`docs/capabilities.md` §3.41；线格式：
+  `docs/protocol-bridge.md` §3.14。
+
 ## Roadmap（按价值排序，实现走 SUBMODULE.md 上游流程）
 
 1. **跨进程 gate 应答**：`InteractionRequest` 已落盘，缺「进程重启后重开

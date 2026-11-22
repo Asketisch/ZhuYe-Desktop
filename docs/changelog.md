@@ -4,7 +4,22 @@
 
 ## 未发布
 
-（空）
+- **submodule 跟随 develop：v1.x 可靠性与治理能力批次（`467607c` →
+  `5fd69a08`）**：跟踪分支自本轮起 main→develop（`.gitmodules` 同步
+  改写）。上游 feat/zcode-gap-v1x 合入 9 提交 —— 流锚点恢复（SSE 中断
+  从安全锚点重开流、丢弃尾部留痕不回放）、Prompt Snapshot（跨重启保
+  已发送前缀字节，prompt cache 不因重渲染全量失效）、输入守恒 ledger
+  （turn 终态显式落盘，崩溃窗口永不静默重放）、rapid-refill 熔断器、
+  prompt cache 保温调度器（`[cache_warming]` 默认关闭）、工具结果预算
+  （`[tool_results]`，超限落盘 artifacts）、tool-defer 按需加载等。
+  协议面 `EventMsg` 54→59 变体（`cache_warming` + `stream_recovery`
+  四变体，引擎主动推的诊断事件）+ `MAX_STEER_INPUT_BYTES` 常量；Op
+  27 变体零变化。桌面接线：TS 协议镜像与契约样本各 +5（三方奇偶门禁
+  59=59=59 过）；消息流对 `stream_recovery_started` 发「流式输出中断，
+  正在自动恢复」toast（半成品输出被清空后的显性反馈），其余四事件
+  no-op 保穷尽；config / Builder 变更全部 serde(default) 增量，零适配
+  （`cargo check` + `cargo test` + `pnpm typecheck` + `pnpm test`
+  全绿）。详见能力矩阵 §3.41 与协议桥 §3.14。
 
 ## 0.0.7 — 2026-11-22
 

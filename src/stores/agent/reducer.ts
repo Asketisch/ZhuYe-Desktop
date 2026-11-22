@@ -375,6 +375,35 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
         : { turns: appendItem(state.turns, turnId, { kind: 'error', text }) };
     }
 
+    // v1.x(develop):流锚点恢复启动 —— 恢复过程事件化,不改变
+    // stream_error / agent_message_reset 的既有语义与顺序。此前半成品
+    // 输出被 reset 清空后用户只看到「输出无故蒸发」;started 给一个
+    // 「正在自动恢复」的显性反馈(engine 从安全锚点重开流)。
+    case 'stream_recovery_started': {
+      const toast: AgentState['toasts'][number] = {
+        id: `stream-recovery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        kind: 'info',
+        message: `流式输出中断,正在自动恢复(第 ${msg.attempt} 次尝试)`,
+        ttlMs: 6000,
+        createdAt: Date.now(),
+      };
+      return { toasts: [...state.toasts, toast] };
+    }
+
+    // v1.x(develop):流恢复后续阶段(锚点选定 / 丢弃尾部留痕 / 从锚点
+    // 重开请求)—— started 的 toast 已覆盖用户可见面,这三个是审计级
+    // 诊断,暂无独立消费面(no-op 保穷尽;能力矩阵记 🟡)。
+    case 'stream_recovery_anchor_selected':
+    case 'stream_recovery_tail_discarded':
+    case 'stream_recovery_retry_started':
+      return {};
+
+    // v1.x(develop):prompt cache 保温状态 —— 引擎自发花钱行为的诊断
+    // 事件(config 默认关闭),桌面暂无消费面;保温收益验证走
+    // token_count.cached_tokens 对照(no-op 保穷尽;能力矩阵记 🟡)。
+    case 'cache_warming':
+      return {};
+
     case 'config_reloaded':
       return { configReloadedAt: Date.now() };
 

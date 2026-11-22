@@ -46,7 +46,12 @@ const SAMPLES = Object.entries(doc.events);
  * - `turn_rewound` —— to_turn_id 未水合时按乱序宽容(reducer 显式分支),
  *   样本无前置 turn 上下文,必走该分支;
  * - `plan_draft_updated` —— TUI 草稿预览语义,GUI 决策走 plan_ready 弹窗,
- *   reducer 显式占位 no-op。
+ *   reducer 显式占位 no-op;
+ * - `cache_warming` —— 引擎自发花钱行为的诊断事件(config 默认关闭),
+ *   桌面暂无独立消费面,保穷尽性守卫 no-op;
+ * - `stream_recovery_anchor_selected|tail_discarded|retry_started` —— 流
+ *   恢复的审计级诊断,用户可见面由 `stream_recovery_started` 的 toast
+ *   覆盖,保穷尽性守卫 no-op。
  * 白名单外的变体出现空 patch = 落入 unknown 分支 = 类型漂移。
  */
 const NO_PATCH_WHITELIST: ReadonlySet<string> = new Set([
@@ -59,6 +64,10 @@ const NO_PATCH_WHITELIST: ReadonlySet<string> = new Set([
   'side_channel_status',
   'turn_rewound',
   'plan_draft_updated',
+  'cache_warming',
+  'stream_recovery_anchor_selected',
+  'stream_recovery_tail_discarded',
+  'stream_recovery_retry_started',
 ]);
 
 let backend: FakeBackend;

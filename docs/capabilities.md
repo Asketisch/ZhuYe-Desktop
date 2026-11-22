@@ -9,7 +9,8 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `467607c`（上一审计 `c34c5a1`）：CI 门禁修复批次 —— ①子代理父上下文交接回归修复：v1.12 子线程落独立 rollout 后 submission_loop 历史装配走 replay 分支，首回合 replay 只有 SessionMeta，`preload_messages`（`context_tail` / pass_context_messages 父上下文交接）被整体丢弃 —— 修复为 rollout 无对话记录时用 preload 作种子历史，已有记录维持 replay 口径不叠加；②测试适配：子/孙会话落独立 JSONL 后 sessions 多文件，parallel / subagent_failure / nested 三文件按场景标记与 Fork 血缘定位父会话文件（`[-1]` 字典序口径失效）、resume 目标同步修正；③rust stable 1.100 起 `map_unwrap_or` 进默认告警组，四处机械改写（zhuye-tools approval/gate + plan_approval 的 now_ms / created_at_ms、zhuye-core model_call 上下文组成计量）+ 清理 12 个零引用 workspace 依赖声明（pollster / sled / walkdir / zhuye-audit / browser / cli / eval / git-tools / import / kms / py / shell）；④plan 草稿测试夹具写前兜底重建目录（macOS runner 实测 create_dir_all 成功后数微秒内 fs::write ENOENT，疑与并行 Drop 的 remove_dir_all 竞态相关）。桌面配套：compact 确认 e2e 改逐条扫描全部 info toast（提示词预设入口的相邻 toast 堆叠）。Op/EventMsg 与内置工具集合零变化，无新增命令。
+> 最近审计：submodule `5fd69a0`（develop tip，跟踪分支自本轮起 main→develop；上一审计 `467607c`）：v1.x 可靠性与治理能力批次（feat/zcode-gap-v1x 合入 develop，9 提交，含 main 线的 v0.1.16 发布 bump）—— ①**协议面增量**：`EventMsg` 54→59 变体（`cache_warming` + `stream_recovery_started/anchor_selected/tail_discarded/retry_started`，均为引擎主动推的诊断事件，无对应 Op）+ 协议常量 `MAX_STEER_INPUT_BYTES = 200_000`（`Op::Steer` 输入 wire 字节上限，超限引擎侧拒绝入队）；`RolloutRecord` 新增 `StreamRecoveryDiscarded` / `PromptSnapshot` / `InputDisposition` 三变体（桌面 export 不 exhaustive match，零适配）；Op 27 变体零变化。②**可靠性**：流锚点恢复（SSE 中断从安全锚点重开流、丢弃尾部留痕 rollout 不回放）+ Prompt Snapshot（跨重启保已发送前缀字节，prompt cache 不因重渲染全量失效）+ 输入守恒 ledger（turn 终态显式落盘，崩溃窗口永不静默重放）+ rapid-refill 熔断器 + 空结果防护。③**治理/经济性**：prompt cache 保温（`[cache_warming]` 默认关闭）、工具结果预算（`[tool_results]`，超限落盘 artifacts + 信封替换）、tool-defer 按需加载、stop_turn 级联、strict schema 折叠、cache TTL 端到端透传。桌面接线：TS 协议镜像 +5 事件（payload 对齐 wire）+ 契约样本 +5（三方奇偶门禁 59=59=59 过）；reducer 对 `stream_recovery_started` 发「正在自动恢复」toast（半成品输出被 reset 清空后的显性反馈），其余四事件 no-op 保穷尽；config/Builder 变更全部 `serde(default)` 增量，零适配。
+> 上一轮审计：submodule `467607c`（上一审计 `c34c5a1`）：CI 门禁修复批次 —— ①子代理父上下文交接回归修复：v1.12 子线程落独立 rollout 后 submission_loop 历史装配走 replay 分支，首回合 replay 只有 SessionMeta，`preload_messages`（`context_tail` / pass_context_messages 父上下文交接）被整体丢弃 —— 修复为 rollout 无对话记录时用 preload 作种子历史，已有记录维持 replay 口径不叠加；②测试适配：子/孙会话落独立 JSONL 后 sessions 多文件，parallel / subagent_failure / nested 三文件按场景标记与 Fork 血缘定位父会话文件（`[-1]` 字典序口径失效）、resume 目标同步修正；③rust stable 1.100 起 `map_unwrap_or` 进默认告警组，四处机械改写（zhuye-tools approval/gate + plan_approval 的 now_ms / created_at_ms、zhuye-core model_call 上下文组成计量）+ 清理 12 个零引用 workspace 依赖声明（pollster / sled / walkdir / zhuye-audit / browser / cli / eval / git-tools / import / kms / py / shell）；④plan 草稿测试夹具写前兜底重建目录（macOS runner 实测 create_dir_all 成功后数微秒内 fs::write ENOENT，疑与并行 Drop 的 remove_dir_all 竞态相关）。桌面配套：compact 确认 e2e 改逐条扫描全部 info toast（提示词预设入口的相邻 toast 堆叠）。Op/EventMsg 与内置工具集合零变化，无新增命令。
 
 > 上一轮审计：submodule `c34c5a1`（v1.12 三支柱：§3.40；子代理会话落盘+血缘+workspace 继承 c0c41d94/c34c5a1f —— SessionMeta.parent_session_id / Fork.child_session_id / 子线程 JSONL 持久化到 sessions 树，桌面侧栏父下缩进树消费）（上一审计 `86d1dd7`）：上游四修复批次 —— ①配置模型 v2 落地后功能测试断言对齐（dump_config / login / doctor 文案 / 免 key 组判定 / 一键导入读 `[[model_group]]` / cli_modules 报错文案，纯测试层）；②plan 审批回执改可靠广播：`apply_plan_approval_choice` 的 PermissionModeChanged / PlanApproved / PlanRejected 经新增 `fan_out_session_reliable`（订阅者通道满等待容量、单订阅者 5s 上限，而非 `try_send` 静默丢）投递，修 CI 慢管道下 test_A8b 断言落空（行为修复，Op/EventMsg 零变化）；③`zhuye-skills` tar 条目路径统一 `/` 分隔（Windows 上 PathBuf 反斜杠形态令布局探测整链失配，修下游 `cargo test (windows)` 的 marketplace 五连败）；④wasmtime 36.0.20→36.0.22（RUSTSEC-2026-0569/0566/0571/0587）+ xcb 1.7.0→1.7.1（连带 quick-xml 0.30 消失，RUSTSEC-2026-0194/0195）。桌面配套：本仓 wasmtime pin 同步 36.0.22，视觉 surfaces 用例超时 30s→90s（Windows runner 冷启动挂载 settings v3 十四分区超 30s，ubuntu/macOS 无此压力）。Op/EventMsg 与内置工具集合零变化，无新增命令。
 
@@ -33,10 +34,11 @@
 
 | 能力族 | 核心 crate | 关键 API | GUI 状态 |
 |---|---|---|---|
-| 协议 Op / EventMsg | `zhuye-protocol` | `Op`（27 变体）/ `EventMsg`（54 变体） | 🟡 24 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证。**v1.12 三支柱**：`Event.seq` 缺口检测 + `interaction_resolved` 了结广播 + `context_composition` 六类分解已接线（§3.34） |
+| 协议 Op / EventMsg | `zhuye-protocol` | `Op`（27 变体）/ `EventMsg`（59 变体） | 🟡 24 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证。**v1.12 三支柱**：`Event.seq` 缺口检测 + `interaction_resolved` 了结广播 + `context_composition` 六类分解已接线（§3.34）。**v1.x 可靠性批次**：`stream_recovery_started` toast + 保温/恢复审计事件类型层接线（§3.41） |
 | 线程运行时 | `zhuye-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 权限解析器已接线（§3.1）；运行态覆盖缺口见 `tests/RUNTIME_COVERAGE.md` |
 | LLM / Provider | `zhuye-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` / `output_budget` / `reasoning_effort` / `models_dev` | 🟡 plans / quota、凭证池健康度、自适应输出预算、`max` / `ultra` 档位与按模型钳制已接线；**models.dev 四维能力（窗口/输出/视觉/思考）经目录补齐并展示**（§3.33）；冷却原因在核心内不公开 |
 | 计价 | `zhuye-llm::providers` | `pricing_table` / `pricing_for` / `RateCard` | ✅ 费率卡直接读核心公开费率表（develop 收编;桌面反解 shim 已删） |
+| 可靠性与治理（v1.x） | `zhuye-core` / `zhuye-llm` / `zhuye-tools` | 流锚点恢复 / Prompt Snapshot / 输入守恒 ledger / cache warming 调度器 / 结果预算 / tool-defer / rapid-refill 熔断 | 🟡 恢复启动 toast 已接线，保温 / 恢复审计事件类型层已接、无独立消费面（§3.41）；功能面默认关闭或引擎内部自愈，无配置 UI |
 | Autopilot | `zhuye-stream::autopilot` | 配置/历史持久化 + 到期判定 + `fire_if_due` 闭环 | 🟡 桌面后台驱动已接线，指定 agent 经 side-channel 执行；历史终态关联存在并发错配风险，见 `tests/RUNTIME_COVERAGE.md` |
 | 侧通道 | `zhuye-core::side_channel` | `SideChannelDriver` / `SideChannelRegistry` / `Op::Start\|Cancel\|QuerySideChannels` | ✅ **引擎原生执行**(develop WP9 收编):driver 经线程工厂注入,命令走协议三 Op,事件三变体全接线(reducer + 视图订阅);registry 进程级共享,跨会话 rebind 存活 |
 | 权限 | `zhuye-permissions` | `FilePermissionStore` / `StorePermissionResolver` / 回合审批策略 | ✅ 三层 store 已挂载；Settings 可见规则，会话可独立选择审批策略及 Plan 工作模式 |
@@ -447,6 +449,8 @@ worktree 是 GUI 用户操作面而非 agent 能力，不上游化（agent 侧 `
 
 各轮 submodule 升级的审计流水（最新在上）：
 
+- **上一轮 `5fd69a0`**（develop tip，跟踪分支 main→develop；v1.x 可靠性与治理能力批次 feat/zcode-gap-v1x：流锚点恢复 / Prompt Snapshot / 输入守恒 / cache warming / 结果预算 / tool-defer 等，`EventMsg` 54→59 + `MAX_STEER_INPUT_BYTES`，Op 零变化；桌面接线见 §3.41。其上一轮 `467607c`：CI 门禁修复批次 —— 子代理父上下文交接回归修复 + 测试适配 + clippy 1.100 机械改写 + 清理 12 个零引用 workspace 依赖。）
+
 - **上一轮 `29aa9ad`**（ZhuYe main tip，`ce57058` 回归测试之上：上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。其上一轮 `ce57058` 补齐组合穷举回归测试，见 §3.32。）
 - **上一轮 `199a3d3`**（rollout 首行修复：首条 UserInput 之前的 `PermissionModeChanged` / `PlanRequest` 等记录在 SessionMeta 未落盘时不再持久化（初始模式改由会话头落地时补记），`parse_first_session_meta` 在前 8 条非空行内扫描 SessionMeta 恢复存量坏文件 —— 修复「先切权限模式再发首条消息的会话被索引丢弃、workspace 归属丢失」。GUI 侧配套：`plan_draft_updated` 消费、Inspector 计划 tab 正文渲染、工作区移除不再被 incidental 切换复活（详见 §3.32）。）
 - **上一轮 `893faa9`**（System 消息折叠修复：`ChatRequest::fold_system_messages` 把内联 `System`（压缩摘要 / PreCompact hook 注入 / resume 回放 summary）折叠进 `system` 块，消除严格 OpenAI 兼容网关的 `INVALID_REQUEST`（"System message must be at the beginning."），并修掉 Anthropic 静默丢弃内联 System 导致的内容丢失。本次仅在请求构造层修复，**产品命令、事件、配置与 SDK 公开面零变更，桌面无适配**。）
@@ -468,3 +472,23 @@ worktree 是 GUI 用户操作面而非 agent 能力，不上游化（agent 侧 `
 重放收敛）、`context_composition` 六类估算分解（工作台容量卡构成条形）。
 上游四提交 bcc75dc9…fe87e8e9，桌面接线与线格式见 `docs/protocol-bridge.md`
 §1/§2/§3.2/§3.4，roadmap 见 `docs/plans/protocol-upstream.md`。
+
+### 3.41 v1.x 可靠性与治理批次接线（submodule 跟随 develop，`467607c` → `5fd69a08`）
+
+跟踪分支自本轮起 main→develop（`.gitmodules` branch 同步改写，后续
+`git submodule update --remote` 拉 develop tip）。上游 feat/zcode-gap-v1x
+合入（9 提交）：流锚点恢复 / Prompt Snapshot / 输入守恒 ledger /
+rapid-refill 熔断 / 空结果防护 / cache warming 调度器 / 工具结果预算 /
+tool-defer 按需加载 / stop_turn 级联 / strict schema 折叠 / cache TTL
+透传。协议面 `EventMsg` 54→59（`cache_warming` + `stream_recovery` 四
+变体，诊断事件无对应 Op）+ `MAX_STEER_INPUT_BYTES` 常量；Op 零变化；
+`RolloutRecord` +3 变体（桌面 export 不 exhaustive match，零适配）；
+config `[cache_warming]` / `[tool_results]` 均 serde(default) 增量。
+
+桌面接线（additive 最小面）：TS 协议镜像 +5 事件 + 契约样本 +5（三方
+奇偶 59=59=59）；reducer `stream_recovery_started` 发「正在自动恢复」
+toast（半成品输出被 `agent_message_reset` 清空后的显性反馈），其余四
+事件显式 no-op 保穷尽（契约测试白名单登记）。保温 / 恢复审计事件的
+独立消费面（usage 面板保温收益对照、恢复明细 feed）与 `[cache_warming]`
+/ `[tool_results]` 配置 UI 留待后续，见线格式 `docs/protocol-bridge.md`
+§3.14。

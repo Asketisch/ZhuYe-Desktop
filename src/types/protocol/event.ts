@@ -102,7 +102,15 @@ export type EventMsgType =
   // 扩展重扫 (1;v1.x,submodule main)
   | 'extensions_rescanned'
   // 注入防护统计 (1;F01)
-  | 'guard_stats';
+  | 'guard_stats'
+  // Prompt cache 保温 (1;v1.x,develop)—— 引擎主动推的诊断事件,无对应 Op
+  | 'cache_warming'
+  // 流锚点恢复 (4;v1.x,develop)—— 恢复过程事件化,不改变 stream_error /
+  // agent_message_reset 的既有语义与顺序
+  | 'stream_recovery_started'
+  | 'stream_recovery_anchor_selected'
+  | 'stream_recovery_tail_discarded'
+  | 'stream_recovery_retry_started';
 
 // ============================================================================
 // EventMsg payload 结构体
@@ -239,6 +247,57 @@ export interface GuardStatsPayload {
   outputs_blocked: number;
   /** 工具输出扫描 Review、metadata 标注的累计次数。 */
   outputs_reviewed: number;
+}
+
+/**
+ * `cache_warming` —— v1.x(develop):prompt cache 保温状态,引擎主动推的
+ * 诊断事件(无对应 Op,镜像 `context_composition` 形态)。空闲期 / 回合内
+ * 以廉价重放刷新 provider prompt cache TTL,决策与执行状态经本事件对
+ * 客户端可见,可与 `token_count` 的 `cached_tokens` 对照验证保温收益。
+ * payload 镜像 Rust `CacheWarmingEvent`(develop)。
+ */
+export interface CacheWarmingPayload {
+  /** 保温动作:`scheduled`(空闲排程建立,一次)/ `executed`(重放成功)/
+   *  `skipped`(决策不保温,`reason` 给因)/ `cancelled`(在途重放被取消)。 */
+  action: 'scheduled' | 'executed' | 'skipped' | 'cancelled';
+  /** 保温阶段:`turn`(回合内工具执行期)/ `idle`(回合间空闲期)。 */
+  phase: 'turn' | 'idle';
+  /** `skipped` / `cancelled` 的原因(如 `no_economics` / `disabled` / `superseded`)。 */
+  reason?: string;
+  /** 候选请求的 prompt tokens(上次真实请求的 input_tokens)。 */
+  prompt_tokens?: number;
+  /** 本次重放流回的真实缓存命中 tokens(仅 executed;与 `cached_tokens` 同语义)。 */
+  warm_cached_tokens?: number;
+  /** 本次保温重放成本 USD(仅 executed)。 */
+  warm_cost_usd?: number;
+  /** 决策期期望节省估算 USD(executed / skipped 均可能携带)。 */
+  expected_savings_usd?: number;
+  /** 模型 spec(如 `"anthropic/claude-sonnet-5-5"`)。 */
+  model?: string;
+  /** 发生时间(Unix 秒数)。 */
+  at: number;
+}
+
+/**
+ * 流锚点恢复事件族载荷(v1.x,develop)—— 四个变体共享同一形状,按
+ * `type` 区分。数值字段按 stage 可选,省略不出现在 wire 上
+ * (与 `token_count` 同策略)。payload 镜像 Rust `StreamRecoveryEvent`。
+ */
+export interface StreamRecoveryPayload {
+  /** 第几次恢复尝试(1 起)。 */
+  attempt: number;
+  /** 失败原因码(与 `stream_error.code` 同源)。 */
+  reason_code: string;
+  /** 瞬态分类(`provider_timeout` / `provider_network_error` / `provider_stream_error`)。 */
+  transient?: string;
+  /** 选定的恢复锚点(`previous_message` = 最后一条已提交消息)。 */
+  anchor?: string;
+  /** 丢弃尾部的文本字符数(仅 tail_discarded)。 */
+  discarded_text_chars?: number;
+  /** 丢弃尾部的思考字符数(仅 tail_discarded)。 */
+  discarded_thinking_chars?: number;
+  /** 建议重试等待毫秒(仅 retry_started)。 */
+  retry_in_ms?: number;
 }
 
 export interface ToolCallBeginPayload {
@@ -757,6 +816,13 @@ export interface EventMsgByType {
   extensions_rescanned: ExtensionsRescannedPayload;
   // 注入防护统计 (F01)
   guard_stats: GuardStatsPayload;
+  // Prompt cache 保温(v1.x,develop)
+  cache_warming: CacheWarmingPayload;
+  // 流锚点恢复事件族(v1.x,develop)
+  stream_recovery_started: StreamRecoveryPayload;
+  stream_recovery_anchor_selected: StreamRecoveryPayload;
+  stream_recovery_tail_discarded: StreamRecoveryPayload;
+  stream_recovery_retry_started: StreamRecoveryPayload;
 }
 
 /** ZhuyeEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */
