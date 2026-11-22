@@ -4,6 +4,10 @@
 
 ## 未发布
 
+（空）
+
+## 0.0.7 — 2026-11-22
+
 - **目标面板改纯只读投影（对标 ZCode ConversationStatusPanel）**：右上角
   「目标」胶囊体不再提供设目标表单（原 textarea + token 预算输入 + 启动
   按钮全部移除）—— 目标的唯一输入路径是 composer 的 `/goal` 斜杠命令，
