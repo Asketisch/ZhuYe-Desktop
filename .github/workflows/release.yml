@@ -312,6 +312,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
+      # gen-latest-json.sh 在仓库 scripts/ 下 —— 本 job 也要 checkout 才能
+      # 调到它(此前无 checkout,workspace 只有 artifacts,脚本报 127)。
+      # 不需要 submodules:脚本只依赖 jq(runner 自带)。
+      - name: Checkout (scripts only)
+        uses: actions/checkout@v7
+
       # 只取**安装包** artifact(pattern 限定),不 dump 全部:不加 pattern
       # 时 merge-multiple 会把 release-review(.test-results 下的审查日志)
       # 一起拉进来,最终把 .log 当作发布附件挂到 Release 上。
