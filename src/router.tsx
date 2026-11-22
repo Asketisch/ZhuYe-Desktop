@@ -31,7 +31,6 @@ import { NotificationsView } from '@/features/notifications/NotificationsView';
 import { TerminalView } from '@/features/terminal/TerminalView';
 import { AboutView } from '@/features/about/AboutView';
 import { AppsView } from '@/features/apps/AppsView';
-import { ImportView } from '@/features/import/ImportView';
 import { HtmlPreviewView } from '@/features/preview/HtmlPreviewView';
 import { BrowserView } from '@/features/browser/BrowserView';
 import { CollaborationView } from '@/features/collaboration/CollaborationView';
@@ -82,7 +81,6 @@ const aboutRoute = new Route({ getParentRoute: () => rootRoute, path: 'about', c
 const notificationsRoute = new Route({ getParentRoute: () => rootRoute, path: 'notifications', component: NotificationsView });
 const debugRoute = new Route({ getParentRoute: () => rootRoute, path: 'debug', component: DebugView });
 const appsRoute = new Route({ getParentRoute: () => rootRoute, path: 'apps', component: AppsView });
-const importRoute = new Route({ getParentRoute: () => rootRoute, path: 'import', component: ImportView });
 const previewRoute = new Route({ getParentRoute: () => rootRoute, path: 'preview', component: HtmlPreviewView });
 const browserRoute = new Route({ getParentRoute: () => rootRoute, path: 'browser', component: BrowserView });
 const collaborationRoute = new Route({ getParentRoute: () => rootRoute, path: 'collaboration', component: CollaborationView });
@@ -125,7 +123,6 @@ const routeTree = rootRoute.addChildren([
   notificationsRoute,
   debugRoute,
   appsRoute,
-  importRoute,
   previewRoute,
   browserRoute,
   collaborationRoute,

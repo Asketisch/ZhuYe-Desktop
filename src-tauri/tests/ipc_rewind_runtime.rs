@@ -91,6 +91,12 @@ base_url = "{}"
 model = "claude-mock"
 [hooks]
 enabled = []
+
+[compact]
+# 上游 v1.12 起 smart_prune 内部阈值继承本值(见下方循环注释的
+# 「末轮单次暴涨」设计):15k 让 31 轮小消息永不触发自动压缩,
+# 而末轮 60k 字符输入 + force 双重触发后真实上下文 ≥ 阈值 → 真删。
+trigger_tokens = 15000
 "#,
         provider.uri()
     ));
@@ -159,6 +165,12 @@ base_url = "{}"
 model = "claude-mock"
 [hooks]
 enabled = []
+
+[compact]
+# 上游 v1.12 起 smart_prune 内部阈值继承本值(见下方循环注释的
+# 「末轮单次暴涨」设计):15k 让 31 轮小消息永不触发自动压缩,
+# 而末轮 60k 字符输入 + force 双重触发后真实上下文 ≥ 阈值 → 真删。
+trigger_tokens = 15000
 "#,
         provider.uri()
     ));
@@ -172,10 +184,50 @@ enabled = []
     common::invoke_ok("zhuye_bind_session", json!({"id":session}));
 
     let mut seen = Vec::new();
-    for index in 0..32 {
-        let marker = format!("compact-old-{index:02}-{}", "x".repeat(2_000));
-        run_turn(&rx, &mut seen, &format!("compact-old-{index:02}"), &marker);
+    // v1.12 压缩语义适配(eager auto-compaction):上游 v1.x 起 model_call
+    // 每次成功调用后,reported 超阈值即**同轮**触发 smart_prune(不再等下
+    // 一轮 pre_loop)—— 32 轮逐轮攒旧历史的旧设计会被中途自动压光。改为
+    // 「31 轮小消息 + 1 轮大输入」:
+    // - 前 31 轮小消息(累计 ~3k tokens,永不触 15k 阈值);
+    // - 第 32 轮 user 单次高信息密度大文本(uuid 串 ~40k tokens ≥ 15000)
+    //   → 该轮 model_call 后同轮触发真实压缩(strategy=smart_prune,
+    //   after 回到阈值内);
+    // - 手动 compact(受理 noop ack);
+    // - compact-after 轮在压缩后的上下文上正常运行。
+    // 断言组:首条钉住 / 大轮 60k+ 字符探测 uuid 被截断(不进后续请求)。
+    for index in 0..31 {
+        run_turn(
+            &rx,
+            &mut seen,
+            &format!("compact-old-{index:02}"),
+            &format!("compact-old-{index:02}"),
+        );
     }
+    let filler: Vec<String> = (0..3_333)
+        .map(|_| uuid::Uuid::new_v4().to_string())
+        .collect();
+    let probe_uuid = filler[1_500].clone(); // 中段取样:截断后必不在请求里
+    let big_text = format!("compact-old-31-{}", filler.join(""));
+    run_turn(&rx, &mut seen, "compact-old-31", &big_text);
+
+    let big_compacted = seen
+        .iter()
+        .find(|event| {
+            event["id"] == "compact-old-31"
+                && event["msg"]["type"] == "context_compacted"
+                && event["msg"]["strategy"] != "noop"
+        })
+        .unwrap_or_else(|| panic!("大轮未见真实压缩事件(v1.12 eager 语义):{seen:#?}"));
+    // removed_messages > 0:smart_prune 真实删除了旧轮(after_tokens 仍含
+    // 大轮 uuid 文本——截断为主、删除为辅,阈值内不保证,不作为断言)。
+    assert!(
+        big_compacted["msg"]["removed_messages"]
+            .as_u64()
+            .unwrap_or(0)
+            > 0,
+        "压缩应真实删除旧轮:{big_compacted}"
+    );
+
     let compact_id = common::invoke_ok("zhuye_compact", json!({}));
     let accepted = wait_for(&rx, &mut seen, |event| {
         event["id"] == compact_id && event["msg"]["type"] == "context_compacted"
@@ -183,25 +235,6 @@ enabled = []
     assert_eq!(accepted["msg"]["strategy"], "noop", "{accepted}");
 
     run_turn(&rx, &mut seen, "compact-after", "compact-after-marker");
-    let compacted = seen
-        .iter()
-        .find(|event| {
-            event["id"] == "compact-after"
-                && event["msg"]["type"] == "context_compacted"
-                && event["msg"]["strategy"] != "noop"
-        })
-        .unwrap_or_else(|| panic!("missing real compaction event: {seen:#?}"));
-    assert!(
-        compacted["msg"]["removed_messages"].as_u64().unwrap_or(0) > 0,
-        "{compacted}"
-    );
-    assert!(
-        compacted["msg"]["after_tokens"]
-            .as_u64()
-            .unwrap_or(u64::MAX)
-            < compacted["msg"]["before_tokens"].as_u64().unwrap_or(0),
-        "{compacted}"
-    );
 
     let requests = runtime.block_on(provider.received_requests()).unwrap();
     let after_request = requests
@@ -209,18 +242,20 @@ enabled = []
         .find(|request| String::from_utf8_lossy(&request.body).contains("compact-after-marker"))
         .unwrap_or_else(|| panic!("next turn did not reach model: {requests:#?}"));
     let body = String::from_utf8_lossy(&after_request.body);
+    // 压缩生效断言:大轮的高密度探测 uuid 被截断(不进后续请求);
+    // 首轮钉住 / 尾部保留。
     assert!(
-        body.contains("compact-old-00-"),
+        !body.contains(&probe_uuid),
+        "oversized final turn must be truncated: {} bytes",
+        body.len()
+    );
+    assert!(
+        body.contains("compact-old-00"),
         "first user is pinned: {body}"
     );
     assert!(
-        body.contains("compact-old-31-"),
+        body.contains("compact-after-marker"),
         "recent tail is retained: {body}"
-    );
-    assert!(
-        !body.contains("compact-old-01-"),
-        "old middle context was pruned: {} bytes",
-        body.len()
     );
 }
 

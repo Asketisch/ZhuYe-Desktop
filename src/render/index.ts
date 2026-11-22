@@ -25,7 +25,6 @@ import { GitView } from './git/GitView';
 import { PullRequestsView } from './git/PullRequestsView';
 import { HomeView } from './home/HomeView';
 import { HooksView } from './hooks/HooksView';
-import { ImportView } from './import/ImportView';
 import { KmsView } from './kms/KmsView';
 import { MediaView } from './media/MediaView';
 import { MemoryView } from './memory/MemoryView';
@@ -64,7 +63,6 @@ export const renderer: Renderer = {
   PullRequestsView,
   HomeView,
   HooksView,
-  ImportView,
   KmsView,
   MediaView,
   MemoryView,

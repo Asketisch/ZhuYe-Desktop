@@ -52,7 +52,6 @@ zhuye-telemetry           = { workspace = true }
 zhuye-config              = { workspace = true }
 zhuye-rollout             = { workspace = true }
 # v1.11 D9:外部 Agent 导入入口(三种外部 harness 会话 → 烛夜 rollout)。
-zhuye-import              = { workspace = true }
 zhuye-skills              = { workspace = true }
 # 会话笔记只读查询(agent 经 AddSessionNoteTool 写入,这里只读展示)
 zhuye-notes               = { workspace = true }

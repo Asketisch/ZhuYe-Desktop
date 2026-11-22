@@ -93,7 +93,6 @@ zhuye-mcp = { path = "zhuye-agent/crates/integrations/zhuye-mcp" }
 zhuye-lsp = { path = "zhuye-agent/crates/integrations/zhuye-lsp" }
 zhuye-integration = { path = "zhuye-agent/crates/integrations/zhuye-integration" }
 zhuye-stream = { path = "zhuye-agent/crates/integrations/zhuye-stream" }
-zhuye-import = { path = "zhuye-agent/crates/integrations/zhuye-import" }
 zhuye-computer-use = { path = "zhuye-agent/crates/integrations/zhuye-computer-use" }
 zhuye-shell = { path = "zhuye-agent/crates/integrations/zhuye-shell" }
 zhuye-git-tools = { path = "zhuye-agent/crates/integrations/zhuye-git-tools" }
@@ -163,7 +162,8 @@ tar                = "0.4"
 flate2             = "1"
 minijinja          = "2"
 sled               = "0.34"
-# 会话导入(zhuye-import):ZCode 历史存于 SQLite;bundled 自带 C 源,免系统依赖。
+# zhuye-memory 的 SQLite 记忆后端(v1.x,ZHUYE_MEMORY_BACKEND=sqlite):
+# submodule 成员经 workspace 继承链取用,本 root 必须保留声明。
 rusqlite           = { version = "0.41", features = ["bundled"] }
 # zhuye-secrets:HKDF-SHA256 每条目派生(per-entry salt),getrandom 由 aes-gcm
 # 默认 feature 提供(Nonce/Key 生成用 OsRng)。

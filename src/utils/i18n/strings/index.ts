@@ -12,7 +12,6 @@ import agents from './agents';
 import autopilot from './autopilot';
 import app from './app';
 import apps from './apps';
-import stringsImport from './import';
 import stringsPreview from './preview';
 import chat from './chat';
 import collaboration from './collaboration';
@@ -63,7 +62,6 @@ export const STRINGS: Record<string, StringEntry> = {
   ...autopilot,
   ...app,
   ...apps,
-  ...stringsImport,
   ...stringsPreview,
   ...chat,
   ...collaboration,

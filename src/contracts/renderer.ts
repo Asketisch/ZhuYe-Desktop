@@ -25,7 +25,6 @@ import type { GitViewProps } from './git';
 import type { PullRequestsViewProps } from './pulls';
 import type { HomeViewProps } from './home';
 import type { HooksViewProps } from './hooks';
-import type { ImportViewProps } from './importView';
 import type { KmsViewProps } from './kms';
 import type { MediaViewProps } from './media';
 import type { MemoryViewProps } from './memory';
@@ -77,7 +76,6 @@ export interface Renderer {
   PullRequestsView: ComponentType<PullRequestsViewProps>;
   HomeView: ComponentType<HomeViewProps>;
   HooksView: ComponentType<HooksViewProps>;
-  ImportView: ComponentType<ImportViewProps>;
   KmsView: ComponentType<KmsViewProps>;
   MediaView: ComponentType<MediaViewProps>;
   MemoryView: ComponentType<MemoryViewProps>;

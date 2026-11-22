@@ -113,7 +113,6 @@ export function buildPaletteItems(args: BuildPaletteArgs): PaletteItem[] {
     { id: 'nav.notifications', labelKey: 'palette.item.goNotifications', kind: 'navigation', icon: Bell,      to: '/notifications', weight: 10 },
     { id: 'nav.debug',       labelKey: 'palette.item.goDebug',     kind: 'navigation', icon: Bug,          to: '/debug',       weight: 10 },
     { id: 'nav.apps',        labelKey: 'palette.item.goApps',      kind: 'navigation', icon: AppWindow,    to: '/apps',        weight: 10 },
-    { id: 'nav.import',      labelKey: 'palette.item.goImport',    kind: 'navigation', icon: Download,     to: '/import',      weight: 10 },
     { id: 'nav.preview',     labelKey: 'palette.item.goPreview',   kind: 'navigation', icon: FileCode2,    to: '/preview',     weight: 10 },
     { id: 'nav.collab',      labelKey: 'palette.item.goCollab',    kind: 'navigation', icon: Users,        to: '/collaboration', weight: 10 },
     { id: 'nav.dictation',   labelKey: 'palette.item.goDictation', kind: 'navigation', icon: Mic,          to: '/dictation',   weight: 10 },
