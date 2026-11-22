@@ -35,13 +35,13 @@ suite_begin "backend"
 run_isolated_cargo() (
     export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
     export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
-    if [ "$(uname -s)" = Darwin ]; then
-        # Seatbelt 放行系统临时目录；HOME 必须位于其外才能验证禁止写 HOME。
-        mkdir -p "$ROOT/.test-results/backend-homes" || return 1
-        make_isolated_env "$ROOT/.test-results/backend-homes" || return 1
-    else
-        make_isolated_env || return 1
-    fi
+    # 隔离 HOME 必须位于系统临时目录之外(所有平台同口径):沙箱按
+    # workspace-write 口径放行系统临时目录,HOME 若落在 /tmp 下,
+    # 「写 HOME 逃逸」用例(如 rejects_absolute_path_escape)的探针会被
+    # 临时目录放行误判为允许 —— linux 实证;macOS 分支此前已单独规避,
+    # 现统一放仓库 .test-results 下。
+    mkdir -p "$ROOT/.test-results/backend-homes" || return 1
+    make_isolated_env "$ROOT/.test-results/backend-homes" || return 1
     trap cleanup_isolated_env EXIT
     # 所有后端子进程的临时文件都在本次工作目录内，退出时一并清理。
     mkdir -p "$ISO_CWD/tmp" || return 1
