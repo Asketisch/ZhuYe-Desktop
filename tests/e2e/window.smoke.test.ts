@@ -173,6 +173,8 @@ describe('window smoke (real process, real backend, local model stub)', () => {
 
   it('waits for tool approval, executes the tool and renders the second model response', async () => {
     const providerLog = join(process.env.E2E_SCREENSHOT_DIR ?? '.test-results', 'e2e-mock-provider.log');
+    // v1.x PermissionPicker 是下拉形态:菜单项要点开 trigger 后才挂载。
+    await driver!.findElement(By.css('[data-testid="composer-permission-trigger"]')).click();
     const promptMode = await driver!.findElement(By.css('[data-testid="composer-perm-prompt"]'));
     await promptMode.click();
     await driver!.wait(async () => (await promptMode.getAttribute('aria-checked')) === 'true', 30_000);
@@ -568,12 +570,13 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     // bubble 工作模式已弃用:问题链路要"免工具审批打断",等价做法是把
     // 审批策略切到 full_access(回合级全放行)。React 受控 <select> 用
     // 脚本改值并派发 change,确保 onChange 生效并持久化。
-    const approval = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-approval-policy"]')), 30_000);
-    await driver!.executeScript(
-      "arguments[0].value = 'full_access'; arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
-      approval,
+    // v1.x:审批策略从 select 迁到 PermissionPicker 下拉(trigger → 菜单项)。
+    await driver!.findElement(By.css('[data-testid="composer-permission-trigger"]')).click();
+    const fullAccess = await driver!.wait(
+      until.elementLocated(By.css('[data-testid="composer-approval-full_access"]')),
+      30_000,
     );
-    await driver!.wait(async () => (await approval.getAttribute('value')) === 'full_access', 30_000);
+    await fullAccess.click();
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('window-question-chain-test');
     await driver!.findElement(By.css('[data-testid="composer-send"]')).click();
