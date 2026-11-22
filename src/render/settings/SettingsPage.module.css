@@ -101,7 +101,9 @@
 }
 
 .backRow {
-  padding: 12px 8px 12px;
+  /* 设置页 fixed 全屏覆盖了标题条区 —— macOS 红绿灯悬在窗口左上，
+     顶部留出标题条高度再起「返回工作台」，避免重叠。 */
+  padding: calc(var(--titlebar-height, 38px) + 10px) 8px 12px;
 }
 
 .backBtn {
