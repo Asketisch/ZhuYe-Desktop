@@ -318,10 +318,11 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
   const turnRunning = useAgentStore((st) => st.turns.some((tn) => tn.status === 'streaming'));
   const sessions = useSessions();
 
-  // 首页工作台英雄态：全新对话（无 session、无历史、无加载错误）时，
-  // 问候语 + 快捷模板 chips + 居中 Composer 取代常规消息流。
-  // 首条消息发出后 turns > 0，同一 Composer 实例自然落回底部常规布局。
-  const hero = !sessionId && !loading && !error && turns.length === 0;
+  // 英雄态：无会话（首页）或已加载的空会话（工作区新建 / 刚创建未发言）
+  // 都显示徽记 + 问候语 + 快捷模板 chips + 居中 Composer；首条消息发出后
+  // turns > 0，同一 Composer 实例自然落回底部常规布局。加载中 / 错误 /
+  // 未水合完的会话（isLoaded=false）不进英雄态，避免闪断与错误被吞没。
+  const hero = !loading && !error && isLoaded && turns.length === 0;
 
   // B13：chat + diff 分屏视图。在 Settings → Display 中切换。
   const [prefs] = useUiPrefs();

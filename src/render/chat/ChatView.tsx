@@ -45,7 +45,8 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
           </Button>
         </div>
       )}
-      {sessionId && isLoaded && !loading && !error && turnCount === 0 && (
+      {/* 英雄态已含徽记问候 + 居中 Composer，空会话横幅让位避免重复提示。 */}
+      {!hero && sessionId && isLoaded && !loading && !error && turnCount === 0 && (
         <div className={s.sessionBanner} role="status">{t('chat.emptySession')}</div>
       )}
       {sessionId && isLoaded && turnCount > 0 && (

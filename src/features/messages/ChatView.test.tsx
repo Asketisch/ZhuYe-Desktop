@@ -121,7 +121,7 @@ describe('ChatView', () => {
     await act(async () => { finish('auto'); });
   });
 
-  it('shows empty session state when replay returns no records', async () => {
+  it('shows the hero (emblem + greeting) for an empty loaded session instead of a banner', async () => {
     mockInvoke('zhuye_replay_session', async () => []);
     window.__chatTestSessionId = 'sess-empty';
     window.__chatTestPath = '/chat/sess-empty';
@@ -129,9 +129,11 @@ describe('ChatView', () => {
     await act(async () => {
       renderWithProviders(<ChatView />);
     });
+    // 空会话不再显示「没有消息」横幅 —— 统一进入英雄态（徽记 + 问候语）。
     await waitFor(() => {
-      expect(screen.getByText(/This session has no messages/)).toBeDefined();
+      expect(screen.getByTestId('chat-hero-greeting')).toBeDefined();
     });
+    expect(screen.queryByText(/This session has no messages/)).toBeNull();
   });
 
   it('forks the current session from the banner button', async () => {
@@ -269,8 +271,9 @@ describe('ChatView', () => {
     await act(async () => {
       renderWithProviders(<ChatView />);
     });
+    // 空会话进入英雄态 —— 校验中文问候语副标题。
     await waitFor(() => {
-      expect(screen.getByText('此会话没有消息。')).toBeDefined();
+      expect(screen.getByText('有什么想让我帮忙的吗？')).toBeDefined();
     });
   });
 
@@ -393,6 +396,9 @@ describe('ChatView hero (new-chat home)', () => {
     const { container } = renderWithProviders(<ChatView />);
 
     expect(screen.getByTestId('chat-hero-greeting')).toBeDefined();
+    // 「火中生羽」徽记容器挂载（jsdom 无 2d 上下文，仅验 DOM 结构；四层画布）。
+    expect(screen.getByTestId('chat-hero-emblem')).toBeDefined();
+    expect(screen.getByTestId('chat-hero-emblem').querySelectorAll('canvas').length).toBe(4);
     await waitFor(() => {
       expect(screen.getByTestId('chat-hero-workspace')).toBeDefined();
     });
@@ -430,5 +436,23 @@ describe('ChatView hero (new-chat home)', () => {
 
     expect(screen.queryByTestId('chat-hero-greeting')).toBeNull();
     expect(container.querySelector('[data-testid="chat-messages-area"]')?.getAttribute('data-hero')).toBe('off');
+  });
+
+  it('shows the hero for a loaded session with zero turns (workspace new chat)', async () => {
+    // 工作区新建会话：sessionId 已落定、replay 为空 —— 同样进入英雄态。
+    mockInvoke('zhuye_replay_session', async () => []);
+    window.__chatTestSessionId = 'sess-empty';
+    window.__chatTestPath = '/chat/sess-empty';
+
+    const { container } = renderWithProviders(<ChatView />);
+    await waitFor(() => {
+      expect((useAgentStore.getState() as any).loadedSessionId).toBe('sess-empty');
+    });
+
+    expect(screen.getByTestId('chat-hero-emblem')).toBeDefined();
+    expect(screen.getByTestId('chat-hero-greeting')).toBeDefined();
+    expect(container.querySelector('[data-testid="chat-messages-area"]')?.getAttribute('data-hero')).toBe('on');
+    // 空会话横幅让位英雄态，不重复提示。
+    expect(screen.queryByText('This session has no messages.')).toBeNull();
   });
 });

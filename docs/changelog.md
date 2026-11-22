@@ -4,6 +4,26 @@
 
 ## 未发布
 
+- **目标面板改纯只读投影（对标 ZCode ConversationStatusPanel）**：右上角
+  「目标」胶囊体不再提供设目标表单（原 textarea + token 预算输入 + 启动
+  按钮全部移除）—— 目标的唯一输入路径是 composer 的 `/goal` 斜杠命令，
+  面板空态只留「入口说明 + 一键填入 /goal 到输入框」引导（沿用
+  `emitComposerPrefill`）。活跃态维持只读展示（目标 / 状态徽标 / 轮次 /
+  token / 最近三轮校验结论）+ 刷新 + 退出。引擎协议目前只有
+  `Enter/ExitGoalMode`（状态机含 `paused` 但无 pause/resume Op），
+  暂停/恢复按钮待上游补协议后接入。顺带清理
+  `corner.goal.setIdle/placeholder/budget/enter` 四个死 i18n 键。
+- **首页空态徽记升级为「火中生羽」v4 Pixel Flame 版**：ChatHero 的白脸
+  像素吉祥物与轮廓水印换为 `ZhuyeEmblem` —— 移植设计稿
+  `zhunye_pixel_pure_v4.html` 的纯 Canvas 徽记（1024 世界坐标缩放渲染：
+  金弧 + 四条凤凰形尾羽 + 焰羽雄鸡含冠/眼/喙 + 双色花瓣萼片），四层
+  224×224 画布（静态本体 / soft·bloom 双层辉光复制 + bloom CSS 呼吸 /
+  星光闪烁与上升灰烬火星），112px 展示在 2x 屏 1:1 逐像素。遵循
+  `prefers-reduced-motion`（静止一帧），jsdom 无 2d 上下文时跳过绘制
+  不阻塞测试。英雄态判定同步放宽：无会话（首页）**或已加载的空会话**
+  （工作区新建 / 刚创建未发言）均显示徽记问候 + 居中 Composer
+  （`ChatBinding::hero`，空会话「没有消息」横幅让位，首条消息发出后
+  落回常规布局）。纯前端视觉变更，无协议接线。
 - **会话创建时的提示词预设选择入口（零协议接线）**：接通引擎既有
   `PromptSelection`（跟随默认 / Auto 智能匹配 / Manual 指定方案）的会话
   创建入口 —— composer 控制行在空会话态（turns 为空）新增「提示词」
