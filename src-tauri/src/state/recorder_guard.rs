@@ -213,7 +213,7 @@ mod tests {
                         session_id: id,
                         model: "test".into(),
                         parent_session_id: None,
-            started_at: chrono::Utc::now(),
+                        started_at: chrono::Utc::now(),
                         workspace: None,
                     })
                     .await
