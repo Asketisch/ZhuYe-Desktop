@@ -15,45 +15,42 @@
 }
 
 /*
- * 输入卡：抬升的实心底 + 半像素发丝边。
- * 悬停 = 边框提亮一档；聚焦 = 边框再提亮（聚焦不改底色）。
- * 亮色主题经 [data-theme='light'] 覆写为白底 + 深色发丝边。
+ * 输入卡（双层嵌套）：外层 surface（面板底 + 软阴影）承载顶栏胶囊行，
+ * 内卡（抬升面，无边框描边）承载输入区与工具栏 —— 两层只靠底色深浅
+ * 区分，不画线圈。聚焦反馈走内卡底色轻微提亮。
  */
+.surface {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 4%), 0 6px 18px rgb(0 0 0 / 4%);
+}
+
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 12px;
-  background: #2b2b2b;
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 4%), 0 6px 18px rgb(0 0 0 / 4%);
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  transition: background var(--transition-fast);
   overflow: hidden;
 }
 
-.card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
+/* 聚焦：底色轻微提亮（白以极低比例混入，暗亮两主题都成立）。 */
 .card:focus-within {
-  border-color: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--surface) 94%, var(--white) 6%);
 }
 
-:global([data-theme='light']) .card {
-  background: #ffffff;
-  border-color: rgba(13, 13, 13, 0.1);
-}
-
-:global([data-theme='light']) .card:hover,
-:global([data-theme='light']) .card:focus-within {
-  border-color: rgba(13, 13, 13, 0.15);
-}
-
-/* 原生文件拖拽悬停 —— 边框高亮 + 覆盖提示层（.dropOverlay 铺满卡片）。 */
-.card[data-drag-active] {
-  border-color: var(--accent);
+/* 原生文件拖拽悬停 —— 内卡点亮聚焦底色 + 阴影圈 + 覆盖提示层
+   （.dropOverlay 铺满 surface）。 */
+.surface[data-drag-active] .card {
+  background: color-mix(in srgb, var(--surface) 94%, var(--white) 6%);
   box-shadow: var(--shadow-focus);
 }
 
@@ -66,7 +63,7 @@
   justify-content: center;
   background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
   border: 1px dashed var(--accent);
-  border-radius: var(--radius-lg);
+  border-radius: 16px;
   color: var(--accent);
   font-size: 0.85rem;
   pointer-events: none;
@@ -95,7 +92,7 @@
   font-size: var(--fs-base);
   line-height: var(--lh-normal);
   resize: none;
-  min-height: 24px;
+  min-height: 40px;
   max-height: 160px;
   outline: none;
 }
@@ -104,7 +101,7 @@
   color: color-mix(in srgb, var(--text-primary) 40%, transparent);
 }
 
-/* 工具行：基线对齐（输入区在上、控件行贴底），左簇 / 右簇。 */
+/* 工具行：基线对齐（输入区在上、控件行贴底），左簇占满 / 右簇贴右。 */
 .bottomBar {
   display: flex;
   align-items: flex-end;
@@ -119,6 +116,10 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
+}
+
+.bottomLeft {
+  flex: 1;
 }
 
 .bottomRight {

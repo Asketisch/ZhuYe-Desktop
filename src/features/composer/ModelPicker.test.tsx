@@ -1,8 +1,7 @@
 /**
  * Vitest — ModelPicker 模型选择器（只列模型组）。
  *
- * 模型选择器已从 ComposerControls 独立出来（渲染在输入卡片底栏右侧），
- * 新契约：
+ * 模型选择器渲染在输入卡片底栏右侧，新契约：
  * 1. 选项只来自模型组（`[[model_group]]`）与组内凭据，不再有编码套餐段；
  * 2. 选中态单一事实源 = `[active].group` + `[active].credential`；
  * 3. 切到组 → zhuye_set_model(组id, 组模型)

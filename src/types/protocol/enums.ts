@@ -15,7 +15,7 @@ export type PermissionMode =
   | 'bubble'
   | 'bypass';
 
-/** UI 三态轮换的规范档位（`ComposerControls` 分段 / `next_in_ui_cycle` 同口径）。 */
+/** UI 三态轮换的规范档位（输入卡权限下拉 / `next_in_ui_cycle` 同口径）。 */
 export type UiPermissionMode = 'auto' | 'prompt' | 'plan';
 
 /**

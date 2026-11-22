@@ -5,8 +5,9 @@ import { SlashPopup } from './SlashPopup';
 import { AttachmentBar } from './AttachmentBar';
 import { MentionPicker } from './MentionPicker';
 import { ContextUsage } from './ContextUsage';
-import { ComposerControls } from './ComposerControls';
-import { ComposerContextBar } from './ComposerContextBar';
+import { ComposerTopBar } from './ComposerTopBar';
+import { PermissionPicker } from './PermissionPicker';
+import { EffortPicker } from './EffortPicker';
 import { BangRunsPanel } from './BangRunsPanel';
 import { ComposerPlusMenu } from './ComposerPlusMenu';
 import { ModelPicker } from './ModelPicker';
@@ -16,8 +17,9 @@ const slots = {
   AttachmentBar,
   MentionPicker,
   ContextUsage,
-  ComposerControls,
-  ComposerContextBar,
+  ComposerTopBar,
+  PermissionPicker,
+  EffortPicker,
   BangRunsPanel,
   ComposerPlusMenu,
   ModelPicker,

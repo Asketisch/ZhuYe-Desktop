@@ -44,6 +44,8 @@ const emptyState = (): AgentState => ({
   pendingQuestions: [],
   pendingAskUser: [],
   pendingPlan: null,
+  worktreeIntent: null,
+  setWorktreeIntent: () => {},
   contextComposition: null,
   plan: null,
   planDraft: null,

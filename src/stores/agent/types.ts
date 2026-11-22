@@ -461,6 +461,15 @@ export interface AgentState {
    * 让徽标/切换器反映该会话恢复出的模式。
    */
   syncPermissionMode: (mode: string) => void;
+  /**
+   * worktree 隔离意图（草稿级，不持久化）。非 null = 「下一个新会话在
+   * 隔离 worktree 中运行」，`ref` 为起点分支（null = 当前 HEAD）。
+   * 发送链路一次性消费（见 useComposerSubmission），换会话/新建草稿
+   * 即重置 —— 顶栏开关只是意图登记，不直接建树。
+   */
+  worktreeIntent: { ref: string | null } | null;
+  /** 写入/清空 worktree 隔离意图（顶栏开关与起点分支选择器共用）。 */
+  setWorktreeIntent: (intent: { ref: string | null } | null) => void;
   answerQuestion: (id: string, answers: AskUserAnswer) => Promise<void>;
   answerInput: (id: string, text: string) => Promise<void>;
   clearError: () => void;

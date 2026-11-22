@@ -1,9 +1,9 @@
 /**
  * 会话级提示词预设偏好 —— per-session localStorage（仿 approvalPolicy.ts）。
  *
- * 入口只在最初创建会话时存在（ComposerControls 空会话态的下拉），会话
- * 开始后 UI 不再提供变更 —— 引擎 CacheBreakDetector 以 system+tools+model
- * 指纹观测缓存,同一会话内提示词恒定即缓存命中不受损。
+ * 入口只在最初创建会话时存在（「+」菜单的提示词预设子菜单，空会话态
+ * 显示），会话开始后 UI 不再提供变更 —— 引擎 CacheBreakDetector 以
+ * system+tools+model 指纹观测缓存,同一会话内提示词恒定即缓存命中不受损。
  *
  * 存储的值是引擎 `PromptSelection` wire 形状(`{mode:'default'}|{mode:'auto'}|
  * {mode:'manual',profile}`)。bind 会话时经 `syncSessionPromptSelection`

@@ -255,20 +255,23 @@ describe('Composer @ file mention (v1.x)', () => {
     await screen.findByText('No matching files.');
   });
 
-  it('toolbar @ button appends @ and opens the picker directly', async () => {
+  it('「+」菜单的 @ 引用入口追加 @ 并直接打开弹层', async () => {
     mockWorkspaceFiles();
     renderComposer();
     const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
 
-    fireEvent.click(screen.getByTestId('composer-attach-mention'));
+    // 显式入口收编在「+」菜单（占位文案教打字触发）。
+    fireEvent.click(screen.getByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-mention'));
 
-    // 按钮直接打开弹层(setState 不触发 onChange, 不能依赖 input 流)。
+    // 入口直接打开弹层(setState 不触发 onChange, 不能依赖 input 流)。
     await screen.findByTestId('mention-picker');
     expect(input.value).toBe('@');
 
     // 已有文本且末尾非空白 → 补前导空格。
     fireEvent.change(input, { target: { value: 'hello' } });
-    fireEvent.click(screen.getByTestId('composer-attach-mention'));
+    fireEvent.click(screen.getByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-mention'));
     expect(input.value).toBe('hello @');
   });
 
@@ -473,11 +476,11 @@ describe('Composer queue vs steer (C)', () => {
 });
 
 // ===========================================================================
-// 内联控制条（ComposerControls）：模型 / 思考深度 / 权限模式
+// 卡内控制件：权限下拉（PermissionPicker）/ 模型 / 思考深度（EffortPicker）
 // ===========================================================================
 
 describe('Composer inline controls', () => {
-  it('switches permission mode from the segmented control', async () => {
+  it('权限下拉:切工作模式走 zhuye_set_permission_mode,审批策略独立写偏好', async () => {
     const calls: string[] = [];
     mockInvoke('zhuye_set_permission_mode', async (_cmd: string, args?: { mode: string }) => {
       calls.push(args?.mode ?? '');
@@ -486,28 +489,31 @@ describe('Composer inline controls', () => {
     useAgentStore.setState({ permissionMode: 'auto' });
     renderComposer();
 
-    // 默认审批策略为「跟随模式」(auto),由工作模式决定审批行为。
-    expect((screen.getByTestId('composer-approval-policy') as HTMLSelectElement).value).toBe('auto');
-    fireEvent.change(screen.getByTestId('composer-approval-policy'), { target: { value: 'full_access' } });
-    expect(calls).toEqual([]);
+    // 打开菜单 → 切到「计划」→ 命令下发,菜单收起。
+    fireEvent.click(await screen.findByTestId('composer-permission-trigger'));
     fireEvent.click(screen.getByTestId('composer-perm-plan'));
     await waitFor(() => expect(calls).toEqual(['plan']));
-    // 三段快捷含 Ask(prompt);当前段高亮来自 store 的 permissionMode
-    // (permission_mode_changed 事件回读)。
-    expect(screen.getByTestId('composer-perm-prompt')).toBeDefined();
-    expect(screen.getByTestId('composer-perm-auto').getAttribute('data-active')).toBeDefined();
-    expect((screen.getByTestId('composer-approval-policy') as HTMLSelectElement).value).toBe('full_access');
+    expect(screen.queryByTestId('composer-permission-menu')).toBeNull();
+
+    // 审批策略是独立概念:选「帮我批准」只落 per-session 偏好,不发命令。
+    fireEvent.click(screen.getByTestId('composer-permission-trigger'));
+    fireEvent.click(screen.getByTestId('composer-approval-auto_approve'));
+    expect(calls).toEqual(['plan']);
+    expect(localStorage.getItem('zhuye.approvalPolicy.new')).toBe('auto_approve');
   });
 
-  it('权限切换器恒为三段:store 残留弃用档也不裸回显第四项', () => {
+  it('权限菜单恒为三段:store 残留弃用档也不裸回显第四项', () => {
     // 正常路径下 reducer/sync 两条写入口都经 normalizePermissionMode
-    // 归一(见 agentStore.test);这里强制注入弃用档,锁定「切换器只有
+    // 归一(见 agentStore.test);这里强制注入弃用档,锁定「菜单只有
     // 计划/询问/默认三段、不再出现原始字符串回显」的渲染契约。
     useAgentStore.setState({ permissionMode: 'accept_edits' as never });
     renderComposer();
-    const group = screen.getByTestId('composer-permission-switch');
-    expect(group.querySelectorAll('button')).toHaveLength(3);
-    expect(group.textContent).not.toContain('accept_edits');
+    fireEvent.click(screen.getByTestId('composer-permission-trigger'));
+    const menu = screen.getByTestId('composer-permission-menu');
+    expect(menu.textContent).not.toContain('accept_edits');
+    expect(screen.getByTestId('composer-perm-plan')).toBeDefined();
+    expect(screen.getByTestId('composer-perm-prompt')).toBeDefined();
+    expect(screen.getByTestId('composer-perm-auto')).toBeDefined();
   });
 
   it('lists model groups and switches model via zhuye_set_model', async () => {
@@ -765,7 +771,7 @@ describe('Composer slash popup (stub 下架 + 键盘导航)', () => {
   });
 });
 
-describe('Composer context bar (workspace + git branch)', () => {
+describe('Composer 顶栏（工作区 / 分支 / worktree 收进卡内）', () => {
   beforeEach(() => {
     window.localStorage.clear();
     useAgentStore.getState().reset();
@@ -780,22 +786,25 @@ describe('Composer context bar (workspace + git branch)', () => {
       raw: '',
       is_repo: true,
     }));
+    mockInvoke('zhuye_remote_sessions', async () => []);
   });
 
-  it('shows opened directory and branch below the composer', async () => {
+  it('顶栏在工作区胶囊显示目录、分支胶囊显示分支 + ↑↓', async () => {
     renderComposer();
 
-    // 目录段：basename + hover 全路径；分支段：名称 + ↑↓ 领先/落后。
-    const ws = await screen.findByTestId('composer-workspace');
-    expect(ws.textContent).toContain('alpha');
+    // 顶栏查询异步回流 —— 等数据出现再断言(胶囊先于数据渲染)。
+    const ws = await screen.findByTestId('composer-workspace-pill');
+    await waitFor(() => expect(ws.textContent).toContain('alpha'));
     expect(ws.getAttribute('title')).toBe('/Users/me/Code/alpha');
-    const branch = await screen.findByTestId('composer-branch');
-    expect(branch.textContent).toContain('main');
+    const branch = await screen.findByTestId('composer-branch-pill');
+    await waitFor(() => expect(branch.textContent).toContain('main'));
     expect(branch.textContent).toContain('↑1');
     expect(branch.textContent).toContain('↓2');
+    // git 仓库内显示 worktree 隔离开关。
+    expect(screen.getByTestId('composer-worktree-toggle')).toBeDefined();
   });
 
-  it('hides the branch segment outside a git repo', async () => {
+  it('非 git 仓库时分支胶囊与 worktree 开关隐藏', async () => {
     mockInvoke('zhuye_git_status', async () => ({
       branch: null,
       upstream: null,
@@ -807,20 +816,20 @@ describe('Composer context bar (workspace + git branch)', () => {
     }));
     renderComposer();
 
-    expect(await screen.findByTestId('composer-workspace')).toBeDefined();
+    expect(await screen.findByTestId('composer-workspace-pill')).toBeDefined();
     await waitFor(() =>
-      expect(screen.queryByTestId('composer-branch')).toBeNull(),
+      expect(screen.queryByTestId('composer-branch-pill')).toBeNull(),
     );
+    expect(screen.queryByTestId('composer-worktree-toggle')).toBeNull();
   });
 
-  it('shows the runtime segment (本地 / 远端主机) in the context row', async () => {
-    mockInvoke('zhuye_remote_sessions', async () => []);
+  it('运行位置胶囊显示本地 / 远端主机', async () => {
     renderComposer();
+    // 本文件不锁定 locale(jsdom 默认 en)—— 断言跟随英文文案。
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-runtime-pill').textContent).toContain('Local'),
+    );
 
-    const runtime = await screen.findByTestId('composer-runtime');
-    expect(runtime.textContent).toContain('Local');
-
-    // 有远端会话时显示主机名而不是「本地」。
     resetMockInvoke();
     mockInvoke('zhuye_remote_sessions', async () => [
       { sid: 's1', host: 'dev-box', cwd: '/w', isForeground: true },
@@ -830,22 +839,109 @@ describe('Composer context bar (workspace + git branch)', () => {
     }));
     renderComposer();
     await waitFor(() =>
-      expect(screen.getAllByTestId('composer-runtime').some((el) => el.textContent?.includes('dev-box'))).toBe(true),
+      expect(screen.getAllByTestId('composer-runtime-pill').some((el) => el.textContent?.includes('dev-box'))).toBe(true),
     );
   });
 
-  it('上下文行紧贴输入卡片下方，控制行再往下（minimax 式底部布局）', async () => {
+  it('双层嵌套布局：顶栏与底栏控件都在外层 surface 内（卡内不再有独立控制条）', async () => {
     renderComposer();
 
-    const contextBar = await screen.findByTestId('composer-context-bar');
-    const card = await screen.findByTestId('composer-card');
-    const controls = await screen.findByTestId('composer-effort-select');
+    const surface = await screen.findByTestId('composer-card');
+    // 顶栏 + 权限下拉 + 思考深度 + 发送按钮全部收进卡内。
+    expect(surface.querySelector('[data-testid="composer-top-bar"]')).not.toBeNull();
+    expect(surface.querySelector('[data-testid="composer-permission-trigger"]')).not.toBeNull();
+    expect(surface.querySelector('[data-testid="composer-effort-picker"]')).not.toBeNull();
+    expect(surface.querySelector('[data-testid="composer-send"]')).not.toBeNull();
+    // 旧卡下两行（上下文条 / 控制条）已移除。
+    expect(screen.queryByTestId('composer-context-bar')).toBeNull();
+    expect(screen.queryByTestId('composer-controls-bar')).toBeNull();
+  });
+});
 
-    // DOM 顺序：卡片 → 上下文行 → 控制行。
-    const cardBottom = card.compareDocumentPosition(contextBar);
-    expect(cardBottom & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const barToControls = contextBar.compareDocumentPosition(controls);
-    expect(barToControls & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+describe('Composer worktree 隔离意图（发送时消费）', () => {
+  // 顶栏开关只是意图登记；建树发生在发送瞬间：先建隔离 worktree →
+  // 切 workspace → 以 worktree 路径作首条提交的 workspace（会话归属由
+  // 首条提交携带，与 Git 页「在此开会话」同链路）→ 意图一次性清空。
+  beforeEach(() => {
+    window.localStorage.clear();
+    useAgentStore.getState().reset();
+    resetMockInvoke();
+    mockInvoke('zhuye_get_effort', async () => 'low');
+    // worktree 开关只在 git 仓库内渲染。
+    mockInvoke('zhuye_git_status', async () => ({
+      branch: 'main', upstream: null, ahead: 0, behind: 0, entries: [], raw: '', is_repo: true,
+    }));
+  });
+
+  function trackWorktreeSend(opts: { createdId: string }) {
+    const calls: { create: Array<{ name?: string; branch?: string }>; workspace: string[]; submit: Array<{ text: string; workspace: string | null }> } = {
+      create: [], workspace: [], submit: [],
+    };
+    mockInvoke('zhuye_create_worktree', async (_cmd: string, args?: { name: string; branch?: string }) => {
+      calls.create.push({ name: args?.name, branch: args?.branch });
+      return {
+        path: `/tmp/alpha-worktrees/${args?.name}`,
+        branch: args?.branch ?? args?.name ?? '',
+        head: 'fake0000', dirty: false, isolated: true, stranded: false,
+      };
+    });
+    mockInvoke('zhuye_set_workspace', async (_cmd: string, args?: { path: string }) => {
+      calls.workspace.push(args?.path ?? '');
+    });
+    mockInvoke('zhuye_create_session', async () => {
+      useAgentStore.setState({ loadedSessionId: opts.createdId });
+      return opts.createdId;
+    });
+    mockInvoke('zhuye_submit', async (_cmd: string, args?: unknown) => {
+      const submission = (args as { submission: { id: string; op: { items: Array<{ text?: string }> }; workspace?: string } }).submission;
+      calls.submit.push({
+        text: submission.op.items[0]?.text ?? '',
+        workspace: submission.workspace ?? null,
+      });
+      return submission.id;
+    });
+    return calls;
+  }
+
+  it('勾选后发送:建 worktree → 切 workspace → 提交携带 worktree 路径 → 意图清空', async () => {
+    useAgentStore.setState({ loadedSessionId: null });
+    const calls = trackWorktreeSend({ createdId: 'wt-sess-1' });
+
+    renderComposer();
+    fireEvent.click(await screen.findByTestId('composer-worktree-toggle').then((el) => el.querySelector('input') as HTMLInputElement));
+    await waitFor(() =>
+      expect(useAgentStore.getState().worktreeIntent).toEqual({ ref: null }),
+    );
+
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: 'run isolated checks' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(calls.submit).toHaveLength(1));
+    // 建树带起点分支(undefined = 当前 HEAD),workspace 已切到 worktree。
+    expect(calls.create).toHaveLength(1);
+    expect(calls.create[0].branch).toBeUndefined();
+    expect(calls.workspace).toEqual([`/tmp/alpha-worktrees/${calls.create[0].name}`]);
+    expect(calls.submit[0].workspace).toBe(`/tmp/alpha-worktrees/${calls.create[0].name}`);
+    expect(calls.submit[0].text).toBe('run isolated checks');
+    // 意图一次性消费。
+    expect(useAgentStore.getState().worktreeIntent).toBeNull();
+  });
+
+  it('意图激活时首发斜杠命令被拦截(不建树不提交)', async () => {
+    useAgentStore.setState({ loadedSessionId: null, worktreeIntent: { ref: null } });
+    const calls = trackWorktreeSend({ createdId: 'wt-sess-2' });
+
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '/compact' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await new Promise((r) => setTimeout(r, 30));
+    expect(calls.create).toHaveLength(0);
+    expect(calls.submit).toHaveLength(0);
+    // 意图保留 —— 用户改发普通消息后仍可走建树链路。
+    expect(useAgentStore.getState().worktreeIntent).toEqual({ ref: null });
   });
 });
 

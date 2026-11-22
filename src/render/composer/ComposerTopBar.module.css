@@ -1,0 +1,279 @@
+/*
+ * ComposerTopBar —— 输入卡顶栏（surface 层）。
+ *
+ * 双层嵌套输入卡：外层 surface 内的胶囊行。工作区 / 分支 / worktree
+ * 开关统一为 28px 圆角胶囊；菜单一律向上弹（输入卡贴窗口底部）。
+ * WorkspaceMenu / BranchMenu 与本行共用本模块的胶囊与菜单样式。
+ */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px;
+}
+
+.barRight {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* ── 胶囊触发器（工作区 / 分支 / 运行位置）────────────────────────── */
+
+/* 胶囊 + 向上弹菜单的定位包裹。 */
+.pillWrap {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 10px 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pill:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.pill[aria-expanded='true'] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 纯展示胶囊（运行位置）：无 hover 语义。 */
+.pillStatic {
+  cursor: default;
+}
+
+.pillStatic:hover {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.pillIcon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.pillLabel {
+  min-width: 0;
+  max-width: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pillCaret {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* ── 顶栏弹出菜单（向上弹）────────────────────────────────────────── */
+
+.menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: 288px;
+  max-width: calc(100vw - 2rem);
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elev-2);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: var(--bg-hover);
+}
+
+.menuItemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuItemCheck {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.menuLabel {
+  padding: 6px 10px 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.menuNote {
+  padding: 6px 10px;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--text-muted);
+}
+
+.menuEmpty {
+  padding: 6px 10px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.menuSeparator {
+  height: 1px;
+  margin: var(--space-1) 6px;
+  background: var(--border-subtle);
+}
+
+.menuFooterAction {
+  composes: menuItem;
+  color: var(--text-secondary);
+}
+
+/* 分支列表滚动区（分支很多时保持菜单紧凑）。 */
+.menuScroll {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* 分支名等宽展示。 */
+.mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-xs);
+}
+
+/* 菜单项右侧的次要信息（脏文件数 / ↑↓）。 */
+.menuItemHint {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── worktree 开关（右侧 checkbox + 文案）────────────────────────── */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.toggleBox {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--border-strong, var(--border-default));
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+}
+
+.toggleBox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggleBox:checked::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--accent-fg, #fff);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 2%, 43% 62%);
+}
+
+.toggleBox:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.toggleBox:disabled {
+  cursor: default;
+}
+
+/* 当前会话已在隔离 worktree 中：只读指示态（不可取消勾选）。 */
+.toggle[data-static] {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.toggle[data-static]:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* 顶栏「+」添加工作区小按钮（28px 圆形，同胶囊高度）。 */
+.addButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

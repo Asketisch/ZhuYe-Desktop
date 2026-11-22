@@ -14,20 +14,23 @@
   min-width: 0;
 }
 
-/* 触发器本身：原生 select 伪装成无边框文字按钮 + 下拉箭头。 */
+/* 触发器本身：原生 select 伪装成 28px 圆角胶囊 + 下拉箭头（与思考
+   深度 pill 相邻，构成「模型 · 思考深度」观感）。 */
 .modelTrigger {
   appearance: none;
   -webkit-appearance: none;
+  height: 28px;
   max-width: 220px;
-  padding: 4px 18px 4px 8px;
+  padding: 0 18px 0 10px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
-  line-height: 1.4;
+  line-height: 1;
   text-overflow: ellipsis;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .modelTrigger:hover:not(:disabled) {

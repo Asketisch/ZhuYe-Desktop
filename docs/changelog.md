@@ -4,6 +4,26 @@
 
 ## 未发布
 
+- **输入卡重排为三层布局（顶栏上下文 + 权限/思考深度收进卡内）**：
+  输入卡改为双层嵌套 —— 外层 surface 承载顶栏胶囊行（工作区下拉 /
+  git 分支下拉 / 添加工作区，右簇为运行位置与 worktree 隔离开关），
+  内卡承载输入区 + 底部工具栏；原输入卡下方的上下文条
+  （`ComposerContextBar`）与控制行（`ComposerControls`）移除收编。
+  底栏左侧为「+」菜单（收编斜杠命令与 @ 文件引用显式入口，新增
+  空会话态提示词预设子菜单）+ 工作模式下拉（计划/询问/默认 +
+  审批策略四档分区单选；完全访问档触发器转警示色，切入弹确认）；
+  底栏右侧为用量圈 + 模型选择器 + 思考深度 pill（档位中文化）+
+  麦克风 + 发送。placeholder 三态（新会话引导 / 追问 / 排队）。
+- **分支切换与 worktree 会话隔离（新命令 ×2 + 草稿意图链路）**：
+  新增 `zhuye_git_branches` / `zhuye_git_checkout`（实现下沉
+  `app-core::git_branch`，分支名校验防选项注入；脏树走「提交后重试」
+  —— stage → checkpoint commit → checkout 重试）。worktree 隔离：
+  顶栏开关只登记草稿意图（`agentStore.worktreeIntent`，换会话/重置
+  即清空），勾选后分支胶囊原位替换为「起点分支选择器」（当前 HEAD
+  或本地分支）；建树发生在发送瞬间（`zhuye_create_worktree` →
+  `zhuye_set_workspace` → 首条提交携带 worktree 路径，与 Git 页
+  「在此开会话」同链路），意图一次性消费；斜杠命令首发被拦截；
+  非仓库不渲染开关，已在隔离 worktree 时转只读指示态。
 - **submodule 跟随 develop：v1.x 可靠性与治理能力批次（`467607c` →
   `5fd69a08`）**：跟踪分支自本轮起 main→develop（`.gitmodules` 同步
   改写）。上游 feat/zcode-gap-v1x 合入 9 提交 —— 流锚点恢复（SSE 中断

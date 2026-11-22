@@ -1,0 +1,153 @@
+/*
+ * PermissionPicker —— 底栏左侧的工作模式触发器 + 弹出菜单。
+ * 触发器为 28px 圆角小胶囊；完全访问档触发器转警示色。
+ */
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  min-width: 0;
+  padding: 0 8px 0 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.trigger:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.trigger[aria-expanded='true'] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 审批策略为完全访问：触发器转警示色（盾形告警图标 + 文字同色）。 */
+.trigger[data-full-access] {
+  color: var(--warning);
+}
+
+.trigger[data-full-access]:hover,
+.trigger[data-full-access][aria-expanded='true'] {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+}
+
+.caret {
+  color: var(--text-muted);
+}
+
+.trigger[data-full-access] .caret {
+  color: var(--warning);
+}
+
+/* goal 进行中的徽标（触发器右侧）。 */
+.goalBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* ── 菜单（向上弹）：模式区（图标+标题+描述两行）+ 审批策略单选组 ── */
+
+.menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: 256px;
+  max-width: calc(100vw - 2rem);
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elev-2);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.menuLabel {
+  padding: 6px 10px 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* 单选项：图标 + 标题 + 描述两行。 */
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--bg-hover);
+}
+
+.optionIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.optionText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.optionTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionDesc {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--text-muted);
+}
+
+.optionCheck {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--text-secondary);
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) 6px;
+  background: var(--border-subtle);
+}

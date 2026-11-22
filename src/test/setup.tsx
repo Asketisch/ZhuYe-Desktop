@@ -112,7 +112,7 @@ beforeEach(() => {
   // zhuye_set_permission_mode
   mockInvoke('zhuye_set_permission_mode', async () => {});
 
-  // ComposerControls / ModelsView —— 模型与 effort 读写默认 stub
+  // Models 页 / 输入卡控制件 —— 模型与 effort 读写默认 stub
   // （具体测试可自行 override 返回值）。
   mockInvoke('zhuye_get_config', async () => '');
   mockInvoke('zhuye_config_info', async () => ({ path: null, exists: false, analyticsEnabled: false, analyticsStatus: '', workspace: '', activeAgent: '', issues: [] }));
@@ -126,7 +126,12 @@ beforeEach(() => {
   mockInvoke('zhuye_set_model', async (_provider: string, _model: string) => 'stub/test');
   mockInvoke('zhuye_get_effort', async () => 'low');
   mockInvoke('zhuye_set_effort', async () => 'ok');
-  // ComposerControls 空会话态的提示词清单拉取(prompt_list 应答经事件通道
+  // 思考强度能力（能力未知 → 兜底展示全部档位，具体测试自行 override）。
+  mockInvoke('zhuye_effort_capability', async () => ({
+    known: false, supported: ['low', 'medium', 'high', 'max', 'ultra'],
+    requested: 'low', effective: 'low', adjusted: false, model: 'stub/test',
+  }));
+  // 空会话态「+」菜单的提示词清单拉取(prompt_list 应答经事件通道
   // 回流,stub 只需让 invoke 静默成功 —— 具体测试自行 override)。
   mockInvoke('zhuye_prompt_command', async () => 'sub-stub');
   mockInvoke('zhuye_get_effective_prompt', async () => ({
@@ -156,6 +161,14 @@ beforeEach(() => {
   }));
   mockInvoke('zhuye_remove_worktree', async () => undefined);
   mockInvoke('zhuye_prune_worktrees', async () => undefined);
+  // 输入卡顶栏（工作区 / 分支 / worktree 开关）默认 stub：空工作区、
+  // 非 repo、无远端会话；切换/选择动作 no-op，具体测试自行 override。
+  mockInvoke('zhuye_remote_sessions', async () => []);
+  mockInvoke('zhuye_list_workspaces', async () => []);
+  mockInvoke('zhuye_set_workspace', async () => undefined);
+  mockInvoke('zhuye_pick_workspace_folder', async () => null);
+  mockInvoke('zhuye_git_branches', async () => []);
+  mockInvoke('zhuye_git_checkout', async () => undefined);
   mockInvoke('zhuye_search_sessions', async () => []);
   mockInvoke('zhuye_list_skills', async () => []);
   mockInvoke('zhuye_search_skill_market', async () => []);

@@ -12,7 +12,10 @@ import {
 } from '@/logic/sessions/useSessions';
 import { useEnsureSession } from '@/logic/sessions/useEnsureSession';
 import { confirmDialog } from '@/logic/modals/confirm';
+import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
 import { zhuye_lookup_model_abilities } from '@/utils/commands/models';
+import { zhuye_create_worktree } from '@/utils/commands/git';
+import { zhuye_set_workspace } from '@/utils/commands/workspaces';
 import { useI18n } from '@/utils/i18n';
 import {
   useAgentStore,
@@ -50,6 +53,16 @@ interface UseComposerSubmissionOptions {
  */
 function steerPriority(items: UserInputItem[]): 'now' | 'attachment' {
   return items.every((item) => item.type === 'text') ? 'now' : 'attachment';
+}
+
+/** worktree 自动命名的本地时间戳段（如 `20261122-153045`）。 */
+function worktreeTimestamp(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+    `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  );
 }
 
 export function useComposerSubmission({
@@ -90,6 +103,57 @@ export function useComposerSubmission({
     [activeId, pushToast, rename, t, ensureSessionReady, currentWorkspace, qc, navigate],
   );
 
+  /**
+   * worktree 隔离意图的发送前解析。
+   *
+   * 意图挂在「新建草稿」上（agentStore.worktreeIntent，顶栏开关写入），
+   * 仅对**本条消息将创建新会话**的首发生效；已绑定会话的后续消息不做
+   * 任何事。意图激活时：
+   * - 首发是斜杠命令 → 拒绝发送（建树流程只面向普通对话首发）；
+   * - 其余 → 建隔离 worktree（起点分支取意图 ref）→ 切 workspace →
+   *   以 worktree 路径作本条提交的 workspace（会话归属由首条提交携带，
+   *   与 Git 页「在此开会话」同链路）；意图一次性消费。
+   * 建树/切 workspace 失败 → fail-closed：拦截发送并保留意图（用户
+   * 排障后可直接重发）。
+   *
+   * 返回 `'abort'` = 本次发送被拦截；否则为发送应携带的 workspace。
+   */
+  const resolveSendWorkspace = useCallback(
+    async (activeSessionId: string | null, value: string): Promise<string | null | 'abort'> => {
+      const intent = useAgentStore.getState().worktreeIntent;
+      if (!intent || activeSessionId) return currentWorkspace ?? null;
+      if (value.startsWith('/')) {
+        pushToast({ kind: 'error', message: t('composer.worktree.slashUnsupported') });
+        return 'abort';
+      }
+      const name = `zhuye-${worktreeTimestamp()}`;
+      try {
+        const wt = await zhuye_create_worktree(name, intent.ref ?? undefined);
+        // 切 workspace 后会话归属、侧栏过滤与 git 状态全部落到 worktree 上
+        // （命令内部有切换队列，与 bind 的 waitForWorkspaceSwitches 对齐）。
+        await zhuye_set_workspace(wt.path);
+        void qc.invalidateQueries({ queryKey: CURRENT_WORKSPACE_QUERY_KEY });
+        void qc.invalidateQueries({ queryKey: ['git-worktrees'] });
+        void qc.invalidateQueries({ queryKey: ['git-status'] });
+        useAgentStore.getState().setWorktreeIntent(null);
+        pushToast({
+          kind: 'info',
+          message: t('composer.worktree.created', { name: wt.branch || name }),
+        });
+        return wt.path;
+      } catch (error) {
+        pushToast({
+          kind: 'error',
+          message: t('composer.worktree.createFailed', {
+            msg: error instanceof Error ? error.message : String(error),
+          }),
+        });
+        return 'abort';
+      }
+    },
+    [currentWorkspace, pushToast, t, qc],
+  );
+
   const send = useCallback(async (options?: { reverseMode?: boolean }) => {
     const value = text.trim();
     if (!value && attachments.attachments.length === 0) return;
@@ -118,6 +182,9 @@ export function useComposerSubmission({
         }
         return;
       }
+      // worktree 隔离意图:仅对将创建新会话的首发解析;'abort' = 拦截。
+      const sendWorkspace = await resolveSendWorkspace(activeId, value);
+      if (sendWorkspace === 'abort') return;
       const parsed = dispatch(value, { activeSessionId: activeId, now: () => new Date() });
       if ('kind' in parsed) {
         if (parsed.kind === 'submit_with_submission' && parsed.submission) {
@@ -173,13 +240,13 @@ export function useComposerSubmission({
         } else if (running) {
           // Queue：留在前端队列（不发后端），turn 收尾后自动排空；
           // 队列消息在消息流底部可见、可编辑、可撤销。
-          useAgentStore.getState().enqueueMessage(items, currentWorkspace ?? null);
+          useAgentStore.getState().enqueueMessage(items, sendWorkspace);
         } else if (attachments.attachments.length > 0) {
-          await useAgentStore.getState().submitItems(items, currentWorkspace ?? null);
+          await useAgentStore.getState().submitItems(items, sendWorkspace);
           history.commit(value);
           void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
         } else {
-          await submit(value, currentWorkspace ?? null);
+          await submit(value, sendWorkspace);
           history.commit(value);
           // 刷新侧边栏会话列表:新会话的首条消息会派生标题,
           // 不等下一次手动刷新/缓存过期即可见。
@@ -198,7 +265,6 @@ export function useComposerSubmission({
   }, [
     activeId,
     attachments,
-    currentWorkspace,
     clearSubmittedDraft,
     ensureSessionReady,
     focus,
@@ -206,6 +272,7 @@ export function useComposerSubmission({
     onBangCommand,
     pushToast,
     qc,
+    resolveSendWorkspace,
     runSubmission,
     sendMode,
     setBusy,

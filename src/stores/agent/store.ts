@@ -86,6 +86,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   lastError: null,
   subscribed: false,
   loadedSessionId: null,
+  worktreeIntent: null,
   hydrateSession: (id, records) => {
     goalSnapshotGeneration += 1;
     const { turns, compactions } = turnsFromRollout(records);
@@ -106,6 +107,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
       ...(changedSession ? {
         pendingApprovals: [], pendingQuestions: [], pendingAskUser: [], pendingPlan: null,
         lastRouting: null,
+        // worktree 意图挂「新建草稿」上,换会话即作废(防误建树)。
+        worktreeIntent: null,
       } : {}),
       lastError: null,
       queuedMessages: [],
@@ -151,6 +154,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       plan: null,
       planDraft: null,
       queuedMessages: [],
+      worktreeIntent: null, // 回到首页 = 新草稿,隔离意图一并清空
       // 会话域的遥测/路由数据一并重置:回到首页(或新会话首事件到来前)
       // 不应展示上一个会话的 token/压缩/路由;planFailover 的
       // currentProvider 兜底也不应读到旧会话的 provider。
@@ -434,6 +438,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
     // 与 reducer 的 permission_mode_changed 同款归一化,切换器恒三态。
     set({ permissionMode: normalizePermissionMode(mode as PermissionMode) });
   },
+  setWorktreeIntent: (intent) => set({ worktreeIntent: intent }),
 
   answerQuestion: async (id, answers) => {
     await zhuye_ask_user_question_response(id, answers);
@@ -459,6 +464,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       turns: [],
       session: null,
       loadedSessionId: null,
+      worktreeIntent: null, // 草稿级意图全量复位,残留会误走建树链路
       permissionMode: 'auto',
       pendingApprovals: [],
       pendingQuestions: [],
