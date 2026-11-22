@@ -52,7 +52,7 @@ const unassigned: WorkspaceSessionGroup = {
 
 beforeEach(() => {
   localStorage.clear();
-  useShellUi.setState({ unread: {}, moreMenuOpen: false });
+  useShellUi.setState({ unread: {} });
 });
 
 describe('Sidebar (harness)', () => {

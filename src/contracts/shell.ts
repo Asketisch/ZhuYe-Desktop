@@ -26,12 +26,6 @@ export interface SessionBadge {
   since?: number | null;
 }
 
-/** 「更多」导航菜单项。 */
-export interface HarnessNavItem {
-  label: string;
-  path: string;
-}
-
 /**
  * harness 壳层数据包：ShellBinding 组装，视图层只负责渲染。
  * 分组传出（titlebar / sidebar / nav / dock / inbox）而不是平铺上百个 props。
@@ -45,16 +39,10 @@ export interface HarnessData {
   pathname: string;
   /** 标题条主标题（工作区名 / 路径尾段）。 */
   workspaceLabel: string;
-  /** 侧栏「更多」菜单的页面清单。 */
-  morePages: HarnessNavItem[];
   /** 路由跳转。 */
   navigate: (to: string) => void;
   /** 打开设置弹窗。 */
   openSettings: () => void;
-  /** 侧栏「更多」菜单（状态在 shellUi，外部关闭监听在 ShellBinding）。 */
-  moreMenuOpen: boolean;
-  onToggleMoreMenu: () => void;
-  onCloseMoreMenu: () => void;
   /** 每会话徽标（运行态 / 待办 / 未读）。 */
   badges: Record<string, SessionBadge>;
   /** 待处理会话数（任务中心角标）。 */

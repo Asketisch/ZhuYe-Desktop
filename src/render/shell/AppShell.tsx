@@ -6,7 +6,7 @@
  * 主区内容由 TanStack Router 的 <Outlet/> 注入；harness.data.viewMode 仅
  * 用于样式钩子（data-viewmode）。全部状态与监听由 ShellBinding 持有。
  */
-import { AlarmClock, ChevronRight, Circle, Ellipsis, Plus } from 'lucide-react';
+import { AlarmClock, ChevronRight, Circle, Plus, Settings } from 'lucide-react';
 import type { ShellViewProps } from '@/contracts/shell';
 import { Icon } from '../design-system/Icon';
 
@@ -18,7 +18,6 @@ export function AppShell({
     ConfirmDialogHost, ViewErrorBoundary, DockPanel, DockResizer, TerminalDock, InboxPanel, SettingsHost } = slots;
   const { data } = harness;
   const { t } = data;
-  const { moreMenuOpen } = data;
 
   const appCls = [
     'app',
@@ -86,50 +85,13 @@ export function AppShell({
               icon: <Icon icon={Circle} size={15} />,
               testid: 'harness-nav-market',
             })}
-            {/* 更多：其余路由页 + 设置（开关状态在 shellUi，外部关闭在 ShellBinding） */}
-            <div style={{ position: 'relative' }} data-more-menu-anchor="">
-              {navItem(t('harness.nav.more'), {
-                onClick: () => data.onToggleMoreMenu(),
-                icon: <Icon icon={Ellipsis} size={15} />,
-                testid: 'harness-nav-more',
-              })}
-              {moreMenuOpen && (
-                <div
-                  className="sess-menu"
-                  style={{ left: 8, right: 'auto', minWidth: 200, maxHeight: '50vh', overflowY: 'auto' }}
-                  data-testid="harness-more-menu"
-                >
-                  {data.morePages.map((page) => (
-                    <button
-                      key={page.path}
-                      type="button"
-                      onClick={() => { data.onCloseMoreMenu(); data.navigate(page.path); }}
-                    >
-                      {page.label}
-                    </button>
-                  ))}
-                  <div className="sep" />
-                  <button
-                    type="button"
-                    onClick={() => { data.onCloseMoreMenu(); data.openSettings(); }}
-                    data-testid="harness-more-settings"
-                  >
-                    {t('harness.title.settings')}
-                  </button>
-                </div>
-              )}
-            </div>
           </nav>
 
           {/* 会话滚动区（旧渲染契约数据 + harness 徽标） */}
           <Sidebar {...sidebar} />
 
+          {/* 底部：仅设置入口（更多菜单已移除，旧路由页入口待重新决策）。 */}
           <div className="sb-foot">
-            <span className="avatar">Z</span>
-            <span className="who">
-              <b>ZhuYe</b>
-              <span className="mono">{data.workspaceLabel}</span>
-            </span>
             <button
               type="button"
               className="tb-btn"
@@ -138,7 +100,7 @@ export function AppShell({
               onClick={data.openSettings}
               data-testid="harness-settings"
             >
-              <Icon icon={Ellipsis} size={15} />
+              <Icon icon={Settings} size={15} />
             </button>
           </div>
         </aside>

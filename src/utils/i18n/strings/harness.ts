@@ -15,8 +15,6 @@ const harness: Record<string, StringEntry> = {
   'harness.nav.market':          { en: 'Plugins',                       'zh-CN': '插件' },
   'harness.nav.lanes':           { en: 'Subagents',                     'zh-CN': '子代理' },
   'harness.nav.tasks':           { en: 'Automation',                    'zh-CN': '自动化任务' },
-  'harness.nav.more':            { en: 'More',                          'zh-CN': '更多' },
-  'harness.nav.moreAria':        { en: 'More pages',                    'zh-CN': '更多页面' },
   'harness.sb.pinned':           { en: 'Pinned',                        'zh-CN': '置顶' },
   'harness.sb.workspaces':       { en: 'Workspaces',                    'zh-CN': '工作区' },
   'harness.sb.sessions':         { en: 'Sessions',                      'zh-CN': '会话' },

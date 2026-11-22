@@ -70,8 +70,6 @@ interface ShellUiState extends ShellUiPersist {
   settingsOpen: boolean;
   /** 命令面板（⌘K）开关 —— 标题条按钮与快捷键共用同一状态。 */
   paletteOpen: boolean;
-  /** 侧栏「更多」菜单开关。 */
-  moreMenuOpen: boolean;
   /** 拖拽文件入窗的落区提示。 */
   dropHint: boolean;
   /** 未读产出（后台会话结束但未被打开过），键为会话 id。 */
@@ -100,7 +98,6 @@ interface ShellUiState extends ShellUiPersist {
   setSettingsOpen: (open: boolean) => void;
   setPaletteOpen: (open: boolean) => void;
   togglePalette: () => void;
-  setMoreMenuOpen: (open: boolean) => void;
   setSemantic: (mode: 'on' | 'off') => void;
   toggleSemantic: () => void;
   setDropHint: (on: boolean) => void;
@@ -121,7 +118,6 @@ export const useShellUi = create<ShellUiState>((set, get) => ({
   inspectorTab: 'overview',
   settingsOpen: false,
   paletteOpen: false,
-  moreMenuOpen: false,
   dropHint: false,
   unread: {},
 
@@ -173,7 +169,6 @@ export const useShellUi = create<ShellUiState>((set, get) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setPaletteOpen: (open) => set({ paletteOpen: open }),
   togglePalette: () => set((s) => ({ paletteOpen: !s.paletteOpen })),
-  setMoreMenuOpen: (open) => set({ moreMenuOpen: open }),
   setSemantic: (mode) => set(() => {
     const next = { ...get(), semantic: mode };
     savePersisted(next);

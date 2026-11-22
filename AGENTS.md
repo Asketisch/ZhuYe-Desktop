@@ -96,7 +96,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 
 | 层 | 位置 | 职责 |
 |---|---|---|
-| 前端 | `src/` | React 19 视图切片 + Zustand 状态 + IPC 包装（组合根 `main.tsx`、路由表 `router.tsx`）。v3 起壳层为 harness 设计（`render/styles/harness.css` + `stores/shellUi.ts`）：标题条 / 侧栏 / 右 dock（检查器·浏览器·文件·子代理·用量五档）/ 底部 PTY 终端面板 / 任务中心 / 命令面板 / 设置弹窗；旧路由页全部保留（侧栏「更多」菜单可达） |
+| 前端 | `src/` | React 19 视图切片 + Zustand 状态 + IPC 包装（组合根 `main.tsx`、路由表 `router.tsx`）。v3 起壳层为 harness 设计（`render/styles/harness.css` + `stores/shellUi.ts`）：标题条 / 侧栏 / 右 dock（检查器·浏览器·文件·子代理·用量五档）/ 底部 PTY 终端面板 / 任务中心 / 命令面板 / 设置弹窗；旧路由页全部保留（侧栏「更多」菜单已移除，入口待重新决策） |
 | 命令层 | `src-tauri/` | Tauri 2 适配层：命令表（`commands/<domain>.rs`）+ AgentThread 宿主（`state.rs` + `state/` 子模块）+ OS 集成，不承载领域逻辑 |
 | 领域服务 | `app-core/` | UI 无关领域服务层，供命令层复用；渲染状态由前端 TS 负责 |
 | 引擎 | `zhuye-agent/` | submodule 只读镜像：烛夜 agent 引擎 zhuye-* crate（协议 / 能力 / 资源 / 编排 / 集成 / 运行时） |

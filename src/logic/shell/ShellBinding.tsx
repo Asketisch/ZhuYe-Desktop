@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ComponentType, ReactNode } from 'react';
-import type { ShellSlots, ShellViewProps, ShellViewMode, HarnessNavItem } from '@/contracts/shell';
+import type { ShellSlots, ShellViewProps, ShellViewMode } from '@/contracts/shell';
 import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
 import { unpin, useSessionPins } from '@/logic/sessions/pins';
 import { useAgentStore as useZAgentStore } from '@/stores/agentStore';
@@ -280,73 +280,20 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     // markRead 引用稳定（zustand action）。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
-  // 「更多」菜单：dock 五档与侧栏固定项之外的其余路由页。
+  // 「更多」菜单已移除（旧路由页入口待重新决策）；路由跳转仍由
+  // navigate 供侧栏固定项使用。
   const harnessNavigate = useCallback((to: string) => { void router.navigate({ to }); }, [router]);
-  const morePages = useMemo<HarnessNavItem[]>(() => [
-    { label: t('threads.title'), path: '/sessions' },
-    { label: t('terminal.title'), path: '/terminal' },
-    { label: t('files.title'), path: '/files' },
-    { label: t('search.title'), path: '/search' },
-    { label: t('git.title'), path: '/git' },
-    { label: t('pulls.title'), path: '/pulls' },
-    { label: t('models.title'), path: '/models' },
-    { label: t('skills.title'), path: '/skills' },
-    { label: t('workspaces.title'), path: '/workspaces' },
-    { label: t('prompts.title'), path: '/prompts' },
-    { label: t('agents.title'), path: '/agents' },
-    { label: t('squad.title'), path: '/squad' },
-    { label: t('sideChannel.title'), path: '/side-channels' },
-    { label: t('tasks.title'), path: '/tasks' },
-    { label: t('harness.lanes.title'), path: '/lanes' },
-    { label: t('schedule.title'), path: '/schedule' },
-    { label: t('autopilot.title'), path: '/autopilot' },
-    { label: t('remote.title'), path: '/remote' },
-    { label: t('kms.title'), path: '/kms' },
-    { label: t('memory.title'), path: '/memory' },
-    { label: t('media.title'), path: '/media' },
-    { label: t('traces.title'), path: '/traces' },
-    { label: t('notifications.title'), path: '/notifications' },
-    { label: t('collaboration.title'), path: '/collaboration' },
-    { label: t('import.title'), path: '/import' },
-    { label: t('apps.title'), path: '/apps' },
-    { label: t('mobile.title'), path: '/mobile' },
-    { label: t('dictation.title'), path: '/dictation' },
-    { label: t('preview.title'), path: '/preview' },
-    { label: t('debug.title'), path: '/debug' },
-    { label: t('about.title'), path: '/about' },
-  ], [t]);
   const harnessData = useMemo(() => ({
     t,
     viewMode,
     workspaceLabel,
-    morePages,
     navigate: harnessNavigate,
     pathname,
     openSettings: () => ui.setSettingsOpen(true),
-    moreMenuOpen: ui.moreMenuOpen,
-    onToggleMoreMenu: () => ui.setMoreMenuOpen(!ui.moreMenuOpen),
-    onCloseMoreMenu: () => ui.setMoreMenuOpen(false),
     badges,
     pendingCount,
     runningCount,
-  }), [t, viewMode, workspaceLabel, pathname, morePages, harnessNavigate, ui.setSettingsOpen, ui.moreMenuOpen,
-    ui.setMoreMenuOpen, badges, pendingCount, runningCount]);
-
-  // 「更多」菜单的外部点击 / Esc 关闭。
-  useEffect(() => {
-    if (!ui.moreMenuOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if ((e.target as Element | null)?.closest?.('[data-more-menu-anchor]')) return;
-      ui.setMoreMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') ui.setMoreMenuOpen(false); };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [ui.moreMenuOpen, ui.setMoreMenuOpen]);
+  }), [t, viewMode, workspaceLabel, pathname, harnessNavigate, ui.setSettingsOpen, badges, pendingCount, runningCount]);
 
   // harness 快捷键（⌘\ / ⌘` / dock 档位 / 任务中心 / 单色 / 主题 …）。
   useHarnessShortcuts({

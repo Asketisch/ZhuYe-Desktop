@@ -62,7 +62,7 @@ describe('AppShell collapse behavior', () => {
     useShellUi.setState({
       rail: false, dockOpen: false, dockMode: 'inspector', dockWide: false,
       termOpen: false, semantic: 'on', inboxOpen: false, settingsOpen: false,
-      paletteOpen: false, moreMenuOpen: false, unread: {},
+      paletteOpen: false, unread: {},
     });
   });
   afterEach(() => { cleanup(); unpin('clear-active'); });

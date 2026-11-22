@@ -25,7 +25,7 @@
 
 - 常规依赖方向 `features/ → stores/ → utils/`，`utils/bridge.ts` 是最底层。
 - `router.tsx` 是唯一集中 import 全部视图的文件：`rootRoute`（AppShell）+ 41 个 `new Route(` 经 `rootRoute.addChildren([...])` 组树（v3 新增 `/market`、`/lanes`）；`AppProviders`（I18n + React Query + 事件订阅建立）也定义在此，文件尾部保留 `ModalStack` 向后兼容 re-export。
-- 壳层组装链：`features/shell/AppShell.tsx` 组 slots（含 v3 新增 DockPanel / TerminalDock / InboxPanel / SettingsHost）→ `ShellBinding` 供数（含 `harness` 数据包：徽标 / 更多菜单 / dock / 终端 / 单色）→ `render/shell/AppShell.tsx` 纯展示。壳层快捷键在 `logic/shell/useHarnessShortcuts`。
+- 壳层组装链：`features/shell/AppShell.tsx` 组 slots（含 v3 新增 DockPanel / TerminalDock / InboxPanel / SettingsHost）→ `ShellBinding` 供数（含 `harness` 数据包：徽标 / dock / 终端 / 单色）→ `render/shell/AppShell.tsx` 纯展示。壳层快捷键在 `logic/shell/useHarnessShortcuts`。
 
 ## 跨层边界
 
