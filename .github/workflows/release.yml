@@ -94,6 +94,17 @@ jobs:
       - name: Install Playwright chromium
         run: pnpm exec playwright-core install --with-deps chromium
 
+      # GATE_STRICT 门禁把 Rust #[ignore] 测试计为跳过 → 判失败。上游
+      # browser_backend 的 chrome_streams_frames_after_navigation(真实
+      # Chrome 帧流审计)在无 Chrome 环境被 #[ignore] —— 把 playwright
+      # chromium 链入 PATH,让 discover_executable 命中并真实执行。
+      - name: Link Playwright chromium into PATH
+        run: |
+          chrome_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' | head -1)"
+          test -n "$chrome_bin"
+          sudo ln -sf "$chrome_bin" /usr/local/bin/chromium
+          chromium --version
+
       # L5 真窗口冒烟要 tauri-driver(Linux 直连 webkit2gtk)。
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
