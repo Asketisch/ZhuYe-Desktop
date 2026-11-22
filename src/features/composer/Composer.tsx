@@ -7,6 +7,7 @@ import { MentionPicker } from './MentionPicker';
 import { ContextUsage } from './ContextUsage';
 import { ComposerTopBar } from './ComposerTopBar';
 import { PermissionPicker } from './PermissionPicker';
+import { PromptPicker } from './PromptPicker';
 import { EffortPicker } from './EffortPicker';
 import { BangRunsPanel } from './BangRunsPanel';
 import { ComposerPlusMenu } from './ComposerPlusMenu';
@@ -19,6 +20,7 @@ const slots = {
   ContextUsage,
   ComposerTopBar,
   PermissionPicker,
+  PromptPicker,
   EffortPicker,
   BangRunsPanel,
   ComposerPlusMenu,

@@ -17,6 +17,8 @@ export interface ComposerSlots {
   ComposerTopBar: ComponentType;
   /** 底栏左侧的工作模式 + 审批策略下拉（自取数据）。 */
   PermissionPicker: ComponentType;
+  /** 底栏左侧的提示词预设 pill（权限右边，仅空会话显示；自取数据）。 */
+  PromptPicker: ComponentType;
   /** 底栏右侧的思考深度 pill（自取数据）。 */
   EffortPicker: ComponentType;
   /** 底栏左侧的「+」入口菜单（v3 壳层风格）。 */

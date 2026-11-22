@@ -18,7 +18,7 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
   onRemoveAttachment, onRetryAttachment, onDismissBang, onKillBang, onSendModeChange, onInterrupt,
   onSend, onRunSlash, onFillSlash, onInsertText, dictationSupported, dictationListening,
   onToggleDictation, slots }: ComposerViewProps) {
-  const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerTopBar, PermissionPicker, EffortPicker, ComposerPlusMenu, ModelPicker } = slots;
+  const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerTopBar, PermissionPicker, PromptPicker, EffortPicker, ComposerPlusMenu, ModelPicker } = slots;
   const SendIcon = isTurnRunning ? (sendMode === 'steer' ? CornerDownRight : ListPlus) : ArrowUp;
   return (
     <div className={s.wrap}>
@@ -112,6 +112,7 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
                 onMention={onMention}
               />
               <PermissionPicker />
+              <PromptPicker />
             </div>
             <div className={s.bottomRight}>
               <ContextUsage />

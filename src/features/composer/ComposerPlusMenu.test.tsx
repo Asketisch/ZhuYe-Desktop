@@ -16,7 +16,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
-import { useAgentStore } from '@/stores/agentStore';
 import { ComposerPlusMenu } from './ComposerPlusMenu';
 
 function renderMenu(props: Partial<React.ComponentProps<typeof ComposerPlusMenu>> = {}) {
@@ -43,7 +42,6 @@ beforeEach(() => {
   resetMockInvoke();
   localStorage.clear();
   localStorage.setItem('zhuye.locale', 'zh-CN');
-  useAgentStore.setState({ turns: [], loadedSessionId: null, prompt: null });
   mockInvoke('zhuye_list_skills', async () => [
     { name: 'demo-skill', description: '示例技能', path: '/s', tools: [], triggers: [] },
   ]);
@@ -115,70 +113,5 @@ describe('ComposerPlusMenu 基础动作', () => {
     await waitFor(() =>
       expect(screen.getByTestId('composer-plus-plugins-list').textContent).toContain('demo:hello'),
     );
-  });
-});
-
-describe('ComposerPlusMenu 提示词预设（仅空会话）', () => {
-  it('空会话(turns 为空)显示入口,子菜单含跟随默认与智能匹配', async () => {
-    renderMenu();
-    fireEvent.click(screen.getByTestId('composer-plus'));
-    fireEvent.click(screen.getByTestId('composer-plus-prompts'));
-    const list = screen.getByTestId('composer-plus-prompts-list');
-    expect(list.textContent).toContain('跟随默认');
-    expect(list.textContent).toContain('智能匹配模型');
-  });
-
-  it('available 层回流后作为手动项出现(不含 default 层)', async () => {
-    useAgentStore.setState({ prompt: {
-      available: ['default', 'gpt', 'claude', 'qwen'], currentSpec: 'openai/gpt-x',
-      activeLayers: [], profile: 'default', switchedAt: null,
-    } });
-    renderMenu();
-    fireEvent.click(screen.getByTestId('composer-plus'));
-    fireEvent.click(screen.getByTestId('composer-plus-prompts'));
-    await waitFor(() => {
-      const text = screen.getByTestId('composer-plus-prompts-list').textContent;
-      expect(text).toContain('gpt');
-      expect(text).toContain('claude');
-      expect(text).toContain('qwen');
-    });
-  });
-
-  it('prompt 状态未回流(null)时挂载触发一次 promptList 拉取', async () => {
-    const list = vi.fn(async () => {});
-    useAgentStore.setState({ promptList: list as unknown as () => Promise<void> });
-    renderMenu();
-    await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
-  });
-
-  it('会话有内容(turns 非空)后入口隐藏 —— 缓存命中锁定语义', () => {
-    useAgentStore.setState({ turns: [{ id: 't1' } as never] });
-    renderMenu();
-    fireEvent.click(screen.getByTestId('composer-plus'));
-    expect(screen.queryByTestId('composer-plus-prompts')).toBeNull();
-  });
-
-  it('选择 manual 层写入 per-session localStorage;null 会话走 new 键', async () => {
-    useAgentStore.setState({ prompt: {
-      available: ['default', 'gpt'], currentSpec: 'openai/gpt-x',
-      activeLayers: [], profile: 'default', switchedAt: null,
-    } });
-    renderMenu();
-    fireEvent.click(screen.getByTestId('composer-plus'));
-    fireEvent.click(screen.getByTestId('composer-plus-prompts'));
-    // 子菜单里点 gpt 层项（button 文本即层名）。
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'gpt' }));
-    expect(localStorage.getItem('zhuye.promptSelection.new'))
-      .toBe(JSON.stringify({ mode: 'manual', profile: 'gpt' }));
-  });
-
-  it('bind 恢复的会话选择经 sessionId 回显(非 null 会话读正式键)', () => {
-    localStorage.setItem('zhuye.promptSelection.sess-9', JSON.stringify({ mode: 'auto' }));
-    useAgentStore.setState({ loadedSessionId: 'sess-9' });
-    renderMenu();
-    fireEvent.click(screen.getByTestId('composer-plus'));
-    fireEvent.click(screen.getByTestId('composer-plus-prompts'));
-    const auto = screen.getByRole('menuitemradio', { name: '智能匹配模型' });
-    expect(auto.getAttribute('aria-checked')).toBeDefined();
   });
 });

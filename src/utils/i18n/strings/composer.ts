@@ -119,6 +119,7 @@ const composer: Record<string, StringEntry> = {
   'composer.controls.effort.disabled':      { en: 'This model does not support reasoning effort',  'zh-CN': '该模型不支持思考强度' },
   'composer.controls.effort.unknownHint':   { en: 'Model capability is unknown — the selected level is sent as-is and downgraded automatically if the server rejects it.', 'zh-CN': '该模型的能力未知 —— 按所选强度发送,被服务端拒绝时自动降级。' },
   'composer.controls.prompt':                { en: 'Prompt',                                        'zh-CN': '提示词' },
+  'composer.controls.promptAria':            { en: 'System prompt preset',                          'zh-CN': '系统提示词预设' },
   'composer.controls.prompt.follow':         { en: 'Follow default',                                'zh-CN': '跟随默认' },
   'composer.controls.prompt.auto':           { en: 'Auto match model',                              'zh-CN': '智能匹配模型' },
   'composer.controls.prompt.autoHint':       { en: 'Pick an evaluated preset for the model; falls back to the default when none passed evaluation.', 'zh-CN': '按当前模型选用已通过评测的提示词方案，未通过评测时回落默认。' },
