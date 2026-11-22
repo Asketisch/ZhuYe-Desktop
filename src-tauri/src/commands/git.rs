@@ -324,6 +324,38 @@ pub async fn zhuye_git_commit(message: String) -> CommandResult<String> {
     Ok(short)
 }
 
+// ── 分支列表 / 切换 ────────────────────────────────────────────────────
+//
+// 输入卡顶栏分支胶囊的操作面。实现（分支名校验 / for-each-ref 解析 /
+// checkout）下沉 `app-core::git_branch`，本层只做 workspace 取径 +
+// 薄封装；脏树「提交后重试」的编排在前端完成。
+
+/// 分支域类型 —— 实现下沉 `app-core::git_branch`。
+pub use zhuye_app_core::git_branch::BranchInfo;
+
+/// 列出仓库的本地分支（`current` 标记当前检出；非 git 仓库 → Err）。
+#[tauri::command]
+pub async fn zhuye_git_branches() -> CommandResult<Vec<BranchInfo>> {
+    let repo = git_in_workspace().ok_or_else(|| CommandError {
+        msg: "no workspace".into(),
+    })?;
+    zhuye_app_core::git_branch::branch_list(&repo).map_err(|e| CommandError {
+        msg: format!("{e}"),
+    })
+}
+
+/// 切换当前检出的分支。脏树是否阻断由 git 自身决定（冲突时拒绝并报
+/// stderr）；分支名经 app-core 校验（防选项注入）。
+#[tauri::command]
+pub async fn zhuye_git_checkout(branch: String) -> CommandResult<()> {
+    let repo = git_in_workspace().ok_or_else(|| CommandError {
+        msg: "no workspace".into(),
+    })?;
+    zhuye_app_core::git_branch::branch_checkout(&repo, &branch).map_err(|e| CommandError {
+        msg: format!("{e}"),
+    })
+}
+
 /// 列出打开中的 GitHub PR（`gh pr list --json ...`）。gh 未安装 / 非 repo
 /// / 无 PR 时返回空列表 + 说明（前端可展示提示，不打断）。
 #[derive(Debug, Serialize)]

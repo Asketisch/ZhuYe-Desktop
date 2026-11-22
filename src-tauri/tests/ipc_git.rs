@@ -162,3 +162,66 @@ fn worktree_rejects_invalid_name() {
         assert!(!err.is_null(), "name {bad:?} 必须被拒绝");
     }
 }
+
+// ── 分支列表 / 切换（输入卡顶栏分支胶囊的操作面）────────────────────────
+
+#[test]
+fn branch_list_and_checkout_roundtrip() {
+    let _guard = common::workspace_lock();
+    let repo = init_repo("branch-roundtrip");
+    enter(&repo.display().to_string());
+
+    // 初始只有一个分支且为 current（init_repo 的默认分支名随 git 配置）。
+    let status: Value = common::invoke_ok("zhuye_git_status", json!({}));
+    let initial = status["branch"].as_str().unwrap().to_string();
+    let branches: Value = common::invoke_ok("zhuye_git_branches", json!({}));
+    let items = branches.as_array().unwrap();
+    assert_eq!(items.len(), 1, "初始只有默认分支");
+    assert_eq!(items[0]["name"], json!(initial));
+    assert_eq!(items[0]["current"], true);
+
+    // 新建分支后列表可见、current 仍落在原分支。
+    StdCommand::new("git")
+        .args(["branch", "feature"])
+        .current_dir(&repo)
+        .output()
+        .unwrap();
+    let branches: Value = common::invoke_ok("zhuye_git_branches", json!({}));
+    let items = branches.as_array().unwrap();
+    assert_eq!(items.len(), 2);
+    let feature = items
+        .iter()
+        .find(|b| b["name"] == json!("feature"))
+        .unwrap();
+    assert_eq!(feature["current"], false);
+
+    // 切换生效：status 回读的 branch 跟着变，current 标记跟随。
+    common::invoke_ok("zhuye_git_checkout", json!({ "branch": "feature" }));
+    let status: Value = common::invoke_ok("zhuye_git_status", json!({}));
+    assert_eq!(status["branch"], "feature");
+    let branches: Value = common::invoke_ok("zhuye_git_branches", json!({}));
+    let feature = branches
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["name"] == json!("feature"))
+        .unwrap();
+    assert_eq!(feature["current"], true);
+
+    // 不存在的分支 → 结构化错误。
+    let err = common::invoke_err("zhuye_git_checkout", json!({ "branch": "no-such" }));
+    assert!(!err.is_null());
+}
+
+#[test]
+fn branch_checkout_rejects_invalid_name() {
+    let _guard = common::workspace_lock();
+    let repo = init_repo("branch-badname");
+    enter(&repo.display().to_string());
+
+    // `-` 开头会被 git 解析为选项（防注入），空白/空名非法。
+    for bad in ["--force", "-b", "", "a b"] {
+        let err = common::invoke_err("zhuye_git_checkout", json!({ "branch": bad }));
+        assert!(!err.is_null(), "branch {bad:?} 必须被拒绝");
+    }
+}

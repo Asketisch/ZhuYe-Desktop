@@ -24,6 +24,7 @@ pub mod activity;
 pub mod config_health;
 pub mod discussion;
 pub(crate) mod discussion_events;
+pub mod git_branch;
 pub mod media;
 pub mod pipeline;
 pub mod prompt_env;

@@ -233,6 +233,10 @@
     "zhuye_git_commit": {
       "message": "capability probe"
     },
+    "zhuye_git_branches": {},
+    "zhuye_git_checkout": {
+      "branch": "main"
+    },
     "zhuye_git_diff": {
       "staged": true
     },
@@ -709,16 +713,6 @@
       "source": "anthropics/skills/frontend-design"
     },
     "zhuye_refresh_skill_market_index": {},
-    "zhuye_import_discover": {
-      "kind": "claude_code"
-    },
-    "zhuye_import_sessions": {
-      "kind": "claude_code",
-      "force": false,
-      "dryRun": true,
-      "includeThinking": false,
-      "keepInjected": false
-    },
     "zhuye_pty_start": {
       "id": "contract-pty",
       "cols": 80,
