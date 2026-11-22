@@ -97,6 +97,13 @@
   outline: none;
 }
 
+/* 全局 :focus-visible 会给文本输入元素套 ring（base.css）—— 输入区
+   不需要：聚焦反馈由内卡底色提亮承担，这里压掉描圈。 */
+.textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .textarea::placeholder {
   color: color-mix(in srgb, var(--text-primary) 40%, transparent);
 }
