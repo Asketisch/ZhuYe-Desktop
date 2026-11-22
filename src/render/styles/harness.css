@@ -1792,8 +1792,22 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 /* ============================================================
    侧栏收起形态（rail）
    ============================================================ */
-.app.rail .body { grid-template-columns: 52px minmax(0, 1fr); }
+/* rail 收起是用户对侧栏的明确意图：52px 列宽必须压过 dock 档位组合
+   （.app.dock-agents.dock-wide.no-inspector .body 等特异性更高，
+   单写两条 rail 会被顶回 258px —— 标签隐藏但栏宽不变即由此来）。
+   逐组合对齐 dock 段的列语义，只把第一列换成 52px。 */
+.app.rail .body { grid-template-columns: 52px minmax(0, 1fr) var(--dock-user-width, auto); }
 .app.rail.no-inspector .body { grid-template-columns: 52px minmax(0, 1fr) 0; }
+.app.rail.dock-wide .body { grid-template-columns: 52px minmax(260px, 1fr) var(--dock-user-width, minmax(520px, 1.6fr)); }
+.app.rail.dock-wide.no-inspector .body { grid-template-columns: 52px minmax(260px, 1fr) 0; }
+.app.rail.dock-files .body,
+.app.rail.dock-agents .body { grid-template-columns: 52px minmax(0, 1fr) var(--dock-user-width, 340px); }
+.app.rail.dock-files.no-inspector .body,
+.app.rail.dock-agents.no-inspector .body { grid-template-columns: 52px minmax(0, 1fr) 0; }
+.app.rail.dock-files.dock-wide .body,
+.app.rail.dock-agents.dock-wide .body { grid-template-columns: 52px minmax(260px, 1fr) var(--dock-user-width, minmax(520px, 1.6fr)); }
+.app.rail.dock-files.dock-wide.no-inspector .body,
+.app.rail.dock-agents.dock-wide.no-inspector .body { grid-template-columns: 52px minmax(260px, 1fr) 0; }
 .app.rail .lbl,
 .app.rail .kbd,
 .app.rail .brand-name,
@@ -2102,8 +2116,14 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   .app.dock-wide .body { grid-template-columns: 210px minmax(0, 1fr); }
   .app.no-inspector .body,
   .app.dock-wide.no-inspector .body { grid-template-columns: 210px minmax(0, 1fr) 0; }
-  .app.rail .body { grid-template-columns: 52px minmax(0, 1fr); }
-  .app.rail.no-inspector .body { grid-template-columns: 52px minmax(0, 1fr) 0; }
+  .app.rail .body,
+  .app.rail.dock-wide .body,
+  .app.rail.dock-files .body,
+  .app.rail.dock-agents .body { grid-template-columns: 52px minmax(0, 1fr); }
+  .app.rail.no-inspector .body,
+  .app.rail.dock-wide.no-inspector .body,
+  .app.rail.dock-files.no-inspector .body,
+  .app.rail.dock-agents.no-inspector .body { grid-template-columns: 52px minmax(0, 1fr) 0; }
   .col,
   .composer-col { padding-left: 18px; padding-right: 18px; }
 }
