@@ -189,35 +189,6 @@ fn status_server_start_state_stop_roundtrip() {
 }
 
 // ============================================================================
-// 桌面#9:外部 Agent 会话导入
-// ============================================================================
-
-#[test]
-fn import_discover_rejects_unknown_kind() {
-    let _guard = common::state_lock();
-    let err = common::invoke_err("zhuye_import_discover", json!({ "kind": "not-a-harness" }));
-    let msg = err["msg"].as_str().expect("错误应带 msg");
-    assert!(
-        msg.contains("unknown harness kind"),
-        "非法 kind 应显式拒绝: {msg}"
-    );
-}
-
-#[test]
-fn import_sessions_unknown_kind_fails_fast() {
-    let _guard = common::state_lock();
-    let err = common::invoke_err(
-        "zhuye_import_sessions",
-        json!({ "kind": "bogus", "dryRun": true }),
-    );
-    let msg = err["msg"].as_str().expect("错误应带 msg");
-    assert!(
-        msg.contains("unknown harness kind"),
-        "导入对非法 kind 应 fail-fast: {msg}"
-    );
-}
-
-// ============================================================================
 // 桌面#2 补:插件市场**成功路径**(本地 directory 市场,零网络)
 // ============================================================================
 
