@@ -523,8 +523,16 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     await composer.sendKeys('/compact');
     await composer.sendKeys(Key.ESCAPE, Key.ENTER);
-    const toast = await driver!.wait(until.elementLocated(By.css('[role="status"][data-kind="info"]')), 30_000);
-    expect(await toast.getText()).toMatch(/Compact requested|已请求压缩上下文/);
+    // 提示词预设选择入口上线后,相邻用例的「提示词已刷新」等 toast 可能
+    // 仍堆叠在 DOM 里 —— 不能假设首个 info toast 就是压缩确认,逐条扫描
+    // 直到出现匹配压缩文案的那条。
+    await driver!.wait(async () => {
+      const toasts = await driver!.findElements(By.css('[role="status"][data-kind="info"]'));
+      for (const t of toasts) {
+        if (/Compact requested|已请求压缩上下文/.test(await t.getText())) return true;
+      }
+      return false;
+    }, 30_000, '未出现压缩请求确认 toast');
   }, 100_000);
 
   it('sends single, multiple and custom answers through the real question dialog back to the model', async () => {
