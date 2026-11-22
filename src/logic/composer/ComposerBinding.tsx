@@ -9,7 +9,6 @@ import { useComposerSubmission, type SendMode } from './useComposerSubmission';
 import { useComposerFileEntries } from './useComposerFileEntries';
 import { usePluginCommands } from './usePluginCommands';
 import { useBangShell } from './useBangShell';
-import { useDictation } from '@/logic/dictation/useDictation';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { useActiveSession } from '@/logic/sessions/useSessions';
 import { useModelAbilities } from '@/logic/models/useModelAbilities';
@@ -19,10 +18,11 @@ import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 
 /** 输入、附件和发送状态到渲染组件的绑定。 */
 export function ComposerBinding({ view: View, slots }: { view: ComponentType<ComposerViewProps>; slots: ComposerSlots }) {
-  const { t, dictationLang } = useI18n();
+  const { t } = useI18n();
   // v1.11 桌面#4：锁定发送 —— uiPrefs.sendOnEnter=false 时 Enter 只换行,
   // 发送走 ⌘/Ctrl+Enter / 按钮(防误发)。
-  const { sendOnEnter } = useUiPrefs()[0];
+  const [uiPrefs, updateUiPrefs] = useUiPrefs();
+  const { sendOnEnter } = uiPrefs;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // F：草稿按会话持久化 —— 切会话不丢输入；Hero 快捷模板经 prefill
   // 总线写入草稿后聚焦输入框。
@@ -219,25 +219,6 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
       : t('composer.mode.queueHint')
     : sendHint;
 
-  // 语音输入：卡片右下角的麦克风按钮。识别到的最终文本追加进输入框。
-  const dictation = useDictation({ lang: dictationLang, continuous: false });
-  const onToggleDictation = useCallback(() => {
-    if (dictation.isListening) {
-      dictation.stop();
-      return;
-    }
-    dictation.start();
-  }, [dictation]);
-  useEffect(() => {
-    const spoken = dictation.finalTranscript.trim();
-    if (!spoken) return;
-    setText((prev) => `${prev}${prev && !/\s$/.test(prev) ? ' ' : ''}${spoken}`);
-    dictation.reset();
-    focus();
-    // dictation 对象每次渲染都是新引用 —— 只跟最终文本走。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dictation.finalTranscript]);
-
   // placeholder 三态：运行中排队 / 追问 / 新会话引导（新会话文案顺带
   // 教 @ 与 / 的打字触发 —— 独立图标按钮已收编进「+」菜单）。
   const turnsCount = useAgentStore((st) => st.turns.length);
@@ -271,9 +252,8 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
       setText((previous) => `${previous}${previous && !/\s$/.test(previous) ? ' ' : ''}${value}`);
       focus();
     }}
-    dictationSupported={dictation.isSupported}
-    dictationListening={dictation.isListening}
-    onToggleDictation={onToggleDictation}
+    sendLocked={!sendOnEnter}
+    onToggleSendLock={() => updateUiPrefs({ sendOnEnter: !sendOnEnter })}
     slots={slots}
   />;
 }

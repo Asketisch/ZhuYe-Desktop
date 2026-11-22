@@ -134,16 +134,20 @@
   gap: 6px;
 }
 
-/* 上下文用量指示：圆形进度，≥80% 转 warning 色。 */
+/* 上下文用量环：常驻（无数据 = 空环），≥80% 转 warning 色。 */
 .usage {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
   padding: 0 var(--space-1);
   color: var(--text-muted);
 }
-.usagePct { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .usage[data-warn] { color: var(--warning); }
+
+/* 发送锁定态：锁形按钮点亮（锁定时 Enter 只换行）。 */
+.lockOn {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
 
 /* Queue/Steer 模式切换（仅 turn 运行中显示）。 */
 .modeSwitch {
@@ -179,8 +183,3 @@
   color: var(--accent);
 }
 
-/* 语音输入进行中：麦克风按钮点亮（minimax 的转圈指示这里用静态高亮）。 */
-.dictationOn {
-  color: var(--accent);
-  background: var(--accent-subtle);
-}

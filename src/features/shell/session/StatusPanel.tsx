@@ -134,9 +134,11 @@ export function StatusPanel({ goalActive, turnRunning }: {
         >
           <ChevronLeft strokeWidth={1.5} aria-hidden />
         </button>
-        <button type="button" className={s.wbMiniIcon} aria-label={t('statusPanel.goal')} title={t('statusPanel.goal')} onClick={() => setCollapsed(false)}>
-          <Target size={15} strokeWidth={1.5} aria-hidden />
-        </button>
+        {hasGoal && (
+          <button type="button" className={s.wbMiniIcon} aria-label={t('statusPanel.goal')} title={t('statusPanel.goal')} onClick={() => setCollapsed(false)}>
+            <Target size={15} strokeWidth={1.5} aria-hidden />
+          </button>
+        )}
         {planState && (
           <button type="button" className={s.wbMiniIcon} aria-label={t('statusPanel.plan')} title={t('statusPanel.plan')} onClick={() => { setCollapsed(false); openPlanInDock(); }}>
             <FileText size={15} strokeWidth={1.5} aria-hidden />
@@ -169,7 +171,9 @@ export function StatusPanel({ goalActive, turnRunning }: {
         </button>
       </div>
 
-      {/* 目标（常驻只读投影：激活显示计时；空闲时 GoalBody 只给 /goal 引导） */}
+      {/* 目标：仅在 goal 模式（激活或有快照）时显示 —— 面板信息按需
+          出现，空闲态不常驻「目标」空段（/goal 输入唯一入口在 composer）。 */}
+      {hasGoal && (
       <section className={s.statusSection} data-status-section="goal">
         <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('goal')} aria-expanded={openSections.goal}>
           {openSections.goal
@@ -187,6 +191,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
           </div>
         )}
       </section>
+      )}
 
       {/* 计划（右侧 dock 的 plan 页签入口） */}
       {planState && (

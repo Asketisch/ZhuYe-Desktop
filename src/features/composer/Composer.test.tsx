@@ -343,8 +343,10 @@ describe('Composer run-state controls (E/C)', () => {
     });
     renderComposer();
     const usage = screen.getByTestId('composer-context-usage');
-    expect(usage.textContent).toContain('4%');
+    // 百分比收进 tooltip（环上无文字）。
+    expect(usage.getAttribute('title')).toContain('4%');
     expect(usage.getAttribute('data-warn')).toBeNull();
+    expect(usage.getAttribute('data-known')).toBeDefined();
   });
 
   it('flags warning at ≥80% context usage', () => {
@@ -366,9 +368,15 @@ describe('Composer run-state controls (E/C)', () => {
     expect(usage.getAttribute('title')).toMatch(/compact/);
   });
 
-  it('renders no context usage without token data', () => {
+  it('环常驻：无 token 数据时渲染空环（未知 ≠ 不显示）', () => {
     renderComposer();
-    expect(screen.queryByTestId('composer-context-usage')).toBeNull();
+    const usage = screen.getByTestId('composer-context-usage');
+    expect(usage).toBeDefined();
+    expect(usage.getAttribute('data-known')).toBeNull();
+    expect(usage.getAttribute('title')).toMatch(/unknown|未知/);
+    // 进度环 dasharray 为 0（空环）。
+    const ring = usage.querySelector('circle[stroke-linecap="round"]');
+    expect(ring?.getAttribute('stroke-dasharray')).toBe('0 100');
   });
 });
 
@@ -1073,6 +1081,23 @@ describe('Composer — sendOnEnter hint follows the lock toggle', () => {
     const label = screen.getByTestId('composer-send').getAttribute('aria-label') ?? '';
     expect(label).toContain('Ctrl+Enter');
     expect(label).toContain('New line');
+  });
+
+  it('发送锁定按钮：点击切换 sendOnEnter 偏好，锁定态高亮', async () => {
+    renderComposer();
+    const lock = () => screen.getByTestId('composer-send-lock');
+    // 默认未锁定（LockOpen，无高亮类）。
+    expect(lock().getAttribute('class') ?? '').not.toContain('lockOn');
+    fireEvent.click(lock());
+    await waitFor(() => expect(lock().getAttribute('class')).toContain('lockOn'));
+    // 锁定后 Enter 不发送（换行语义）——草稿保留。
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: 'locked draft' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input.value).toBe('locked draft');
+    // 再点解锁恢复。
+    fireEvent.click(lock());
+    await waitFor(() => expect(lock().getAttribute('class') ?? '').not.toContain('lockOn'));
   });
 
   it('default hint is Send (Enter), and switches live when the pref toggles', async () => {

@@ -78,9 +78,8 @@ export interface ComposerViewProps {
   onFillSlash: (command: string) => void;
   /** 「+」菜单：把文本追加到输入框（如技能名）。 */
   onInsertText: (text: string) => void;
-  /** 语音输入：是否正在识别。 */
-  dictationSupported: boolean;
-  dictationListening: boolean;
-  onToggleDictation: () => void;
+  /** 发送锁定（sendOnEnter=false）：Enter 换行、⌘/Ctrl+Enter 发送，防误触。 */
+  sendLocked: boolean;
+  onToggleSendLock: () => void;
   slots: ComposerSlots;
 }

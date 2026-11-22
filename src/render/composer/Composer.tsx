@@ -1,4 +1,4 @@
-import { ArrowUp, Square, ListPlus, CornerDownRight, Mic } from 'lucide-react';
+import { ArrowUp, Square, ListPlus, CornerDownRight, Lock, LockOpen } from 'lucide-react';
 import type { ComposerViewProps } from '@/contracts/composer';
 import { Icon } from '../design-system/Icon';
 import { IconButton } from '../design-system/IconButton';
@@ -16,8 +16,8 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
   onDrop, onDragOver, onPickFile, onPickImage, onSlashActiveChange, onSlashSelect,
   onOpenSlash, onAttachFile, onMention, onPickMention, onCloseMention,
   onRemoveAttachment, onRetryAttachment, onDismissBang, onKillBang, onSendModeChange, onInterrupt,
-  onSend, onRunSlash, onFillSlash, onInsertText, dictationSupported, dictationListening,
-  onToggleDictation, slots }: ComposerViewProps) {
+  onSend, onRunSlash, onFillSlash, onInsertText, sendLocked, onToggleSendLock,
+  slots }: ComposerViewProps) {
   const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerTopBar, PermissionPicker, PromptPicker, EffortPicker, ComposerPlusMenu, ModelPicker } = slots;
   const SendIcon = isTurnRunning ? (sendMode === 'steer' ? CornerDownRight : ListPlus) : ArrowUp;
   return (
@@ -118,21 +118,6 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
               <ContextUsage />
               <ModelPicker />
               <EffortPicker />
-              <Tooltip
-                label={dictationSupported ? t('composer.dictation.hint') : t('composer.dictation.unsupported')}
-                side="top"
-              >
-                <IconButton
-                  label={t('composer.dictation.hint')}
-                  size="sm"
-                  onClick={onToggleDictation}
-                  disabled={!dictationSupported}
-                  className={dictationListening ? s.dictationOn : undefined}
-                  data-testid="composer-dictation"
-                >
-                  <Icon icon={Mic} size={14} />
-                </IconButton>
-              </Tooltip>
               {isTurnRunning && (
                 <>
                   <div className={s.modeSwitch} role="radiogroup" aria-label={t('composer.mode.label')} data-testid="composer-mode-switch">
@@ -172,6 +157,19 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
                   </Tooltip>
                 </>
               )}
+              {/* 发送锁定：锁定时 Enter 只换行、⌘/Ctrl+Enter（或按钮）才发送，
+                  防止没打完字误触发出。锁定态高亮。 */}
+              <Tooltip label={sendLocked ? t('composer.sendLock.on') : t('composer.sendLock.off')} side="top">
+                <IconButton
+                  label={sendLocked ? t('composer.sendLock.on') : t('composer.sendLock.off')}
+                  size="sm"
+                  onClick={onToggleSendLock}
+                  className={sendLocked ? s.lockOn : undefined}
+                  data-testid="composer-send-lock"
+                >
+                  <Icon icon={sendLocked ? Lock : LockOpen} size={14} />
+                </IconButton>
+              </Tooltip>
               <Tooltip label={sendLabel} side="top">
                 <IconButton
                   label={sendLabel}

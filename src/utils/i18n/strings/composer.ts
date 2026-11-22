@@ -60,9 +60,9 @@ const composer: Record<string, StringEntry> = {
   'composer.plus.goal':                      { en: 'Goal',                                          'zh-CN': '目标' },
   'composer.plus.plan':                      { en: 'Plan',                                          'zh-CN': '计划' },
   'composer.plus.empty':                     { en: '(none)',                                        'zh-CN': '（空）' },
-  // 语音输入（卡片右下角麦克风）。
-  'composer.dictation.hint':                 { en: 'Voice input',                                   'zh-CN': '语音输入' },
-  'composer.dictation.unsupported':          { en: 'Speech recognition unavailable in this runtime', 'zh-CN': '当前运行环境不支持语音识别' },
+  // 发送锁定（底栏锁形按钮）：锁定时 Enter 只换行，防误触发出。
+  'composer.sendLock.on':                    { en: 'Send locked — Enter for newline, ⌘/Ctrl+Enter to send', 'zh-CN': '已锁定发送：Enter 换行，⌘/Ctrl+Enter 发送' },
+  'composer.sendLock.off':                   { en: 'Lock sending to avoid accidental submits',      'zh-CN': '锁定发送，避免没打完字误触发出' },
   // 卡片下方的上下文行：运行位置（本地 / 远端主机）。
   'composer.context.local':                  { en: 'Local',                                         'zh-CN': '本地' },
   'composer.sendHintMac':                    { en: 'Send (Enter) · New line (Shift+Enter)',        'zh-CN': '发送 (Enter) · 换行 (Shift+Enter)' },
@@ -72,6 +72,7 @@ const composer: Record<string, StringEntry> = {
   'composer.stopHint':                       { en: 'Interrupt the running turn',                    'zh-CN': '中断当前运行' },
   'composer.interruptFailed':                { en: 'Failed to interrupt: {message}',                'zh-CN': '中断失败：{message}' },
   'composer.contextTooltip':                 { en: 'Context {pct}% · in {input} · out {output} · cached {cached}', 'zh-CN': '上下文 {pct}% · 输入 {input} · 输出 {output} · 缓存 {cached}' },
+  'composer.contextUnknown':                 { en: 'Context usage unknown — no tokens reported yet', 'zh-CN': '上下文用量未知 —— 尚无 token 上报' },
   'composer.contextNearFull':                { en: 'Context {pct}% — nearly full, consider /compact', 'zh-CN': '上下文已用 {pct}%，接近上限，可执行 /compact' },
   'composer.mode.label':                     { en: 'Send mode',                                     'zh-CN': '发送模式' },
   'composer.mode.queue':                     { en: 'Queue',                                         'zh-CN': '排队' },
