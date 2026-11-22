@@ -523,7 +523,10 @@ describe('window smoke (real process, real backend, local model stub)', () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
     // 提示词预设选择入口上线后,相邻用例的「提示词已刷新」等 toast 可能
     // 仍堆叠在 DOM 里 —— 不能假设首个 info toast 就是压缩确认,逐条扫描。
-    // 另:linux/windows 上首次 ENTER 可能被斜杠面板 / 预设下拉吞掉
+    // 另:v1.12 起 /compact 的语义是 fork 出「<parent>.Fork」压缩副本并
+    // 切换过去 —— 确认信号有两形态:经典 toast(Compact requested /
+    // 已请求压缩上下文)或 ChatView 的「Viewing session …Fork」横幅。
+    // linux/windows 上首次 ENTER 可能被斜杠面板 / 预设下拉吞掉
     // (键盘焦点平台差异;macOS 正常)—— 第二次尝试先 ESCAPE 收拢全部
     // 浮层再重输重发;仍失败时把 composer 值与全部 toast 文本并入错误,
     // 供区分「未提交」vs「IPC 拒绝」。
@@ -533,8 +536,11 @@ describe('window smoke (real process, real backend, local model stub)', () => {
       for (const t of toasts) texts.push(await t.getText());
       return texts;
     };
-    const hasCompactToast = async (): Promise<boolean> =>
-      (await scanToasts()).some((t) => /Compact requested|已请求压缩上下文/.test(t));
+    const hasCompactAck = async (): Promise<boolean> =>
+      (await scanToasts()).some(
+        (t) => /Compact requested|已请求压缩上下文/.test(t)
+          || (/Viewing session|正在查看会话/.test(t) && /Fork/.test(t)),
+      );
     let lastError: Error | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) {
@@ -543,7 +549,7 @@ describe('window smoke (real process, real backend, local model stub)', () => {
       }
       await composer.sendKeys(Key.ESCAPE, Key.ENTER);
       try {
-        await driver!.wait(async () => await hasCompactToast(), 15_000);
+        await driver!.wait(async () => await hasCompactAck(), 15_000);
         return;
       } catch (e) {
         lastError = e as Error;
