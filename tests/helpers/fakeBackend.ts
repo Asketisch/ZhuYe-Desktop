@@ -271,6 +271,9 @@ export interface FakeBackend {
     /** P3：stage/unstage/commit 语义捕获。 */
     gitStaged: string[];
     gitCommits: string[];
+    /** 分支列表替身(git_branches)与 checkout 捕获(gitCheckout)。 */
+    gitBranches: Array<{ name: string; current: boolean }>;
+    gitCheckout: string[];
     /** P3：`gh pr list` 模拟返回（默认空）。 */
     pullRequests: Array<Record<string, unknown>>;
     /** P3：跨会话搜索的语料（session hit 形态）。 */
@@ -486,6 +489,11 @@ export function installFakeBackend(): FakeBackend {
       shellSessions: ['shell-a', 'shell-b'],
       gitStaged: [],
       gitCommits: [],
+      gitBranches: [
+        { name: 'main', current: true },
+        { name: 'develop', current: false },
+      ],
+      gitCheckout: [],
       pullRequests: [],
       rolloutsSearch: [],
       searchResult: {
@@ -987,6 +995,12 @@ export function installFakeBackend(): FakeBackend {
       return `a${backend.state.gitCommits.length}bcdef`;
     }),
   );
+  // 分支列表 / 切换（输入卡顶栏分支胶囊的操作面）。
+  handle('zhuye_git_branches', handler(() => [
+    { name: 'main', current: true },
+    { name: 'feature', current: false },
+  ]));
+  handle('zhuye_git_checkout', handler(() => undefined));
   handle('zhuye_gh_pr_list', handler(() => backend.state.pullRequests));
   // 写回文件：记录最后写入（供编辑器 Reject 恢复链路测试），并存入 files
   // 让 `zhuye_read_file` 能按路径读回 —— 与真后端的写→读语义一致。
@@ -1709,27 +1723,6 @@ export function installFakeBackend(): FakeBackend {
   }));
   handle('zhuye_install_skill_from_market', handler(() => 'sub-fake'));
   handle('zhuye_refresh_skill_market_index', handler(() => 2));
-  // v1.11 D9:外部 Agent 会话导入。
-  handle('zhuye_import_discover', handler((_cmd: string, args?: { kind?: string }) => {
-    const kind = args?.kind ?? 'claude_code';
-    return [
-      { display: `fake ${kind} session /fake/path/session.jsonl` },
-      { display: `fake ${kind} session /fake/path/other.jsonl` },
-    ];
-  }));
-  handle('zhuye_import_sessions', handler(() => ({
-    imported: [
-      {
-        source: '/fake/path/session.jsonl',
-        threadId: 'thread-fake',
-        turns: 3,
-        records: 12,
-        path: '/fake/rollout/thread-fake.jsonl',
-        warnings: [],
-      },
-    ],
-    failed: [],
-  })));
 
   // —— 权限规则(核心三层 store 的生效规则)——
   handle('zhuye_list_permission_rules', handler(() => wire(backend.state.permissionRules)));

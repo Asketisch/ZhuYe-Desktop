@@ -76,6 +76,26 @@ export async function zhuye_gh_pr_list(limit = 20): Promise<ZhuyeGhPullRequest[]
   return invoke<ZhuyeGhPullRequest[]>('zhuye_gh_pr_list', { limit });
 }
 
+// ── 分支列表 / 切换（输入卡顶栏分支胶囊的操作面）────────────────────────
+
+/** 一个本地分支。`current` = 当前检出（游离 HEAD 时没有任何项为 current）。 */
+export interface ZhuyeBranchInfo {
+  /** 分支短名。 */
+  name: string;
+  /** 是否为当前检出的分支。 */
+  current: boolean;
+}
+
+/** 列出仓库的本地分支（实现下沉 app-core `git_branch`）。非 git 仓库 → 抛错。 */
+export function zhuye_git_branches(): Promise<ZhuyeBranchInfo[]> {
+  return invoke('zhuye_git_branches');
+}
+
+/** 切换当前检出的分支。脏树是否阻断由 git 决定（冲突时报 stderr）。 */
+export function zhuye_git_checkout(branch: string): Promise<void> {
+  return invoke('zhuye_git_checkout', { branch });
+}
+
 /**
  * 一个 git worktree。
  *
