@@ -521,18 +521,40 @@ describe('window smoke (real process, real backend, local model stub)', () => {
 
   it('dispatches a real compact command and shows its acknowledgement', async () => {
     const composer = await driver!.findElement(By.css('[data-testid="composer-card"] textarea'));
-    await composer.sendKeys('/compact');
-    await composer.sendKeys(Key.ESCAPE, Key.ENTER);
     // 提示词预设选择入口上线后,相邻用例的「提示词已刷新」等 toast 可能
-    // 仍堆叠在 DOM 里 —— 不能假设首个 info toast 就是压缩确认,逐条扫描
-    // 直到出现匹配压缩文案的那条。
-    await driver!.wait(async () => {
-      const toasts = await driver!.findElements(By.css('[role="status"][data-kind="info"]'));
-      for (const t of toasts) {
-        if (/Compact requested|已请求压缩上下文/.test(await t.getText())) return true;
+    // 仍堆叠在 DOM 里 —— 不能假设首个 info toast 就是压缩确认,逐条扫描。
+    // 另:linux/windows 上首次 ENTER 可能被斜杠面板 / 预设下拉吞掉
+    // (键盘焦点平台差异;macOS 正常)—— 第二次尝试先 ESCAPE 收拢全部
+    // 浮层再重输重发;仍失败时把 composer 值与全部 toast 文本并入错误,
+    // 供区分「未提交」vs「IPC 拒绝」。
+    const scanToasts = async (): Promise<string[]> => {
+      const toasts = await driver!.findElements(By.css('[role="status"]'));
+      const texts: string[] = [];
+      for (const t of toasts) texts.push(await t.getText());
+      return texts;
+    };
+    const hasCompactToast = async (): Promise<boolean> =>
+      (await scanToasts()).some((t) => /Compact requested|已请求压缩上下文/.test(t));
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await composer.sendKeys(Key.ESCAPE);
+        await composer.sendKeys('/compact');
       }
-      return false;
-    }, 30_000, '未出现压缩请求确认 toast');
+      await composer.sendKeys(Key.ESCAPE, Key.ENTER);
+      try {
+        await driver!.wait(async () => await hasCompactToast(), 15_000);
+        return;
+      } catch (e) {
+        lastError = e as Error;
+      }
+    }
+    const value = await composer.getAttribute('value');
+    const toasts = await scanToasts();
+    throw new Error(
+      `compact 确认 toast 未出现;composer 值:「${value ?? '(取值失败)'}」;`
+      + `toast:[${toasts.join(' | ') || '无'}];最后错误:${lastError?.message}`,
+    );
   }, 100_000);
 
   it('sends single, multiple and custom answers through the real question dialog back to the model', async () => {
