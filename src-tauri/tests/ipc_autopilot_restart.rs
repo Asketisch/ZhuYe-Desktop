@@ -148,7 +148,14 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
             .any(|run| run["id"] == old_id && run["status"] == "inProgress"),
         "another desktop changed the live run: {live}"
     );
-    // Make the interrupted run due again, avoiding a wall-clock minute wait.
+    child.0.kill().unwrap();
+    child.0.wait().unwrap();
+    let session = common::invoke_ok("zhuye_create_session", json!({}));
+    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    // 会话就绪之后再把中断运行标记为到期:重试必须落在「当前会话」线程上
+    // 提交(submit 的 ptr_eq 守卫语义)。若先标到期再绑会话,慢机器上
+    // autopilot 的 tick 会抢在 bind 之前捕获旧线程,提交被拒导致用例竞态
+    // 失败(首见于 ubuntu CI,本地快机器不可复现)。
     let history_file = data.join("autopilot/history.json");
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(&history_file).unwrap()).unwrap();
@@ -159,10 +166,6 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
             .as_millis() as u64
     );
     std::fs::write(&history_file, serde_json::to_vec_pretty(&history).unwrap()).unwrap();
-    child.0.kill().unwrap();
-    child.0.wait().unwrap();
-    let session = common::invoke_ok("zhuye_create_session", json!({}));
-    common::invoke_ok("zhuye_bind_session", json!({"id":session}));
     let runs = wait_history(|runs| {
         runs.iter()
             .any(|r| r["id"] == old_id && r["status"] == "failed")
