@@ -19,6 +19,7 @@ import { confirmDialog } from '@/logic/modals/confirm';
 import { useAutoSessionTitle } from '@/logic/sessions/useAutoSessionTitle';
 import { useGitSummary } from './gitSummary';
 import { useZShell } from '@/logic/shell/shellState';
+import { useShellUi } from '@/stores/shellUi';
 
 /**
  * v1.11 F7+D6:编辑历史消息的 rewind 目标推算(纯函数,导出供行为测试
@@ -323,11 +324,11 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
 
   const isLoaded = !sessionId || loadedSessionId === sessionId;
 
-  // v2 工作台:轨迹/对话 view-ring + 底部分屏 + 右栏(shellState)
+  // v2 工作台:轨迹/对话 view-ring + 底部分屏(shellState)。
+  // 右栏开合已收敛到 shellUi dock(标题条),此处不再自管一份。
   const [viewMode, setViewMode] = useState<'chat' | 'traj'>('chat');
   const bottomOpen = useZShell((st) => st.bottomOpen);
   const setBottomOpen = useZShell((st) => st.setBottomOpen);
-  const rightOpen = useZShell((st) => st.rightOpen);
   const gitSum = useGitSummary(Boolean(sessionId));
 
   // 交互接管:审批 / 问题 / 输入(任一在场即接管 composer 座位)
@@ -419,13 +420,12 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
     title={sessionId ? (sessions.all.find((item) => item.session_id === sessionId)?.title ?? '' ?? sessionId.slice(0, 8)) : t('home.title')}
     loading={loading} error={error} isLoaded={isLoaded} turns={turns} turnCount={turns.length} forking={forking}
     hero={hero} split={prefs.chatDiffSplit} diffLoading={diffLoading} diffText={diffText}
-    viewMode={viewMode} onViewModeChange={setViewMode} bottomOpen={bottomOpen} rightOpen={rightOpen} gitSummary={gitSum}
+    viewMode={viewMode} onViewModeChange={setViewMode} bottomOpen={bottomOpen} gitSummary={gitSum}
     goalActive={goalActive} goalText={goalText} turnRunning={turnRunning}
     approval={takeoverApproval} question={takeoverQuestion} askUser={takeoverAskUser}
     onFork={handleFork} onRetry={retry} onExport={exportMarkdown}
-    onToggleTerminal={() => setBottomOpen(!bottomOpen)} onCloseTerminal={() => setBottomOpen(false)}
-    onToggleRight={() => useZShell.getState().toggleRight()} onToggleTheme={() => useZShell.getState().toggleRight()}
-    onOpenSettings={() => { window.location.hash = '/settings'; }}
+    onCloseTerminal={() => setBottomOpen(false)}
+    onOpenSettings={() => useShellUi.getState().setSettingsOpen(true)}
     onRewind={(id) => { void handleRewind(id); }} onEdit={(id) => { void handleEditTurn(id); }}
     onRegenerate={(id) => { void handleRegenerateTurn(id); }} onContinue={() => { void handleContinueTurn(); }} slots={slots}
   />;

@@ -139,71 +139,77 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
             <span className={s.itemLabel}>{t('composer.toolbar.mentionFile')}</span>
           </button>
 
-          <button
-            type="button"
-            role="menuitem"
-            className={s.item}
-            onClick={() => setSubmenu(submenu === 'skills' ? null : 'skills')}
-            aria-expanded={submenu === 'skills'}
-            data-testid="composer-plus-skills"
-          >
-            <Icon icon={Sparkles} size={15} />
-            <span className={s.itemLabel}>{t('composer.plus.skills')}</span>
-            <Icon icon={ChevronRight} size={13} className={s.itemChevron} />
-          </button>
-          {submenu === 'skills' && (
-            <div className={s.submenu} data-testid="composer-plus-skills-list">
-              {(skills ?? []).length === 0 && <span className={s.empty}>{t('composer.plus.empty')}</span>}
-              {(skills ?? []).map((skill) => (
-                <button
-                  key={skill.name}
-                  type="button"
-                  role="menuitem"
-                  className={s.item}
-                  title={skill.description || skill.name}
-                  onClick={() => {
-                    close();
-                    onInsertText(skill.name);
-                  }}
-                >
-                  <span className={s.itemLabel}>{skill.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <div className={s.group} data-testid="composer-plus-skills-group">
+            <button
+              type="button"
+              role="menuitem"
+              className={s.item}
+              onClick={() => setSubmenu(submenu === 'skills' ? null : 'skills')}
+              aria-expanded={submenu === 'skills'}
+              aria-haspopup="menu"
+              data-testid="composer-plus-skills"
+            >
+              <Icon icon={Sparkles} size={15} />
+              <span className={s.itemLabel}>{t('composer.plus.skills')}</span>
+              <Icon icon={ChevronRight} size={13} className={s.itemChevron} />
+            </button>
+            {submenu === 'skills' && (
+              <div className={s.submenu} data-testid="composer-plus-skills-list">
+                {(skills ?? []).length === 0 && <span className={s.empty}>{t('composer.plus.empty')}</span>}
+                {(skills ?? []).map((skill) => (
+                  <button
+                    key={skill.name}
+                    type="button"
+                    role="menuitem"
+                    className={s.item}
+                    title={skill.description || skill.name}
+                    onClick={() => {
+                      close();
+                      onInsertText(skill.name);
+                    }}
+                  >
+                    <span className={s.itemLabel}>{skill.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <button
-            type="button"
-            role="menuitem"
-            className={s.item}
-            onClick={() => setSubmenu(submenu === 'plugins' ? null : 'plugins')}
-            aria-expanded={submenu === 'plugins'}
-            data-testid="composer-plus-plugins"
-          >
-            <Icon icon={Puzzle} size={15} />
-            <span className={s.itemLabel}>{t('composer.plus.plugins')}</span>
-            <Icon icon={ChevronRight} size={13} className={s.itemChevron} />
-          </button>
-          {submenu === 'plugins' && (
-            <div className={s.submenu} data-testid="composer-plus-plugins-list">
-              {pluginCommands.length === 0 && <span className={s.empty}>{t('composer.plus.empty')}</span>}
-              {pluginCommands.map((cmd) => (
-                <button
-                  key={cmd.name}
-                  type="button"
-                  role="menuitem"
-                  className={s.item}
-                  title={cmd.description || cmd.name}
-                  onClick={() => {
-                    close();
-                    onRunSlash(cmd.name);
-                  }}
-                >
-                  <span className={s.itemLabel}>{cmd.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <div className={s.group} data-testid="composer-plus-plugins-group">
+            <button
+              type="button"
+              role="menuitem"
+              className={s.item}
+              onClick={() => setSubmenu(submenu === 'plugins' ? null : 'plugins')}
+              aria-expanded={submenu === 'plugins'}
+              aria-haspopup="menu"
+              data-testid="composer-plus-plugins"
+            >
+              <Icon icon={Puzzle} size={15} />
+              <span className={s.itemLabel}>{t('composer.plus.plugins')}</span>
+              <Icon icon={ChevronRight} size={13} className={s.itemChevron} />
+            </button>
+            {submenu === 'plugins' && (
+              <div className={s.submenu} data-testid="composer-plus-plugins-list">
+                {pluginCommands.length === 0 && <span className={s.empty}>{t('composer.plus.empty')}</span>}
+                {pluginCommands.map((cmd) => (
+                  <button
+                    key={cmd.name}
+                    type="button"
+                    role="menuitem"
+                    className={s.item}
+                    title={cmd.description || cmd.name}
+                    onClick={() => {
+                      close();
+                      onRunSlash(cmd.name);
+                    }}
+                  >
+                    <span className={s.itemLabel}>{cmd.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className={s.separator} role="separator" />
 

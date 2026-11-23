@@ -6,9 +6,9 @@ import { Spinner } from '../design-system/Spinner';
 import s from './ChatView.module.css';
 
 export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCount, forking, hero,
-  split, diffLoading, diffText, viewMode, onViewModeChange, bottomOpen, rightOpen, gitSummary,
+  split, diffLoading, diffText, viewMode, onViewModeChange, bottomOpen, gitSummary,
   goalActive, goalText, turnRunning, approval, question, askUser, onFork, onRetry, onExport,
-  onToggleTerminal, onCloseTerminal, onToggleRight, onToggleTheme, onOpenSettings, onRewind,
+  onCloseTerminal, onOpenSettings, onRewind,
   onEdit, onRegenerate, onContinue, slots }: ChatViewProps) {
   const { WorkHead, ViewRing, MessageList, Composer, ChatHero, QuickPromptRow, ContextBanner,
     ScmChanges, TrajView, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
@@ -18,8 +18,7 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
     <div className={s.zroot} data-split={split ? 'on' : 'off'} data-hero={hero ? 'on' : 'off'}>
       <WorkHead
         title={title} gitSum={gitSummary} onFork={() => onFork('manual')} onExportMarkdown={onExport}
-        terminalOn={bottomOpen} onToggleTerminal={onToggleTerminal} rightOn={rightOpen}
-        onToggleRight={onToggleRight} onToggleTheme={onToggleTheme} onOpenSettings={onOpenSettings}
+        onOpenSettings={onOpenSettings}
       />
       <ViewRing mode={viewMode} onChange={onViewModeChange} />
       {viewMode === 'traj' ? (

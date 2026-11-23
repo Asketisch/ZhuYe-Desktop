@@ -22,8 +22,6 @@ const zh = {
   'head.fork': { en: 'Fork from turn', 'zh-CN': '按轮分叉' },
   'head.export': { en: 'Export', 'zh-CN': '导出' },
   'head.terminal': { en: 'Terminal', 'zh-CN': '终端' },
-  'head.rightPanel': { en: 'Side panel', 'zh-CN': '检查器' },
-  'head.theme': { en: 'Toggle theme', 'zh-CN': '主题 深/浅' },
   'view.chat': { en: 'Chat', 'zh-CN': '对话' },
   'view.traj': { en: 'Trajectory', 'zh-CN': '轨迹' },
   'dock.todo': { en: 'Todos', 'zh-CN': '计划' },

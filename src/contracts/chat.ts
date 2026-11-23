@@ -50,7 +50,6 @@ export interface ChatViewProps {
   viewMode: 'chat' | 'traj';
   onViewModeChange: (mode: 'chat' | 'traj') => void;
   bottomOpen: boolean;
-  rightOpen: boolean;
   gitSummary: GitSummary | null;
   goalActive: boolean;
   goalText: string;
@@ -61,10 +60,7 @@ export interface ChatViewProps {
   onFork: (branch: string, turnId?: string) => void;
   onRetry: () => void;
   onExport: () => void;
-  onToggleTerminal: () => void;
   onCloseTerminal: () => void;
-  onToggleRight: () => void;
-  onToggleTheme: () => void;
   onOpenSettings: () => void;
   onRewind: (turnId: string) => void;
   onEdit: (turnId: string) => void;

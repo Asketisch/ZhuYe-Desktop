@@ -71,15 +71,29 @@
   color: var(--text-muted);
 }
 
-/* 二级子菜单：缩进一层，与父项同宽。 */
+/* 二级子菜单宿主 —— 飞出面板的定位锚点（父项行）。 */
+.group {
+  position: relative;
+}
+
+/* 二级子菜单：右侧飞出面板 —— 贴父项右缘、底边与父项对齐（向上生长，
+ * 菜单挂在屏幕下部，向上空间充裕）；零间隙贴边保证 hover 桥不中断。
+ * 面板自带你级边框与阴影，与主菜单在视觉上分层。 */
 .submenu {
+  position: absolute;
+  left: 100%;
+  bottom: 0;
+  z-index: 41;
+  min-width: 200px;
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elev-2);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin: 0 0 var(--space-1) var(--space-2);
-  padding-left: var(--space-2);
-  border-left: 1px solid var(--border-subtle);
-  max-height: 220px;
+  max-height: 240px;
   overflow: auto;
 }
 

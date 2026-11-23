@@ -13,7 +13,8 @@
  * 家族层）不再重复渲染，仅剩用户自建层作为额外叶项。
  *
  * 菜单开合与二级展开交互与 ComposerPlusMenu 同款：点击开合、点击
- * 外部关闭、组项 hover/click 展开内联子菜单。
+ * 外部关闭、组项 hover/click 在右侧展开飞出子面板（hover 离开组行
+ * 即收起）。
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight } from 'lucide-react';
@@ -179,9 +180,13 @@ export function PromptPicker() {
 
           <div className={s.separator} role="separator" />
 
-          {(promptGroups ?? []).map((group) => (
+            {(promptGroups ?? []).map((group) => (
             group.variants.length > 1 ? (
-              <div key={group.id} className={s.group}>
+              <div
+                key={group.id}
+                className={s.group}
+                onMouseLeave={() => setExpandedGroup(null)}
+              >
                 <button
                   type="button"
                   role="menuitem"
@@ -189,6 +194,7 @@ export function PromptPicker() {
                   onClick={() => setExpandedGroup((cur) => (cur === group.id ? null : group.id))}
                   onMouseEnter={() => setExpandedGroup(group.id)}
                   aria-expanded={expandedGroup === group.id}
+                  aria-haspopup="menu"
                   data-testid={`composer-prompt-group-${group.id}`}
                 >
                   <span className={s.itemLabel}>{group.label}</span>

@@ -1,15 +1,15 @@
 /**
  * WorkHead + ViewRing —— 对话 frame 的会话头与视图环(v2-shell-redesign)。
  *
- * WorkHead:标题 + git 变更摘要 + 分叉/导出/更多操作 + 终端/右栏/主题/设置切换。
+ * WorkHead:标题 + git 变更摘要 + 分叉/导出/更多操作(菜单)。
+ * 终端/右栏/主题/设置是**窗口级**控制,统一收敛在标题条(TitleBar)——
+ * 此处曾以 v2 遗留 store(shellState)自管一套,与标题条状态分裂且
+ * 多数接线失效(主题误接右栏开关、设置跳已下线的旧路由),已移除。
  * ViewRing:对话 | 轨迹 视图切换(真实 DSH view-ring 口径)。
  * 两者只在 chat 路由渲染;数据来自既有 store / command,不新增 IPC。
  */
 import { useState } from 'react';
-import {
-  GitBranch, Ellipsis, FileText, SquareTerminal, PanelRight, SunMoon, Settings,
-  ClipboardCopy, Search, Sparkles,
-} from 'lucide-react';
+import { GitBranch, Ellipsis, Settings, ClipboardCopy, Search } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/shell/session/session.module.css';
 
@@ -60,9 +60,6 @@ export function ViewRing({
           {t('view.traj')}
         </button>
       </div>
-      <button type="button" className={s.vring} aria-label={t('head.more')}>
-        <Ellipsis size={14} />
-      </button>
     </div>
   );
 }
@@ -72,22 +69,13 @@ export function WorkHead({
   gitSum,
   onFork,
   onExportMarkdown,
-  terminalOn,
-  onToggleTerminal,
-  rightOn,
-  onToggleRight,
-  onToggleTheme,
   onOpenSettings,
 }: {
   title: string;
   gitSum: GitSummary | null;
   onFork: () => void;
   onExportMarkdown: () => void;
-  terminalOn: boolean;
-  onToggleTerminal: () => void;
-  rightOn: boolean;
-  onToggleRight: () => void;
-  onToggleTheme: () => void;
+  /** 「设置…」菜单项 —— 由 binding 接 shellUi.setSettingsOpen(设置弹窗)。 */
   onOpenSettings: () => void;
 }): React.ReactElement {
   const { t } = useI18n();
@@ -126,43 +114,10 @@ export function WorkHead({
                 <button type="button" className={s.popRow} onClick={() => { setMenuOpen(false); onOpenSettings(); }}>
                   <Settings size={14} /> {t('rail.settings')}…
                 </button>
-                <div className={s.popHead}><Sparkles size={12} /> {t('view.chat')}</div>
-                <button type="button" className={s.popRow} onClick={() => setMenuOpen(false)}>
-                  <FileText size={14} /> {title}
-                </button>
               </div>
             </div>
           )}
         </div>
-        <span style={{ width: 1, height: 16, background: 'var(--border-subtle)', flexShrink: 0 }} />
-        <button
-          type="button"
-          className={s.hbtn}
-          data-on={terminalOn}
-          data-testid="session-head-terminal"
-          aria-label={t('head.terminal')}
-          title={t('head.terminal')}
-          onClick={onToggleTerminal}
-        >
-          <SquareTerminal size={14} />
-        </button>
-        <button
-          type="button"
-          className={s.hbtn}
-          data-on={rightOn}
-          data-testid="session-head-right"
-          aria-label={t('head.rightPanel')}
-          title={t('head.rightPanel')}
-          onClick={onToggleRight}
-        >
-          <PanelRight size={14} />
-        </button>
-        <button type="button" className={s.hbtn} aria-label={t('head.theme')} title={t('head.theme')} onClick={onToggleTheme}>
-          <SunMoon size={14} />
-        </button>
-        <button type="button" className={s.hbtn} aria-label={t('rail.settings')} title={t('rail.settings')} onClick={onOpenSettings}>
-          <Settings size={14} />
-        </button>
       </div>
     </div>
   );
