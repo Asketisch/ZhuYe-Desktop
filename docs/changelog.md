@@ -4,6 +4,14 @@
 
 ## 未发布
 
+- **macOS 菜单栏托盘图标换新「金焰凤凰花环」**：托盘源图与应用图标
+  源解耦 —— 仓库根新增 `tray.png`（金焰凤凰花环徽章，独立于
+  logo.png 应用全家），gen-icons.sh 的 icon32 从它推导：裁内容 bbox →
+  方形居中 → 32×32（内容 28/32 留菜单栏呼吸位）→ RGB 归黑 +
+  alpha ×1.35（template image 只取 alpha，系统按外观着色；轻度增益
+  补 16-18pt 实际渲染的笔画实度）。`tray.png` 缺失回落 logo.png 亮度
+  阈值推导（历史行为）；`--check` 增加托盘源新鲜度独立校验；环境
+  变量 `ZHUYE_TRAY_SOURCE` 供门禁自测覆盖。
 - **发送前模型守卫（mock 运行时显式拦截）**：空会话的完整成因闭环
   —— mock 池由 env `ZHUYE_MODEL=mock` / `ZHUYE_PROVIDER=mock` 显式
   opt-in 注册，且**优先级高于配置文件的 `[active].group`**；继承了该

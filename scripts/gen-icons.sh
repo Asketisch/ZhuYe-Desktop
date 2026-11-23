@@ -11,22 +11,25 @@
 #   bash scripts/gen-icons.sh --no-web              不更新 public/tauri-icon.png（favicon）
 #
 # 约定（与 docs/changelog.md「采用 logo.png 作为跨平台统一应用 logo」一致）：
-#   唯一源图 = 本脚本所在仓库（ZhuYe-Desktop）根目录的 logo.png —— 不带参数时始终用它，
+#   应用图标源图 = 本脚本所在仓库（ZhuYe-Desktop）根目录的 logo.png —— 不带参数时始终用它，
 #   与当前工作目录无关；产物 = src-tauri/icons/，文件名白名单见 EXPECTED。
-#   tauri icon 顺带产出的无消费方资产（UWP Square*Logo.png、android/、ios/、64x64.png）
-#   会被清掉，保证目录内容与 tauri.conf.json 的 bundle.icon 一一对应。
+#   托盘图标源图 = 仓库根 tray.png（菜单栏徽章，独立于应用图标；缺失时回落
+#   logo.png 推导）。tauri icon 顺带产出的无消费方资产（UWP Square*Logo.png、
+#   android/、ios/、64x64.png）会被清掉，保证目录内容与 tauri.conf.json 的
+#   bundle.icon 一一对应。
 #   引擎优先级：tauri CLI（官方，.icns/.ico 最稳）→ 本地 python3 + Pillow（macOS 上
 #   .icns 走 iconutil，其他平台用内置 icns 写入器）。
 #
 # 环境变量覆盖（与 install.sh 的 ZHUYE_INSTALL_* 同风格，门禁自测靠它们跑在临时目录）：
 #   ZHUYE_ICON_SOURCE   默认源图（默认 <仓库根>/logo.png）
+#   ZHUYE_TRAY_SOURCE   托盘源图（默认 <仓库根>/tray.png）
 #   ZHUYE_ICONS_DIR     产物目录（默认 <仓库根>/src-tauri/icons）
 #   ZHUYE_PUBLIC_ICON   favicon 路径（默认 <仓库根>/public/tauri-icon.png）
 #
 # icon32.png 特殊处理：src-tauri/src/tray.rs 用 include_bytes! 把它编进托盘，并按
 #   icon_as_template(true) 交给 macOS —— 系统只取 alpha 通道画单色剪影，所以它不能是
-#   整张方图标（否则菜单栏里是一个实心方块）。源图自带透明底时沿用其 alpha；源图不透明时
-#   （仓库当前 logo.png 就是黑底不透明方图）按亮度阈值推导剪影。
+#   整张方图标（否则菜单栏里是一个实心方块）。托盘源图（tray.png）自带透明底时沿用其
+#   alpha 并 RGB 归黑（template 惯例）；回落 logo.png 时按亮度阈值推导剪影。
 
 set -euo pipefail
 
@@ -41,7 +44,7 @@ CONF="$REPO_ROOT/src-tauri/tauri.conf.json"
 EXPECTED=(32x32.png icon32.png 128x128.png "128x128@2x.png" 256x256.png icon.png icon.icns icon.ico)
 SIZES=(32 32 128 256 256 512 icns ico)
 
-TRAY_ALPHA_CUT=28     # 亮度低于该值视为背景 → alpha 0
+TRAY_ALPHA_CUT=28     # 亮度低于该值视为背景 → alpha 0（回落 logo.png 推导时用）
 TRAY_ALPHA_GAIN=2.2   # 超过阈值的部分按此增益折算为 alpha
 
 usage() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; }
@@ -101,6 +104,12 @@ fi
 case "$SRC" in /*) ;; *) SRC="$PWD/$SRC" ;; esac
 SRC_IS_DEFAULT=false
 if [ "$SRC" = "$REPO_ROOT/logo.png" ]; then SRC_IS_DEFAULT=true; fi
+
+# 托盘源图优先级：ZHUYE_TRAY_SOURCE > 仓库根 tray.png；缺失时回落 logo.png
+# 推导（历史行为，兼容未入库托盘源图的临时目录场景）。
+TRAY_SOURCE="${ZHUYE_TRAY_SOURCE:-$REPO_ROOT/tray.png}"
+case "$TRAY_SOURCE" in "~"*) TRAY_SOURCE="$HOME${TRAY_SOURCE#\~}" ;; esac
+case "$TRAY_SOURCE" in /*) ;; *) TRAY_SOURCE="$PWD/$TRAY_SOURCE" ;; esac
 
 src_label() {
   if $SRC_IS_DEFAULT; then printf '%s（仓库默认源图）' "$SRC"
@@ -188,6 +197,10 @@ if $CHECK_ONLY; then
   if [ -n "$stray" ]; then echo "  ✗ 白名单外的文件："; printf '%s\n' "$stray" | sed "s|$ICONS_DIR/|      |"; fail=1; fi
   if [ -f "$ICONS_DIR/icon.png" ] && [ "$SRC" -nt "$ICONS_DIR/icon.png" ]; then
     echo "  ✗ 源图比现有图标更新，请重跑：bash scripts/gen-icons.sh"; fail=1
+  fi
+  # 托盘源图（tray.png）新鲜度独立校验 —— 与应用图标源（logo.png）互不牵制。
+  if [ -f "$TRAY_SOURCE" ] && [ "$TRAY_SOURCE" -nt "$ICONS_DIR/icon32.png" ]; then
+    echo "  ✗ 托盘源图比 icon32.png 新：$TRAY_SOURCE —— 请重跑：bash scripts/gen-icons.sh"; fail=1
   fi
   if [ "$fail" -ne 0 ]; then echo "校验未通过"; exit 1; fi
   report "$ICONS_DIR"
@@ -301,6 +314,34 @@ fi
 if $TRAY_KEEP && [ -f "$ICONS_DIR/icon32.png" ]; then
   cp "$ICONS_DIR/icon32.png" "$OUT/icon32.png"
   echo "  · icon32.png 保留仓库现有版本（--tray-keep）"
+elif [ -n "$PYTHON" ] && [ -f "$TRAY_SOURCE" ]; then
+  # 托盘独立源图（tray.png）：自带透明底 → 裁内容 bbox、方形居中填充、
+  # 缩到 32×32（内容 28/32 留菜单栏呼吸位）；RGB 归黑（template 只取
+  # alpha，系统按外观自动着色）。
+  "$PYTHON" - "$TRAY_SOURCE" "$OUT/icon32.png" <<'PY'
+import sys
+from PIL import Image
+
+src, dst = sys.argv[1], sys.argv[2]
+im = Image.open(src).convert("RGBA")
+bbox = im.getchannel("A").getbbox()
+if bbox:
+    im = im.crop(bbox)
+side = max(im.size)
+square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+square.paste(im, ((side - im.size[0]) // 2, (side - im.size[1]) // 2), im)
+pad = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+inner = square.resize((28, 28), Image.LANCZOS)
+pad.paste(inner, (2, 2), inner)
+black = Image.new("L", (32, 32), 0)
+alpha = pad.getchannel("A")
+# 菜单栏实际渲染 16-18pt,半透明抗锯齿会显淡 —— 轻度增益补笔画实度
+# (近零区不动,保留真实透明底)。
+alpha = alpha.point(lambda v: min(255, int(v * 1.35)) if v > 8 else v)
+Image.merge("RGBA", (black, black, black, alpha)).save(dst, optimization=True)
+share = sum(alpha.histogram()[:1]) / (32 * 32)
+print(f"  · icon32.png 由托盘源图推导（trim + 方形居中，内容 28/32，RGB 归黑 + alpha ×1.35；透明占比 {share:.0%}）")
+PY
 elif [ -n "$PYTHON" ]; then
   "$PYTHON" - "$NORM" "$OUT/icon32.png" "$TRAY_ALPHA_CUT" "$TRAY_ALPHA_GAIN" <<'PY'
 import sys

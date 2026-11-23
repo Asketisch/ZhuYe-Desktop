@@ -17,19 +17,19 @@
 | gen-update-keys.sh | 生成 OTA 自更新的 minisign 密钥对（私钥不入库） | 直接运行；公钥填 tauri.conf.json > plugins.updater.pubkey |
 | gen-latest-json.sh | 汇总各平台 updater 产物生成更新清单 latest.json（release CI 专用） | `gen-latest-json.sh <目录> <版本> <owner/repo> <输出>` |
 | dump-ts-types.sh | Rust 协议类型经 JSON Schema 生成 TS 类型 | `pnpm types:gen` |
-| gen-icons.sh | logo.png → 全套应用图标 + favicon | `--check` / `--dry-run` / `--local` / `--tray-keep`；`pnpm icons` |
+| gen-icons.sh | logo.png → 全套应用图标 + favicon；tray.png → 托盘图标 | `--check` / `--dry-run` / `--local` / `--tray-keep` / `--no-web`；`pnpm icons` |
 | install.sh | 装二进制与 .app 到本机 | `--prefix=` / `--app-dir=` / `--dry-run` |
 | render-display-png.py | 纯 Python 渲染设置页截图证据 | 直接运行，产物落 docs/screenshots/ |
 
 ## 各脚本本地契约
 
-### gen-icons.sh —— 图标单一源图契约
+### gen-icons.sh —— 图标双源图契约
 
-- 仓库根 `logo.png` 是唯一源图（与调用目录无关）；产物 = `src-tauri/icons/` 全套 + `public/tauri-icon.png` favicon。
-- `--check`（`pnpm icons:check`）只校验不写入：齐全、尺寸、托盘透明底、是否比源图旧。
-- `icon32.png` 按源图亮度阈值推导托盘透明剪影——`src-tauri/src/tray.rs` 以 template 图片使用它，必须保持透明底。
+- 仓库根 `logo.png` 是**应用图标**源图（与调用目录无关）；产物 = `src-tauri/icons/` 全套 + `public/tauri-icon.png` favicon。
+- 仓库根 `tray.png` 是**托盘图标**独立源图（菜单栏徽章，金焰凤凰花环）；`icon32.png` 从它推导：裁内容 bbox → 方形居中 → 32×32（内容 28/32）→ RGB 归黑 + alpha ×1.35（template 只取 alpha，系统按外观着色）。缺失时回落 logo.png 亮度阈值推导（历史行为）。
+- `--check`（`pnpm icons:check`）只校验不写入：齐全、尺寸、托盘透明底、logo.png/tray.png 各自比产物新。
 - 引擎降级链：优先 `tauri icon` CLI；缺 CLI 时退 python3 + Pillow（macOS `.icns` 走 `iconutil`）。
-- 环境变量钩子：`ZHUYE_ICON_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON`，门禁自测靠它们跑在临时目录。
+- 环境变量钩子：`ZHUYE_ICON_SOURCE` / `ZHUYE_TRAY_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON`，门禁自测靠它们跑在临时目录。
 
 ### build.sh —— 图标新鲜度只 WARN + 前端内嵌保鲜
 
