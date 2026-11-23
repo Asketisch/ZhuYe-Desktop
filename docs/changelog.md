@@ -4,6 +4,24 @@
 
 ## 未发布
 
+- **submodule 升级（e246299e → d5e29122）—— compact 幽灵压缩修复 + 触发
+  阈值按模型窗口推导**：修复 `compact_rapid_refill` 熔断误杀健康会话
+  （实证：MiniMax-M3.1-Flash（1M 窗口）的 12K token plan-mode 会话在
+  第 5 步被熔断）。两层修复：① **幽灵压缩**——压缩器三级（microcompact
+  提前退出 / smart_prune 未越阈 / 摘要不可用）全部空转时，消息列表原样
+  却被包装成 `SmartPrune(removed=0)` 返回，pre_loop 据此给 rapid-refill
+  守卫登记锚点，上下文没变小 → 后续每步越阈被判 refill，3 连击 Abort；
+  现提前返回与尾部兜底在 removed=0 且 truncated=0 时一律降级 `Noop`，
+  pre_loop 上膛口径收紧为「有效压缩」（removed>0 或有摘要，与落盘空压
+  守卫同齐）。② **阈值推导**——`触发点 = 模型上下文窗口 × 压缩比`，
+  取代一刀切 10K：窗口解析顺序为显式配置（`[context_windows]` /
+  `[model].context_window`）→ 引擎静态表（MiniMax M3 系 = 1M）→
+  models.dev → 128K 兜底；压缩比经新配置 `[compact].trigger_ratio`
+  调整（默认 0.85，>1 钳 1、≤0 回落默认），`[compact].trigger_tokens`
+  保留为显式绝对值逃生舱。桌面 facade 与 CLI exec 两条装配路径统一走
+  同一推导（此前 facade 只认 env/TOML 显式值，窗口联动静默失效）。
+  按新默认无需任何配置：MiniMax-M3.1-Flash 触发点 850K、200K 窗口模型
+  170K、未知私端模型 108.8K。
 - **submodule 升级（28c0b9a8 → e246299e，切跟 main）+ MCP 宿主互操作接线**：
   上游 `McpLifecycleEvent` 新增 `Elicitation` / `ToolsChanged` 两个宿主
   变体，协议新增 `EventMsg::mcp_elicitation` 事件与
