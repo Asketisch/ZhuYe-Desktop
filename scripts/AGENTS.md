@@ -11,7 +11,7 @@
 | 脚本 | 干什么 | 关键入口 |
 |---|---|---|
 | check-render-boundaries.mjs | 检查已迁移渲染与逻辑目录的依赖边界 | `pnpm typecheck` / `pnpm build` |
-| build.sh | 按 OS 选默认打包目标的 release 构建 | `--fast` / `--universal` / `--bundles=` / `--no-frontend` / `--frontend-only` / `--dry-run`；`pnpm build:native` |
+| build.sh | 按 OS 选默认打包目标的 release 构建 | `--fast` / `--universal` / `--bundles=` / `--no-frontend` / `--frontend-only` / `--sync-app` / `--dry-run`；`pnpm build:native` |
 | create_tag.sh | 一站式发版：版本 bump + CHANGELOG 转正 + 提交 + tag + 推送 | `--dry-run` / `--no-push` / `--yes` |
 | gc.sh | 磁盘治理：清 target/ 中 cargo 不 GC 的 incremental（全 profile）/ llvm-cov-target / examples | `bash scripts/gc.sh` / `gc-deep` |
 | gen-update-keys.sh | 生成 OTA 自更新的 minisign 密钥对（私钥不入库） | 直接运行；公钥填 tauri.conf.json > plugins.updater.pubkey |
@@ -31,9 +31,14 @@
 - 引擎降级链：优先 `tauri icon` CLI；缺 CLI 时退 python3 + Pillow（macOS `.icns` 走 `iconutil`）。
 - 环境变量钩子：`ZHUYE_ICON_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON`，门禁自测靠它们跑在临时目录。
 
-### build.sh —— 图标新鲜度只 WARN
+### build.sh —— 图标新鲜度只 WARN + 前端内嵌保鲜
 
-打包前跑一次 `gen-icons.sh --check`，图标落后于 logo.png 只打 WARN，不改文件、不阻断。默认目标按 OS：macOS→app,dmg / Linux→deb,appimage / Windows→msi。环境变量：`SIGNING_IDENTITY` / `NODE_INSTALLER` / `TAURI_CLI_ARGS`。`--frontend-only`：只跑 `pnpm build` 产出 dist/ 即结束——不编译 Rust、不打包、不签名（cargo/rustc 缺失不阻断，打包相关参数不生效仅 WARN），与 `--no-frontend` 互斥。
+打包前跑一次 `gen-icons.sh --check`，图标落后于 logo.png 只打 WARN，不改文件、不阻断。默认目标按 OS：macOS→app,dmg / Linux→deb,appimage / Windows→msi。环境变量：`SIGNING_IDENTITY` / `NODE_INSTALLER` / `TAURI_CLI_ARGS`。
+
+前端资产内嵌契约：`generate_context!`（`src-tauri/src/lib.rs`）在编译期把 dist/ 嵌进二进制（.app Resources 无前端文件），且 tauri-build（≤2.7.x）不监听 dist 变化——完整构建也可能嵌旧前端。脚本以 `refresh_embed_if_stale` 守卫两条路径：dist 比目标二进制新即 touch lib.rs 触发嵌前端 crate 重编（依赖全缓存）。
+
+- `--frontend-only`：只跑 `pnpm build` 产出 dist/ 即结束——不编译 Rust、不打包、不签名（cargo/rustc 缺失不阻断，打包相关参数不生效仅 WARN），与 `--no-frontend` / `--sync-app` 互斥。
+- `--sync-app`：macOS 前端快速刷新——dist → 增量重编应用壳 → 新二进制换入现有 .app → ad-hoc + entitlements 重签。不重跑打包器、不出 dmg，发版仍走完整构建；`--fast` 有意义（决定 profile 与 .app 路径），`--universal/--bundles/--target` 不生效仅 WARN。cargo 命令**必须带 `--features tauri/custom-protocol`**（与 tauri CLI 同口径）：v2 的 dev 判定是 tauri-macros 编译期常量（feature 链传入），缺了它 `generate_context!` 走 dev 分支——不嵌 dist、运行时指向 devUrl，产出「假发布」二进制。
 
 ### create_tag.sh —— 版本四处同步契约
 

@@ -12,6 +12,7 @@
 #   bash scripts/build.sh --target=x86_64-apple-darwin  # 显式指定 rustc 目标
 #   bash scripts/build.sh --no-frontend         # 跳过前端重新构建
 #   bash scripts/build.sh --frontend-only       # 只构建前端（→ dist/），不编译 Rust、不打包
+#   bash scripts/build.sh --sync-app            # 前端改完快速刷新已打包 .app（增量重编应用壳，不重跑打包器）
 #   bash scripts/build.sh --dry-run             # 只打印将执行的命令，不实际执行
 #   bash scripts/build.sh --help
 #
@@ -37,6 +38,7 @@ FAST=false
 UNIVERSAL=false
 NO_FRONTEND=false
 FRONTEND_ONLY=false
+SYNC_APP=false
 BUNDLES_OVERRIDE=""
 TARGET_OVERRIDE=""
 NODE_INSTALLER="${NODE_INSTALLER:-pnpm}"
@@ -51,6 +53,7 @@ while [ $# -gt 0 ]; do
     --universal)     UNIVERSAL=true ;;
     --no-frontend)   NO_FRONTEND=true ;;
     --frontend-only) FRONTEND_ONLY=true ;;
+    --sync-app)      SYNC_APP=true ;;
     --dry-run)       DRY_RUN=true ;;
     --bundles)     BUNDLES_OVERRIDE="${2:?--bundles requires a value}"; shift ;;
     --bundles=*)   BUNDLES_OVERRIDE="${arg#--bundles=}" ;;
@@ -67,6 +70,7 @@ Options:
   --target=TRIPLE      Pass explicit rustc target to tauri build (advanced)
   --no-frontend        Skip 'pnpm build' (assume dist/ is current)
   --frontend-only      Build frontend only (→ dist/); skip Rust compile & bundling
+  --sync-app           Fast-refresh packaged ZhuYe.app (macOS; incremental relink, no bundler)
   --dry-run            Print commands without executing
   -h, --help           Show this help
 
@@ -88,9 +92,14 @@ EOF
   shift
 done
 
-# 互斥：--no-frontend 与 --frontend-only 语义相反，同时给即报错。
+# 互斥：--no-frontend 与 --frontend-only 语义相反，同时给即报错；
+# --frontend-only 与 --sync-app 也不可组合（后者已包含前端构建）。
 if $NO_FRONTEND && $FRONTEND_ONLY; then
   echo "--no-frontend 与 --frontend-only 互斥，不能同时使用" >&2
+  exit 1
+fi
+if $FRONTEND_ONLY && $SYNC_APP; then
+  echo "--frontend-only 与 --sync-app 互斥（后者已包含前端构建）" >&2
   exit 1
 fi
 
@@ -111,6 +120,24 @@ human_size() {
     du -sh "$path" 2>/dev/null | cut -f1
   else
     echo "?"
+  fi
+}
+
+# ── 嵌入前端保鲜 ─────────────────────────────────────────────────────────
+# 前端资产由 generate_context!（src-tauri/src/lib.rs）在编译期嵌进二进制
+# （.app Resources 里没有前端文件），且 tauri-build（≤2.7.x）不监听 dist
+# 变化 —— dist 比目标二进制新时 cargo 不会自己重编，嵌进去的仍是旧前端。
+# touch lib.rs 使指纹失效，只多编一层应用壳（依赖全缓存）。
+refresh_embed_if_stale() {
+  local dist_index="$REPO_ROOT/dist/index.html"
+  local bin="$REPO_ROOT/target/release/zhuye-desktop"
+  if $FAST; then
+    bin="$REPO_ROOT/target/release-fast/zhuye-desktop"
+  fi
+  [ -f "$dist_index" ] && [ -f "$bin" ] || return 0
+  if [ "$dist_index" -nt "$bin" ]; then
+    echo "+ touch src-tauri/src/lib.rs （dist 比二进制新：触发嵌前端 crate 重编）"
+    $DRY_RUN || touch "$REPO_ROOT/src-tauri/src/lib.rs"
   fi
 }
 
@@ -152,19 +179,36 @@ if $UNIVERSAL && [ "$PLATFORM" != "macos" ]; then
   UNIVERSAL=false
 fi
 
-# --frontend-only 只跑前端构建，打包相关参数在此模式下不生效，提示避免误解。
+# --frontend-only / --sync-app 不走打包器，打包相关参数在此模式下不生效，提示避免误解。
+# 注意 --fast 对 --sync-app 有意义（决定重编 profile 与 .app 路径），不在提示之列。
 if $FRONTEND_ONLY; then
   if $FAST || $UNIVERSAL || [ -n "$BUNDLES_OVERRIDE" ] || [ -n "$TARGET_OVERRIDE" ]; then
     echo "WARN: --frontend-only 只构建前端；--fast/--universal/--bundles/--target 在此模式下不生效" >&2
+  fi
+fi
+if $SYNC_APP; then
+  if $UNIVERSAL || [ -n "$BUNDLES_OVERRIDE" ] || [ -n "$TARGET_OVERRIDE" ]; then
+    echo "WARN: --sync-app 直接换入新二进制；--universal/--bundles/--target 在此模式下不生效" >&2
   fi
 fi
 
 BUNDLES="${BUNDLES_OVERRIDE:-$DEFAULT_BUNDLES}"
 
 echo "── ZhuYe build ────────────────────────────────────────────"
-echo "mode:          $([ $FRONTEND_ONLY = true ] && echo frontend-only || echo full)"
+if $FRONTEND_ONLY; then
+  MODE="frontend-only"
+elif $SYNC_APP; then
+  MODE="sync-app"
+else
+  MODE="full"
+fi
+echo "mode:          $MODE"
 echo "platform:      $PLATFORM ($OS_NAME)"
-echo "bundles:       $([ $FRONTEND_ONLY = true ] && echo '(skipped)' || echo "$BUNDLES")"
+if $FRONTEND_ONLY || $SYNC_APP; then
+  echo "bundles:       (skipped)"
+else
+  echo "bundles:       $BUNDLES"
+fi
 echo "profile:       $([ $FAST = true ] && echo release-fast || echo release)"
 echo "universal:     $UNIVERSAL"
 echo "target:        ${TARGET_OVERRIDE:-<host>}"
@@ -252,6 +296,55 @@ if $FRONTEND_ONLY; then
   echo "done."
   exit 0
 fi
+
+# ── --sync-app：前端快速刷新已打包 .app ──────────────────────────────────
+# 前端资产嵌在二进制里，纯 vite 产物无法被旧 .app 加载。此路径做最小刷新：
+# dist → 增量重编应用壳（依赖全缓存）→ 新二进制换入现有 .app → ad-hoc 重签。
+# 不重跑打包器、不产出 dmg；发版仍走完整构建。
+if $SYNC_APP; then
+  if [ "$PLATFORM" != "macos" ]; then
+    echo "ERROR: --sync-app 目前仅支持 macOS；Linux/Windows 前端同样内嵌，请走完整构建" >&2
+    exit 1
+  fi
+  APP_BUNDLE="$REPO_ROOT/target/release/bundle/macos/ZhuYe.app"
+  BIN_PATH="$REPO_ROOT/target/release/zhuye-desktop"
+  if $FAST; then
+    APP_BUNDLE="$REPO_ROOT/target/release-fast/bundle/macos/ZhuYe.app"
+    BIN_PATH="$REPO_ROOT/target/release-fast/zhuye-desktop"
+  fi
+  if [ ! -d "$APP_BUNDLE" ] || [ ! -f "$BIN_PATH" ]; then
+    echo "ERROR: 未找到已打包产物：$APP_BUNDLE —— 先跑一次完整构建：bash scripts/build.sh" >&2
+    exit 1
+  fi
+  refresh_embed_if_stale
+  # --features tauri/custom-protocol 与 tauri CLI 同口径：v2 的 dev 判定是
+  # tauri-macros 编译期常量（经 tauri/custom-protocol → tauri-macros feature
+  # 链传入），缺了它 generate_context! 走 dev 分支 —— 不嵌 dist、运行时指向
+  # devUrl，产出「假发布」二进制（实测踩过：裸 cargo 构建嵌出空资产表）。
+  if $FAST; then
+    run "cargo build --profile release-fast -p zhuye-desktop --features tauri/custom-protocol"
+  else
+    run "cargo build --release -p zhuye-desktop --features tauri/custom-protocol"
+  fi
+  run "cp '$BIN_PATH' '$APP_BUNDLE/Contents/MacOS/zhuye-desktop'"
+  # 换二进制后原签名失效；与完整构建同口径：ad-hoc + entitlements 重签
+  entitlements=""
+  [ -f "$REPO_ROOT/src-tauri/Entitlements.plist" ] &&
+    entitlements="--entitlements $REPO_ROOT/src-tauri/Entitlements.plist"
+  run "codesign --force --deep --sign - $entitlements '$APP_BUNDLE'"
+  echo ""
+  echo "── sync-app 完成 ──────────────────────────────────────────"
+  printf "  %8s  %s\n" "$(human_size "$APP_BUNDLE")" "$APP_BUNDLE"
+  echo "  要更新 ~/Applications/ZhuYe.app，再跑一次：bash scripts/install.sh"
+  echo "───────────────────────────────────────────────────────────"
+  echo "done."
+  exit 0
+fi
+
+# ── 全量路径嵌入保鲜 ─────────────────────────────────────────────────────
+# beforeBuildCommand 刚重建的 dist 不会触发 cargo 重编（tauri-build 不监听
+# dist），touch 守卫保证完整构建嵌进的是当前前端。
+refresh_embed_if_stale
 
 # ── Assemble final command ───────────────────────────────────────────────
 # 注意：在 `set -u` 下展开空数组会报错。`${arr[@]+"${arr[@]}"}`
