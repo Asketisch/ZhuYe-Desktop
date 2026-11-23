@@ -4,6 +4,14 @@
 
 ## 未发布
 
+- **发送前模型守卫（mock 运行时显式拦截）**：空会话的完整成因闭环
+  —— mock 池由 env `ZHUYE_MODEL=mock` / `ZHUYE_PROVIDER=mock` 显式
+  opt-in 注册，且**优先级高于配置文件的 `[active].group`**；继承了该
+  环境的应用实例整个运行时解析到 mock，任务消息进 mock 模型即时失败，
+  占位线程的 bootstrap 落盘留下空会话。Composer 发送与命令面板分发
+  现统一前置守卫：`agent-status` 显示无模型或 model 为 mock/空时拦截
+  发送并 toast 指明排障方向（检查 env 或启用模型组）；status 缓存未
+  就绪时放行（不因状态未查询而堵死发送）。
 - **侧栏过滤占位空会话（0 消息且未命名）**：排查「未归属」分组大量
   id 前缀空会话 —— 落盘实况为 `session_meta` + 2 条
   `prompt_selection_changed`（selection=null = 跟随默认），model=mock、
@@ -266,17 +274,20 @@
   `Enter/ExitGoalMode`（状态机含 `paused` 但无 pause/resume Op），
   暂停/恢复按钮待上游补协议后接入。顺带清理
   `corner.goal.setIdle/placeholder/budget/enter` 四个死 i18n 键。
-- **首页空态徽记升级为「火中生羽」v4 Pixel Flame 版**：ChatHero 的白脸
-  像素吉祥物与轮廓水印换为 `ZhuyeEmblem` —— 移植设计稿
-  `zhunye_pixel_pure_v4.html` 的纯 Canvas 徽记（1024 世界坐标缩放渲染：
-  金弧 + 四条凤凰形尾羽 + 焰羽雄鸡含冠/眼/喙 + 双色花瓣萼片），四层
-  224×224 画布（静态本体 / soft·bloom 双层辉光复制 + bloom CSS 呼吸 /
-  星光闪烁与上升灰烬火星），112px 展示在 2x 屏 1:1 逐像素。遵循
-  `prefers-reduced-motion`（静止一帧），jsdom 无 2d 上下文时跳过绘制
-  不阻塞测试。英雄态判定同步放宽：无会话（首页）**或已加载的空会话**
-  （工作区新建 / 刚创建未发言）均显示徽记问候 + 居中 Composer
-  （`ChatBinding::hero`，空会话「没有消息」横幅让位，首条消息发出后
-  落回常规布局）。纯前端视觉变更，无协议接线。
+- **首页空态徽记升级为「焰羽生花」v5 动效版（柔和档）**：ChatHero 的白脸
+  像素吉祥物与轮廓水印换为 `ZhuyeEmblem`（造型数据拆分至
+  `emblemArtwork.ts`）—— 移植设计稿 `zhunye_pixel_animated_v5.html` 的
+  纯 Canvas 动态徽记（1024 世界坐标缩放渲染：金弧 + 四条凤凰形尾羽 +
+  焰羽雄鸡含冠/眼/喙 + 双色花瓣萼片，按 8 组语义分组），四层 224×224
+  画布（本体逐帧分组微动效合成：光环呼吸/焰羽轻摆/鸡首轻点/花瓣微开合/
+  焰心流焰 + embers 层星光/弧环高光/带尾迹火星/花芯热尘；soft·bloom
+  双层辉光 CSS 呼吸），动效幅度固定柔和档（三档 柔和 .45/灵动 1/炽烈
+  1.65 中取 .45），40FPS 上限降功耗、页面隐藏即暂停，112px 展示在
+  2x 屏 1:1 逐像素。遵循 `prefers-reduced-motion`（静止一帧），jsdom
+  无 2d 上下文时跳过绘制不阻塞测试。英雄态判定同步放宽：无会话
+  （首页）**或已加载的空会话**（工作区新建 / 刚创建未发言）均显示徽记
+  问候 + 居中 Composer（`ChatBinding::hero`，空会话「没有消息」横幅
+  让位，首条消息发出后落回常规布局）。纯前端视觉变更，无协议接线。
 - **会话创建时的提示词预设选择入口（零协议接线）**：接通引擎既有
   `PromptSelection`（跟随默认 / Auto 智能匹配 / Manual 指定方案）的会话
   创建入口 —— composer 控制行在空会话态（turns 为空）新增「提示词」

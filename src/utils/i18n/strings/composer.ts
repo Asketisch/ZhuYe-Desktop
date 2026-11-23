@@ -67,6 +67,9 @@ const composer: Record<string, StringEntry> = {
   'composer.stop':                           { en: 'Stop',                                          'zh-CN': '停止' },
   'composer.stopHint':                       { en: 'Interrupt the running turn',                    'zh-CN': '中断当前运行' },
   'composer.interruptFailed':                { en: 'Failed to interrupt: {message}',                'zh-CN': '中断失败：{message}' },
+  // 模型守卫：运行时解析到 mock 池或无模型时拦截发送（env 显式 opt-in 的
+  // mock 优先于配置文件 —— 提示用户排障方向）。
+  'composer.noModelRuntime':                 { en: 'No usable model in this runtime — check ZHUYE_MODEL / ZHUYE_PROVIDER env vars (mock is active) or enable a model group.', 'zh-CN': '当前运行时没有可用模型 —— 请检查 ZHUYE_MODEL / ZHUYE_PROVIDER 环境变量（当前为 mock），或在「模型组」页启用模型组。' },
   'composer.contextTooltip':                 { en: 'Context {pct}% · in {input} · out {output} · cached {cached}', 'zh-CN': '上下文 {pct}% · 输入 {input} · 输出 {output} · 缓存 {cached}' },
   'composer.contextNearFull':                { en: 'Context {pct}% — nearly full, consider /compact', 'zh-CN': '上下文已用 {pct}%，接近上限，可执行 /compact' },
   'composer.mode.label':                     { en: 'Send mode',                                     'zh-CN': '发送模式' },

@@ -88,9 +88,22 @@ export function useComposerSubmission({
   const navigate = useNavigate();
 
   // slash submission 分发已抽到 dispatchSubmission.ts（Composer 与命令面板共用）。
+  // 与 send() 同款模型守卫 —— 命令面板的 /goal /plan 等同样会建会话。
+  const modelGuardOk = () => {
+    const status = qc.getQueryData<{ has_model?: boolean; model?: string }>([
+      'agent-status',
+    ]);
+    if (!status) return true;
+    const model = status.model ?? '';
+    return status.has_model !== false && model !== '' && !model.startsWith('mock');
+  };
   const runSubmission = useCallback(
-    (kind: string, args: string[]) =>
-      dispatchSubmission(kind, args, {
+    (kind: string, args: string[]) => {
+      if (!modelGuardOk()) {
+        pushToast({ kind: 'error', message: t('composer.noModelRuntime') });
+        return Promise.resolve();
+      }
+      return dispatchSubmission(kind, args, {
         activeSessionId: activeId,
         pushToast,
         t,
@@ -99,8 +112,9 @@ export function useComposerSubmission({
         workspace: currentWorkspace ?? null,
         invalidateSessions: () => void qc.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY }),
         navigate: (to) => void navigate({ to }),
-      }),
-    [activeId, pushToast, rename, t, ensureSessionReady, currentWorkspace, qc, navigate],
+      });
+    },
+    [activeId, pushToast, rename, t, ensureSessionReady, currentWorkspace, qc, navigate, modelGuardOk],
   );
 
   /**
@@ -169,6 +183,15 @@ export function useComposerSubmission({
     setSlashVisible(false);
     history.resetNavigation();
     try {
+      // 模型守卫:运行时解析到 mock 池(env `ZHUYE_MODEL=mock` /
+      // `ZHUYE_PROVIDER=mock` 显式 opt-in,优先级高于配置文件)或无模型
+      // 时,发送只会进占位线程即时失败并留下空会话(实测踩过)。
+      // status 缓存缺失(查询未跑完)时放行 —— 不能因为状态未就绪而
+      // 永远堵死发送;引擎侧失败仍有显式报错。
+      if (!modelGuardOk()) {
+        pushToast({ kind: 'error', message: t('composer.noModelRuntime') });
+        return;
+      }
       // P3：`!` 终端直通 —— 本地执行，不进 agent 循环、不写会话历史；
       // 附件保留在输入框（用户可能接着补充说明再发送）。
       if (value.startsWith('!') && onBangCommand) {
