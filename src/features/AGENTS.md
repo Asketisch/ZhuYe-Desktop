@@ -43,6 +43,7 @@
    5. 带测试——`tests/views.untested-slices.test.tsx` 为零就地测试视图（about/apps/debug/dictation/home/mobile/models/prompts/skills）提供行为级兜底，新切片不要进这份清单。
 3. **同名 Composer 分叉澄清**：`features/composer/Composer.tsx` 是编辑器运行时规范实现；`features/messages/Composer.tsx` 是一行薄 re-export（`export { Composer } from '@/features/composer/Composer'`）。二者同名不同物，改编辑器行为只动前者。
 4. **既有切片 README**：sessions / design-system / threads 三 slices 自带 README，进这些切片先读（链接见文末）；其余切片以本篇与根 AGENTS.md 为准。
+5. **缓存命中率分两个口径（v1.x）**：工作台 `session/StatusPanel.tsx` 与 `shell/Inspector.tsx` 显示的是**本回合**口径（`logic/usage/cacheHitRate.ts` 的 `useTurnCacheHitRate`，读 store 的 `tokens.turn`），右侧用量面板 `usage/UsageDock.tsx` 与 `/usage` 页显示的是**会话级**口径（后端 `zhuye_session_stats`）—— 两个标签各标各的（`statusPanel.cacheHit` / `usage.turnCacheHitRate` vs `usage.cacheHitRate`），不要用一个标签混指两个口径。命中率一律钳到 `[0, 100%]`。检查器的 Token 构成条四段**互斥**（未缓存提示词 = `input − 缓存命中 − 缓存写入`），别把 `input` 与缓存分段直接相加。
 
 ## 深入阅读
 

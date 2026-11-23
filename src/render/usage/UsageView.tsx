@@ -12,7 +12,12 @@ const ICONS: Record<string, ComponentType> = { gauge: Gauge };
 
 function fmtNum(n: number): string { return n.toLocaleString(); }
 function fmtCost(v: number | null | undefined): string { return v == null ? '—' : `$${v.toFixed(4)}`; }
-function fmtRate(v: number | null | undefined): string { return v == null ? '—' : `${(v * 100).toFixed(1)}%`; }
+// 命中率是比例,钳到 [0, 100%](上游口径漂移时不至于显示 > 100%)。
+// 渲染层不依赖逻辑层,此处就地钳制。
+function fmtRate(v: number | null | undefined): string {
+  if (v == null) return '—';
+  return `${(Math.min(1, Math.max(0, v)) * 100).toFixed(1)}%`;
+}
 function fmtPrice(v: number | null | undefined): string { return v == null ? '—' : `$${v.toFixed(2)}`; }
 
 export function UsageView({

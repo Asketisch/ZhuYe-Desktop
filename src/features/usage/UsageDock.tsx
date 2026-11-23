@@ -10,6 +10,7 @@
 import { RefreshCw } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import { useUsageDock, buildSegments, formatUsd, type UsageDockSegment } from '@/logic/usage/useUsageDock';
+import { clampRate01 } from '@/logic/usage/cacheHitRate';
 
 /** 单色系分段填充与图例文案（仅用设计 token,无硬编码色）。 */
 const SEGMENT_COLOR: Record<UsageDockSegment['key'], string> = {
@@ -139,7 +140,11 @@ export function UsageDock() {
                     </div>
                     <div className="us-kv" data-testid="usage-dock-cache-rate">
                       <span>{t('usage.cacheHitRate')}</span>
-                      <b>{stats.cacheHitRate == null ? '—' : `${(stats.cacheHitRate * 100).toFixed(1)}%`}</b>
+                      <b>
+                        {stats.cacheHitRate == null
+                          ? '—'
+                          : `${(clampRate01(stats.cacheHitRate) * 100).toFixed(1)}%`}
+                      </b>
                     </div>
                     {segments.length > 0 && (
                       <>

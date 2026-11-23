@@ -14,7 +14,7 @@ import type { TokenSnapshot } from './tokenTypes';
 
 // token 计量类型已拆到 `./tokenTypes`(本文件逼近 500 行预算)。
 // 这里重新导出 —— 既有导入路径(`@/stores/agent/types`)全部保持有效。
-export type { LiveModelUsage, TokenSnapshot } from './tokenTypes';
+export type { LiveModelUsage, TokenSnapshot, TurnTokenUsage } from './tokenTypes';
 
 /**
  * A2 附件元数据类型拆到 `./attachmentTypes`(单文件行数预算,先例同

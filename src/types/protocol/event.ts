@@ -188,6 +188,15 @@ export interface TokenCountPayload extends TokenUsagePayload {
    * 旧引擎不上报该字段 → 缺省 `undefined`。
    */
   model?: string;
+  /**
+   * v1.x:本条是否为**回合累计**。
+   *
+   * 引擎在回合收尾时会补发一条累计 `token_count`(数字 = 本回合逐次
+   * 调用的累计,`provider` / `credential_label` / `model` 均为空)。
+   * 缺省 `false` = 单次调用。**两者不可一并累计** —— 会话总量与费用
+   * 会因此翻倍。
+   */
+  turn_total?: boolean;
 }
 
 /**

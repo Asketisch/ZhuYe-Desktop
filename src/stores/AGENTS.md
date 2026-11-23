@@ -40,6 +40,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 - **在飞内容靠内存投影跨会话存活（关键）**：上游已按步骤增量落盘 assistant 内容（`persist_assistant_step`），但正在流出的半截文本、运行态，以及审批 / 提问 / plan 这些 gate 请求仍不在 rollout 里。因此切走时必须 `demote`（播种前台 turns + pending），切回时 `mergePendingInto` 整体注回 —— 否则切回后最新增量丢失、运行态退化成「已结束」（停止按钮随之消失，卡住的回合再也停不下来）、审批框永久丢失。
 - **队列按会话隔离**：`QueuedMessage.sessionId` 在入队时盖章（`enqueueMessage` 取 `loadedSessionId`）；展示（`QueuedMessages` / `Inspector` / `ZDock`，均经 `selectQueuedForActiveSession` + `useShallow`——选择器返回新数组，裸用会触发 zustand v5 无限重渲）与排空（`drainQueue`）只作用于前台会话的队列项。
 - **壳层 UI 状态归 shellUi**：窗口摆法（rail / dock / 终端面板 / 任务中心 / 设置弹窗 / 命令面板 / 单色模式）只进 `shellUi.ts`，不进组件 useState —— 标题条按钮、快捷键、侧栏按钮三方共享同一状态；paletteOpen 由 `useCommandPaletteShortcut`（⌘K）与标题条按钮共用。
+- **`token_count` 有两种语义，靠 `turn_total` 区分（v1.x）**：引擎逐次模型调用发一条**单次调用快照**（`turn_total` 缺省 `false`），回合收尾再发一条**本回合累计**（`turn_total = true`，数字 = 本回合逐次调用的累计）。reducer 只把 `false` 的事件累加进 `sessionTotal` / `sessionCost`（一并累计会让会话总量与费用翻倍），且回合累计**不覆盖**「最后一次调用」快照（`input` / `output` / `cached` / `cacheWrite` / `total`）—— 后者是上下文占比的判据。回合级累计另存 `tokens.turn`（按 `event.id` 归零，回合收尾时由引擎的累计事件校准），供「本回合缓存命中率」使用。改 `token_count` 分支前先读 `agent/tokenTypes.ts` 的口径注释。
 
 ## 禁止事项
 

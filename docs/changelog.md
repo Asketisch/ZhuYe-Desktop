@@ -4,6 +4,33 @@
 
 ## 未发布
 
+- **缓存命中率口径修正（1052% → 真实值）+ 回合累计事件不再双计**：
+  工作台「平均缓存命中率」显示 1052% 的根因在上游引擎 —— Anthropic
+  线缆的 `usage.input_tokens` **不含** cache_read / cache_creation 两段，
+  而引擎契约要求「缓存分段是 input 的子集」；适配层原样透传导致
+  `cached > input`，引擎回合收尾再补发一条**回合累计** `token_count`
+  （数字 = 本回合逐次调用的累计），桌面端把它与逐次调用一并累计，
+  于是出现 > 100% 的荒谬值（真实案例：41486 / 3942 = 1052%）。
+  修复分两层：**上游**（zhuye-agent `develop`，submodule 指针
+  `bfa28695 → 70291c4e`）—— Anthropic 适配器上报前把两个缓存分段折入
+  `input_tokens`（`TokenUsage::fold_cache_segments`），读取历史 rollout
+  时按「缓存分段之和 > input」这一特征幂等修复旧口径记录，
+  `SessionStats::cache_hit_rate()` 钳到 `[0, 1]`；同时给
+  `TokenCountEvent` 增加 `turn_total` 标记回合累计（additive，逐次
+  调用的 wire 逐字节不变）。**桌面端** —— reducer 只累计逐次调用的
+  事件（`sessionTotal` / `sessionCost` 此前实为 2 倍），回合累计不再
+  覆盖「最后一次调用」快照（上下文占比因此失真），另存
+  `tokens.turn` 供**本回合**口径使用；工作台与检查器的命中率改显
+  「本回合缓存命中率」（`usage.turnCacheHitRate`），用量面板的
+  「缓存命中率」仍是**会话级**口径（后端 `zhuye_session_stats`）——
+  两个口径各标各的，一律钳到 `[0, 100%]`；检查器 Token 构成条四段
+  改互斥（未缓存提示词 = `input − 缓存命中 − 缓存写入`，此前把
+  `input` 与缓存分段直接相加属重复计入）。
+  连带修正（上游）：Anthropic 的新鲜输入此前被按缓存价计费
+  （`pricing::price` 的 `non_cached` 饱和到 0）、`total_tokens` 漏掉
+  缓存段导致上下文占用与配额低报、压缩触发判据只看 fresh delta 而
+  几乎永不触发。
+
 - **新会话延迟落盘 + 侧栏「工作区 / 会话」分区重构 + 输入框移除拉取
   模型 + 思考强度文案统一中文**：① 新建会话不再预分配 session id /
   预插侧栏缓存（`ShellBinding.handleNewChat` 只导航 `/chat` 首页，

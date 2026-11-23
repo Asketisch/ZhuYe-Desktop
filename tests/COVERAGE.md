@@ -52,7 +52,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | 挂起交互查询面(v1.12) | `bind` 返回 `{permission_mode, pending_gates}`(引擎 gate 注册表快照) | L3 `ipc_pending_gates.rs`;上游 zhuye-tools/zhuye-core 覆盖注册表/落盘/广播 | 审批弹窗 reload 重水合(`hydratePendingGates`) |
 | 事件可靠性(v1.12) | `Event.seq` 缺口检测 + `zhuye_event_gap` 合成通知 | 上游 seq 单调契约(session_events)+ 桌面转发器 Lagged 分支 | store 重放收敛 / backgroundSessions 重灌 |
 | 上下文构成(v1.12) | `context_composition` 六类分解 | 上游 model_call 计量(指纹去重) | 工作台容量卡构成条(`StatusPanel`) |
-| 会话统计 | `session_stats` `all_model_usage` `model_rate_cards` | L3 `ipc_core.rs` | `usage` |
+| 会话统计 | `session_stats` `all_model_usage` `model_rate_cards` | L3 `ipc_core.rs`；上游 zhuye-protocol `cache_hit_rate` 钳制 + zhuye-rollout 旧口径修复单测 | `usage`；L2 `logic/usage/cacheHitRate.test.ts`（命中率钳制）+ `stores/agentStore.test.ts`（回合累计事件不双计、`tokens.turn` 按回合归零） |
 | 配置 | `get_config` `save_config` `config_info` `set_model` `get_user_instructions` `save_user_instructions`（用户级自定义指令读写，设置页「个性化」） | L3 `ipc_core.rs` + `ipc_model_discovery.rs`（本地模拟清单失败及相同配置重试）+ `ipc_settings_restart.rs`（跨进程保存的预算约束新 Agent 回合）+ `ipc_settings_concurrency.rs`（并发模型切换不丢写） | `settings.config` |
 | 运行时状态 | `agent_status` `credential_pool_status` `recovery_state` `memory_sections` `sandbox_status` | L3 `ipc_core.rs` / `ipc_workspace.rs` | `StatusBar` / `AppShell` |
 | 工具 / 技能 / hooks | `list_tools` `list_skills` `rescan_extensions` `list_hooks` `toggle_hook` `list_hook_events` `install_skill` | L3 `ipc_core.rs`、`ipc_hooks.rs`；`ipc_extensions.rs` 验证绑定会话后新增、删除技能的重扫及事件配对；`ipc_skill_runtime.rs` 验证模型加载技能正文；`ipc_v11_features.rs` 验证 `install_skill` repo 形态校验先于网络（成功路径走 GitHub 网络，按 §3 网络类口径豁免；L2 `SkillsView.test` 断言安装成功后自动重扫） | — |

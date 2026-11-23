@@ -22,6 +22,8 @@ const usage: Record<string, StringEntry> = {
   'usage.total':          { en: 'Total',                                                     'zh-CN': '合计' },
   'usage.cost':           { en: 'Cost',                                                      'zh-CN': '费用' },
   'usage.cacheHitRate':   { en: 'Cache hit rate',                                            'zh-CN': '缓存命中率' },
+  // 回合级口径(检查器 / 工作台):与上面的会话级口径分开标注。
+  'usage.turnCacheHitRate': { en: 'Turn cache hit rate',                                     'zh-CN': '本回合缓存命中率' },
   'usage.compactions':    { en: 'Compactions',                                               'zh-CN': '压缩次数' },
   'usage.tokensSaved':    { en: 'Tokens saved',                                              'zh-CN': '节省 token' },
   'usage.memoryAccess':   { en: 'Memory access',                                             'zh-CN': '记忆访问' },

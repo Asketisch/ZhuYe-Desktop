@@ -66,7 +66,8 @@ const inspector: Record<string, StringEntry> = {
   'inspector.sessionMetrics':    { en: 'Session metrics',             'zh-CN': '会话指标' },
   'inspector.metricTurns':       { en: 'Turns',                       'zh-CN': '轮数' },
   'inspector.metricTotalTokens': { en: 'Total tokens',                'zh-CN': '累计 tokens' },
-  'inspector.comp.input':        { en: 'Input',                       'zh-CN': '提示词' },
+  // 构成条四段互斥:未缓存提示词 = input − 缓存命中 − 缓存写入。
+  'inspector.comp.fresh':       { en: 'Prompt (uncached)',          'zh-CN': '未缓存提示词' },
   'inspector.comp.cached':       { en: 'Cache hit',                   'zh-CN': '缓存命中' },
   'inspector.comp.cacheWrite':   { en: 'Cache write',                 'zh-CN': '缓存写入' },
   'inspector.comp.output':       { en: 'Output',                      'zh-CN': '回复' },
