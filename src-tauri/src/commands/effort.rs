@@ -112,9 +112,12 @@ pub async fn zhuye_effort_capability(
     };
     let desired = zhuye_llm::ReasoningEffort::from(requested);
 
-    // 静态能力表:支持档位阶梯 + 与引擎一致的钳制结果。未知模型走上游
-    // 保守默认(Low..=High),与引擎实际会发出的档位严格一致。
-    let supported: Vec<String> = zhuye_llm::reasoning_effort::supported_efforts_for_model(&model)
+    // 菜单口径:models.dev 收录该模型时逐词映射厂商声明档位(精确,如
+    // qwen3.8 系 low/medium/xhigh —— 不凭空补厂商没声明的档);未收录
+    // 回落静态表阶梯合成(保守,历史行为)。生效档仍按引擎同款线性钳制
+    // (clamp_effort_for_model)—— 菜单忠实于厂商声明,钳制保守于阶梯,
+    // 两者职责分离。
+    let supported: Vec<String> = zhuye_llm::reasoning_effort::effort_menu_for_model(&model)
         .iter()
         .map(|level| zhuye_llm::reasoning_effort::effort_wire_str(*level).to_string())
         .collect();

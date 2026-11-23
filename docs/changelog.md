@@ -17,16 +17,20 @@
 - **上游 xhigh 档修复（已推分支并升级 submodule）+ 桌面全链路接入**：
   qwen3.8 系显示 low/medium/high 而非真实档位 low/medium/xhigh 的根因
   是上游阶梯无 `xhigh` 档 + qwen 静态条目短路目录。已在上游 `zhuye-agent`
-  建分支 `fix/effort-xhigh-ladder`（`637eb523`，已推送）：协议 / LLM 枚举
-  新增 `XHigh`（wire 词 `xhigh`，声明序 High < XHigh < Max）、
+  建分支 `fix/effort-xhigh-ladder`（两个提交，已推送）：`637eb523` 协议 /
+  LLM 枚举新增 `XHigh`（wire 词 `xhigh`，声明序 High < XHigh < Max）、
   `EFFORT_CAP_TABLE` 增 `("qwen3.8" → XHigh)` 排在泛 qwen 前、`ladder_cap`
-  补 xhigh 词表、config/CLI 同步。桌面 submodule 已指向该分支尖端，
-  Rust `parse_effort`/`get_effort`/`effort_name` 与前端 `ALL_EFFORTS` /
-  `/effort` 校验 / ModelsBinding 提示全部纳入 xhigh，qwen3.8 思考档下拉
-  现可直达厂商顶档 `xhigh`。⚠️ gitlink 钉在未合入 develop 的分支尖端
-  commit（`.gitmodules` 仍跟踪 develop 未改），合入 develop 前**勿跑**
-  `git submodule update --remote`（会重置回 develop 顶点、静默丢掉
-  xhigh 修复）；合入后正常跟随。
+  补 xhigh 词表、config/CLI 同步；`73f61e5c` 新增 `effort_menu_for_model`
+  —— UI 菜单不再用线性阶梯合成（会凭空补厂商没声明的 `high`），改为
+  models.dev 厂商词表逐词精确映射（去重/升序/丢弃 none 类词），未收录
+  回落阶梯；钳制语义不变。桌面 submodule 已指向分支尖端，Rust
+  `parse_effort`/`get_effort`/`effort_name` 与前端 `ALL_EFFORTS` /
+  `/effort` 校验 / ModelsBinding 提示全部纳入 xhigh，
+  `zhuye_effort_capability` 的 `supported` 改用菜单函数 —— qwen3.8 思考
+  档下拉 = 厂商声明 `[low, medium, xhigh]`，与设置页获取的完全一致。
+  ⚠️ gitlink 钉在未合入 develop 的分支尖端 commit（`.gitmodules` 仍跟踪
+  develop 未改），合入 develop 前**勿跑** `git submodule update --remote`
+  （会重置回 develop 顶点、静默丢掉 xhigh 修复）；合入后正常跟随。
 - **会话活动流折叠（Codex/ZCode 式活动组）**：思考块不再打断工具调用
   段 —— 「思考 → 执行 → 思考 → 执行」混合段聚合为一个活动组，默认
   整体折叠为一行摘要（执行 N 命令 / 思考 M 次，运行中转琥珀色前缀），
