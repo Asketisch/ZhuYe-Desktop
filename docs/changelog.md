@@ -14,16 +14,19 @@
   `max`，下拉列表也不再出现不支持的档位（钳制是无损投影，偏好留在
   槽位，切回支持模型自动恢复）；钳制时 tooltip 说明
   「偏好 {requested} · 当前模型生效 {effective}」。
-- **上游 xhigh 档修复（分支待合入）+ 桌面侧预备**：qwen3.8 系显示
-  low/medium/high 而非真实档位 low/medium/xhigh 的根因是上游阶梯无
-  `xhigh` 档 + qwen 静态条目短路目录。已在上游 `zhuye-agent` 建分支
-  `fix/effort-xhigh-ladder`：协议 / LLM 枚举新增 `XHigh`（wire 词
-  `xhigh`，声明序 High < XHigh < Max）、`EFFORT_CAP_TABLE` 增
-  `("qwen3.8" → XHigh)` 排在泛 qwen 前、`ladder_cap` 补 xhigh 词表、
-  config/CLI 同步。桌面侧预备 `ALL_EFFORTS` / `/effort` 校验 /
-  ModelsBinding 提示纳入 xhigh（旧引擎下不出现该档，行为不变），
-  Rust `parse_effort` 的 `XHigh` 构造待 submodule 升级时随分支合入
-  一并接入。
+- **上游 xhigh 档修复（已推分支并升级 submodule）+ 桌面全链路接入**：
+  qwen3.8 系显示 low/medium/high 而非真实档位 low/medium/xhigh 的根因
+  是上游阶梯无 `xhigh` 档 + qwen 静态条目短路目录。已在上游 `zhuye-agent`
+  建分支 `fix/effort-xhigh-ladder`（`637eb523`，已推送）：协议 / LLM 枚举
+  新增 `XHigh`（wire 词 `xhigh`，声明序 High < XHigh < Max）、
+  `EFFORT_CAP_TABLE` 增 `("qwen3.8" → XHigh)` 排在泛 qwen 前、`ladder_cap`
+  补 xhigh 词表、config/CLI 同步。桌面 submodule 已指向该分支尖端，
+  Rust `parse_effort`/`get_effort`/`effort_name` 与前端 `ALL_EFFORTS` /
+  `/effort` 校验 / ModelsBinding 提示全部纳入 xhigh，qwen3.8 思考档下拉
+  现可直达厂商顶档 `xhigh`。⚠️ gitlink 钉在未合入 develop 的分支尖端
+  commit（`.gitmodules` 仍跟踪 develop 未改），合入 develop 前**勿跑**
+  `git submodule update --remote`（会重置回 develop 顶点、静默丢掉
+  xhigh 修复）；合入后正常跟随。
 - **会话活动流折叠（Codex/ZCode 式活动组）**：思考块不再打断工具调用
   段 —— 「思考 → 执行 → 思考 → 执行」混合段聚合为一个活动组，默认
   整体折叠为一行摘要（执行 N 命令 / 思考 M 次，运行中转琥珀色前缀），

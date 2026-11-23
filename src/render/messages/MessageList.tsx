@@ -18,7 +18,7 @@ type RenderNode =
   | { kind: 'toolGroup'; entries: ToolEntry[] }
   | { kind: 'activityGroup'; entries: ActivityEntry[] };
 
-/** 工具调用 + 思考块混合聚合：思考不再打断工具段（Codex/ZCode 式活动组）。
+/** 工具调用 + 思考块混合聚合：思考不再打断工具段（对话式 agent 活动组）。
  *  思考-only 段（无任何工具调用）保持独立 ThinkingCollapsible，不套组壳。 */
 function groupToolNodes(items: TurnItem[]): RenderNode[] {
   const nodes: RenderNode[] = [];
@@ -231,7 +231,7 @@ function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus
   const { ToolCell, ToolOutputBody, UserAttachments, Collapsible, ToolGroup, ActivityGroup } = slots;
 
   if (node.kind === 'activityGroup') {
-    // 工具 + 思考混合段：思考不打断工具流,同组折叠（Codex/ZCode 式）。
+    // 工具 + 思考混合段：思考不打断工具流,同组折叠（对话式 agent 产品惯例）。
     const entryMeta = node.entries.map((entry) =>
       entry.kind === 'thinking'
         ? { thinking: true }

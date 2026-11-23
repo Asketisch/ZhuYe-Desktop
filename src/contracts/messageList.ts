@@ -14,7 +14,7 @@ export interface MessageListSlots {
   ToolOutputBody: ComponentType<ComponentProps<typeof ToolOutputBody>>;
   /** 连续工具调用的聚合组（对话式 agent 产品惯用的摘要行）。 */
   ToolGroup: ComponentType<ComponentProps<typeof ToolGroup>>;
-  /** 工具 + 思考混合活动组（思考不打断工具流,Codex/ZCode 式）。 */
+  /** 工具 + 思考混合活动组（思考不打断工具流,对话式 agent 产品惯例）。 */
   ActivityGroup: ComponentType<ComponentProps<typeof ActivityGroup>>;
   QueuedMessages: ComponentType<ComponentProps<typeof QueuedMessages>>;
   UserAttachments: ComponentType<ComponentProps<typeof UserAttachments>>;

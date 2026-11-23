@@ -37,24 +37,27 @@ pub async fn zhuye_get_effort(agent: State<'_, MinimalAgent>) -> CommandResult<S
         ReasoningEffortMirror::Low => "low",
         ReasoningEffortMirror::Medium => "medium",
         ReasoningEffortMirror::High => "high",
+        ReasoningEffortMirror::XHigh => "xhigh",
         ReasoningEffortMirror::Max => "max",
         ReasoningEffortMirror::Ultra => "ultra",
     }
     .to_string())
 }
 
-/// `"low"|"medium"|"high"|"max"|"ultra"` → `ReasoningEffortMirror`
-/// (上游 v1.x 起新增 max / ultra 档,按模型能力表在发送前钳制)。
+/// `"low"|"medium"|"high"|"xhigh"|"max"|"ultra"` → `ReasoningEffortMirror`
+/// (上游 v1.x 起新增 max / ultra 档,fix/effort-xhigh-ladder 新增 xhigh 档,
+/// 按模型能力表在发送前钳制)。
 fn parse_effort(s: &str) -> CommandResult<ReasoningEffortMirror> {
     Ok(match s.to_ascii_lowercase().as_str() {
         "low" => ReasoningEffortMirror::Low,
         "medium" => ReasoningEffortMirror::Medium,
         "high" => ReasoningEffortMirror::High,
+        "xhigh" => ReasoningEffortMirror::XHigh,
         "max" => ReasoningEffortMirror::Max,
         "ultra" => ReasoningEffortMirror::Ultra,
         other => {
             return Err(CommandError {
-                msg: format!("invalid effort '{other}'; expected low|medium|high|max|ultra"),
+                msg: format!("invalid effort '{other}'; expected low|medium|high|xhigh|max|ultra"),
             });
         }
     })
@@ -63,8 +66,8 @@ fn parse_effort(s: &str) -> CommandResult<ReasoningEffortMirror> {
 /// 思考强度能力快照 —— 「当前模型能选哪些档」「用户选的档实际生效为什么」。
 ///
 /// 能力来源:静态能力表(上游 `reasoning_effort` 模块;已知模型族
-/// qwen→…/high、deepseek→…/max、OpenAI 推理系→…/ultra,未知模型保守
-/// 到 high)。「运行时已验证结论」层待上游合入后叠加。
+/// qwen→…/high、qwen3.8→…/xhigh、deepseek→…/max、OpenAI 推理系→…/ultra,
+/// 未知模型保守到 high)。「运行时已验证结论」层待上游合入后叠加。
 #[derive(Debug, Clone, Serialize)]
 pub struct EffortCapability {
     /// 当前模型 spec(`<模型组id>/<model>`);未配置模型时为空串。
@@ -133,6 +136,7 @@ fn effort_name(effort: ReasoningEffortMirror) -> &'static str {
         ReasoningEffortMirror::Low => "low",
         ReasoningEffortMirror::Medium => "medium",
         ReasoningEffortMirror::High => "high",
+        ReasoningEffortMirror::XHigh => "xhigh",
         ReasoningEffortMirror::Max => "max",
         ReasoningEffortMirror::Ultra => "ultra",
     }
@@ -150,7 +154,9 @@ mod tests {
             ReasoningEffortMirror::Medium
         );
         assert_eq!(parse_effort("HIGH").unwrap(), ReasoningEffortMirror::High);
-        // 上游 v1.x 新档位:max / ultra。
+        // 上游 v1.x 新档位:max / ultra;fix/effort-xhigh-ladder 新增 xhigh。
+        assert_eq!(parse_effort("xhigh").unwrap(), ReasoningEffortMirror::XHigh);
+        assert_eq!(parse_effort("XHIGH").unwrap(), ReasoningEffortMirror::XHigh);
         assert_eq!(parse_effort("max").unwrap(), ReasoningEffortMirror::Max);
         assert_eq!(parse_effort("ULTRA").unwrap(), ReasoningEffortMirror::Ultra);
         assert!(parse_effort("nope").is_err());
