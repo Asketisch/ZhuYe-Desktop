@@ -4,6 +4,18 @@
 
 ## 未发布
 
+- **设置「高级」页隐藏 9 个无消费面分区**：逐分区核实（引擎生产代码 +
+  桌面 src-tauri/app-core 双向 grep）后，`analytics` / `notifications` /
+  `postgres_session` / `sse_redis`（headless 服务端部署件,桌面运行时
+  未接线）、`bridge` / `voice` / `dap` / `acp`（上游 schema 自述 P2/P3
+  stub）、`config_version`（引擎内部计数）标记 hidden 不再进表单 ——
+  这些分区填了没有任何行为。定义与 i18n 保留（引擎接通后去掉标记即
+  恢复展示），存量 TOML 值原样保留；结构化分区卡由
+  `SIMPLE_FIELDS_BY_SECTION` 派生,隐藏分区不再产生空壳卡。保留项均
+  真实接线：sandbox / routing / coordinator（引擎 bootstrap 消费）/
+  ask_user_question / model / model_discovery / sanitize / prompt_guard
+  / plugins / bundled_skills 与全部 COMPLEX_SECTIONS（mcp / lsp / hooks
+  / subagent_models / feature_flags / routing）。
 - **自动压缩阈值下沉为模型组配置（默认 85%）**：设置页全局「接近最大
   上下文时自动压缩」开关移除，改为模型详情 → 高级配置的组级
   「自动压缩阈值」百分比输入（空 = 默认 85%，越界值不写入）。上游

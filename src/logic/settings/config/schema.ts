@@ -36,6 +36,12 @@ export interface FieldSpec {
   secret?: boolean;
   /** 占位符的可选 i18n key。 */
   placeholderKey?: LocaleKey;
+  /**
+   * 隐藏：桌面 GUI 无消费面的分区（上游 stub / headless 服务端件）。
+   * 定义保留 —— 引擎接通后去掉标记即恢复展示；被隐藏的分区的存量
+   * TOML 值原样保留（未知键透传 + 高级 TOML 编辑器仍是出口）。
+   */
+  hidden?: boolean;
 }
 
 const SIMPLE_FIELDS: FieldSpec[] = [
@@ -76,27 +82,37 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   { section: 'model_discovery', key: 'always_free', labelKey: 'settings.config.field.model_discovery.always_free', kind: 'textarea' },
   { section: 'model_discovery', key: 'free_id_patterns', labelKey: 'settings.config.field.model_discovery.free_id_patterns', kind: 'textarea' },
 
-  { section: 'analytics', key: 'enabled', labelKey: 'settings.config.field.analytics.enabled', kind: 'boolean' },
-  { section: 'analytics', key: 'endpoint', labelKey: 'settings.config.field.analytics.endpoint', kind: 'text' },
-  { section: 'analytics', key: 'service_name', labelKey: 'settings.config.field.analytics.service_name', kind: 'text' },
-  { section: 'analytics', key: 'flush_timeout_ms', labelKey: 'settings.config.field.analytics.flush_timeout_ms', kind: 'integer' },
+  // ===== 隐藏分区（桌面 GUI 无消费面,引擎接通后去掉 hidden 即恢复）====
+  // 逐个核实口径（引擎生产代码 grep + 桌面 src-tauri/app-core grep）：
+  // - bridge / voice / dap / acp —— 上游 schema 注释自述 P2/P3 stub,
+  //   引擎零生产消费,桌面未接线;
+  // - analytics —— headless 遥测（engine headless.rs/doctor.rs）,桌面
+  //   只在 runtime_status 里**显示**其开关状态,从不发射;
+  // - notifications —— webhook_url 仅被 CLI doctor 打印,桌面通知走
+  //   系统托盘/dock 徽标,不经此字段;
+  // - postgres_session / sse_redis —— headless 服务端部署件（会话落库 /
+  //   SSE 跨进程扇出）,桌面运行时未接线。
+  { section: 'analytics', key: 'enabled', labelKey: 'settings.config.field.analytics.enabled', kind: 'boolean', hidden: true },
+  { section: 'analytics', key: 'endpoint', labelKey: 'settings.config.field.analytics.endpoint', kind: 'text', hidden: true },
+  { section: 'analytics', key: 'service_name', labelKey: 'settings.config.field.analytics.service_name', kind: 'text', hidden: true },
+  { section: 'analytics', key: 'flush_timeout_ms', labelKey: 'settings.config.field.analytics.flush_timeout_ms', kind: 'integer', hidden: true },
 
-  { section: 'notifications', key: 'webhook_url', labelKey: 'settings.config.field.notifications.webhook_url', kind: 'text' },
+  { section: 'notifications', key: 'webhook_url', labelKey: 'settings.config.field.notifications.webhook_url', kind: 'text', hidden: true },
 
-  { section: 'postgres_session', key: 'database_url', labelKey: 'settings.config.field.postgres_session.database_url', kind: 'text', secret: true },
-  { section: 'postgres_session', key: 'table_prefix', labelKey: 'settings.config.field.postgres_session.table_prefix', kind: 'text' },
+  { section: 'postgres_session', key: 'database_url', labelKey: 'settings.config.field.postgres_session.database_url', kind: 'text', secret: true, hidden: true },
+  { section: 'postgres_session', key: 'table_prefix', labelKey: 'settings.config.field.postgres_session.table_prefix', kind: 'text', hidden: true },
 
-  { section: 'sse_redis', key: 'redis_url', labelKey: 'settings.config.field.sse_redis.redis_url', kind: 'text' },
-  { section: 'sse_redis', key: 'key_prefix', labelKey: 'settings.config.field.sse_redis.key_prefix', kind: 'text' },
+  { section: 'sse_redis', key: 'redis_url', labelKey: 'settings.config.field.sse_redis.redis_url', kind: 'text', hidden: true },
+  { section: 'sse_redis', key: 'key_prefix', labelKey: 'settings.config.field.sse_redis.key_prefix', kind: 'text', hidden: true },
 
-  { section: 'bridge', key: 'endpoint', labelKey: 'settings.config.field.bridge.endpoint', kind: 'text' },
+  { section: 'bridge', key: 'endpoint', labelKey: 'settings.config.field.bridge.endpoint', kind: 'text', hidden: true },
 
-  { section: 'voice', key: 'enabled', labelKey: 'settings.config.field.voice.enabled', kind: 'boolean' },
-  { section: 'voice', key: 'provider', labelKey: 'settings.config.field.voice.provider', kind: 'text' },
+  { section: 'voice', key: 'enabled', labelKey: 'settings.config.field.voice.enabled', kind: 'boolean', hidden: true },
+  { section: 'voice', key: 'provider', labelKey: 'settings.config.field.voice.provider', kind: 'text', hidden: true },
 
-  { section: 'dap', key: 'adapter', labelKey: 'settings.config.field.dap.adapter', kind: 'text' },
+  { section: 'dap', key: 'adapter', labelKey: 'settings.config.field.dap.adapter', kind: 'text', hidden: true },
 
-  { section: 'acp', key: 'bind', labelKey: 'settings.config.field.acp.bind', kind: 'text', placeholderKey: 'settings.config.placeholder.acp.bind' },
+  { section: 'acp', key: 'bind', labelKey: 'settings.config.field.acp.bind', kind: 'text', placeholderKey: 'settings.config.placeholder.acp.bind', hidden: true },
 
   { section: 'sanitize', key: 'enabled', labelKey: 'settings.config.field.sanitize.enabled', kind: 'boolean' },
   { section: 'sanitize', key: 'marker', labelKey: 'settings.config.field.sanitize.marker', kind: 'text' },
@@ -111,11 +127,15 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   // 或裸 `name`,写即关闭对应工具(web_search / notebook_edit 等)。
   { section: 'plugins', key: 'disabled_plugins', labelKey: 'settings.config.field.plugins.disabled_plugins', kind: 'textarea' },
 
-  { section: 'config_version', key: 'version', labelKey: 'settings.config.field.config_version.version', kind: 'integer' },
+  // 引擎内部版本计数 —— 非用户可调项,隐藏。
+  { section: 'config_version', key: 'version', labelKey: 'settings.config.field.config_version.version', kind: 'integer', hidden: true },
 ];
 
 export const SIMPLE_FIELDS_BY_SECTION: Record<string, FieldSpec[]> = SIMPLE_FIELDS.reduce(
   (acc, field) => {
+    // hidden = 桌面无消费面的分区（stub / headless 服务端件）,不进表单,
+    // 也不产生空分区卡;定义保留,接通后去掉标记即恢复。
+    if (field.hidden) return acc;
     const list = acc[field.section] ?? [];
     list.push(field);
     acc[field.section] = list;

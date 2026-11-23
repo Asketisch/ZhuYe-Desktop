@@ -183,14 +183,15 @@ describe('SettingsView', () => {
     // Model
     expect(screen.getByLabelText(/Default model context window/)).toBeDefined();
     // Analytics / Notifications / Postgres / SSE / Bridge / Voice / DAP / ACP
-    expect(screen.getByLabelText(/Analytics OTLP endpoint/)).toBeDefined();
-    expect(screen.getByLabelText(/Notifications webhook URL/)).toBeDefined();
-    expect(screen.getByLabelText(/Postgres session database URL/)).toBeDefined();
-    expect(screen.getByLabelText(/SSE Redis URL/)).toBeDefined();
-    expect(screen.getByLabelText(/Bridge endpoint/)).toBeDefined();
-    expect(screen.getByLabelText(/^Voice enabled$/)).toBeDefined();
-    expect(screen.getByLabelText(/DAP adapter/)).toBeDefined();
-    expect(screen.getByLabelText(/ACP bind address/)).toBeDefined();
+    // —— 全部隐藏（上游 stub / headless 服务端件,桌面无消费面）。
+    expect(screen.queryByLabelText(/Analytics OTLP endpoint/)).toBeNull();
+    expect(screen.queryByLabelText(/Notifications webhook URL/)).toBeNull();
+    expect(screen.queryByLabelText(/Postgres session database URL/)).toBeNull();
+    expect(screen.queryByLabelText(/SSE Redis URL/)).toBeNull();
+    expect(screen.queryByLabelText(/Bridge endpoint/)).toBeNull();
+    expect(screen.queryByLabelText(/^Voice enabled$/)).toBeNull();
+    expect(screen.queryByLabelText(/DAP adapter/)).toBeNull();
+    expect(screen.queryByLabelText(/ACP bind address/)).toBeNull();
     // Sanitize
     expect(screen.getByLabelText(/Sanitize enabled/)).toBeDefined();
     // Plugins(textarea)
