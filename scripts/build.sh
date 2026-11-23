@@ -11,6 +11,7 @@
 #   bash scripts/build.sh --bundles=app,dmg     # 覆盖打包目标列表
 #   bash scripts/build.sh --target=x86_64-apple-darwin  # 显式指定 rustc 目标
 #   bash scripts/build.sh --no-frontend         # 跳过前端重新构建
+#   bash scripts/build.sh --frontend-only       # 只构建前端（→ dist/），不编译 Rust、不打包
 #   bash scripts/build.sh --dry-run             # 只打印将执行的命令，不实际执行
 #   bash scripts/build.sh --help
 #
@@ -35,6 +36,7 @@ DRY_RUN=false
 FAST=false
 UNIVERSAL=false
 NO_FRONTEND=false
+FRONTEND_ONLY=false
 BUNDLES_OVERRIDE=""
 TARGET_OVERRIDE=""
 NODE_INSTALLER="${NODE_INSTALLER:-pnpm}"
@@ -45,10 +47,11 @@ SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
 while [ $# -gt 0 ]; do
   arg="$1"
   case "$arg" in
-    --fast)        FAST=true ;;
-    --universal)   UNIVERSAL=true ;;
-    --no-frontend) NO_FRONTEND=true ;;
-    --dry-run)     DRY_RUN=true ;;
+    --fast)          FAST=true ;;
+    --universal)     UNIVERSAL=true ;;
+    --no-frontend)   NO_FRONTEND=true ;;
+    --frontend-only) FRONTEND_ONLY=true ;;
+    --dry-run)       DRY_RUN=true ;;
     --bundles)     BUNDLES_OVERRIDE="${2:?--bundles requires a value}"; shift ;;
     --bundles=*)   BUNDLES_OVERRIDE="${arg#--bundles=}" ;;
     --target)      TARGET_OVERRIDE="${2:?--target requires a value}"; shift ;;
@@ -63,6 +66,7 @@ Options:
   --bundles=LIST       Override bundle list (e.g. app,dmg | deb,appimage | msi)
   --target=TRIPLE      Pass explicit rustc target to tauri build (advanced)
   --no-frontend        Skip 'pnpm build' (assume dist/ is current)
+  --frontend-only      Build frontend only (→ dist/); skip Rust compile & bundling
   --dry-run            Print commands without executing
   -h, --help           Show this help
 
@@ -84,11 +88,29 @@ EOF
   shift
 done
 
+# 互斥：--no-frontend 与 --frontend-only 语义相反，同时给即报错。
+if $NO_FRONTEND && $FRONTEND_ONLY; then
+  echo "--no-frontend 与 --frontend-only 互斥，不能同时使用" >&2
+  exit 1
+fi
+
 # ── Run helper: echo + eval, respect DRY_RUN ─────────────────────────────
 run() {
   echo "+ $*"
   if ! $DRY_RUN; then
     eval "$@"
+  fi
+}
+
+# ── 人类可读的大小辅助函数 ────────────────────────────────────────────────
+# macOS 与 Linux 的 `du -h` 行为一致；若 numfmt/du 不可用则回退到原始字节数。
+human_size() {
+  local path="$1"
+  if command -v du >/dev/null 2>&1; then
+    # -sh: summary, human-readable. -L not needed; we want bundle dir size.
+    du -sh "$path" 2>/dev/null | cut -f1
+  else
+    echo "?"
   fi
 }
 
@@ -130,11 +152,19 @@ if $UNIVERSAL && [ "$PLATFORM" != "macos" ]; then
   UNIVERSAL=false
 fi
 
+# --frontend-only 只跑前端构建，打包相关参数在此模式下不生效，提示避免误解。
+if $FRONTEND_ONLY; then
+  if $FAST || $UNIVERSAL || [ -n "$BUNDLES_OVERRIDE" ] || [ -n "$TARGET_OVERRIDE" ]; then
+    echo "WARN: --frontend-only 只构建前端；--fast/--universal/--bundles/--target 在此模式下不生效" >&2
+  fi
+fi
+
 BUNDLES="${BUNDLES_OVERRIDE:-$DEFAULT_BUNDLES}"
 
 echo "── ZhuYe build ────────────────────────────────────────────"
+echo "mode:          $([ $FRONTEND_ONLY = true ] && echo frontend-only || echo full)"
 echo "platform:      $PLATFORM ($OS_NAME)"
-echo "bundles:       $BUNDLES"
+echo "bundles:       $([ $FRONTEND_ONLY = true ] && echo '(skipped)' || echo "$BUNDLES")"
 echo "profile:       $([ $FAST = true ] && echo release-fast || echo release)"
 echo "universal:     $UNIVERSAL"
 echo "target:        ${TARGET_OVERRIDE:-<host>}"
@@ -149,8 +179,11 @@ need_cmd() {
   }
 }
 need_cmd "$NODE_INSTALLER"
-need_cmd cargo
-need_cmd rustc
+# 仅前端模式不碰 Rust 工具链，cargo/rustc 缺失不阻断。
+if ! $FRONTEND_ONLY; then
+  need_cmd cargo
+  need_cmd rustc
+fi
 
 # ── Frontend deps ────────────────────────────────────────────────────────
 if [ ! -d node_modules ]; then
@@ -160,7 +193,9 @@ fi
 
 # ── Determine rustc target ───────────────────────────────────────────────
 TARGET_ARGS=()
-if [ -n "$TARGET_OVERRIDE" ]; then
+if $FRONTEND_ONLY; then
+  : # 仅前端模式不需要 rustc target，也不装 universal 工具链
+elif [ -n "$TARGET_OVERRIDE" ]; then
   TARGET_ARGS=(--target "$TARGET_OVERRIDE")
 elif $UNIVERSAL; then
   # Tauri 通过 'apple' 通用目标支持 universal-apple-darwin。
@@ -184,7 +219,7 @@ fi
 BUNDLES_ARGS=(--bundles "$BUNDLES")
 
 # ── macOS signing hook ───────────────────────────────────────────────────
-if [ "$PLATFORM" = "macos" ] && [ -n "$SIGNING_IDENTITY" ] && ! $DRY_RUN; then
+if ! $FRONTEND_ONLY && [ "$PLATFORM" = "macos" ] && [ -n "$SIGNING_IDENTITY" ] && ! $DRY_RUN; then
   export APPLE_SIGNING_IDENTITY="$SIGNING_IDENTITY"
 fi
 
@@ -199,6 +234,23 @@ fi
 if ! bash "$REPO_ROOT/scripts/gen-icons.sh" --check >/dev/null 2>&1; then
   echo "WARN: src-tauri/icons/ 与仓库根 logo.png 不一致 —— 产物可能带旧图标" >&2
   echo "      修复：bash scripts/gen-icons.sh （或 pnpm icons），然后重新构建" >&2
+fi
+
+# ── 仅前端模式：dist/ 就绪即结束 ─────────────────────────────────────────
+# 不编译 Rust、不打包、不签名，供只改 ts/tsx 的快速验证使用。
+if $FRONTEND_ONLY; then
+  echo ""
+  echo "── frontend-only 完成（跳过 Rust 编译与打包）──────────────"
+  if $DRY_RUN; then
+    echo "(dry-run: skipping dist/ scan)"
+  elif [ -d "$REPO_ROOT/dist" ]; then
+    printf "  %8s  %s\n" "$(human_size "$REPO_ROOT/dist")" "$REPO_ROOT/dist"
+  else
+    echo "WARN: dist/ 不存在 —— 前端构建可能未成功" >&2
+  fi
+  echo "───────────────────────────────────────────────────────────"
+  echo "done."
+  exit 0
 fi
 
 # ── Assemble final command ───────────────────────────────────────────────
@@ -262,18 +314,6 @@ if [ "$PLATFORM" = "macos" ] && command -v codesign >/dev/null 2>&1; then
 fi
 
 # ── Artifact summary ─────────────────────────────────────────────────────
-# 人类可读的大小辅助函数：macOS 与 Linux 的 `du -h` 行为一致；
-# 若 numfmt/du 不可用则回退到原始字节数。
-human_size() {
-  local path="$1"
-  if command -v du >/dev/null 2>&1; then
-    # -sh: summary, human-readable. -L not needed; we want bundle dir size.
-    du -sh "$path" 2>/dev/null | cut -f1
-  else
-    echo "?"
-  fi
-}
-
 echo ""
 echo "── artifacts ──────────────────────────────────────────────"
 if $DRY_RUN; then

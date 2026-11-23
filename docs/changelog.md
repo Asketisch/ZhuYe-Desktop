@@ -92,6 +92,10 @@
   格式不变，`prompt_list` 事件新增 `groups`（additive，旧引擎平铺
   回退）。前端 `PromptPicker` 改自定义弹层（`ComposerPlusMenu` 同款
   交互），旧会话已存选择按 profile id 原样兼容。
+- **build.sh 新增 `--frontend-only`：只构建前端不编译 Rust**：只跑
+  `pnpm build` 产出 dist/ 即结束——跳过 Rust 编译、打包与签名
+  （cargo/rustc 缺失不阻断，打包相关参数不生效仅 WARN，与
+  `--no-frontend` 互斥），改 ts/tsx 后快速验证前端显示不再等全量编译。
 - **输入卡底栏三处形态修正 + 工作台目标段按需显示**：① 工作台右侧
   面板「目标」段改为仅在 goal 模式（激活或有快照）显示 —— 面板信息
   按需出现，空闲态不再常驻 /goal 引导空段（折叠窄条的目标小图标同步

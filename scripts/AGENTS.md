@@ -11,7 +11,7 @@
 | 脚本 | 干什么 | 关键入口 |
 |---|---|---|
 | check-render-boundaries.mjs | 检查已迁移渲染与逻辑目录的依赖边界 | `pnpm typecheck` / `pnpm build` |
-| build.sh | 按 OS 选默认打包目标的 release 构建 | `--fast` / `--universal` / `--bundles=` / `--no-frontend` / `--dry-run`；`pnpm build:native` |
+| build.sh | 按 OS 选默认打包目标的 release 构建 | `--fast` / `--universal` / `--bundles=` / `--no-frontend` / `--frontend-only` / `--dry-run`；`pnpm build:native` |
 | create_tag.sh | 一站式发版：版本 bump + CHANGELOG 转正 + 提交 + tag + 推送 | `--dry-run` / `--no-push` / `--yes` |
 | gc.sh | 磁盘治理：清 target/ 中 cargo 不 GC 的 incremental（全 profile）/ llvm-cov-target / examples | `bash scripts/gc.sh` / `gc-deep` |
 | gen-update-keys.sh | 生成 OTA 自更新的 minisign 密钥对（私钥不入库） | 直接运行；公钥填 tauri.conf.json > plugins.updater.pubkey |
@@ -33,7 +33,7 @@
 
 ### build.sh —— 图标新鲜度只 WARN
 
-打包前跑一次 `gen-icons.sh --check`，图标落后于 logo.png 只打 WARN，不改文件、不阻断。默认目标按 OS：macOS→app,dmg / Linux→deb,appimage / Windows→msi。环境变量：`SIGNING_IDENTITY` / `NODE_INSTALLER` / `TAURI_CLI_ARGS`。
+打包前跑一次 `gen-icons.sh --check`，图标落后于 logo.png 只打 WARN，不改文件、不阻断。默认目标按 OS：macOS→app,dmg / Linux→deb,appimage / Windows→msi。环境变量：`SIGNING_IDENTITY` / `NODE_INSTALLER` / `TAURI_CLI_ARGS`。`--frontend-only`：只跑 `pnpm build` 产出 dist/ 即结束——不编译 Rust、不打包、不签名（cargo/rustc 缺失不阻断，打包相关参数不生效仅 WARN），与 `--no-frontend` 互斥。
 
 ### create_tag.sh —— 版本四处同步契约
 
