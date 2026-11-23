@@ -7,12 +7,10 @@ import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
 import { unpin, useSessionPins } from '@/logic/sessions/pins';
 import { useAgentStore as useZAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
-import { moveApprovalPolicy } from '@/stores/agent/approvalPolicy';
-import { movePromptSelection } from '@/stores/agent/promptSelection';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
-import { zhuye_create_session, zhuye_pick_workspace_folder, zhuye_set_workspace, zhuye_remove_workspace } from '@/utils/commands';
+import { zhuye_pick_workspace_folder, zhuye_set_workspace, zhuye_remove_workspace } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { useThemeCycle } from '@/logic/shell/useThemeCycle';
 import { useCommandPaletteShortcut } from '@/logic/shell/useCommandPaletteShortcut';
@@ -78,13 +76,6 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     useAgentStore.getState().pushToast({ kind: 'error', message });
   };
 
-  const showNewSession = (id: string, workspace: string | null) => {
-    qc.setQueryData<import('@/utils/commands').ZhuyeSessionInfo[]>(
-      ['sessions', { workspace: null }],
-      (previous = []) => [{ session_id: id, model: '', started_at: new Date().toISOString(), message_count: 0, workspace }, ...previous.filter((s) => s.session_id !== id)],
-    );
-  };
-
   /** 侧边栏「打开项目…」：系统目录选择器 → 切换工作区（复用 WorkspacesView 语义）。 */
   const handleOpenProject = async () => {
     const mySeq = ++selectSeqRef.current;
@@ -140,28 +131,14 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     setActiveId(id);
   };
 
-  // 新建会话:后端预分配 session id → navigate 到 /chat/<id>。
-  // workspace 归属不在这里落盘,由首条 submission 携带 `workspace`
-  // 触发后端写 `SessionMeta`(见 docs/protocol-bridge.md §2)。
-  // 会话级偏好(审批策略 / 提示词预设)若写在 'new' 预创建键,这里转正。
+  // 新建会话:只导航到 `/chat` 新对话首页,不预分配 session id ——
+  // 会话在首条消息发出时才创建落盘(useEnsureSession 链路),侧栏
+  // 随首发后的列表刷新出现带真标题的条目,不再先闪一个 ID 空壳。
+  // 会话级偏好(审批策略 / 提示词预设)留在 'new' 预创建键,首发转正。
   const handleNewChat = () => {
-    const mySeq = ++selectSeqRef.current;
-    const pushToast = useAgentStore.getState().pushToast;
-    void zhuye_create_session()
-      .then((id) => {
-        if (mySeq === selectSeqRef.current) {
-          moveApprovalPolicy('new', id);
-          movePromptSelection('new', id);
-          showNewSession(id, currentWorkspace);
-          setActiveId(id);
-        }
-      })
-      .catch((e: unknown) => {
-        pushToast({
-          kind: 'error',
-          message: t('toast.newSessionFailed', { msg: e instanceof Error ? e.message : String(e) }),
-        });
-      });
+    // 已在新对话首页(无 id)时不重复导航。
+    if (!activeId && pathname.startsWith('/chat')) return;
+    void router.navigate({ to: '/chat' });
   };
 
   // fork 历史会话:复制 JSONL 生成子会话 → 直接切换过去(ChatView 挂载
@@ -173,21 +150,16 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     return childId;
   };
 
-  // 在指定项目下新建会话:先切工作区(组头「+」入口),再预分配 id 并导航。
+  // 在指定项目下新建会话:先切工作区(组头「+」入口),再回到新对话首页;
+  // 会话本体同样等到首条消息发出才创建,workspace 由首条 submission 携带。
   const handleNewChatIn = (path: string) => {
     const mySeq = ++selectSeqRef.current;
     void switchWorkspace(path)
-      .then(() => mySeq === selectSeqRef.current ? zhuye_create_session() : null)
-      .then((id) => {
-        if (id && mySeq === selectSeqRef.current) {
-          moveApprovalPolicy('new', id);
-          movePromptSelection('new', id);
-          showNewSession(id, path);
-          setActiveId(id);
-        }
+      .then(() => {
+        if (mySeq === selectSeqRef.current) void router.navigate({ to: '/chat' });
       })
       .catch((e: unknown) => {
-        toastError(t('toast.newSessionFailed', { msg: e instanceof Error ? e.message : String(e) }));
+        toastError(t('toast.workspaceSwitchFailed', { msg: e instanceof Error ? e.message : String(e) }));
       });
   };
 

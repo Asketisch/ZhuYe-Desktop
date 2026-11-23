@@ -2,7 +2,8 @@
  * harness 侧栏滚动区（v3 设计稿移植）—— 纯展示组件。
  *
  * 品牌区 / 固定导航 / 底部用户条由 AppShell 承载；本组件只渲染
- * .sb-scroll 内容：置顶 / 工作区 / 会话（状态点 + 待办旗标 + 计时 + ⋯ 菜单）。
+ * .sb-scroll 内容：置顶 / 工作区（目录分组，组下列各工作区会话）/
+ * 会话（全部会话平铺，最近活跃倒序）（状态点 + 待办旗标 + 计时 + ⋯ 菜单）。
  * 全部交互状态（搜索开关 / 仅看待处理 / 菜单 / 计时）由 SidebarBinding 持有。
  */
 import { ChevronDown, ChevronRight, Filter, Plus, RotateCw, Search, X } from 'lucide-react';
@@ -63,8 +64,8 @@ function fmtElapsed(ms: number): string {
 
 export function Sidebar({
   t, loading, error, activeId, currentWorkspace, query,
-  pinnedGroup, filtered, showEmpty, badges,
-  menuFor, onOpenMenu, menuActions, SessionMenu, renameId, renameValue, onRenameValueChange, onSubmitRename, onCancelRename, searchOpen, onToggleSearch, pendingOnly, onTogglePendingOnly,
+  pinnedGroup, filtered, allSessions, showEmpty, badges,
+  menuFor, onOpenMenu, menuScope, menuActions, SessionMenu, renameId, renameScope, renameValue, onRenameValueChange, onSubmitRename, onCancelRename, searchOpen, onToggleSearch, pendingOnly, onTogglePendingOnly,
   elapsedNow, isCollapsed, onToggleGroup, searching,
   onSelect, onSelectSub, onNewChat, onNewChatIn, onQueryChange, onRefresh,
   onOpenProject, onRemoveWorkspace,
@@ -73,8 +74,16 @@ export function Sidebar({
   const pendingCount = countPending(badges);
   // 子会话展开集合 —— 状态由 SidebarBinding 持有(渲染层边界禁 hook)。
 
-  /** 会话行（状态点 + 旗标 + 标题 + 时间/计时 + ⋯）。 */
-  const renderSession = (sess: SessionRow) => {
+  /**
+   * 会话行（状态点 + 旗标 + 标题 + 时间/计时 + ⋯）。
+   *
+   * 同一会话会在「工作区」分组与「会话」平铺区各渲染一份 —— `scope`
+   * 区分 testid 命名空间：`'all'`（平铺区）持权威 id（`harness-session-*`，
+   * 全量存在、唯一），`'group'`（分组副本）带 `ws-` 前缀，测试与 e2e
+   * 不会命中双元素。
+   */
+  const renderSession = (sess: SessionRow, scope: 'all' | 'group' = 'all') => {
+    const p = scope === 'all' ? '' : 'ws-';
     const badge = badges?.[sess.session_id];
     const dot = badge?.dot ?? 'idle';
     const pending = badge?.pending ?? null;
@@ -90,8 +99,9 @@ export function Sidebar({
       ? subKids
       : subKids.slice(0, SUB_SESSION_FOLD_LIMIT);
     return (
-      <div key={sess.session_id} className="row-shell">
-        {renameId === sess.session_id ? <input className="ask-field session-rename" autoFocus
+      <div key={`${scope}-${sess.session_id}`} className="row-shell">
+        {/* 重命名输入框只挂被操作的副本(renameScope),双份 autoFocus 会互相抢焦点。 */}
+        {renameId === sess.session_id && renameScope === scope ? <input className="ask-field session-rename" autoFocus
           aria-label={t('sidebar.renamePrompt')} value={renameValue} onChange={(e) => onRenameValueChange(e.target.value)}
           onBlur={onSubmitRename} onKeyDown={(e) => { if (e.key === 'Enter') onSubmitRename(); if (e.key === 'Escape') onCancelRename(); }} /> : <button
           type="button"
@@ -101,7 +111,7 @@ export function Sidebar({
             pending ? 'has-pending' : '',
             subKids.length > 0 ? 'has-subs' : '',
           ].filter(Boolean).join(' ')}
-          data-testid={`harness-session-${sess.session_id}`}
+          data-testid={`harness-${p}session-${sess.session_id}`}
           aria-pressed={sess.session_id === activeId}
           onClick={() => onSelect(sess.session_id)}
         >
@@ -131,7 +141,7 @@ export function Sidebar({
           <button
             type="button"
             className="sub-toggle"
-            data-testid={`sub-toggle-${sess.session_id}`}
+            data-testid={`${p}sub-toggle-${sess.session_id}`}
             aria-label={t('harness.sb.subToggle')}
             aria-expanded={!subCollapsed}
             onClick={() => subSessionsFold.toggleCollapse(sess.session_id)}
@@ -142,19 +152,19 @@ export function Sidebar({
         <button
           type="button"
           className="sess-more"
-          data-session-more={sess.session_id}
-          data-testid={`session-more-${sess.session_id}`}
+          data-session-more={`${p}session-more-${sess.session_id}`}
+          data-testid={`${p}session-more-${sess.session_id}`}
           aria-label={t('harness.sb.moreMenu')}
-          onClick={() => onOpenMenu(sess.session_id)}
+          onClick={() => onOpenMenu(sess.session_id, scope)}
         >⋯</button>
         {subKids.length > 0 && !subCollapsed && (
-          <div className="sub-sessions" data-testid={`sub-sessions-${sess.session_id}`}>
+          <div className="sub-sessions" data-testid={`${p}sub-sessions-${sess.session_id}`}>
             {subShown.map((kid) => (
               <button
                 key={kid.session_id}
                 type="button"
                 className={['row-item', 'sess', 'sub-session', kid.session_id === activeId ? 'sel' : ''].filter(Boolean).join(' ')}
-                data-testid={`harness-subsession-${kid.session_id}`}
+                data-testid={`harness-${p}subsession-${kid.session_id}`}
                 aria-pressed={kid.session_id === activeId}
                 /* 子代理会话是主会话流的投影:引擎宿主不可 bind 子线程
                  * (实测 bind 被内嵌 workspace meta 校验拒绝)。点击 = 只读
@@ -181,8 +191,14 @@ export function Sidebar({
             )}
           </div>
         )}
-        {menuFor === sess.session_id && menuActions.length > 0 && (
-          <SessionMenu sessionId={sess.session_id} actions={menuActions} onClose={() => onOpenMenu(null)} />
+        {/* 菜单只挂被点的副本(menuScope);锚点用带前缀的 key 精确查找。 */}
+        {menuFor === sess.session_id && menuScope === scope && menuActions.length > 0 && (
+          <SessionMenu
+            sessionId={sess.session_id}
+            anchorKey={`${p}session-more-${sess.session_id}`}
+            actions={menuActions}
+            onClose={() => onOpenMenu(null)}
+          />
         )}
       </div>
     );
@@ -194,27 +210,20 @@ export function Sidebar({
       ? list.filter((s) => badges?.[s.session_id]?.pending || badges?.[s.session_id]?.unread)
       : list;
 
-  // 统计过滤后的会话，以判断加载和空状态。
-  const seen = new Set<string>(pinnedGroup ? pinnedGroup.sessions.map((s) => s.session_id) : []);
-  const flat: SessionRow[] = [];
-  for (const g of filtered) {
-    for (const s of g.sessions) {
-      if (!seen.has(s.session_id)) { seen.add(s.session_id); flat.push(s); }
-    }
-  }
-  flat.sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
+  // 「会话」区的全部会话（binding 已剔置顶、按最近活跃倒序，这里只套待办过滤）。
+  const visibleAll = visibleSessions(allSessions);
 
   return (
     <div className="sb-scroll" data-testid="harness-sidebar-scroll">
       {error && <div className="us-empty" role="alert">{error}</div>}
-      {loading && flat.length === 0 && <div className="us-empty">{t('sidebar.loading')}</div>}
-      {showEmpty && flat.length === 0 && <div className="us-empty">{t('sidebar.empty')}</div>}
+      {loading && allSessions.length === 0 && <div className="us-empty">{t('sidebar.loading')}</div>}
+      {showEmpty && allSessions.length === 0 && <div className="us-empty">{t('sidebar.empty')}</div>}
 
       {/* 置顶 */}
       {pinnedGroup && pinnedGroup.sessions.length > 0 && (
         <>
           <div className="sb-label">{t('harness.sb.pinned')}</div>
-          {visibleSessions(pinnedGroup.sessions).map(renderSession)}
+          {visibleSessions(pinnedGroup.sessions).map((s) => renderSession(s))}
         </>
       )}
 
@@ -245,6 +254,24 @@ export function Sidebar({
           onChange={(e) => onQueryChange(e.target.value)}
         />
       )}
+      {/* 目录分组：各工作区及其会话（组头可折叠，+ 在该项目新建，× 移除项目）。 */}
+      {filtered.map((g) => {
+        const collapsed = !searching && isCollapsed(g.key);
+        return <div key={g.key}>
+          <div className="row-shell">
+            <button type="button" className={`row-item${g.path === currentWorkspace ? ' sel' : ''}`}
+              title={g.path ?? t('sidebar.group.noWorkspace')} aria-expanded={!collapsed}
+              onClick={() => onToggleGroup(g.key)}>
+              <Icon icon={collapsed ? ChevronRight : ChevronDown} size={13} />
+              <span className="t">{g.label || t('sidebar.group.noWorkspace')}</span>
+            </button>
+            {g.path && onNewChatIn && <button type="button" className="workspace-new" data-testid={`workspace-new-${g.key}`} title={t('sidebar.newChat')} aria-label={t('sidebar.newChat')} onClick={() => onNewChatIn(g.path!)}><Icon icon={Plus} size={12} /></button>}
+            {g.path && onRemoveWorkspace && <button type="button" className="sess-more" aria-label={t('sidebar.group.remove')} title={t('sidebar.group.remove')} onClick={() => onRemoveWorkspace(g.path!)}><Icon icon={X} size={12} /></button>}
+          </div>
+          {!collapsed && <div className="workspace-sessions">{visibleSessions(g.sessions).map((s) => renderSession(s, 'group'))}</div>}
+        </div>;
+      })}
+
       {/* 会话 */}
       <div className="sb-label">
         {t('harness.sb.sessions')}
@@ -271,24 +298,8 @@ export function Sidebar({
           </button>
         </span>
       </div>
-
-      {filtered.map((g) => {
-        const collapsed = !searching && isCollapsed(g.key);
-        return <div key={g.key}>
-          <div className="row-shell">
-            <button type="button" className={`row-item${g.path === currentWorkspace ? ' sel' : ''}`}
-              title={g.path ?? t('sidebar.group.noWorkspace')} aria-expanded={!collapsed}
-              onClick={() => onToggleGroup(g.key)}>
-              <Icon icon={collapsed ? ChevronRight : ChevronDown} size={13} />
-              <span className="t">{g.label || t('sidebar.group.noWorkspace')}</span>
-            </button>
-            {g.path && onNewChatIn && <button type="button" className="workspace-new" data-testid={`workspace-new-${g.key}`} title={t('sidebar.newChat')} aria-label={t('sidebar.newChat')} onClick={() => onNewChatIn(g.path!)}><Icon icon={Plus} size={12} /></button>}
-            {g.path && onRemoveWorkspace && <button type="button" className="sess-more" aria-label={t('sidebar.group.remove')} title={t('sidebar.group.remove')} onClick={() => onRemoveWorkspace(g.path!)}><Icon icon={X} size={12} /></button>}
-          </div>
-          {!collapsed && <div className="workspace-sessions">{visibleSessions(g.sessions).map(renderSession)}</div>}
-        </div>;
-      })}
-
+      {/* 全部会话平铺（含未归属，最近活跃倒序）。 */}
+      {visibleAll.map((s) => renderSession(s, 'all'))}
 
     </div>
   );

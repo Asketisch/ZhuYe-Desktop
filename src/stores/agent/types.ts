@@ -14,7 +14,7 @@ import type { TokenSnapshot } from './tokenTypes';
 
 // token 计量类型已拆到 `./tokenTypes`(本文件逼近 500 行预算)。
 // 这里重新导出 —— 既有导入路径(`@/stores/agent/types`)全部保持有效。
-export type { LiveModelUsage, TokenSnapshot } from './tokenTypes';
+export type { LiveModelUsage, TokenSnapshot, TurnTokenUsage } from './tokenTypes';
 
 /**
  * A2 附件元数据类型拆到 `./attachmentTypes`(单文件行数预算,先例同
@@ -291,12 +291,14 @@ export interface PromptState {
   selection?: import('@/utils/commands/prompts').PromptSelection;
   profile?: string;
   fallbackReason?: string;
-  /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 用户目录层,去重)。 */
+  /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 工具变体 + 用户目录层,去重)。 */
   available: string[];
   /** 当前 model spec(如 `"anthropic/claude-sonnet-5-5"`)。 */
   currentSpec: string;
   /** 当前 spec 实际命中的用户层文件名(诊断用,内嵌层不记录)。 */
   activeLayers: string[];
+  /** v1.7:两级菜单工具分组(工具 → 模型变体);旧引擎不发,缺省 undefined。 */
+  groups?: import('@/utils/commands/prompts').PromptGroup[];
   /** 最近一次提示词库重扫时间(ms);null = 尚未重扫过。 */
   switchedAt: number | null;
 }

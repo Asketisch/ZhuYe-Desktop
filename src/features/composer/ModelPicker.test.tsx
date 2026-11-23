@@ -3,17 +3,16 @@
  *
  * 模型选择器渲染在输入卡片底栏右侧，新契约：
  * 1. 选项只来自模型组（`[[model_group]]`）与组内凭据，不再有编码套餐段；
+ *    「从接口拉取模型清单」收进设置页后，输入框内不拉取、不展示接口模型；
  * 2. 选中态单一事实源 = `[active].group` + `[active].credential`；
  * 3. 切到组 → zhuye_set_model(组id, 组模型)
  *    切到组内凭据 → zhuye_set_model(组id, 凭据模型, 凭据label)
- *    切到接口模型 → zhuye_set_model(组id, 模型id)（写组级默认模型）
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient } from '@/test/setup.tsx';
-import { clearModelCatalogCache } from '@/logic/settings/config/modelCatalog';
 import { ModelPicker } from './ModelPicker';
 
 vi.mock('@/utils/commands/config', async () => {
@@ -95,10 +94,7 @@ function renderPicker() {
 
 describe('ModelPicker 模型组', () => {
   beforeEach(() => {
-    // 清调用计数与模型清单 TTL 缓存(缓存跨用例存活,会让「自动拉取」
-    // 命中上一用例的结果而不打 mock)。
     vi.clearAllMocks();
-    clearModelCatalogCache();
     vi.mocked(zhuye_get_config).mockResolvedValue(GROUP_TOML);
     vi.mocked(zhuye_agent_status).mockResolvedValue({
       model: 'demo/model-a',
@@ -136,20 +132,15 @@ describe('ModelPicker 模型组', () => {
     expect(screen.getByRole('option', { name: /示例网关 · demo\/model-a/ })).toBeTruthy();
   });
 
-  it('active 是组时自动拉取组内模型填入 optgroup', async () => {
+  it('输入框内不拉取接口模型(无自动拉取 / 无按钮 / 无 model: 选项)', async () => {
+    // 「拉取模型列表」收进设置页:挂载不打 zhuye_list_provider_models,
+    // 也不出现拉取按钮与接口模型组。
     renderPicker();
-    // 先等 UI 状态(选项出现 = 拉取已完成),再断言调用参数 —— 顺序无关,
-    // 避免跨用例的 act 刷新时序假失败。
-    await waitFor(() => {
-      expect(
-        screen.getByRole('option', { name: /starter\/GLM-5.3-Flash-Trial/ }),
-      ).toBeTruthy();
-    });
-    expect(vi.mocked(zhuye_list_provider_models)).toHaveBeenCalledWith(
-      'http://127.0.0.1:3425',
-      'demo',
-      'anthropic',
-    );
+    const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe('group:demo'));
+    expect(vi.mocked(zhuye_list_provider_models)).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('composer-fetch-models')).toBeNull();
+    expect(Array.from(select.options).some((o) => o.value.startsWith('model:'))).toBe(false);
   });
 
   it('切到组选项 → zhuye_set_model(组id, 组当前模型)', async () => {
@@ -178,23 +169,6 @@ describe('ModelPicker 模型组', () => {
     renderPicker();
     const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
     await waitFor(() => expect(select.value).toBe('cred:demo:备用'));
-  });
-
-  it('从拉取列表切到 model:<id> → zhuye_set_model(组id, 模型 id)', async () => {
-    renderPicker();
-    await waitFor(() => {
-      expect(
-        screen.getByRole('option', { name: /starter\/GLM-5.3-Flash-Trial/ }),
-      ).toBeTruthy();
-    });
-    const select = screen.getByTestId('composer-model-select') as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'model:starter/GLM-5.3-Flash-Trial' } });
-    await waitFor(() =>
-      expect(vi.mocked(zhuye_set_model)).toHaveBeenCalledWith(
-        'demo',
-        'starter/GLM-5.3-Flash-Trial',
-      ),
-    );
   });
 
   it('没有模型组时展示「未配置模型」占位', async () => {

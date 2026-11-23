@@ -4,11 +4,19 @@
  * 会话级提示词预设偏好（per-session localStorage，null 会话走 'new'
  * 预创建键，创建后转正；bind 恢复在 ChatBinding）。入口只在「最初创建
  * 会话」窗口（turns 为空）显示 —— 会话开始后锁定，系统提示词恒定是
- * 供应商 prompt cache 命中的前提。选项 = 跟随默认 + 智能匹配模型 +
- * prompt_list 事件回流的可用层（不含 default 层）。
+ * 供应商 prompt cache 命中的前提。
+ *
+ * v1.7 两级菜单：一级工具名（两级目录的工具组，`claude-code` 等 9 组），
+ * 二级模型变体（`claude-code-opus-4.6` 等）；单变体工具渲染为一级叶项。
+ * 顶部固定跟随默认 / 智能匹配模型两项。旧引擎不带 groups 时退化为
+ * v1.6.1 的平铺层清单；带 groups 时平铺清单里已被组覆盖的条目（变体 id +
+ * 家族层）不再重复渲染，仅剩用户自建层作为额外叶项。
+ *
+ * 菜单开合与二级展开交互与 ComposerPlusMenu 同款：点击开合、点击
+ * 外部关闭、组项 hover/click 展开内联子菜单。
  */
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { readPromptSelection, writePromptSelection } from '@/stores/agent/promptSelection';
@@ -24,6 +32,7 @@ export function PromptPicker() {
   const sessionId = useAgentStore((st) => st.loadedSessionId);
   const turnsEmpty = useAgentStore((st) => st.turns.length === 0);
   const promptAvailable = useAgentStore((st) => st.prompt?.available ?? NO_PROMPT_LAYERS);
+  const promptGroups = useAgentStore((st) => st.prompt?.groups ?? null);
   const promptFallback = useAgentStore((st) => st.prompt?.fallbackReason ?? null);
   const promptList = useAgentStore((st) => st.promptList);
   const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
@@ -33,6 +42,10 @@ export function PromptPicker() {
   );
   useEffect(() => { setSelection(readPromptSelection(sessionId) ?? { mode: 'default' }); }, [sessionId]);
 
+  const [open, setOpen] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+
   // 可用层清单（prompt_list 事件异步回流）—— 空会话挂载时拉一次。
   // catch 防御:拉取失败不阻断 composer(选项退化为默认/智能两项)。
   useEffect(() => {
@@ -41,15 +54,53 @@ export function PromptPicker() {
     }
   }, [turnsEmpty, promptList]);
 
-  const layers = useMemo(
-    () => promptAvailable.filter((layer) => layer !== 'default'),
-    [promptAvailable],
-  );
+  // 点击外部关闭。
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setExpandedGroup(null);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  /** 变体 id → 显示名的回查(含全部组;选中回显与 tooltip 用)。 */
+  const variantIndex = useMemo(() => {
+    const map = new Map<string, { label: string; group: string }>();
+    for (const group of promptGroups ?? []) {
+      for (const variant of group.variants) {
+        map.set(variant.id, { label: variant.label, group: group.label });
+      }
+    }
+    return map;
+  }, [promptGroups]);
+
+  /**
+   * 平铺清单里的「额外叶项」:groups 存在时滤掉已被组覆盖的条目
+   * (变体 id + 家族层),只剩用户自建层;旧引擎无 groups 时全部平铺。
+   */
+  const extraLayers = useMemo(() => {
+    if (!promptGroups) {
+      return promptAvailable.filter((layer) => layer !== 'default');
+    }
+    const covered = new Set<string>();
+    for (const group of promptGroups) {
+      covered.add(group.familyLayer);
+      for (const variant of group.variants) covered.add(variant.id);
+    }
+    return promptAvailable.filter((layer) => layer !== 'default' && !covered.has(layer));
+  }, [promptGroups, promptAvailable]);
 
   // 会话开始后锁定 —— 整个 pill 消失（渲染层无状态，直接短路）。
   if (!turnsEmpty) return null;
 
-  const value = selection.mode === 'manual' ? selection.profile : selection.mode;
+  const close = () => {
+    setOpen(false);
+    setExpandedGroup(null);
+  };
   const onPick = (raw: string) => {
     const next: PromptSelection = raw === 'default' || raw === 'auto'
       ? { mode: raw }
@@ -65,27 +116,137 @@ export function PromptPicker() {
     if (next.mode === 'manual' && next.profile === 'plan') {
       setPermissionMode('plan').catch(() => { /* 占位线程未就绪等失败:建会话后会再校准 */ });
     }
+    close();
   };
 
+  // pill 回显文案:manual 变体优先用目录显示名,查不到(自建层/陈旧
+  // 选择)回退原始 id。
+  const currentLabel = selection.mode === 'default'
+    ? t('composer.controls.prompt.follow')
+    : selection.mode === 'auto'
+      ? t('composer.controls.prompt.auto')
+      : (variantIndex.get(selection.profile)?.label ?? selection.profile);
+  const currentHint = selection.mode === 'auto' && promptFallback
+    ? promptFallback
+    : selection.mode === 'manual'
+      ? (variantIndex.get(selection.profile)
+        ? `${variantIndex.get(selection.profile)!.group} · ${variantIndex.get(selection.profile)!.label}`
+        : selection.profile)
+      : t('composer.controls.prompt.hint');
+
+  const check = <Check size={13} className={s.itemCheck} aria-hidden="true" />;
+
   return (
-    <span className={s.wrap} data-testid="composer-prompt-picker">
-      <select
+    <span className={s.wrap} ref={wrapRef} data-testid="composer-prompt-picker">
+      <button
+        type="button"
         className={s.select}
-        value={value}
-        onChange={(event) => onPick(event.target.value)}
-        title={selection.mode === 'auto' && promptFallback
-          ? promptFallback
-          : t('composer.controls.prompt.hint')}
+        value={selection.mode === 'manual' ? selection.profile : selection.mode}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
         aria-label={t('composer.controls.promptAria')}
+        title={currentHint}
         data-testid="composer-prompt-select"
       >
-        <option value="default">{t('composer.controls.prompt.follow')}</option>
-        <option value="auto">{t('composer.controls.prompt.auto')}</option>
-        {layers.map((layer) => (
-          <option key={layer} value={layer}>{layer}</option>
-        ))}
-      </select>
+        {currentLabel}
+      </button>
       <ChevronDown size={12} className={s.caret} aria-hidden="true" />
+
+      {open && (
+        <div className={s.menu} role="menu" data-testid="composer-prompt-menu">
+          <button
+            type="button"
+            role="menuitem"
+            className={s.item}
+            onClick={() => onPick('default')}
+            data-testid="composer-prompt-default"
+          >
+            <span className={s.itemLabel}>{t('composer.controls.prompt.follow')}</span>
+            {selection.mode === 'default' && check}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={s.item}
+            title={promptFallback ?? t('composer.controls.prompt.autoHint')}
+            onClick={() => onPick('auto')}
+            data-testid="composer-prompt-auto"
+          >
+            <span className={s.itemLabel}>{t('composer.controls.prompt.auto')}</span>
+            {selection.mode === 'auto' && check}
+          </button>
+
+          <div className={s.separator} role="separator" />
+
+          {(promptGroups ?? []).map((group) => (
+            group.variants.length > 1 ? (
+              <div key={group.id} className={s.group}>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={s.item}
+                  onClick={() => setExpandedGroup((cur) => (cur === group.id ? null : group.id))}
+                  onMouseEnter={() => setExpandedGroup(group.id)}
+                  aria-expanded={expandedGroup === group.id}
+                  data-testid={`composer-prompt-group-${group.id}`}
+                >
+                  <span className={s.itemLabel}>{group.label}</span>
+                  <ChevronRight size={13} className={s.itemChevron} aria-hidden="true" />
+                </button>
+                {expandedGroup === group.id && (
+                  <div className={s.submenu} data-testid={`composer-prompt-submenu-${group.id}`}>
+                    {group.variants.map((variant) => (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        role="menuitem"
+                        className={s.item}
+                        title={`${group.label} · ${variant.label}`}
+                        onClick={() => onPick(variant.id)}
+                      >
+                        <span className={s.itemLabel}>{variant.label}</span>
+                        {selection.mode === 'manual' && selection.profile === variant.id && check}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                key={group.id}
+                type="button"
+                role="menuitem"
+                className={s.item}
+                onClick={() => onPick(group.variants[0].id)}
+                data-testid={`composer-prompt-leaf-${group.id}`}
+              >
+                <span className={s.itemLabel}>{group.label}</span>
+                {selection.mode === 'manual' && selection.profile === group.variants[0].id && check}
+              </button>
+            )
+          ))}
+
+          {extraLayers.length > 0 && (
+            <>
+              <div className={s.separator} role="separator" />
+              {extraLayers.map((layer) => (
+                <button
+                  key={layer}
+                  type="button"
+                  role="menuitem"
+                  className={s.item}
+                  title={layer}
+                  onClick={() => onPick(layer)}
+                >
+                  <span className={s.itemLabel}>{layer}</span>
+                  {selection.mode === 'manual' && selection.profile === layer && check}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </span>
   );
 }

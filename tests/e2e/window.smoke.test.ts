@@ -466,11 +466,12 @@ describe.skip('window smoke (real process, real backend, local model stub)', () 
     await waitLog((text) => text.includes('window-agent-chain-test'));
 
     await driver!.findElement(By.css('[data-testid="harness-sidebar"] [data-testid="harness-new-chat"]')).click();
-    // 「新建对话」是异步的:先创建会话再导航到 /chat/<新 id>。导航落地前
-    // 侧栏点击可能命中旧会话的输入框,必须等路由真正切走再输入。
+    // 「新建对话」只导航到 /chat 新对话首页(不再预分配 id):会话在首条
+    // 消息发出时才创建落盘,发送后路由才落到 /chat/<新 id>。等首页就绪
+    // 再输入,避免命中旧会话的输入框。
     await driver!.wait(async () => {
       const path = new URL(await driver!.getCurrentUrl()).pathname;
-      return /^\/chat\/.+/.test(path) && path !== originalPath;
+      return path === '/chat';
     }, 30_000);
     const composer = await driver!.wait(until.elementLocated(By.css('[data-testid="composer-card"] textarea')), 30_000);
     await composer.sendKeys('window-session-b-marker');

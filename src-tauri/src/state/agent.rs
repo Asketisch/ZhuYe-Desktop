@@ -199,7 +199,13 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
     let (session_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let (background_tx, _) = broadcast::channel(SESSION_BROADCAST_CAPACITY);
     let (rebind_generation, _) = tokio::sync::watch::channel(0u64);
-    let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    // cwd 解析失败(如启动目录已被删除)时回退 $HOME —— 占位路径 "."
+    // 一旦成为工作区会被写进 SessionMeta,侧栏出现裸「.」分组
+    // (与 workspace_state::restore_last_used 的 $HOME 回退同口径)。
+    let workspace = std::env::current_dir()
+        .ok()
+        .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
+        .unwrap_or_else(|| PathBuf::from("."));
     let cfg = zhuye_app_core::sandbox::load_config_with_sandbox_baseline();
     // Task/Team 存储复用核心 crate 默认 home（`$ZHUYE_HOME` > `$HOME/.zhuye`），
     // 与 CLI 共享 `~/.zhuye/tasks/` 与 `~/.zhuye/teams/`。

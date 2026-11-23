@@ -37,7 +37,8 @@ export interface ModelsViewProps {
   effort: Effort;
   effortOptions: ModelsEffortOption[];
   effortAdjusted: boolean;
-  effortEffective: string | null;
+  /** 实际生效档位（绑定层已本地化的文案，如「高」）；null = 不发思考参数。 */
+  effortEffectiveLabel: string | null;
   saved: boolean;
   onGoSettings: () => void;
   onSwitchGroup: (group: ModelsGroupView) => void;

@@ -62,7 +62,10 @@ function sortByRecency(sessions: ZhuyeSessionInfo[]): ZhuyeSessionInfo[] {
 /**
  * 全量会话 + 已知项目 → 项目分组列表。
  *
- * - 会话按 `workspace` 精确归组；无归属 → 未归属分组（固定最后）。
+ * - 无消息的空会话（仅 SessionMeta 头，如旧版「新建即保存」的遗留壳）
+ *   不进侧栏 —— 避免一排 8 位 ID 名的空壳条目；
+ * - 会话按 `workspace` 精确归组；无归属或占位路径（`.` 等，见
+ *   `isPlaceholderWorkspace`）→ 未归属分组（固定最后）。
  * - 已知项目（workspaces.json 历史，cap 20 条）即使无会话也保留，
  *   便于直接在该项目下新建会话；同时并集会话中出现过的目录
  *   （workspaces.json 可能被 cap 挤出的路径）。
@@ -73,6 +76,8 @@ export function groupSessionsByWorkspace(
   sessions: ZhuyeSessionInfo[],
   knownWorkspaces: ZhuyeWorkspaceInfo[] = [],
 ): WorkspaceSessionGroup[] {
+  // 空会话(无消息)不进侧栏;磁盘记录不动,Threads 页时间桶不受影响。
+  sessions = sessions.filter((s) => s.message_count > 0);
   // v1.12:先把子代理会话挂到父会话 `children` 下(顶层只留主会话)。
   // 父不在本批(被删/归档/列表过滤)的孤儿子会话按顶层处理 —— 不静默丢。
   const parentIds = new Set(
@@ -99,10 +104,13 @@ export function groupSessionsByWorkspace(
   };
   sessions = topLevel.map(withChildren);
   const hidden = new Set(knownWorkspaces.filter((ws) => ws.hidden).map((ws) => ws.path));
+  // 占位工作区(. / $HOME/. 等)不是真实项目目录,会话归入未归属组。
+  const groupKeyOf = (s: ZhuyeSessionInfo): string =>
+    s.workspace && !isPlaceholderWorkspace(s.workspace) ? s.workspace : UNASSIGNED_GROUP_KEY;
   const byPath = new Map<string, ZhuyeSessionInfo[]>();
   for (const s of sessions) {
     if (s.workspace && hidden.has(s.workspace)) continue;
-    const key = groupKeyFor(s.workspace ?? null);
+    const key = groupKeyOf(s);
     const arr = byPath.get(key);
     if (arr) arr.push(s);
     else byPath.set(key, [s]);
@@ -118,7 +126,8 @@ export function groupSessionsByWorkspace(
   }
   for (const s of sessions) {
     if (s.workspace && hidden.has(s.workspace)) continue;
-    if (!s.workspace) continue;
+    // 占位路径不建组,否则侧栏会出现「.」这样的裸目录名。
+    if (!s.workspace || isPlaceholderWorkspace(s.workspace)) continue;
     if (!lastUsedByPath.has(s.workspace)) lastUsedByPath.set(s.workspace, 0);
     if (!labelByPath.has(s.workspace)) labelByPath.set(s.workspace, basename(s.workspace));
   }

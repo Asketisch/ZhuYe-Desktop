@@ -23,6 +23,7 @@ import { useI18n } from '@/utils/i18n';
 import { zhuye_credential_pool_status } from '@/utils/commands/runtimeStatus';
 import { GoalBody } from '@/features/shell/sessionChips/GoalBody';
 import { useContextRatio } from '@/logic/shell/useContextRatio';
+import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
 import s from '@/render/shell/session/session.module.css';
 
 type SectionKey = 'goal' | 'plan' | 'todo' | 'context' | 'pool';
@@ -79,6 +80,9 @@ export function StatusPanel({ goalActive, turnRunning }: {
   const planDraft = useAgentStore((st) => st.planDraft);
   const tokens = useAgentStore((st) => st.tokens);
   const context = useContextRatio();
+  // 缓存命中率走**回合级**口径(本回合逐次调用的累计),与右侧用量面板的
+  // 会话级口径分开 —— 标签各标各的,不混用「平均」这种跨口径词。
+  const cacheHitRate = useTurnCacheHitRate();
   const compositionRows = compositionRowsOf(contextComposition);
   const setDockOpen = useShellUi((st) => st.setDockOpen);
   const setDockMode = useShellUi((st) => st.setDockMode);
@@ -271,9 +275,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
               <div className={s.wbKvRow}>
                 <span>{t('statusPanel.cacheHit')}</span>
                 <span className={s.wbKvVal} data-testid="status-panel-cache-hit">
-                  {tokens && tokens.input > 0
-                    ? `${Math.round((tokens.cached / tokens.input) * 100)}%`
-                    : '—'}
+                  {cacheHitRate === null ? '—' : `${Math.round(cacheHitRate)}%`}
                 </span>
               </div>
               <div className={s.wbKvRow}>

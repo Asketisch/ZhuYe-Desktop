@@ -15,7 +15,7 @@ import { SegmentedControl } from '../design-system/SegmentedControl';
 import s from './ModelsView.module.css';
 
 export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace, degradedReason, groups,
-  effort, effortOptions, effortAdjusted, effortEffective, saved, onGoSettings, onSwitchGroup,
+  effort, effortOptions, effortAdjusted, effortEffectiveLabel, saved, onGoSettings, onSwitchGroup,
   onEffortChange, onApplyEffort }: ModelsViewProps) {
   return (
     <div className={s.root}>
@@ -112,7 +112,7 @@ export function ModelsView({ t, loading, hasModel, model, abilityTags, workspace
             <span className={s.effortHint}>{effortOptions.find((o) => o.value === effort)?.hint}</span>
             {effortAdjusted && (
               <span className={s.effortHint} data-testid="models-effort-effective">
-                {effortEffective ? t('composer.controls.effort.effective', { level: effortEffective }) : t('composer.controls.effort.disabled')}
+                {effortEffectiveLabel ? t('composer.controls.effort.effective', { level: effortEffectiveLabel }) : t('composer.controls.effort.disabled')}
               </span>
             )}
           </div>

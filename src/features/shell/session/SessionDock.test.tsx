@@ -157,7 +157,22 @@ describe('StatusPanel · 常驻工作台右列', () => {
 
   it('上下文容量节：总进度 + 缓存命中率（有 token 上报时）', () => {
     useAgentStore.setState({
-      tokens: { input: 1000, output: 500, cached: 800, cacheWrite: 0, total: 1500 },
+      tokens: {
+        input: 1000,
+        output: 500,
+        cached: 800,
+        cacheWrite: 0,
+        total: 1500,
+        // 本回合累计(命中率走回合级口径)。
+        turn: {
+          turnId: 't1',
+          input: 1000,
+          output: 500,
+          cached: 800,
+          cacheWrite: 0,
+          total: 1500,
+        },
+      },
       contextWindowSize: 100_000,
     } as never);
     renderPanel();

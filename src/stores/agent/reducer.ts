@@ -1,6 +1,6 @@
 import type { ZhuyeEvent } from '@/types/protocol';
 import { normalizePermissionMode } from '@/types/protocol';
-import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, PluginLoadedInfo, TodoItem } from './types';
+import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, PluginLoadedInfo, TodoItem, TurnTokenUsage } from './types';
 import { COMPACTION_RECORD_CAP, SUBAGENT_FEED_CAP } from './types';
 import { upsertServer } from './servers';
 import {
@@ -105,6 +105,11 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
         : {};
 
     case 'token_count': {
+      // 引擎发两种 token_count:model_call 每次成功调用的**单次快照**,与
+      // 回合收尾补发的**回合累计**(`turn_total = true`)。两者语义不同:
+      // 一并累计会让会话总量与费用翻倍(per-call 之和 + 回合累计),
+      // 且回合累计会覆盖「最后一次调用」的快照(上下文占比因此失真)。
+      const isTurnTotal = msg.turn_total === true;
       // v1.x 模型级统计:按 model 分组累计,让 GUI 能回答「各模型花了多少」。
       // 旧引擎不上报 model → byModel 保持为空(不编造归属)。
       const model = msg.model ?? null;
@@ -124,6 +129,33 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           cost: (cur?.cost ?? 0) + (msg.cost_usd ?? 0),
         };
       }
+      // 本回合累计:逐次调用累加;回合累计事件直接覆盖(引擎给的权威值,
+      // 顺带补上前端漏收的逐次事件)。回合切换时按 turnId 归零。
+      const prevTurn = state.tokens?.turn;
+      const turnBase = prevTurn && prevTurn.turnId === turnId ? prevTurn : null;
+      const turn: TurnTokenUsage = isTurnTotal
+        ? {
+            turnId,
+            input: msg.input_tokens,
+            output: msg.output_tokens,
+            cached: msg.cached_tokens,
+            cacheWrite: msg.cache_write_tokens,
+            total: msg.total_tokens,
+          }
+        : {
+            turnId,
+            input: (turnBase?.input ?? 0) + msg.input_tokens,
+            output: (turnBase?.output ?? 0) + msg.output_tokens,
+            cached: (turnBase?.cached ?? 0) + msg.cached_tokens,
+            cacheWrite: (turnBase?.cacheWrite ?? 0) + msg.cache_write_tokens,
+            total: (turnBase?.total ?? 0) + msg.total_tokens,
+          };
+      if (isTurnTotal) {
+        // 回合累计事件:只校准本回合累计,不参与会话累计,也不覆盖
+        // 「最后一次调用」的快照。
+        if (!state.tokens) return {};
+        return { tokens: { ...state.tokens, turn } };
+      }
       return {
         tokens: {
           input: msg.input_tokens,
@@ -140,7 +172,9 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           cost: msg.cost_usd ?? null,
           sessionCost: (state.tokens?.sessionCost ?? 0) + (msg.cost_usd ?? 0),
           // 会话累计 total(区别于 `total` = 最后一次调用的 total)。
+          // 只累计单次调用 —— 回合累计事件不参与,否则会算两遍。
           sessionTotal: (state.tokens?.sessionTotal ?? 0) + msg.total_tokens,
+          turn,
           byModel,
         },
       };
@@ -408,7 +442,8 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
       return { configReloadedAt: Date.now() };
 
     // v1.6.1:提示词层查询应答 —— `Op::PromptCommand { action: List }`。
-    // 会话级提示词选择和当前生效方案。
+    // 会话级提示词选择和当前生效方案。v1.7 起带两级菜单工具分组
+    // (groups;旧引擎不发,缺省 undefined → picker 平铺回退)。
     case 'prompt_list':
       return {
         prompt: {
@@ -418,6 +453,7 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           selection: msg.selection,
           profile: msg.profile,
           fallbackReason: msg.fallback_reason,
+          groups: msg.groups,
           switchedAt: state.prompt?.switchedAt ?? null,
         },
       };
@@ -443,6 +479,7 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           selection: msg.selection,
           profile: msg.profile,
           fallbackReason: msg.fallback_reason,
+          groups: state.prompt?.groups,
           switchedAt: Date.now(),
         },
         toasts: [...state.toasts, toast],

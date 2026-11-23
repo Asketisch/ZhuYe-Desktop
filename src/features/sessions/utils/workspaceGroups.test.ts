@@ -122,4 +122,27 @@ describe('groupSessionsByWorkspace', () => {
     ]);
     expect(groups).toEqual([]);
   });
+
+  it('无消息空会话不进侧栏(旧「新建即保存」的遗留壳)', () => {
+    const empty = { ...sess('empty1', '2026-08-27T11:00:00Z', WS_A), message_count: 0 };
+    const groups = groupSessionsByWorkspace(
+      [empty, sess('a1', '2026-08-27T10:00:00Z', WS_A)],
+      knownWorkspaces,
+    );
+    // 空项目组(beta)按设计保留,但空会话不再出现在任何组里。
+    expect(groups.map((g) => g.path)).toEqual([WS_A, WS_B]);
+    expect(groups[0].sessions.map((s) => s.session_id)).toEqual(['a1']);
+    expect(groups[1].sessions).toEqual([]);
+  });
+
+  it('占位工作区(. 等)的会话归入未归属组,不产生「.」分组', () => {
+    const groups = groupSessionsByWorkspace([
+      sess('p1', '2026-08-27T10:00:00Z', '.'),
+      sess('a1', '2026-08-26T10:00:00Z', WS_A),
+    ], knownWorkspaces);
+
+    expect(groups.map((g) => g.path)).toEqual([WS_A, WS_B, null]);
+    expect(groups[2].key).toBe(UNASSIGNED_GROUP_KEY);
+    expect(groups[2].sessions.map((s) => s.session_id)).toEqual(['p1']);
+  });
 });

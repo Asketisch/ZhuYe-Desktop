@@ -20,6 +20,7 @@ import {
 } from '@/utils/commands/workspaces';
 import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
 import { SESSIONS_QUERY_KEY } from '@/logic/sessions/useSessions';
+import { isPlaceholderWorkspace } from '@/logic/sessions/workspaceGroups';
 import { useAgentStore } from '@/stores/agentStore';
 import s from '@/render/composer/ComposerTopBar.module.css';
 
@@ -90,7 +91,12 @@ export function WorkspaceMenu({ currentWorkspace }: { currentWorkspace: string |
     await switchMutation.mutateAsync(path);
   };
 
-  const label = currentWorkspace ? basename(currentWorkspace) : t('composer.top.noWorkspace');
+  // 占位工作区(cwd 解析失败的「.」等)显示「默认」,不裸显目录符号。
+  const label = !currentWorkspace
+    ? t('composer.top.noWorkspace')
+    : isPlaceholderWorkspace(currentWorkspace)
+      ? t('common.workspaceDefault')
+      : basename(currentWorkspace);
 
   return (
     <div className={s.pillWrap} ref={wrapRef} data-testid="composer-workspace-menu">

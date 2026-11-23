@@ -9,6 +9,27 @@
  * 全部保持有效,调用方零改动。
  */
 
+/**
+ * 本回合累计用量(按回合重置)。
+ *
+ * 引擎在回合收尾时会补发一条**回合累计** `TokenCount`
+ * (`turn_total = true`,数字 = 本回合逐次调用的累计),它与逐次调用的
+ * 快照语义不同。前端按回合累加逐次调用,得到与引擎汇总一致的回合口径,
+ * 供「本回合缓存命中率」这类**回合级**展示使用。
+ */
+export interface TurnTokenUsage {
+  /** 所属回合 id(= 事件信封的 submission id)。 */
+  turnId: string;
+  input: number;
+  output: number;
+  /** cache_read 分段(input 子集)。 */
+  cached: number;
+  /** cache_creation 分段(input 子集)。 */
+  cacheWrite: number;
+  /** 计费总量(input + output)。 */
+  total: number;
+}
+
 export interface TokenSnapshot {
   input: number;
   output: number;
@@ -35,8 +56,19 @@ export interface TokenSnapshot {
    *
    * 与 `total` 的区别:`total` 是**最后一次调用**的 total(用于上下文
    * 占比计算),`sessionTotal` 才是整个会话的累计量。
+   *
+   * 只累计**单次调用**的事件 —— 引擎在回合收尾补发的回合累计事件
+   * (`turn_total = true`)不参与,否则同一批 token 会被计两遍。
    */
   sessionTotal?: number;
+  /**
+   * 本回合累计用量(按回合重置)。
+   *
+   * 逐次调用时累加;回合收尾时由引擎的回合累计事件校准(权威值,顺带
+   * 补上前端漏收的逐次事件)。`total` / `input` 等字段仍是**最后一次
+   * 调用**的快照。
+   */
+  turn?: TurnTokenUsage;
   /**
    * 会话内**按模型**的累计用量(键 = model spec)。
    *

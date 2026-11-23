@@ -29,9 +29,10 @@ describe('home view', () => {
   it('recent-session buttons navigate into the chat for that session', async () => {
     const app = renderApp();
     await app.navigate('/');
-    // fakeBackend 的 sessions fixture 覆盖全部时间分桶;「最近会话」渲染
-    // 会话标题,点击走真实路由进入 /chat/$sessionId。
-    const sessBtn = await screen.findByRole('button', { name: /fix login bug/i }, { timeout: 8000 });
+    // fakeBackend 的 sessions fixture 覆盖全部时间分桶;/ 渲染 ChatView,
+    // 会话行在侧栏(工作区分组 + 平铺区各一份)—— 点任一份走真实路由
+    // 进入 /chat/$sessionId。
+    const sessBtn = (await screen.findAllByRole('button', { name: /fix login bug/i }, { timeout: 8000 }))[0];
     fireEvent.click(sessBtn);
     await waitFor(() => expect(app.pathname()).toBe('/chat/sess-alpha'), { timeout: 8000 });
   });

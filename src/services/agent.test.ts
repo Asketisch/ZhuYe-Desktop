@@ -164,6 +164,15 @@ describe('reduceEvent', () => {
       sessionCost: 0,
       // 会话累计 total。
       sessionTotal: 150,
+      // 本回合累计(按回合归零)。
+      turn: {
+        turnId: 't1',
+        input: 100,
+        output: 50,
+        cached: 0,
+        cacheWrite: 0,
+        total: 150,
+      },
       // 旧引擎不上报 model → 无按模型归属(不编造)。
       byModel: {},
     });

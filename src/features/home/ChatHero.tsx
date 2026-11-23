@@ -7,6 +7,7 @@
  */
 import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
+import { isPlaceholderWorkspace } from '@/logic/sessions/workspaceGroups';
 import { emitComposerPrefill } from '@/features/composer/useComposerDraft';
 import { Icon } from '@/features/design-system';
 import { Compass, Hammer, ScanSearch, Bug } from 'lucide-react';
@@ -28,9 +29,12 @@ export function ChatHero() {
   const { t } = useI18n();
   const { currentWorkspace } = useCurrentWorkspace();
   const greetingKey = greetingKeyFor(new Date().getHours());
-  const workspaceName = currentWorkspace
-    ? currentWorkspace.split('/').filter(Boolean).pop()
-    : null;
+  // 占位工作区(cwd 解析失败的「.」等)显示「默认」,不裸显目录符号。
+  const workspaceName = !currentWorkspace
+    ? null
+    : isPlaceholderWorkspace(currentWorkspace)
+      ? t('common.workspaceDefault')
+      : (currentWorkspace.split('/').filter(Boolean).pop() ?? null);
 
   return (
     <div className={s.hero}>

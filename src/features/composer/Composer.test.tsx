@@ -594,7 +594,9 @@ describe('Composer inline controls', () => {
     expect(screen.queryByText(/stub\/test/)).toBeNull();
   });
 
-  it('fetches models from provider API and switches to one of them', async () => {
+  it('no longer fetches provider models inside the composer', async () => {
+    // 「拉取模型列表」收进设置页后,输入框内不出现拉取按钮、不自动拉取、
+    // 下拉里也没有接口模型组 —— 只剩组与凭据两级。
     mockInvoke(
       'zhuye_get_config',
       async () =>
@@ -607,60 +609,21 @@ describe('Composer inline controls', () => {
       workspace: '/tmp',
       degraded_reason: null,
     }));
-    const listCalls: Array<{ baseUrl: string; apiKey: string; endpoint: string }> = [];
-    mockInvoke(
-      'zhuye_list_provider_models',
-      async (_cmd: string, args?: { baseUrl: string; apiKey: string; endpoint: string }) => {
-        // eslint-disable-next-line no-console
-        console.log('PROBE list_provider_models invoked', args);
-        listCalls.push({ baseUrl: args?.baseUrl ?? '', apiKey: args?.apiKey ?? '', endpoint: args?.endpoint ?? '' });
-        return {
-          endpoint: 'openai',
-          models: [
-            { id: 'gpt-4o', display_name: 'gpt-4o', supports_vision: true },
-            { id: 'o1-mini', display_name: 'o1-mini', supports_vision: false },
-          ],
-        };
-      },
-    );
-    const switchCalls: string[] = [];
-    mockInvoke('zhuye_set_model', async (_cmd: string, args?: { group: string; model: string }) => {
-      switchCalls.push(args?.model ?? '');
-      return 'demo/gpt-4o';
+    let listCalls = 0;
+    mockInvoke('zhuye_list_provider_models', async () => {
+      listCalls += 1;
+      return { endpoint: 'openai', models: [{ id: 'gpt-4o', display_name: 'gpt-4o' }] };
     });
     renderComposer();
 
-    // 按钮 disabled={fetchingModels || !hasGroups}:hasGroups 随 get_config
-    // 异步加载,慢 CI 上 findByTestId 返回时仍是 disabled,click 静默无效
-    // (仅 ubuntu 实测)—— 先等按钮可用再点。
-    // 模型组经异步 get_config 加载后组件重渲染。用 queryAll + 原生
-    // disabled 属性轮询(不用 jest-dom 的 toBeDisabled —— 它在本组件
-    // 的 label>select+button 结构上行为异常,慢 CI 上偶发永不通过)。
-    await waitFor(() => {
-      const btn = screen.queryByTestId('composer-fetch-models') as HTMLButtonElement | null;
-      expect(btn).not.toBeNull();
-      expect(btn?.disabled).toBe(false);
-    });
-    fireEvent.click(screen.getByTestId('composer-fetch-models'));
-    // active 组挂载时已自动拉过一次；刷新按钮再拉一次（强制绕过 TTL 缓存）
-    // —— 断言调用参数，不锁死调用次数。
-    await waitFor(() => expect(listCalls.length).toBeGreaterThanOrEqual(1));
-    expect(
-      listCalls.every(
-        (c) =>
-          c.baseUrl === 'https://api.example.com/v1' &&
-          c.apiKey === 'sk-1' &&
-          c.endpoint === 'openai',
-      ),
-    ).toBe(true);
-    // eslint-disable-next-line no-console
-    console.log('STEP5: listCalls ok');
-    // 拉取结果进入下拉(带能力标记);选择后以该 model id 走 zhuye_set_model。
     const select = (await screen.findByTestId('composer-model-select')) as HTMLSelectElement;
-    const option = Array.from(select.options).find((o) => o.value === 'model:gpt-4o');
-    expect(option?.textContent).toContain('gpt-4o · vision');
-    fireEvent.change(screen.getByTestId('composer-model-select'), { target: { value: 'model:gpt-4o' } });
-    await waitFor(() => expect(switchCalls).toEqual(['gpt-4o']));
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(0));
+    // 挂载不触发任何拉取。
+    expect(listCalls).toBe(0);
+    // 拉取按钮已移除。
+    expect(screen.queryByTestId('composer-fetch-models')).toBeNull();
+    // 下拉里没有接口模型组(model: 前缀选项)。
+    expect(Array.from(select.options).some((o) => o.value.startsWith('model:'))).toBe(false);
   });
 
   it('initializes effort from backend readback and applies changes', async () => {

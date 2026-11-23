@@ -4,8 +4,8 @@
  * 实现下沉 `app-core::worktree`（porcelain 解析 / 增删 / 判脏），本面板
  * 纯消费：
  * - 新建：内联表单（名称 = 缺省同名分支；可选已有分支）；
- * - 在此开会话：切 workspace → 建会话 → 导航（与 ShellBinding 同款命令
- *   序列，worktree 即成为该会话的工作区）；
+ * - 在此开会话：切 workspace → 导航新对话首页（与 ShellBinding 同款；
+ *   会话在首条消息发出时才创建，worktree 即成为该会话的工作区）；
  * - 删除：confirmDialog 二次确认；脏树后端拒绝时由用户 force 重试（表单
  *   内不自动 force —— 丢改动必须显式确认）。
  * - 「改动被困」告警保留（stranded）。
@@ -25,17 +25,7 @@ import {
   zhuye_remove_worktree,
 } from '@/utils/commands/git';
 import { zhuye_set_workspace } from '@/utils/commands/workspaces';
-import { zhuye_create_session } from '@/utils/commands/sessions';
 import s from '@/render/git/GitView.module.css';
-
-/** 会话列表缓存条目（与 ShellBinding.showNewSession 的种子同形）。 */
-type SessionInfo = {
-  session_id: string;
-  model: string;
-  started_at: string;
-  message_count: number;
-  workspace: string | null;
-};
 
 export function WorktreePanel() {
   const { t } = useI18n();
@@ -94,7 +84,7 @@ export function WorktreePanel() {
     removeMut.mutate({ path, force: dirty });
   };
 
-  // ===== 在此开会话（切 workspace → 建会话 → 导航）=====
+  // ===== 在此开会话（切 workspace → 导航新对话首页）=====
   const [opening, setOpening] = useState(false);
   const openSession = async (path: string) => {
     if (opening) return;
@@ -104,14 +94,9 @@ export function WorktreePanel() {
       void qc.invalidateQueries({ queryKey: ['agent-status'] });
       void qc.invalidateQueries({ queryKey: ['workspaces'] });
       void qc.invalidateQueries({ queryKey: CURRENT_WORKSPACE_QUERY_KEY });
-      const id = await zhuye_create_session();
-      // 预插会话列表缓存（与 ShellBinding.showNewSession 同款），侧栏立即可见。
-      qc.setQueryData<SessionInfo[]>(['sessions', { workspace: null }], (previous = []) => [
-        { session_id: id, model: '', started_at: new Date().toISOString(), message_count: 0, workspace: path },
-        ...previous.filter((x) => x.session_id !== id),
-      ]);
       void qc.invalidateQueries({ queryKey: ['git-worktrees'] });
-      navigate({ to: '/chat/$sessionId', params: { sessionId: id } });
+      // 不预创建会话:首条消息发出时才落盘,侧栏届时随列表刷新出现。
+      navigate({ to: '/chat' });
     } catch (e) {
       toast(t('git.worktrees.sessionFailed', { msg: errMsg(e) }), 'error');
     } finally {

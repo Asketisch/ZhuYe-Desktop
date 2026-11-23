@@ -31,6 +31,67 @@
   静默丢弃（qwen 系 500k 设不进去的根因）。`readContextWindows` /
   `setGroupContextWindow` 双形态兼容（嵌套优先，与引擎 Either 实读值
   对齐），顺带修掉删除末键时误删下一表头的越界问题。
+- **缓存命中率口径修正（1052% → 真实值）+ 回合累计事件不再双计**：
+  工作台「平均缓存命中率」显示 1052% 的根因在上游引擎 —— Anthropic
+  线缆的 `usage.input_tokens` **不含** cache_read / cache_creation 两段，
+  而引擎契约要求「缓存分段是 input 的子集」；适配层原样透传导致
+  `cached > input`，引擎回合收尾再补发一条**回合累计** `token_count`
+  （数字 = 本回合逐次调用的累计），桌面端把它与逐次调用一并累计，
+  于是出现 > 100% 的荒谬值（真实案例：41486 / 3942 = 1052%）。
+  修复分两层：**上游**（zhuye-agent `develop`，submodule 指针
+  `bfa28695 → 70291c4e`）—— Anthropic 适配器上报前把两个缓存分段折入
+  `input_tokens`（`TokenUsage::fold_cache_segments`），读取历史 rollout
+  时按「缓存分段之和 > input」这一特征幂等修复旧口径记录，
+  `SessionStats::cache_hit_rate()` 钳到 `[0, 1]`；同时给
+  `TokenCountEvent` 增加 `turn_total` 标记回合累计（additive，逐次
+  调用的 wire 逐字节不变）。**桌面端** —— reducer 只累计逐次调用的
+  事件（`sessionTotal` / `sessionCost` 此前实为 2 倍），回合累计不再
+  覆盖「最后一次调用」快照（上下文占比因此失真），另存
+  `tokens.turn` 供**本回合**口径使用；工作台与检查器的命中率改显
+  「本回合缓存命中率」（`usage.turnCacheHitRate`），用量面板的
+  「缓存命中率」仍是**会话级**口径（后端 `zhuye_session_stats`）——
+  两个口径各标各的，一律钳到 `[0, 100%]`；检查器 Token 构成条四段
+  改互斥（未缓存提示词 = `input − 缓存命中 − 缓存写入`，此前把
+  `input` 与缓存分段直接相加属重复计入）。
+  连带修正（上游）：Anthropic 的新鲜输入此前被按缓存价计费
+  （`pricing::price` 的 `non_cached` 饱和到 0）、`total_tokens` 漏掉
+  缓存段导致上下文占用与配额低报、压缩触发判据只看 fresh delta 而
+  几乎永不触发。
+
+- **新会话延迟落盘 + 侧栏「工作区 / 会话」分区重构 + 输入框移除拉取
+  模型 + 思考强度文案统一中文**：① 新建会话不再预分配 session id /
+  预插侧栏缓存（`ShellBinding.handleNewChat` 只导航 `/chat` 首页，
+  `WorktreePanel` 开会话同改造）—— 会话在首条消息发出时经
+  `useEnsureSession` 创建落盘，侧栏届时随列表刷新出现带真标题的
+  条目，不再先闪 8 位 ID 空壳；侧栏列表同时过滤无消息的空会话
+  （历史遗留壳不再显示）。② 侧栏分区重构：「工作区」区头下挂目录
+  分组（组下列各工作区会话），「会话」区头下为全部会话平铺
+  （最近活跃倒序）；同一会话渲染两份行 —— testid 命名空间区分
+  （平铺区持权威 `harness-session-*`，分组副本 `harness-ws-*`），
+  ⋯ 菜单与行内重命名框只挂被操作的副本（`menuScope` / `renameScope`）。
+  ③ 占位工作区（cwd 解析失败的 `.`）不再裸显：归组时并入「未归属」，
+  hero 与工作区胶囊显示「默认」；后端启动 workspace 回退 `.` →
+  `$HOME`（`state/agent.rs`，与 `restore_last_used` 同口径）。
+  ④ 输入框 ModelPicker 移除「拉取模型列表」三件套（自动拉取 effect /
+  刷新按钮 / 接口模型 optgroup），能力保留在 设置 → 模型组。
+  ⑤ 思考强度档位文案统一中文：新增 `effortLabel` helper
+  （`composer.effort.*` 键 + 厂商扩展档 xhigh→极高 / minimal→极低 /
+  none→不思考），设置页「默认思考强度」下拉、Models 页分段控件与
+  「实际生效」提示、模型徽标（models.dev `effort_levels`，qwen 显示
+  低/中/极高）全部本地化。
+- **提示词预设两级化：一级工具名、二级模型变体 + 智能识别按模型命中**：
+  输入卡底栏提示词预设 pill 从平铺厂商层升级为两级菜单 —— 一级工具
+  （Claude Code / Codex / Kimi / Qwen / Gemini CLI / DeepSeek / GLM /
+  Grok / MiniMax），二级模型变体（如 Claude Code 13 个模型档、Codex
+  8 个模型/人格档），单变体工具为一级叶项；「智能匹配模型」在两级
+  目录中按当前模型 spec 匹配（精确型号 > 最长家族前缀），命中即选用
+  对应变体，无匹配回落默认并在 tooltip 说明原因。变体文案来自
+  `asgeirtj/system_prompts_leaks`（独立固定 revision `0aa4be30`），
+  英文策展（剥离工具 schema / 会话残留 / 产品专属段），共 26 份内嵌
+  于 submodule `zhuye-prompt/prompts/tools/`；`PromptSelection` 线
+  格式不变，`prompt_list` 事件新增 `groups`（additive，旧引擎平铺
+  回退）。前端 `PromptPicker` 改自定义弹层（`ComposerPlusMenu` 同款
+  交互），旧会话已存选择按 profile id 原样兼容。
 - **输入卡底栏三处形态修正 + 工作台目标段按需显示**：① 工作台右侧
   面板「目标」段改为仅在 goal 模式（激活或有快照）显示 —— 面板信息
   按需出现，空闲态不再常驻 /goal 引导空段（折叠窄条的目标小图标同步

@@ -25,6 +25,7 @@ import { FileTree } from '@/features/files/FileTree';
 import { DiffViewer } from '@/features/git/DiffViewer';
 import { Markdown } from '@/components/Markdown';
 import { useContextRatio } from './useContextRatio';
+import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
 import { useShellUi } from '@/stores/shellUi';
 import { CredentialPoolSection, SubagentCallsSection } from './RuntimeStatusSections';
 import { TodoPanel } from './TodoPanel';
@@ -79,6 +80,9 @@ function OverviewTab() {
   const compactions = useAgentStore((st) => st.compactions);
   const [showCompactionDetail, setShowCompactionDetail] = useState(false);
   const ctx = useContextRatio();
+  // 缓存命中率走**回合级**口径(本回合逐次调用的累计);右侧用量面板的
+  // 「缓存命中率」是会话级口径 —— 两个标签各标各的。
+  const cacheHitRate = useTurnCacheHitRate();
   const { t } = useI18n();
 
   const pendingTotal = pendingApprovals.length + pendingQuestions.length + pendingAskUser.length;
@@ -180,8 +184,10 @@ function OverviewTab() {
               <span className={s.value}>{tokens.cached.toLocaleString()}</span>
             </li>
             <li className={s.row} data-testid="inspector-cache-rate">
-              <span className={s.name}>{t('usage.cacheHitRate')}</span>
-              <span className={s.value}>{tokens.input > 0 ? `${(tokens.cached / tokens.input * 100).toFixed(1)}%` : '—'}</span>
+              <span className={s.name}>{t('usage.turnCacheHitRate')}</span>
+              <span className={s.value}>
+                {cacheHitRate === null ? '—' : `${cacheHitRate.toFixed(1)}%`}
+              </span>
             </li>
             {tokens.cacheWrite > 0 && (
               <li className={s.row}>
@@ -304,16 +310,25 @@ function OverviewTab() {
   );
 }
 
-/** Token 构成堆叠条（输入 / 缓存命中 / 缓存写入 / 输出），对标 Reasonix「Token 构成」。 */
+/**
+ * Token 构成堆叠条（未缓存提示词 / 缓存命中 / 缓存写入 / 回复）。
+ *
+ * 四段**互斥**且求和 = `input + output`:缓存读 / 缓存写是 `input` 的
+ * 子集,把 `input` 与它们直接相加会把缓存段重复计入。
+ */
 function TokenComposition() {
   const tokens = useAgentStore((st) => st.tokens);
   const { t } = useI18n();
   if (!tokens) return null;
+  const cached = Math.max(0, tokens.cached);
+  const cacheWrite = Math.max(0, tokens.cacheWrite);
+  // 新鲜提示词 = input 去掉两个缓存分段(引擎保证二者是 input 的子集)。
+  const fresh = Math.max(0, tokens.input - cached - cacheWrite);
   const parts = [
-    { key: 'input', value: Math.max(0, tokens.input), color: 'var(--accent)', label: t('inspector.comp.input') },
-    { key: 'cached', value: tokens.cached, color: 'var(--info, #60a5fa)', label: t('inspector.comp.cached') },
-    { key: 'cacheWrite', value: tokens.cacheWrite, color: 'var(--warning)', label: t('inspector.comp.cacheWrite') },
-    { key: 'output', value: tokens.output, color: 'var(--success, #4ade80)', label: t('inspector.comp.output') },
+    { key: 'cached', value: cached, color: 'var(--info, #60a5fa)', label: t('inspector.comp.cached') },
+    { key: 'cacheWrite', value: cacheWrite, color: 'var(--warning)', label: t('inspector.comp.cacheWrite') },
+    { key: 'fresh', value: fresh, color: 'var(--accent)', label: t('inspector.comp.fresh') },
+    { key: 'output', value: Math.max(0, tokens.output), color: 'var(--success, #4ade80)', label: t('inspector.comp.output') },
   ];
   const total = parts.reduce((sum, p) => sum + p.value, 0);
   if (total <= 0) return null;

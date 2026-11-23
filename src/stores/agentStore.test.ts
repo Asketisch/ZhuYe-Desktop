@@ -288,6 +288,15 @@ describe('reduceEvent — LLM output', () => {
       sessionCost: 0,
       // 会话累计 total(区别于 total = 最后一次调用)。
       sessionTotal: 1500,
+      // 本回合累计(按回合归零)。
+      turn: {
+        turnId: 't1',
+        input: 1200,
+        output: 300,
+        cached: 200,
+        cacheWrite: 500,
+        total: 1500,
+      },
       // 按模型累计(v1.x 模型级统计):首次事件 → 该模型 1 次调用。
       byModel: {
         'anthropic/claude-sonnet-4': {
@@ -353,6 +362,93 @@ describe('reduceEvent — LLM output', () => {
     expect(byModel['openai/gpt-4o']).toMatchObject({ calls: 1, total: 220 });
     // 会话累计 total = 110 + 220 + 330。
     expect(s.tokens!.sessionTotal).toBe(660);
+  });
+
+  it('回合累计事件(turn_total)不重复累计会话总量与费用', () => {
+    // 引擎回合收尾会补发一条 turn_total = true 的累计事件(数字 = 本回合
+    // 逐次调用的累计)。它与逐次调用的快照语义不同 —— 一并累计会让会话
+    // 总量与费用翻倍(per-call 之和 + 回合累计)。
+    let s: AgentState = emptyState();
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t1', {
+          type: 'token_count',
+          input_tokens: 100, output_tokens: 10, cached_tokens: 40,
+          cache_write_tokens: 0, total_tokens: 110,
+          cost_usd: 0.002, provider: 'anthropic', model: 'anthropic/claude-sonnet-4',
+        }),
+      ),
+    };
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t1', {
+          type: 'token_count',
+          input_tokens: 200, output_tokens: 20, cached_tokens: 80,
+          cache_write_tokens: 0, total_tokens: 220,
+          cost_usd: 0.003, provider: 'anthropic', model: 'anthropic/claude-sonnet-4',
+        }),
+      ),
+    };
+    // 回合收尾:引擎补发本回合累计(330 = 110 + 220)。
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t1', {
+          type: 'token_count',
+          input_tokens: 300, output_tokens: 30, cached_tokens: 120,
+          cache_write_tokens: 0, total_tokens: 330,
+          cost_usd: 0.005, turn_total: true,
+        }),
+      ),
+    };
+    // 会话累计只算逐次调用:110 + 220 = 330(不是 660)。
+    expect(s.tokens!.sessionTotal).toBe(330);
+    // 费用同理:0.002 + 0.003(不是 +0.005)。
+    expect(s.tokens!.sessionCost).toBeCloseTo(0.005);
+    // 「最后一次调用」的快照不被回合累计覆盖(否则上下文占比失真)。
+    expect(s.tokens!.input).toBe(200);
+    expect(s.tokens!.total).toBe(220);
+    // 本回合累计采用引擎给的权威值。
+    expect(s.tokens!.turn).toMatchObject({
+      turnId: 't1', input: 300, output: 30, cached: 120, total: 330,
+    });
+  });
+
+  it('本回合累计按回合归零', () => {
+    // 新回合的第一次调用 → 本回合累计从零开始,不接上一回合的数。
+    let s: AgentState = emptyState();
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t1', {
+          type: 'token_count',
+          input_tokens: 100, output_tokens: 10, cached_tokens: 40,
+          cache_write_tokens: 0, total_tokens: 110,
+          provider: 'anthropic', model: 'anthropic/claude-sonnet-4',
+        }),
+      ),
+    };
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('t2', {
+          type: 'token_count',
+          input_tokens: 50, output_tokens: 5, cached_tokens: 10,
+          cache_write_tokens: 0, total_tokens: 55,
+          provider: 'anthropic', model: 'anthropic/claude-sonnet-4',
+        }),
+      ),
+    };
+    expect(s.tokens!.turn).toMatchObject({
+      turnId: 't2', input: 50, output: 5, cached: 10, total: 55,
+    });
   });
 
   it('token_count tolerates missing optional provider/credential_label', () => {
