@@ -4,7 +4,8 @@
  * 自原控制行收进卡内：`zhuye_get_effort` 回读 + `zhuye_set_effort`
  * 设置（乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新；
  * config_reloaded 事件触发重读）。档位只给当前模型支持的子集
- * （useEffortCapability），文案走 i18n 中文映射。
+ * （useEffortCapability），档位文案直接显示英文原词（协议/厂商原始档位字，
+ * low/medium/high/…），不做本地化映射。
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
@@ -51,6 +52,14 @@ export function EffortPicker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 换模型后线程槽位里的偏好还是旧模型的档 —— capability 的 requested
+  // 是后端按新模型重算的口径,变化即跟随(如 high → qwen 的 xhigh 阶梯
+  // 重算),避免「切换模型后思考强度不刷新」。
+  const capRequested = capability.requested;
+  useEffect(() => {
+    if (capability.known) setEffort(capRequested);
+  }, [capRequested, capability.known]);
+
   // 可选档位 = 模型支持的档位 ∪ 用户当前选择(偏好保留,即使当前模型不支持)。
   const effortOptions = useMemo(() => {
     const options = new Set<Level>(capability.options);
@@ -70,7 +79,7 @@ export function EffortPicker() {
     ? t('composer.controls.effort.unknownHint')
     : capability.adjusted
       ? capability.effective
-        ? t('composer.controls.effort.effective', { level: t(`composer.effort.${capability.effective}`) })
+        ? t('composer.controls.effort.effective', { level: capability.effective })
         : t('composer.controls.effort.disabled')
       : undefined;
 
@@ -86,7 +95,7 @@ export function EffortPicker() {
         data-testid="composer-effort-select"
       >
         {effortOptions.map((level) => (
-          <option key={level} value={level}>{t(`composer.effort.${level}`)}</option>
+          <option key={level} value={level}>{level}</option>
         ))}
       </select>
       <ChevronDown size={12} className={s.caret} aria-hidden="true" />

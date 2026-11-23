@@ -241,19 +241,20 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     expect(turns[turns.length - 1].status).toBe('done');
   }, 20_000);
 
-  it('/plan slash enters plan mode with the task on the wire, then the full loop runs', async () => {
+  it('/plan slash switches to plan mode, submits the task, then the full loop runs', async () => {
     renderApp();
     await typeAndSend('/plan migrate the database');
 
-    // 斜杠走 Op 命令(Op::EnterPlanMode)而非用户文本提交 ——
-    // ScriptedAgent 的脚本只绑定 zhuye_submit,Op 驱动的事件流在此手动 emit
-    // (id 用 enter_plan_mode 返回的 submission id,真实语义一致)。
-    await waitFor(() => expect(backend.callsOf('zhuye_enter_plan_mode').length).toBe(1));
-    expect(backend.lastArgsOf('zhuye_enter_plan_mode')).toEqual({
-      task: 'migrate the database',
-    });
-    expect(backend.agent.submissions.length).toBe(0);
-    const subId = 'plan-mode-sub';
+    // 新语义:斜杠直接切 Plan 模式（Op::SetPermissionMode,不经
+    // 「进入计划模式?」审批),任务文本作为首条消息走 zhuye_submit ——
+    // ScriptedAgent 按脚本驱动该 submission 的事件流。
+    await waitFor(() =>
+      expect(backend.lastArgsOf('zhuye_set_permission_mode')).toEqual({ mode: 'plan' }),
+    );
+    await waitFor(() => expect(useAgentStore.getState().permissionMode).toBe('plan'));
+    await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
+    const subId = backend.agent.submissions[0].id;
+    expect(JSON.stringify(backend.agent.submissions[0].op)).toContain('migrate the database');
 
     // agent 在 plan 模式下产出计划,经 plan_ready 推送给用户决策。
     emitEvent(subId, { type: 'plan_ready', plan_id: 'plan-4', markdown: '# From slash' });

@@ -2,7 +2,7 @@ import type { ComponentProps, ComponentType, RefObject } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { Turn } from '@/stores/agent/types';
 export type { Turn, TurnItem } from '@/stores/agent/types';
-import type { ToolCell, ToolOutputBody, ToolGroup } from '@/features/messages/ToolCells';
+import type { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup, ActivityEntryData } from '@/features/messages/ToolCells';
 import type { QueuedMessages } from '@/features/messages/QueuedMessages';
 import type { UserAttachments } from '@/features/messages/UserAttachments';
 import type { Collapsible } from '@/features/messages/Collapsible';
@@ -14,6 +14,8 @@ export interface MessageListSlots {
   ToolOutputBody: ComponentType<ComponentProps<typeof ToolOutputBody>>;
   /** 连续工具调用的聚合组（对话式 agent 产品惯用的摘要行）。 */
   ToolGroup: ComponentType<ComponentProps<typeof ToolGroup>>;
+  /** 工具 + 思考混合活动组（思考不打断工具流,Codex/ZCode 式）。 */
+  ActivityGroup: ComponentType<ComponentProps<typeof ActivityGroup>>;
   QueuedMessages: ComponentType<ComponentProps<typeof QueuedMessages>>;
   UserAttachments: ComponentType<ComponentProps<typeof UserAttachments>>;
   Collapsible: ComponentType<ComponentProps<typeof Collapsible>>;
@@ -32,3 +34,5 @@ export interface MessageListViewProps {
   onContinueTurn?: (turnId: string) => void;
   slots: MessageListSlots;
 }
+
+export type { ActivityEntryData };

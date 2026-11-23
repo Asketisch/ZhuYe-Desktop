@@ -4,6 +4,63 @@
 
 ## 未发布
 
+- **思考强度 pill 换模型即时刷新**：effort capability 查询原为静态
+  key + 30s staleTime，切换模型后前端缓存不失效，pill 继续显示旧模型
+  档位。改为**按模型 spec 分键**（store `session.model`），ModelPicker
+  切换成功后乐观同步 `session.model`（引擎只在下次 turn 才发
+  `session_configured`，热重载当下无事件）；EffortPicker 跟随
+  capability 的 `requested`（后端按新模型重算的口径）刷新显示。
+- **已知上游缺口（qwen3.8 档位显示 low/medium/high 而非
+  low/medium/xhigh）**：models.dev 目录投票里 qwen3.8 系厂商档位是
+  `["low","medium","xhigh"]`，但上游 `zhuye_llm::reasoning_effort`
+  的 `ladder_cap` 词表只认 low/medium/high/max/ultra —— `xhigh`
+  被丢弃后投票取最大得 `medium`。submodule 只读，上游 develop 分支
+  同样未修；待上游在 `ladder_cap` 增加 `xhigh → Max`（或独立档）映射
+  后随 submodule 升级自动生效，届时 UI 档位与引擎 wire 钳制保持同一
+  函数口径。
+- **会话活动流折叠（Codex/ZCode 式活动组）**：思考块不再打断工具调用
+  段 —— 「思考 → 执行 → 思考 → 执行」混合段聚合为一个活动组，默认
+  整体折叠为一行摘要（执行 N 命令 / 思考 M 次，运行中转琥珀色前缀），
+  点组头展开逐条活动（组内竖线 + 紧凑状态行），组内单行（工具格/
+  思考块）仍可各自展开看详情；纯工具段保持原 ToolGroup 聚合、思考-only
+  段保持独立思考折叠块，会话默认只露 LLM 真实输出。新增
+  `ActivityGroup` slot（contracts/messageList）+ 4 条 i18n key；
+  MessageList 补思考/工具混合聚合与思考-only 两例行为锁定测试。
+- **`/plan <任务>` 直进计划模式，免「进入计划模式?」审批框**：斜杠
+  分发改走 `Op::SetPermissionMode(Plan)`（引擎直接翻转模式并作废在途
+  plan 审批，前端经 `permission_mode_changed` 回流），剩余文本作为
+  首条消息正常提交 —— 模型在 Plan 模式约束下规划执行，不再先弹
+  EnterPlanMode 审批（引擎对 `Op::EnterPlanMode` 无条件派发
+  PlanRequest，与「默认直接进入」的预期相悖）。纯 `/plan` 只切模式
+  不发消息。权限 pill 新增 `data-mode` 态：plan 模式下高亮 accent 色，
+  「当前在计划模式」一眼可辨。fakeBackend 的 `zhuye_set_permission_mode`
+  同步补发模式变更事件（与真后端语义对齐）。
+- **会话头（WorkHead）去重：窗口级切换收敛回标题条 + 死按钮清理**：
+  终端/右栏/主题/设置四个按钮接的是 v2 遗留 `shellState`（全仓库仅剩
+  ChatBinding 一个消费方），与标题条的 `shellUi` 状态分裂——主题按钮
+  甚至误接成右栏开关（`toggleRight`）、设置跳已下线的 `/settings`
+  旧路由、右栏状态无消费者、"..." 菜单含纯占位死项、ViewRing 旁的
+  "..." 无 onClick。四钮移除，会话头只留会话级动作（fork + 更多菜单
+  ：导出 Markdown / 分叉 / 设置…，设置改接 `shellUi.setSettingsOpen`
+  设置弹窗）；`ChatViewProps` 同步摘除 `rightOpen`/`onToggleTerminal`/
+  `onToggleRight`/`onToggleTheme`；孤儿 i18n key `head.rightPanel`/
+  `head.theme` 清理。
+- **菜单二级面板右侧飞出（提示词预设 / 技能 / 插件）**：`PromptPicker`
+  组项与 `ComposerPlusMenu` 技能/插件的二级列表不再在同级列表内缩进
+  展开，改为贴父项右缘的飞出面板（底边对齐父项向上生长，零间隙保
+  hover 桥，超高自身滚动）；PromptPicker 一级菜单解除 max-height 裁剪
+  （飞出面板需要 overflow 可见上下文），组行 hover 离开即收起。
+- **build.sh 新增 `--sync-app` + 全量构建嵌前端保鲜守卫**：前端资产由
+  `generate_context!` 编译期嵌进二进制（.app Resources 无前端文件），
+  而 tauri-build（≤2.7.x）不监听 dist 变化——完整构建也可能嵌旧前端
+  （实测踩过：vite 重建 dist 后 .app 内嵌的还是旧 index 哈希）。
+  `--sync-app`（macOS）：dist → 增量重编应用壳（依赖全缓存）→ 新二进制
+  换入现有 .app → ad-hoc + entitlements 重签，前端改完免重跑打包器；
+  cargo 命令带 `--features tauri/custom-protocol` 与 CLI 同口径（v2 的
+  dev 判定是 tauri-macros 编译期常量，缺了它 `generate_context!` 不嵌
+  dist、运行时指向 devUrl）；全量路径同样加 `refresh_embed_if_stale`
+  守卫（dist 比二进制新即 touch `src-tauri/src/lib.rs` 触发嵌前端
+  crate 重编）。
 - **侧栏子会话区三处改进**：① 会话行间距加大（行高 29→32px，子会话
   行 30px、块内间隙加宽）；② 有子代理会话的父会话行标题前新增折叠
   chevron（展开/收起整块子会话行，默认展开；与「显示全部 N 个」的

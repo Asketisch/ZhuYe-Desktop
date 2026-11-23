@@ -16,7 +16,7 @@ import { turnsFromRollout } from '@/stores/replay';
 import { useMessageListScroll } from '@/logic/webview/useMessageListScroll';
 import { commandErrorMsg } from '@/logic/chat/ChatBinding';
 import { SubagentSessionViewer as DefaultView } from '@/render/chat/SubagentSessionViewer';
-import { ToolCell, ToolOutputBody, ToolGroup } from './ToolCells';
+import { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup } from './ToolCells';
 import { UserAttachments } from './UserAttachments';
 import { Collapsible } from './Collapsible';
 import { CopyButton } from './CopyButton';
@@ -32,6 +32,7 @@ const MESSAGE_SLOTS: MessageListSlots = {
   ToolCell,
   ToolOutputBody,
   ToolGroup,
+  ActivityGroup,
   QueuedMessages: NoQueuedMessages,
   UserAttachments,
   Collapsible,

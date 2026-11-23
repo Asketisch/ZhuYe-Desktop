@@ -118,6 +118,13 @@ export function ModelPicker() {
         setCurrentSpec(spec);
         setActiveGroupId(group.id);
         setActiveCredential(credential.label);
+        // 同步 store 的 session.model:effort capability 等按模型分键的
+        // 查询靠它换 key 重拉(引擎只在下次 turn 才发 session_configured,
+        // 热重载当下无事件,这里乐观写入保证即时刷新)。
+        if (spec) {
+          const prev = useAgentStore.getState().session;
+          useAgentStore.setState({ session: { model: spec, provider: prev?.provider ?? '' } });
+        }
         await refreshGroups();
         // 钉住成功但该凭据没有 model:请求仍无模型可用 —— 明示而非静默。
         if (!credential.model.trim()) {
@@ -144,6 +151,11 @@ export function ModelPicker() {
         setCurrentSpec(spec);
         setActiveGroupId(group.id);
         setActiveCredential('');
+        // 同步 store 的 session.model(effort capability 按模型分键,同上)。
+        if (spec) {
+          const prev = useAgentStore.getState().session;
+          useAgentStore.setState({ session: { model: spec, provider: prev?.provider ?? '' } });
+        }
         await refreshGroups();
         // 切到组但没有默认模型:请求仍无模型可用 —— 明示而非静默。
         if (!group.model.trim()) {

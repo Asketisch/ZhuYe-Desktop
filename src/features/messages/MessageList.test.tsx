@@ -280,6 +280,57 @@ describe('MessageList', () => {
     expect(document.querySelector('[data-testid="diff-viewer"]')).not.toBeNull();
   });
 
+  it('思考不打断工具段 —— thinking 与 tool_call 混合聚合成活动组', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't9',
+          status: 'done',
+          items: [
+            { kind: 'tool_call', toolName: 'bash', callId: 'a1', argsSummary: '{"command":"ls"}', status: 'done' },
+            { kind: 'thinking', text: '需要先看目录结构' },
+            { kind: 'tool_call', toolName: 'bash', callId: 'a2', argsSummary: '{"command":"pwd"}', status: 'done' },
+            { kind: 'tool_call', toolName: 'read_file', callId: 'a3', argsSummary: '{"path":"/a.ts"}', status: 'done' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    // 混合段进活动组（而非 tool-group）,默认折叠。
+    const group = screen.getByTestId('activity-group');
+    expect(group.textContent).toContain('1');
+    expect(screen.queryByTestId('tool-group')).toBeNull();
+    // 展开:逐条活动(工具格 + 思考行)都在组内。
+    fireEvent.click(group.querySelector('button')!);
+    const body = screen.getByTestId('activity-group-body');
+    expect(body.querySelectorAll('[data-tool="bash"]')).toHaveLength(2);
+    // 思考行以折叠块形式在组内(en locale label='thinking';正文在其自身展开层)。
+    expect(body.textContent).toContain('thinking');
+    // 点思考行展开正文（Collapsible 类名经 CSS Modules hash,以图标颜色档定位）。
+    const thinkingRow = body.querySelector('[data-accent="info"] > button, [data-accent="success"] > button') as HTMLButtonElement | null;
+    expect(thinkingRow).not.toBeNull();
+    fireEvent.click(thinkingRow!);
+    expect(body.textContent).toContain('需要先看目录结构');
+  });
+
+  it('思考-only 段不套活动组壳 —— 保持独立思考折叠块', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't10',
+          status: 'done',
+          items: [
+            { kind: 'thinking', text: '纯推理,没有任何工具调用' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    expect(screen.queryByTestId('activity-group')).toBeNull();
+    // 思考行仍在(折叠态),文字在展开层。
+    expect(screen.queryByTestId('activity-group-body')).toBeNull();
+  });
+
   it('defaults merged diff outputs to open without a click', () => {
     useAgentStore.setState({
       turns: [

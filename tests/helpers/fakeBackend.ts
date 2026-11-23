@@ -735,6 +735,15 @@ export function installFakeBackend(): FakeBackend {
     'zhuye_set_permission_mode',
     handler((args) => {
       backend.state.permissionMode = String(args?.mode);
+      // 与真后端同语义:模式翻转同步发 permission_mode_changed 事件
+      // (引擎 apply_permission_mode_change),前端 reducer 经它回流
+      // store.permissionMode。只改 fake state 不发事件的话,依赖
+      // permissionMode 的断言/UI 高亮与线上行为脱节。
+      emitEvent('', {
+        type: 'permission_mode_changed',
+        from: 'auto',
+        to: String(args?.mode),
+      } as ZhuyeEventMsg);
       return backend.state.permissionMode;
     }),
   );

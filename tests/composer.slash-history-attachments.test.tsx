@@ -50,14 +50,19 @@ describe('slash commands (real dispatch → backend)', () => {
     expect(useAgentStore.getState().turns.length).toBe(0);
   });
 
-  it('/plan <task> enters plan mode with the task text', async () => {
+  it('/plan <task> switches to plan mode and submits the task as a message', async () => {
     renderApp();
     await send('/plan refactor the auth module');
 
-    await waitFor(() => expect(backend.callsOf('zhuye_enter_plan_mode').length).toBe(1));
-    expect(backend.lastArgsOf('zhuye_enter_plan_mode')).toEqual({
-      task: 'refactor the auth module',
-    });
+    // 新语义:直接切 Plan 工作模式（不经「进入计划模式?」审批）,
+    // 剩余文本作为首条消息正常提交 —— 模型在 Plan 模式约束下规划执行。
+    await waitFor(() =>
+      expect(backend.lastArgsOf('zhuye_set_permission_mode')).toEqual({ mode: 'plan' }),
+    );
+    await waitFor(() => expect(useAgentStore.getState().permissionMode).toBe('plan'));
+    const submission = backend.agent.submissions[0];
+    expect(submission).toBeDefined();
+    expect(JSON.stringify(submission.op)).toContain('refactor the auth module');
   });
 
   it('/effort high / low dispatch set_effort; invalid level rejected with toast', async () => {

@@ -46,6 +46,13 @@
   color: var(--warning);
 }
 
+/* Plan 工作模式：触发器高亮为强调色 —— 让「当前在计划模式」在底栏
+ * 一眼可辨（/plan 直进与权限菜单切入共用此态）。 */
+.trigger[data-mode='plan'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
 .caret {
   color: var(--text-muted);
 }

@@ -107,6 +107,7 @@ export function PermissionPicker() {
         aria-expanded={open}
         aria-haspopup="menu"
         data-full-access={fullAccess || undefined}
+        data-mode={permissionMode}
         title={title}
         data-testid="composer-permission-trigger"
       >

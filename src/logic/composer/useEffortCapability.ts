@@ -10,8 +10,18 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { zhuye_effort_capability, type ZhuyeEffortCapability } from '@/utils/commands/permissions';
+import { useAgentStore } from '@/stores/agentStore';
 
-export const EFFORT_CAPABILITY_QUERY_KEY = ['effort-capability'] as const;
+/**
+ * 按当前模型 spec 分键的 capability 查询 —— 换模型即换 key。
+ *
+ * 旧实现 queryKey 恒为 `['effort-capability']` 且 staleTime 30s:切换模型
+ * 后端快照已按新模型重算,但前端缓存不失效,pill 继续显示旧模型档位。
+ * 现在 key 带 store 的 session.model(引擎 session_configured / 模型切换
+ * 链路维护),spec 变化 → 新 key → 重新拉取;同 spec 30s 内仍去重。
+ */
+export const effortCapabilityQueryKey = (modelSpec: string) =>
+  ['effort-capability', modelSpec] as const;
 
 /** 全部档位(能力未知时的兜底展示)。 */
 export const ALL_EFFORTS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
@@ -67,8 +77,11 @@ export function toCapabilityView(
 }
 
 export function useEffortCapability(): EffortCapabilityView {
+  // 当前模型 spec:引擎 session_configured 事件维护;pre-install 阶段为空
+  // (后端回落保守表,known=true 但 options 是保守阶梯)。
+  const sessionModel = useAgentStore((st) => st.session?.model ?? '');
   const { data } = useQuery({
-    queryKey: EFFORT_CAPABILITY_QUERY_KEY,
+    queryKey: effortCapabilityQueryKey(sessionModel),
     queryFn: zhuye_effort_capability,
     staleTime: 30_000,
   });

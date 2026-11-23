@@ -8,7 +8,6 @@
 import {
   zhuye_compact,
   zhuye_interrupt,
-  zhuye_enter_plan_mode,
   zhuye_exit_plan_mode,
   zhuye_enter_goal_mode,
   zhuye_exit_goal_mode,
@@ -56,9 +55,22 @@ export async function dispatchSubmission(
       await zhuye_compact();
       pushToast({ kind: 'info', message: t('composer.compactRequested') });
       break;
-    case 'enter_plan_mode':
-      await zhuye_enter_plan_mode(args.join(' ') || 'unspecified');
+    case 'enter_plan_mode': {
+      // GUI 语义:`/plan <任务>` = 直接进 Plan 模式开跑,不经
+      // 「进入计划模式?」审批。旧实现走 `Op::EnterPlanMode` —— 引擎
+      // 对该 op 无条件派发 PlanRequest(submission_loop.rs:1585),GUI
+      // 收到即弹审批框,与「默认直接进入」的预期相悖。改为
+      // `Op::SetPermissionMode(Plan)`(引擎直接翻转 + 作废在途 plan
+      // 审批,前端经 permission_mode_changed 回流,权限 pill 同步高亮),
+      // 剩余文本作为首条消息正常提交 —— 模型在 Plan 模式约束下规划执行。
+      // 空参数(纯 /plan)只切模式不提交消息。
+      const task = args.join(' ').trim();
+      await zhuye_set_permission_mode('plan');
+      if (task) {
+        await useAgentStore.getState().submit(task, ctx.workspace ?? null);
+      }
       break;
+    }
     case 'exit_plan_mode':
       await zhuye_exit_plan_mode();
       break;

@@ -254,3 +254,60 @@ export function ToolGroup({ toolNames, count, defaultOpen = false, children }: T
     </div>
   );
 }
+
+export interface ActivityEntryData {
+  toolName?: string;
+  argsSummary?: string;
+  status?: 'running' | 'done' | 'error';
+  /** 思考条目（与工具条目互斥）。 */
+  thinking?: boolean;
+  thinkingLabel?: string;
+}
+
+export interface ActivityGroupProps {
+  /** 条目元数据 —— 组头摘要（N 命令 / N 思考）与运行态判定。 */
+  entries: ActivityEntryData[];
+  /** 组内完整单元（ToolCell / ThinkingCollapsible）。 */
+  children: ReactNode;
+}
+
+/**
+ * 活动聚合组 —— 工具调用与思考块混合折叠（Codex/ZCode 式活动流）。
+ *
+ * 思考不再打断工具段：一组之内「已执行 xxx / 思考 n 秒」紧凑行依次排布，
+ * 默认整体折叠为一行摘要（执行 N 命令 / N 思考），点组头展开逐条活动；
+ * 组内单行仍可各自展开看详情（ToolCell 自身折叠）。
+ */
+export function ActivityGroup({ entries, children }: ActivityGroupProps) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const toolCount = entries.filter((e) => !e.thinking).length;
+  const thinkingCount = entries.length - toolCount;
+  const running = entries.some((e) => e.status === 'running');
+  // 组头文案:执行 N 命令(± 思考 M 次);纯思考段「思考 M 次」。
+  const label = toolCount > 0
+    ? (thinkingCount > 0
+      ? t('chat.activityGroup.mixed', { tools: toolCount, thinking: thinkingCount })
+      : t('chat.activityGroup.tools', { count: toolCount }))
+    : t('chat.activityGroup.thinking', { count: thinkingCount });
+  return (
+    <div className={s.group} data-testid="activity-group" data-open={open || undefined} data-running={running || undefined}>
+      <button
+        type="button"
+        className={s.groupHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <Icon icon={ChevronRight} size={12} className={s.caret} />
+        <Icon icon={Terminal} size={13} className={s.groupIcon} />
+        <span className={s.groupLabel}>{running ? t('chat.activityGroup.running', { label }) : label}</span>
+        <span className={s.groupCount}>{entries.length}</span>
+      </button>
+      {open && (
+        <div className={s.groupBody} data-testid="activity-group-body">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}

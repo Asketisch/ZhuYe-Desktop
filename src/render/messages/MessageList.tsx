@@ -7,13 +7,19 @@ import s from './MessageList.module.css';
 
 type ToolCallItem = Extract<TurnItem, { kind: 'tool_call' }>;
 type ToolOutputItem = Extract<TurnItem, { kind: 'tool_output' }>;
+type ThinkingItem = Extract<TurnItem, { kind: 'thinking' }>;
 /** 一条工具调用（call + 可选配对的 output）。 */
 type ToolEntry = { call: ToolCallItem; output?: ToolOutputItem };
+/** 活动段成员：工具调用或思考块 —— 两者穿插出现时同属一个活动组。 */
+type ActivityEntry = { kind: 'tool'; call: ToolCallItem; output?: ToolOutputItem } | { kind: 'thinking'; item: ThinkingItem };
 type RenderNode =
   | { kind: 'item'; item: TurnItem }
   | { kind: 'tool'; call: ToolCallItem; output?: ToolOutputItem }
-  | { kind: 'toolGroup'; entries: ToolEntry[] };
+  | { kind: 'toolGroup'; entries: ToolEntry[] }
+  | { kind: 'activityGroup'; entries: ActivityEntry[] };
 
+/** 工具调用 + 思考块混合聚合：思考不再打断工具段（Codex/ZCode 式活动组）。
+ *  思考-only 段（无任何工具调用）保持独立 ThinkingCollapsible，不套组壳。 */
 function groupToolNodes(items: TurnItem[]): RenderNode[] {
   const nodes: RenderNode[] = [];
   const callNodeIdx = new Map<string, number>();
@@ -33,22 +39,32 @@ function groupToolNodes(items: TurnItem[]): RenderNode[] {
       nodes.push({ kind: 'item', item });
     }
   }
-  // 连续的工具调用聚合成组（对话式 agent 产品惯例）：会话默认只露一行摘要，
-  // 逐条调用收在折叠层里；单条调用保持独立行（不必再套一层壳）。
+  // 连续的「活动」（工具调用/思考块穿插）聚合成组：会话默认只露一行摘要，
+  // 组内是紧凑状态行；单条工具调用（前后无思考）保持独立行。
+  // 思考-only 段直接落回 item 节点（沿用 ThinkingCollapsible 折叠）。
   const out: RenderNode[] = [];
-  let buffer: ToolEntry[] = [];
+  let buffer: Array<{ tool?: ToolEntry; thinking?: ThinkingItem }> = [];
   const flush = () => {
     if (buffer.length === 0) return;
-    if (buffer.length === 1) {
-      out.push({ kind: 'tool', call: buffer[0].call, output: buffer[0].output });
+    const tools = buffer.filter((b) => b.tool).map((b) => b.tool!);
+    if (tools.length === 0) {
+      // 思考-only 段：不套活动组壳。
+      for (const b of buffer) out.push({ kind: 'item', item: b.thinking! });
+    } else if (buffer.length === 1 && tools.length === 1) {
+      out.push({ kind: 'tool', call: tools[0].call, output: tools[0].output });
+    } else if (tools.length === buffer.length) {
+      // 纯工具段（无思考穿插）—— 保持原 ToolGroup 聚合。
+      out.push({ kind: 'toolGroup', entries: tools });
     } else {
-      out.push({ kind: 'toolGroup', entries: buffer });
+      out.push({ kind: 'activityGroup', entries: buffer.map((b) => b.tool ? { kind: 'tool', ...b.tool } : { kind: 'thinking', item: b.thinking! }) });
     }
     buffer = [];
   };
   for (const node of nodes) {
     if (node.kind === 'tool') {
-      buffer.push({ call: node.call, output: node.output });
+      buffer.push({ tool: { call: node.call, output: node.output } });
+    } else if (node.kind === 'item' && node.item.kind === 'thinking') {
+      buffer.push({ thinking: node.item });
     } else {
       flush();
       out.push(node);
@@ -146,7 +162,7 @@ function TurnView({
         <ItemView
           // diff 输出到达时重挂载,让 defaultOpen 生效（流式期间 output
           // 是后到的,同一节点从无到有）。
-          key={`${i}-${node.kind === 'tool' && node.output?.diff ? 'diff' : 'flat'}`}
+          key={`${i}-${node.kind === 'tool' && node.output?.diff ? 'diff' : node.kind}`}
           node={node}
           turnStatus={turn.status}
           t={t}
@@ -212,7 +228,46 @@ function TurnView({
 }
 
 function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus: Turn['status']; t: MessageListViewProps['t']; slots: MessageListSlots }) {
-  const { ToolCell, ToolOutputBody, UserAttachments, Collapsible, ToolGroup } = slots;
+  const { ToolCell, ToolOutputBody, UserAttachments, Collapsible, ToolGroup, ActivityGroup } = slots;
+
+  if (node.kind === 'activityGroup') {
+    // 工具 + 思考混合段：思考不打断工具流,同组折叠（Codex/ZCode 式）。
+    const entryMeta = node.entries.map((entry) =>
+      entry.kind === 'thinking'
+        ? { thinking: true }
+        : { toolName: entry.call.toolName, status: entry.call.status },
+    );
+    return (
+      <ActivityGroup entries={entryMeta}>
+        {node.entries.map((entry, i) =>
+          entry.kind === 'thinking' ? (
+            <ThinkingCollapsible key={`th-${i}-${entry.item.text.length}`} text={entry.item.text} compact summaryLabel={entry.item.variant === 'summary'} t={t} Collapsible={Collapsible} />
+          ) : (
+            <ToolCell
+              key={entry.call.callId}
+              flat
+              toolName={entry.call.toolName}
+              argsSummary={entry.call.argsSummary}
+              argsStream={entry.call.argsStream}
+              status={entry.call.status}
+              output={
+                entry.output
+                  ? {
+                      text: entry.output.text,
+                      diff: entry.output.diff,
+                      path: entry.output.path,
+                      isError: entry.output.isError,
+                      guardVerdict: entry.output.guardVerdict,
+                    }
+                  : undefined
+              }
+              defaultOpen={Boolean(entry.output?.diff)}
+            />
+          ),
+        )}
+      </ActivityGroup>
+    );
+  }
 
   if (node.kind === 'toolGroup') {
     // 连续工具调用的聚合组：摘要行写明用了哪些工具，展开后逐条列出。
@@ -347,9 +402,9 @@ function UserBubble({ text, CopyButton }: { text: string; CopyButton: MessageLis
 }
 
 /** 思考过程折叠块（ThinkingDelta 事件与正文 <think> 分段共用）。
- *  文字用弱化色 —— 思考与正式输出视觉分级。 */
-function ThinkingCollapsible({ text, defaultOpen = false, summaryLabel = false, t, Collapsible }: {
-  text: string; defaultOpen?: boolean; summaryLabel?: boolean;
+ *  文字用弱化色 —— 思考与正式输出视觉分级。compact=活动组内的单行态。 */
+function ThinkingCollapsible({ text, defaultOpen = false, summaryLabel = false, compact = false, t, Collapsible }: {
+  text: string; defaultOpen?: boolean; summaryLabel?: boolean; compact?: boolean;
   t: MessageListViewProps['t']; Collapsible: MessageListSlots['Collapsible'];
 }) {
   const snippet = text.slice(0, 60).replace(/\s+/g, ' ');
@@ -359,14 +414,16 @@ function ThinkingCollapsible({ text, defaultOpen = false, summaryLabel = false, 
       ? t('chat.thinkingWith', { snippet })
       : t('chat.thinking');
   return (
-    <Collapsible
-      icon={<Icon icon={Brain} size={13} />}
-      accent={summaryLabel ? 'success' : 'info'}
-      defaultOpen={defaultOpen}
-      label={label}
-    >
-      <pre className={`${s.monoText} ${s.thinkingText}`}>{text}</pre>
-    </Collapsible>
+    <div className={compact ? s.thinkingCompact : undefined}>
+      <Collapsible
+        icon={<Icon icon={Brain} size={13} />}
+        accent={summaryLabel ? 'success' : 'info'}
+        defaultOpen={defaultOpen}
+        label={label}
+      >
+        <pre className={`${s.monoText} ${s.thinkingText}`}>{text}</pre>
+      </Collapsible>
+    </div>
   );
 }
 

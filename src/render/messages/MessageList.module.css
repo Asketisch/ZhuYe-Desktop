@@ -182,6 +182,16 @@
   color: var(--fg-3);
 }
 
+/* 活动组内的思考行 —— 与组内扁平行同密度的单行态:
+ * 去掉 Collapsible 的卡片边距,弱化标签字号。 */
+.thinkingCompact {
+  margin: 0;
+}
+
+.thinkingCompact > * {
+  margin: 0;
+}
+
 /* ===== 错误行（语义色保留：danger 是必须承载信息的位置）===== */
 .errorRow {
   display: flex;

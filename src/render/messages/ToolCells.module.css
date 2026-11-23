@@ -195,3 +195,9 @@
 .flat .header {
   padding: 0.28rem 0.2rem;
 }
+
+/* ====== 活动（工具+思考混合）聚合组 ====== */
+/* 运行中的组：组头图标转 running 色（琥珀）。 */
+.group[data-running] .groupIcon {
+  color: #f0b860;
+}

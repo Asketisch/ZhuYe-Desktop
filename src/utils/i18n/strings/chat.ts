@@ -66,6 +66,11 @@ const chat: Record<string, StringEntry> = {
   'chat.tool.planBodyHint':        { en: 'Plan body is rendered in the right panel — not shown inline.',            'zh-CN': '计划正文在右侧面板渲染，此处不再展开。' },
   // 工具调用聚合组（对话式 agent 产品惯例）：连续调用折叠成一行摘要。
   'chat.toolGroup.summary':        { en: 'used {tools}',                                                       'zh-CN': '已使用 {tools}' },
+  // 活动（工具+思考混合）聚合组：Codex/ZCode 式「执行 N 命令」摘要。
+  'chat.activityGroup.tools':      { en: 'Ran {count} commands',                                              'zh-CN': '执行 {count} 命令' },
+  'chat.activityGroup.thinking':   { en: 'Thought {count} times',                                             'zh-CN': '思考 {count} 次' },
+  'chat.activityGroup.mixed':      { en: 'Ran {tools} commands, thought {thinking} times',                    'zh-CN': '执行 {tools} 命令 · 思考 {thinking} 次' },
+  'chat.activityGroup.running':    { en: 'Running · {label}',                                                 'zh-CN': '正在运行 · {label}' },
   'chat.tool.noPath':              { en: '(no path)',                                                         'zh-CN': '(无路径)' },
   'chat.tool.chars':               { en: '{n} chars',                                                         'zh-CN': '{n} 字符' },
   'chat.tool.edit':                { en: 'edit',                                                              'zh-CN': '编辑' },
