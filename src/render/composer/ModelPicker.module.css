@@ -50,35 +50,3 @@
   pointer-events: none;
   color: var(--text-muted);
 }
-
-.fetchBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.fetchBtn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-}
-
-.fetchBtn:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.fetchSpin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}

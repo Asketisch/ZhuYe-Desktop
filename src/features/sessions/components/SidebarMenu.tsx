@@ -3,8 +3,10 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { SidebarMenuAction } from '@/contracts/sidebar';
 
-export function SidebarMenu({ sessionId, actions, onClose }: {
+export function SidebarMenu({ sessionId, anchorKey, actions, onClose }: {
   sessionId: string;
+  /** 触发按钮的 data-session-more 值（同一会话在分组区/平铺区各有一个 ⋯,按副本精确锚定）。 */
+  anchorKey: string;
   actions: SidebarMenuAction[];
   onClose: () => void;
 }) {
@@ -13,7 +15,7 @@ export function SidebarMenu({ sessionId, actions, onClose }: {
 
   useLayoutEffect(() => {
     const anchor = Array.from(document.querySelectorAll<HTMLElement>('[data-session-more]'))
-      .find((element) => element.dataset.sessionMore === sessionId);
+      .find((element) => element.dataset.sessionMore === anchorKey);
     const menu = ref.current;
     if (!anchor || !menu) { onClose(); return; }
     const place = () => {
@@ -35,7 +37,7 @@ export function SidebarMenu({ sessionId, actions, onClose }: {
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', place);
     };
-  }, [sessionId, actions, onClose]);
+  }, [sessionId, anchorKey, actions, onClose]);
 
   return createPortal(
     <div ref={ref} className="sess-menu" data-testid="harness-session-menu"

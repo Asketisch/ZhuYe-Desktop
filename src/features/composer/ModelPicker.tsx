@@ -8,16 +8,14 @@
  * `zhuye_set_model(group, model, label)` —— 后端改配置 + 热重载模型栈，
  * 协议不动。
  *
- * 选项来源只有「模型组」一层（「内置编码套餐」整层删除）：
+ * 选项来源只有「模型组」一层（「内置编码套餐」整层删除；从供应商接口
+ * 拉取模型清单的能力只留在 设置 → 模型组，不进输入框）：
  *  - 组本身 → `展示名 · 组模型`；
- *  - 组内凭据 → `展示名 · 凭据label`（凭据 label 参与钉住语义）；
- *  - 接口拉回的模型清单 → 最后一个 optgroup，落到当前组的组级默认模型。
+ *  - 组内凭据 → `展示名 · 凭据label`（凭据 label 参与钉住语义）。
  */
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { zhuye_agent_status, zhuye_get_config, zhuye_set_model } from '@/utils/commands/config';
-import { type ProviderModelInfo } from '@/utils/commands/models';
-import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
 import {
   groupDisplayLabel,
   listGroups,
@@ -27,13 +25,11 @@ import {
 } from '@/logic/models/modelGroups';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { formatTokens } from '@/utils/formatTokens';
 import s from '@/render/composer/ModelPicker.module.css';
 
-/** option value 前缀 —— 三类目标的稳定键。 */
+/** option value 前缀 —— 两类目标的稳定键。 */
 const GROUP_VALUE = 'group:';
 const CREDENTIAL_VALUE = 'cred:';
-const MODEL_VALUE = 'model:';
 
 export function ModelPicker() {
   const { t } = useI18n();
@@ -45,11 +41,6 @@ export function ModelPicker() {
   const [activeCredential, setActiveCredential] = useState('');
   const [currentSpec, setCurrentSpec] = useState('');
   const [switching, setSwitching] = useState(false);
-  // 接口拉取的模型列表 + 归属组 id + 拉取状态。
-  const [apiModels, setApiModels] = useState<ProviderModelInfo[]>([]);
-  const [apiModelsFor, setApiModelsFor] = useState('');
-  const [fetchingModels, setFetchingModels] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
 
   /** 切换成功后重读配置（后端已改写 active.group / active.credential / 组 model）。 */
   const refreshGroups = async () => {
@@ -99,32 +90,6 @@ export function ModelPicker() {
     : pinnedCredential
       ? `${CREDENTIAL_VALUE}${activeGroup.id}:${pinnedCredential.label}`
       : `${GROUP_VALUE}${activeGroup.id}`;
-  // 接口清单只在归属组仍被选中时显示（避免展示别的组的列表）。
-  const showApiModels = apiModels.length > 0 && activeGroup !== null && apiModelsFor === activeGroup.id;
-
-  // 当前生效目标的接入参数：钉住凭据优先用凭据自己的 base_url / api_key。
-  const targetBaseUrl = (pinnedCredential?.baseUrl.trim() || activeGroup?.baseUrl.trim() || '');
-  const targetApiKey = (pinnedCredential?.apiKey.trim() || activeGroup?.apiKey.trim() || '');
-  const targetEndpoint = activeGroup?.endpoint ?? '';
-
-  // active 是模型组 → 挂载/切换后自动拉取组内模型清单（前端 TTL memo,
-  // 命中缓存零网络）,填进既有的 optgroup。
-  useEffect(() => {
-    if (!activeGroup || !targetBaseUrl) return;
-    let cancelled = false;
-    fetchProviderModels(targetBaseUrl, targetApiKey, targetEndpoint)
-      .then((models) => {
-        if (cancelled) return;
-        setApiModels(models);
-        setApiModelsFor(activeGroup.id);
-      })
-      .catch(() => {
-        // 自动拉取失败保持静默:手动刷新按钮仍可用,错误在那里可见。
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeGroup?.id, targetBaseUrl, targetApiKey, targetEndpoint]);
 
   /** 切换失败 —— 后端拒绝必须可见（静默吞错会让「点了没反应」无法诊断）。 */
   const reportSwitchFailure = (e: unknown) => {
@@ -136,24 +101,6 @@ export function ModelPicker() {
 
   const onSwitchModel = async (value: string) => {
     if (switching) return;
-
-    // 'model:<id>' = 从接口拉取的模型 → 写当前组的组级默认模型。
-    if (value.startsWith(MODEL_VALUE)) {
-      const modelId = value.slice(MODEL_VALUE.length);
-      if (!activeGroup) return;
-      setSwitching(true);
-      try {
-        const spec = await zhuye_set_model(activeGroup.id, modelId);
-        setCurrentSpec(spec);
-        setActiveCredential('');
-        await refreshGroups();
-      } catch (e) {
-        reportSwitchFailure(e);
-      } finally {
-        setSwitching(false);
-      }
-      return;
-    }
 
     // 'cred:<组id>:<凭据label>' = 切到组内某条凭据（钉住该凭据）。
     if (value.startsWith(CREDENTIAL_VALUE)) {
@@ -213,43 +160,6 @@ export function ModelPicker() {
     }
   };
 
-  /** 对当前生效目标（组或钉住的凭据）的 base_url + api_key 拉取可用模型列表;
-   * 刷新按钮强制绕过 TTL 缓存。 */
-  const onFetchModels = async () => {
-    if (!activeGroup || !targetBaseUrl || fetchingModels) return;
-    setFetchingModels(true);
-    setModelsError(null);
-    try {
-      const models = await fetchProviderModels(
-        targetBaseUrl,
-        targetApiKey,
-        targetEndpoint,
-        { refresh: true },
-      );
-      setApiModels(models);
-      setApiModelsFor(activeGroup.id);
-    } catch (e) {
-      setModelsError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setFetchingModels(false);
-    }
-  };
-
-  /** 能力标记后缀:接口返回了明确信息才标注,未返回由用户自行判断。 */
-  const visionSuffix = (v: boolean | null) =>
-    v === true ? ` · ${t('common.visionTag')}` : v === false ? ` · ${t('common.noVisionTag')}` : '';
-
-  /** 数值能力标记:窗口 / 输出上限(200K 上下文 · 32K 输出),未披露不标。 */
-  const ctxSuffix = (v: number | null) => (v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.ctxTag')}` : '');
-  const outSuffix = (v: number | null) => (v != null && v > 0 ? ` · ${formatTokens(v)} ${t('common.outTag')}` : '');
-
-  /**
-   * 免费标记后缀 —— 只在**已判定为免费**时标注。
-   *
-   * `null`(厂商没表态 + 规则没命中)不加标记:那是「未知」,不是「免费」。
-   */
-  const freeSuffix = (v: boolean | null) => (v === true ? ` · ${t('common.freeTag')}` : '');
-
   return (
     <span className={s.wrap} data-testid="composer-model-picker">
       <span className={s.modelRow}>
@@ -282,31 +192,8 @@ export function ModelPicker() {
               ))}
             </Fragment>
           ))}
-          {showApiModels && (
-            <optgroup label={t('composer.controls.apiModelsGroup')}>
-              {apiModels.map((m) => (
-                <option key={m.id} value={`${MODEL_VALUE}${m.id}`}>
-                  {m.id}
-                  {ctxSuffix(m.context_window)}
-                  {outSuffix(m.max_output_tokens)}
-                  {visionSuffix(m.supports_vision)}
-                  {freeSuffix(m.is_free)}
-                </option>
-              ))}
-            </optgroup>
-          )}
         </select>
         <ChevronDown size={12} className={s.caret} aria-hidden="true" />
-        <button
-          type="button"
-          className={s.fetchBtn}
-          onClick={() => void onFetchModels()}
-          disabled={fetchingModels || !hasGroups}
-          title={modelsError ?? t('composer.controls.fetchModelsHint')}
-          data-testid="composer-fetch-models"
-        >
-          <RefreshCw size={12} className={fetchingModels ? s.fetchSpin : undefined} />
-        </button>
       </span>
     </span>
   );

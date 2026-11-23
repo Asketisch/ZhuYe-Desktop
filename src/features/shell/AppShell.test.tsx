@@ -11,6 +11,7 @@ import { resetMockInvoke, mockInvoke, createTestQueryClient } from '@/test/setup
 import { isPinned, togglePin, unpin } from '@/features/sessions/utils/pins';
 
 const navigate = vi.hoisted(() => vi.fn());
+const routerNavigate = vi.hoisted(() => vi.fn());
 const route = vi.hoisted(() => ({ pathname: '/' }));
 
 // Mock @tanstack/react-router — 仿照 app.smoke.test.tsx 的 mock 模式。
@@ -40,7 +41,7 @@ vi.mock('@tanstack/react-router', async () => {
       </a>
     ),
     useNavigate: () => navigate,
-    useRouter: () => ({ navigate: vi.fn() }),
+    useRouter: () => ({ navigate: routerNavigate }),
     useLocation: () => route,
     useMatches: () => [],
     Outlet: () => <div data-testid="outlet-content">outlet</div>,
@@ -109,9 +110,10 @@ describe('AppShell collapse behavior', () => {
     expect(screen.getByTestId('outlet-content')).toBeDefined();
   });
 
-  // v1.x workspace→session 归属：New Chat 主动分配 session id(纯 ID 分配,
-  // session 在首条 submission 时后端物化), 再 setActiveId 导航到 /chat/$id。
-  it('New Chat calls zhuye_create_session before navigating', async () => {
+  // v1.x 改版:新建会话不再预分配 session id —— 只导航到 /chat 新对话
+  // 首页;会话在首条消息发出时才创建落盘(useEnsureSession 链路),侧栏
+  // 届时随列表刷新出现带真标题的条目,不再先闪一个 ID 空壳。
+  it('New Chat navigates to /chat without creating a session', async () => {
     const created: unknown[] = [];
     mockInvoke('zhuye_create_session', async () => {
       created.push('sess-new-1');
@@ -123,8 +125,9 @@ describe('AppShell collapse behavior', () => {
     render(wrap(<AppShell />));
     fireEvent.click(screen.getByTestId('harness-nav-new'));
 
-    await new Promise((r) => setTimeout(r, 0)); // 让 .then(setActiveId) 微任务落地
-    expect(created).toEqual(['sess-new-1']);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(routerNavigate).toHaveBeenCalledWith({ to: '/chat' });
+    expect(created).toEqual([]);
   });
 
   it('restores the later session workspace after an earlier switch completes', async () => {
@@ -142,8 +145,9 @@ describe('AppShell collapse behavior', () => {
       if (path === '/first') await new Promise<void>((resolve) => { finish = resolve; });
     });
     render(wrap(<AppShell />));
-    const first = await screen.findByRole('button', { name: /First session/ });
-    const second = await screen.findByRole('button', { name: /Second session/ });
+    // 会话行在「工作区」分组与「会话」平铺区各渲染一份(取名第一份即可)。
+    const first = (await screen.findAllByRole('button', { name: /First session/ }))[0];
+    const second = (await screen.findAllByRole('button', { name: /Second session/ }))[0];
     fireEvent.click(first);
     await waitFor(() => expect(calls).toEqual(['/first']));
     fireEvent.click(second);
@@ -160,29 +164,9 @@ describe('AppShell collapse behavior', () => {
     mockInvoke('zhuye_list_workspaces', async () => []);
     mockInvoke('zhuye_set_workspace', async () => { throw new Error('directory not found'); });
     render(wrap(<AppShell />));
-    fireEvent.click(await screen.findByRole('button', { name: /Missing project session/ }));
+    fireEvent.click((await screen.findAllByRole('button', { name: /Missing project session/ }))[0]);
     await screen.findByText(/directory not found/);
     expect(navigate).not.toHaveBeenCalled();
-  });
-
-  it('does not navigate to a newly created session after selecting another session', async () => {
-    mockInvoke('zhuye_current_workspace', async () => '/current');
-    mockInvoke('zhuye_list_sessions', async () => [
-      { session_id: 'chosen', title: 'Chosen session', workspace: '/current', model: '', started_at: new Date().toISOString(), message_count: 1 },
-    ]);
-    mockInvoke('zhuye_list_workspaces', async () => []);
-    mockInvoke('zhuye_set_workspace', async () => {});
-    let finish!: (id: string) => void;
-    mockInvoke('zhuye_create_session', () => new Promise<string>((resolve) => { finish = resolve; }));
-    render(wrap(<AppShell />));
-    const chosen = await screen.findByRole('button', { name: /Chosen session/ });
-    fireEvent.click(screen.getByTestId('harness-nav-new'));
-    await waitFor(() => expect(finish).toBeTypeOf('function'));
-    fireEvent.click(chosen);
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/chat/$sessionId', params: { sessionId: 'chosen' } }));
-    finish('new-session');
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(navigate).toHaveBeenCalledTimes(1);
   });
 
   it('does not close a later selection when archiving the previous session finishes', async () => {
@@ -197,7 +181,7 @@ describe('AppShell collapse behavior', () => {
     let finish!: () => void;
     mockInvoke('zhuye_archive_session', () => new Promise<void>((resolve) => { finish = resolve; }));
     render(wrap(<AppShell />));
-    const next = await screen.findByRole('button', { name: /Next session/ });
+    const next = (await screen.findAllByRole('button', { name: /Next session/ }))[0];
     // v3 harness：归档入口在会话行 ⋯ 菜单，经应用内确认框执行。
     fireEvent.click(await screen.findByTestId('session-more-old'));
     fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
@@ -219,7 +203,7 @@ describe('AppShell collapse behavior', () => {
     const remove = vi.fn(async () => undefined);
     mockInvoke('zhuye_delete_session', remove);
     render(wrap(<AppShell />));
-    await screen.findByRole('button', { name: /Active session/ });
+    await screen.findAllByRole('button', { name: /Active session/ });
     fireEvent.keyDown(window, { key: 'k', metaKey: true });
     fireEvent.change(await screen.findByTestId('command-palette-input'), { target: { value: 'Clear all sessions' } });
     fireEvent.click(await screen.findByTestId('command-palette-item-sess.clear'));

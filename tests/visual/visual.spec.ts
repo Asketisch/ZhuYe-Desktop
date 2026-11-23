@@ -348,11 +348,13 @@ it('sidebar interactions stay anchored and theme changes in one click', async ()
   await page.screenshot({ path: path.join(screenshotDir, 'sidebar-menu--dark.png') });
   await page.keyboard.press('Escape');
   expect(await menu.count()).toBe(0);
+  // 折叠工作区分组只隐藏分组副本(ws- 前缀);「会话」平铺区的权威副本仍在。
+  const groupSession = page.getByTestId('harness-ws-session-sess-alpha');
   await group.click();
   expect(await group.getAttribute('aria-expanded')).toBe('false');
-  expect(await session.count()).toBe(0);
+  expect(await groupSession.count()).toBe(0);
   await group.click();
-  await session.waitFor();
+  await groupSession.waitFor();
   const dark = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await page.getByTestId('harness-theme').click();
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');

@@ -11,7 +11,7 @@
 | 文件 / 分组 | 一句话职责 |
 |---|---|
 | `state.rs` | facade：`MinimalAgent` 顶壳、子模块布线、thin 委托 |
-| `agent.rs` | `MinimalAgentInner` 共享内部状态（含后台线程表） + `new_empty` + 状态诊断快照 |
+| `agent.rs` | `MinimalAgentInner` 共享内部状态（含后台线程表） + `new_empty` + 状态诊断快照；初始 workspace = cwd，cwd 解析失败回退 `$HOME`（不落占位 `.`，与 `workspace_state::restore_last_used` 同口径） |
 | `model_spec.rs` | model spec 解析专题：降级原因 / 显式解析兜底（模型组 `[[model_group]]` 按组 id 查组内凭据）/ 动态清单发现（消费方 install / reload） |
 | `install.rs` / `thread_factory.rs` | 二段构造第二阶段 `install_agent_thread` / install 与 rebind 共享的线程构造路径；内置工具注册带 bundled 插件门（`register_builtin_tools_with_gates`）与 verify-hooks 门控注入（启用即注入 verification / test_runner hook，判定源 `zhuye_plugin::bundled_plugin_enabled`） |
 | `submit.rs` / `session.rs` | per-turn 提交流水（submit / submit_op / interrupt）/ session broadcast 入口 |

@@ -15,6 +15,7 @@ import {
 } from '@/utils/commands';
 import { zhuye_get_effort } from '@/utils/commands/permissions';
 import { ALL_EFFORTS, useEffortCapability, type Effort } from '@/logic/composer/useEffortCapability';
+import { effortLabel } from '@/logic/composer/effortLabels';
 import { useModelAbilities } from '@/logic/models/useModelAbilities';
 import {
   groupDisplayLabel,
@@ -133,9 +134,10 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
     degradedReason={status?.degraded_reason ?? null}
     groups={modelGroups}
     effort={effort}
-    effortOptions={effortOptions.map((level) => ({ value: level, label: level, hint: effortHints[level] }))}
+    // 档位文案统一本地化(低/中/高…)—— 厂商扩展档(xhigh 等)同样映射。
+    effortOptions={effortOptions.map((level) => ({ value: level, label: effortLabel(t, level), hint: effortHints[level] }))}
     effortAdjusted={capability.adjusted}
-    effortEffective={capability.effective}
+    effortEffectiveLabel={capability.effective ? effortLabel(t, capability.effective) : null}
     saved={saved}
     onGoSettings={() => window.location.assign('#/settings')}
     onSwitchGroup={(group) => switchGroupMutation.mutate({ group: group.id, model: group.model })}

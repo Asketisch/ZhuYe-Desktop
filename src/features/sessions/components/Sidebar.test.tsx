@@ -136,9 +136,11 @@ describe('Sidebar (harness)', () => {
       />,
     );
     const row = screen.getByText('Unassigned');
-    expect(screen.queryByTestId('harness-session-u1')).toBeNull();
+    // 未归属组默认折叠:分组副本不渲染(「会话」平铺区的权威副本仍可见,
+    // 这里只断言分组副本,故用 ws- 前缀 testid)。
+    expect(screen.queryByTestId('harness-ws-session-u1')).toBeNull();
     fireEvent.click(row);
-    expect(screen.getByTestId('harness-session-u1')).toBeDefined();
+    expect(screen.getByTestId('harness-ws-session-u1')).toBeDefined();
   });
 
   it('collapses workspace sessions and starts a chat with the workspace button', () => {
@@ -156,7 +158,8 @@ describe('Sidebar (harness)', () => {
       />,
     );
     fireEvent.click(screen.getByText('alpha'));
-    expect(screen.queryByTestId('harness-session-s1')).toBeNull();
+    // 折叠断言针对分组副本(ws- 前缀);平铺区的权威副本不受折叠影响。
+    expect(screen.queryByTestId('harness-ws-session-s1')).toBeNull();
     fireEvent.click(screen.getByTestId(`workspace-new-${groupA.key}`));
     expect(onNewChatIn).toHaveBeenCalledWith(WS_A);
   });

@@ -33,6 +33,8 @@ export interface SidebarViewProps {
   searching: boolean;
   pinnedGroup: WorkspaceSessionGroup | null;
   filtered: WorkspaceSessionGroup[];
+  /** 「会话」区的全部会话平铺列表（各组会话展平，已去置顶/按最近活跃倒序）。 */
+  allSessions: WorkspaceSessionGroup['sessions'];
   showEmpty: boolean;
   hasSelectableSessions: boolean;
   selectMode: boolean;
@@ -45,11 +47,15 @@ export interface SidebarViewProps {
   /** ===== harness 侧栏交互（状态由 SidebarBinding 持有，视图保持纯展示）===== */
   /** 会话 ⋯ 菜单当前打开的会话 id（null = 关闭）。 */
   menuFor: string | null;
-  onOpenMenu: (id: string | null) => void;
+  /** 菜单打开所在的副本（'all' 平铺区 / 'group' 分组区）—— 同一会话渲染两份行,菜单只挂被点的那份。 */
+  menuScope: 'all' | 'group';
+  onOpenMenu: (id: string | null, scope?: 'all' | 'group') => void;
   /** 当前打开菜单的会话动作清单（重命名 / AI 改名 / fork / 导出 / 置顶 / 归档 / 删除）。 */
   menuActions: SidebarMenuAction[];
-  SessionMenu: ComponentType<{ sessionId: string; actions: SidebarMenuAction[]; onClose: () => void }>;
+  SessionMenu: ComponentType<{ sessionId: string; actions: SidebarMenuAction[]; onClose: () => void; anchorKey: string }>;
   renameId: string | null;
+  /** 行内重命名输入框所在副本(只挂一份,避免双 autoFocus 互相抢焦点)。 */
+  renameScope: 'all' | 'group';
   renameValue: string;
   onRenameValueChange: (value: string) => void;
   onSubmitRename: () => void;

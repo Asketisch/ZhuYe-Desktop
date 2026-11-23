@@ -4,6 +4,27 @@
 
 ## 未发布
 
+- **新会话延迟落盘 + 侧栏「工作区 / 会话」分区重构 + 输入框移除拉取
+  模型 + 思考强度文案统一中文**：① 新建会话不再预分配 session id /
+  预插侧栏缓存（`ShellBinding.handleNewChat` 只导航 `/chat` 首页，
+  `WorktreePanel` 开会话同改造）—— 会话在首条消息发出时经
+  `useEnsureSession` 创建落盘，侧栏届时随列表刷新出现带真标题的
+  条目，不再先闪 8 位 ID 空壳；侧栏列表同时过滤无消息的空会话
+  （历史遗留壳不再显示）。② 侧栏分区重构：「工作区」区头下挂目录
+  分组（组下列各工作区会话），「会话」区头下为全部会话平铺
+  （最近活跃倒序）；同一会话渲染两份行 —— testid 命名空间区分
+  （平铺区持权威 `harness-session-*`，分组副本 `harness-ws-*`），
+  ⋯ 菜单与行内重命名框只挂被操作的副本（`menuScope` / `renameScope`）。
+  ③ 占位工作区（cwd 解析失败的 `.`）不再裸显：归组时并入「未归属」，
+  hero 与工作区胶囊显示「默认」；后端启动 workspace 回退 `.` →
+  `$HOME`（`state/agent.rs`，与 `restore_last_used` 同口径）。
+  ④ 输入框 ModelPicker 移除「拉取模型列表」三件套（自动拉取 effect /
+  刷新按钮 / 接口模型 optgroup），能力保留在 设置 → 模型组。
+  ⑤ 思考强度档位文案统一中文：新增 `effortLabel` helper
+  （`composer.effort.*` 键 + 厂商扩展档 xhigh→极高 / minimal→极低 /
+  none→不思考），设置页「默认思考强度」下拉、Models 页分段控件与
+  「实际生效」提示、模型徽标（models.dev `effort_levels`，qwen 显示
+  低/中/极高）全部本地化。
 - **提示词预设两级化：一级工具名、二级模型变体 + 智能识别按模型命中**：
   输入卡底栏提示词预设 pill 从平铺厂商层升级为两级菜单 —— 一级工具
   （Claude Code / Codex / Kimi / Qwen / Gemini CLI / DeepSeek / GLM /

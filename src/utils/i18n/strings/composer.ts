@@ -51,6 +51,11 @@ const composer: Record<string, StringEntry> = {
   'composer.effort.high':                    { en: 'high',                                          'zh-CN': '高' },
   'composer.effort.max':                     { en: 'max',                                           'zh-CN': '最高' },
   'composer.effort.ultra':                   { en: 'ultra',                                         'zh-CN': '极致' },
+  // 厂商扩展档（models.dev effort_levels 原始词，设置页下拉 / Models 页 /
+  // 模型徽标展示用 —— 引擎五档阶梯之外，仅作文案映射）。
+  'composer.effort.xhigh':                   { en: 'xhigh',                                         'zh-CN': '极高' },
+  'composer.effort.minimal':                 { en: 'minimal',                                       'zh-CN': '极低' },
+  'composer.effort.none':                    { en: 'none',                                          'zh-CN': '不思考' },
   // 「+」入口菜单（v3 壳层风格）：附件 / 技能 / 插件 / 压缩 / 目标 / 计划。
   'composer.plus.hint':                      { en: 'More actions',                                  'zh-CN': '更多操作' },
   'composer.plus.attach':                    { en: 'Add file or image',                             'zh-CN': '添加文件或图片' },
@@ -108,8 +113,6 @@ const composer: Record<string, StringEntry> = {
   'composer.tooManyAttachments':             { en: 'Too many attachments (max {max}).',             'zh-CN': '附件过多 (最多 {max} 个)。' },
   'composer.controls.model':                 { en: 'Model',                                         'zh-CN': '模型' },
   'composer.controls.modelAria':             { en: 'Switch model',                                  'zh-CN': '切换模型' },
-  'composer.controls.fetchModelsHint':       { en: 'Fetch available models from the provider API',  'zh-CN': '从供应商接口拉取可用模型列表' },
-  'composer.controls.apiModelsGroup':        { en: 'Models from API',                               'zh-CN': '接口模型列表' },
   'composer.controls.modelNone':             { en: 'No model configured',                           'zh-CN': '未配置模型' },
   'composer.controls.modelConfigureHint':    { en: 'Configure a model group in Settings → Model Groups first.', 'zh-CN': '请先在 设置 → 模型组 中配置模型组。' },
   'composer.controls.modelCurrent':          { en: 'Current: {spec}',                               'zh-CN': '当前：{spec}' },

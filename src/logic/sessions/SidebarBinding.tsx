@@ -61,6 +61,15 @@ export function SidebarBinding(props: SidebarBindingProps) {
     });
   }, []);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // 菜单所在副本:同一会话在分组区与平铺区各有一行,菜单只挂被点的那份。
+  const [menuScope, setMenuScope] = useState<'all' | 'group'>('all');
+  const openMenu = useCallback((id: string | null, scope: 'all' | 'group' = 'all') => {
+    setMenuFor(id);
+    setMenuScope(scope);
+  }, []);
+  // 行内重命名的所在副本 —— 输入框(autoFocus)只挂一份,双份会让第二个
+  // 抢走焦点、第一个 blur 触发提交,重命名框闪退。
+  const [renameScope, setRenameScope] = useState<'all' | 'group'>('all');
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [elapsedNow, setElapsedNow] = useState(() => Date.now());
@@ -91,6 +100,7 @@ export function SidebarBinding(props: SidebarBindingProps) {
         run: () => {
           close();
           setRenameValue(displayTitle(menuSession) || '');
+          setRenameScope(menuScope);
           setRenameId(menuSession.session_id);
         },
       });
@@ -148,7 +158,7 @@ export function SidebarBinding(props: SidebarBindingProps) {
       });
     }
     return actions;
-  }, [menuSession, props.onRename, props.onGenerateTitle, props.onFork, props.onExport,
+  }, [menuSession, menuScope, props.onRename, props.onGenerateTitle, props.onFork, props.onExport,
     props.onTogglePin, props.pinnedIds, props.onArchive, props.onDelete, t]);
 
   useEffect(() => {
@@ -192,17 +202,24 @@ export function SidebarBinding(props: SidebarBindingProps) {
     return base.map((group) => ({ ...group, sessions: group.sessions.filter((session) => displayTitle(session).toLowerCase().includes(q) || session.session_id.toLowerCase().includes(q)) }))
       .filter((group) => group.sessions.length > 0 || group.label.toLowerCase().includes(q));
   }, [props.groups, props.pinnedIds, q, searching]);
+  // 「会话」区:全部会话平铺(各组展平 —— filtered 已剔置顶与搜索过滤),
+  // 按最近活跃倒序,子代理会话仍挂各自父行。
+  const allSessions = useMemo(
+    () => [...filtered.flatMap((group) => group.sessions)]
+      .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at)),
+    [filtered],
+  );
   const hasSelectableSessions = Boolean(props.onDelete) && (Boolean(pinnedGroup) || props.groups.some((group) => group.sessions.length > 0));
   const View = props.view;
-  return <View {...props} t={t} query={query} searching={searching} pinnedGroup={pinnedGroup} filtered={filtered}
-    showEmpty={!props.loading && filtered.length === 0 && !pinnedGroup && !props.error}
+  return <View {...props} t={t} query={query} searching={searching} pinnedGroup={pinnedGroup} filtered={filtered} allSessions={allSessions}
+    showEmpty={!props.loading && allSessions.length === 0 && !pinnedGroup && !props.error}
     hasSelectableSessions={hasSelectableSessions} selectMode={selectMode} selectedIds={selectedIds}
     archivedOpen={archivedOpen} isCollapsed={isCollapsed} onQueryChange={setQuery}
     onEnterSelect={() => setSelectMode(true)} onExitSelect={exitSelectMode}
     onDeleteSelected={() => { void deleteSelected(); }} onToggleSelect={toggleSelected}
     onToggleArchived={() => setArchivedOpen((value) => !value)} onToggleGroup={toggle}
-    menuFor={menuFor} onOpenMenu={setMenuFor}
-    menuActions={menuActions} renameId={renameId} renameValue={renameValue} onRenameValueChange={setRenameValue}
+    menuFor={menuFor} onOpenMenu={openMenu} menuScope={menuScope}
+    menuActions={menuActions} renameId={renameId} renameScope={renameScope} renameValue={renameValue} onRenameValueChange={setRenameValue}
     onCancelRename={() => setRenameId(null)} onSubmitRename={() => {
       const name = renameValue.trim();
       if (renameId && name) void props.onRename?.(renameId, name);

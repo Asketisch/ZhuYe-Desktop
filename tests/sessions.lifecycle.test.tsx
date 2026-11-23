@@ -161,13 +161,14 @@ describe('session switch & replay hydration', () => {
 
   it('selecting a session in the sidebar navigates to its chat route', async () => {
     const app = renderApp();
-    await screen.findByText('Fix login bug');
-    fireEvent.click(screen.getByText('Fix login bug'));
+    // 会话行在「工作区」分组与「会话」平铺区各渲染一份,点击任一份即可。
+    await screen.findAllByText('Fix login bug');
+    fireEvent.click(screen.getAllByText('Fix login bug')[0]);
     await waitFor(() => expect(app.pathname()).toBe('/chat/sess-alpha'));
     // 选中项带 aria-pressed 高亮。
     await waitFor(() => {
       const sidebar = screen.getByTestId('harness-sidebar');
-      const item = within(sidebar).getByText('Fix login bug').closest('button');
+      const item = within(sidebar).getAllByText('Fix login bug')[0].closest('button');
       expect(item?.getAttribute('aria-pressed')).toBe('true');
     });
   });
@@ -189,14 +190,14 @@ describe('session mutations through the real UI', () => {
       newName: 'My custom title',
     });
     // rename 成功 → invalidate → 自动重刷列表，侧边栏立即显示新标题。
-    await waitFor(() => expect(within(screen.getByTestId('harness-sidebar')).getByText('My custom title')).toBeDefined());
+    await waitFor(() => expect(within(screen.getByTestId('harness-sidebar')).getAllByText('My custom title').length).toBeGreaterThan(0));
     // 后端状态同步更新。
     expect(backend.state.sessions.find((s) => s.session_id === 'sess-alpha')?.title).toBe('My custom title');
   });
 
   it('sidebar kebab archive moves the session out of the active list', async () => {
     renderApp();
-    await screen.findByText('Fix login bug');
+    await screen.findAllByText('Fix login bug');
 
     fireEvent.click(screen.getByTestId('session-more-sess-alpha'));
     fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
@@ -214,7 +215,7 @@ describe('session mutations through the real UI', () => {
 
   it('sidebar kebab delete removes the session after in-app confirm', async () => {
     renderApp();
-    await screen.findByText('Refactor parser');
+    await screen.findAllByText('Refactor parser');
 
     fireEvent.click(screen.getByTestId('session-more-sess-beta'));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
@@ -286,7 +287,7 @@ describe('session mutations through the real UI', () => {
   it('sending a first message in a session invalidates the sessions query', async () => {
     backend.agent.script = [{ emit: { type: 'agent_message_delta', delta: 'ok' } }];
     const app = renderApp();
-    await screen.findByText('Fix login bug');
+    await screen.findAllByText('Fix login bug');
 
     const listCallsBefore = backend.callsOf('zhuye_list_sessions').length;
     await typeAndSend('hello there');

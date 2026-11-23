@@ -11,6 +11,7 @@
 import { Check } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
+import { effortLabel } from '@/logic/composer/effortLabels';
 import { formatTokens } from '@/utils/formatTokens';
 import type { ProviderModelInfo } from '@/utils/commands';
 import s from '@/render/settings/SettingsView.module.css';
@@ -46,9 +47,9 @@ export function ModelOptionsList({
     if (m.supports_reasoning === false) tags.push(t('common.noReasoningTag'));
     // 思考档位枚举(models.dev reasoning_options 投票):不同提供方枚举
     // 不同(minimal/low/high、none/medium/xhigh…)—— 列在徽标里让用户
-    // 知道该模型可选哪些档。
+    // 知道该模型可选哪些档;档位词统一本地化(低/中/极高…)。
     if (m.effort_levels && m.effort_levels.length > 0) {
-      tags.push(`${t('common.effortTag')}: ${m.effort_levels.join('/')}`);
+      tags.push(`${t('common.effortTag')}: ${m.effort_levels.map((level) => effortLabel(t, level)).join('/')}`);
     }
     return tags;
   };

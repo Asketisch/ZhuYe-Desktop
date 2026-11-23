@@ -9,6 +9,7 @@ import type { StringEntry } from '../types';
 const common: Record<string, StringEntry> = {
   'common.close':     { en: 'Close',              'zh-CN': '关闭' },
   'common.cancel':    { en: 'Cancel',             'zh-CN': '取消' },
+  'common.workspaceDefault': { en: 'Default',     'zh-CN': '默认' },
   'common.visionTag': { en: 'vision',         'zh-CN': '支持视觉' },
   'common.noVisionTag': { en: 'no vision',     'zh-CN': '不支持视觉' },
   'common.freeTag': { en: 'free',           'zh-CN': '免费' },
