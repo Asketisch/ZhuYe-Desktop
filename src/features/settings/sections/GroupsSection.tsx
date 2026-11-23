@@ -35,7 +35,6 @@ import {
 } from '../config/groups';
 import { GroupNav } from './GroupNav';
 import { useEffortCapability } from '@/logic/composer/useEffortCapability';
-import { effortLabel } from '@/logic/composer/effortLabels';
 import { GroupDetail } from './GroupDetail';
 import s from '@/render/settings/SettingsView.module.css';
 
@@ -157,7 +156,7 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
           >
             <option value="">{t('settings.groups.defaultEffortUnset')}</option>
             {effortOptions.map((level) => (
-              <option key={level} value={level}>{effortLabel(t, level)}</option>
+              <option key={level} value={level}>{level}</option>
             ))}
           </select>
         </span>

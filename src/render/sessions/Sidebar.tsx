@@ -99,7 +99,7 @@ export function Sidebar({
       ? subKids
       : subKids.slice(0, SUB_SESSION_FOLD_LIMIT);
     return (
-      <div key={`${scope}-${sess.session_id}`} className="row-shell">
+      <div key={`${scope}-${sess.session_id}`} className={subKids.length > 0 ? 'row-shell with-subs' : 'row-shell'}>
         {/* 重命名输入框只挂被操作的副本(renameScope),双份 autoFocus 会互相抢焦点。 */}
         {renameId === sess.session_id && renameScope === scope ? <input className="ask-field session-rename" autoFocus
           aria-label={t('sidebar.renamePrompt')} value={renameValue} onChange={(e) => onRenameValueChange(e.target.value)}

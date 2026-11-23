@@ -2,9 +2,10 @@
  * ContextUsage —— Composer 底栏的上下文用量环。
  *
  * 数据全部来自 agentStore（token_count 事件 + session_configured 的
- * context window 大小），无后端往返。**常驻显示**：无数据时渲染空环
- * （未知 ≠ 不显示 —— 环是底栏的固定锚点），有数据时按比例填充；
- * 百分比 / 输入输出 token 细分收进 tooltip，≥80% 转 warning 色。
+ * context window 大小），无后端往返。**仅在有 token 上报后渲染**：
+ * 未开启 / 尚无数据的会话不显示进度圈（与状态栏 ctx.pct !== null
+ * 隐藏分支同口径）；有数据时按比例填充，百分比 / 输入输出 token
+ * 细分收进 tooltip，≥80% 转 warning 色。
  */
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
@@ -27,23 +28,23 @@ export function ContextUsage() {
   const pct = Math.round(ratio * 100);
   const warn = known && ratio >= WARN_RATIO;
 
-  const tooltip = !known
-    ? t('composer.contextUnknown')
-    : warn
-      ? t('composer.contextNearFull', { pct: String(pct) })
-      : t('composer.contextTooltip', {
-          pct: String(pct),
-          input: formatTokens(tokens!.input),
-          output: formatTokens(tokens!.output),
-          cached: formatTokens(tokens!.cached),
-        });
+  // 会话未开启（无 token 上报）不渲染空环 —— 空环观感等同"加载中"。
+  if (!known) return null;
+
+  const tooltip = warn
+    ? t('composer.contextNearFull', { pct: String(pct) })
+    : t('composer.contextTooltip', {
+        pct: String(pct),
+        input: formatTokens(tokens!.input),
+        output: formatTokens(tokens!.output),
+        cached: formatTokens(tokens!.cached),
+      });
 
   return (
     <div
       className={s.usage}
       role="img"
       data-warn={warn || undefined}
-      data-known={known || undefined}
       title={tooltip}
       data-testid="composer-context-usage"
       aria-label={tooltip}

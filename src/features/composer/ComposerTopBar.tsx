@@ -77,7 +77,9 @@ export function ComposerTopBar() {
     try {
       const picked = await zhuye_pick_workspace_folder();
       if (!picked) return;
-      await zhuye_set_workspace(picked);
+      // 显式添加 = 用户意图使用该工作区：unhide 复活已移除的条目
+      // （否则移除过的目录在这里添加不回来，只能去管理页点恢复）。
+      await zhuye_set_workspace(picked, true);
       invalidateWorkspaceQueries(qc);
     } catch (e) {
       pushToast({ kind: 'error', message: e instanceof Error ? e.message : String(e) });

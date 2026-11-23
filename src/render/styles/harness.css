@@ -394,18 +394,10 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   width: 150px;
   text-align: right;
 }
-.sel {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 8px;
-  background: var(--fill);
-  color: var(--fg-2);
-  font-size: 12.5px;
-}
-.sel:hover { background: var(--fill-2); color: var(--fg); }
+/* 注:此处的泛用 .sel 选中胶囊规则已删除 —— 它从未被独立使用,却以同
+   特异性后序覆盖各组合类基类的显式行高(实测 .row-item.sel 32px 被压成
+   28px、.tree-row.sel 26px 被抬成 28px,选中态行高抖动)。所有 .x.sel
+   组合均自带选中样式,不依赖此规则。 */
 .pill {
   display: inline-flex;
   align-items: center;
@@ -2157,11 +2149,16 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .session-rename { flex: 1; min-width: 0; }
 
 /* v1.12:子代理会话缩进树(minimax code 形态)—— 父会话行下内联渲染。
-   row-shell 默认横向 flex(主按钮 + 绝对定位的 ⋯);含子会话的行必须
-   纵向化,否则 .sub-sessions 会被当作 flex item 排到主按钮右侧 —— 实测
-   子会话行与父行 y 重叠、父行被盖住。:has() 由 WKWebView(Safari 15.4+)
-   支持,不加类名保持渲染层无状态。 */
-.row-shell:has(> .sub-sessions) { flex-direction: column; }
+   含子会话的行由渲染层显式挂 .with-subs 纵向化。两处坑(实测几何):
+   ① 纵向容器里 .row-item { flex: 1 } 作用在高度轴,flex-basis:0% 压掉
+   显式行高(32/30px),父子行被挤成 min-content 细条堆叠 —— 纵向轴一律
+   flex: initial,让 height 生效;
+   ② 早期用 :has(> .sub-sessions) 纵向化,依赖引擎选择器支持,已弃用。
+   ⋯ 菜单的 top:50% 此时以整棵子树为基准,改为锚定父行中心(16px)。 */
+.row-shell.with-subs { flex-direction: column; }
+.row-shell.with-subs .row-item { flex: initial; }
+.row-shell.with-subs > .session-rename { flex: initial; }
+.row-shell.with-subs > .sess-more { top: 16px; }
 .sub-sessions {
   display: flex;
   flex-direction: column;

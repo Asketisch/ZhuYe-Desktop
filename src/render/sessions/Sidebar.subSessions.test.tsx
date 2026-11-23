@@ -42,7 +42,10 @@ function mount(overrides: MountOverrides = {}) {
         key: 'ws',
         label: 'WS',
         lastActivity: 0,
-        sessions: [{ ...PARENT, children: [KID_A, KID_B] } as never],
+        sessions: [
+          { session_id: 'plain-1', started_at: '2026-11-22T09:00:00Z', title: '普通会话' },
+          { ...PARENT, children: [KID_A, KID_B] } as never,
+        ],
       },
     ],
     allSessions: [{ ...PARENT, children: [KID_A, KID_B] } as never],
@@ -120,6 +123,19 @@ describe('侧栏子会话区（折叠开关 + 子会话行点击）', () => {
     expect(screen.getByTestId('sub-sessions-parent-1')).toBeTruthy();
     fireEvent.click(screen.getByTestId('sub-toggle-parent-1'));
     expect(toggleCollapse).toHaveBeenCalledWith('parent-1');
+    unmount();
+  });
+
+  it('含子会话的行壳挂 with-subs 类(纵向布局锚点,CSS 据此纵向化并复位 flex)', () => {
+    const { unmount } = mount({});
+    // 平铺区与分组区两份副本都要挂 —— 布局回归(行被 flex-basis 压扁)靠它兜底。
+    for (const testid of ['sub-sessions-parent-1', 'ws-sub-sessions-parent-1']) {
+      const shell = screen.getByTestId(testid).parentElement;
+      expect(shell?.className).toContain('with-subs');
+    }
+    // 无子会话的行不挂。
+    const plainShell = screen.getByTestId('harness-ws-session-plain-1').parentElement;
+    expect(plainShell?.className).not.toContain('with-subs');
     unmount();
   });
 });

@@ -45,17 +45,8 @@ const composer: Record<string, StringEntry> = {
   'composer.perm.modeLabel':                 { en: 'Session mode',                                  'zh-CN': '会话工作模式' },
   'composer.perm.fullAccessTitle':           { en: 'Enable full access?',                           'zh-CN': '要启用完全访问吗？' },
   'composer.perm.fullAccessMessage':         { en: 'The agent will read/write files, run commands and access the network without asking again. Explicit deny rules still apply.', 'zh-CN': '启用后，agent 读写文件、运行命令、访问网络都不再逐项询问；显式拒绝规则仍然生效。' },
-  // ── 思考深度档位中文映射（底栏右侧 pill 选项文案）────────────────────
-  'composer.effort.low':                     { en: 'low',                                           'zh-CN': '低' },
-  'composer.effort.medium':                  { en: 'medium',                                        'zh-CN': '中' },
-  'composer.effort.high':                    { en: 'high',                                          'zh-CN': '高' },
-  'composer.effort.max':                     { en: 'max',                                           'zh-CN': '最高' },
-  'composer.effort.ultra':                   { en: 'ultra',                                         'zh-CN': '极致' },
-  // 厂商扩展档（models.dev effort_levels 原始词，设置页下拉 / Models 页 /
-  // 模型徽标展示用 —— 引擎五档阶梯之外，仅作文案映射）。
-  'composer.effort.xhigh':                   { en: 'xhigh',                                         'zh-CN': '极高' },
-  'composer.effort.minimal':                 { en: 'minimal',                                       'zh-CN': '极低' },
-  'composer.effort.none':                    { en: 'none',                                          'zh-CN': '不思考' },
+  // ── 思考深度档位（底栏右侧 pill 选项文案）──────────────────────────────
+  // 档位词不本地化：各面板直接显示英文原词（协议/厂商原始档位字）。
   // 「+」入口菜单（v3 壳层风格）：附件 / 技能 / 插件 / 压缩 / 目标 / 计划。
   'composer.plus.hint':                      { en: 'More actions',                                  'zh-CN': '更多操作' },
   'composer.plus.attach':                    { en: 'Add file or image',                             'zh-CN': '添加文件或图片' },
@@ -77,7 +68,6 @@ const composer: Record<string, StringEntry> = {
   'composer.stopHint':                       { en: 'Interrupt the running turn',                    'zh-CN': '中断当前运行' },
   'composer.interruptFailed':                { en: 'Failed to interrupt: {message}',                'zh-CN': '中断失败：{message}' },
   'composer.contextTooltip':                 { en: 'Context {pct}% · in {input} · out {output} · cached {cached}', 'zh-CN': '上下文 {pct}% · 输入 {input} · 输出 {output} · 缓存 {cached}' },
-  'composer.contextUnknown':                 { en: 'Context usage unknown — no tokens reported yet', 'zh-CN': '上下文用量未知 —— 尚无 token 上报' },
   'composer.contextNearFull':                { en: 'Context {pct}% — nearly full, consider /compact', 'zh-CN': '上下文已用 {pct}%，接近上限，可执行 /compact' },
   'composer.mode.label':                     { en: 'Send mode',                                     'zh-CN': '发送模式' },
   'composer.mode.queue':                     { en: 'Queue',                                         'zh-CN': '排队' },

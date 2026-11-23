@@ -346,7 +346,6 @@ describe('Composer run-state controls (E/C)', () => {
     // 百分比收进 tooltip（环上无文字）。
     expect(usage.getAttribute('title')).toContain('4%');
     expect(usage.getAttribute('data-warn')).toBeNull();
-    expect(usage.getAttribute('data-known')).toBeDefined();
   });
 
   it('flags warning at ≥80% context usage', () => {
@@ -368,15 +367,9 @@ describe('Composer run-state controls (E/C)', () => {
     expect(usage.getAttribute('title')).toMatch(/compact/);
   });
 
-  it('环常驻：无 token 数据时渲染空环（未知 ≠ 不显示）', () => {
+  it('会话未开启（无 token 数据）不渲染用量环 —— 空环观感等同加载中', () => {
     renderComposer();
-    const usage = screen.getByTestId('composer-context-usage');
-    expect(usage).toBeDefined();
-    expect(usage.getAttribute('data-known')).toBeNull();
-    expect(usage.getAttribute('title')).toMatch(/unknown|未知/);
-    // 进度环 dasharray 为 0（空环）。
-    const ring = usage.querySelector('circle[stroke-linecap="round"]');
-    expect(ring?.getAttribute('stroke-dasharray')).toBe('0 100');
+    expect(screen.queryByTestId('composer-context-usage')).toBeNull();
   });
 });
 

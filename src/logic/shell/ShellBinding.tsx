@@ -64,9 +64,13 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   // 原生菜单事件消费(menu-check-updates → 设置页,由挂载时自动检查完成触发)。
   useMenuEvents((to) => { void router.navigate({ to }); });
 
-  /** 切换工作区并失效相关缓存(失效集与 WorkspacesView 的切换路径一致)。 */
-  const switchWorkspace = async (path: string) => {
-    await zhuye_set_workspace(path);
+  /**
+   * 切换工作区并失效相关缓存(失效集与 WorkspacesView 的切换路径一致)。
+   * `unhide` 缺省 false —— incidental 切换(点击会话跟随)不复活已移除的
+   * 工作区;显式入口(「打开项目…」/ 组头「+」)传 true。
+   */
+  const switchWorkspace = async (path: string, unhide = false) => {
+    await zhuye_set_workspace(path, unhide);
     void qc.invalidateQueries({ queryKey: ['agent-status'] });
     void qc.invalidateQueries({ queryKey: ['workspaces'] });
     void qc.invalidateQueries({ queryKey: CURRENT_WORKSPACE_QUERY_KEY });
@@ -88,7 +92,8 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     }
     if (!picked || mySeq !== selectSeqRef.current) return;
     try {
-      await switchWorkspace(picked);
+      // 「打开项目…」是显式添加：复活已移除的工作区。
+      await switchWorkspace(picked, true);
       useAgentStore.getState().pushToast({
         kind: 'success',
         message: t('workspaces.setTo', { name: picked.split('/').filter(Boolean).pop() ?? picked }),
@@ -154,7 +159,7 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   // 会话本体同样等到首条消息发出才创建,workspace 由首条 submission 携带。
   const handleNewChatIn = (path: string) => {
     const mySeq = ++selectSeqRef.current;
-    void switchWorkspace(path)
+    void switchWorkspace(path, true)
       .then(() => {
         if (mySeq === selectSeqRef.current) void router.navigate({ to: '/chat' });
       })

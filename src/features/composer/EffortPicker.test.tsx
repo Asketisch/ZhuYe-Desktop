@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 describe('EffortPicker', () => {
-  it('挂载回读档位并映射为中文选项;变更乐观更新并调 zhuye_set_effort', async () => {
+  it('挂载回读档位并显示英文原词选项;变更乐观更新并调 zhuye_set_effort', async () => {
     const calls: string[] = [];
     mockInvoke('zhuye_get_effort', async () => 'high');
     mockInvoke('zhuye_set_effort', async (_cmd: string, args?: { level: string }) => {
@@ -39,10 +39,10 @@ describe('EffortPicker', () => {
 
     const select = await screen.findByTestId('composer-effort-select') as HTMLSelectElement;
     await waitFor(() => expect(select.value).toBe('high'));
-    // 中文档位文案（i18n 映射）。
+    // 档位文案为英文原词（协议档位字，不本地化）。
     const labels = [...select.options].map((o) => o.textContent);
-    expect(labels).toContain('高');
-    expect(labels).toContain('低');
+    expect(labels).toContain('high');
+    expect(labels).toContain('low');
 
     fireEvent.change(select, { target: { value: 'low' } });
     expect(select.value).toBe('low');

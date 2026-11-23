@@ -18,6 +18,8 @@
  * 输入卡（双层嵌套）：外层 surface（面板底 + 软阴影）承载顶栏胶囊行，
  * 内卡（抬升面，无边框描边）承载输入区与工具栏 —— 两层只靠底色深浅
  * 区分，不画线圈。聚焦反馈走内卡底色轻微提亮。
+ * 注意：内卡不得设 overflow 裁切 —— 底栏各 pill 的弹出菜单（+ 菜单 /
+ * 提示词预设 / 权限等）向上溢出卡片边界，裁切会把菜单砍半（实测 bug）。
  */
 .surface {
   position: relative;
@@ -39,7 +41,6 @@
   background: var(--surface);
   border-radius: var(--radius-lg);
   transition: background var(--transition-fast);
-  overflow: hidden;
 }
 
 /* 聚焦：底色轻微提亮（白以极低比例混入，暗亮两主题都成立）。 */
