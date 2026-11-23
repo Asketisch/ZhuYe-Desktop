@@ -54,6 +54,10 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [submenu, setSubmenu] = useState<Submenu>(null);
+  // 菜单限高与飞出面板坐标 —— 与 PromptPicker 同款量测口径:菜单向上
+  // 生长限高到 pill 顶空隙并内滚,飞出面板 fixed 定位逃逸滚动裁剪。
+  const [menuMaxH, setMenuMaxH] = useState<number | null>(null);
+  const [flyoutPos, setFlyoutPos] = useState<{ top: number; left: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   // 插件命令随会话 rebind 异步挂载 —— 每次挂载都重取,菜单里才是实时的。
   usePluginCommands();
@@ -63,6 +67,36 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
     staleTime: 30_000,
   });
   const pluginCommands = getPluginSlashCommands();
+
+  /** 打开菜单时限高:menu 底边贴「+」顶 − 8px,再留 8px 顶部安全距。 */
+  const measureMenu = () => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (rect) setMenuMaxH(Math.max(180, Math.round(rect.top - 16)));
+  };
+
+  /** 展开(点击)技能/插件行时定位飞出面板:行右侧 6px,放不下翻左侧,
+   *  纵向钳到视口内。 */
+  const toggleFlyout = (id: Exclude<Submenu, null>, el: HTMLElement) => {
+    if (submenu === id) {
+      setSubmenu(null);
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const FLY_W = 200;
+    const GAP = 6;
+    const MARGIN = 8;
+    const FLY_H_CAP = 240;
+    let left = rect.right + GAP;
+    if (left + FLY_W > window.innerWidth - MARGIN) {
+      left = Math.max(MARGIN, rect.left - FLY_W - GAP);
+    }
+    let top = rect.top;
+    if (top + FLY_H_CAP > window.innerHeight - MARGIN) {
+      top = Math.max(MARGIN, window.innerHeight - FLY_H_CAP - MARGIN);
+    }
+    setSubmenu(id);
+    setFlyoutPos({ top: Math.round(top), left: Math.round(left) });
+  };
 
   // 点击外部关闭。
   useEffect(() => {
@@ -80,6 +114,7 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
   const close = () => {
     setOpen(false);
     setSubmenu(null);
+    setFlyoutPos(null);
   };
 
   return (
@@ -87,7 +122,10 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
       <button
         type="button"
         className={s.trigger}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => !v);
+          measureMenu();
+        }}
         aria-expanded={open}
         aria-haspopup="menu"
         title={t('composer.plus.hint')}
@@ -97,7 +135,12 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
       </button>
 
       {open && (
-        <div className={s.menu} role="menu" data-testid="composer-plus-menu">
+        <div
+          className={s.menu}
+          role="menu"
+          data-testid="composer-plus-menu"
+          style={menuMaxH ? { maxHeight: menuMaxH } : undefined}
+        >
           <button
             type="button"
             role="menuitem"
@@ -144,7 +187,7 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
               type="button"
               role="menuitem"
               className={s.item}
-              onClick={() => setSubmenu(submenu === 'skills' ? null : 'skills')}
+              onClick={(e) => toggleFlyout('skills', e.currentTarget)}
               aria-expanded={submenu === 'skills'}
               aria-haspopup="menu"
               data-testid="composer-plus-skills"
@@ -154,7 +197,11 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
               <Icon icon={ChevronRight} size={13} className={s.itemChevron} />
             </button>
             {submenu === 'skills' && (
-              <div className={s.submenu} data-testid="composer-plus-skills-list">
+              <div
+                className={s.submenu}
+                data-testid="composer-plus-skills-list"
+                style={flyoutPos ? { position: 'fixed', top: flyoutPos.top, left: flyoutPos.left } : undefined}
+              >
                 {(skills ?? []).length === 0 && <span className={s.empty}>{t('composer.plus.empty')}</span>}
                 {(skills ?? []).map((skill) => (
                   <button
@@ -180,7 +227,7 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
               type="button"
               role="menuitem"
               className={s.item}
-              onClick={() => setSubmenu(submenu === 'plugins' ? null : 'plugins')}
+              onClick={(e) => toggleFlyout('plugins', e.currentTarget)}
               aria-expanded={submenu === 'plugins'}
               aria-haspopup="menu"
               data-testid="composer-plus-plugins"
@@ -190,7 +237,11 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
               <Icon icon={ChevronRight} size={13} className={s.itemChevron} />
             </button>
             {submenu === 'plugins' && (
-              <div className={s.submenu} data-testid="composer-plus-plugins-list">
+              <div
+                className={s.submenu}
+                data-testid="composer-plus-plugins-list"
+                style={flyoutPos ? { position: 'fixed', top: flyoutPos.top, left: flyoutPos.left } : undefined}
+              >
                 {pluginCommands.length === 0 && <span className={s.empty}>{t('composer.plus.empty')}</span>}
                 {pluginCommands.map((cmd) => (
                   <button

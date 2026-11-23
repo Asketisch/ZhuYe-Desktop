@@ -24,13 +24,18 @@
   color: var(--text-primary);
 }
 
-/* 菜单向上弹出 —— 输入框在窗口底部。 */
+/* 菜单向上弹出 —— 输入框在窗口底部。
+ * 高度由 JS 打开时按「+ 顶 − 视口顶」实测限高（inline maxHeight），
+ * 超长内滚；此处 60vh 仅为 JS 未量测时的安全回退。二级飞出面板为
+ * position:fixed，不在本容器的裁剪树内。 */
 .menu {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
   z-index: 40;
   min-width: 208px;
+  max-height: 60vh;
+  overflow-y: auto;
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
@@ -76,9 +81,9 @@
   position: relative;
 }
 
-/* 二级子菜单：右侧飞出面板 —— 贴父项右缘、底边与父项对齐（向上生长，
- * 菜单挂在屏幕下部，向上空间充裕）；零间隙贴边保证 hover 桥不中断。
- * 面板自带你级边框与阴影，与主菜单在视觉上分层。 */
+/* 二级子菜单：右侧飞出面板 —— 实际定位由 JS 量测（position:fixed 内联
+ * 覆盖，坐标 = 目标行视口位置；右侧放不下翻左侧，纵向钳视口内），
+ * 这里的 absolute 几何只是 JS 未接管前的回退。 */
 .submenu {
   position: absolute;
   left: 100%;

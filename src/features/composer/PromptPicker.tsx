@@ -45,7 +45,39 @@ export function PromptPicker() {
 
   const [open, setOpen] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  // 菜单可用高度与飞出面板坐标 —— 打开时量测(viewport 坐标)。
+  // 菜单自 pill 向上生长,限高到「pill 顶 − 视口顶」的空隙并滚动,
+  // 否则长清单(工具分组 + 自建层)会顶出窗口被裁;飞出面板用 fixed
+  // 定位逃逸菜单的滚动裁剪上下文(裁剪容器必裁 absolute 子元素)。
+  const [menuMaxH, setMenuMaxH] = useState<number | null>(null);
+  const [flyoutPos, setFlyoutPos] = useState<{ top: number; left: number } | null>(null);
   const wrapRef = useRef<HTMLSpanElement>(null);
+
+  /** 打开菜单时限高:menu 底边贴 pill 顶 − 8px,再留 8px 顶部安全距。 */
+  const measureMenu = () => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (rect) setMenuMaxH(Math.max(180, Math.round(rect.top - 16)));
+  };
+
+  /** 展开/悬停组行时定位飞出面板:目标行右侧 6px,右侧放不下翻左侧,
+   *  纵向钳到视口内(面板自身 max-height 220 + 内滚)。 */
+  const openFlyout = (id: string, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    const FLY_W = 200;
+    const GAP = 6;
+    const MARGIN = 8;
+    const FLY_H_CAP = 240;
+    let left = rect.right + GAP;
+    if (left + FLY_W > window.innerWidth - MARGIN) {
+      left = Math.max(MARGIN, rect.left - FLY_W - GAP);
+    }
+    let top = rect.top;
+    if (top + FLY_H_CAP > window.innerHeight - MARGIN) {
+      top = Math.max(MARGIN, window.innerHeight - FLY_H_CAP - MARGIN);
+    }
+    setExpandedGroup(id);
+    setFlyoutPos({ top: Math.round(top), left: Math.round(left) });
+  };
 
   // 可用层清单（prompt_list 事件异步回流）—— 空会话挂载时拉一次。
   // catch 防御:拉取失败不阻断 composer(选项退化为默认/智能两项)。
@@ -101,6 +133,7 @@ export function PromptPicker() {
   const close = () => {
     setOpen(false);
     setExpandedGroup(null);
+    setFlyoutPos(null);
   };
   const onPick = (raw: string) => {
     const next: PromptSelection = raw === 'default' || raw === 'auto'
@@ -143,7 +176,10 @@ export function PromptPicker() {
         type="button"
         className={s.select}
         value={selection.mode === 'manual' ? selection.profile : selection.mode}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => !v);
+          measureMenu();
+        }}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={t('composer.controls.promptAria')}
@@ -155,7 +191,12 @@ export function PromptPicker() {
       <ChevronDown size={12} className={s.caret} aria-hidden="true" />
 
       {open && (
-        <div className={s.menu} role="menu" data-testid="composer-prompt-menu">
+        <div
+          className={s.menu}
+          role="menu"
+          data-testid="composer-prompt-menu"
+          style={menuMaxH ? { maxHeight: menuMaxH } : undefined}
+        >
           <button
             type="button"
             role="menuitem"
@@ -191,8 +232,11 @@ export function PromptPicker() {
                   type="button"
                   role="menuitem"
                   className={s.item}
-                  onClick={() => setExpandedGroup((cur) => (cur === group.id ? null : group.id))}
-                  onMouseEnter={() => setExpandedGroup(group.id)}
+                  onClick={(e) => {
+                    if (expandedGroup === group.id) setExpandedGroup(null);
+                    else openFlyout(group.id, e.currentTarget);
+                  }}
+                  onMouseEnter={(e) => openFlyout(group.id, e.currentTarget)}
                   aria-expanded={expandedGroup === group.id}
                   aria-haspopup="menu"
                   data-testid={`composer-prompt-group-${group.id}`}
@@ -201,7 +245,11 @@ export function PromptPicker() {
                   <ChevronRight size={13} className={s.itemChevron} aria-hidden="true" />
                 </button>
                 {expandedGroup === group.id && (
-                  <div className={s.submenu} data-testid={`composer-prompt-submenu-${group.id}`}>
+                  <div
+                    className={s.submenu}
+                    data-testid={`composer-prompt-submenu-${group.id}`}
+                    style={flyoutPos ? { position: 'fixed', top: flyoutPos.top, left: flyoutPos.left } : undefined}
+                  >
                     {group.variants.map((variant) => (
                       <button
                         key={variant.id}
