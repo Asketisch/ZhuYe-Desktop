@@ -5,8 +5,9 @@
  * （25+ 个分区，包括 mcp_servers / lsp_servers / hooks / routing /
  * subagent_models / coordinator / postgres_session / sse_redis /
  * voice / dap / acp / feature_flags / ask_user_question / sanitize /
- * plugins / analytics / notifications / bridge / token_budget /
- * compact / sandbox / model / subagent models）。
+ * plugins / analytics / notifications / bridge / sandbox / model /
+ * subagent models。例外：`compact` / `token_budget` 段不进表单 ——
+ * 压缩触发已下沉为模型组级 auto_compact，其余为引擎底层治理参数）。
  *
  * 纯工具：通过 `readField` / `applyField` 读写 TOML 字符串，
  * 未知键保持不变，高级 TOML 编辑器仍作为出口闸阀。后端校验仍
@@ -22,7 +23,7 @@ import type { LocaleKey } from '@/utils/i18n';
 export type FieldKind = 'text' | 'number' | 'integer' | 'boolean' | 'select' | 'textarea';
 
 export interface FieldSpec {
-  /** 分区 key，如 'compact' 或 'sandbox'。 */
+  /** 分区 key，如 'sandbox' 或 'model'。 */
   section: string;
   /** 分区内的字段 key。 */
   key: string;
@@ -44,10 +45,10 @@ const SIMPLE_FIELDS: FieldSpec[] = [
   // `zhuye_list_skills` 同按此开关决定是否合入 15 个编译期内置技能。
   { section: 'active', key: 'bundled_skills', labelKey: 'settings.config.field.active.bundled_skills', kind: 'boolean' },
 
-  { section: 'compact', key: 'trigger_tokens', labelKey: 'settings.config.field.compact.trigger_tokens', kind: 'integer' },
-
-  { section: 'token_budget', key: 'session_total_tokens', labelKey: 'settings.config.field.token_budget.session_total_tokens', kind: 'integer' },
-  { section: 'token_budget', key: 'per_turn_input_tokens', labelKey: 'settings.config.field.token_budget.per_turn_input_tokens', kind: 'integer' },
+  // compact / token_budget 段不进表单:压缩触发已下沉为模型组级
+  // 「自动压缩阈值」(auto_compact,默认 85% 上下文);全局固定 token
+  // 阈值与会话 token 预算属引擎底层治理参数, GUI 面向用户的两套
+  // 入口只会互相打架。高级 TOML 编辑器仍是出口。
 
   { section: 'sandbox', key: 'os_level', labelKey: 'settings.config.field.sandbox.os_level', kind: 'boolean' },
   { section: 'sandbox', key: 'allow_network', labelKey: 'settings.config.field.sandbox.allow_network', kind: 'boolean' },

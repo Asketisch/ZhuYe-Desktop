@@ -43,6 +43,9 @@ endpoint = "openai"
 api_key = "sk-existing"
 model = "gpt-4o"
 
+[model]
+context_window = 200000
+
 [compact]
 trigger_tokens = 1024
 
@@ -165,9 +168,10 @@ describe('SettingsView', () => {
     expect(screen.queryByLabelText(/Anthropic API key/)).toBeNull();
     expect(screen.queryByLabelText(/OpenAI API key/)).toBeNull();
     expect(screen.queryByLabelText(/^Active provider$/)).toBeNull();
-    // Compact / token_budget
-    expect(screen.getByLabelText(/Compact trigger tokens/)).toBeDefined();
-    expect(screen.getByLabelText(/Session total token budget/)).toBeDefined();
+    // Compact / token_budget 段已移除 —— 压缩触发下沉为模型组级
+    // auto_compact（模型组页），token 预算属引擎底层治理参数。
+    expect(screen.queryByLabelText(/Compact trigger tokens/)).toBeNull();
+    expect(screen.queryByLabelText(/Session total token budget/)).toBeNull();
     // Sandbox
     expect(screen.getByLabelText(/Sandbox: OS-level/)).toBeDefined();
     // Routing
@@ -219,9 +223,11 @@ describe('SettingsView', () => {
   it('preserves preloaded values for structured fields', async () => {
     renderSettingsView();
     fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
+    // compact / token_budget 段已不进表单（压缩阈值下沉为模型组级
+    // auto_compact）；预加载断言用存留的 [model].context_window。
     await waitFor(() => {
-      const input = screen.getByLabelText(/Compact trigger tokens/) as HTMLInputElement;
-      expect(input.value).toBe('1024');
+      const input = screen.getByLabelText(/Default model context window/) as HTMLInputElement;
+      expect(input.value).toBe('200000');
     });
   });
 
