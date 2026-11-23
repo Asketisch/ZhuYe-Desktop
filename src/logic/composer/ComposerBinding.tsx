@@ -245,7 +245,14 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
     onSendModeChange={setSendMode} onInterrupt={handleInterrupt} onSend={() => { void doSubmit(); }}
     onRunSlash={(command) => { void runSlash(command); }}
     onFillSlash={(command) => {
-      setText((previous) => `${previous}${previous && !previous.endsWith(' ') ? ' ' : ''}/${command} `);
+      // plan/goal 这类模式指令天然是消息前缀 —— 已有文本时插到最前
+      // (`/plan 为官网做规划`),追加到末尾会语义倒挂(`/plan` 甩在
+      // 任务描述后面,引擎解析不到档位参数)。空输入维持 `/<cmd> `。
+      setText((previous) => {
+        const tag = `/${command} `;
+        if (!previous.trim()) return tag;
+        return `${tag}${previous.trimStart()}`;
+      });
       focus();
     }}
     onInsertText={(value) => {

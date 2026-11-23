@@ -252,6 +252,13 @@ describe('chat → plan → edit full loop (real app mount)', () => {
       expect(backend.lastArgsOf('zhuye_set_permission_mode')).toEqual({ mode: 'plan' }),
     );
     await waitFor(() => expect(useAgentStore.getState().permissionMode).toBe('plan'));
+    // 预设登记(plan 选择)同步落键 —— 新建会话 rebind 后
+    // syncPlanPresetPermissionMode 兜底校准,模型不再弹 EnterPlanMode。
+    const selectionKeys = Object.keys(window.localStorage).filter((k) =>
+      k.startsWith('zhuye.promptSelection.'),
+    );
+    expect(selectionKeys.length).toBeGreaterThan(0);
+    expect(selectionKeys.some((k) => window.localStorage.getItem(k)?.includes('"plan"'))).toBe(true);
     await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
     const subId = backend.agent.submissions[0].id;
     expect(JSON.stringify(backend.agent.submissions[0].op)).toContain('migrate the database');

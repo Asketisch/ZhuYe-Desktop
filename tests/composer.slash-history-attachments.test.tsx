@@ -60,8 +60,10 @@ describe('slash commands (real dispatch → backend)', () => {
       expect(backend.lastArgsOf('zhuye_set_permission_mode')).toEqual({ mode: 'plan' }),
     );
     await waitFor(() => expect(useAgentStore.getState().permissionMode).toBe('plan'));
+    // /plan 现在会经 ensureSessionReady 建会话再提交,submission 晚于
+    // permissionMode 到达 —— 显式等待。
+    await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
     const submission = backend.agent.submissions[0];
-    expect(submission).toBeDefined();
     expect(JSON.stringify(submission.op)).toContain('refactor the auth module');
   });
 
@@ -143,6 +145,9 @@ describe('prompt history (↑/↓ recall)', () => {
     await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
     await send('second prompt');
     await waitFor(() => expect(backend.agent.submissions.length).toBe(2));
+    // commit 发生在输入框清空之前 —— 等清空即等历史就绪,避免
+    // submissions 先到、commit 未落的竞态（/plan 建会话路径拉长了链路）。
+    await waitFor(() => expect(composer().value).toBe(''));
 
     const textarea = composer();
     // ↑ → 最近一条（second），再 ↑ → first。

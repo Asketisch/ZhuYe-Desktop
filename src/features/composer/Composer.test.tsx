@@ -118,6 +118,29 @@ describe('Composer drag & drop fallback (DOM)', () => {
   });
 });
 
+describe('Composer + 菜单模式指令前置（plan/goal）', () => {
+  it('已有文本时 /plan 前置到最前,而不是追加到末尾', async () => {
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: '为三个项目做官网规划' } });
+
+    fireEvent.click(screen.getByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-plan'));
+
+    expect(input.value).toBe('/plan 为三个项目做官网规划');
+  });
+
+  it('空输入时维持 `/plan ` 待补参数', async () => {
+    renderComposer();
+    const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
+
+    fireEvent.click(screen.getByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-plan'));
+
+    expect(input.value).toBe('/plan ');
+  });
+});
+
 describe('Composer send shortcut', () => {
   // 注意:不要 resetMockInvoke() —— setup.ts 的 beforeEach 已注册
   // zhuye_list_sessions / zhuye_rename_session 等默认 handler

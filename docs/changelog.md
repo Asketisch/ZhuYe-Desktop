@@ -4,6 +4,17 @@
 
 ## 未发布
 
+- **`/plan` 二次修复（首页场景）+ 模式指令前置到输入框最前**：上一轮
+  只把斜杠分发切到 `SetPermissionMode`，但首页（未建会话）时模式落在
+  占位线程上，首条消息建会话 rebind 出的新线程回落默认 —— 模型调
+  `EnterPlanModeTool` 再次弹「进入计划模式?」（实测踩过）。现在与
+  `/plan` 提示词预设完全同语义：登记 plan 预设选择（'new' 键随建会话
+  转正，bind 时 `syncPlanPresetPermissionMode` 校准兜底）+ 有任务文本
+  先 `ensureSessionReady`（模式/消息都落真线程）+ 下发
+  `SetPermissionMode(Plan)` + 提交消息。「+」菜单的 计划/目标 填充
+  改为**前置**到输入框最前（`/plan 为官网做规划`），不再追加到末尾
+  语义倒挂；空输入维持 `/plan ` 待补参数。补 3 例行为锁定测试
+  （前置填充 ×2 / 预设登记落键）。
 - **思考强度 pill 换模型即时刷新**：effort capability 查询原为静态
   key + 30s staleTime，切换模型后前端缓存不失效，pill 继续显示旧模型
   档位。改为**按模型 spec 分键**（store `session.model`），ModelPicker

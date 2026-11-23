@@ -16,6 +16,7 @@ import {
   zhuye_export_session,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
+import { writePromptSelection } from '@/stores/agent/promptSelection';
 import type { LocaleKey } from '@/utils/i18n';
 
 export type ToastKind = 'info' | 'success' | 'warn' | 'error';
@@ -59,12 +60,21 @@ export async function dispatchSubmission(
       // GUI 语义:`/plan <任务>` = 直接进 Plan 模式开跑,不经
       // 「进入计划模式?」审批。旧实现走 `Op::EnterPlanMode` —— 引擎
       // 对该 op 无条件派发 PlanRequest(submission_loop.rs:1585),GUI
-      // 收到即弹审批框,与「默认直接进入」的预期相悖。改为
-      // `Op::SetPermissionMode(Plan)`(引擎直接翻转 + 作废在途 plan
-      // 审批,前端经 permission_mode_changed 回流,权限 pill 同步高亮),
-      // 剩余文本作为首条消息正常提交 —— 模型在 Plan 模式约束下规划执行。
-      // 空参数(纯 /plan)只切模式不提交消息。
+      // 收到即弹审批框,与「默认直接进入」的预期相悖。
+      //
+      // 与 /plan 提示词预设完全同语义(选中预设 = 登记选择 + 下发
+      // SetPermissionMode):①登记 plan 预设选择 —— 首页(未建会话)时
+      // SetPermissionMode 只落占位线程,首条消息建会话 rebind 出的
+      // 新线程模式回落默认,模型仍会调 EnterPlanModeTool 再弹一次框
+      // (实测踩过);写入选择后 ensureSessionReady 的转正 + bind 时的
+      // syncPlanPresetPermissionMode 双保险兜住新线程。②ensureSessionReady
+      // 前置 —— 模式/消息都落在已绑定的真线程上,而非占位线程。
+      // ③空参数(纯 /plan)只切模式不提交消息。
       const task = args.join(' ').trim();
+      writePromptSelection(activeSessionId, { mode: 'manual', profile: 'plan' });
+      if (task && ctx.ensureSessionReady) {
+        await ctx.ensureSessionReady(activeSessionId);
+      }
       await zhuye_set_permission_mode('plan');
       if (task) {
         await useAgentStore.getState().submit(task, ctx.workspace ?? null);
