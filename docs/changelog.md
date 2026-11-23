@@ -8,8 +8,12 @@
   key + 30s staleTime，切换模型后前端缓存不失效，pill 继续显示旧模型
   档位。改为**按模型 spec 分键**（store `session.model`），ModelPicker
   切换成功后乐观同步 `session.model`（引擎只在下次 turn 才发
-  `session_configured`，热重载当下无事件）；EffortPicker 跟随
-  capability 的 `requested`（后端按新模型重算的口径）刷新显示。
+  `session_configured`，热重载当下无事件）；EffortPicker 显示值跟随
+  capability 的 `effective`（当前模型生效档）而非 `requested`（线程槽
+  原始偏好）—— 从支持 max 的模型切到 qwen 这类低上限模型不再顶
+  `max`，下拉列表也不再出现不支持的档位（钳制是无损投影，偏好留在
+  槽位，切回支持模型自动恢复）；钳制时 tooltip 说明
+  「偏好 {requested} · 当前模型生效 {effective}」。
 - **已知上游缺口（qwen3.8 档位显示 low/medium/high 而非
   low/medium/xhigh）**：models.dev 目录投票里 qwen3.8 系厂商档位是
   `["low","medium","xhigh"]`，但上游 `zhuye_llm::reasoning_effort`

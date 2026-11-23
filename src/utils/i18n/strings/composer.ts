@@ -110,6 +110,8 @@ const composer: Record<string, StringEntry> = {
   'composer.controls.switchFailed':          { en: 'Model switch failed: {msg}',                    'zh-CN': '切换模型失败：{msg}' },
   'composer.controls.effortAria':            { en: 'Reasoning effort',                              'zh-CN': '思考深度' },
   'composer.controls.effort.effective':      { en: 'Effective: {level}',                            'zh-CN': '实际生效:{level}' },
+  // 换模型后槽位偏好被钳制时的 pill tooltip（偏好保留,切回支持模型自动恢复）。
+  'composer.controls.effort.clamped':        { en: 'Preference {requested} · effective as {effective} with this model', 'zh-CN': '偏好 {requested} · 当前模型生效 {effective}' },
   'composer.controls.effort.disabled':      { en: 'This model does not support reasoning effort',  'zh-CN': '该模型不支持思考强度' },
   'composer.controls.effort.unknownHint':   { en: 'Model capability is unknown — the selected level is sent as-is and downgraded automatically if the server rejects it.', 'zh-CN': '该模型的能力未知 —— 按所选强度发送,被服务端拒绝时自动降级。' },
   'composer.controls.prompt':                { en: 'Prompt',                                        'zh-CN': '提示词' },
