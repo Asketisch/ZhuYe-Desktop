@@ -26,7 +26,7 @@ describe('思考强度能力视图', () => {
       effective: 'max',
       adjusted: false,
     });
-    expect(view.options).toEqual(['low', 'medium', 'high', 'max', 'ultra']);
+    expect(view.options).toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
     expect(view.known).toBe(false);
   });
 
@@ -46,6 +46,6 @@ describe('思考强度能力视图', () => {
   it('无快照时回落到全部档位', () => {
     const view = toCapabilityView(undefined);
     expect(view.known).toBe(false);
-    expect(view.options).toHaveLength(5);
+    expect(view.options).toHaveLength(6);
   });
 });

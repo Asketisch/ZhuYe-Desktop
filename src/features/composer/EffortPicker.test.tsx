@@ -55,7 +55,7 @@ describe('EffortPicker', () => {
     // 未被覆写时走 fallback 兜底视图）。
     renderPicker();
     const select = await screen.findByTestId('composer-effort-select') as HTMLSelectElement;
-    await waitFor(() => expect(select.options.length).toBe(5));
+    await waitFor(() => expect(select.options.length).toBe(6));
   });
 
   it('切到上限更低的模型后显示生效档 —— 不顶旧模型偏好,下拉不含 max', async () => {

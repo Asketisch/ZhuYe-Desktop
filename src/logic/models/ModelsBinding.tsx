@@ -119,6 +119,7 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
     low: t('models.effort.lowDesc'),
     medium: t('models.effort.mediumDesc'),
     high: t('models.effort.highDesc'),
+    xhigh: t('models.effort.xhighDesc'),
     max: t('models.effort.maxDesc'),
     ultra: t('models.effort.ultraDesc'),
   };

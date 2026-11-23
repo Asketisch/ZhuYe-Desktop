@@ -23,8 +23,8 @@ import { useAgentStore } from '@/stores/agentStore';
 export const effortCapabilityQueryKey = (modelSpec: string) =>
   ['effort-capability', modelSpec] as const;
 
-/** 全部档位(能力未知时的兜底展示)。 */
-export const ALL_EFFORTS = ['low', 'medium', 'high', 'max', 'ultra'] as const;
+/** 全部档位(能力未知时的兜底展示;含上游 fix/effort-xhigh-ladder 新增的 xhigh)。 */
+export const ALL_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const;
 export type Effort = (typeof ALL_EFFORTS)[number];
 
 export interface EffortCapabilityView {

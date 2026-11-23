@@ -111,9 +111,10 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
     }
     case 'effort': {
       const level = parsed.args[0]?.toLowerCase();
-      // 上游 v1.x 起 max / ultra 为新增档位。
-      if (!level || !['low', 'medium', 'high', 'max', 'ultra'].includes(level)) {
-        return { kind: 'reject', message: '/effort requires: low | medium | high | max | ultra' };
+      // 上游 v1.x 起 max / ultra 为新增档位;xhigh 随上游
+      // fix/effort-xhigh-ladder 分支合入后生效(旧引擎按未知档拒绝)。
+      if (!level || !['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].includes(level)) {
+        return { kind: 'reject', message: '/effort requires: low | medium | high | xhigh | max | ultra' };
       }
       return {
         kind: 'submit_with_submission',

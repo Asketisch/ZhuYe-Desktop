@@ -14,14 +14,16 @@
   `max`，下拉列表也不再出现不支持的档位（钳制是无损投影，偏好留在
   槽位，切回支持模型自动恢复）；钳制时 tooltip 说明
   「偏好 {requested} · 当前模型生效 {effective}」。
-- **已知上游缺口（qwen3.8 档位显示 low/medium/high 而非
-  low/medium/xhigh）**：models.dev 目录投票里 qwen3.8 系厂商档位是
-  `["low","medium","xhigh"]`，但上游 `zhuye_llm::reasoning_effort`
-  的 `ladder_cap` 词表只认 low/medium/high/max/ultra —— `xhigh`
-  被丢弃后投票取最大得 `medium`。submodule 只读，上游 develop 分支
-  同样未修；待上游在 `ladder_cap` 增加 `xhigh → Max`（或独立档）映射
-  后随 submodule 升级自动生效，届时 UI 档位与引擎 wire 钳制保持同一
-  函数口径。
+- **上游 xhigh 档修复（分支待合入）+ 桌面侧预备**：qwen3.8 系显示
+  low/medium/high 而非真实档位 low/medium/xhigh 的根因是上游阶梯无
+  `xhigh` 档 + qwen 静态条目短路目录。已在上游 `zhuye-agent` 建分支
+  `fix/effort-xhigh-ladder`：协议 / LLM 枚举新增 `XHigh`（wire 词
+  `xhigh`，声明序 High < XHigh < Max）、`EFFORT_CAP_TABLE` 增
+  `("qwen3.8" → XHigh)` 排在泛 qwen 前、`ladder_cap` 补 xhigh 词表、
+  config/CLI 同步。桌面侧预备 `ALL_EFFORTS` / `/effort` 校验 /
+  ModelsBinding 提示纳入 xhigh（旧引擎下不出现该档，行为不变），
+  Rust `parse_effort` 的 `XHigh` 构造待 submodule 升级时随分支合入
+  一并接入。
 - **会话活动流折叠（Codex/ZCode 式活动组）**：思考块不再打断工具调用
   段 —— 「思考 → 执行 → 思考 → 执行」混合段聚合为一个活动组，默认
   整体折叠为一行摘要（执行 N 命令 / 思考 M 次，运行中转琥珀色前缀），

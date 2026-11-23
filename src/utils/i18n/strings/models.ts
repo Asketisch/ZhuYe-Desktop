@@ -23,6 +23,7 @@ const models: Record<string, StringEntry> = {
   'models.effort.lowDesc':     { en: 'Fastest · minimal reasoning',                              'zh-CN': '最快 · 最少推理' },
   'models.effort.mediumDesc':  { en: 'Balanced (recommended)',                                   'zh-CN': '平衡 (推荐)' },
   'models.effort.highDesc':    { en: 'Deep · slowest',                                           'zh-CN': '深度推理 · 最慢' },
+  'models.effort.xhighDesc':   { en: 'Extra high (qwen3.8 class top tier)',                    'zh-CN': '超高推理 · qwen3.8 系顶档' },
   'models.effort.maxDesc':     { en: 'Maximum · model-clamped',                                  'zh-CN': '最大档 · 按模型钳制' },
   'models.effort.ultraDesc':   { en: 'Ultra · model-clamped',                                    'zh-CN': 'Ultra 档 · 按模型钳制' },
   'models.noGroup':            { en: 'No model group configured',                                'zh-CN': '未配置模型组' },
