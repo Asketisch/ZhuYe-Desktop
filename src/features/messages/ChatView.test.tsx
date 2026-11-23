@@ -447,11 +447,11 @@ describe('ChatView hero (new-chat home)', () => {
     window.__chatTestPath = '/chat/sess-empty';
 
     const { container } = renderWithProviders(<ChatView />);
+    // 直接等英雄态出现（loadedSessionId 落定与 loading 复位存在窗口期）。
     await waitFor(() => {
-      expect((useAgentStore.getState() as any).loadedSessionId).toBe('sess-empty');
+      expect(screen.getByTestId('chat-hero-emblem')).toBeDefined();
     });
 
-    expect(screen.getByTestId('chat-hero-emblem')).toBeDefined();
     expect(screen.getByTestId('chat-hero-greeting')).toBeDefined();
     expect(container.querySelector('[data-testid="chat-messages-area"]')?.getAttribute('data-hero')).toBe('on');
     // 空会话横幅让位英雄态，不重复提示。

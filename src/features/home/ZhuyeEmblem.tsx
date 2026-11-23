@@ -1,308 +1,225 @@
 /**
- * ZhuyeEmblem —— 「烛夜 · 火中生羽」像素徽记（纯 Canvas 路径绘制，无图片 / SVG 素材）。
+ * ZhuyeEmblem —— 「烛夜 · 焰羽生花」动态像素徽记（纯 Canvas 实时渲染，无图片 / SVG 素材）。
  *
- * 移植自设计稿 zhunye_pixel_pure_v4.html（Pixel Flame 版）：造型在
- * 1024 世界坐标设计，缩放渲染进 RES×RES 画布（crisp 最近邻放大）。
- * 四层叠加 —— emblem 静态徽记（金弧 + 焰羽雄鸡 + 双色花瓣萼片）、
- * soft / bloom 同源复制层（CSS 模糊 + screen 叠亮作双层辉光，bloom 带
- * halo-pulse 呼吸）、embers 动画层（十字星光闪烁 + 上升灰烬火星）。
- * 遵循 prefers-reduced-motion：静止时只画一帧。jsdom 等无 2d 上下文的
- * 测试环境直接跳过绘制，仅保留 DOM 结构。
+ * 移植自设计稿 zhunye_pixel_animated_v5.html：造型（emblemArtwork.ts 的
+ * 8 个语义分组）逐组渲染进离屏画布，每帧按枢轴做微旋转 / 平移 / 缩放
+ * 合成 —— 光环呼吸、焰羽轻摆、鸡首轻点、火芯跃动、花瓣开合；焰心内
+ * 半透明金色流焰，embers 层有十字星光、沿金弧巡游的高光、带尾迹的
+ * 上升火星与花芯热尘。动效幅度固定在**柔和档**（三档：柔和 .45 /
+ * 灵动 1 / 炽烈 1.65）。四层画布：emblem / soft·bloom 双层辉光复制
+ * （CSS 模糊 + halo-pulse·soft-glow 呼吸）/ embers 粒子。40FPS 上限
+ * 降功耗；页面隐藏即暂停；遵循 prefers-reduced-motion（静止一帧）；
+ * jsdom 等无 2d 上下文环境跳过绘制，仅保留 DOM 结构。
  */
 import { useEffect, useRef } from 'react';
+import { DX, DY, WORLD, ensureShapes } from './emblemArtwork';
 import s from '@/render/home/ChatHero.module.css';
 
-/* 世界坐标（设计稿画布空间）与渲染分辨率。RES 取 224：2x 屏 112px 展示 1:1
- * 逐像素、1x 屏整半采样，保持像素纯净（设计稿默认 186，仅为演示分辨率）。 */
-const WORLD = 1024;
-const DX = -256;
-const DY = 0;
+/* 渲染分辨率（设计稿默认 186；取 224 与 112px 展示在 2x 屏整数对齐）。 */
 const RES = 224;
+/* 动效幅度：柔和档（设计稿 energyLabels 三档 ['柔和','灵动','炽烈'] = [.45,1,1.65]）。 */
+const ENERGY = 0.45;
+/* 分组离屏画布数量（造型 8 组）。 */
+const GROUP_COUNT = 8;
+const TAU = Math.PI * 2;
 
-interface EmblemShape {
-  p: Path2D;
-  stops: [number, string][];
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  stroke: string;
-  lw: number;
-}
-
-/* 造型只在真实浏览器环境构建（jsdom 无 Path2D），构建后模块级缓存。 */
-let cachedShapes: EmblemShape[] | null = null;
-
-function ensureShapes(): EmblemShape[] {
-  if (cachedShapes) return cachedShapes;
-  const shapes: EmblemShape[] = [];
-  // shape(path, 色阶, 渐变起止, optional 软描边)
-  const add = (
-    d: string,
-    stops: [number, string][],
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    stroke = '',
-    lw = 0,
-  ) => {
-    shapes.push({ p: new Path2D(d), stops, x1, y1, x2, y2, stroke, lw });
-  };
-  const flat = (d: string, color: string) => {
-    add(d, [[0, color], [1, color]], 600, 0, 900, 900);
-  };
-
-  // --- 01 金色半圆光环：左宽右细，鲜明的8bit阶梯边缘 ---
-  add('M 463 420 C 434 381 439 316 465 260 C 509 158 602 94 695 76 C 822 48 960 123 1008 267 C 953 152 832 105 739 103 C 628 99 548 166 501 248 C 469 305 456 371 463 420 Z',
-    [[0, '#d84409'], [.17, '#ff9211'], [.4, '#ffe25b'], [.62, '#ffcb29'], [.86, '#ff8b0b'], [1, '#b83009']], 440, 400, 861, 79);
-  add('M 459 383 C 446 313 470 238 525 169 C 491 225 466 296 465 377 L 478 450 C 463 435 457 411 459 383 Z',
-    [[0, '#9b2907'], [.55, '#ec690b'], [1, '#ffa518']], 455, 400, 509, 190);
-  add('M 482 287 C 528 162 630 94 753 90 C 622 91 521 187 484 301 Z',
-    [[0, '#ffe77f'], [1, '#ffb834']], 486, 305, 725, 80);
-
-  // --- 02 雄鸡尾羽：向火焰中的颈根汇合的4条凤凰形火羽 ---
-  // 深红尾羽根部
-  add('M 656 596 C 608 549 603 494 638 441 C 674 388 733 386 796 404 C 815 409 832 392 854 358 C 827 435 772 454 721 465 C 688 479 659 537 656 596 Z',
-    [[0, '#7d0518'], [.22, '#b71118'], [.52, '#e42b13'], [.79, '#fc5d13'], [1, '#ffb32a']], 607, 574, 822, 352);
-  // 上方最外侧长尾，丝带渐细
-  add('M 552 391 C 566 348 621 309 671 302 C 741 287 778 366 824 363 C 835 362 848 346 859 329 C 843 382 806 391 764 375 C 700 348 645 314 592 347 C 576 359 565 377 552 391 Z',
-    [[0, '#da2217'], [.27, '#f63b18'], [.55, '#ff8c17'], [.86, '#ffca30'], [1, '#ffce42']], 557, 365, 832, 355);
-  // 顶部羽毛的暖金细刃
-  add('M 559 374 C 614 306 677 309 724 333 C 754 349 784 369 809 371 C 764 373 722 334 660 329 C 616 326 586 348 559 374 Z',
-    [[0, '#ff7e17'], [.45, '#ffb12b'], [1, '#ffe058']], 551, 378, 781, 355);
-  // 中羽，自左下向上旋回
-  add('M 568 511 C 551 467 579 418 611 397 C 660 362 713 369 760 388 C 809 407 831 383 852 351 C 830 418 795 434 751 417 C 687 390 650 399 610 438 C 584 466 570 490 568 511 Z',
-    [[0, '#b80f16'], [.25, '#e33114'], [.56, '#ff8f19'], [.83, '#ffc432'], [1, '#ffe361']], 569, 502, 849, 368);
-  // 中羽金边的硬反光
-  add('M 580 479 C 594 426 655 381 718 389 C 746 392 778 417 814 403 C 781 421 751 402 710 400 C 652 395 600 438 580 479 Z',
-    [[0, '#ff8e1b'], [.48, '#ffcb27'], [1, '#ffef68']], 580, 471, 813, 390);
-  // 中间卷羽深色根部，保持飘动的层次
-  add('M 627 558 C 607 521 625 464 661 433 C 694 404 726 411 749 420 C 786 431 817 404 842 370 C 815 438 773 456 733 441 C 699 430 661 473 654 519 C 648 539 641 550 627 558 Z',
-    [[0, '#780713'], [.29, '#a90917'], [.55, '#d72a13'], [.82, '#fe7018'], [1, '#ffbd26']], 632, 548, 825, 404);
-  // 最前方左翼鲜亮内缘
-  add('M 643 546 C 639 502 652 462 685 437 C 715 414 746 431 767 431 C 732 433 691 451 673 486 C 658 515 652 529 643 546 Z',
-    [[0, '#ea3210'], [.45, '#ff7210'], [.76, '#ffb923'], [1, '#ffe451']], 645, 538, 750, 429);
-
-  // --- 03 烛火·雄鸡身躯：深色外壳、卷动焰羽、亮金主火焰 ---
-  add('M 752 705 C 707 640 696 590 716 526 C 739 460 801 421 829 367 C 847 332 846 294 871 264 C 893 244 926 244 944 266 C 924 267 898 279 893 306 C 887 327 903 344 917 370 C 936 403 942 449 929 502 C 910 577 840 644 752 705 Z',
-    [[0, '#700713'], [.2, '#b70b16'], [.47, '#ed2e16'], [.72, '#fb6519'], [1, '#ba1118']], 747, 708, 920, 302);
-  // 背部的红色烈焰，如翅展开
-  add('M 674 603 C 648 556 653 489 704 439 C 733 411 789 398 828 372 C 797 432 752 475 726 524 C 706 560 710 590 716 620 Z',
-    [[0, '#850615'], [.32, '#c61216'], [.62, '#ed3c13'], [.86, '#ff7b14'], [1, '#ffbc28']], 666, 603, 825, 399);
-  // 橙焰中央主流向上，进入鸡颈
-  add('M 756 706 C 721 652 720 590 747 523 C 772 465 826 419 850 364 C 862 337 858 298 887 266 C 899 255 920 256 929 265 C 906 277 896 300 895 323 C 895 356 927 409 912 473 C 896 555 827 640 756 706 Z',
-    [[0, '#f64f10'], [.25, '#ff7b10'], [.48, '#ff9918'], [.72, '#ffc52b'], [1, '#ffe960']], 756, 704, 890, 307);
-  // 左侧火舌红橙深暗带，隔离主烈焰
-  add('M 735 653 C 703 593 724 525 762 475 C 792 435 839 400 851 366 C 850 410 806 460 779 508 C 751 563 752 605 765 638 Z',
-    [[0, '#d71c0d'], [.3, '#f5450c'], [.58, '#ff8710'], [1, '#ffc729']], 717, 632, 843, 378);
-  // 主胸部奶油金色高光与火焰丝带（关键神态）
-  add('M 769 684 C 744 632 741 585 772 526 C 804 467 856 425 868 375 C 876 350 869 315 886 290 C 883 341 903 360 899 404 C 895 453 868 479 831 522 C 791 569 785 615 769 684 Z',
-    [[0, '#ffc51e'], [.29, '#ffe253'], [.58, '#fff17b'], [.79, '#ffe455'], [1, '#fff5a0']], 772, 650, 881, 345);
-  // 身右缘拖曳红橙火脊
-  add('M 788 683 C 836 638 890 571 902 520 C 911 473 902 448 896 420 C 925 458 928 505 912 549 C 885 612 835 656 788 683 Z',
-    [[0, '#ffab17'], [.38, '#ff7314'], [.7, '#eb2d12'], [1, '#b71318']], 790, 674, 913, 472);
-  add('M 809 652 C 858 587 887 545 888 488 C 904 538 881 603 809 652 Z',
-    [[0, '#ffcc29'], [.6, '#ff8c13'], [1, '#fc4f11']], 809, 650, 894, 504);
-  // 颈部纤细黄金刻线，增强向上的连续性
-  add('M 840 458 C 864 427 873 395 864 351 C 861 328 872 309 892 288 C 878 322 887 358 892 385 C 896 413 879 440 840 458 Z',
-    [[0, '#ff9d18'], [.38, '#ffda3c'], [.72, '#fff27b'], [1, '#ffe667']], 841, 459, 889, 301);
-  // 颈中白金锐光
-  add('M 847 443 C 867 416 874 392 870 368 C 868 342 876 321 884 309 C 876 351 889 393 875 416 C 868 430 854 439 847 443 Z',
-    [[0, '#ffdf3d'], [.55, '#fff4a2'], [1, '#fff6bd']], 846, 441, 882, 327);
-
-  // 贯穿胸羽的反曲金丝：从火心一直延伸至鸡颈
-  add('M 739 605 C 727 568 741 524 772 488 C 812 441 845 417 855 372 C 853 414 831 455 800 497 C 769 541 751 578 739 605 Z',
-    [[0, '#ffab15'], [.3, '#ffdc34'], [.65, '#fff075'], [1, '#ffe251']], 741, 603, 853, 384);
-  // 火尾和胸羽之间一丝赤金暗影，增强动态S形
-  add('M 697 557 C 690 519 717 474 748 454 C 772 435 791 432 813 414 C 791 456 751 474 733 514 C 718 547 716 568 712 582 Z',
-    [[0, '#ae0a12'], [.28, '#dd2210'], [.63, '#ff6714'], [1, '#ffb72a']], 704, 567, 799, 430);
-
-  // --- 04 雄鸡头部，融进火苗：飘扬的冠、细眼、尖嘴、颌下红焰 ---
-  // 锐利三段鸡冠
-  add('M 868 250 C 818 264 767 254 733 235 C 701 216 700 176 721 127 C 717 172 743 196 781 204 C 807 209 822 210 841 214 C 820 201 807 178 805 156 C 837 193 862 191 884 203 C 909 210 929 233 938 262 C 920 253 902 248 868 250 Z',
-    [[0, '#9c0013'], [.24, '#dd0d17'], [.5, '#ff3618'], [.78, '#ff871a'], [1, '#ffdb4e']], 722, 153, 920, 248);
-  // 橙色冠羽内侧弧形光带
-  add('M 722 152 C 722 193 749 216 785 226 C 834 239 854 227 883 228 C 905 230 915 245 928 256 C 897 243 876 238 845 244 C 767 256 716 218 722 152 Z',
-    [[0, '#ef0d13'], [.35, '#ff3b13'], [.7, '#ff8716'], [1, '#ffcf36']], 721, 162, 924, 245);
-  // 下缘高亮火纹
-  add('M 729 211 C 770 238 822 242 868 233 C 897 226 913 243 927 259 C 906 249 886 245 857 252 C 789 263 752 241 729 211 Z',
-    [[0, '#ff4f13'], [.44, '#ff9d1d'], [.78, '#ffdf54'], [1, '#fff19b']], 730, 220, 916, 249);
-  // 火形鸡头，弧向尖嘴
-  add('M 810 353 C 819 309 844 281 868 270 C 885 260 900 254 918 251 C 929 252 938 254 947 261 L 957 266 L 940 270 C 920 271 912 284 903 296 C 883 284 852 305 834 331 Z',
-    [[0, '#df360f'], [.32, '#ffb323'], [.64, '#ffe56d'], [1, '#fff8b0']], 810, 350, 934, 259);
-  // 锐利脸颊羽毛的第二片金片
-  add('M 819 344 C 841 296 884 268 923 266 C 899 273 882 293 876 311 C 855 311 838 327 819 344 Z',
-    [[0, '#ff8110'], [.41, '#ffcb39'], [1, '#fff0a0']], 820, 343, 917, 275);
-  // 黄金喙和一点点锐光
-  add('M 925 257 C 939 258 950 262 957 266 L 933 274 L 920 269 Z',
-    [[0, '#ffe575'], [.48, '#fff4b7'], [1, '#fffce4']], 924, 260, 952, 273);
-  flat('M 944 263 L 958 266 L 945 268 Z', '#fffde4');
-  // 眼与眼下凹陷：如原图的单像素点
-  flat('M 908 252 L 920 253 L 924 257 L 909 257 Z', '#75110d');
-  flat('M 912 253 L 919 253 L 920 254 L 913 255 Z', '#270609');
-  // 额下连接颈线的小金羽
-  add('M 899 276 C 884 295 877 323 883 346 C 867 325 868 300 899 276 Z',
-    [[0, '#fff4a4'], [.6, '#ffcd43'], [1, '#ff951c']], 879, 337, 897, 283);
-  // 向下飘扬的鲜红鸡颌，火舌而非额外物体
-  add('M 918 277 C 901 297 905 322 919 339 C 938 358 947 378 934 401 C 945 373 922 365 913 344 C 901 323 894 297 918 277 Z',
-    [[0, '#920817'], [.35, '#db1c10'], [.7, '#ff4e15'], [1, '#ff9725']], 905, 283, 938, 385);
-  // 小内光
-  add('M 913 288 C 905 309 915 328 927 340 C 914 325 910 307 913 288 Z',
-    [[0, '#ff8d16'], [1, '#ff4515']], 913, 290, 928, 342);
-
-  // --- 05 花托后瓣：外侧更阔，尖端上扬。花托与火身互相穿插 ---
-  add('M 757 783 C 648 790 538 737 366 600 C 448 556 518 583 591 639 C 650 687 716 721 757 783 Z',
-    [[0, '#61080c'], [.25, '#a50d18'], [.52, '#db101b'], [.8, '#f52b22'], [1, '#f6501b']], 420, 688, 757, 773);
-  add('M 764 783 C 878 791 1015 708 1140 593 C 1043 550 980 594 922 644 C 863 694 812 747 764 783 Z',
-    [[0, '#650810'], [.31, '#c10a18'], [.57, '#e51b20'], [.81, '#f74423'], [1, '#ff861a']], 801, 775, 1080, 600);
-  // 左外瓣尖尖的橙沿
-  add('M 372 600 C 449 573 524 599 587 652 C 502 612 447 594 372 600 Z',
-    [[0, '#ffd34b'], [.35, '#ff931b'], [.79, '#f94c15'], [1, '#dd1717']], 381, 596, 587, 656);
-  add('M 1136 595 C 1045 571 981 608 921 650 C 1014 608 1071 589 1136 595 Z',
-    [[0, '#ffe16c'], [.38, '#ffa42a'], [.8, '#fa521d'], [1, '#cb151b']], 1136, 595, 920, 653);
-  // 次外层花瓣高举，红色刀锋与金色折线
-  add('M 752 760 C 643 742 516 648 442 474 C 524 451 592 512 644 590 C 696 667 724 713 752 760 Z',
-    [[0, '#6d070a'], [.28, '#b60b21'], [.61, '#ed1824'], [.88, '#fa3020'], [1, '#ff9a27']], 459, 470, 754, 752);
-  add('M 768 762 C 850 733 983 642 1073 472 C 986 447 921 510 868 596 C 823 672 788 726 768 762 Z',
-    [[0, '#6d0710'], [.29, '#a90921'], [.58, '#d8131a'], [.84, '#fb3526'], [1, '#ffb32c']], 773, 744, 1066, 469);
-  add('M 445 474 C 516 463 599 536 643 615 C 574 527 515 484 445 474 Z',
-    [[0, '#ffdb56'], [.26, '#ff861a'], [.65, '#fa3819'], [1, '#c30a1c']], 450, 473, 639, 614);
-  add('M 1070 473 C 991 463 919 537 866 617 C 928 518 995 478 1070 473 Z',
-    [[0, '#ffe26c'], [.27, '#ff9420'], [.61, '#f83b1e'], [1, '#c60b1f']], 1066, 471, 863, 617);
-
-  // --- 06 花蕊火芯，插在花瓣之间；亮白高温核心 ---
-  add('M 768 718 C 721 679 694 638 703 581 C 706 549 723 531 739 508 C 729 557 743 571 764 586 C 773 554 788 537 797 516 C 794 555 816 579 815 614 C 813 652 793 688 768 718 Z',
-    [[0, '#fb6310'], [.22, '#ff9b14'], [.49, '#ffc528'], [.75, '#ffdb3b'], [1, '#ffe75b']], 757, 710, 761, 539);
-  add('M 768 701 C 750 666 735 639 746 601 C 755 569 756 550 758 534 C 764 567 766 585 782 605 C 802 630 786 672 768 701 Z',
-    [[0, '#ffc42a'], [.26, '#ffe658'], [.57, '#fff48e'], [1, '#fff7a8']], 762, 702, 768, 566);
-  // 小片炽白焰心的形状
-  add('M 770 655 C 756 631 765 614 764 583 C 772 603 786 616 787 634 C 788 645 779 657 770 665 Z',
-    [[0, '#fff2a2'], [.6, '#fffbe3'], [1, '#ffffff']], 763, 653, 780, 613);
-
-  // --- 07 前部花瓣包住火种，左右两枚主瓣形成对称的护托 ---
-  // 左心瓣，尖顶往外弯，尖端归拢在火芯下
-  add('M 766 758 C 707 741 643 699 579 563 C 645 567 688 597 719 634 C 751 669 760 707 766 758 Z',
-    [[0, '#84090d'], [.24, '#c00b24'], [.55, '#f1261a'], [.84, '#ff4821'], [1, '#ffb12d']], 593, 578, 771, 748);
-  // 右心瓣
-  add('M 767 758 C 808 687 883 592 973 562 C 955 652 869 735 767 758 Z',
-    [[0, '#78070f'], [.24, '#ab0722'], [.57, '#eb1928'], [.84, '#fa4321'], [1, '#ffaf32']], 775, 761, 961, 568);
-  // 前瓣外翘的小刀刃
-  add('M 548 567 C 633 561 723 651 758 717 C 700 645 647 598 548 567 Z',
-    [[0, '#ffe365'], [.26, '#ff961f'], [.64, '#ff4919'], [1, '#cb0b1a']], 554, 570, 759, 719);
-  add('M 977 565 C 883 566 815 638 776 710 C 835 627 904 582 977 565 Z',
-    [[0, '#ffe67d'], [.26, '#ffa826'], [.61, '#ff5c18'], [1, '#c10a18']], 968, 566, 772, 708);
-  // 花瓣内层折光，雕刻出明暗面而非简陋五角轮廓
-  add('M 648 615 C 682 649 709 679 737 706 C 708 690 667 663 648 615 Z',
-    [[0, '#ff4918'], [.4, '#e51b1d'], [1, '#a9091c']], 650, 620, 736, 706);
-  add('M 892 614 C 853 666 823 698 799 710 C 829 676 850 648 892 614 Z',
-    [[0, '#ff4d1a'], [.5, '#e41a21'], [1, '#ab071d']], 891, 621, 800, 709);
-  // 内瓣的深红褶线，形成花瓣厚度和弧形层次
-  add('M 615 594 C 657 622 704 672 733 721 C 692 680 647 657 615 594 Z',
-    [[0, '#e83a19'], [.35, '#cd1018'], [1, '#850a15']], 621, 596, 734, 716);
-  add('M 925 592 C 873 638 822 690 786 728 C 831 674 851 650 925 592 Z',
-    [[0, '#f2401c'], [.4, '#d61a1b'], [1, '#850915']], 917, 592, 787, 722);
-
-  // 底部深红三角，用于将花瓣衔接黄金叶
-  add('M 759 815 C 737 773 697 757 661 740 C 704 749 746 742 767 752 C 789 747 832 750 865 737 C 826 764 794 778 759 815 Z',
-    [[0, '#560015'], [.43, '#95061e'], [.8, '#bb0c1a'], [1, '#a31a17']], 750, 749, 768, 816);
-  // 烛芯尖，一笔直至花根
-  add('M 766 681 C 763 712 766 733 766 779 C 759 736 753 711 766 681 Z',
-    [[0, '#fff3a4'], [.52, '#ffd543'], [1, '#ff9918']], 763, 688, 762, 774);
-
-  // --- 08 金色萼片，双翼托莲的经典尾部曲线 ---
-  add('M 764 868 C 719 829 672 767 603 744 C 544 725 494 752 425 760 C 440 740 474 737 503 738 C 554 738 572 751 611 752 C 646 731 703 742 728 772 C 747 791 756 820 764 868 Z',
-    [[0, '#a23509'], [.25, '#e46d09'], [.55, '#ffad18'], [.77, '#ffcf33'], [1, '#ffe957']], 433, 753, 763, 865);
-  add('M 764 868 C 802 812 862 756 926 741 C 985 725 1010 750 1077 757 C 1063 736 1037 731 1004 737 C 953 739 940 754 917 752 C 860 724 800 757 778 794 C 772 809 766 831 764 868 Z',
-    [[0, '#ffec69'], [.28, '#ffcc29'], [.63, '#ffa619'], [1, '#b83909']], 763, 866, 1073, 749);
-  // 金边朝下延伸，细腻托举
-  add('M 427 758 C 494 751 528 761 581 772 C 629 764 684 758 728 808 C 740 824 751 844 759 864 C 722 827 689 784 640 781 C 610 778 588 791 553 785 C 500 780 476 754 427 758 Z',
-    [[0, '#ffdc43'], [.38, '#ffae1c'], [.72, '#ff8b0f'], [1, '#db4e09']], 428, 755, 755, 856);
-  add('M 1074 757 C 1002 749 972 769 935 784 C 908 791 872 771 847 783 C 805 797 777 844 767 866 C 798 824 841 783 892 784 C 932 790 970 751 1021 755 Z',
-    [[0, '#ffe96b'], [.4, '#ffc52a'], [.75, '#ffa81a'], [1, '#e76c09']], 766, 863, 1070, 756);
-  // 轴心的最后一滴金色
-  add('M 754 833 C 761 853 764 867 760 891 C 768 873 780 853 779 832 C 770 839 769 846 765 857 C 762 847 760 839 754 833 Z',
-    [[0, '#f47c0e'], [.47, '#ffc42a'], [1, '#ffec73']], 757, 838, 769, 891);
-  // 萼片极亮边缘
-  add('M 428 757 C 484 744 537 743 582 756 C 648 738 707 770 744 817 C 702 777 656 750 602 763 C 562 761 512 745 428 757 Z',
-    [[0, '#fff180'], [.5, '#ffd948'], [1, '#ffad20']], 429, 746, 744, 818);
-  add('M 1072 755 C 1026 742 973 746 933 757 C 874 740 822 773 788 816 C 828 771 883 750 929 762 C 972 752 1022 746 1072 755 Z',
-    [[0, '#fff07b'], [.54, '#ffcb32'], [1, '#ffa820']], 1071, 750, 793, 815);
-
-  cachedShapes = shapes;
-  return shapes;
-}
-
-function gradient(ctx: CanvasRenderingContext2D, sh: EmblemShape): CanvasGradient {
-  const g = ctx.createLinearGradient(sh.x1, sh.y1, sh.x2, sh.y2);
-  for (const [t, color] of sh.stops) g.addColorStop(t, color);
-  return g;
-}
-
-/* 全部造型按世界坐标 → RES 缩放一次绘入（渐变坐标同处变换空间）。 */
-function painter(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.scale(RES / WORLD, RES / WORLD);
-  ctx.translate(DX, DY);
-  for (const sh of ensureShapes()) {
-    if (sh.stroke) {
-      ctx.strokeStyle = sh.stroke;
-      ctx.lineWidth = sh.lw;
-      ctx.stroke(sh.p);
-    }
-    ctx.fillStyle = gradient(ctx, sh);
-    ctx.fill(sh.p);
-  }
-  ctx.restore();
-}
-
-/* 十字星光：世界坐标 + 相位，动画层里闪烁。 */
+/* 十字星光：世界坐标 + 相位（与徽记同一坐标系）。 */
 const STARS = [
   { x: 622, y: 238, r: 6, phase: 0.8 }, { x: 581, y: 289, r: 3, phase: 2.6 },
   { x: 1017, y: 350, r: 7, phase: 4.1 }, { x: 975, y: 395, r: 3, phase: 0.1 },
   { x: 522, y: 427, r: 3, phase: 3.8 }, { x: 591, y: 220, r: 1, phase: 2.3 },
 ];
 
-/* 上升灰烬火星：确定性伪随机分布（与设计稿一致）。 */
-const ASH = Array.from({ length: 17 }, (_, i) => ({
-  x: 495 + ((i * 101) % 540),
-  y: 220 + ((i * 61) % 500),
-  s: 0.65 + (i % 5) * 0.3,
-  p: i * 6.4,
+/* 确定性伪随机（sin 哈希），与设计稿一致。 */
+const rnd = (i: number) => {
+  const n = Math.sin(i * 127.1 + 78.23) * 43758.5453;
+  return n - Math.floor(n);
+};
+
+/* 上升火星：44 颗，带摆动 / 尾迹 / 三色温分布。 */
+const EMBERS = Array.from({ length: 44 }, (_, i) => ({
+  x: 618 + rnd(i + 9) * 360,
+  phase: rnd(i + 35),
+  speed: 0.75 + rnd(i + 68) * 0.7,
+  wobble: 9 + rnd(i + 101) * 28,
+  side: (rnd(i + 127) - 0.5) * 90,
+  size: 1.2 + rnd(i + 181) * 3.8,
+  hue: rnd(i + 225),
+  spin: rnd(i + 315) * TAU,
 }));
 
-function dot(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string) {
+/* 花芯热尘：9 缕，自花心升起融入金身。 */
+const WISPS = Array.from({ length: 9 }, (_, i) => ({ phase: rnd(i + 410), x: 690 + rnd(i + 455) * 175 }));
+
+/* 分组离屏画布：每组一个 RES×RES 图层，只在首次绘制时构建并模块级缓存。 */
+let cachedSources: HTMLCanvasElement[] | null = null;
+
+function ensureSources(): HTMLCanvasElement[] {
+  if (cachedSources) return cachedSources;
+  const sources: HTMLCanvasElement[] = [];
+  const shapes = ensureShapes();
+  for (let j = 0; j < GROUP_COUNT; j++) {
+    const layer = document.createElement('canvas');
+    layer.width = RES;
+    layer.height = RES;
+    const ctx = layer.getContext('2d', { alpha: true });
+    if (!ctx) continue; // 无 2d 上下文环境（jsdom）：由调用方守卫
+    ctx.imageSmoothingEnabled = false;
+    ctx.save();
+    ctx.scale(RES / WORLD, RES / WORLD);
+    ctx.translate(DX, DY);
+    for (const sh of shapes) {
+      if (sh.group !== j) continue;
+      const grad = ctx.createLinearGradient(sh.x1, sh.y1, sh.x2, sh.y2);
+      for (const [stop, color] of sh.stops) grad.addColorStop(stop, color);
+      if (sh.stroke) {
+        ctx.strokeStyle = sh.stroke;
+        ctx.lineWidth = sh.lw;
+        ctx.stroke(sh.p);
+      }
+      ctx.fillStyle = grad;
+      ctx.fill(sh.p);
+    }
+    ctx.restore();
+    sources.push(layer);
+  }
+  cachedSources = sources;
+  return sources;
+}
+
+/* 把第 j 组图层绕世界坐标枢轴做微旋转 / 平移 / 缩放后合成到目标画布。 */
+function composite(ctx: CanvasRenderingContext2D, sources: HTMLCanvasElement[], j: number,
+  rot = 0, tx = 0, ty = 0, sx = 1, sy = 1, pivotX = 768, pivotY = 750) {
+  const scale = RES / WORLD;
+  const px = (pivotX + DX) * scale;
+  const py = pivotY * scale;
+  ctx.save();
+  ctx.translate(px + tx * scale, py + ty * scale);
+  ctx.rotate(rot);
+  ctx.scale(sx, sy);
+  ctx.translate(-px, -py);
+  ctx.drawImage(sources[j], 0, 0);
+  ctx.restore();
+}
+
+function rect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number,
+  color: string, alpha = 1) {
+  const s = RES / WORLD;
+  ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  ctx.fillRect(Math.round((x + DX) * s), Math.round(y * s), Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)));
 }
 
-function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, a: number) {
+function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, alpha: number) {
   const S = RES / WORLD;
-  const X = (x + DX) * S;
-  const Y = y * S;
+  const X = Math.round((x + DX) * S);
+  const Y = Math.round(y * S);
   const R = Math.max(1, Math.round(r * S));
-  ctx.globalAlpha = a;
-  dot(ctx, X - R * 2, Y, 4 * R + 1, R, '#ffb92b');
-  dot(ctx, X, Y - R * 2, R, 4 * R + 1, '#ffc630');
-  dot(ctx, X, Y, R, R, '#fff9ba');
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#ffb829';
+  ctx.fillRect(X - 2 * R, Y, 4 * R + 1, R);
+  ctx.fillStyle = '#ffd03e';
+  ctx.fillRect(X, Y - 2 * R, R, 4 * R + 1);
+  ctx.fillStyle = '#fff9ba';
+  ctx.fillRect(X, Y, R, R);
 }
 
-/* embers 动画层：星光闪烁 + 灰烬上升（辉光呼吸在 CSS halo-pulse）。 */
-function particles(ctx: CanvasRenderingContext2D, time: number) {
-  const S = RES / WORLD;
+/* 焰心内半透明金色流焰：限制在雄鸡亮色主体内 + 烛心小火舌舞动。 */
+function wavyFlames(ctx: CanvasRenderingContext2D, t: number) {
+  const p = ENERGY;
+  ctx.save();
+  ctx.scale(RES / WORLD, RES / WORLD);
+  ctx.translate(DX, DY);
+  for (let i = 0; i < 3; i++) {
+    const phase = t * (1.28 + i * 0.24) + i * 2.1;
+    const dx = Math.sin(phase) * 4 * p;
+    const dy = Math.cos(phase * 0.78) * 5 * p;
+    ctx.beginPath();
+    ctx.moveTo(757 + i * 12 + dx, 680 - dy);
+    ctx.bezierCurveTo(733 + i * 13 + dx, 604, 769 + i * 14 - dx, 541 + dy, 805 + i * 19 + dx, 496);
+    ctx.bezierCurveTo(829 + i * 12 + dx, 458, 856 + dx, 419 + dy, 869 + i * 3, 393);
+    ctx.lineWidth = i === 0 ? 10 : 5;
+    ctx.strokeStyle = i === 0 ? '#ffeb6d' : i === 1 ? '#fff5ac' : '#ffc62c';
+    ctx.globalAlpha = (0.07 + 0.035 * Math.sin(phase * 2)) * (0.7 + 0.3 * p);
+    ctx.stroke();
+  }
+  const x = 767 + 3 * Math.sin(t * 2.2) * p;
+  ctx.globalAlpha = 0.18 + 0.11 * Math.sin(t * 4.1) ** 2;
+  ctx.fillStyle = '#fffbd0';
+  ctx.beginPath();
+  ctx.moveTo(x, 650);
+  ctx.bezierCurveTo(x - 15, 624, x + 8, 602, x - 3, 588);
+  ctx.bezierCurveTo(x + 17, 617, x + 12, 631, x, 650);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* embers 层：星光闪烁 + 沿金弧巡游高光 + 带尾迹上升火星 + 花芯热尘。 */
+function drawEmbers(ctx: CanvasRenderingContext2D, t: number) {
   ctx.clearRect(0, 0, RES, RES);
   ctx.imageSmoothingEnabled = false;
   for (const st of STARS) {
-    star(ctx, st.x, st.y, st.r, Math.max(0.35, 0.75 + 0.23 * Math.sin(time * 1.9 + st.phase)));
+    star(ctx, st.x, st.y, st.r, 0.42 + 0.31 * Math.sin(t * 1.3 + st.phase) ** 2);
   }
-  ASH.forEach((a, i) => {
-    const yy = 750 - ((time * (39 + a.s * 14) + a.p * 29) % 620);
-    const xx = a.x + 11 * Math.sin(time * 0.58 + i * 2);
-    const alpha = Math.min(0.8, Math.max(0, (750 - yy) / 220)) * (0.48 + 0.4 * Math.sin(time * 1.6 + i) ** 2);
-    ctx.globalAlpha = alpha;
-    dot(ctx, (xx + DX) * S, yy * S, 2.5 * S, 2.5 * S, i % 4 === 0 ? '#ffeb77' : '#ff9d18');
-  });
+  // 暖色高光沿既有金弧曲线巡游（不改变弧的剪影）。
+  const h = (t * 0.09) % 1;
+  const theta = -3.05 + 2.72 * h;
+  const hx = 746 + 288 * Math.cos(theta);
+  const hy = 364 + 281 * Math.sin(theta);
+  const glint = Math.sin(Math.PI * h) ** 1.5;
+  if (glint > 0.05) {
+    star(ctx, hx, hy, 4, glint * 0.75);
+    rect(ctx, hx - 8, hy - 1, 15, 2, '#fff2a1', glint * 0.46);
+  }
+  for (let i = 0; i < EMBERS.length; i++) {
+    const e = EMBERS[i];
+    const life = (t * e.speed / 5.7 + e.phase) % 1;
+    const xx = e.x + Math.sin(t * 0.85 + e.spin + life * 7) * e.wobble * ENERGY + e.side * life;
+    const yy = 741 - life * 670 + Math.sin(t * 1.7 + e.spin) * 5;
+    const fade = Math.min(1, life / 0.1, (1 - life) / 0.26);
+    const flicker = 0.66 + 0.34 * Math.sin(t * 3.8 + e.spin + life * 9) ** 2;
+    const alpha = Math.max(0, fade) * flicker * (0.46 + 0.45 * ENERGY);
+    const color = e.hue > 0.83 ? '#fff3a3' : e.hue > 0.45 ? '#ffc13e' : '#ff671a';
+    if (alpha < 0.02) continue;
+    const size = Math.max(2, e.size * (e.hue > 0.94 ? 1.5 : 1));
+    rect(ctx, xx, yy, size, size, color, alpha);
+    // 短尾迹让上升漂移有方向感。
+    if (i % 3 === 0) {
+      rect(ctx, xx + 1, yy + size * 2.5, size * 0.78, size * 0.78, '#f7520e', alpha * 0.48);
+      rect(ctx, xx + 2, yy + size * 5, size * 0.55, size * 0.55, '#9c1f0b', alpha * 0.24);
+    }
+    if (i % 13 === 0 && life > 0.3 && life < 0.7) star(ctx, xx, yy, 2.6, alpha * 0.68);
+  }
+  // 花芯升起的热尘，渐隐进金色身体。
+  for (let i = 0; i < WISPS.length; i++) {
+    const wsp = WISPS[i];
+    const life = (t * 0.25 + wsp.phase) % 1;
+    const x = wsp.x + Math.sin(life * 8 + i) * 12 * ENERGY;
+    const y = 673 - life * 410;
+    rect(ctx, x, y, 2.5, 2.5, i % 3 ? '#ffac26' : '#ffe772', Math.sin(Math.PI * life) * 0.35);
+  }
   ctx.globalAlpha = 1;
+}
+
+/* 每帧合成：光环呼吸、焰羽轻摆、鸡首轻点、花瓣微开合、火芯跃动。 */
+function draw(ctx: CanvasRenderingContext2D, sources: HTMLCanvasElement[], t: number) {
+  ctx.clearRect(0, 0, RES, RES);
+  ctx.imageSmoothingEnabled = false;
+  const e = ENERGY;
+  const slow = Math.sin(t * 1.35);
+  const pulse = Math.sin(t * 2.45);
+  const wing = Math.sin(t * 1.05 + 0.8);
+  composite(ctx, sources, 0, 0.0016 * slow * e, 0, 0, 1 + 0.0015 * slow * e, 1 + 0.0015 * slow * e, 750, 357);
+  composite(ctx, sources, 1, -0.0045 * wing * e, Math.sin(t * 0.83) * 2 * e, Math.cos(t * 0.97) * 2 * e, 1, 1, 823, 426);
+  composite(ctx, sources, 2, 0.0026 * slow * e, Math.sin(t * 1.15) * 2.3 * e, -pulse * 1.7 * e, 1 + 0.003 * slow * e, 1 + 0.007 * pulse * e, 768, 685);
+  composite(ctx, sources, 3, 0.0027 * Math.sin(t * 0.93 + 0.5) * e, Math.sin(t * 1.3) * 1.2 * e, Math.sin(t * 0.8) * 1.4 * e, 1, 1, 865, 352);
+  // 花瓣开合保持克制，不做卡通式张合。
+  composite(ctx, sources, 4, 0, 0, 0, 1 + 0.004 * Math.sin(t * 0.91) * e, 1 - 0.002 * slow * e, 768, 781);
+  composite(ctx, sources, 5, 0.0021 * Math.sin(t * 2.2) * e, 0, -2 * pulse * e, 1 + 0.009 * Math.sin(t * 2) * e, 1 + 0.021 * Math.sin(t * 2.35) * e, 767, 708);
+  if (e > 0.1) wavyFlames(ctx, t);
+  composite(ctx, sources, 6, 0, 0, 0, 1 + 0.003 * Math.sin(t * 0.91 + 0.5) * e, 1, 768, 780);
+  composite(ctx, sources, 7, 0, 0, 0, 1, 1 + 0.002 * slow * e, 766, 850);
 }
 
 export function ZhuyeEmblem() {
@@ -324,42 +241,60 @@ export function ZhuyeEmblem() {
       return; // jsdom 无 2d 上下文：跳过绘制
     }
     for (const ctx of [base, soft, bloom, emberCtx]) ctx.imageSmoothingEnabled = false;
-    // 静态徽记一次绘制；soft / bloom 复制同一份作双层辉光（模糊只在 CSS）。
-    base.clearRect(0, 0, RES, RES);
-    painter(base);
+    const sources = ensureSources();
+    if (sources.length !== GROUP_COUNT) return;
+    // 首帧静态合成（减弱动态偏好下即为最终静止画面），随后复制作辉光底。
+    draw(base, sources, 0);
+    drawEmbers(emberCtx, 0);
     for (const g of [soft, bloom]) {
       g.clearRect(0, 0, RES, RES);
       g.drawImage(emblemCv, 0, 0);
     }
 
+    // 40FPS 上限：保留像素锐度同时降低功耗；页面隐藏即暂停。
     let raf = 0;
-    let t0 = 0;
-    // 尊重系统「减弱动态」偏好：静止时只画一帧（星光常亮、灰烬定格）。
+    let lastPaint = -1;
+    let elapsed = 0;
+    let startAt: number | null = null;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let moving = !reduced.matches;
-    const tick = (ms: number) => {
+    const tick = (now: number) => {
       if (!moving) return;
-      particles(emberCtx, (ms - t0) / 1000);
+      if (startAt === null) startAt = now;
+      if (now - lastPaint >= 25) {
+        elapsed += (Math.min(70, now - lastPaint) * 0.001) * (lastPaint < 0 ? 0 : 1);
+        draw(base, sources, elapsed);
+        drawEmbers(emberCtx, elapsed);
+        lastPaint = now;
+      }
       raf = requestAnimationFrame(tick);
     };
     const start = () => {
-      cancelAnimationFrame(raf);
-      t0 = performance.now();
-      raf = requestAnimationFrame(tick);
-    };
-    const onReducedChange = (e: MediaQueryListEvent) => {
-      moving = !e.matches;
-      if (moving) start();
-      else {
-        cancelAnimationFrame(raf);
-        particles(emberCtx, 0);
+      if (moving && !document.hidden) {
+        startAt = null;
+        lastPaint = -1;
+        raf = requestAnimationFrame(tick);
       }
     };
+    const halt = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    const onVisibility = () => {
+      if (document.hidden) halt();
+      else if (moving) start();
+    };
+    const onReducedChange = (ev: MediaQueryListEvent) => {
+      moving = !ev.matches;
+      halt();
+      if (moving) start();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     reduced.addEventListener('change', onReducedChange);
     if (moving) start();
-    else particles(emberCtx, 0);
     return () => {
-      cancelAnimationFrame(raf);
+      halt();
+      document.removeEventListener('visibilitychange', onVisibility);
       reduced.removeEventListener('change', onReducedChange);
     };
   }, []);
