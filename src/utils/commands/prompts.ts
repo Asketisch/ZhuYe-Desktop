@@ -23,6 +23,33 @@ export type PromptAction =
   | { type: 'select'; selection: PromptSelection | null }
   | { type: 'save_default'; selection: PromptSelection };
 
+// ====== 两级菜单目录(v1.7,镜像协议 `PromptGroup` / `PromptVariantRef`) ======
+
+/** 两级菜单的一个模型变体(id + 显示名)。 */
+export interface PromptVariantRef {
+  /** 变体 id,即 `{ mode: 'manual', profile }` 的合法取值。 */
+  id: string;
+  /** 显示名(如 `Opus 4.6`;专有名词不翻译)。 */
+  label: string;
+}
+
+/**
+ * 两级提示词目录的一个工具分组(一级菜单项)。
+ *
+ * 多模型工具(如 `claude-code`)带多个模型变体,渲染为二级子菜单;
+ * 单文件工具恰一个回引变体,渲染为一级叶项。
+ */
+export interface PromptGroup {
+  /** 工具 id(如 `claude-code`)。 */
+  id: string;
+  /** 显示名(引擎目录下发的工具名,专有名词不翻译)。 */
+  label: string;
+  /** 变体解析时叠加的家族层(厂商层)id —— 用于过滤平铺清单里的冗余项。 */
+  familyLayer: string;
+  /** 模型变体,清单顺序即展示顺序。 */
+  variants: PromptVariantRef[];
+}
+
 /**
  * 提示词层查询 / 重扫。
  *

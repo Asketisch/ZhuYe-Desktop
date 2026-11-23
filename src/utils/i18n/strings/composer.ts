@@ -123,7 +123,7 @@ const composer: Record<string, StringEntry> = {
   'composer.controls.promptAria':            { en: 'System prompt preset',                          'zh-CN': '系统提示词预设' },
   'composer.controls.prompt.follow':         { en: 'Follow default',                                'zh-CN': '跟随默认' },
   'composer.controls.prompt.auto':           { en: 'Auto match model',                              'zh-CN': '智能匹配模型' },
-  'composer.controls.prompt.autoHint':       { en: 'Pick an evaluated preset for the model; falls back to the default when none passed evaluation.', 'zh-CN': '按当前模型选用已通过评测的提示词方案，未通过评测时回落默认。' },
+  'composer.controls.prompt.autoHint':       { en: 'Pick the preset variant that best matches the current model; falls back to the default when nothing matches.', 'zh-CN': '按当前模型自动选择最匹配的提示词方案变体，无匹配时回落默认。' },
   'composer.controls.prompt.hint':           { en: 'Locked once the session starts — a stable system prompt keeps the provider prompt cache warm.', 'zh-CN': '会话开始后锁定 —— 系统提示词恒定才能让供应商提示词缓存持续命中。' },
   'composer.controls.approval':              { en: 'Approval',                                      'zh-CN': '审批权限' },
   'composer.controls.approval.follow':       { en: 'Follow mode (default)',                         'zh-CN': '跟随模式（默认）' },

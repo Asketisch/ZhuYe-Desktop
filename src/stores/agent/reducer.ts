@@ -408,7 +408,8 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
       return { configReloadedAt: Date.now() };
 
     // v1.6.1:提示词层查询应答 —— `Op::PromptCommand { action: List }`。
-    // 会话级提示词选择和当前生效方案。
+    // 会话级提示词选择和当前生效方案。v1.7 起带两级菜单工具分组
+    // (groups;旧引擎不发,缺省 undefined → picker 平铺回退)。
     case 'prompt_list':
       return {
         prompt: {
@@ -418,6 +419,7 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           selection: msg.selection,
           profile: msg.profile,
           fallbackReason: msg.fallback_reason,
+          groups: msg.groups,
           switchedAt: state.prompt?.switchedAt ?? null,
         },
       };
@@ -443,6 +445,7 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           selection: msg.selection,
           profile: msg.profile,
           fallbackReason: msg.fallback_reason,
+          groups: state.prompt?.groups,
           switchedAt: Date.now(),
         },
         toasts: [...state.toasts, toast],

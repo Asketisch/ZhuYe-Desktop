@@ -1,6 +1,7 @@
 /*
- * PromptPicker —— 底栏左侧提示词预设 pill（native select 伪装触发器）。
- * 几何与 EffortPicker / ModelPicker 的 pill 同款（28px 圆角 + 叠置箭头）。
+ * PromptPicker —— 底栏左侧提示词预设 pill（触发器按钮 + 两级弹出菜单）。
+ * pill 几何与 EffortPicker / ModelPicker 同款（28px 高 + 叠置箭头）；
+ * 菜单 / 子菜单样式与 ComposerPlusMenu 同款 token 约定，向上弹出。
  */
 
 .wrap {
@@ -9,6 +10,7 @@
   align-items: center;
 }
 
+/* 触发器按钮 —— 沿用原 native select 的 pill 几何。 */
 .select {
   appearance: none;
   display: inline-flex;
@@ -40,9 +42,93 @@
   outline-offset: 1px;
 }
 
+.select[aria-expanded='true'] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .caret {
   position: absolute;
   right: 7px;
   color: var(--text-muted);
   pointer-events: none;
+}
+
+/* 菜单向上弹出 —— 输入框在窗口底部；左对齐 pill。 */
+.menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 200px;
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elev-2);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: var(--bg-hover);
+}
+
+.itemLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemChevron,
+.itemCheck {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.itemCheck {
+  color: var(--accent);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* 二级子菜单：缩进一层，与父项同宽，超高滚动。 */
+.submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0 0 var(--space-1) var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--border-subtle);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) 6px;
+  background: var(--border-subtle);
 }

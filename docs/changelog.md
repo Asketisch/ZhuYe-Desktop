@@ -4,6 +4,19 @@
 
 ## 未发布
 
+- **提示词预设两级化：一级工具名、二级模型变体 + 智能识别按模型命中**：
+  输入卡底栏提示词预设 pill 从平铺厂商层升级为两级菜单 —— 一级工具
+  （Claude Code / Codex / Kimi / Qwen / Gemini CLI / DeepSeek / GLM /
+  Grok / MiniMax），二级模型变体（如 Claude Code 13 个模型档、Codex
+  8 个模型/人格档），单变体工具为一级叶项；「智能匹配模型」在两级
+  目录中按当前模型 spec 匹配（精确型号 > 最长家族前缀），命中即选用
+  对应变体，无匹配回落默认并在 tooltip 说明原因。变体文案来自
+  `asgeirtj/system_prompts_leaks`（独立固定 revision `0aa4be30`），
+  英文策展（剥离工具 schema / 会话残留 / 产品专属段），共 26 份内嵌
+  于 submodule `zhuye-prompt/prompts/tools/`；`PromptSelection` 线
+  格式不变，`prompt_list` 事件新增 `groups`（additive，旧引擎平铺
+  回退）。前端 `PromptPicker` 改自定义弹层（`ComposerPlusMenu` 同款
+  交互），旧会话已存选择按 profile id 原样兼容。
 - **输入卡底栏三处形态修正 + 工作台目标段按需显示**：① 工作台右侧
   面板「目标」段改为仅在 goal 模式（激活或有快照）显示 —— 面板信息
   按需出现，空闲态不再常驻 /goal 引导空段（折叠窄条的目标小图标同步

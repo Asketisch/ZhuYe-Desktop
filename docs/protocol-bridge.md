@@ -394,9 +394,11 @@ fallback spec，**跨模型降级**）。
 ### 3.11 Prompt layers / extensions rescan (3) — v1.6.1 / v1.x
 提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`（`.zhuye/prompts/` 用户目录层 + 内置厂商层，三级回退 default → 厂商 → 精确模型名）。引擎侧经 `Op::PromptCommand` 暴露查询与重扫，两个动作都**不开 turn** —— 应答事件经 per-submission 通道 + 会话扇出双路送达。v1.x（submodule main）起 `Op::RescanExtensions` 把同样的「改完即生效」带到 skills 目录，应答 `extensions_rescanned`。
 
+v1.7（submodule develop）起提示词预设升级为**两级目录**：`sources.json` 新增 `tools` 段（工具 → 模型变体；`tools_collection` 独立固定 revision），实体变体文案内嵌于 `prompts/tools/<tool>/<variant>.md`（英文策展，来源 `asgeirtj/system_prompts_leaks`），单文件工具以 `profile_ref` 回引既有厂商层。`PromptSelection::Manual.profile` 的合法取值扩展为变体 id（如 `claude-code-opus-4.6`），`auto` 改为在两级目录中按模型 spec 匹配（精确型号 > 最长家族前缀，评测状态仅作同级优选）—— 命中后按 default → 家族层 → 变体三级叠加，未命中回落 default 并带 `fallback_reason`。
+
 | 变体 | 字段 | UI |
 |---|---|---|
-| `prompt_list` | `PromptListEvent`：`available: Vec<String>`（可绑定的层文件名，不含 `.md`）、`current_spec: String`（当前 model spec）、`active_layers: Vec<String>`（当前 spec 实际命中的用户层，内嵌厂商层不记录） | `PromptLayersModal` 展示「当前模型 / 生效层 / 可用层」；`/prompt` slash 展开（经 `zhuye_prompt_command` 的 `list` 动作发起）。reducer 写 `store.prompt`（**进程级** —— 提示词库不随会话切换重置） |
+| `prompt_list` | `PromptListEvent`：`available: Vec<String>`（可绑定的层文件名，不含 `.md`；v1.7 起含工具变体 id）、`current_spec: String`（当前 model spec）、`active_layers: Vec<String>`（当前 spec 实际命中的用户层，内嵌厂商层不记录）、`groups?: Vec<PromptGroup>`（**v1.7 additive**：两级菜单工具分组 `[{ id, label, family_layer, variants: [{ id, label }] }]`，多变体工具出二级菜单、单变体组渲染为一级叶项；旧引擎不发，客户端平铺回退） | `PromptPicker` 两级菜单（工具 → 模型变体）+ `PromptLayersModal` 展示「当前模型 / 生效层 / 可用层」；`/prompt` slash 展开（经 `zhuye_prompt_command` 的 `list` 动作发起）。reducer 写 `store.prompt`（**进程级** —— 提示词库不随会话切换重置） |
 | `prompt_switched` | `PromptSwitchedEvent`：`action: String`（`"reload"`；预留未来聚焦切换的层名）、`active_layers: Vec<String>`（重扫后当前 spec 的生效用户层） | toast 提示「提示词已刷新」并展示新命中层；reducer 更新 `store.prompt.activeLayers` + 记 `switchedAt`。「重新扫描」按钮发起 `switch` 动作（用户改了 `.zhuye/prompts/*.md` 后让改动即时生效） |
 | `extensions_rescanned` | `ExtensionsRescannedEvent`：`skills: usize`（重扫后条目总数，文件型 + 插件型；未请求为 0）、`commands: bool`（commands 重扫是否被处理，当前恒 `false`） | `zhuye_rescan_extensions`（§2）的应答；reducer toast 提示「skills 已刷新」并展示条目总数。GUI 触发按钮待接（能力矩阵 🟡） |
 

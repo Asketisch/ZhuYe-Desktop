@@ -195,7 +195,7 @@ export interface TokenCountPayload extends TokenUsagePayload {
  * payload 镜像 Rust `PromptListEvent`(wire 为 snake_case)。
  */
 export interface PromptListPayload {
-  /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 用户目录层,去重)。 */
+  /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 工具变体 + 用户目录层,去重)。 */
   available: string[];
   /** 当前 model spec(如 `"anthropic/claude-sonnet-5-5"`)。 */
   current_spec: string;
@@ -204,6 +204,8 @@ export interface PromptListPayload {
   selection?: import('@/utils/commands/prompts').PromptSelection;
   profile?: string;
   fallback_reason?: string;
+  /** v1.7:两级菜单工具分组(工具 → 模型变体);旧引擎不发,缺省 undefined。 */
+  groups?: import('@/utils/commands/prompts').PromptGroup[];
 }
 
 /**
