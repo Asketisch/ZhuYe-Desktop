@@ -14,7 +14,7 @@ use zhuye_llm::SharedModelRegistry;
 use zhuye_protocol::{Event, ThreadId};
 use zhuye_tools::ToolRegistry;
 
-use super::{discussion::DiscussionCancellations, remote_config::RemoteConfig};
+use super::{discussion::DiscussionCancellations, remote_config::RemoteConfig, MinimalAgent};
 
 /// Session-level broadcast 通道容量。覆盖 1024 个 event 后最旧事件被丢;
 /// 桌面端 UI 通常只关心最近 50-100 个事件,这个容量远超实际需要。
@@ -168,6 +168,15 @@ pub(crate) struct MinimalAgentInner {
     /// 文件选择框 / dock 徽标 / 终端事件推送)在能力覆盖层里走
     /// 「无句柄」分支,行为降级但**不崩**。
     pub(crate) app_handle: RwLock<Option<tauri::AppHandle>>,
+    /// 已应答 plan gate 注册表(plan_id 集合)。引擎上游 `Op::PlanApproval`
+    /// 处理只摘 waiter、不清挂起交互注册表(`PlanApprovalGate::complete`
+    /// 生产路径未被调用),`pending_interactions()` 快照因此长期携带已决
+    /// 条目;bind 把它原样返回前端时,已确认/已拒绝的「进入计划模式?」
+    /// 弹窗会随换绑复活,再点确认因查无 waiter 被引擎静默丢弃(实测
+    /// 「确认 plan 后卡住、切会话回来又弹」的根因)。`zhuye_plan_approval`
+    /// 成功提交决策时登记 plan_id,`zhuye_bind_session` 返回前据此过滤。
+    /// 进程内存活,与引擎注册表同生命周期(重启同清)。
+    pub(crate) resolved_plan_gates: ParkingMutex<std::collections::HashSet<String>>,
 }
 
 /// agent 诊断快照 —— 给前端显示状态徽标(ready / 是否有 API key / 模型 / 工作区)。
@@ -269,6 +278,44 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         plugin_runtime: zhuye_plugin::empty_plugin_runtime(),
         plugin_mount_lock: Arc::new(tokio::sync::Mutex::new(())),
         app_handle: RwLock::new(None),
+        resolved_plan_gates: ParkingMutex::new(std::collections::HashSet::new()),
+    }
+}
+
+/// 已应答 plan gate 的登记与 bind 快照过滤（thin 委托的实现体放这里 ——
+/// 字段与语义同源，state.rs facade 保持薄；500 行预算拆分）。
+impl MinimalAgent {
+    /// 登记一个已应答的 plan gate(字段语义见
+    /// `MinimalAgentInner::resolved_plan_gates`)。正常使用每会话只有
+    /// 个位数 gate;超限直接清空(最坏情形 = 极老会话的僵尸弹窗重现一次)。
+    pub(crate) fn record_resolved_plan_gate(&self, plan_id: &str) {
+        const RESOLVED_PLAN_GATES_CAP: usize = 1024;
+        let mut guard = self.inner.resolved_plan_gates.lock();
+        if guard.len() >= RESOLVED_PLAN_GATES_CAP {
+            guard.clear();
+        }
+        guard.insert(plan_id.to_string());
+    }
+
+    /// 过滤 bind 快照里已应答的 plan gate(僵尸条目,见字段注释)。
+    pub(crate) fn filter_resolved_plan_gates(
+        &self,
+        gates: Vec<zhuye_protocol::PendingInteraction>,
+    ) -> Vec<zhuye_protocol::PendingInteraction> {
+        let guard = self.inner.resolved_plan_gates.lock();
+        if guard.is_empty() {
+            return gates;
+        }
+        gates
+            .into_iter()
+            .filter(|gate| {
+                !matches!(
+                    &gate.kind,
+                    zhuye_protocol::InteractionKind::Plan { plan_id }
+                        if guard.contains(plan_id)
+                )
+            })
+            .collect()
     }
 }
 
@@ -307,6 +354,36 @@ mod tests {
             groups_count <= 1,
             "active_group should be Some or None, got multiple"
         );
+    }
+
+    /// 已应答 plan gate 过滤:登记过的 plan_id 不再随 bind 快照返回,
+    /// 未登记的条目(其他 gate / 其他 plan)原样透传。
+    #[test]
+    fn resolved_plan_gates_are_filtered_from_bind_snapshot() {
+        use zhuye_protocol::{InteractionKind, PendingInteraction};
+
+        let agent = MinimalAgent::new_empty();
+        let gate = |id: &str| PendingInteraction {
+            request_id: id.to_string(),
+            kind: InteractionKind::Plan {
+                plan_id: id.to_string(),
+            },
+            summary: "task".to_string(),
+            created_at_ms: 0,
+            expires_at_ms: None,
+            payload: serde_json::json!({ "task": "task" }),
+        };
+        agent.record_resolved_plan_gate("resolved-1");
+        let filtered = agent.filter_resolved_plan_gates(vec![
+            gate("resolved-1"),
+            gate("live-2"),
+        ]);
+        let ids: Vec<&str> = filtered.iter().map(|g| g.request_id.as_str()).collect();
+        assert_eq!(ids, vec!["live-2"], "已应答 gate 必须被滤除,未应答的保留");
+        // 空注册表快路径:不打乱原顺序 / 不丢条目。
+        let agent2 = MinimalAgent::new_empty();
+        let gates = vec![gate("live-3")];
+        assert_eq!(agent2.filter_resolved_plan_gates(gates).len(), 1);
     }
 
     /// agent_status 字段完整性:ready/model/workspace 必须有合法值,

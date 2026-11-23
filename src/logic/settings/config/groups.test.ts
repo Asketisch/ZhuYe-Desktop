@@ -358,6 +358,68 @@ describe('[context_windows] 表读写', () => {
     const groups = listGroups(toml);
     expect(groups[0].contextWindow).toBe(1000000);
   });
+
+  // 后端 ContextWindowsSection 的 Serialize 是 derive 的:任何一次
+  // zhuye_save_config 落盘都会把扁平表重序列化为嵌套 [context_windows.entries]
+  // (实测存量 config.toml 即此形态)。前端必须双形态兼容,否则保存后
+  // 永远读回空、再次写入又追加第二张表 → 值被引擎静默丢弃(实测 bug)。
+  it('readContextWindows 兼容嵌套 [context_windows.entries] 形态', () => {
+    const toml = [
+      '[model]',
+      'reasoning_effort = "high"',
+      '',
+      '[context_windows.entries]',
+      '"qwen3.8-27b-nvfp4" = 1000000',
+      '"qwen-flash" = 500000',
+    ].join('\n');
+    const w = readContextWindows(toml);
+    expect(w['qwen3.8-27b-nvfp4']).toBe(1000000);
+    expect(w['qwen-flash']).toBe(500000);
+    expect(w['reasoning_effort']).toBeUndefined();
+  });
+
+  it('嵌套形态下写入/更新/删除都落在 entries 子表内', () => {
+    const nested = [
+      '[context_windows.entries]',
+      '"qwen3.8-27b-nvfp4" = 1000000',
+      '',
+      '[[model_group]]',
+      'id = "demo"',
+    ].join('\n');
+    // 新键插入 entries 子表内(不得另写扁平表 —— 那会被引擎 Nested 分支丢弃)。
+    const withNew = setGroupContextWindow(nested, 'qwen-flash', 500000);
+    expect(withNew.indexOf('"qwen-flash" = 500000')).toBeLessThan(withNew.indexOf('[[model_group]]'));
+    expect(withNew.indexOf('"qwen-flash" = 500000')).toBeGreaterThan(withNew.indexOf('[context_windows.entries]'));
+    expect(withNew).not.toMatch(/\[context_windows\]\n/);
+    // 更新已有键。
+    const updated = setGroupContextWindow(withNew, 'qwen3.8-27b-nvfp4', 256000);
+    expect(readContextWindows(updated)['qwen3.8-27b-nvfp4']).toBe(256000);
+    // 删除全部键 → entries 子表连同表头摘除。
+    const removed = setGroupContextWindow(updated, 'qwen3.8-27b-nvfp4', null);
+    expect(readContextWindows(removed)['qwen3.8-27b-nvfp4']).toBeUndefined();
+    expect(removed).toContain('[context_windows.entries]');
+    const emptied = setGroupContextWindow(removed, 'qwen-flash', null);
+    expect(emptied).not.toContain('[context_windows.entries]');
+    expect(emptied).toContain('[[model_group]]');
+  });
+
+  it('混合文档(扁平 + 嵌套并存)读嵌套值,写入落嵌套表', () => {
+    // 历史混合形态:前端曾在嵌套表已存在时追加扁平表 —— 引擎 Either
+    // 先试 Flat 失败后落 Nested,扁平 kv 被静默丢弃,嵌套值才是实读值。
+    const mixed = [
+      '[context_windows.entries]',
+      '"qwen-flash" = 500000',
+      '',
+      '[context_windows]',
+      '"glm-5" = 128000',
+    ].join('\n');
+    expect(readContextWindows(mixed)['qwen-flash']).toBe(500000);
+    expect(readContextWindows(mixed)['glm-5']).toBe(128000);
+    const updated = setGroupContextWindow(mixed, 'qwen-flash', 600000);
+    expect(readContextWindows(updated)['qwen-flash']).toBe(600000);
+    // 写入必须命中嵌套表区间(扁平表在后面,不应插到其后产生新表)。
+    expect(updated.indexOf('"qwen-flash" = 600000')).toBeLessThan(updated.indexOf('[context_windows]'));
+  });
 });
 
 describe('[model].reasoning_effort 读写', () => {

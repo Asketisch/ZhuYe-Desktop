@@ -66,7 +66,7 @@ export function Sidebar({
   pinnedGroup, filtered, showEmpty, badges,
   menuFor, onOpenMenu, menuActions, SessionMenu, renameId, renameValue, onRenameValueChange, onSubmitRename, onCancelRename, searchOpen, onToggleSearch, pendingOnly, onTogglePendingOnly,
   elapsedNow, isCollapsed, onToggleGroup, searching,
-  onSelect, onNewChat, onNewChatIn, onQueryChange, onRefresh,
+  onSelect, onSelectSub, onNewChat, onNewChatIn, onQueryChange, onRefresh,
   onOpenProject, onRemoveWorkspace,
   subSessionsFold,
 }: SidebarViewProps) {
@@ -85,6 +85,7 @@ export function Sidebar({
     const elapsed = dot === 'run' && since ? Math.max(0, elapsedNow - since) : 0;
     const subKids = sess.children ?? [];
     const subExpanded = subSessionsFold.expanded.has(sess.session_id);
+    const subCollapsed = subSessionsFold.collapsed.has(sess.session_id);
     const subShown = subKids.length <= SUB_SESSION_FOLD_LIMIT || subExpanded
       ? subKids
       : subKids.slice(0, SUB_SESSION_FOLD_LIMIT);
@@ -98,6 +99,7 @@ export function Sidebar({
             'row-item', 'sess',
             sess.session_id === activeId ? 'sel' : '',
             pending ? 'has-pending' : '',
+            subKids.length > 0 ? 'has-subs' : '',
           ].filter(Boolean).join(' ')}
           data-testid={`harness-session-${sess.session_id}`}
           aria-pressed={sess.session_id === activeId}
@@ -123,6 +125,20 @@ export function Sidebar({
               : <span className="sess-timer" title={t('harness.sb.timeNow')}>●</span>)
             : <span className="tm">{relativeTime(sess.started_at, elapsedNow, t)}</span>}
         </button>}
+        {/* 子代理会话折叠开关：独立兄弟按钮（交互元素不嵌套），折叠时整块
+            隐藏子会话行。仅归属子会话在场的父行渲染。 */}
+        {subKids.length > 0 && (
+          <button
+            type="button"
+            className="sub-toggle"
+            data-testid={`sub-toggle-${sess.session_id}`}
+            aria-label={t('harness.sb.subToggle')}
+            aria-expanded={!subCollapsed}
+            onClick={() => subSessionsFold.toggleCollapse(sess.session_id)}
+          >
+            <Icon icon={subCollapsed ? ChevronRight : ChevronDown} size={13} />
+          </button>
+        )}
         <button
           type="button"
           className="sess-more"
@@ -131,7 +147,7 @@ export function Sidebar({
           aria-label={t('harness.sb.moreMenu')}
           onClick={() => onOpenMenu(sess.session_id)}
         >⋯</button>
-        {subKids.length > 0 && (
+        {subKids.length > 0 && !subCollapsed && (
           <div className="sub-sessions" data-testid={`sub-sessions-${sess.session_id}`}>
             {subShown.map((kid) => (
               <button
@@ -141,9 +157,11 @@ export function Sidebar({
                 data-testid={`harness-subsession-${kid.session_id}`}
                 aria-pressed={kid.session_id === activeId}
                 /* 子代理会话是主会话流的投影:引擎宿主不可 bind 子线程
-                 * (实测 bind 被 workspace 校验拒绝)。点击 = 打开父会话 ——
-                 * 子代理的调用记录与产出都在主会话流里。 */
-                onClick={() => onSelect(sess.session_id)}
+                 * (实测 bind 被内嵌 workspace meta 校验拒绝)。点击 = 只读
+                 * 查看子会话落盘记录(?sub=<childId> 挂只读查看器,主区
+                 * 不换绑、composer 不渲染)。无 onSelectSub 的旧宿主回退
+                 * 打开父会话。 */
+                onClick={() => (onSelectSub ? onSelectSub(sess.session_id, kid.session_id) : onSelect(sess.session_id))}
               >
                 <span className="dot sub-dot" />
                 <span className="t">{titleOf(kid)}</span>

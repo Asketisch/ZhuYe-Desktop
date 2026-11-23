@@ -85,3 +85,24 @@ export function gatesToSyntheticEvents(
   }
   return out;
 }
+
+/**
+ * Plan 模式会话的 plan_request 僵尸快照过滤(bind 水合前调用)。
+ *
+ * 进入动作获批后模式已翻转为 plan,引擎挂起注册表的残留条目会随 bind
+ * 快照重发 —— 再弹「进入计划模式?」且点确认必落空(引擎查无 waiter
+ * 静默丢弃)。后端已按 resolved_plan_gates 过滤一道(src-tauri
+ * state/agent.rs),这里对 `PermissionMode::Plan` 会话再兜底一次(覆盖
+ * 绕过本应用应答、引擎注册表仍残留的路径)。plan_ready(带 markdown 的
+ * 终稿审批)在 plan 模式下是合法在途交互,保留。
+ */
+export function filterStalePlanRequestGates(
+  gates: PendingGateSnapshot[],
+  permissionMode: string,
+): PendingGateSnapshot[] {
+  if (permissionMode !== 'plan') return gates;
+  return gates.filter((gate) => !(
+    gate.kind.type === 'plan'
+    && !(gate.payload as { markdown?: string } | null | undefined)?.markdown
+  ));
+}

@@ -1,0 +1,72 @@
+/* 子代理会话只读查看器 —— 与会话区同构的满高容器 + 顶栏横幅。颜色一律
+   消费 tokens 标记（根 AGENTS.md 设计系统规则），不硬编码色值。 */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  min-height: 44px;
+  flex: none;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  font-size: 11px;
+  color: var(--fg-3);
+  border: 1px dashed var(--line-2);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.close {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--fg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  padding: 4px 10px;
+  transition: background 0.13s ease, color 0.13s ease;
+  white-space: nowrap;
+}
+
+.close:hover {
+  background: var(--fill);
+  color: var(--fg);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.note {
+  padding: 24px 18px;
+  font-size: 12.5px;
+  color: var(--fg-3);
+}

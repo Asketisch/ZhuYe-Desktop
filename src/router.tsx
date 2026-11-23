@@ -64,7 +64,17 @@ const rootRoute = new RootRoute({
 const indexRoute = new Route({ getParentRoute: () => rootRoute, path: '/', component: ChatView });
 const homeRoute = new Route({ getParentRoute: () => rootRoute, path: 'home', component: HomeView });
 const chatRoute = new Route({ getParentRoute: () => rootRoute, path: 'chat', component: ChatView });
-const chatSessionRoute = new Route({ getParentRoute: () => chatRoute, path: '$sessionId', component: ChatView });
+// ?sub=<childId>:侧栏子代理会话行的只读查看器入口(不 bind 子线程,
+// 仅 replay 落盘记录;validateSearch 让非法值不出现在 URL 状态里)。
+const chatSessionRoute = new Route({
+  getParentRoute: () => chatRoute,
+  path: '$sessionId',
+  component: ChatView,
+  validateSearch: (search: Record<string, unknown>): { sub?: string } => {
+    const sub = search.sub;
+    return typeof sub === 'string' && sub ? { sub } : {};
+  },
+});
 const sessionsRoute = new Route({ getParentRoute: () => rootRoute, path: 'sessions', component: ThreadsView });
 const settingsRoute = new Route({ getParentRoute: () => rootRoute, path: 'settings', component: SettingsView });
 const filesRoute = new Route({ getParentRoute: () => rootRoute, path: 'files', component: FilesView });

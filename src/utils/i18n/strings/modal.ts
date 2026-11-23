@@ -28,6 +28,7 @@ const modal: Record<string, StringEntry> = {
   'modal.planRequest.title':      { en: 'Enter plan mode?',                                                                           'zh-CN': '进入计划模式？' },
   'modal.planRequest.approve':    { en: 'Enter plan mode',                                                                            'zh-CN': '进入计划模式' },
   'modal.planRequest.decline':    { en: 'Not now',                                                                                    'zh-CN': '暂不进入' },
+  'modal.planRequest.failed':     { en: 'Plan decision failed: {msg} (dialog closed)',                                                'zh-CN': '计划决策提交失败：{msg}（弹窗已关闭）' },
   'modal.askUser.title':          { en: 'Input requested',                                                                            'zh-CN': '需要输入' },
   'modal.askUser.defaultPrompt':  { en: 'The agent needs your input:',                                                                'zh-CN': 'Agent 需要你的输入:' },
   'modal.askUser.placeholder':    { en: 'Type here...',                                                                               'zh-CN': '在此输入…' },

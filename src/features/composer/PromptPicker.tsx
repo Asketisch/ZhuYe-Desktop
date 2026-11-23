@@ -26,6 +26,7 @@ export function PromptPicker() {
   const promptAvailable = useAgentStore((st) => st.prompt?.available ?? NO_PROMPT_LAYERS);
   const promptFallback = useAgentStore((st) => st.prompt?.fallbackReason ?? null);
   const promptList = useAgentStore((st) => st.promptList);
+  const setPermissionMode = useAgentStore((st) => st.setPermissionMode);
 
   const [selection, setSelection] = useState<PromptSelection>(
     () => readPromptSelection(sessionId) ?? { mode: 'default' },
@@ -55,6 +56,15 @@ export function PromptPicker() {
       : { mode: 'manual', profile: raw };
     setSelection(next);
     writePromptSelection(sessionId, next);
+    // plan 预设联动工作模式:选中 /plan 即直接进入计划模式。引擎在
+    // PermissionMode::Plan 下跳过 EnterPlanMode 的审批派发(tool_exec
+    // 防御守卫),用户不再看到「进入计划模式?」确认框。切回非 plan
+    // 预设不改模式 —— 模式入口在权限下拉(PermissionPicker)。
+    // 首页(未建会话)下发的模式只落在占位线程上,首条消息建会话后的
+    // 正式校准在 syncPlanPresetPermissionMode(bind → replay 为空时)。
+    if (next.mode === 'manual' && next.profile === 'plan') {
+      setPermissionMode('plan').catch(() => { /* 占位线程未就绪等失败:建会话后会再校准 */ });
+    }
   };
 
   return (

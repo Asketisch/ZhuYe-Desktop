@@ -204,10 +204,10 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .row-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
   text-align: left;
-  height: 29px;
+  height: 32px;
   padding: 0 8px;
   border-radius: 7px;
   color: var(--fg-2);
@@ -278,6 +278,22 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 }
 .row-shell:hover .sess-more { opacity: 1; }
 .sess-more:hover { background: var(--fill-2); color: var(--fg); }
+/* 父会话行的子代理折叠开关：绝对定位在行左缘（与 ⋯ 同款兄弟按钮形态，
+   交互元素不嵌套）；has-subs 给主按钮让出左内边距。 */
+.row-item.has-subs { padding-left: 26px; }
+.sub-toggle {
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--fg-3);
+}
+.sub-toggle:hover { background: var(--fill-2); color: var(--fg); }
 /* 分组标签上的待处理计数 */
 .sb-count {
   min-width: 17px;
@@ -2149,10 +2165,12 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .sub-sessions {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
+  margin: 2px 0 4px;
 }
 .row-item.sub-session {
   padding-left: 26px;
+  height: 30px;
   opacity: 0.86;
 }
 .row-item.sub-session .dot.sub-dot {

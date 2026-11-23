@@ -6,13 +6,9 @@ import {
   zhuye_ask_user_input_response,
   zhuye_ask_user_question_response,
   zhuye_compact,
-  zhuye_cycle_permission_mode,
-  zhuye_enter_plan_mode,
-  zhuye_exit_plan_mode,
   zhuye_get_config,
   zhuye_hook_approval,
   zhuye_interrupt,
-  zhuye_plan_approval,
   zhuye_prompt_command,
   zhuye_query_guard_stats,
   zhuye_replay_session,
@@ -20,7 +16,6 @@ import {
   zhuye_query_subagents,
   zhuye_rewind,
   zhuye_set_effort,
-  zhuye_set_permission_mode,
   zhuye_shutdown,
   zhuye_steer,
   zhuye_goal_snapshot,
@@ -40,10 +35,11 @@ import { appendItem, markTurn, userAttachmentsFromItems } from './turns';
 import { runQueryGuardStats } from './guardStats'; // F01
 import { wireApprovalPolicy } from './approvalPolicy';
 import { createQueueActions } from './queue';
+import { createPlanActions } from './planActions';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
 import type { PendingGateSnapshot } from '@/types/protocol';
-import { gatesToSyntheticEvents } from './pendingGates';
+import { gatesToSyntheticEvents, filterStalePlanRequestGates } from './pendingGates';
 import { createSessionSeqTracker } from './eventGap';
 export const useAgentStore = create<AgentState>((set, get) => {
   // 会话作用域的子代理可观测投影的空态(复用引用,避免每处字面量)。
@@ -137,7 +133,9 @@ export const useAgentStore = create<AgentState>((set, get) => {
       ...get().pendingAskUser.map((u) => u.id),
       ...(get().pendingPlan ? [get().pendingPlan!.id] : []),
     ];
-    for (const msg of gatesToSyntheticEvents(gates, knownIds)) {
+    // Plan 模式的 plan_request 僵尸过滤见 ./pendingGates.ts(口径注释在那边)。
+    const effective = filterStalePlanRequestGates(gates, get().permissionMode);
+    for (const msg of gatesToSyntheticEvents(effective, knownIds)) {
       const patch = reduceEvent(get(), { id: '', msg, seq: 0 });
       if (Object.keys(patch).length > 0) set(patch);
     }
@@ -409,29 +407,11 @@ export const useAgentStore = create<AgentState>((set, get) => {
     }));
   },
 
-  // plan 审批走独立的 approvePlan —— PlanApprovalChoice 三选一,语义与
-  // tool/hook 的 ReviewDecision 不同,故单独方法。
-  approvePlan: async (id, choice) => {
-    await zhuye_plan_approval(id, choice);
-    set((state) => state.pendingPlan?.id === id && state.pendingPlan.kind === 'request'
-      ? { pendingPlan: null }
-      : {});
-  },
-
-  enterPlanMode: async (task) => {
-    await zhuye_enter_plan_mode(task);
-  },
-  exitPlanMode: async () => {
-    await zhuye_exit_plan_mode();
-  },
+  // plan 域 actions(approvePlan / enter / exit / set / cycle)拆至
+  // ./planActions 工厂(queue/toast 同款模式)。
+  ...createPlanActions(set, get),
   setEffort: async (level) => {
     await zhuye_set_effort(level);
-  },
-  setPermissionMode: async (mode) => {
-    await zhuye_set_permission_mode(mode);
-  },
-  cyclePermissionMode: async () => {
-    await zhuye_cycle_permission_mode();
   },
   syncPermissionMode: (mode) => {
     // v1.x:bind 返回值可能携带弃用档(计划批准落盘的 accept_edits),

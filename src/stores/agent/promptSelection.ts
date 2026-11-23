@@ -68,3 +68,28 @@ export function syncSessionPromptSelection(sessionId: string | null | undefined)
     void zhuye_prompt_command({ type: 'select', selection: null }).catch(() => { /* 同上 */ });
   }
 }
+
+/**
+ * v1.x:bind → replay 水合完成后,为「选了 /plan 预设的新会话」校准工作
+ * 模式到 plan。
+ *
+ * 为什么在这里而不是选择动作里一次做完:首页选 plan 时会话还不存在,
+ * `Op::SetPermissionMode` 只落在占位线程上;首条消息建会话 rebind 出的
+ * 是**新线程**,权限模式回落默认 auto —— 不补这一步,首 turn 模型调
+ * EnterPlanMode 仍会弹「进入计划模式?」确认框(PromptPicker 的联动
+ * 只覆盖了已绑定会话的场景)。引擎在 `PermissionMode::Plan` 下跳过
+ * EnterPlanMode 审批派发(tool_exec 防御守卫),模式就位 = 免确认直进
+ * 计划模式。
+ *
+ * `hasRecords = false`(replay 为空 = 会话尚无任何落盘记录)才校准:
+ * 有历史的老会话以 rollout 里的 PermissionModeChanged 为准(用户中途
+ * 手动切过模式的意图不被覆盖)。fire-and-forget,失败不打扰。
+ */
+export function syncPlanPresetPermissionMode(sessionId: string | null | undefined, hasRecords: boolean): void {
+  if (hasRecords) return;
+  const saved = readPromptSelection(sessionId);
+  if (saved?.mode !== 'manual' || saved.profile !== 'plan') return;
+  const state = useAgentStore.getState();
+  if (state.permissionMode === 'plan') return;
+  state.setPermissionMode('plan').catch(() => { /* 线程未就绪等失败:下次 bind 再校准 */ });
+}

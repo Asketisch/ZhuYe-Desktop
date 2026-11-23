@@ -16,6 +16,8 @@ export interface SidebarBindingProps {
   activeId: string | null;
   currentWorkspace: string | null;
   onSelect: (id: string) => void;
+  /** v1.x:点击子代理会话行 —— 只读查看（?sub=<childId>）。缺省回退 onSelect。 */
+  onSelectSub?: (sessionId: string, subId: string) => void;
   onRefresh: () => void;
   onNewChat?: () => void;
   onNewChatIn?: (path: string) => void;
@@ -54,6 +56,18 @@ export function SidebarBinding(props: SidebarBindingProps) {
   const [expandedSubs, setExpandedSubs] = useState<ReadonlySet<string>>(new Set());
   const toggleSubExpand = useCallback((sessionId: string) => {
     setExpandedSubs((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }, []);
+  // v1.x:父行折叠开关(标题前 chevron)—— 折叠时整块隐藏子会话行,
+  // 默认展开(与历史行为一致)。与 expandedSubs 语义独立:前者是
+  // 「超阈值时的部分展开」,本集合是「整块显隐」。
+  const [collapsedSubs, setCollapsedSubs] = useState<ReadonlySet<string>>(new Set());
+  const toggleSubCollapse = useCallback((sessionId: string) => {
+    setCollapsedSubs((prev) => {
       const next = new Set(prev);
       if (next.has(sessionId)) next.delete(sessionId);
       else next.add(sessionId);
@@ -210,6 +224,6 @@ export function SidebarBinding(props: SidebarBindingProps) {
     }}
     searchOpen={searchOpen} onToggleSearch={() => setSearchOpen((value) => !value)}
     pendingOnly={pendingOnly} onTogglePendingOnly={() => setPendingOnly((value) => !value)}
-    subSessionsFold={{ expanded: expandedSubs, toggle: toggleSubExpand }}
+    subSessionsFold={{ expanded: expandedSubs, toggle: toggleSubExpand, collapsed: collapsedSubs, toggleCollapse: toggleSubCollapse }}
     elapsedNow={elapsedNow} />;
 }

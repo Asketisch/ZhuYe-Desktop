@@ -18,6 +18,9 @@ export interface SubSessionsFold {
   /** 已展开的父会话 id 集合（> 阈值的父会话默认折叠）。 */
   expanded: ReadonlySet<string>;
   toggle: (sessionId: string) => void;
+  /** v1.x:父行折叠开关（标题前 chevron）——折叠时整块隐藏子会话行。 */
+  collapsed: ReadonlySet<string>;
+  toggleCollapse: (sessionId: string) => void;
 }
 
 export interface SidebarViewProps {
@@ -64,6 +67,8 @@ export interface SidebarViewProps {
   elapsedNow: number;
   isCollapsed: (key: string) => boolean;
   onSelect: (id: string) => void;
+  /** v1.x:点击子代理会话行 —— 只读查看（?sub=<childId>）。缺省回退 onSelect。 */
+  onSelectSub?: (sessionId: string, subId: string) => void;
   onRefresh: () => void;
   onNewChat?: () => void;
   onNewChatIn?: (path: string) => void;

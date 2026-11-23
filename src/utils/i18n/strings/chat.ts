@@ -39,6 +39,11 @@ const chat: Record<string, StringEntry> = {
   'chat.continuePrompt':           { en: 'Continue from where you stopped.',                                  'zh-CN': '请从中断处继续。' },
   // v1.x 后台持续运行:后台会话徽标与待确认提醒。
   'chat.backgroundPendingToast':   { en: 'A background session needs your confirmation — switch to it to respond', 'zh-CN': '后台会话有新的待确认交互，切回该会话处理' },
+  // v1.x:侧栏子代理会话只读查看器（?sub=<childId>）。
+  'chat.subagentViewer.title':     { en: 'Subagent session',                'zh-CN': '子代理会话' },
+  'chat.subagentViewer.readOnly':  { en: 'Read-only replay',                'zh-CN': '只读回放' },
+  'chat.subagentViewer.close':     { en: 'Back to parent session',          'zh-CN': '返回主会话' },
+  'chat.subagentViewer.loadFailed':{ en: 'Replay failed: {msg}',            'zh-CN': '回放失败：{msg}' },
   'chat.backgroundBadgeRunning':   { en: 'Running in background',                                             'zh-CN': '后台运行中' },
   'chat.backgroundBadgePending':   { en: '{n} pending confirmation(s)',                                       'zh-CN': '{n} 项待确认' },
   'chat.sessionBadgeRunning':      { en: 'Running',                                                           'zh-CN': '运行中' },

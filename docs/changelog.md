@@ -4,6 +4,33 @@
 
 ## 未发布
 
+- **侧栏子会话区三处改进**：① 会话行间距加大（行高 29→32px，子会话
+  行 30px、块内间隙加宽）；② 有子代理会话的父会话行标题前新增折叠
+  chevron（展开/收起整块子会话行，默认展开；与「显示全部 N 个」的
+  部分展开语义独立）；③ 子代理会话行可点开 —— 主区挂**只读查看器**
+  （`/chat/<父id>?sub=<子id>`，纯 replay 落盘记录构建 turns，不 bind
+  子线程（引擎宿主拒绝）、不动主 store（父会话在飞事件不污染查看器），
+  composer 不渲染防误发；顶栏「返回主会话」退出）。
+- **/plan 提示词预设联动计划模式**：选中 `/plan` 预设即下发
+  `Op::SetPermissionMode(Plan)`（选中的新会话在 bind → replay 为空时
+  由 `syncPlanPresetPermissionMode` 校准，首页预选的场景也覆盖）——
+  引擎在 Plan 模式下跳过 `EnterPlanMode` 审批派发，不再弹「进入计划
+  模式？」确认框；有历史的老会话尊重已持久化的权限模式不被覆盖。
+- **计划审批弹窗卡死修复（僵尸 plan gate）**：引擎上游 `Op::PlanApproval`
+  只摘 waiter 不清挂起注册表，已确认/已拒绝的「进入计划模式?」弹窗会
+  随会话换绑复活（`pending_gates` 快照重发），再点确认被引擎静默丢弃
+  —— 桌面端三层修复：`zhuye_plan_approval` 受理决策时登记
+  `resolved_plan_gates`、bind 返回前过滤；前端 `hydratePendingGates`
+  对 Plan 模式会话兜底滤除 plan_request；`approvePlan` 命令失败改为
+  toast 告知 + 照常关弹窗（不再吊死）。引擎侧补 `pending_resolve` /
+  `InteractionResolved` 的根治在上游跟进。
+- **模型上下文窗口保存失败修复**：引擎 `ContextWindowsSection` 的
+  Serialize 是 derive 的，任何一次保存都会把 `[context_windows]` 重
+  序列化为嵌套 `[context_windows.entries]` —— 前端 TOML 手术层只认
+  扁平表头，导致保存后读回空、再次写入另起一张表被引擎 Nested 分支
+  静默丢弃（qwen 系 500k 设不进去的根因）。`readContextWindows` /
+  `setGroupContextWindow` 双形态兼容（嵌套优先，与引擎 Either 实读值
+  对齐），顺带修掉删除末键时误删下一表头的越界问题。
 - **输入卡底栏三处形态修正 + 工作台目标段按需显示**：① 工作台右侧
   面板「目标」段改为仅在 goal 模式（激活或有快照）显示 —— 面板信息
   按需出现，空闲态不再常驻 /goal 引导空段（折叠窄条的目标小图标同步

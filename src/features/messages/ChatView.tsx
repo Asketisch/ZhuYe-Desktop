@@ -13,11 +13,12 @@ import { StatusPanel } from '@/features/shell/session/StatusPanel';
 import { ApprovalTakeover, QuestionTakeover, AskUserTakeover } from '@/features/shell/session/Takeovers';
 import { TrajView } from '@/features/shell/session/TrajView';
 import { BottomTabs } from '@/features/shell/session/BottomTabs';
+import { SubagentViewer } from './SubagentViewer';
 
 export { editRewindTargetFor } from '@/logic/chat/ChatBinding';
 const slots = { MessageList, Composer, ChatHero, QuickPromptRow, ContextBanner, ScmChanges,
   DiffViewer, WorkHead, ViewRing, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
-  TrajView, BottomTabs };
+  TrajView, BottomTabs, SubagentViewer };
 
 export function ChatView() {
   const renderer = useRenderer();

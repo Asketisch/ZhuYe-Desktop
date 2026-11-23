@@ -31,6 +31,7 @@ import {
   toFloat,
   toInt,
 } from './groupToml';
+import { readContextWindows } from './contextWindows';
 
 /** 线格式（endpoint）—— 与引擎 ModelGroupSection 的 endpoint 同口径。 */
 export const GROUP_ENDPOINTS = ['openai', 'anthropic', 'ollama'] as const;
@@ -257,73 +258,13 @@ export function removeGroup(toml: string, id: string): string {
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-/** 读 `[context_windows]` 表（键已小写化；值 = tokens）。表不存在 → 空。 */
-export function readContextWindows(toml: string): Record<string, number> {
-  const out: Record<string, number> = {};
-  let inTable = false;
-  for (const raw of toml.split('\n')) {
-    const line = raw.trim();
-    const header = parseHeader(line);
-    if (header) {
-      inTable = header.kind === 'table' && header.name === 'context_windows';
-      continue;
-    }
-    if (!inTable) continue;
-    // 键可带引号（模型名含 '.' 必须引号）—— 宽松匹配引号或 bare key。
-    const kv = /^"?([^"=]+)"?\s*=\s*(\d+)\s*$/.exec(line);
-    if (!kv) continue;
-    out[kv[1].trim().toLowerCase()] = toInt(kv[2]) ?? 0;
-  }
-  return out;
-}
-
-/** 写/删 `[context_windows][<modelKey>]`（tokens = null 删除键；表空时
- * 连同表头一并摘除，不留空段）。modelKey 用**裸模型名**（小写化与引擎
- * 归一化对齐；前缀可覆盖同前缀家族，如 `qwen3.8` 命中 27b/flash）。 */
-export function setGroupContextWindow(
-  toml: string,
-  modelKey: string,
-  tokens: number | null,
-): string {
-  const key = modelKey.trim().toLowerCase();
-  if (!key) return toml;
-  const lines = toml.split('\n');
-  let start = -1;
-  let end = lines.length;
-  for (let i = 0; i < lines.length; i++) {
-    const header = parseHeader(lines[i].trim());
-    if (!header) continue;
-    if (start !== -1 && end === lines.length) end = i;
-    if (header.kind === 'table' && header.name === 'context_windows' && start === -1) start = i;
-  }
-  if (start === -1) {
-    if (tokens == null) return toml;
-    return `${toml.replace(/\s*$/, '')}\n\n[context_windows]\n${keyLineFor(key, tokens)}\n`;
-  }
-  for (let i = start + 1; i < end; i++) {
-    const kv = /^"?([^"=]+)"?\s*=\s*\d+\s*$/.exec(lines[i].trim());
-    if (kv && kv[1].trim().toLowerCase() === key) {
-      if (tokens == null) {
-        lines.splice(i, 1);
-        // 段空 → 连表头摘除。
-        if (!lines.slice(start + 1, end - 1).some((l) => l.trim())) {
-          lines.splice(start, end - start);
-        }
-        return lines.join('\n').replace(/\n{3,}/g, '\n\n');
-      }
-      lines[i] = keyLineFor(key, tokens);
-      return lines.join('\n');
-    }
-  }
-  if (tokens == null) return toml;
-  lines.splice(end, 0, keyLineFor(key, tokens));
-  return lines.join('\n');
-}
-
-/** `[context_windows]` 条目行（键带引号 —— 模型名常含 '.'）。 */
-function keyLineFor(key: string, tokens: number): string {
-  return `${JSON.stringify(key)} = ${tokens}`;
-}
+/**
+ * `[context_windows]` 手术拆至 `./contextWindows`（500 行预算）——
+ * 此处 re-export 保持既有 import 面（设置页 / 测试都从 `./groups` 引）。
+ * 引擎保存后会把扁平表重序列化为嵌套 `[context_windows.entries]`，
+ * 双形态兼容与「嵌套优先」的口径见该模块头注释。
+ */
+export { readContextWindows, setGroupContextWindow } from './contextWindows';
 
 /** 读 `[model].reasoning_effort`（全局活跃模型默认思考强度；'' = 未设置）。 */
 export function readDefaultEffort(toml: string): string {

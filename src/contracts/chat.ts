@@ -23,6 +23,14 @@ export interface ChatSlots {
   AskUserTakeover: ComponentType<{ askUser: PendingAskUser }>;
   BottomTabs: ComponentType<{ open: boolean; onClose: () => void }>;
   DiffViewer: ComponentType<{ diff: string; emptyMessage?: string }>;
+  /** v1.x:子代理会话只读查看器（侧栏子会话行 → ?sub=<childId>）。
+   *  不 bind 子线程（引擎宿主拒绝），仅 replay 落盘记录。 */
+  SubagentViewer: ComponentType<{
+    parentSessionId: string;
+    subId: string;
+    title: string;
+    onClose: () => void;
+  }>;
 }
 
 export interface ChatViewProps {

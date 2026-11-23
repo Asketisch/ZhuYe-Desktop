@@ -333,6 +333,17 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
       onToggleInspector: () => setInspectorOpen(!inspectorOpen) }}
     sidebar={{ groups: sessions.groups, loading: sessions.loading, error: sessions.error, activeId,
       currentWorkspace, onSelect: handleSelect, onRefresh: sessions.refresh, onNewChat: handleNewChat,
+      // v1.x:子代理会话行 → 只读查看器(?sub=<childId>)。纯回放不 bind,
+      // 无需切工作区;selectSeq 让并发的会话选择后到先得。
+      onSelectSub: (parentId: string, subId: string) => {
+        const mySeq = ++selectSeqRef.current;
+        if (mySeq !== selectSeqRef.current) return;
+        void router.navigate({
+          to: '/chat/$sessionId',
+          params: { sessionId: parentId },
+          search: { sub: subId },
+        });
+      },
       onNewChatIn: handleNewChatIn, onRemoveWorkspace: (path) => { void handleRemoveWorkspace(path); },
       onRename: sessions.rename, onDelete: handleDeleteSession, onExport: sessions.export,
       onFork: handleForkSession, onArchive: handleArchiveSession,

@@ -15,6 +15,7 @@ import { useAgentStore } from './store';
 import {
   movePromptSelection,
   readPromptSelection,
+  syncPlanPresetPermissionMode,
   syncSessionPromptSelection,
   writePromptSelection,
 } from './promptSelection';
@@ -75,5 +76,39 @@ describe('syncSessionPromptSelection (bind 恢复三分支)', () => {
     movePromptSelection('new', 'sess-e2e');
     syncSessionPromptSelection('sess-e2e');
     expect(promptCommand).toHaveBeenCalledWith({ type: 'select', selection: { mode: 'manual', profile: 'gpt' } });
+  });
+});
+
+describe('syncPlanPresetPermissionMode (/plan 预设联动工作模式)', () => {
+  /** 摆放会话预设与 setPermissionMode 间谍,返回调用记录数组。 */
+  function arrange(sessionId: string, profile: string, mode: string) {
+    const calls: string[] = [];
+    writePromptSelection(sessionId, { mode: 'manual', profile });
+    useAgentStore.setState({
+      permissionMode: mode as 'plan',
+      setPermissionMode: async (next: string) => { calls.push(next); },
+    });
+    return calls;
+  }
+
+  it('新会话选了 /plan 预设 → 工作模式校准到 plan', () => {
+    const calls = arrange('plan-new', 'plan', 'auto');
+    syncPlanPresetPermissionMode('plan-new', false);
+    expect(calls).toEqual(['plan']);
+  });
+
+  it('有落盘记录的老会话不校准(尊重已持久化的权限模式)', () => {
+    const calls = arrange('plan-old', 'plan', 'prompt');
+    syncPlanPresetPermissionMode('plan-old', true);
+    expect(calls).toEqual([]);
+  });
+
+  it('非 plan 预设 / 已在 plan 模式均跳过', () => {
+    const callsA = arrange('sess-a', 'code-review', 'auto');
+    syncPlanPresetPermissionMode('sess-a', false);
+    expect(callsA).toEqual([]);
+    const callsB = arrange('sess-b', 'plan', 'plan');
+    syncPlanPresetPermissionMode('sess-b', false);
+    expect(callsB).toEqual([]);
   });
 });

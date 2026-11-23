@@ -153,13 +153,17 @@ pub async fn zhuye_bind_session(
         |t| crate::commands::agent::permission_mode_str(t.config().permission_mode()).to_string(),
     );
     // v1.12:随绑定返回引擎侧挂起交互快照(reload / 换绑重水合的数据源)。
-    let pending_gates = agent
-        .inner
-        .thread
-        .lock()
-        .as_ref()
-        .map(|t| t.pending_interactions())
-        .unwrap_or_default();
+    // 已应答的 plan gate 在返回前滤除(引擎上游不清挂起注册表,僵尸条目
+    // 会让已确认过的弹窗随换绑复活,见 `resolved_plan_gates` 字段注释)。
+    let pending_gates = agent.filter_resolved_plan_gates(
+        agent
+            .inner
+            .thread
+            .lock()
+            .as_ref()
+            .map(|t| t.pending_interactions())
+            .unwrap_or_default(),
+    );
     Ok(BindSessionOutput {
         permission_mode: mode,
         pending_gates,

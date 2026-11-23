@@ -18,6 +18,8 @@ vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ sessionId: window.__chatTestSessionId }),
   useNavigate: () => navigateSpy,
   useLocation: () => ({ pathname: window.__chatTestPath ?? '/chat' }),
+  // v1.x:ChatBinding 读 ?sub=<childId>(子代理会话只读查看器)。
+  useSearch: () => ({}),
 }));
 
 declare global {

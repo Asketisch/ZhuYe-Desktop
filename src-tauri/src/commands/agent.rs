@@ -179,7 +179,18 @@ pub async fn zhuye_plan_approval(
     id: String,
     choice: PlanApprovalChoice,
 ) -> CommandResult<String> {
-    Ok(agent.submit_op(Op::PlanApproval { id, choice }).await?)
+    let sub_id = agent
+        .submit_op(Op::PlanApproval {
+            id: id.clone(),
+            choice,
+        })
+        .await?;
+    // 决策已受理(approve / revise 都是了结):登记 plan_id,bind 的
+    // pending_gates 快照不再重发该僵尸条目 —— 引擎上游只摘 waiter 不清
+    // 挂起注册表,不登记的话已确认过的「进入计划模式?」弹窗会随换绑
+    // 复活,再点确认被引擎静默丢弃(实测卡死)。
+    agent.record_resolved_plan_gate(&id);
+    Ok(sub_id)
 }
 
 // zhuye_set_effort / zhuye_get_effort 在 `commands/effort.rs`

@@ -25,6 +25,7 @@ const harness: Record<string, StringEntry> = {
   'harness.sb.unreadTip':        { en: 'Unread output · click to view', 'zh-CN': '有未读产出 · 点击查看' },
   'harness.sb.subExpand':   { en: 'Show all {n} subagent sessions',  'zh-CN': '显示全部 {n} 个子代理会话' },
   'harness.sb.subCollapse': { en: 'Collapse subagent sessions',        'zh-CN': '收起子代理会话' },
+  'harness.sb.subToggle':   { en: 'Expand or collapse subagent sessions', 'zh-CN': '展开或收起子代理会话' },
   'harness.sb.moreMenu':         { en: 'Session actions',               'zh-CN': '会话操作' },
   'harness.sb.menuDeepLink':     { en: 'Copy deep link',                'zh-CN': '复制深链' },
   'harness.sb.menuStop':         { en: 'Stop run',                      'zh-CN': '中止运行' },

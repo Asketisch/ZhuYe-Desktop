@@ -23,7 +23,8 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 | `replay.ts` | `zhuye_replay_session` 返回的 RolloutRecord 流 → turns + 压缩聚合统计；剥除引擎注入的 `<system-reminder>` 块（注入内容不冒充用户发言） |
 | `shellUi.ts` | harness 壳层 UI 状态（v3 设计）：rail / dockMode（五档）/ dockOpen / dockWide / dockWidth（用户拖拽出的 dock 宽度，`null` = 未拖过，用各档位默认宽度）/ termOpen / inbox / settings / palette / inspectorTab（检查器页签，StatusPanel「计划」行可编程切到 plan）/ dropHint / unread（后台完成未读产出）。rail·dock·term·semantic·dockWidth 持久化到 localStorage（`zhuye-harness-ui`；dockWidth 拖拽中只改内存态、松手 `commitDockWidth` 落盘一次）；快捷键（`logic/shell/useHarnessShortcuts`）与标题条/侧栏/壳视图全部消费本 store，不另设组件内状态 |
 | `approvalPolicy.ts` | 会话级审批策略偏好（per-session localStorage + `'new'` 预创建键；`wireApprovalPolicy` 发送时进 `thread_settings`；`moveApprovalPolicy` 在会话 id 落定后转正） |
-| `promptSelection.ts` | 会话级提示词预设偏好（v1.12：per-session localStorage + `'new'` 预创建键，值 = 协议 `PromptSelection` wire 形状）。`syncSessionPromptSelection` 在 bind 后恢复该会话选择（有记录提交 Select；无记录且锁残留恢复跟随默认；已跟随默认则跳过不写 rollout）—— 会话内提示词恒定是供应商 prompt cache 命中的前提，入口只在空会话态（底栏提示词预设 pill `PromptPicker`，权限按钮右边）存在 |
+| `planActions.ts` | plan 域 actions 工厂（queue/toast 同款模式）：`approvePlan`（命令失败 toast + 照常清挂起态，不吊死弹窗）+ enter/exit/set/cycle 工作模式 |
+| `promptSelection.ts` | 会话级提示词预设偏好（v1.12：per-session localStorage + `'new'` 预创建键，值 = 协议 `PromptSelection` wire 形状）。`syncSessionPromptSelection` 在 bind 后恢复该会话选择（有记录提交 Select；无记录且锁残留恢复跟随默认；已跟随默认则跳过不写 rollout）—— 会话内提示词恒定是供应商 prompt cache 命中的前提，入口只在空会话态（底栏提示词预设 pill `PromptPicker`，权限按钮右边）存在。v1.x：`/plan` 预设联动计划模式 —— `syncPlanPresetPermissionMode` 在 bind→replay 为空（新会话）时把工作模式校准到 plan（免 `EnterPlanMode` 确认框），老会话尊重已持久化模式；选中动作的即时联动在 `PromptPicker.onPick` |
 
 ## 本地契约与同步点
 

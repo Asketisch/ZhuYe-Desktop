@@ -1,11 +1,11 @@
-import { useParams } from '@tanstack/react-router';
+import { useParams, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import type { ChatSlots, ChatViewProps } from '@/contracts/chat';
 import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
 import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
-import { syncSessionPromptSelection } from '@/stores/agent/promptSelection';
+import { syncSessionPromptSelection, syncPlanPresetPermissionMode } from '@/stores/agent/promptSelection';
 import { userItemsFromTurn } from '@/stores/agent/turns';
 import { zhuye_replay_session, zhuye_git_diff } from '@/utils/commands';
 import { zhuye_bind_session, zhuye_fork_session, zhuye_export_session_markdown } from '@/utils/commands/sessions';
@@ -45,8 +45,9 @@ export function editRewindTargetFor(
  * Tauri 命令 reject 的 `CommandError` 经 IPC 序列化为 `{ msg }` 对象 ——
  * 直接 `String(e)` 会渲染成 "[object Object]"(实测:点击侧栏子代理会话,
  * bind 被 workspace 校验拒绝时错误条不可读)。统一解包成可读文本。
+ * 导出供同切片的只读查看器(SubagentViewer)复用。
  */
-function commandErrorMsg(e: unknown): string {
+export function commandErrorMsg(e: unknown): string {
   if (e instanceof Error) return e.message;
   const msg = (e as { msg?: unknown } | null)?.msg;
   return typeof msg === 'string' ? msg : String(e);
@@ -92,6 +93,12 @@ function demotePreviousSession(): void {
 /** 绑定会话回放、操作与可替换的聊天视图。 */
 export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatViewProps>; slots: ChatSlots }) {
   const { sessionId } = useParams({ strict: false }) as { sessionId?: string };
+  // v1.x:?sub=<childId> —— 侧栏子代理会话行落入的只读查看器目标。
+  // 子会话不可 bind(引擎宿主拒绝),查看器走纯 replay,主 store 不动。
+  const search = useSearch({ strict: false }) as { sub?: string };
+  const subTarget = typeof search?.sub === 'string' && search.sub && search.sub !== sessionId
+    ? search.sub
+    : undefined;
   // B：本会话首个 turn 完成后自动生成 AI 标题（后端幂等，失败静默）。
   useAutoSessionTitle(sessionId);
   const turns = useAgentStore((st) => st.turns);
@@ -249,6 +256,15 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       setError(null);
       return;
     }
+    // v1.x:只读查看器态 —— 不 bind 不 replay 主 store。父会话的绑定与
+    // 在飞事件完全不受影响;子会话落盘记录由查看器本地回放。等价于
+    // 「主区暂借给子会话」,关闭查看器(setActiveId 回父会话)即恢复正常
+    // 加载序列。
+    if (subTarget) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     // v1.x:先 bind(后端幂等,同 id 短路)再决定 hydrate。bind 保证后端
@@ -277,6 +293,11 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       .then((records: ZhuyeRolloutRecord[] | null) => {
         if (requestIdRef.current !== myId) return;
         if (records) hydrateSession(sessionId, records);
+        // v1.x:plan 预设联动 —— 新会话(replay 为空)选了 /plan 预设时把
+        // 工作模式校准到 plan,首 turn 免 EnterPlanMode 确认框。必须在
+        // replay 之后调:用记录空否判定「新会话」,老会话尊重已持久化的
+        // 权限模式。records=null = 已水合的老会话,视作有记录跳过。
+        syncPlanPresetPermissionMode(sessionId, records === null || records.length > 0);
         // v1.x 后台持续运行:该会话在后台期间积攒的待确认交互(gate 请求
         // 不落 rollout)合并进主 store,否则会话会静默卡在审批上。
         useBackgroundSessions.getState().mergePendingInto(sessionId);
@@ -358,6 +379,8 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
     .then((r) => {
       if (requestIdRef.current !== myId || !r) return;
       hydrateSession(sessionId, r);
+      // 与主路径同源:plan 预设的新会话校准工作模式。
+      syncPlanPresetPermissionMode(sessionId, r.length > 0);
       // v1.12:retry 路径同样水合引擎侧挂起交互。
       const gates = bindGatesRef.current;
       bindGatesRef.current = null;
@@ -376,6 +399,21 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       .then((result) => pushToast({ kind: 'success', message: t('toast.exportedMarkdown', { path: result?.path ?? '' }) }))
       .catch((error: unknown) => pushToast({ kind: 'error', message: error instanceof Error ? error.message : String(error) }));
   };
+  // v1.x:子代理会话只读查看器 —— 早退渲染查看器,不渲染常规 chat 视图
+  // (composer 不出现,杜绝向子会话误发消息)。onClose 回父会话(去掉
+  // ?sub,恢复正常加载序列)。此时主 store 仍是父会话的投影,横幅下的
+  // 消息流全部来自查看器本地 replay。
+  if (sessionId && subTarget) {
+    const SubagentViewer = slots.SubagentViewer;
+    const subTitle = sessions.all.find((s) => s.session_id === subTarget)?.title
+      ?? subTarget.slice(0, 8);
+    return <SubagentViewer
+      parentSessionId={sessionId}
+      subId={subTarget}
+      title={subTitle}
+      onClose={() => setActiveId(sessionId)}
+    />;
+  }
   return <View
     t={t} sessionId={sessionId}
     title={sessionId ? (sessions.all.find((item) => item.session_id === sessionId)?.title ?? '' ?? sessionId.slice(0, 8)) : t('home.title')}
