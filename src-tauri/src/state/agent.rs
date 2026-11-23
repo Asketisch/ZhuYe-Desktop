@@ -14,7 +14,7 @@ use zhuye_llm::SharedModelRegistry;
 use zhuye_protocol::{Event, ThreadId};
 use zhuye_tools::ToolRegistry;
 
-use super::{discussion::DiscussionCancellations, remote_config::RemoteConfig, MinimalAgent};
+use super::{MinimalAgent, discussion::DiscussionCancellations, remote_config::RemoteConfig};
 
 /// Session-level broadcast 通道容量。覆盖 1024 个 event 后最旧事件被丢;
 /// 桌面端 UI 通常只关心最近 50-100 个事件,这个容量远超实际需要。
@@ -389,10 +389,7 @@ mod tests {
             payload: serde_json::json!({ "task": "task" }),
         };
         agent.record_resolved_plan_gate("resolved-1");
-        let filtered = agent.filter_resolved_plan_gates(vec![
-            gate("resolved-1"),
-            gate("live-2"),
-        ]);
+        let filtered = agent.filter_resolved_plan_gates(vec![gate("resolved-1"), gate("live-2")]);
         let ids: Vec<&str> = filtered.iter().map(|g| g.request_id.as_str()).collect();
         assert_eq!(ids, vec!["live-2"], "已应答 gate 必须被滤除,未应答的保留");
         // 空注册表快路径:不打乱原顺序 / 不丢条目。
