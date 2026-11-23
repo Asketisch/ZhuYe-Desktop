@@ -85,6 +85,13 @@ export interface GroupEntry {
    * `listGroups` 回填、`setGroupContextWindow` 独立维护。
    */
   contextWindow: number | null;
+  /**
+   * 自动压缩触发阈值（占上下文窗口的比例 0.0-1.0）；null = 未设置
+   * （GUI 默认 0.85）。存储在引擎 `ModelGroupSection.auto_compact`
+   * （引擎本体不消费，仅作 GUI 设置的持久化位 —— 桌面落盘走 serde
+   * 重序列化，GUI 私有键会被静默丢弃）。
+   */
+  autoCompact: number | null;
   /** 组内多凭据池（空 = 单凭据组）。 */
   credentials: GroupCredentialEntry[];
 }
@@ -198,6 +205,7 @@ export function listGroups(toml: string): GroupEntry[] {
       case 'keep_alive_secs': current.keepAliveSecs = toInt(value); break;
       case 'num_ctx': current.numCtx = toInt(value); break;
       case 'num_gpu': current.numGpu = toInt(value); break;
+      case 'auto_compact': current.autoCompact = toFloat(value); break;
     }
   }
   // 组默认模型的上下文窗口回填（[context_windows][裸模型名]，引擎归一化
@@ -342,6 +350,7 @@ function emptyGroup(): GroupEntry {
     numCtx: null,
     numGpu: null,
     contextWindow: null,
+    autoCompact: null,
     credentials: [],
   };
 }
@@ -372,6 +381,16 @@ function renderGroupBlock(group: GroupEntry): string[] {
   if (group.keepAliveSecs != null) lines.push(`keep_alive_secs = ${group.keepAliveSecs}`);
   if (group.numCtx != null) lines.push(`num_ctx = ${group.numCtx}`);
   if (group.numGpu != null) lines.push(`num_gpu = ${group.numGpu}`);
+  // 自动压缩阈值：上游 ModelGroupSection.auto_compact（引擎不消费，仅
+  // GUI 持久化位）；非法值（NaN/越界）不写入，回落 GUI 默认 0.85。
+  if (
+    group.autoCompact != null &&
+    Number.isFinite(group.autoCompact) &&
+    group.autoCompact > 0 &&
+    group.autoCompact < 1
+  ) {
+    lines.push(`auto_compact = ${group.autoCompact}`);
+  }
   // 组内凭据：嵌套表紧跟组 kv（TOML 语义：子表归属前一个数组表元素）。
   for (const credential of group.credentials) {
     if (!credential.label.trim()) continue;

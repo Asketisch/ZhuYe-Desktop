@@ -74,6 +74,23 @@ export function GroupAdvancedFields({ form, patch }: GroupAdvancedFieldsProps) {
             data-testid="groups-context-window"
           />
         </div>
+        <div className={s.fieldRow}>
+          <label
+            className={s.fieldLabel}
+            title={t('settings.groups.autoCompactHint')}
+          >
+            {t('settings.groups.autoCompact')}
+          </label>
+          <Input
+            value={form.autoCompact}
+            onChange={(e) => patch({ autoCompact: e.target.value.replace(/[^0-9.]/g, '') })}
+            placeholder="85"
+            inputMode="decimal"
+            aria-label={t('settings.groups.autoCompact')}
+            data-testid="groups-auto-compact"
+          />
+          <span className={s.fieldHint}>%</span>
+        </div>
       </div>
       {form.endpoint === 'ollama' && (
         <div className={s.gFieldTriple}>

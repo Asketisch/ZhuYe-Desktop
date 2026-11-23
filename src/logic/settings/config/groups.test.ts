@@ -83,6 +83,7 @@ function emptyGroup(over: Partial<GroupEntry> = {}): GroupEntry {
     temperature: null,
     maxTokens: null,
     contextWindow: null,
+    autoCompact: null,
     keepAliveSecs: null,
     numCtx: null,
     numGpu: null,

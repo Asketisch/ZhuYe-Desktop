@@ -1,14 +1,12 @@
 /**
  * autoCompact 控制器单元测试 —— 依赖注入,不触碰 zustand / Tauri IPC。
  *
- * 覆盖:阈值触发、触发闩(压缩后不连环)、回落复位、节流、开关、
- * max_context 解析([context_windows][model],段级 model 覆盖优先)。
+ * 覆盖:阈值触发(默认 85%)、组级 auto_compact 覆盖、触发闩(压缩后
+ * 不连环)、回落复位、节流、max_context 解析([context_windows][model],
+ * 段级 model 覆盖优先)、会话窗口兜底。
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import {
-  AUTO_COMPACT_PREF_KEY,
-  createAutoCompactController,
-} from './autoCompact';
+import { DEFAULT_TRIGGER_RATIO, createAutoCompactController } from './autoCompact';
 
 const TOML = `[active]
 group = "openai"
@@ -37,18 +35,43 @@ function makeController(overrides?: { toml?: string; compact?: () => Promise<unk
 describe('autoCompact controller', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    localStorage.removeItem(AUTO_COMPACT_PREF_KEY);
   });
   afterEach(() => {
     vi.useRealTimers();
-    localStorage.removeItem(AUTO_COMPACT_PREF_KEY);
   });
 
   const tick = () => vi.advanceTimersByTimeAsync(31_000);
 
-  it('输入达到 max_context 的 80% 时触发一次压缩', async () => {
+  it(`输入达到 max_context 的 ${DEFAULT_TRIGGER_RATIO * 100}%（默认阈值）时触发一次压缩`, async () => {
     const { controller, compacts } = makeController();
-    await controller(85_000); // ≥ 100000 × 0.8
+    await controller(84_000); // < 100000 × 0.85 → 不触发
+    expect(compacts).toHaveLength(0);
+    await tick();
+    await controller(85_000); // ≥ 100000 × 0.85 → 触发
+    expect(compacts).toHaveLength(1);
+  });
+
+  it('组级 auto_compact 覆盖默认阈值', async () => {
+    // 注意 auto_compact 必须写在 [[model_group]] 块内（[context_windows]
+    // 表头会切断组作用域）。
+    const { controller, compacts } = makeController({
+      toml: `[active]
+group = "openai"
+
+[[model_group]]
+id = "openai"
+api_key = "sk-1"
+model = "glm-4.7"
+auto_compact = 0.6
+
+[context_windows]
+"glm-4.7" = 100000
+`,
+    });
+    await controller(55_000); // < 100000 × 0.6 → 不触发
+    expect(compacts).toHaveLength(0);
+    await tick();
+    await controller(60_000); // ≥ 100000 × 0.6 → 触发
     expect(compacts).toHaveLength(1);
   });
 
@@ -73,7 +96,7 @@ describe('autoCompact controller', () => {
     expect(compacts).toHaveLength(1);
   });
 
-  it('未设置 [context_windows] 时不触发', async () => {
+  it('未设置 [context_windows] 且无会话窗口时不触发', async () => {
     const { controller, compacts } = makeController({
       toml: '[active]\ngroup = "openai"\n\n[[model_group]]\nid = "openai"\napi_key = "sk-1"\nmodel = "glm-4.7"\n',
     });
@@ -85,21 +108,14 @@ describe('autoCompact controller', () => {
     const { controller, compacts } = makeController({
       toml: `${TOML}\n"other" = 20000\n`,
     });
-    await controller(17_000, 'openai/other');
+    await controller(17_000, 'openai/other'); // ≥ 20000 × 0.85 = 17000
     expect(compacts).toHaveLength(1);
   });
 
-  it('无模型配置时使用会话上报的上下文窗口', async () => {
+  it('无模型配置时使用会话上报的上下文窗口（同样按默认 85% 阈值）', async () => {
     const { controller, compacts } = makeController({ toml: '[active]\ngroup = "openai"\n' });
-    await controller(8_000, 'unknown', 10_000);
+    await controller(9_000, 'unknown', 10_000); // ≥ 10000 × 0.85 = 8500
     expect(compacts).toHaveLength(1);
-  });
-
-  it('关闭开关后不触发', async () => {
-    localStorage.setItem(AUTO_COMPACT_PREF_KEY, 'off');
-    const { controller, compacts } = makeController();
-    await controller(99_000);
-    expect(compacts).toHaveLength(0);
   });
 
   it('compact 抛错时闩复位,允许重试', async () => {

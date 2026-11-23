@@ -74,6 +74,9 @@ export interface FormState {
   /** 组默认模型的上下文窗口（tokens；空 = 引擎内置回退表）。写
    * `[context_windows]` 表,不进 [[model_group]] 块。 */
   contextWindow: string;
+  /** 自动压缩触发阈值（**百分比数字** 1-95；空 = 默认 85）。FormState
+   * 存百分数，落 TOML 时 /100 写 `auto_compact = 0.85`。 */
+  autoCompact: string;
   credentials: GroupCredentialEntry[];
 }
 
@@ -92,6 +95,7 @@ const EMPTY_FORM: FormState = {
   numCtx: '',
   numGpu: '',
   contextWindow: '',
+  autoCompact: '',
   credentials: [],
 };
 
@@ -120,6 +124,8 @@ function fromGroup(group: GroupEntry): FormState {
     numCtx: group.numCtx == null ? '' : String(group.numCtx),
     numGpu: group.numGpu == null ? '' : String(group.numGpu),
     contextWindow: group.contextWindow == null ? '' : String(group.contextWindow),
+    // TOML 比例(0.85) → 表单百分数(85)。
+    autoCompact: group.autoCompact == null ? '' : String(Math.round(group.autoCompact * 100)),
     credentials: group.credentials.map((c) => ({ ...c })),
   };
 }
@@ -205,6 +211,11 @@ export function GroupDetail({
     numCtx: numOrNull(form.numCtx),
     numGpu: numOrNull(form.numGpu),
     contextWindow: numOrNull(form.contextWindow),
+    // 表单百分数(85) → TOML 比例(0.85)；越界(≤0/≥100)/非数字 = 未设置。
+    autoCompact: (() => {
+      const pct = numOrNull(form.autoCompact);
+      return pct != null && pct > 0 && pct < 100 ? pct / 100 : null;
+    })(),
     credentials: form.credentials,
   });
 

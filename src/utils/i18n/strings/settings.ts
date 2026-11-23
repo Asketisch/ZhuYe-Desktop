@@ -281,8 +281,9 @@ const settings: Record<string, StringEntry> = {
   'settings.groups.autoFailover':                                  { en: 'Auto failover', 'zh-CN': '额度耗尽自动切换' },
   'settings.groups.autoFailoverLabel':                             { en: 'Switch the default model group automatically when a credential is exhausted', 'zh-CN': '凭据额度耗尽时自动切换默认模型组' },
   'settings.groups.autoFailoverDesc':                              { en: 'When a quota_exhausted event or an exhaustion error arrives, the next model group with a usable credential takes over, then the session hot-reloads onto it.', 'zh-CN': '收到配额耗尽事件或耗尽类错误时,自动把默认模型组切换到下一个有可用凭据的模型组,当前会话热重载到新凭据栈。' },
-  'settings.groups.autoCompactLabel':                              { en: 'Auto-compact near the max context', 'zh-CN': '接近最大上下文时自动压缩' },
-  'settings.groups.autoCompactDesc':                               { en: 'When reported input tokens reach 80% of the max context, a compact is triggered automatically (resets below 50%). Disable to rely on the global compact trigger only.', 'zh-CN': '已上报的输入 tokens 达到最大上下文的 80% 时自动触发压缩(回落到 50% 以下重新武装)。关闭后仅依赖全局压缩阈值。' },
+  // 自动压缩阈值（模型详情 → 高级配置；组级字段 auto_compact，默认 85%）。
+  'settings.groups.autoCompact':                                   { en: 'Auto-compact threshold', 'zh-CN': '自动压缩阈值' },
+  'settings.groups.autoCompactHint':                               { en: 'Trigger a compact when reported input tokens reach this percent of the model context. Empty = 85% (default).', 'zh-CN': '已上报输入 tokens 达到上下文的此比例时自动压缩。留空 = 默认 85%。' },
   // Coding Plans（编码订阅计划;术语保留英文,与 Token Plan 同义使用）
 
   // ===== 设置页壳（全屏两栏布局：分组导航 + 分区标题） =====

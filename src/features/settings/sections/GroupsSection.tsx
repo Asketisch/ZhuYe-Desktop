@@ -22,10 +22,6 @@ import {
   isAutoFailoverEnabled,
 } from '@/stores/agent/planFailover';
 import {
-  AUTO_COMPACT_PREF_KEY,
-  isAutoCompactEnabled,
-} from '@/stores/agent/autoCompact';
-import {
   listGroups,
   readActiveGroup,
   readDefaultEffort,
@@ -53,7 +49,6 @@ export interface GroupsSectionProps {
 export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: GroupsSectionProps) {
   const { t } = useI18n();
   const [autoFailover, setAutoFailover] = useState(isAutoFailoverEnabled);
-  const [autoCompact, setAutoCompact] = useState(isAutoCompactEnabled);
 
   const groups = listGroups(rawToml);
   const activeGroup = readActiveGroup(rawToml);
@@ -98,15 +93,6 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
     setAutoFailover(enabled);
     try {
       localStorage.setItem(AUTO_FAILOVER_PREF_KEY, enabled ? 'on' : 'off');
-    } catch {
-      // localStorage 不可用（隐私模式等）—— UI 状态仍然生效到本会话。
-    }
-  };
-
-  const onToggleAutoCompact = (enabled: boolean) => {
-    setAutoCompact(enabled);
-    try {
-      localStorage.setItem(AUTO_COMPACT_PREF_KEY, enabled ? 'on' : 'off');
     } catch {
       // localStorage 不可用（隐私模式等）—— UI 状态仍然生效到本会话。
     }
@@ -173,7 +159,8 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
             poolSignature={poolSignature}
             onSelect={setSelectedId}
           />
-          {/* 全局开关(非组级偏好)挂左列底部 */}
+          {/* 全局开关(非组级偏好)挂左列底部。自动压缩已下沉为组级配置
+              (模型详情 → 高级配置 → 自动压缩阈值),不再有全局开关。 */}
           <div className={s.groupsNavFoot}>
             <span className={s.gSwitchRow}>
               <span
@@ -190,25 +177,6 @@ export function GroupsSection({ rawToml, onChange, onCommit, status, loading }: 
                 data-testid="groups-auto-failover"
                 className={`sw${autoFailover ? ' on' : ''}`}
                 onClick={() => onToggleAutoFailover(!autoFailover)}
-              >
-                <span />
-              </button>
-            </span>
-            <span className={s.gSwitchRow}>
-              <span
-                className={s.gSwitchLabel}
-                title={t('settings.groups.autoCompactDesc')}
-              >
-                {t('settings.groups.autoCompactLabel')}
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={autoCompact}
-                aria-label={t('settings.groups.autoCompactLabel')}
-                data-testid="groups-auto-compact"
-                className={`sw${autoCompact ? ' on' : ''}`}
-                onClick={() => onToggleAutoCompact(!autoCompact)}
               >
                 <span />
               </button>

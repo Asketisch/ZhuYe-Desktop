@@ -143,7 +143,7 @@ describe('GroupsSection 模型组页（主从布局）', () => {
     expect(screen.getByTestId('group-edit-free-pool').querySelector('[data-state="none"]')).toBeTruthy();
   });
 
-  it('自动切换 / 自动压缩开关写入 localStorage 偏好', () => {
+  it('自动切换开关写入 localStorage 偏好;自动压缩已下沉为组级配置(无全局开关)', () => {
     renderSection(SAMPLE_TOML);
     const failover = screen.getByTestId('groups-auto-failover');
     expect(failover.getAttribute('aria-checked')).toBe('true');
@@ -151,9 +151,9 @@ describe('GroupsSection 模型组页（主从布局）', () => {
     expect(localStorage.getItem(AUTO_FAILOVER_PREF_KEY)).toBe('off');
     fireEvent.click(failover);
     expect(localStorage.getItem(AUTO_FAILOVER_PREF_KEY)).toBe('on');
-    const compact = screen.getByTestId('groups-auto-compact');
-    fireEvent.click(compact);
-    expect(localStorage.getItem('zhuye.autoCompact')).toBe('off');
+    // 自动压缩开关已移除（阈值配置在模型详情 → 高级配置，auto_compact 组级字段）。
+    expect(screen.queryByTestId('groups-auto-compact')).toBeNull();
+    expect(localStorage.getItem('zhuye.autoCompact')).toBeNull();
   });
 
   it('选中既有组 → 自动拉取组内模型 → 点选模型写组默认模型并落盘', async () => {
