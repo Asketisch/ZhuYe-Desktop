@@ -4,6 +4,14 @@
 
 ## 未发布
 
+- **侧栏过滤占位空会话（0 消息且未命名）**：排查「未归属」分组大量
+  id 前缀空会话 —— 落盘实况为 `session_meta` + 2 条
+  `prompt_selection_changed`（selection=null = 跟随默认），model=mock、
+  workspace="."：默认配置的占位线程上首个 op（prompt/permission 同步）
+  即触发 SessionMeta 落盘，本应跟进的用户消息被 workspace/模型守卫
+  拒绝，留下无内容会话。侧栏/分桶现过滤 `message_count === 0` 且未
+  命名的会话（手动命名视为有意保留；首条用户消息落盘后自动回归列表）。
+  引擎侧「非 UserInput op 不落 SessionMeta」的根治属上游 follow-up。
 - **设置「高级」页隐藏 9 个无消费面分区**：逐分区核实（引擎生产代码 +
   桌面 src-tauri/app-core 双向 grep）后，`analytics` / `notifications` /
   `postgres_session` / `sse_redis`（headless 服务端部署件,桌面运行时

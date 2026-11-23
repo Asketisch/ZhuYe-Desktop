@@ -86,10 +86,20 @@ export function useSessions(
     staleTime: SESSIONS_STALE_MS,
   });
 
-  const buckets = bucketSessions(all);
+  // 占位会话过滤：0 条用户消息且未命名的会话是「op-only 占位线程」的
+  // 落盘产物（如默认配置下 submit 的 prompt/permission 同步 op，首个 op
+  // 即触发 SessionMeta 落盘，消息随后被 workspace/模型守卫拒绝）——
+  // 对用户是纯噪音。手动命名过的空会话视为有意保留；首条用户消息落盘
+  // （message_count ≥ 1）后自动回到列表。
+  const sessions = useMemo(
+    () => all.filter((s) => (s.message_count ?? 0) > 0 || Boolean(s.title)),
+    [all],
+  );
+
+  const buckets = bucketSessions(sessions);
   const groups = useMemo(
-    () => groupSessionsByWorkspace(all, knownWorkspaces),
-    [all, knownWorkspaces],
+    () => groupSessionsByWorkspace(sessions, knownWorkspaces),
+    [sessions, knownWorkspaces],
   );
 
   const renameMutation = useMutation({
@@ -183,7 +193,7 @@ export function useSessions(
   return {
     buckets,
     groups,
-    all,
+    all: sessions,
     archived,
     loading: isLoading,
     error: (error as Error | null)?.message ?? null,

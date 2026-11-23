@@ -147,6 +147,23 @@ describe('useSessions', () => {
 
     await waitFor(() => expect(callCount).toBe(2), { timeout: 2000 });
   });
+
+  it('占位会话过滤:0 消息且未命名的会话不进列表,命名/有消息的保留', async () => {
+    mockInvoke('zhuye_list_sessions', async () => [
+      { session_id: 'empty-1', model: 'mock', started_at: new Date().toISOString(), message_count: 0 },
+      { session_id: 'empty-named', model: 'mock', started_at: new Date().toISOString(), message_count: 0, title: '我留的空会话' },
+      { session_id: 'real', model: 'mock', started_at: new Date().toISOString(), message_count: 3 },
+    ]);
+
+    const { result } = renderHook(() => useSessions(), { wrapper: hookWrapper });
+    await waitFor(() => expect(result.current.all.length).toBe(2), { timeout: 2000 });
+
+    const ids = result.current.all.map((s) => s.session_id).sort();
+    expect(ids).toEqual(['empty-named', 'real']);
+    // 分桶/侧栏分组同口径 —— 占位会话不产生分组条目。
+    expect(result.current.buckets.flatMap((b) => b.sessions).map((s) => s.session_id))
+      .toEqual(['empty-named', 'real']);
+  });
 });
 
 describe('useSessions workspace 过滤 (v1.x workspace→session 归属)', () => {
