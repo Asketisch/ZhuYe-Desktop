@@ -10188,7 +10188,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.1",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -10490,7 +10490,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.1",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
@@ -10681,7 +10681,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -10833,7 +10833,7 @@ dependencies = [
  "rustix 1.1.6",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.1",
  "similar",
  "tempfile",
  "thiserror 1.0.69",
