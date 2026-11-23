@@ -12,7 +12,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 |---|---|
 | `agent/reducer.ts` | `reduceEvent`：EventMsg → 状态 patch 的纯函数核心（约 670 行）；未知 `msg.type` 走 default 分支返回空 patch |
 | `agent/store.ts` | 活跃 Zustand store：`useAgentStore` 与 `subscribe()`（建立事件订阅，幂等） |
-| `agent/types.ts` | AgentState / Turn 等状态类型联合（约 470 行）；挂起交互类型拆在 `agent/pendingTypes.ts` |
+| `agent/types.ts` | AgentState / Turn 等状态类型联合（约 495 行）；挂起交互类型拆在 `agent/pendingTypes.ts`（含 MCP elicitation 的 `PendingElicitation`：事件入列、`resolveElicitation` 移除，GUI 弹窗待接） |
 | `agent/pendingGates.ts` | v1.12：引擎挂起交互快照（bind 返回 `pending_gates`）→ 合成事件流（零语义复制，走同一份 reducer）；`hydratePendingGates` 按 request_id 去重水合 |
 | `agent/eventGap.ts` | v1.12：`Event.seq` 缺口跟踪器 + 重放收敛（缺口与 `zhuye_event_gap` 合成通知两条触发路径共用） |
 | `agent/turns.ts` | Turn / TurnItem 构建与工具入参、输出摘要；含 `userAttachmentsFromItems`（提交 items → 附件元数据）与 `userItemsFromTurn`（轮内用户内容逆转回可重发 items，重生成用） |

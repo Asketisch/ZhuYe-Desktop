@@ -45,7 +45,7 @@
 | 能力原语：模型 / 工具 / hook / 提示词 / 检索 | [crates/abilities/](zhuye-agent/crates/abilities/AGENTS.md) |
 | 资源层：配置 / 权限 / 插件 / 持久化 / 文件 | [crates/resources/](zhuye-agent/crates/resources/AGENTS.md) |
 | 多 agent 编排：子代理 / 讨论 / 任务 / 流水线 / 目标 | [crates/orchestration/](zhuye-agent/crates/orchestration/AGENTS.md) |
-| 外部集成：MCP / LSP / 会话导入 / computer-use / shell / git | [crates/integrations/](zhuye-agent/crates/integrations/AGENTS.md) |
+| 外部集成：MCP / LSP / computer-use / browser / shell / git | [crates/integrations/](zhuye-agent/crates/integrations/AGENTS.md) |
 | 运行时与入口：StateGraph / headless / CLI / facade / PyO3 | [crates/runtime/](zhuye-agent/crates/runtime/AGENTS.md) |
 | 上游构建 · 发布 · 冒烟 · 插件打包脚本 | [scripts/](zhuye-agent/scripts/AGENTS.md) |
 | 双 SDK：Python / TypeScript | [sdks/](zhuye-agent/sdks/AGENTS.md) |

@@ -77,6 +77,11 @@ export interface InputResponseRecord {
   id: string;
   text: string;
 }
+export interface ElicitationResponseRecord {
+  id: string;
+  action: string;
+  content: unknown;
+}
 export interface PlanChoiceRecord {
   id: string;
   choice: unknown;
@@ -293,6 +298,7 @@ export interface FakeBackend {
     planChoices: PlanChoiceRecord[];
     questionResponses: QuestionResponseRecord[];
     inputResponses: InputResponseRecord[];
+    elicitationResponses: ElicitationResponseRecord[];
     /** 当前编排（每次 installFakeBackend 重置）。 */
     script: ScriptStep[];
     /** 编排是否已全部执行完。 */
@@ -511,6 +517,7 @@ export function installFakeBackend(): FakeBackend {
       planChoices: [],
       questionResponses: [],
       inputResponses: [],
+      elicitationResponses: [],
       script: [],
       finished: false,
     },
@@ -682,6 +689,17 @@ export function installFakeBackend(): FakeBackend {
     'zhuye_ask_user_input_response',
     handler((args) => {
       backend.agent.inputResponses.push({ id: String(args?.id), text: String(args?.text ?? '') });
+      return 'ok';
+    }),
+  );
+  handle(
+    'zhuye_mcp_elicitation_response',
+    handler((args) => {
+      backend.agent.elicitationResponses.push({
+        id: String(args?.id),
+        action: String(args?.action ?? 'cancel'),
+        content: args?.content ?? null,
+      });
       return 'ok';
     }),
   );

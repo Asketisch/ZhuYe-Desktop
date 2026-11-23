@@ -234,6 +234,13 @@ pub(crate) fn construct_thread(
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
     cfg = cfg.with_telemetry(build_telemetry_sink(&cfg_snapshot, sid));
+    // MCP elicitation:线程审批上下文指向 agent 生命周期唯一的等待表,
+    // lifecycle 转发器登记的 waiter 与 `Op::McpElicitationResponse` 回执
+    // 路由同表(exec bootstrap「宿主与 AgentConfig 同一张表」的桌面等价
+    // 物)。rebind 清空重建 —— 旧会话未决请求随 oneshot drop 快速失败。
+    let elicitations = agent.inner.mcp_elicitations.lock().clone();
+    elicitations.lock().clear();
+    cfg.approval_context.mcp_elicitations = elicitations;
     let mut mounted_m4: Option<(ThreadId, zhuye_core::config::M4Deps)> = None;
     if let Some(sid) = sid {
         // 活跃 agent 名:桌面端偏好(缺省 "default",与 CLI 一致)——

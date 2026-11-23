@@ -247,10 +247,19 @@ pub(crate) fn spawn_mount(agent: &MinimalAgent, mount: PluginMount) {
         // 2. 插件专用 MCP manager(生命周期随本次挂载)。lifecycle 事件
         //    (Started/Failed)复用 mcp.rs 的转换器推 session broadcast,
         //    前端与用户 MCP 同一通道可见插件的 server 启动/失败。
+        //    elicitation 与主线程共用同一张等待表(回执经 `Op` 路由);
+        //    插件工具不经 ToolRegistry,ToolsChanged 传 None。
         let (lifecycle_tx, lifecycle_rx) =
             tokio::sync::mpsc::channel::<zhuye_mcp::McpLifecycleEvent>(16);
         let mcp = Arc::new(McpConnectionManager::new(lifecycle_tx));
-        crate::mcp::spawn_mcp_lifecycle_forwarder(lifecycle_rx, session_tx);
+        crate::mcp::spawn_mcp_lifecycle_forwarder(
+            lifecycle_rx,
+            session_tx,
+            crate::mcp::McpLifecycleDeps {
+                elicitations: inner.mcp_elicitations.lock().clone(),
+                tools: None,
+            },
+        );
 
         // 3. 最小 SubAgentFactory:只作插件 agents 能力的挂载点,不注册
         //    内置 spec(详见模块文档)。取消令牌绑本线程:rebind 取消旧

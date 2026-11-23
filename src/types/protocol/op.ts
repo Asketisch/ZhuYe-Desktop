@@ -37,6 +37,7 @@ export type OpType =
   | 'set_effort'
   | 'ask_user_question_response'
   | 'ask_user_input_response'
+  | 'mcp_elicitation_response'
   | 'set_permission_mode'
   | 'cycle_permission_mode'
   | 'enter_goal_mode'
@@ -89,6 +90,13 @@ export type ZhuyeSubmissionOp =
   | { type: 'set_effort'; effort: ReasoningEffort }
   | { type: 'ask_user_question_response'; id: string; answers: AskUserAnswer }
   | { type: 'ask_user_input_response'; id: string; text: string }
+  /**
+   * MCP server elicitation 回执:引擎按 `id`(= `mcp_elicitation` 事件的
+   * `request_id`)解锁阻塞中的 rmcp 请求。`action` 为服务端协议值
+   * `"accept"` / `"decline"` / `"cancel"`(直透);`content` 仅 accept 且
+   * form 形态需要,形如 `{字段名: 值}`。桥接:`zhuye_mcp_elicitation_response`。
+   */
+  | { type: 'mcp_elicitation_response'; id: string; action: string; content?: Record<string, unknown> | null }
   | { type: 'set_permission_mode'; mode: PermissionMode }
   | { type: 'cycle_permission_mode' }
   | { type: 'enter_goal_mode'; goal: string; verify_command?: string | null; token_budget?: number | null }

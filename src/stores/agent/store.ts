@@ -9,6 +9,7 @@ import {
   zhuye_get_config,
   zhuye_hook_approval,
   zhuye_interrupt,
+  zhuye_mcp_elicitation_response,
   zhuye_prompt_command,
   zhuye_query_guard_stats,
   zhuye_replay_session,
@@ -74,6 +75,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
   pendingApprovals: [],
   pendingQuestions: [],
   pendingAskUser: [],
+  pendingElicitations: [],
   pendingPlan: null,
   plan: null,
   planDraft: null,
@@ -102,6 +104,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       loadedSessionId: id,
       ...(changedSession ? {
         pendingApprovals: [], pendingQuestions: [], pendingAskUser: [], pendingPlan: null,
+        pendingElicitations: [],
         lastRouting: null,
         // worktree 意图挂「新建草稿」上,换会话即作废(防误建树)。
         worktreeIntent: null,
@@ -148,6 +151,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       pendingApprovals: [],
       pendingQuestions: [],
       pendingAskUser: [],
+      pendingElicitations: [],
       pendingPlan: null,
       plan: null,
       planDraft: null,
@@ -434,6 +438,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
     }));
   },
 
+  /** 回执 MCP elicitation 请求:引擎按 id 解锁 rmcp,本地移除挂起态。 */
+  resolveElicitation: async (id, action, content) => {
+    await zhuye_mcp_elicitation_response(id, action, content);
+    set((state) => ({
+      pendingElicitations: state.pendingElicitations.filter((e) => e.id !== id),
+    }));
+  },
+
   clearError: () => set({ lastError: null }),
   ...createToastActions(set),
 
@@ -449,6 +461,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       pendingApprovals: [],
       pendingQuestions: [],
       pendingAskUser: [],
+      pendingElicitations: [],
       pendingPlan: null,
       plan: null,
       planDraft: null,

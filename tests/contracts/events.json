@@ -301,6 +301,23 @@
       "tool": "read",
       "call_id": "c-event-3"
     },
+    "mcp_elicitation": {
+      "type": "mcp_elicitation",
+      "request_id": "e-1",
+      "server": "fs",
+      "message": "请补充仓库名",
+      "kind": {
+        "type": "form",
+        "fields": [
+          {
+            "name": "repo",
+            "title": "仓库",
+            "required": true,
+            "kind": { "type": "text" }
+          }
+        ]
+      }
+    },
     "lsp_server_started": {
       "type": "lsp_server_started",
       "server": "rust-analyzer",

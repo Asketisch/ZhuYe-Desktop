@@ -1,8 +1,8 @@
 //! 能力覆盖层 · Agent 生命周期 —— 真实命令体 over 真实 IPC 通路。
 //!
 //! 覆盖:提交 / 中断 / 压缩 / 回退 / 关闭 / 工具审批 / Hook 审批 /
-//! plan 模式 / 计划审批 / effort / 权限模式 / 追问 / steer /
-//! goal 模式 / 子代理查询 / 会话绑定 / 分叉 / 标题生成。
+//! plan 模式 / 计划审批 / effort / 权限模式 / 追问 / MCP elicitation 回执 /
+//! steer / goal 模式 / 子代理查询 / 会话绑定 / 分叉 / 标题生成。
 //!
 //! 这些命令都经 `AgentThread` 的 Op 通道投递,**立即**返回 submission id,
 //! 真正的 turn 在后台跑 —— 所以断言点放在「命令被接受 + 返回了 id」,
@@ -183,6 +183,27 @@ fn ask_user_responses_are_accepted() {
     let v = invoke_ok(
         "zhuye_ask_user_input_response",
         json!({ "id": "q-probe-2", "text": "探针回答" }),
+    );
+    assert_submission_id(&v);
+}
+
+// ============================================================================
+// MCP elicitation 回执
+// ============================================================================
+
+#[test]
+fn mcp_elicitation_response_is_accepted() {
+    // 无对应 waiter 时引擎按「无对应 waiter」丢弃回执并记 debug 日志,
+    // 命令本身仍接受并返回 submission id —— 断言点在「命令被接受」。
+    let v = invoke_ok(
+        "zhuye_mcp_elicitation_response",
+        json!({ "id": "e-probe", "action": "decline", "content": null }),
+    );
+    assert_submission_id(&v);
+
+    let v = invoke_ok(
+        "zhuye_mcp_elicitation_response",
+        json!({ "id": "e-probe-2", "action": "accept", "content": { "repo": "zhuYe" } }),
     );
     assert_submission_id(&v);
 }

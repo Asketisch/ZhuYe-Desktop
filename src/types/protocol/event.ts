@@ -78,10 +78,11 @@ export type EventMsgType =
   | 'collab_started'
   | 'collab_message'
   | 'collab_finished'
-  // MCP (3)
+  // MCP (4)
   | 'mcp_server_started'
   | 'mcp_server_failed'
   | 'mcp_tool_invoked'
+  | 'mcp_elicitation'
   // LSP (2)
   | 'lsp_server_started'
   | 'lsp_server_failed'
@@ -504,6 +505,36 @@ export interface McpToolInvokedPayload {
   call_id: string;
 }
 
+/** MCP elicitation 表单字段的输入类型(serde `type` tagged)。 */
+export type McpElicitationFieldKind =
+  | { type: 'text'; secret?: boolean }
+  | { type: 'number'; integer?: boolean }
+  | { type: 'boolean' }
+  | { type: 'enum'; options: string[]; multi?: boolean };
+
+/** MCP elicitation 表单字段定义(字段名不得改写,回执按它组 content)。 */
+export interface McpElicitationField {
+  name: string;
+  title?: string;
+  description?: string;
+  required?: boolean;
+  kind: McpElicitationFieldKind;
+}
+
+/** MCP server 向宿主用户请求输入(`elicitation/create`;要人答,阻塞)。 */
+export interface McpElicitationPayload {
+  /** 请求 id,回执 `Op::mcp_elicitation_response` 原样回传。 */
+  request_id: string;
+  /** 发起请求的 server 名(插件挂载为 `plugin:<id>:<名>`)。 */
+  server: string;
+  /** 向用户展示的提示。 */
+  message: string;
+  /** 交互形式:form(收集字段)/ link(引导用户打开 url)。 */
+  kind:
+    | { type: 'form'; fields: McpElicitationField[] }
+    | { type: 'link'; url: string };
+}
+
 export interface LspServerStartedPayload {
   server: string;
   methods: string[];
@@ -802,6 +833,7 @@ export interface EventMsgByType {
   mcp_server_started: McpServerStartedPayload;
   mcp_server_failed: McpServerFailedPayload;
   mcp_tool_invoked: McpToolInvokedPayload;
+  mcp_elicitation: McpElicitationPayload;
   // LSP
   lsp_server_started: LspServerStartedPayload;
   lsp_server_failed: LspServerFailedPayload;

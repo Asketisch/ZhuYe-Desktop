@@ -116,7 +116,7 @@ pub async fn zhuye_lsp_set_enabled(
         }
         if agent.inner.lsp_manager.lock().is_none() {
             let cfg = agent.cfg().read().clone();
-            crate::mcp::bootstrap_lsp(&agent, &cfg)
+            crate::lsp_runtime::bootstrap_lsp(&agent, &cfg)
                 .await
                 .map_err(CommandError::from)?;
         }

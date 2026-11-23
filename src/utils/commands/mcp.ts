@@ -117,3 +117,19 @@ export function zhuye_list_mcp_resources(): Promise<McpResourceInfo[]> {
 export function zhuye_list_mcp_prompts(): Promise<McpPromptInfo[]> {
   return invoke('zhuye_list_mcp_prompts');
 }
+
+/**
+ * 回执 MCP server 的 elicitation 请求(`zhuye_event` 收到 `mcp_elicitation`
+ * 后按 `request_id` 回传)。引擎按 id 解锁阻塞中的 rmcp 请求;无人应答时
+ * 按 TTL 以 `cancel` 了结。
+ *
+ * `action`:`"accept"` / `"decline"` / `"cancel"`(服务端协议值,直透);
+ * `content` 仅 accept 且 form 形态需要,形如 `{字段名: 值}`。
+ */
+export function zhuye_mcp_elicitation_response(
+  id: string,
+  action: 'accept' | 'decline' | 'cancel',
+  content?: Record<string, unknown>,
+): Promise<string> {
+  return invoke('zhuye_mcp_elicitation_response', { id, action, content });
+}

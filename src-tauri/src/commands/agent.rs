@@ -1,11 +1,12 @@
-//! 核心 agent 桥接:`zhuye_submit` / `zhuye_interrupt` + 14 个 Op 命令。
+//! 核心 agent 桥接:`zhuye_submit` / `zhuye_interrupt` + 15 个 Op 命令。
 //!
 //! 每个 Op 命令构造一个 `Op`,经 `MinimalAgent::submit_op` 真正驱动 `AgentThread`。
 
 use tauri::State;
 
 use zhuye_protocol::{
-    AskUserAnswer, Op, PermissionMode, SteeringPriorityMirror, Submission, UserInputItem,
+    AskUserAnswer, McpElicitationResponse, Op, PermissionMode, SteeringPriorityMirror, Submission,
+    UserInputItem,
 };
 
 use crate::commands::error::{CommandError, CommandResult};
@@ -122,7 +123,7 @@ pub async fn zhuye_interrupt(
     }
 }
 
-// ====== 14 个 Op 命令:构造 Op 经 submit_op 真正驱动 AgentThread ======
+// ====== 15 个 Op 命令:构造 Op 经 submit_op 真正驱动 AgentThread ======
 
 #[tauri::command]
 pub async fn zhuye_compact(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
@@ -219,6 +220,31 @@ pub async fn zhuye_ask_user_input_response(
 ) -> CommandResult<String> {
     Ok(agent
         .submit_op(Op::AskUserInputResponse { id, text })
+        .await?)
+}
+
+/// MCP server elicitation 回执:`zhuye_event` 收到 `mcp_elicitation` 后,
+/// 前端按 `request_id` 原样回传裁决。引擎按 request_id 解锁阻塞中的
+/// rmcp 请求;无人应答时引擎按 TTL 以 `cancel` 了结(fail-closed)。
+///
+/// 前端 invoke 形态:
+/// `invoke<string>('zhuye_mcp_elicitation_response', { id, action, content? })`。
+/// `action` 为服务端协议值 `"accept"` / `"decline"` / `"cancel"`(直透不校验,
+/// 服务端词表扩展时桌面无需跟进);`content` 仅 accept 且 form 形态需要,
+/// 形如 `{字段名: 值}`。
+#[tauri::command]
+pub async fn zhuye_mcp_elicitation_response(
+    agent: State<'_, MinimalAgent>,
+    id: String,
+    action: String,
+    content: Option<serde_json::Value>,
+) -> CommandResult<String> {
+    Ok(agent
+        .submit_op(Op::McpElicitationResponse(McpElicitationResponse {
+            id,
+            action,
+            content,
+        }))
         .await?)
 }
 

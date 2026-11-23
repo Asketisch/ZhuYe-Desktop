@@ -357,13 +357,14 @@ fallback spec，**跨模型降级**）。
 > 自动改写 `[active].group` 并 `zhuye_save_config`（触发 §2.0 的热
 > 重载链路），toast 告知切换结果。
 
-### 3.7 MCP (3)
+### 3.7 MCP (4)
 
 | Variant | UI |
 |---|---|
 | `mcp_server_started` | Status bar MCP segment |
 | `mcp_server_failed` | Error toast |
 | `mcp_tool_invoked` | Tool row "(via mcp:server)" badge |
+| `mcp_elicitation` | MCP elicitation 弹窗（**待接**：回执命令 `zhuye_mcp_elicitation_response` 与 reducer 类型已就绪，GUI 消费面未落地；未决请求由引擎 TTL 兜底） |
 
 ### 3.8 LSP (2) — v0.5+
 
@@ -445,6 +446,7 @@ v1.x 可靠性与治理批次新增的诊断事件族,均为引擎主动推送�
 | `approval_request` (计划) | `plan_approval` | `id = request_id` | |
 | `ask_user_question` | `ask_user_question_response` | `id = request_id` | 一次请求可包含多题；每题答案使用 `selected` 下标和可选 `custom` |
 | `ask_user_input` | `ask_user_input_response` | `id = request_id` | |
+| `mcp_elicitation` | `mcp_elicitation_response` | `id = request_id` | MCP server 的人机交互请求（form 收集字段 / link 引导打开 url）。`action` 直透服务端协议值 `accept` / `decline` / `cancel`；form 的 `content` = `{字段名: 值}`（字段名不得改写）。宿主先登记 waiter 再发事件（顺序关键，回执早于登记会被引擎当「无对应 waiter」丢弃）；无人应答引擎按 TTL 以 `cancel` 了结（fail-closed） |
 | `plan_request` | `plan_approval` | `id = plan_id` | `enter_plan_mode` 发起；进入使用 `manual_approve`，暂不进入使用 `revise`。桌面端：决策受理即登记 `resolved_plan_gates`，bind 快照不再重发该 gate（引擎上游不清挂起注册表的僵尸条目，见 `zhuye_bind_session` 行）；工作模式已为 Plan 时选 `/plan` 提示词预设可跳过本 gate（引擎 tool_exec 对 Plan 模式下的 EnterPlanMode 调用不再派发审批） |
 | `plan_ready` | `plan_approval` | `id = plan_id` | |
 | `*_delta` / `*_complete` | （任何用户操作） | `id = submission.id` | 流式块共享提交 id |
@@ -508,6 +510,7 @@ export type ZhuyeOp =
   | { type: 'set_effort'; effort: ReasoningEffort }
   | { type: 'ask_user_question_response'; id: string; answers: AskUserAnswer }
   | { type: 'ask_user_input_response'; id: string; text: string }
+  | { type: 'mcp_elicitation_response'; id: string; action: string; content?: Record<string, unknown> | null }   // v1.x → zhuye_mcp_elicitation_response
   | { type: 'set_permission_mode'; mode: PermissionMode }
   | { type: 'cycle_permission_mode' };
 

@@ -13,6 +13,7 @@
     "set_effort": {"type":"set_effort", "effort":"high"},
     "ask_user_question_response": {"type":"ask_user_question_response", "id":"q-1", "answers":{"answers":[{"selected":[0],"custom":"other"}]}},
     "ask_user_input_response": {"type":"ask_user_input_response", "id":"q-2", "text":"answer"},
+    "mcp_elicitation_response": {"type":"mcp_elicitation_response", "id":"e-1", "action":"accept", "content":{"repo":"zhuYe"}},
     "set_permission_mode": {"type":"set_permission_mode", "mode":"prompt"},
     "cycle_permission_mode": {"type":"cycle_permission_mode"},
     "enter_goal_mode": {"type":"enter_goal_mode", "goal":"finish", "verify_command":"true", "token_budget":1000},

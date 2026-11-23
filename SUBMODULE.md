@@ -79,13 +79,13 @@ git submodule update --remote zhuye-agent
 git submodule status zhuye-agent
 ```
 
-submodule 当前跟踪 ZhuYe 的 **`develop`** 分支(`.gitmodules` 的
-`branch = develop`;`git submodule update --remote` 拉取其最新提交)。
-develop 严格包含 main(v1.x 可靠性批次经 develop 合入,main 线发布
-提交同时在其上),桌面端自此直接跟随 develop 提线。如需切回 main:
+submodule 当前跟踪 ZhuYe 的 **`main`** 分支(`.gitmodules` 的
+`branch = main`;`git submodule update --remote` 拉取其最新提交)。
+历史上桌面端曾跟随 develop(v1.x 可靠性批次先经 develop 合入),现
+已切回 main 线提线。如需改跟 develop:
 
 ```bash
-git config -f .gitmodules submodule.zhuye-agent.branch main
+git config -f .gitmodules submodule.zhuye-agent.branch develop
 git submodule update --remote zhuye-agent
 ```
 

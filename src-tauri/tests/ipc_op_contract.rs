@@ -37,9 +37,9 @@ fn every_operation_sample_deserializes_and_preserves_supplied_fields() {
     let document: Value =
         serde_json::from_str(include_str!("../../tests/contracts/ops.json")).unwrap();
     let samples = document["ops"].as_object().unwrap();
-    // 27 = submodule 09a0495 的 Op 全集(goal 模式两变体随核心升级入库;
-    // 上一配对 86f75e3 时代为 26)。
-    assert_eq!(samples.len(), 27);
+    // 28 = submodule e246299 的 Op 全集(新增 McpElicitationResponse 元组变体;
+    // 上一配对 09a0495 时代为 27,goal 模式两变体随核心升级入库时为 27)。
+    assert_eq!(samples.len(), 28);
     for (name, sample) in samples {
         let op: Op = serde_json::from_value(sample.clone())
             .unwrap_or_else(|error| panic!("{name}: {error}; sample: {sample}"));

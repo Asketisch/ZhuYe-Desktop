@@ -9,7 +9,8 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `28c0b9a`（fix/effort-xhigh-ladder tip；基于 develop `70291c4`；上一审计 `73f61e5`）：模型组新增 `auto_compact` 字段（`ModelGroupSection.auto_compact: Option<f64>`，占上下文窗口比例 0.0-1.0）—— **引擎本体不消费**（Option 容忍、builder 零接线），仅作桌面 GUI 自动压缩阈值的持久化位：runtime 自动压缩只认全局 `[compact].trigger_tokens`（固定 token 数），桌面 autoCompact 控制器按「已上报输入 token ≥ 窗口 × 本字段」触发 `Op::Compact`（缺省 None = GUI 默认 0.85；桌面落盘走 serde 重序列化，GUI 私有键会被静默丢弃，故必须进 schema）。桌面接线：`[[model_group]]` 解析/渲染 `auto_compact`（groups.ts）、GroupDetail 高级配置加「自动压缩阈值」百分比输入（空 = 默认 85%）、autoCompact 控制器读组级阈值（越界钳 5%-95%）、设置页全局自动压缩开关移除。Op / EventMsg 与内置工具集合零变化，无新增命令。⚠️ gitlink 指向未合入 develop 的 fix 分支，合入前 `update --remote` 会重置回 develop。
+> 最近审计：submodule `e246299`（main tip；跟踪分支自 develop 切回 main；上一审计 `28c0b9a`）：范围 28c0b9a8..e246299e（5 提交）—— ①**协议面增量**：`Op` 27→28（新增元组形式 `McpElicitationResponse(McpElicitationResponse)`，回执按 request_id 解锁阻塞中的 rmcp 请求）+ `EventMsg` 59→60（`McpElicitation`，MCP server 的人机交互请求：form 收集字段 / link 引导 url）；`McpLifecycleEvent` 宿主互操作通道新增 `Elicitation`（带 oneshot 回执）与 `ToolsChanged`（服务端 `notifications/tools/list_changed` 后的完整工具清单，按注册表现状求差集）两变体。②**执行边界加固**：`tool_exec` 节点承接工具结果预算（原 `AgentThread` 构造期 `with_result_budget` 接线移除，`AgentConfig.result_budget` 字段保留，模型上下文在发送宿主事件后应用）；`background_tasks` 宿主互操作扩容。③**权限求值安全加固**：带 `shell_pattern` 的 Allow 规则命中含未解析 shell 语法（`$` / 反引号 / 重定向 / `{}` / `()` 等）的命令时，glob 命中也降级 `Ask`（glob 不理解 shell 展开，命中 ≠ 已授权）。④**facade 修复**：`build_default_m4` 透传 `[compact].trigger_tokens`（桌面路径阈值配置此前失效）；gated-bundled-plugins 分支合入 main；清除其它产品品牌名 + 下线外部 harness 导入能力。桌面接线：lifecycle 转发器对齐 exec bootstrap 处理两新变体（elicitation 先登记 waiter 再推事件、ToolsChanged 按 `McpTools` 所有权增量同步注册表）、`zhuye_mcp_elicitation_response` 命令 + 前端四层契约（op/event 类型 + ops/events/payloads 样本 + fakeBackend handler）+ IPC 测试（§3.12）；permissions 测试按新契约改写（`escaped_literal_shell_pattern` Allow→Ask + 无特殊字符正向对照）；`op-parity` 门禁变体正则补元组形式。GUI elicitation 弹窗待接（引擎 TTL 以 `cancel` 兜底）。
+> 上一轮审计：submodule `28c0b9a`（fix/effort-xhigh-ladder tip；基于 develop `70291c4`；上一审计 `73f61e5`）：模型组新增 `auto_compact` 字段（`ModelGroupSection.auto_compact: Option<f64>`，占上下文窗口比例 0.0-1.0）—— **引擎本体不消费**（Option 容忍、builder 零接线），仅作桌面 GUI 自动压缩阈值的持久化位：runtime 自动压缩只认全局 `[compact].trigger_tokens`（固定 token 数），桌面 autoCompact 控制器按「已上报输入 token ≥ 窗口 × 本字段」触发 `Op::Compact`（缺省 None = GUI 默认 0.85；桌面落盘走 serde 重序列化，GUI 私有键会被静默丢弃，故必须进 schema）。桌面接线：`[[model_group]]` 解析/渲染 `auto_compact`（groups.ts）、GroupDetail 高级配置加「自动压缩阈值」百分比输入（空 = 默认 85%）、autoCompact 控制器读组级阈值（越界钳 5%-95%）、设置页全局自动压缩开关移除。Op / EventMsg 与内置工具集合零变化，无新增命令。（2026-11-24 起：该 fix 分支已经 b31b02a6 合入 main，gitlink 漂移风险解除。）
 > 上一轮审计：submodule `73f61e5`（fix/effort-xhigh-ladder tip；基于 develop `70291c4`；上一审计 `637eb52`）：effort 菜单精确化 —— 新增 `effort_menu_for_model`：models.dev 收录该模型时把厂商档位词表逐词映射（去重、阶梯升序、`none`/`minimal` 等非阶梯词丢弃）后**原样作为 UI 菜单**，目录未收录回落 `supported_efforts_for_model` 阶梯合成；钳制语义不变（wire 前仍 `clamp_effort_for_model` 线性 min）—— 菜单忠实于厂商声明（qwen3.8 系 `low/medium/xhigh`，不凭空补厂商没声明的 `high`），钳制保守于线性阶梯，职责分离。桌面接线：`zhuye_effort_capability` 的 `supported` 改用菜单函数。Op / EventMsg 与内置工具集合零变化，无新增命令。⚠️ gitlink 指向未合入 develop 的 fix 分支，合入前 `update --remote` 会重置回 develop。
 > 上一轮审计：submodule `637eb52`（同分支上一提交）：思考强度阶梯新增 `XHigh` 档（wire 词 `xhigh`，声明序 High < XHigh < Max）—— ①**zhuye-protocol / zhuye-llm**：`ReasoningEffortMirror` 与 `ReasoningEffort` 各加 `XHigh`（serde 显式 `rename=xhigh` 避开 snake_case 的 `x_high`；`From` 桥接同步）；`EFFORT_CAP_TABLE` 增 `("qwen3.8" → XHigh)` 排在泛 `("qwen" → High)` 之前（starts_with 先命中先用），使 qwen3.8 系上限为 XHigh、选 `max` 降钳到厂商顶档 `xhigh`；`ladder_cap` 补 `xhigh` 词表映射（此前 models.dev 的 `xhigh` 被静默丢弃，目录投票取 max 得 `medium` 的反常修复）。②**zhuye-config / zhuye-cli**：`ComplexityRoutes` 加 `xhigh` 字段 + `route_for` 穷尽分支 + 反查表；`FromStr` / `config set model.reasoning_effort` 校验清单 / `doctor` 路由 JSON 同步。桌面接线：`commands/effort.rs` 三处 match 加 `XHigh` 分支 + `parse_effort` 认 `xhigh`；前端 `ALL_EFFORTS` / `/effort` 校验 / ModelsBinding 档位提示纳入 xhigh；`EffortPicker` 显示值改随 capability 生效档。Op / EventMsg 与内置工具集合零变化，无新增命令。
 > 上一轮审计：submodule `70291c4`（develop tip；上一审计 `bfa2869`）：缓存用量口径批次（2 提交 38fd69e5 + 70291c4e）—— ①**zhuye-llm**：Anthropic 适配器发射 `ChatEvent::Usage` 前把 cache_read / cache_creation 两段折入 `input_tokens`（`TokenUsage::fold_cache_segments`），使「缓存分段是 input 子集」的不变式成立 —— Anthropic 线缆的 `input_tokens` 不含这两段，原样透传导致 `cached > input`，连带四个问题：缓存命中率算出 > 100%（真实事故 1052%）、`pricing::price` 的 `non_cached` 饱和到 0（新鲜输入按缓存价计费）、`total_tokens` 漏掉缓存段（上下文占用与配额低报）、压缩触发判据只看 fresh delta 而几乎永不触发。②**zhuye-protocol**：新增 `repair_unfolded_cache_segments`（幂等修复历史 rollout 的旧口径记录，特征 = 缓存分段之和 > input）；`SessionStats::cache_hit_rate()` 钳到 `[0, 1]`；`TokenCountEvent` 新增 `turn_total`（additive，逐次调用的 wire 逐字节不变）标记回合收尾补发的**回合累计**事件 —— 它与逐次调用语义不同，一并累计会让会话总量与费用翻倍；双 SDK 类型同步。③**zhuye-rollout**：聚合与导出时按旧口径特征修复历史记录。④**zhuye-core**：回合收尾那条事件标记 `turn_total = true`，逐次调用显式 `false`。桌面接线：reducer 只累计逐次调用事件 + 新增 `tokens.turn` 回合级累计（回合收尾由引擎的累计事件校准）；工作台与检查器的命中率改「本回合」口径并钳制；检查器 Token 构成条四段改互斥（未缓存提示词 = input − 缓存命中 − 缓存写入）；用量面板的会话级命中率同步钳制。详见 §3.6。
@@ -38,7 +39,7 @@
 
 | 能力族 | 核心 crate | 关键 API | GUI 状态 |
 |---|---|---|---|
-| 协议 Op / EventMsg | `zhuye-protocol` | `Op`（27 变体）/ `EventMsg`（59 变体） | 🟡 24 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证。**v1.12 三支柱**：`Event.seq` 缺口检测 + `interaction_resolved` 了结广播 + `context_composition` 六类分解已接线（§3.34）。**v1.x 可靠性批次**：`stream_recovery_started` toast + 保温/恢复审计事件类型层接线（§3.41） |
+| 协议 Op / EventMsg | `zhuye-protocol` | `Op`（28 变体）/ `EventMsg`（60 变体） | 🟡 25 个 Op 有桌面命令，另 2 个是远程工具协议专用；事件均有 TS 类型和契约样本，部分显式 no-op 或由视图直接订阅。接线不等于运行态已验证。**v1.12 三支柱**：`Event.seq` 缺口检测 + `interaction_resolved` 了结广播 + `context_composition` 六类分解已接线（§3.34）。**v1.x 可靠性批次**：`stream_recovery_started` toast + 保温/恢复审计事件类型层接线（§3.41）。**v1.x MCP 互操作**：`mcp_elicitation` 事件 + `Op::McpElicitationResponse` 回执通道已接线（§3.12） |
 | 线程运行时 | `zhuye-core` | `AgentThread` / `AgentConfig` / `TurnHandle` | 🟡 权限解析器已接线（§3.1）；运行态覆盖缺口见 `tests/RUNTIME_COVERAGE.md` |
 | LLM / Provider | `zhuye-llm` | `ModelRegistry` / `CredentialPool` / `RoutingPolicy` / `output_budget` / `reasoning_effort` / `models_dev` | 🟡 plans / quota、凭证池健康度、自适应输出预算、`max` / `ultra` 档位与按模型钳制已接线；**models.dev 四维能力（窗口/输出/视觉/思考）经目录补齐并展示**（§3.33）；冷却原因在核心内不公开 |
 | 计价 | `zhuye-llm::providers` | `pricing_table` / `pricing_for` / `RateCard` | ✅ 费率卡直接读核心公开费率表（develop 收编;桌面反解 shim 已删） |
@@ -49,7 +50,7 @@
 | 配置 | `zhuye-config` | `ZhuyeConfig`(~30 段) / `ConfigWatcher` / `[context_windows]` / `[prompt_guard]` | 🟡 结构化表单覆盖大部分 + **配置位置 / 分析健康度**（§3.15）；上下文窗口、思考强度和 prompt guard 随配置生效；**provider 段 `max_tokens` 表单已补**（§3.33），但 guard / 窗口明细仍没有专属配置面 |
 | 思考强度 | `zhuye-llm::reasoning_effort` | 按模型族与端点描述支持档位 / 拒绝后逐级降档 / **models.dev 目录档位映射** | ✅ Composer 与 Models 页共用 `zhuye_effort_capability`，只提供可用档位并显示实际生效值；静态表未收录的新模型由目录档位投票补档（§3.33） |
 | 模型清单发现 | `zhuye-config::discovery` / `zhuye-llm::model_catalog` / `zhuye-llm::models_dev` | `resolve_model_spec` / `fetch_catalog` / `pick_free_model` / `FreeModelRules` / `abilities_for` | ✅ `model = "free"` 解析成真实 id + **`[model_discovery]` 可配** + 模型列表标注免费（§3.24）+ **models.dev 目录补四维能力**（§3.33） |
-| MCP | `zhuye-mcp` | `McpConnectionManager` / registry | ✅ 观测 + **增删 + 精选 catalog + 资源/prompt 浏览**（§3.12 / §3.16） |
+| MCP | `zhuye-mcp` | `McpConnectionManager` / registry | ✅ 观测 + **增删 + 精选 catalog + 资源/prompt 浏览**（§3.12 / §3.16）；**elicitation / ToolsChanged 宿主互操作已接**（§3.12，GUI 弹窗待接） |
 | LSP | `zhuye-lsp` | `LspConnectionManager` / `DiagnosticRegistry` | ✅ 启停 + 预热 + **诊断可见**（§3.10） |
 | 工具注册表 | `zhuye-tools` | `register_builtin_tools` / `ToolRegistry` / `Sanitizer` / `WorktreeCoordinator` / `LoopGuard` / `checkpoint_tool` | ✅ 与上游共用 27 个内置工具清单，桌面注入 AST；工具列表、worktree 状态、checkpoint 与循环失控守卫随运行时生效（§3.16） |
 | 注入防护（F01） | `zhuye-sanitize` | `PromptGuard` / `GuardStats` / `Op::QueryGuardStats` / `EventMsg::GuardStats` | ✅ 默认开启（设置「提示注入防护」开关）；工具输出 Block/Review 在消息流渲染 🛡 注入徽标；外部工具定义注册期扫描由引擎侧 fail-closed 执行 |
@@ -150,6 +151,17 @@ Inspector 只有一行 hover 摘要 → `CompactionStats.records` 逐次明细�
 ### 3.12 MCP 服务管理
 
 GUI 只能观测，加 server 要手改 config → `commands/mcp.rs` 四命令：`list_mcp_servers`（含运行状态与失败原因）/ `mcp_catalog`（核心精选 catalog）/ `upsert` / `delete`（经核心 `mcp_server_configs()` 编译校验，非法不落盘，运行时起停复用 `bootstrap_mcp` 同款路径）；Collaboration 视图 McpManager 面板。
+
+**宿主互操作（submodule e246299e 起）**：lifecycle 转发器对齐 exec
+bootstrap 参考实现处理两个新宿主变体 —— `Elicitation`（先登记 waiter
+进 `AgentInner.mcp_elicitations`（agent 生命周期唯一一张，thread_factory
+装进线程 `approval_context`，插件侧同表共享；rebind 清空重建）再推
+`mcp_elicitation` 事件，broadcast 无订阅者时立即 cancel 不杀循环）与
+`ToolsChanged`（按 `McpTools` 所有权增量同步注册表：消失的反注册、
+新增绑活连接重注册；插件挂载级 manager 工具不经注册表，只记日志）。
+回执命令 `zhuye_mcp_elicitation_response`（`commands/agent.rs`）+
+IPC 包装 + op/event 类型 + 契约样本 + IPC 测试已接线；**GUI elicitation
+弹窗待接** —— 未决请求由引擎 TTL 以 `cancel` 了结（fail-closed）。
 
 ### 3.13 插件管理
 

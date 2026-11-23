@@ -5,7 +5,13 @@ import type {
   SubagentStatusSnapshot,
   UserInputItem,
 } from '@/types/protocol';
-import type { PendingApproval, PendingAskUser, PendingPlan, PendingQuestion } from './pendingTypes';
+import type {
+  PendingApproval,
+  PendingAskUser,
+  PendingElicitation,
+  PendingPlan,
+  PendingQuestion,
+} from './pendingTypes';
 
 export type { PendingApproval, PendingAskUser, PendingPlan, PendingQuestion };
 import type { GoalSnapshotPayload } from '@/utils/commands/goal';
@@ -340,6 +346,8 @@ export interface AgentState {
   hydratePendingGates?: (gates: PendingGateSnapshot[]) => void;
   collabSessions: CollabSession[];
   mcpInvocations: McpInvocation[];
+  /** MCP elicitation 挂起请求(`mcp_elicitation` 入列,回执移除)。 */
+  pendingElicitations: PendingElicitation[];
   lastRouting: RoutingSnapshot | null;
   configReloadedAt: number | null;
   /** coding plan 自动切换记录（额度耗尽 → 默认供应商切换），状态栏展示用。 */
@@ -474,6 +482,12 @@ export interface AgentState {
   setWorktreeIntent: (intent: { ref: string | null } | null) => void;
   answerQuestion: (id: string, answers: AskUserAnswer) => Promise<void>;
   answerInput: (id: string, text: string) => Promise<void>;
+  /** 回执 MCP elicitation 请求(accept/decline/cancel;form 形态附 content)。 */
+  resolveElicitation: (
+    id: string,
+    action: 'accept' | 'decline' | 'cancel',
+    content?: Record<string, unknown>,
+  ) => Promise<void>;
   clearError: () => void;
   pushToast: (toast: { kind: ToastKind; message: string; ttlMs?: number }) => string;
   dismissToast: (id: string) => void;

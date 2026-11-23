@@ -1,74 +1,32 @@
-//! MCP / LSP 运行时接入(阶段 3d)。
+//! MCP 运行时接入(阶段 3d)。
 //!
-//! 参照 `ZhuYe/crates/runtime/zhuye-exec/src/bootstrap.rs` 的
-//! `bootstrap_m6` / `bootstrap_lsp`,但把 lifecycle event 推到 MinimalAgent
-//! 的 session broadcast(单一事件通道,前端 dispatcher 按 msg.type 分发)。
+//! 参照 `ZhuYe/crates/runtime/zhuye-exec/src/bootstrap.rs` 的 `bootstrap_m6`,
+//! 但把 lifecycle event 推到 MinimalAgent 的 session broadcast(单一事件通道,
+//! 前端 dispatcher 按 msg.type 分发)。LSP 同期接入在 `lsp_runtime.rs`
+//! (为守 500 行文件预算拆出),工具注册所有权在 `mcp_tools.rs`。
 //!
 //! 设计:
-//! - 读 `cfg.mcp_server_configs()` / `cfg.lsp_server_configs()`;
+//! - 读 `cfg.mcp_server_configs()`;
 //! - 配置为空或非法 → warn + 跳过(单 server 错不阻塞 agent 启动);
-//! - `McpConnectionManager` / `LspConnectionManager` 的 internal lifecycle event
-//!   经后台 task 转成 `EventMsg::McpServerStarted/Failed` / `LspServerStarted/Failed`,
-//!   通过 `MinimalAgent::subscribe_session` 的 broadcast 反向推送(用 MinimalAgent
-//!   暴露的 session_tx 句柄);
-//! - MCP 工具按服务追踪注册所有权，避免卸载时误删其他工具;
-//! - LSP 单例 `LspTool::new(manager)` 注册。
+//! - `McpConnectionManager` 的 internal lifecycle event 经后台 task 转成
+//!   `EventMsg::McpServerStarted/Failed` / `McpElicitation` / ToolsChanged
+//!   注册表同步,通过 `MinimalAgent::subscribe_session` 的 broadcast 反向
+//!   推送(用 MinimalAgent 暴露的 session_tx 句柄);
+//! - MCP 工具按服务追踪注册所有权(`mcp_tools::McpTools`),避免卸载 /
+//!   清单刷新时误删其他工具。
 //!
 //! manager 与工具调用通道由 MinimalAgent 持有，供运行时 MCP 管理命令使用。
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use tokio::sync::broadcast;
 use zhuye_config::ReflectConfig;
-use zhuye_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
 use zhuye_mcp::{McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter};
-use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg};
-use zhuye_tools::{ToolRegistry, ToolSource};
+use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg, McpElicitationResponse};
+use zhuye_tools::{McpElicitationWaiters, ToolRegistry};
 
-/// 仅记录每个服务实际注册的工具，避免卸载时误删同名或已替换的工具。
-#[derive(Default)]
-pub(crate) struct McpTools(
-    parking_lot::Mutex<std::collections::HashMap<String, Vec<Arc<dyn zhuye_tools::Tool>>>>,
-);
-
-impl McpTools {
-    fn register(
-        &self,
-        tools: &ToolRegistry,
-        server: &str,
-        tool: Arc<dyn zhuye_tools::Tool>,
-    ) -> bool {
-        let name = tool.name().to_string();
-        // `with_floor` 变体才会给外部工具套权限 floor；它存入注册表的是
-        // 包装后的句柄，因此 ownership 必须记注册表里那份，不能记自己这份。
-        if !tools.register_if_absent_with_floor(ToolSource::Runtime, tool.clone()) {
-            return false;
-        }
-        let stored = tools.get(&name).unwrap_or(tool);
-        self.0
-            .lock()
-            .entry(server.to_string())
-            .or_default()
-            .push(stored);
-        true
-    }
-
-    fn remove(&self, tools: &ToolRegistry, server: &str) -> Vec<String> {
-        let owned = self.0.lock().remove(server).unwrap_or_default();
-        owned
-            .into_iter()
-            .filter_map(|tool| {
-                let name = tool.name().to_string();
-                // 只删仍然是自己那份的同名工具，不动后来顶替上来的实现。
-                tools
-                    .get(&name)
-                    .is_some_and(|current| Arc::ptr_eq(&current, &tool))
-                    .then(|| tools.unregister(&name).then_some(name))
-                    .flatten()
-            })
-            .collect()
-    }
-}
+pub(crate) use crate::mcp_tools::McpTools;
 
 /// bootstrap MCP servers + 返回 manager 句柄(供热重载)。
 ///
@@ -104,7 +62,20 @@ pub(crate) async fn bootstrap_mcp(
     });
 
     // 后台 task:internal lifecycle event → protocol Event → session broadcast。
-    spawn_mcp_lifecycle_forwarder(internal_rx, session_tx);
+    // elicitation 等待表 + ToolsChanged 注册表同步挂在用户 MCP 路径上。
+    spawn_mcp_lifecycle_forwarder(
+        internal_rx,
+        session_tx,
+        McpLifecycleDeps {
+            elicitations: agent.inner.mcp_elicitations.lock().clone(),
+            tools: Some(McpToolsSync {
+                registry: tools.clone(),
+                ownership: agent.inner.mcp_tools.clone(),
+                manager: manager.clone(),
+                invoked_tx: Some(invoked_tx.clone()),
+            }),
+        },
+    );
 
     // 并发启动每个 server;每个 task 拿 handle 后注册其 tools。
     for cfg_shape in &configs {
@@ -195,138 +166,6 @@ pub(crate) async fn stop_one_server(
     ownership.remove(tools, name)
 }
 
-/// bootstrap LSP servers + 返回 manager 句柄。
-pub(crate) async fn bootstrap_lsp(
-    agent: &crate::state::MinimalAgent,
-    cfg: &ReflectConfig,
-) -> Result<Option<Arc<LspConnectionManager>>, String> {
-    // 幂等:已启用(用户开关)时直接返回现有 manager,不重复注册/起 server。
-    if let Some(existing) = agent.inner.lsp_manager.lock().clone() {
-        return Ok(Some(existing));
-    }
-    let tools = agent.tools();
-    let session_tx = agent.session_tx();
-    let configs = match cfg.lsp_server_configs() {
-        Ok(c) if c.is_empty() => {
-            return Ok(None);
-        }
-        Ok(c) => c,
-        Err(e) => {
-            tracing::warn!(error = %e, "LSP config invalid; skipping all LSP servers");
-            return Err(format!("LSP config invalid: {e}"));
-        }
-    };
-
-    let (internal_tx, mut internal_rx) = tokio::sync::mpsc::channel::<LspLifecycleEvent>(32);
-    let manager = Arc::new(LspConnectionManager::new(internal_tx));
-
-    let inner_for_events = Arc::downgrade(&agent.inner);
-    let manager_for_events = Arc::downgrade(&manager);
-    tokio::spawn(async move {
-        while let Some(evt) = internal_rx.recv().await {
-            let msg = match evt {
-                LspLifecycleEvent::Started {
-                    server,
-                    methods,
-                    language_ids,
-                } => EventMsg::LspServerStarted(zhuye_protocol::LspServerStartedEvent {
-                    server,
-                    methods,
-                    language_ids,
-                }),
-                LspLifecycleEvent::Failed {
-                    server,
-                    error,
-                    will_retry,
-                } => EventMsg::LspServerFailed(zhuye_protocol::LspServerFailedEvent {
-                    server,
-                    error,
-                    will_retry,
-                }),
-                LspLifecycleEvent::Stopped { server: _ } => continue,
-            };
-            let (Some(inner), Some(owner)) =
-                (inner_for_events.upgrade(), manager_for_events.upgrade())
-            else {
-                break;
-            };
-            // 持锁到广播完成：关闭或替换管理器后，旧实例的事件不能污染界面。
-            let current = inner.lsp_manager.lock();
-            if current.as_ref().is_some_and(|m| Arc::ptr_eq(m, &owner)) {
-                let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
-            }
-        }
-    });
-
-    // 单例 LspTool(单一 `lsp` tool,按 file_path 路由到对应 server)。
-    // 常驻 manager 存进 MinimalAgent,供开关命令启停与文件预热。
-    *agent.inner.lsp_manager.lock() = Some(manager.clone());
-    let tool = Arc::new(LspTool::new(manager.clone()));
-    tools.register_with_source(ToolSource::Runtime, tool);
-
-    for cfg_shape in &configs {
-        let lsp_cfg: LspServerConfig = match cfg_shape.clone().try_into() {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::warn!(error = %e, "LSP config shape→strong-type conversion failed");
-                continue;
-            }
-        };
-        let mgr = manager.clone();
-        let inner = Arc::downgrade(&agent.inner);
-        tokio::spawn(async move {
-            let name = lsp_cfg.name.clone();
-            let result = mgr.start_server(lsp_cfg).await;
-            let still_current = inner.upgrade().is_some_and(|inner| {
-                inner
-                    .lsp_manager
-                    .lock()
-                    .as_ref()
-                    .is_some_and(|m| Arc::ptr_eq(m, &mgr))
-            });
-            if !still_current {
-                // 握手期间已关闭或重开：成功启动的旧子进程必须关闭。
-                if result.is_ok() {
-                    mgr.stop_server(&name).await;
-                }
-            } else {
-                match result {
-                    Err(e) => tracing::warn!(error = %e, "LSP server failed to start"),
-                    Ok(handle) => {
-                        handle.client.peer.cancel.cancelled().await;
-                        // A normal shutdown removes the handle before cancelling the peer.
-                        // Only an unexpected disconnect leaves it in the manager.
-                        if mgr.server_names().await.contains(&name) {
-                            mgr.stop_server(&name).await;
-                            if let Some(inner) = inner.upgrade() {
-                                let current = inner.lsp_manager.lock();
-                                if current.as_ref().is_some_and(|m| Arc::ptr_eq(m, &mgr)) {
-                                    let _ = inner.session_tx.send(Event::new(
-                                        EVENT_ID_NONE,
-                                        EventMsg::LspServerFailed(
-                                            zhuye_protocol::LspServerFailedEvent {
-                                                server: name,
-                                                error: "LSP server disconnected".into(),
-                                                will_retry: false,
-                                            },
-                                        ),
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    tracing::info!(
-        lsp_servers = configs.len(),
-        "LSP bootstrap: spawning start tasks"
-    );
-    Ok(Some(manager))
-}
-
 /// 把 zhuye_mcp 的 transport kind 映射成 protocol 的 mirror 枚举。
 fn transport_mirror(transport: zhuye_mcp::McpTransport) -> zhuye_protocol::McpTransportMirror {
     match transport {
@@ -336,13 +175,35 @@ fn transport_mirror(transport: zhuye_mcp::McpTransport) -> zhuye_protocol::McpTr
     }
 }
 
+/// lifecycle 转发器的宿主侧依赖(exec bootstrap 同款约定)。
+pub(crate) struct McpLifecycleDeps {
+    /// 会话级 MCP elicitation 回执等待表。**必须**与线程
+    /// `AgentConfig.approval_context.mcp_elicitations` 是同一张
+    /// (thread_factory 装配),否则 `Op::McpElicitationResponse` 的回执
+    /// 路由不到 waiter,rmcp 请求只能等 TTL。
+    pub(crate) elicitations: McpElicitationWaiters,
+    /// ToolsChanged 的注册表同步上下文。插件挂载级 manager 的工具不经
+    /// `ToolRegistry`,传 `None` —— 清单刷新只记日志。
+    pub(crate) tools: Option<McpToolsSync>,
+}
+
+/// ToolsChanged 注册表同步所需的一组句柄(用户 MCP 路径专用)。
+pub(crate) struct McpToolsSync {
+    registry: Arc<ToolRegistry>,
+    ownership: Arc<McpTools>,
+    manager: Arc<McpConnectionManager>,
+    invoked_tx: Option<tokio::sync::mpsc::Sender<Event>>,
+}
+
 /// 把 `McpConnectionManager` 的 internal lifecycle event 流转成协议事件推
-/// session broadcast(Started / Failed;Stopped 静默)。用户 MCP
-/// (`bootstrap_mcp`)与插件 MCP(`state/plugins.rs` 挂载级 manager)共用
-/// 同一转换,前端按 `msg.type` 分发即可见两类 server 的启动/失败。
+/// session broadcast(Started / Failed;Stopped 静默;Elicitation 登记
+/// waiter 后透传;ToolsChanged 同步注册表)。用户 MCP(`bootstrap_mcp`)
+/// 与插件 MCP(`state/plugins.rs` 挂载级 manager)共用同一转换,前端按
+/// `msg.type` 分发即可见两类 server 的启动/失败。
 pub(crate) fn spawn_mcp_lifecycle_forwarder(
     mut internal_rx: tokio::sync::mpsc::Receiver<McpLifecycleEvent>,
     session_tx: broadcast::Sender<Event>,
+    deps: McpLifecycleDeps,
 ) {
     tokio::spawn(async move {
         while let Some(evt) = internal_rx.recv().await {
@@ -368,6 +229,72 @@ pub(crate) fn spawn_mcp_lifecycle_forwarder(
                     will_retry,
                 }),
                 McpLifecycleEvent::Stopped { server: _ } => continue,
+                McpLifecycleEvent::Elicitation { event, respond } => {
+                    // 顺序关键(与 exec bootstrap 同款):先登记 waiter 再发
+                    // 事件 —— 反过来的话宿主可能在登记完成前就回执,回执被
+                    // 引擎按「无对应 waiter」丢弃,rmcp 请求只能等 TTL。
+                    let request_id = event.request_id.clone();
+                    deps.elicitations.lock().insert(request_id.clone(), respond);
+                    let ev = Event::new(EVENT_ID_NONE, EventMsg::McpElicitation(event));
+                    if session_tx.send(ev).is_err() {
+                        // broadcast 已无订阅者(会话退出 / 前端重载窗口):
+                        // 立即按 cancel 了结,不等 TTL。不 break —— 订阅者
+                        // 回来后后续 lifecycle 事件还要继续转发。
+                        if let Some(tx) = deps.elicitations.lock().remove(&request_id) {
+                            let _ = tx.send(McpElicitationResponse {
+                                id: request_id,
+                                action: "cancel".into(),
+                                content: None,
+                            });
+                        }
+                    }
+                    continue;
+                }
+                McpLifecycleEvent::ToolsChanged { server, tools } => {
+                    // 服务端主动改了工具清单:反注册消失的、注册新增的。
+                    // 注册表是 LLM 可见面的唯一真相 —— 不同步就会让模型
+                    // 看见已下线的工具(调用报错)或看不见新工具。
+                    let Some(sync) = &deps.tools else {
+                        tracing::debug!(
+                            server = %server,
+                            count = tools.len(),
+                            "插件 MCP 工具清单刷新(工具不经注册表,跳过同步)"
+                        );
+                        continue;
+                    };
+                    let new_names: HashSet<String> =
+                        tools.iter().map(|d| d.full_name.clone()).collect();
+                    let removed = sync
+                        .ownership
+                        .remove_except(&sync.registry, &server, &new_names);
+                    // 新增工具必须绑到该 server 的**活连接**上(不是新建 peer);
+                    // 已在册的名字 register_if_absent 会跳过(含被顶替实现)。
+                    let Some((client, timeout)) = sync.manager.server_client(&server).await else {
+                        tracing::warn!(server = %server, "工具清单刷新时找不到活连接,跳过注册");
+                        continue;
+                    };
+                    for descriptor in &tools {
+                        if sync.registry.get(&descriptor.full_name).is_some() {
+                            continue;
+                        }
+                        let adapter = McpToolAdapter::from_descriptor(
+                            client.clone(),
+                            descriptor,
+                            &server,
+                            timeout,
+                            sync.invoked_tx.clone(),
+                        );
+                        sync.ownership
+                            .register(&sync.registry, &server, Arc::new(adapter));
+                    }
+                    tracing::info!(
+                        server = %server,
+                        current = tools.len(),
+                        removed = removed.len(),
+                        "MCP 工具清单已刷新"
+                    );
+                    continue;
+                }
             };
             let _ = session_tx.send(Event::new(EVENT_ID_NONE, msg));
         }
@@ -377,42 +304,6 @@ pub(crate) fn spawn_mcp_lifecycle_forwarder(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    struct TestTool(&'static str);
-    #[async_trait::async_trait]
-    impl zhuye_tools::Tool for TestTool {
-        fn name(&self) -> &str {
-            self.0
-        }
-        fn description(&self) -> &str {
-            "test"
-        }
-        fn parameters_schema(&self) -> serde_json::Value {
-            serde_json::json!({"type": "object"})
-        }
-        async fn execute(
-            &self,
-            _: zhuye_tools::ToolContext,
-            _: serde_json::Value,
-        ) -> Result<zhuye_protocol::ToolOutput, zhuye_tools::ToolError> {
-            unreachable!()
-        }
-    }
-
-    #[test]
-    fn stopping_server_preserves_colliding_and_replaced_tools() {
-        let tools = ToolRegistry::new();
-        let owned = McpTools::default();
-        tools.register(Arc::new(TestTool("collision")));
-        assert!(!owned.register(&tools, "server", Arc::new(TestTool("collision"))));
-        assert!(owned.register(&tools, "server", Arc::new(TestTool("replaced"))));
-        assert!(owned.register(&tools, "server", Arc::new(TestTool("original"))));
-        tools.register(Arc::new(TestTool("replaced")));
-        assert_eq!(owned.remove(&tools, "server"), vec!["original"]);
-        assert!(tools.get("collision").is_some());
-        assert!(tools.get("replaced").is_some());
-        assert!(tools.get("original").is_none());
-    }
 
     fn server_config(name: &str) -> ReflectConfig {
         zhuye_config::load_from_str(&format!(

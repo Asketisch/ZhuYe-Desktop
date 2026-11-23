@@ -307,13 +307,25 @@ mod tests {
         let mut request = input("Bash", "allow");
         request.shell_pattern = Some("echo [*] [?] [[]x[]] [{]a,b[}]".into());
         let rules = [build_permission_rule(request).unwrap()];
+        // 上游 e246299e 起安全加固:带 shell_pattern 的 Allow 规则命中含
+        // 未解析 shell 语法(`{}` / `$` / 重定向等)的命令时,即使 glob 命中
+        // 也降级 `Ask` —— glob 不理解 shell 展开,命中 ≠ 已授权。本用例
+        // 命令串含 `{a,b}` → 预期 Ask;「只匹配原命令」的边界不变。
         assert_eq!(
             evaluate_with_context(&rules, "Bash", Some("echo * ? [x] {a,b}")),
-            RuleMatch::Allow
+            RuleMatch::Ask
         );
         assert_eq!(
             evaluate_with_context(&rules, "Bash", Some("echo anything x [x] {a,b}")),
             RuleMatch::NoMatch
+        );
+        // 无特殊字符的精确命令仍走 Allow(glob 命中且无需复审)。
+        let mut plain = input("Bash", "allow");
+        plain.shell_pattern = Some("echo status".into());
+        let plain_rules = [build_permission_rule(plain).unwrap()];
+        assert_eq!(
+            evaluate_with_context(&plain_rules, "Bash", Some("echo status")),
+            RuleMatch::Allow
         );
     }
 }

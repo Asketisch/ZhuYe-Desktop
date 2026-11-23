@@ -31,6 +31,8 @@ import {
   // questions
   zhuye_ask_user_question_response,
   zhuye_ask_user_input_response,
+  // mcp
+  zhuye_mcp_elicitation_response,
   // config
   zhuye_agent_status,
   zhuye_get_config,
@@ -292,6 +294,15 @@ describe('commands forwarding (mapping)', () => {
       zhuye_ask_user_input_response('q-2', 'typed answer'),
     );
     expectArgs(args, { id: 'q-2', text: 'typed answer' });
+  });
+
+  // ----- MCP elicitation -----
+
+  it('zhuye_mcp_elicitation_response forwards { id, action, content }', async () => {
+    const args = await captureCmd('zhuye_mcp_elicitation_response', () =>
+      zhuye_mcp_elicitation_response('e-1', 'accept', { repo: 'zhuYe' }),
+    );
+    expectArgs(args, { id: 'e-1', action: 'accept', content: { repo: 'zhuYe' } });
   });
 
   // ----- 配置 / agent 状态 -----

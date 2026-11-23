@@ -20,7 +20,9 @@ function snake(name) {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/([A-Z])([A-Z][a-z])/g, '$1_$2').toLowerCase();
 }
 const variants = new Set([...segment(rust, 'pub enum Op {', '\n}')
-  .matchAll(/^    ([A-Z]\w+)\s*(?:\{|,)/gm)].map((match) => snake(match[1])));
+  // 变体三形态都认:单元 / 结构体(`Name {`)、元组(`Name(...)`,如
+  // `McpElicitationResponse(McpElicitationResponse)`)。
+  .matchAll(/^    ([A-Z]\w+)\s*(?:\{|,|\()/gm)].map((match) => snake(match[1])));
 const names = new Set([...segment(ts, 'export type OpType =', ';')
   .matchAll(/'([a-z_]+)'/g)].map((match) => match[1]));
 const union = new Set([...segment(ts, 'export type ZhuyeSubmissionOp =', ';\n')

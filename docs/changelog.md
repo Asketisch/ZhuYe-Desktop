@@ -4,6 +4,29 @@
 
 ## 未发布
 
+- **submodule 升级（28c0b9a8 → e246299e，切跟 main）+ MCP 宿主互操作接线**：
+  上游 `McpLifecycleEvent` 新增 `Elicitation` / `ToolsChanged` 两个宿主
+  变体，协议新增 `EventMsg::mcp_elicitation` 事件与
+  `Op::McpElicitationResponse` 回执（另含执行边界加固、
+  `[compact].trigger_tokens` 透传修复、门控插件分支合入）。桌面
+  lifecycle 转发器对齐 exec bootstrap 参考实现：elicitation **先登记
+  waiter 再推事件**（顺序颠倒回执会被引擎按「无对应 waiter」丢弃；
+  broadcast 无订阅者时立即 cancel 了结，不杀转发循环）；ToolsChanged
+  按 `McpTools` 所有权增量同步注册表（消失的反注册、新增绑活连接
+  重注册，插件挂载级 manager 工具不经注册表只记日志）。elicitation
+  等待表为 agent 生命周期唯一一张（`AgentInner.mcp_elicitations`），
+  thread_factory 装进线程 `approval_context`（rebind 清空重建，旧会话
+  未决请求随 oneshot drop 快速失败），插件侧与主线程同表共享。回执
+  命令 `zhuye_mcp_elicitation_response` + IPC 包装 + op/event 类型 +
+  契约样本 + 真后端 IPC 测试已接线；**GUI elicitation 弹窗待接**
+  （未决请求由引擎 TTL 以 `cancel` 兜底，fail-closed 不悬挂）。跟踪
+  分支自 develop 切回 main（`.gitmodules`，SUBMODULE.md 同步改述）。
+  同批适配：上游权限求值安全加固 —— 带 `shell_pattern` 的 Allow 规则
+  命中含未解析 shell 语法（`$` / 反引号 / 重定向 / `{}` / `()` 等）的
+  命令时，即使 glob 命中也降级 `Ask`（glob 不理解 shell 展开，命中 ≠
+  已授权）；桌面 `escaped_literal_shell_pattern` 测试按新契约改写并补
+  无特殊字符的 Allow 正向对照。`op-parity` 门禁的变体正则同步支持
+  元组形式（`Name(...)`，此前只认 `Name {` / `Name,`）。
 - **macOS 菜单栏托盘图标换新「金焰凤凰花环」**：托盘源图与应用图标
   源解耦 —— 仓库根新增 `tray.png`（金焰凤凰花环徽章，独立于
   logo.png 应用全家），gen-icons.sh 的 icon32 从它推导：裁内容 bbox →

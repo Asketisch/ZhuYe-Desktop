@@ -53,6 +53,13 @@
         ]
       }
     },
+    "zhuye_mcp_elicitation_response": {
+      "id": "e-probe",
+      "action": "accept",
+      "content": {
+        "repo": "zhuYe"
+      }
+    },
     "zhuye_assign_squad_task": {
       "name": "contract-probe-squad",
       "taskId": 1,

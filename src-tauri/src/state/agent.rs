@@ -144,8 +144,14 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) lsp_lifecycle_lock: tokio::sync::Mutex<()>,
     /// MCP 连接管理器句柄；安装期间创建，即使没有配置服务也保留空管理器。
     pub(crate) mcp_manager: ParkingMutex<Option<std::sync::Arc<zhuye_mcp::McpConnectionManager>>>,
-    pub(crate) mcp_tools: crate::mcp::McpTools,
+    pub(crate) mcp_tools: std::sync::Arc<crate::mcp::McpTools>,
     pub(crate) mcp_invoked_tx: ParkingMutex<Option<tokio::sync::mpsc::Sender<Event>>>,
+    /// MCP elicitation 回执等待表(agent 生命周期唯一一张,长存)。
+    /// thread_factory 把它装进线程 `AgentConfig.approval_context`,
+    /// lifecycle 转发器与 `Op::McpElicitationResponse` 路由共用同一 Arc
+    /// (exec bootstrap「父子共享同一张表」的桌面等价物);rebind 时
+    /// 清空重建,旧会话未决请求随 oneshot drop 快速失败。
+    pub(crate) mcp_elicitations: ParkingMutex<zhuye_tools::McpElicitationWaiters>,
     /// 插件运行时句柄(exec/serve 同款 `SharedPluginRuntime`;内层 `None`
     /// = 未挂载:占位线程、HOME 缺失或 plugins 目录不存在)。真实会话
     /// rebind 时由 `state/plugins.rs::spawn_mount` 卸旧装新;submit 边界
@@ -279,8 +285,11 @@ pub(crate) fn build_empty_inner() -> MinimalAgentInner {
         lsp_manager: ParkingMutex::new(None),
         lsp_lifecycle_lock: tokio::sync::Mutex::new(()),
         mcp_manager: ParkingMutex::new(None),
-        mcp_tools: crate::mcp::McpTools::default(),
+        mcp_tools: Arc::new(crate::mcp::McpTools::default()),
         mcp_invoked_tx: ParkingMutex::new(None),
+        mcp_elicitations: ParkingMutex::new(Arc::new(parking_lot::Mutex::new(
+            std::collections::HashMap::new(),
+        ))),
         plugin_runtime: zhuye_plugin::empty_plugin_runtime(),
         plugin_mount_lock: Arc::new(tokio::sync::Mutex::new(())),
         app_handle: RwLock::new(None),

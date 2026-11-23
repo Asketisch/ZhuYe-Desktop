@@ -597,6 +597,24 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
         ].slice(-50),
       };
 
+    case 'mcp_elicitation':
+      // MCP server 的人机交互请求(要人答,阻塞)。挂起态入列(封顶 20 条
+      // 与 mcpInvocations 同款防爆),回执经 store.resolveElicitation 移除;
+      // GUI 弹窗(form 渲染 / link 引导)待接,未决请求由引擎按 TTL 以
+      // cancel 了结(fail-closed),会话切换时随本地状态整体重置。
+      return {
+        pendingElicitations: [
+          ...state.pendingElicitations,
+          {
+            id: msg.request_id,
+            server: msg.server,
+            message: msg.message,
+            kind: msg.kind,
+            at: Date.now(),
+          },
+        ].slice(-20),
+      };
+
     case 'lsp_server_started':
       return {
         lspServers: upsertServer(

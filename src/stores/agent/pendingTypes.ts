@@ -6,6 +6,7 @@
  * 跨会话存活的机制见 `../backgroundSessions.ts`(切走播种 / 切回注回)。
  */
 import type { RiskLevel } from '@/types/protocol/enums';
+import type { McpElicitationField } from '@/types/protocol';
 
 export interface PendingApproval {
   id: string;
@@ -42,4 +43,25 @@ export interface PendingPlan {
   kind?: 'request' | 'ready';
   payload: unknown;
   turnId: string;
+}
+
+/**
+ * MCP server 的挂起 elicitation 请求(`mcp_elicitation` 事件)。
+ *
+ * 引擎侧「要人答」的阻塞请求:回执走 `zhuye_mcp_elicitation_response`
+ * (`stores/agent/store.ts` 的 `resolveElicitation`)。GUI 弹窗尚未落地,
+ * 挂起态先入列(封顶 20 条)供后续切片与诊断消费;未决请求由引擎 TTL
+ * 以 `cancel` 了结(fail-closed),会话切换时随本地状态整体重置。
+ */
+export interface PendingElicitation {
+  /** 请求 id,回执原样回传(= `request_id`)。 */
+  id: string;
+  /** 发起请求的 server 名。 */
+  server: string;
+  /** 向用户展示的提示。 */
+  message: string;
+  /** 交互形式(form 字段收集 / link 引导)。 */
+  kind: { type: 'form'; fields: McpElicitationField[] } | { type: 'link'; url: string };
+  /** 本地入列时间戳。 */
+  at: number;
 }
