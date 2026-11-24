@@ -4,26 +4,30 @@
 
 ## 未发布
 
-- **CLI 真模型端到端演练脚本（tests/live/cli_e2e.sh，本地专用不进
-  CI）**：把本次人工验证
+- **CLI 真模型端到端演练脚本（上游 tests/live/cli_e2e.sh，本地专用
+  不进 CI）**：把本次人工验证
   的全流程固化为可重放自动化 —— 实际构建 zhuye-cli → 隔离工作区 +
   plan 模式启动（stdin JSONL Submission 驱动）→ agent 出具 plan →
   确认 plan（自动批准 auto_mode）→ 正常开发 → git init + commit →
   断言产物。隔离：mktemp 假 HOME + ZHUYE_HOME，rollout / session
   notes 全落临时目录，不污染真实 ~/.zhuye；git 身份经假 HOME 的
   .gitconfig 提供。端点 / 密钥 / 模型 / 上下文窗口 / 思考强度 / 任务
-  提示词 / 验收期望集中配在 `tests/live/cli_e2e.toml`（全中文注释，
-  字段级 `ZHUYE_E2E_*` 环境变量覆盖，脚本据其在隔离 HOME 生成独立
-  引擎配置）。断言只到**协议形状 + 产物存在性**（plan markdown 非空、
-  审批后权限切换、全程无 compact_rapid_refill、产物齐、提交由 agent
-  在沙箱内完成），不断言模型文本。端点不可达判 **SKIP** 不判失败;
-  本地专用、不进 CI 门禁链（依赖本机真实端点），
-  默认跳过，
-  `ZHUYE_LIVE=1 bash tests/live/cli_e2e.sh` 开启（本批沙箱修复的真实
-  模型回归载体）。
-- **submodule 升级（e246299e → a6bd50c1）—— compact 幽灵压缩修复 + 触发
-  阈值按模型窗口推导 + 沙箱 .git 归属快照**：修复 `compact_rapid_refill`
-  熔断误杀健康会话（实证：MiniMax-M3.1-Flash（1M 窗口）的 12K token
+  提示词 / 验收期望集中配在 `cli_e2e.toml`（全中文注释，字段级
+  `ZHUYE_E2E_*` 环境变量覆盖，脚本据其在隔离 HOME 生成独立引擎
+  配置；入库的是 `cli_e2e.example.toml` 模板，真实 toml 已
+  gitignore，首次运行自动从模板落一份）。断言只到**协议形状 + 产物
+  存在性**（plan markdown 非空、审批后权限切换、全程无
+  compact_rapid_refill、产物齐、提交由 agent 在沙箱内完成），不断言
+  模型文本。端点不可达判 **SKIP** 不判失败;本地专用、不进 CI 门禁链
+  （依赖本机真实端点），默认跳过，脚本落地上游 `tests/live/`（与免费
+  模型池 pytest 互补：那边测协议形状，这里测真实模型下的完整工作流
+  回归），桌面仓库不保留副本 —— 对上游仓库运行：
+  `ZHUYE_LIVE=1 bash ../ZhuYe/tests/live/cli_e2e.sh`（`ZHUYE_E2E_BIN`
+  可指桌面构建的二进制验 pin 态）。
+- **submodule 升级（e246299e → 98072c5e）—— compact 幽灵压缩修复 + 触发
+  阈值按模型窗口推导 + 沙箱 .git 归属快照 + 阈值按当前模型重算**：修复
+  `compact_rapid_refill` 熔断误杀健康会话（实证：MiniMax-M3.1-Flash（1M
+  窗口）的 12K token
   plan-mode 会话在第 5 步被熔断）。两层修复：① **幽灵压缩**——压缩器
   三级（microcompact 提前退出 / smart_prune 未越阈 / 摘要不可用）全部
   空转时，消息列表原样却被包装成 `SmartPrune(removed=0)` 返回，pre_loop
@@ -51,7 +55,14 @@
   经 `ToolContext` 同源透传前台 BashTool 与后台 bash，子代理显式继承
   父会话判定。`.agents` / `.aws` / `.zhuye` 保持无条件只读。
   真机回归 `agent_can_init_add_and_commit_across_commands`（跨三条
-  命令 init→add→commit，反向验证变异回逐命令语义即红）。
+  命令 init→add→commit，反向验证变异回逐命令语义即红）。④ **compact
+  阈值按当前模型重算**（98072c5e）：此前阈值在启动时冻结，模型热切后
+  失配；且「只截断、无移除」的真实压缩被幽灵压缩守卫当成空操作丢弃。
+  现每次压缩决策按当前模型窗口重算阈值；实际发生的改动写入
+  `RolloutRecord::Compaction.context_snapshot`（可选字段，serde default
+  容忍旧记录）供 resume 恢复；上下文超限且无法压缩时返回可诊断错误。
+  `RolloutRecord` additive 增量（可选字段），Op / EventMsg 零变化，
+  桌面零代码适配。
 - **submodule 升级（28c0b9a8 → e246299e，切跟 main）+ MCP 宿主互操作接线**：
   上游 `McpLifecycleEvent` 新增 `Elicitation` / `ToolsChanged` 两个宿主
   变体，协议新增 `EventMsg::mcp_elicitation` 事件与

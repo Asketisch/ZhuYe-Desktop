@@ -17,7 +17,7 @@
 | `artifact/` | L4 发布产物：.app / .deb / .AppImage / .msi 解包深度校验 + `stage.sh` |
 | `e2e/` | L5：WebDriver 真窗口冒烟 + 视觉回归（`run_visual()` 在此层内执行） |
 | `visual/` | 视觉回归 spec + `shims/` + `__baselines__/{linux,macos,windows}/` |
-| `live/` | L6 实模型演练（默认跳过）：`run.sh` 走桌面 IPC 链路 × 免费模型池；`cli_e2e.sh`（**本地专用，不进 CI / 门禁链**）走 CLI headless 链路 × 真实模型（plan → 确认 → 开发 → git commit 全流程，端点/模型/任务/验收期望集中在 `cli_e2e.toml`（全中文注释，字段级 `ZHUYE_E2E_*` 环境变量覆盖），隔离假 HOME，`ZHUYE_LIVE=1` 显式开启、端点不可达判 SKIP） |
+| `live/` | L6 实模型演练（默认跳过）：`run.sh` 走桌面 IPC 链路 × 免费模型池。CLI headless 链路 × 真实模型的完整工作流演练（plan → 确认 → 开发 → git commit）**在上游**：`zhuye-agent/tests/live/cli_e2e.sh`（**本地专用，不进 CI**，配置模板 `cli_e2e.example.toml` + gitignore 的本地 `cli_e2e.toml`，直接对上游仓库运行，`ZHUYE_E2E_BIN` 可指桌面构建的二进制验 pin 态） |
 | tests 根 `*.test.ts(x)` | 19 个应用级用例（分类见下表） |
 | `helpers/` | `fakeBackend.ts` / `appHarness.tsx` / `routeMatrix.ts` |
 | `fixtures/` | lsp / mcp stdio 模拟服务器 |
