@@ -8,12 +8,15 @@
   的全流程固化为可重放自动化 —— 实际构建 zhuye-cli → 隔离工作区 +
   plan 模式启动（stdin JSONL Submission 驱动）→ agent 出具 plan →
   确认 plan（自动批准 auto_mode）→ 正常开发 → git init + commit →
-  断言产物。隔离：mktemp 假 HOME + ZHUYE_HOME（配置从真实 config.toml
-  拷贝、rollout / session notes 全落临时目录，不污染真实 ~/.zhuye），
-  git 身份经假 HOME 的 .gitconfig 提供。断言只到**协议形状 + 产物
-  存在性**（plan markdown 非空、审批后权限切换、全程无
-  compact_rapid_refill、产物齐、提交由 agent 在沙箱内完成），不断言
-  模型文本。端点不可达判 **SKIP** 不判失败;默认跳过，
+  断言产物。隔离：mktemp 假 HOME + ZHUYE_HOME，rollout / session
+  notes 全落临时目录，不污染真实 ~/.zhuye；git 身份经假 HOME 的
+  .gitconfig 提供。端点 / 密钥 / 模型 / 上下文窗口 / 思考强度 / 任务
+  提示词 / 验收期望集中配在 `tests/live/cli_e2e.toml`（全中文注释，
+  字段级 `ZHUYE_E2E_*` 环境变量覆盖，脚本据其在隔离 HOME 生成独立
+  引擎配置）。断言只到**协议形状 + 产物存在性**（plan markdown 非空、
+  审批后权限切换、全程无 compact_rapid_refill、产物齐、提交由 agent
+  在沙箱内完成），不断言模型文本。端点不可达判 **SKIP** 不判失败;
+  默认跳过，
   `ZHUYE_LIVE=1 bash tests/live/cli_e2e.sh` 开启（本批沙箱修复的真实
   模型回归载体）。
 - **submodule 升级（e246299e → a6bd50c1）—— compact 幽灵压缩修复 + 触发

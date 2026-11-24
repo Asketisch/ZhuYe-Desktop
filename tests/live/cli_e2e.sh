@@ -15,34 +15,38 @@
 # commit」「幽灵压缩误触熔断」两类缺陷,单测各能覆盖一半,只有这个
 # 脚本能把整条链一次走通。
 #
-# ## 默认跳过
+# ## 配置来源
 #
-# 未设 `ZHUYE_LIVE=1` 时整层 SKIP —— 不发任何网络请求。真实模型从
-# `~/.zhuye/config.toml` 的活跃模型组解析(可用 `ZHUYE_E2E_CONFIG` 指定
-# 其它配置);端点不可达判 **SKIP** 而非失败 —— 测的是代码,不是网络。
+# `tests/live/cli_e2e.toml`(全中文注释,含端点 / 密钥 / 模型 / 思考
+# 强度 / 任务提示词 / 验收期望),脚本读取后在隔离 HOME 里生成独立的
+# 引擎配置 —— 不读、不写真实 ~/.zhuye。字段级环境变量覆盖(优先于
+# toml),名字 = `ZHUYE_E2E_` + 大写字段名:
 #
-# 跑法:
+#   ZHUYE_E2E_BASE_URL / ZHUYE_E2E_API_KEY / ZHUYE_E2E_MODEL /
+#   ZHUYE_E2E_ENDPOINT / ZHUYE_E2E_CONTEXT_WINDOW / ZHUYE_E2E_EFFORT /
+#   ZHUYE_E2E_EXPECT_ARTIFACT / ZHUYE_E2E_EXPECT_COMMIT /
+#   ZHUYE_E2E_TASK_FILE / ZHUYE_E2E_CONTINUE_FILE(prompt 整文件覆盖)
+#
+# ## 跑法与跳过
+#
 #   ZHUYE_LIVE=1 bash tests/live/cli_e2e.sh
+#   ZHUYE_E2E_TOML=/path/to/my-e2e.toml ZHUYE_LIVE=1 bash tests/live/cli_e2e.sh
 #
-# 环境变量:
-#   ZHUYE_E2E_BIN           二进制路径(默认按需 cargo build -p zhuye-cli)
-#   ZHUYE_E2E_CONFIG        配置文件来源(默认 ~/.zhuye/config.toml)
-#   ZHUYE_E2E_EFFORT        思考强度(默认 xhigh)
-#   ZHUYE_E2E_TASK_FILE     自定义任务提示词(覆盖内置夹具)
-#   ZHUYE_E2E_PHASE_TIMEOUT 单阶段超时秒数(默认 1200)
-#   ZHUYE_E2E_KEEP          设 1 保留临时目录(调试用,默认清理)
+# 未设 `ZHUYE_LIVE=1` 时整层 SKIP —— 不发任何网络请求;端点不可达判
+# **SKIP** 而非失败 —— 测的是代码,不是网络。
 #
 # ## 断言口径
 #
-# 只断言**协议形状 + 产物存在性**:plan markdown 非空、审批后权限切换、
-# 全程无结构性错误(尤其 compact_rapid_refill)、工作区产物齐、git 提交
-# 由 agent 在沙箱内完成。不断言模型文本。
+# 只断言**协议形状 + 产物存在性**(与 toml 的 expect_* 配对):plan
+# markdown 非空、审批后权限切换、全程无结构性错误(尤其
+# compact_rapid_refill)、工作区产物齐、git 提交由 agent 在沙箱内完成。
+# 不断言模型文本。
 #
 # ## 隔离
 #
-# mktemp 假 HOME + ZHUYE_HOME:配置从真实 config.toml 拷贝,rollout /
-# session notes / token 全落临时目录,不污染真实 ~/.zhuye。git 身份经
-# 假 HOME 的 .gitconfig 提供(沙箱内可读)。
+# mktemp 假 HOME + ZHUYE_HOME:引擎配置由脚本生成,rollout / session
+# notes 全落临时目录,不污染真实 ~/.zhuye。git 身份经假 HOME 的
+# .gitconfig 提供(沙箱内可读)。
 
 set -u
 
@@ -70,7 +74,14 @@ if [ ! -x "$BIN" ]; then
 fi
 [ -x "$BIN" ] || { tcase "zhuye 二进制可执行" false; tfinish; exit 1; }
 
-# ── 1. 隔离环境:假 HOME + 配置拷贝 + git 身份 ─────────────────────────────
+# ── 1. 读取测试配置(cli_e2e.toml;环境变量字段级覆盖)─────────────────────
+TOML="${ZHUYE_E2E_TOML:-$HERE/cli_e2e.toml}"
+if [ ! -f "$TOML" ]; then
+    tskip "CLI 真模型端到端" "找不到测试配置 $TOML"
+    tfinish
+    exit 0
+fi
+
 WORK="$(mktemp -d /tmp/zhuye-cli-e2e.XXXXXX)"
 KEEP="${ZHUYE_E2E_KEEP:-0}"
 cleanup() {
@@ -82,15 +93,84 @@ cleanup() {
 }
 trap cleanup EXIT
 
-CONFIG_SRC="${ZHUYE_E2E_CONFIG:-$HOME/.zhuye/config.toml}"
-if [ ! -f "$CONFIG_SRC" ]; then
-    tskip "CLI 真模型端到端" "找不到配置 $CONFIG_SRC"
+# 解析 toml:标量按 KEY<TAB>VALUE 打到 stdout(多行任务文本直接落文件)。
+# 需要 python ≥ 3.11(tomllib)。
+if ! python3 - "$TOML" "$WORK" > "$WORK/config.env" << 'PYEOF'
+import sys
+import tomllib
+
+toml_path, work = sys.argv[1], sys.argv[2]
+with open(toml_path, "rb") as f:
+    cfg = tomllib.load(f)
+ep = cfg.get("endpoint") or {}
+run = cfg.get("run") or {}
+task = cfg.get("task") or {}
+
+scalars = {
+    "BASE_URL": ep.get("base_url") or "",
+    "API_KEY": ep.get("api_key") or "",
+    "MODEL": ep.get("model") or "",
+    "ENDPOINT": ep.get("endpoint") or "openai",
+    "CONTEXT_WINDOW": str(ep.get("context_window") or ""),
+    "EFFORT": run.get("effort") or "xhigh",
+    "PHASE_TIMEOUT": str(run.get("phase_timeout") or 1200),
+    "EXPECT_ARTIFACT": task.get("expect_artifact") or "",
+    "EXPECT_COMMIT": task.get("expect_commit_subject") or "",
+}
+for key, value in scalars.items():
+    print(f"{key}\t{value}")
+
+# 多行任务文本直接落文件(bash 侧不再经手,避免转义损耗)。
+with open(f"{work}/task.txt", "w", encoding="utf-8") as f:
+    f.write(str(task.get("prompt") or "").strip() + "\n")
+with open(f"{work}/continue.txt", "w", encoding="utf-8") as f:
+    f.write(str(task.get("continue_prompt") or "").strip() + "\n")
+PYEOF
+then
+    tail -10 "$WORK/config.env" | sed 's/^/         │ /'
+    tcase "解析测试配置(需要 python ≥ 3.11)" false
+    tfinish
+    exit 1
+fi
+
+# KEY<TAB>VALUE → 普通变量(macOS 自带 bash 3.2 无 declare -A);
+# 环境变量(同名加 ZHUYE_E2E_ 前缀)逐字段覆盖。
+CFG_BASE_URL=""; CFG_API_KEY=""; CFG_MODEL=""; CFG_ENDPOINT="openai"
+CFG_CONTEXT_WINDOW=""; CFG_EFFORT="xhigh"; CFG_PHASE_TIMEOUT="1200"
+CFG_EXPECT_ARTIFACT=""; CFG_EXPECT_COMMIT=""
+while IFS=$'\t' read -r key value; do
+    case "$key" in
+        BASE_URL)         CFG_BASE_URL="$value" ;;
+        API_KEY)          CFG_API_KEY="$value" ;;
+        MODEL)            CFG_MODEL="$value" ;;
+        ENDPOINT)         CFG_ENDPOINT="$value" ;;
+        CONTEXT_WINDOW)   CFG_CONTEXT_WINDOW="$value" ;;
+        EFFORT)           CFG_EFFORT="$value" ;;
+        PHASE_TIMEOUT)    CFG_PHASE_TIMEOUT="$value" ;;
+        EXPECT_ARTIFACT)  CFG_EXPECT_ARTIFACT="$value" ;;
+        EXPECT_COMMIT)    CFG_EXPECT_COMMIT="$value" ;;
+    esac
+done < "$WORK/config.env"
+[ -n "${ZHUYE_E2E_BASE_URL:-}" ]          && CFG_BASE_URL="$ZHUYE_E2E_BASE_URL"
+[ -n "${ZHUYE_E2E_API_KEY:-}" ]           && CFG_API_KEY="$ZHUYE_E2E_API_KEY"
+[ -n "${ZHUYE_E2E_MODEL:-}" ]             && CFG_MODEL="$ZHUYE_E2E_MODEL"
+[ -n "${ZHUYE_E2E_ENDPOINT:-}" ]          && CFG_ENDPOINT="$ZHUYE_E2E_ENDPOINT"
+[ -n "${ZHUYE_E2E_CONTEXT_WINDOW:-}" ]    && CFG_CONTEXT_WINDOW="$ZHUYE_E2E_CONTEXT_WINDOW"
+[ -n "${ZHUYE_E2E_EFFORT:-}" ]            && CFG_EFFORT="$ZHUYE_E2E_EFFORT"
+[ -n "${ZHUYE_E2E_PHASE_TIMEOUT:-}" ]     && CFG_PHASE_TIMEOUT="$ZHUYE_E2E_PHASE_TIMEOUT"
+[ -n "${ZHUYE_E2E_EXPECT_ARTIFACT:-}" ]   && CFG_EXPECT_ARTIFACT="$ZHUYE_E2E_EXPECT_ARTIFACT"
+[ -n "${ZHUYE_E2E_EXPECT_COMMIT:-}" ]     && CFG_EXPECT_COMMIT="$ZHUYE_E2E_EXPECT_COMMIT"
+
+if [ -z "$CFG_BASE_URL" ] || [ -z "$CFG_MODEL" ]; then
+    tskip "CLI 真模型端到端" "测试配置缺 base_url / model($TOML)"
     tfinish
     exit 0
 fi
+PHASE_TIMEOUT="$CFG_PHASE_TIMEOUT"
+echo "  目标:$CFG_MODEL @ $CFG_BASE_URL(effort=$CFG_EFFORT)"
+
+# ── 2. 生成隔离引擎配置 + git 身份 ─────────────────────────────────────────
 mkdir -p "$WORK/home/.zhuye"
-cp "$CONFIG_SRC" "$WORK/home/.zhuye/config.toml"
-# git 身份:agent 在沙箱内 commit 时读取(真实 ~/.gitconfig 不进沙箱环境)。
 cat > "$WORK/home/.gitconfig" << 'EOF'
 [user]
     name = zhuye-e2e
@@ -98,66 +178,69 @@ cat > "$WORK/home/.gitconfig" << 'EOF'
 [commit]
     gpgsign = false
 EOF
+# 引擎配置:最小独立面(不继承真实 ~/.zhuye 的插件 / MCP / hooks,
+# 演练结果只取决于本 toml + 引擎默认)。allow_network = true:任务夹具
+# 虽然纯本地,但不人为限制 agent 的合法依赖(如文档查询)。
+python3 - "$WORK" > "$WORK/home/.zhuye/config.toml" << 'PYEOF'
+import json
+import sys
+
+work = sys.argv[1]
+scalars = {}
+for line in open(f"{work}/config.env", encoding="utf-8"):
+    key, _, value = line.rstrip("\n").partition("\t")
+    scalars[key] = value
+window = scalars.get("CONTEXT_WINDOW") or ""
+
+lines = [
+    "# 由 tests/live/cli_e2e.sh 生成 —— CLI 真模型端到端演练的独立引擎配置。",
+    "[active]",
+    'group = "e2e"',
+    "",
+    "[[model_group]]",
+    'id = "e2e"',
+    f'endpoint = "{scalars.get("ENDPOINT", "openai")}"',
+    f"api_key = {json.dumps(scalars.get('API_KEY', ''))}",
+    f"base_url = {json.dumps(scalars.get('BASE_URL', ''))}",
+    f"model = {json.dumps(scalars.get('MODEL', ''))}",
+    "responses_api = false",
+    "credentials = []",
+    "",
+]
+if window.isdigit():
+    lines += [
+        "[context_windows.entries]",
+        f'{json.dumps(scalars["MODEL"])} = {int(window)}',
+        "",
+    ]
+lines += [
+    "[sandbox]",
+    "os_level = true",
+    "writable_dirs = []",
+    "allow_network = true",
+    "",
+    "[plugins]",
+    "enabled_plugins = []",
+    "disabled_plugins = []",
+]
+print("\n".join(lines))
+PYEOF
 WS="$WORK/ws"
 mkdir -p "$WS"
 
-# ── 2. 端点预检:活跃模型组的 base_url 不可达 → SKIP(不烧超时)──────────
-# 解析不依赖 tomllib(系统 python 可能 < 3.11):行级扫描 [active].group
-# 与对应 [[model_group]] 块的 base_url。
-ENDPOINT=$(python3 - "$WORK/home/.zhuye/config.toml" << 'PYEOF'
-import re
-import sys
-
-text = open(sys.argv[1], encoding="utf-8").read()
-m = re.search(r'\[active\][^[]*?group\s*=\s*"([^"]+)"', text, re.S)
-if not m:
-    sys.exit(0)
-active = m.group(1)
-for block in re.split(r"(?m)^\[\[model_group\]\]", text)[1:]:
-    idm = re.search(r'(?m)^\s*id\s*=\s*"([^"]+)"', block)
-    if idm and idm.group(1) == active:
-        urlm = re.search(r'(?m)^\s*base_url\s*=\s*"([^"]+)"', block)
-        if urlm:
-            print(urlm.group(1), end="")
-        break
-PYEOF
-)
-if [ -z "$ENDPOINT" ]; then
-    tskip "CLI 真模型端到端" "配置里解析不出活跃组的 base_url"
-    tfinish
-    exit 0
-fi
+# ── 3. 端点预检:不可达 → SKIP(不烧单阶段超时)───────────────────────────
 # 可达性 = 有任何 HTTP 响应(鉴权 401 也算可达 —— 只关心连通,不关心配额)。
-HTTP_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" "$ENDPOINT/models" 2>/dev/null)
+HTTP_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" \
+    -H "Authorization: Bearer $CFG_API_KEY" \
+    "$CFG_BASE_URL/models" 2>/dev/null)
 if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" = "000" ]; then
-    tskip "CLI 真模型端到端" "模型端点不可达($ENDPOINT)—— 环境问题,不判失败"
+    tskip "CLI 真模型端到端" "模型端点不可达($CFG_BASE_URL)—— 环境问题,不判失败"
     tfinish
     exit 0
 fi
-echo "  端点可达:$ENDPOINT (http=$HTTP_CODE)"
+echo "  端点可达:$CFG_BASE_URL (http=$HTTP_CODE)"
 
-# ── 3. 任务夹具:小而完整(读 README → 单页介绍页 → git init + commit)─────
-cat > "$WS/README.md" << 'EOF'
-# 烽火 Fanfire
-
-烽火是一个(虚构的)高性能日志采集器,单二进制、零依赖、吞吐 100 万行/秒。
-
-## 特性
-- 单二进制分发,开箱即用
-- 内存占用 < 30MB
-- 内置 Prometheus 指标端点
-
-## 快速开始
-fanfire --config fanfire.toml
-EOF
-cat > "$WORK/task.txt" << 'EOF'
-阅读本工作区的 README.md,为「烽火 Fanfire」制作一个单页介绍站:创建 index.html(内联 CSS 的原生单文件,不引任何外部依赖),内容需包含产品名、定位一句话、三个特性、快速开始命令。完成后把工作区初始化为 git 仓库(git init -b main)并把 README.md 与 index.html 一起提交(提交信息用「feat: 烽火介绍单页」;git 身份用 -c user.name/-c user.email 参数传入,不要依赖全局配置)。不要做 README 之外的事。
-EOF
-cat > "$WORK/continue.txt" << 'EOF'
-如果 git init / commit 尚未完成请继续完成它(index.html 与 README.md 都要在提交里);已全部完成则直接给出最终答复。
-EOF
-
-# ── 4. 驱动(阶段超时默认 1200s,真实模型 + xhigh 思考需要余量)────────────
+# ── 4. 驱动(阶段超时来自 toml 的 run.phase_timeout)───────────────────────
 EVENTS="$RESULT_DIR/cli-e2e-events.jsonl"
 RESULT_JSON="$RESULT_DIR/cli-e2e-result.json"
 python3 "$HERE/cli_e2e_driver.py" \
@@ -166,10 +249,10 @@ python3 "$HERE/cli_e2e_driver.py" \
     --home "$WORK/home" \
     --task-file "$WORK/task.txt" \
     --continue-file "$WORK/continue.txt" \
-    --effort "${ZHUYE_E2E_EFFORT:-xhigh}" \
+    --effort "$CFG_EFFORT" \
     --events "$EVENTS" \
     --result "$RESULT_JSON" \
-    --phase-timeout "${ZHUYE_E2E_PHASE_TIMEOUT:-1200}" \
+    --phase-timeout "$PHASE_TIMEOUT" \
     > "$RESULT_DIR/cli-e2e-summary.json" 2> "$RESULT_DIR/cli-e2e-driver.err"
 DRIVER_STATUS=$?
 
@@ -190,6 +273,8 @@ if [ ! -s "$RESULT_JSON" ]; then
 fi
 
 # 分项断言,各读结果 JSON 的一个键。
+EXPECT_ARTIFACT="$CFG_EXPECT_ARTIFACT"
+EXPECT_COMMIT="$CFG_EXPECT_COMMIT"
 tcase "会话配置(模型解析成功)" python3 -c "
 import json, sys
 r = json.load(open('$RESULT_JSON'))
@@ -211,10 +296,10 @@ tcase "回合终态 success" python3 -c "
 import json, sys
 r = json.load(open('$RESULT_JSON'))
 sys.exit(0 if r.get('status') == 'PASS' else 1)"
-tcase "产物存在(index.html)" test -s "$WS/index.html"
+tcase "产物存在($EXPECT_ARTIFACT)" test -s "$WS/$EXPECT_ARTIFACT"
 tcase "git 仓库含 agent 提交(沙箱回归核心断言)" bash -c '
     git -C "'"$WS"'" rev-parse --verify HEAD >/dev/null 2>&1 &&
-    git -C "'"$WS"'" log --format=%s | grep -q "feat: 烽火介绍单页"'
+    git -C "'"$WS"'" log --format=%s | grep -q "'"$EXPECT_COMMIT"'"'
 
 echo
 echo "  事件留档:$EVENTS"
