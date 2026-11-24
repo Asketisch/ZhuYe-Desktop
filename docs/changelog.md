@@ -4,6 +4,22 @@
 
 ## 未发布
 
+- **CLI 端到端演练扩成场景套件（上游 tests/live/cli_e2e.sh，28 场景，
+  本地专用不进 CI）**：原单流程脚本（plan → 确认 → 开发 → git commit）
+  扩成**场景套件** —— 一场景一进程（崩溃 / 超时互不牵连），每个检查项
+  折成一条 tcase。覆盖 agent 协议面七组：plan（出 plan / 打回修订 /
+  只读门控，含沙箱 `.git` 归属快照回归点）、goal（自校验达成 / 未达成
+  续作注入 / 预算熔断 / goal-queue 插件）、compact（阈值自动压缩 /
+  手动强制压缩**绕过熔断守卫** / LLM 摘要 / **rapid-refill 熔断**
+  —— sess_77cd626f 事故形态 / 窗口占满收口）、cache（空闲期保温 /
+  命中读取 / 写入分段）、interact（中断 / 转向 / 提问 / 审批放行与拒绝）、
+  session（续作回放 / 回退截断 / 迭代上限 / token 预算）、ext（子代理 /
+  后台任务 / 客户端远程工具 / 管理面 Op）。两种模式：`ZHUYE_LIVE=1`
+  走真实模型，`ZHUYE_E2E_MOCK=1` 走内置 mock provider 离线自检
+  （106 项检查全绿，两次连跑结果一致）。断言只到**协议形状 + 产物存在性
+  + 终态语义**，不断言模型文本。桌面仓库不保留副本 —— 对上游仓库运行：
+  `ZHUYE_E2E_MOCK=1 bash ../ZhuYe/tests/live/cli_e2e.sh`（`ZHUYE_E2E_BIN`
+  可指桌面构建的二进制验 pin 态）。
 - **submodule 升级（98072c5e → df99688f）—— 压缩水位按同一次模型上报校准**：
   本地估算偏低时，microcompact 会在真实上下文仍超阈时提前返回，
   rapid-refill 守卫把这次弱压缩登记成成功，后续更强阶段被熔断拦住。
