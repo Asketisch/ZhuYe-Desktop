@@ -81,9 +81,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
   // 会话级口径分开 —— 标签各标各的,不混用「平均」这种跨口径词。
   const cacheHitRate = useTurnCacheHitRate();
   const compositionRows = compositionRowsOf(contextComposition);
-  const setDockOpen = useShellUi((st) => st.setDockOpen);
-  const setDockMode = useShellUi((st) => st.setDockMode);
-  const setInspectorTab = useShellUi((st) => st.setInspectorTab);
+  const openDockTab = useShellUi((st) => st.openDockTab);
 
   // 目标计时（goal 激活时每秒跳动；非激活不跑定时器）。
   const [now, setNow] = useState(() => Date.now());
@@ -107,11 +105,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
   const toggleSection = (key: SectionKey) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const openPlanInDock = () => {
-    setDockMode('inspector');
-    setInspectorTab('plan');
-    setDockOpen(true);
-  };
+  const openPlanInDock = () => openDockTab('plan');
 
   /* ===== 折叠窄条（44px，图标直达各段） ===== */
   if (collapsed) {

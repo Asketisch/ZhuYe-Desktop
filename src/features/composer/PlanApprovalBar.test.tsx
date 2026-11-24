@@ -53,7 +53,7 @@ beforeEach(() => {
   localStorage.setItem('zhuye.locale', 'zh-CN');
   resetMockInvoke();
   useAgentStore.getState().reset();
-  useShellUi.setState({ dockOpen: false, dockMode: 'inspector', inspectorTab: 'overview' });
+  useShellUi.setState({ dockOpen: false, dockTabs: [], dockActiveId: null });
 });
 
 describe('PlanApprovalBar', () => {
@@ -76,7 +76,7 @@ describe('PlanApprovalBar', () => {
     );
   });
 
-  it('查看计划：打开右 dock 的 inspector 计划页签', () => {
+  it('查看计划：打开右 dock 的计划标签页', () => {
     capturePlanApproval();
     useAgentStore.setState({ pendingPlan: plan({ id: 'plan-1' }) });
     renderBar();
@@ -84,8 +84,8 @@ describe('PlanApprovalBar', () => {
     fireEvent.click(screen.getByTestId('plan-bar-view'));
     const ui = useShellUi.getState();
     expect(ui.dockOpen).toBe(true);
-    expect(ui.dockMode).toBe('inspector');
-    expect(ui.inspectorTab).toBe('plan');
+    expect(ui.dockTabs.some((tab) => tab.kind === 'plan')).toBe(true);
+    expect(ui.dockActiveId).toBe('plan');
   });
 
   it('请求进入计划模式：进入发 manual_approve，暂不进入发 revise', async () => {

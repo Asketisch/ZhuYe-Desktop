@@ -10,7 +10,7 @@
  * useCommandPaletteShortcut 内处理，这里兜底其余浮层）。
  */
 import { useEffect } from 'react';
-import { useShellUi, type DockMode } from '@/stores/shellUi';
+import { useShellUi, type DockTabKind } from '@/stores/shellUi';
 import { useThemeCycle } from './useThemeCycle';
 
 export interface HarnessShortcutHandlers {
@@ -71,10 +71,9 @@ export function useHarnessShortcuts(handlers: HarnessShortcutHandlers = {}): voi
         return;
       }
       // ===== shift 组合 =====
-      const dockOrNav = (mode: DockMode) => {
+      const dockOrNav = (kind: Exclude<DockTabKind, 'new-tab'>) => {
         e.preventDefault();
-        ui.setDockMode(mode);
-        ui.setDockOpen(true);
+        ui.openDockTab(kind);
       };
       if (key === 'b') dockOrNav('browser');
       else if (key === 'e') dockOrNav('files');

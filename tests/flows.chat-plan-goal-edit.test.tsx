@@ -134,7 +134,7 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     // 2. plan 就绪 → composer 审批条出现，右 dock 计划页签自动打开；
     //    agent 在 gate 暂停,尚未收到任何决策。计划正文(markdown)在 dock 渲染。
     const planBar = await screen.findByTestId('composer-plan-bar');
-    const planBody = await screen.findByTestId('inspector-plan-body');
+    const planBody = await screen.findByTestId('plan-dock-body');
     expect(planBody.querySelector('h1')?.textContent).toBe('Migration plan');
     expect(backend.agent.planChoices.length).toBe(0);
 
@@ -227,7 +227,7 @@ describe('chat → plan → edit full loop (real app mount)', () => {
 
     // 打回修订走右 dock 计划页签的挂起卡片（composer 审批条只留
     // 同意执行 / 逐项确认；文字反馈发送 = revise + steer，另见 composer 测试）。
-    const reviseBtn = await screen.findByTestId('plan-card-revise');
+    const reviseBtn = await screen.findByTestId('plan-dock-revise');
     fireEvent.click(reviseBtn);
 
     await waitFor(() => expect(backend.agent.planChoices.length).toBe(1));

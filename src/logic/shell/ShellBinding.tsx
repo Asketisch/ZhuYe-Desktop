@@ -55,6 +55,9 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   const uiStoreOpen = useShellUi((s) => s.dockOpen);
   const inspectorOpen = uiStoreOpen;
   const setInspectorOpen = useShellUi((s) => s.setDockOpen);
+  // 右 dock 浮层锚点态（render 层禁止 hook，放在绑定层）。
+  const [overviewAnchor, setOverviewAnchor] = useState<HTMLElement | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ tabId: string; anchor: HTMLElement } | null>(null);
   // 异步导航完成时只允许最后一次用户操作改变当前会话。
   const selectSeqRef = useRef(0);
 
@@ -291,10 +294,33 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
       rail: ui.rail,
       onToggleRail: ui.toggleRail,
       dockOpen: inspectorOpen,
-      dockMode: ui.dockMode,
-      dockWide: ui.dockWide,
-      onSetDockMode: ui.setDockMode,
-      onToggleDockWide: ui.toggleDockWide,
+      dock: {
+        tabs: ui.dockTabs,
+        activeId: ui.dockActiveId,
+        recentlyClosedTabs: ui.recentlyClosedTabs,
+        fullView: ui.dockFullView,
+        wide: ui.dockWide,
+        hasPlan: useAgentStore.getState().plan != null
+          || useAgentStore.getState().planDraft != null
+          || useAgentStore.getState().pendingPlan != null,
+        onActivateTab: ui.activateDockTab,
+        onCloseTab: ui.closeDockTab,
+        onCloseOthers: ui.closeOtherDockTabs,
+        onCloseAll: ui.closeAllDockTabs,
+        onReorderTab: ui.moveDockTab,
+        onNewTab: ui.openNewDockTab,
+        onOpenTab: ui.openDockTab,
+        onReopenClosedTab: ui.reopenClosedDockTab,
+        onToggleFullView: ui.toggleDockFullView,
+        onToggleWide: ui.toggleDockWide,
+        onCollapse: () => ui.setDockOpen(false),
+        overviewAnchor,
+        contextMenu,
+        onToggleOverview: (anchor: HTMLElement | null) =>
+          setOverviewAnchor((cur) => (cur && anchor ? null : anchor)),
+        onOpenContextMenu: (tabId: string, anchor: HTMLElement | null) =>
+          setContextMenu(anchor ? { tabId, anchor } : null),
+      },
       onToggleDock: () => setInspectorOpen(!inspectorOpen),
       termOpen: ui.termOpen,
       onToggleTerm: ui.toggleTerm,

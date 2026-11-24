@@ -4,6 +4,12 @@
 
 ## 未发布
 
+- **右侧栏对齐 ZCode + 计划自动展开 / 可滚动 / 可执行**（会话 `889c3bd0` 计划呈递修复）：
+  1. **右 dock 标签页化**：从五档固定按钮改为 ZCode side-pane tabs 同款 —— 标签条（图标胶囊 / 拖拽排序 / 中键关闭 / 右键菜单「关闭·关闭其他·关闭所有」/ 标签总览搜索 + 最近关闭 / ⌘⇧F 完整视图）、新标签页启动器（检查器 / 文件 / 浏览器 / 审查 / 子代理 / 用量，有计划时追加「计划」）、内容面板按标签**保活**渲染（非激活 `hidden`，切来切去不丢状态）、关掉最后一个标签页即收起侧栏、重新展开补启动器。终端保留底部面板（不迁入启动器）；浏览器因后端单实例保持单例。`shellUi` 新增 `dockTabs` / `dockActiveId` / `recentlyClosedTabs` / `dockFullView`，旧 `dockMode` 持久化读入即迁移。
+  2. **计划升为顶级 dock 标签**（`PlanDock`，从 Inspector 迁出）：根节点 `flex:1; min-height:0; overflow-y:auto`，配合 `.dock-body` 高度约束层修复「计划不可滚动」；原 Inspector「计划」子页签移除。`usePlanSurfacing` 触发源从仅 `pendingPlan` 扩为 `pendingPlan` / `plan`（终稿，含回放水合）/ `planDraft`（草稿落盘），按 id / 路径去重，同一计划只主动展开一次；切到无计划会话自动关该标签。
+  3. **草稿可执行兜底**：草稿已写好但模型用纯文本收尾（未调 `ExitPlanMode`）时，`PlanDock` 与 composer 审批条新增「提交并执行」入口 —— 调 `zhuye_exit_plan_mode`（引擎侧读真实 `.zhuye/plan/*.md` 发 `plan_ready`），`planSubmitSignal` 让下一次 `plan_ready` 到达即自动批准 + 补发「计划已批准，请按计划开始执行」。
+  4. **引擎侧配套（submodule）**：预算收尾提示计划感知（Plan 模式不再注入 `FINAL ANSWER` 诱导，改 `runtime.nudge-final-plan`）、`PlanWrite` 输出提示下一步调 `ExitPlanMode`、提示词把「PlanWrite 成功后必须调 ExitPlanMode 收尾」写成硬约束、`check_stop` 守卫否决「已写 plan 却未提交」的收尾（上限 2 次）、强制收尾轮 Plan 模式保留全量工具且工具调用真正走 `ToolExec`（此前直接 `CheckStop` 导致 `ExitPlanMode` 永不执行）、`Op::ExitPlanMode` 读最新 plan 文件而非占位串。
+
 - **思考强度偏好持久化（修复「选了 max 显示 medium」）**：composer / Models 页选档走
   `Op::SetEffort` 只写**当前会话线程的内存槽位**，而每次换绑（切换会话、保存设置 /
   配置热重载、模型切换、重启）都会以 `[model].reasoning_effort` 的配置默认值重新播种

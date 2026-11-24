@@ -5,7 +5,9 @@ import type { CommandPalette } from '@/features/command-palette/CommandPalette';
 import type { ModalStack } from '@/features/modals';
 import type { Toast as ToastView } from '@/features/design-system';
 import type { Toast } from '@/stores/agent/types';
-import type { DockMode, InboxTab } from '@/stores/shellUi';
+import type { DockTab, DockTabKind, InboxTab } from '@/stores/shellUi';
+
+export type { DockTab, DockTabKind } from '@/stores/shellUi';
 
 /** 主区视图形态：由当前路由推导，驱动壳层样式与「更多」菜单高亮。 */
 export type ShellViewMode = 'home' | 'conv' | 'plan' | 'market' | 'lanes' | 'page';
@@ -67,6 +69,50 @@ export interface ShellSlots {
   TerminalDock: ComponentType;
   InboxPanel: ComponentType<{ inboxTab: InboxTab; onNavigateSession: (id: string) => void }>;
   SettingsHost: ComponentType<{ open: boolean; onClose: () => void }>;
+  /** 右 dock 浮层（标签总览 / 标签右键菜单），由绑定层持有锚点态后注入。 */
+  DockOverlays: ComponentType<DockOverlaysProps>;
+}
+
+/** DockOverlays slot 的 props（锚点态在绑定层，动作从 dock 契约透传）。 */
+export interface DockOverlaysProps {
+  overviewAnchor: HTMLElement | null;
+  contextMenu: { tabId: string; anchor: HTMLElement } | null;
+  onToggleOverview: (anchor: HTMLElement | null) => void;
+  onOpenContextMenu: (tabId: string, anchor: HTMLElement | null) => void;
+  onActivateTab: (id: string) => void;
+  onReopenClosedTab: (id: string) => void;
+  onCloseTab: (id: string) => void;
+  onCloseOthers: (id: string) => void;
+  onCloseAll: () => void;
+}
+
+/** 右 dock 标签页体系（对齐 ZCode side pane）。 */
+export interface HarnessDock {
+  tabs: DockTab[];
+  activeId: string | null;
+  recentlyClosedTabs: DockTab[];
+  fullView: boolean;
+  wide: boolean;
+  /** 当前会话是否已有计划（启动器显示「计划」条目、计划标签自动展开）。 */
+  hasPlan: boolean;
+  onActivateTab: (id: string) => void;
+  onCloseTab: (id: string) => void;
+  onCloseOthers: (id: string) => void;
+  onCloseAll: () => void;
+  onReorderTab: (from: number, to: number) => void;
+  onNewTab: () => void;
+  onOpenTab: (kind: Exclude<DockTabKind, 'new-tab'>) => void;
+  onReopenClosedTab: (id: string) => void;
+  onToggleFullView: () => void;
+  onToggleWide: () => void;
+  onCollapse: () => void;
+  /** 标签总览 / 右键菜单锚点态（绑定层持有）。 */
+  overviewAnchor: HTMLElement | null;
+  contextMenu: { tabId: string; anchor: HTMLElement } | null;
+  /** 标签总览锚点切换（传 null = 收起）；锚点态由绑定层持有。 */
+  onToggleOverview: (anchor: HTMLElement | null) => void;
+  /** 标签右键菜单锚点切换。 */
+  onOpenContextMenu: (tabId: string, anchor: HTMLElement | null) => void;
 }
 
 export interface ShellViewProps {
@@ -89,10 +135,8 @@ export interface ShellViewProps {
     rail: boolean;
     onToggleRail: () => void;
     dockOpen: boolean;
-    dockMode: DockMode;
-    dockWide: boolean;
-    onSetDockMode: (mode: DockMode) => void;
-    onToggleDockWide: () => void;
+    /** v1.x dock 标签页体系（替代旧 dockMode 单选）。 */
+    dock: HarnessDock;
     onToggleDock: () => void;
     termOpen: boolean;
     onToggleTerm: () => void;

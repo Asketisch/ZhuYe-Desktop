@@ -13,17 +13,15 @@
  */
 import { useEffect, useState } from 'react';
 import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBranch, Gauge, Bot, RefreshCw, Square } from 'lucide-react';
-import { Icon, Badge, Button, IconButton, Tooltip } from '@/features/design-system';
-import { useShallow } from 'zustand/react/shallow';
-import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
+import { Icon, Badge, IconButton, Tooltip } from '@/features/design-system';
+import { useAgentStore } from '@/stores/agentStore';
 import type { SubagentProgressEntry } from '@/stores/agentStore';
-import { ListTodo, GitCommitHorizontal } from 'lucide-react';
+import { GitCommitHorizontal } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_list_dir, type ZhuyeDirEntry } from '@/utils/commands/files';
 import { zhuye_git_diff } from '@/utils/commands/git';
 import { FileTree } from '@/features/files/FileTree';
 import { DiffViewer } from '@/features/git/DiffViewer';
-import { Markdown } from '@/components/Markdown';
 import { useContextRatio } from './useContextRatio';
 import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
 import { useShellUi } from '@/stores/shellUi';
@@ -49,9 +47,6 @@ export function Inspector() {
         <button type="button" role="tab" aria-selected={tab === 'changes'} className={s.tab} data-active={tab === 'changes' || undefined} onClick={() => setTab('changes')} data-testid="inspector-tab-changes">
           <Icon icon={GitBranch} size={12} /> {t('inspector.tab.changes')}
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'plan'} className={s.tab} data-active={tab === 'plan' || undefined} onClick={() => setTab('plan')} data-testid="inspector-tab-plan">
-          <Icon icon={ListTodo} size={12} /> {t('inspector.tab.plan')}
-        </button>
         <button type="button" role="tab" aria-selected={tab === 'git'} className={s.tab} data-active={tab === 'git' || undefined} onClick={() => setTab('git')} data-testid="inspector-tab-git">
           <Icon icon={GitCommitHorizontal} size={12} /> {t('inspector.tab.git')}
         </button>
@@ -59,7 +54,6 @@ export function Inspector() {
       {tab === 'overview' && <OverviewTab />}
       {tab === 'files' && <FilesTab />}
       {tab === 'changes' && <ChangesTab />}
-      {tab === 'plan' && <PlanTab />}
       {tab === 'git' && <GitTab />}
     </div>
   );
@@ -549,7 +543,7 @@ function FilesTab() {
 
 // ====== 改动 ======
 
-function ChangesTab() {
+export function ChangesTab() {
   const { t } = useI18n();
   const [diff, setDiff] = useState<string | null>(null);
 
@@ -576,116 +570,6 @@ function ChangesTab() {
   );
 }
 
-
-// ====== 计划 tab(v2:v2-shell-redesign;v1.x 补 plan 正文渲染)======
-
-function PlanTab() {
-  const { t } = useI18n();
-  const todos = useAgentStore((st) => st.todos);
-  // v1.x 后台持续运行:只展示当前前台会话的队列。
-  const queued = useAgentStore(useShallow(selectQueuedForActiveSession));
-  const plan = useAgentStore((st) => st.plan);
-  const planDraft = useAgentStore((st) => st.planDraft);
-  const pendingPlan = useAgentStore((st) => st.pendingPlan);
-  const approvePlan = useAgentStore((st) => st.approvePlan);
-  const permissionMode = useAgentStore((st) => st.permissionMode);
-  // 已在计划模式下的 plan_request 是冗余 enter —— usePlanSurfacing 会
-  // 静默应答，页签不再重复渲染确认卡。
-  const showRequestCard = pendingPlan?.kind === 'request' && permissionMode !== 'plan';
-  const showReadyCard = pendingPlan != null && pendingPlan.kind !== 'request';
-  return (
-    <div data-testid="inspector-plan">
-      {/* 挂起计划卡片：审批动作就在计划正文旁（计划不再走全局弹窗）。
-          正文在下方照常渲染终稿/草稿。 */}
-      {pendingPlan && (showRequestCard || showReadyCard) && (
-        <section className={s.planPending} data-kind={pendingPlan.kind} data-testid="inspector-plan-pending">
-          <h3 className={s.sectionTitle}>
-            <Icon icon={ListTodo} size={14} />
-            {t('plan.card.pendingTitle')}
-          </h3>
-          {showRequestCard && (
-            <>
-              <p className={s.planMeta}>
-                {String((pendingPlan.payload as { task?: string } | null)?.task ?? '')}
-              </p>
-              <div className={s.planPendingActions}>
-                <Button size="sm" variant="primary" onClick={() => void approvePlan(pendingPlan.id, 'manual_approve')} data-testid="plan-card-enter">
-                  {t('plan.card.enter')}
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => void approvePlan(pendingPlan.id, 'revise')} data-testid="plan-card-decline">
-                  {t('plan.card.decline')}
-                </Button>
-              </div>
-            </>
-          )}
-          {showReadyCard && (
-            <div className={s.planPendingActions}>
-              <Button size="sm" variant="primary" onClick={() => void approvePlan(pendingPlan.id, 'auto_mode')} data-testid="plan-card-approve">
-                {t('plan.card.approveExecution')}
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => void approvePlan(pendingPlan.id, 'manual_approve')} data-testid="plan-card-manual">
-                {t('plan.card.manualApprove')}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => void approvePlan(pendingPlan.id, 'revise')} data-testid="plan-card-revise">
-                {t('plan.card.revise')}
-              </Button>
-            </div>
-          )}
-        </section>
-      )}
-      {/* plan 正文:终稿优先(live plan_ready / 重放 hydrate),否则实时草稿。
-          此前本 tab 只显示 TodoWrite 清单 —— plan 模式会话右侧永远空。 */}
-      {plan && (
-        <>
-          <p className={s.planMeta} data-testid="inspector-plan-final">
-            {plan.status === 'approved' && <span>{t('inspector.plan.approved')}</span>}
-            {plan.status === 'rejected' && <span>{t('inspector.plan.rejected')}</span>}
-            {plan.path && <code title={plan.path}>{plan.path}</code>}
-          </p>
-          {/* plan 正文是 markdown —— 渲染成结构化文档，而不是倾泻原文。 */}
-          <div className={s.planDoc} data-testid="inspector-plan-body">
-            <Markdown text={plan.markdown} />
-          </div>
-        </>
-      )}
-      {!plan && planDraft && (
-        <>
-          <p className={s.planMeta} data-testid="inspector-plan-draft">
-            <span>{t('inspector.plan.draft')}</span>
-            {planDraft.path && <code title={planDraft.path}>{planDraft.path}</code>}
-          </p>
-          <div className={s.planDoc} data-testid="inspector-plan-draft-body">
-            <Markdown text={planDraft.markdown} />
-          </div>
-        </>
-      )}
-      {todos.length === 0 && !plan && !planDraft && (
-        <p className={s.gitEmpty}>{t('inspector.plan.empty')}</p>
-      )}
-      {todos.length > 0 && (
-        <p className={s.planMeta}>{t('inspector.plan.todos')}</p>
-      )}
-      {todos.map((td, i) => (
-        <div key={i} className={s.gitFile} data-status={td.status}>
-          <span className={s.gitPath} style={td.status === 'completed' ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>
-            {td.status === 'completed' ? '✓ ' : td.status === 'in_progress' ? '▶ ' : '○ '}
-            {td.active_form ?? td.content}
-          </span>
-        </div>
-      ))}
-      {queued.length > 0 && (
-        <>
-          <p className={s.gitEmpty} style={{ marginTop: 12 }}>{t('inspector.plan.queued')}({queued.length})</p>
-          {queued.map((qm) => (
-            <div key={qm.id} className={s.gitFile}>
-              <span className={s.gitPath} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{qm.text}</span>
-            </div>
-          ))}
-        </>
-      )}
-    </div>
-  );
-}
 
 // ====== Git tab(v2:v2-shell-redesign)======
 

@@ -18,8 +18,7 @@ export function SubagentsBody() {
   const lastStatus = useAgentStore((st) => st.subagents.lastStatus);
   const querySubagents = useAgentStore((st) => st.querySubagents);
   const interruptSubagent = useAgentStore((st) => st.interruptSubagent);
-  const setDockMode = useShellUi((st) => st.setDockMode);
-  const setDockOpen = useShellUi((st) => st.setDockOpen);
+  const openDockTab = useShellUi((st) => st.openDockTab);
 
   if (feed.length === 0 && (lastStatus === null || lastStatus.length === 0)) return null;
 
@@ -32,7 +31,7 @@ export function SubagentsBody() {
         <button
           type="button"
           className={s.btn}
-          onClick={() => { setDockMode('agents'); setDockOpen(true); }}
+          onClick={() => openDockTab('agents')}
           data-testid="corner-subagents-open"
         >
           {t('harness.corner.subagents.openAll')}

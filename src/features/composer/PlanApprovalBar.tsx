@@ -22,12 +22,7 @@ export function PlanApprovalBar() {
   const pendingPlan = useAgentStore((st) => st.pendingPlan);
   const approvePlan = useAgentStore((st) => st.approvePlan);
   const permissionMode = useAgentStore((st) => st.permissionMode);
-  const openPlanInDock = () => {
-    const ui = useShellUi.getState();
-    ui.setDockMode('inspector');
-    ui.setInspectorTab('plan');
-    ui.setDockOpen(true);
-  };
+  const openPlanInDock = () => useShellUi.getState().openDockTab('plan');
 
   if (!pendingPlan) return null;
   const isRequest = pendingPlan.kind === 'request';

@@ -1174,12 +1174,142 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .ctx-pop .btn { width: 100%; margin-top: 12px; display: inline-flex; align-items: center; justify-content: center; }
 
 /* ============================================================
-   右侧 dock：检查器 / 浏览器 / 文件 / 子代理 / 用量
+   右侧 dock：ZCode 式标签条 + 内容面板
    ============================================================ */
-.dock-modes { display: flex; align-items: center; gap: 2px; padding: 8px 10px 6px; flex: none; }
-.dock-mode { padding: 4px 9px; border-radius: 7px; font-size: 12px; color: var(--fg-3); font-weight: 560; white-space: nowrap; }
-.dock-mode:hover { background: var(--fill); color: var(--fg-2); }
-.dock-mode.on { background: var(--fill-2); color: var(--fg); }
+/* 标签条：总览按钮 → 胶囊标签行 → 动作组（完整视图 / 宽栏 / 收起）。 */
+.dock-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.dock-tabstrip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dock-tabstrip::-webkit-scrollbar { display: none; }
+.dock-tabbar-spacer { flex: 1; min-width: 4px; }
+.dock-tabbar-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.dock-wide-icon { transform: rotate(45deg); }
+
+/* 28px 胶囊标签：图标 + 标题（超宽遮罩渐隐），激活常显 ×，非激活 hover 显 ×。 */
+.dock-tab {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--fg-3);
+  font-size: 12px;
+  transition: background 0.13s ease, color 0.13s ease;
+}
+.dock-tab:hover { background: var(--fill); color: var(--fg-2); }
+.dock-tab.on { background: var(--fill-2); color: var(--fg); border-color: var(--line); }
+.dock-tab-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  padding: 0 4px 0 9px;
+  max-width: 140px;
+  color: inherit;
+  font-size: inherit;
+  min-width: 0;
+}
+.dock-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent); }
+.dock-tab-close {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: inherit;
+  margin-right: 3px;
+  opacity: 0;
+  transition: opacity 0.13s ease, background 0.13s ease;
+}
+.dock-tab.on .dock-tab-close,
+.dock-tab:hover .dock-tab-close,
+.dock-tab:focus-within .dock-tab-close { opacity: 0.8; }
+.dock-tab-close:hover { opacity: 1; background: var(--fill-2); }
+.dock-add { margin-left: 2px; }
+
+/* dock 内容体：高度约束层，所有子面板在此内部滚动。 */
+.dock-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.dock-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.dock-pane[hidden] { display: none; }
+.dock-pane > * { flex: 1; min-height: 0; }
+
+/* 完整视图：对话列 0，dock 独占整个宽度。 */
+.app.dock-full .body { grid-template-columns: var(--workspace-sidebar-width) 0 minmax(0, 1fr); }
+.app.dock-full .main { display: none; }
+.app.dock-full .dock-resizer { display: none; }
+
+/* 启动器（新标签页）。 */
+.dock-launcher { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 18px 32px; }
+.dock-launcher-title { font-size: 14px; font-weight: 620; margin: 0 0 16px; color: var(--fg); }
+.dock-launcher-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; max-width: 720px; }
+.dock-launcher-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.dock-launcher-item:hover { border-color: var(--line-2); background: var(--fill); }
+.dock-launcher-ico { width: 48px; height: 48px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); color: var(--fg-2); flex: none; }
+.dock-launcher-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.dock-launcher-text b { font-size: 13px; font-weight: 560; color: var(--fg); }
+.dock-launcher-text small { font-size: 11px; color: var(--fg-3); line-height: 1.5; }
+.dock-launcher-open { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--fg-3); flex: none; }
+.dock-launcher-item:hover .dock-launcher-open { color: var(--fg); }
+
+/* 标签总览 / 右键菜单（挂窗口层）。 */
+.dock-overview,
+.dock-context-menu {
+  position: fixed;
+  z-index: 80;
+  background: var(--tip-bg);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.82);
+  padding: 8px;
+  animation: pop 0.16s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.dock-overview { width: 280px; max-height: 60vh; overflow-y: auto; }
+.dock-context-menu { width: 180px; display: flex; flex-direction: column; }
+.dock-overview-search { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px; color: var(--fg-3); }
+.dock-overview-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; font-size: 12px; color: var(--fg); }
+.dock-overview-group h4 { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); margin: 8px 8px 5px; }
+.dock-overview-empty { font-size: 11.5px; color: var(--fg-3); padding: 4px 8px; margin: 0; }
+.dock-overview-row,
+.dock-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--fg-2);
+  text-align: left;
+}
+.dock-overview-row:hover,
+.dock-context-menu button:hover { background: var(--fill); color: var(--fg); }
+.dock-overview-row.on { color: var(--fg); background: var(--fill-2); }
+.dock-context-menu button[disabled] { opacity: 0.4; cursor: not-allowed; }
 .app.dock-wide .body { grid-template-columns: var(--workspace-sidebar-width) minmax(260px, 1fr) var(--dock-user-width, minmax(520px, 1.6fr)); }
 .app.dock-wide.no-inspector .body { grid-template-columns: var(--workspace-sidebar-width) minmax(260px, 1fr) 0; }
 /* 文件 / 子代理模式：右栏要同时放下树与预览，单独给一档宽度 */

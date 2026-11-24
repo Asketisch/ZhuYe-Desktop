@@ -1,32 +1,36 @@
 /**
  * harness 应用壳（v3 设计稿移植）—— 纯展示组件。
  *
- * 骨架：标题条 + 侧栏（品牌 / 导航 / 会话滚动区 / 用户条）+ 主区（路由视图
- * + 底部终端面板）+ 右 dock（五档）+ 浮层（任务中心 / 命令面板 / 设置）。
- * 主区内容由 TanStack Router 的 <Outlet/> 注入；harness.data.viewMode 仅
- * 用于样式钩子（data-viewmode）。全部状态与监听由 ShellBinding 持有。
+ * 骨架：标题条 + 侧栏 + 主区（路由视图 + 底部终端面板）+ 右 dock（ZCode 式
+ * 标签条 + 内容面板）+ 浮层（任务中心 / 命令面板 / 设置）。主区内容由
+ * TanStack Router 的 <Outlet/> 注入；全部状态与监听由 ShellBinding 持有，
+ * 浮层锚点态同样在绑定层，这里只把回调透传并把 DockOverlays slot 渲染出来。
  */
-import { AlarmClock, ChevronRight, Circle, Plus, Settings } from 'lucide-react';
+import { AlarmClock, Circle, Plus, Settings } from 'lucide-react';
 import type { ShellViewProps } from '@/contracts/shell';
 import { Icon } from '../design-system/Icon';
+import { DockTabBar } from './DockTabBar';
 
 export function AppShell({
   titleBar, sidebar, palette, inspectorOpen, sidebarLabel, inspectorLabel,
   suppressInteraction, toasts, onDismissToast, content, slots, harness,
 }: ShellViewProps) {
   const { TitleBar, Sidebar, CommandPalette, ModalStack, Toast,
-    ConfirmDialogHost, ViewErrorBoundary, DockPanel, DockResizer, TerminalDock, InboxPanel, SettingsHost } = slots;
-  const { data } = harness;
+    ConfirmDialogHost, ViewErrorBoundary, DockPanel, DockResizer, TerminalDock,
+    InboxPanel, SettingsHost, DockOverlays } = slots;
+  const { data, dock } = harness;
   const { t } = data;
 
+  const activeKind = dock.tabs.find((tab) => tab.id === dock.activeId)?.kind;
   const appCls = [
     'app',
     harness.rail ? 'rail' : '',
     inspectorOpen ? '' : 'no-inspector',
     harness.termOpen ? 'term-open' : '',
-    harness.dockWide ? 'dock-wide' : '',
-    harness.dockMode === 'files' ? 'dock-files' : '',
-    harness.dockMode === 'agents' ? 'dock-agents' : '',
+    dock.wide ? 'dock-wide' : '',
+    dock.fullView ? 'dock-full' : '',
+    activeKind === 'files' ? 'dock-files' : '',
+    activeKind === 'agents' ? 'dock-agents' : '',
   ].filter(Boolean).join(' ');
 
   const navItem = (
@@ -70,8 +74,6 @@ export function AppShell({
               icon: <Icon icon={Plus} size={15} />,
               testid: 'harness-nav-new',
             })}
-            {/* 侧栏入口对齐参考工作台三入口：新建任务 / 自动化 / 插件市场；
-                终端 / 泳道 / 任务看板收进「更多」菜单。 */}
             {navItem(t('harness.nav.automation'), {
               on: data.pathname === "/schedule",
               onClick: () => data.navigate('/schedule'),
@@ -87,10 +89,8 @@ export function AppShell({
             })}
           </nav>
 
-          {/* 会话滚动区（旧渲染契约数据 + harness 徽标） */}
           <Sidebar {...sidebar} />
 
-          {/* 底部：仅设置入口（更多菜单已移除，旧路由页入口待重新决策）。 */}
           <div className="sb-foot">
             <button
               type="button"
@@ -113,46 +113,44 @@ export function AppShell({
           <TerminalDock />
         </main>
 
-        {/* ===== 右 dock（五档）===== */}
-        <aside
-          className="inspector"
-          aria-label={inspectorLabel}
-          data-dock={harness.dockMode}
-          data-testid="harness-dock"
-        >
-          <div className="dock-modes">
-            {([['inspector', t('harness.dock.inspector')], ['browser', t('harness.dock.browser')],
-              ['files', t('harness.dock.files')], ['agents', t('harness.dock.agents')],
-              ['usage', t('harness.dock.usage')]] as const).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                className={`dock-mode${harness.dockMode === mode ? ' on' : ''}`}
-                onClick={() => harness.onSetDockMode(mode)}
-                data-testid={`harness-dock-mode-${mode}`}
-              >
-                {label}
-              </button>
-            ))}
-            <span className="tp-spacer" />
-            <button
-              type="button"
-              className={`tb-btn${harness.dockWide ? ' on' : ''}`}
-              title={t('harness.dock.wide')}
-              aria-label={t('harness.dock.wide')}
-              onClick={harness.onToggleDockWide}
-              data-testid="harness-dock-wide"
-            >
-              <Icon icon={ChevronRight} size={14} />
-            </button>
+        {/* ===== 右 dock（ZCode 式标签条）===== */}
+        <aside className="inspector" aria-label={inspectorLabel} data-dock={activeKind ?? ''} data-testid="harness-dock">
+          <DockTabBar
+            t={t}
+            tabs={dock.tabs}
+            activeId={dock.activeId}
+            fullView={dock.fullView}
+            dockWide={dock.wide}
+            onActivate={dock.onActivateTab}
+            onClose={dock.onCloseTab}
+            onReorder={dock.onReorderTab}
+            onNewTab={dock.onNewTab}
+            onToggleOverview={(anchor) => dock.onToggleOverview(anchor)}
+            onToggleFullView={dock.onToggleFullView}
+            onToggleDockWide={dock.onToggleWide}
+            onCollapse={dock.onCollapse}
+            onExitFullView={dock.onToggleFullView}
+            onOpenContextMenu={(tabId, anchor) => dock.onOpenContextMenu(tabId, anchor)}
+          />
+          {!dock.fullView && <DockResizer />}
+          <div className="dock-body" data-testid="dock-body">
+            <DockPanel />
           </div>
-          {/* 左缘分隔条：按住拖动改 dock 宽度（宽度真源在 shellUi）。 */}
-          <DockResizer />
-          <DockPanel />
         </aside>
       </div>
 
       {/* ===== 浮层 ===== */}
+      <DockOverlays
+        overviewAnchor={dock.overviewAnchor}
+        contextMenu={dock.contextMenu}
+        onToggleOverview={dock.onToggleOverview}
+        onOpenContextMenu={dock.onOpenContextMenu}
+        onActivateTab={dock.onActivateTab}
+        onReopenClosedTab={dock.onReopenClosedTab}
+        onCloseTab={dock.onCloseTab}
+        onCloseOthers={dock.onCloseOthers}
+        onCloseAll={dock.onCloseAll}
+      />
       {harness.inboxOpen && (
         <InboxPanel inboxTab={harness.inboxTab} onNavigateSession={data.navigate} />
       )}
@@ -160,7 +158,6 @@ export function AppShell({
       <SettingsHost open={harness.settingsOpen} onClose={harness.onCloseSettings} />
       <ModalStack suppressInteractionModals={suppressInteraction} />
       <ConfirmDialogHost />
-      {/* toast：设计稿为单条居中提示，只展示最新一条。 */}
       {toasts.length > 0 && (
         <div className="toast on" role="status" data-testid="harness-toast-host">
           <Toast kind={toasts[0].kind === 'warn' ? 'warning' : toasts[0].kind}

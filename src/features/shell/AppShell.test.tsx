@@ -61,7 +61,7 @@ describe('AppShell collapse behavior', () => {
     // harness 壳层 UI 状态迁移到 shellUi（含 localStorage 持久化），逐用例重置。
     localStorage.clear();
     useShellUi.setState({
-      rail: false, dockOpen: false, dockMode: 'inspector', dockWide: false,
+      rail: false, dockOpen: false, dockTabs: [], dockActiveId: null, dockWide: false,
       termOpen: false, semantic: 'on', inboxOpen: false, settingsOpen: false,
       paletteOpen: false, unread: {},
     });

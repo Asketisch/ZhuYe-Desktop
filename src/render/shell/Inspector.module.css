@@ -1,9 +1,22 @@
 .root {
   display: flex;
   flex-direction: column;
+  flex: 1;
   padding: var(--space-3);
   gap: var(--space-4);
   min-height: 0;
+  overflow-y: auto;
+}
+
+/* 计划 dock 根节点：滚动约束层（长计划正文在此内部滚动）。 */
+.planDock {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3);
+  gap: var(--space-3);
 }
 
 /* ===== 概览 / 文件 / 改动 三 tab ===== */

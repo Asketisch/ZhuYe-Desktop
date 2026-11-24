@@ -127,7 +127,7 @@ describe('StatusPanel · 常驻工作台右列', () => {
     expect(elapsed.textContent).toContain('分');
   });
 
-  it('有 plan 终稿时「计划」节可见，点击打开 dock 检查器 plan 页签', () => {
+  it('有 plan 终稿时「计划」节可见，点击打开 dock 计划标签页', () => {
     useShellUiSetForTest();
     useAgentStore.setState({
       todos: [{ content: '任务一', status: 'pending' }],
@@ -138,8 +138,8 @@ describe('StatusPanel · 常驻工作台右列', () => {
     expect(screen.getByText('实施计划')).toBeTruthy();
     fireEvent.click(screen.getByTestId('status-panel-plan'));
     expect(useShellUiGet().dockOpen).toBe(true);
-    expect(useShellUiGet().dockMode).toBe('inspector');
-    expect(useShellUiGet().inspectorTab).toBe('plan');
+    expect(useShellUiGet().dockTabs.some((tab) => tab.kind === 'plan')).toBe(true);
+    expect(useShellUiGet().dockActiveId).toBe('plan');
   });
 
   it('可折叠为窄条并可展开（collapse / expand）', () => {
@@ -187,5 +187,5 @@ function useShellUiGet() {
   return useShellUi.getState();
 }
 function useShellUiSetForTest() {
-  useShellUi.setState({ dockOpen: false, dockMode: 'inspector', inspectorTab: 'overview' });
+  useShellUi.setState({ dockOpen: false, dockTabs: [], dockActiveId: null });
 }

@@ -126,7 +126,8 @@ describe('PermissionPicker 完全访问', () => {
     expect(screen.getByTestId('composer-permission-trigger').getAttribute('data-full-access')).toBeNull();
   });
 
-  it('从完全访问切回其他档不需确认;审批策略重置且警示色熄灭', () => {
+  it('从完全访问切回其他档不需确认;审批策略重置且警示色熄灭', async () => {
+    mockInvoke('zhuye_set_permission_mode', async () => 'sub-1');
     localStorage.setItem('zhuye.approvalPolicy.new', 'full_access');
     renderPicker();
     expect(screen.getByTestId('composer-permission-trigger').getAttribute('data-full-access')).toBeDefined();
@@ -134,5 +135,7 @@ describe('PermissionPicker 完全访问', () => {
     fireEvent.click(screen.getByTestId('composer-perm-auto'));
     expect(localStorage.getItem('zhuye.approvalPolicy.new')).toBe('auto');
     expect(screen.getByTestId('composer-permission-trigger').getAttribute('data-full-access')).toBeNull();
+    // 等 setPermissionMode 的异步回执 flush，避免未处理拒绝泄漏到下一用例。
+    await act(async () => { await Promise.resolve(); });
   });
 });
