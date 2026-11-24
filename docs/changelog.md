@@ -4,7 +4,7 @@
 
 ## 未发布
 
-- **CLI 端到端演练扩成场景套件（上游 tests/live/cli_e2e.sh，28 场景，
+- **CLI 端到端演练扩成场景套件（上游 tests/live/cli_e2e.sh，31 场景，
   本地专用不进 CI）**：原单流程脚本（plan → 确认 → 开发 → git commit）
   扩成**场景套件** —— 一场景一进程（崩溃 / 超时互不牵连），每个检查项
   折成一条 tcase。覆盖 agent 协议面七组：plan（出 plan / 打回修订 /
@@ -14,9 +14,11 @@
   —— sess_77cd626f 事故形态 / 窗口占满收口）、cache（空闲期保温 /
   命中读取 / 写入分段）、interact（中断 / 转向 / 提问 / 审批放行与拒绝）、
   session（续作回放 / 回退截断 / 迭代上限 / token 预算）、ext（子代理 /
-  后台任务 / 客户端远程工具 / 管理面 Op）。两种模式：`ZHUYE_LIVE=1`
+  后台任务 / 客户端远程工具 / 管理面 Op）、guard（OS 沙箱越界拦截 /
+  `read_before_edit` hook 未读先写被拒 / 回合级审批策略 deny 与
+  full_access）。两种模式：`ZHUYE_LIVE=1`
   走真实模型，`ZHUYE_E2E_MOCK=1` 走内置 mock provider 离线自检
-  （107 项检查全绿，多次连跑结果一致）。断言只到**协议形状 + 产物
+  （122 项检查全绿，多次连跑结果一致）。断言只到**协议形状 + 产物
   存在性 + 终态语义**，不断言模型文本；真模型不配合（如该用
   `bash(run_in_background)` 却去查 `background_status`）判**跳过**而非
   失败 —— 协议面无异常，缺的是模型配合，确定性口径由 mock 自检覆盖。
