@@ -17,7 +17,7 @@
 | L3 | `tests/backend/` | **真后端**：`cargo fmt` / `clippy` / doc-test（`///` 示例绊网，`--all-targets` 不含 doctest）/ `cargo test --workspace --all-targets`（含能力覆盖层 `src-tauri/tests/ipc_*.rs`）/ llvm-cov 行覆盖报告（装了才跑，可通过 `BACKEND_COVERAGE=0` 关闭；报告型无门槛） | **真** | 0 = 通过 |
 | L4 | `tests/artifact/` | 发布产物：`.app` 结构 / Info.plist 键与版本 / 前端资源已嵌入 / 无开发残留 / **签名封印 + 授权已嵌入**（`codesign_entitlements_ok`，自测 `codesign-entitlements.test.sh` 同步编排）/ DMG 内封印 | 真产物 | 0 = 通过 |
 | L5 | `tests/e2e/` | 视觉回归（全路由 + 交互面(弹窗)× dark/light 截图产出，**像素判定当前关闭**，真实前端 + fakeBackend 浏览器态构建）+ 真窗口冒烟（Linux/Windows WebDriver；macOS CoreGraphics）；`E2E_REQUIRED=1` 强制 | 模拟（视觉）/ 真（窗口） | 0 = 通过（skip 不算失败） |
-| L6 | `tests/live/` | **实模型演练**：`zhuye_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `zhuye_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`ZHUYE_LIVE=1` 开启。另有 CLI headless 链路（`zhuye serve`）的**场景套件**（28 个场景：plan / goal / compact / cache / interact / session / ext，含压缩熔断、目标模式、审批、中断、续作回放等协议面）—— **在上游** `zhuye-agent/tests/live/cli_e2e.sh`（本地专用，不进 CI；配置模板 + gitignore 的本地 toml；直接对上游仓库运行，`ZHUYE_E2E_BIN` 可指桌面构建的二进制验 pin 态；`ZHUYE_E2E_MOCK=1` 为离线自检模式） | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
+| L6 | `tests/live/` | **实模型演练**：`zhuye_submit` → AgentThread → 真 provider（免费模型池）→ 真 SSE → `zhuye_event` 通道的完整一轮；模型从清单**实时发现**（`model = "free"`）。默认跳过，`ZHUYE_LIVE=1` 开启。另有 CLI headless 链路（`zhuye serve`）的**场景套件**（31 个场景：plan / goal / compact / cache / interact / session / ext / guard，含压缩熔断、目标模式、审批、中断、续作回放、沙箱越界拦截等协议面）—— **在上游** `zhuye-agent/tests/live/cli_e2e.sh`（本地专用，不进 CI；配置模板 + gitignore 的本地 toml；直接对上游仓库运行，`ZHUYE_E2E_BIN` 可指桌面构建的二进制验 pin 态；`ZHUYE_E2E_MOCK=1` 为离线自检模式） | **真**（模型也是真的） | 0 = 通过（skip 不算失败） |
 
 **为什么 L2、L3 与 L6 都要有**：L2 验前端行为与线格式（后端是模拟的），
 L3 验真后端命令体的行为（但模型是假的）。模拟后端的 bug 会把真后端的 bug
