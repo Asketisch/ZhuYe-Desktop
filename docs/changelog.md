@@ -19,7 +19,12 @@
   （107 项检查全绿，多次连跑结果一致）。断言只到**协议形状 + 产物
   存在性 + 终态语义**，不断言模型文本；真模型不配合（如该用
   `bash(run_in_background)` 却去查 `background_status`）判**跳过**而非
-  失败 —— 协议面无异常，缺的是模型配合，确定性口径由 mock 自检覆盖。桌面仓库不保留副本 —— 对上游仓库运行：
+  失败 —— 协议面无异常，缺的是模型配合，确定性口径由 mock 自检覆盖。
+  真模型跑全套还暴露并修掉两处场景设计问题（均非引擎缺陷）：
+  `plan_readonly` 此前批准 plan，批准会合法切出 plan 模式，之后的 write
+  不再受只读门控约束（leak.txt 真的落盘）—— 改为**打回**，会话停在
+  plan 模式；`resume` / `rewind` 依赖 request_echo 回显判断历史，真模型
+  不回显 —— 改以 rollout 为真相来源。桌面仓库不保留副本 —— 对上游仓库运行：
   `ZHUYE_E2E_MOCK=1 bash ../ZhuYe/tests/live/cli_e2e.sh`（`ZHUYE_E2E_BIN`
   可指桌面构建的二进制验 pin 态）。
 - **submodule 升级（98072c5e → df99688f）—— 压缩水位按同一次模型上报校准**：
