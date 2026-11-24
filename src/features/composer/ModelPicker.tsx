@@ -16,6 +16,8 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { zhuye_agent_status, zhuye_get_config, zhuye_set_model } from '@/utils/commands/config';
+import { syncEffortPreference } from '@/stores/agent/effortPreference';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   groupDisplayLabel,
   listGroups,
@@ -92,6 +94,14 @@ export function ModelPicker() {
       : `${GROUP_VALUE}${activeGroup.id}`;
 
   /** 切换失败 —— 后端拒绝必须可见（静默吞错会让「点了没反应」无法诊断）。 */
+  const qc = useQueryClient();
+  // 模型切换 = 强制重绑,思考强度槽位会被配置默认重置 —— 恢复用户偏好
+  // 并失效 capability 缓存,让 pill 立即按新槽位(恢复后的档)回显。
+  const restoreEffortAfterSwitch = async () => {
+    await syncEffortPreference(useAgentStore.getState().loadedSessionId);
+    void qc.invalidateQueries({ queryKey: ['effort-capability'] });
+  };
+
   const reportSwitchFailure = (e: unknown) => {
     pushToast({
       kind: 'error',
@@ -125,6 +135,7 @@ export function ModelPicker() {
           const prev = useAgentStore.getState().session;
           useAgentStore.setState({ session: { model: spec, provider: prev?.provider ?? '' } });
         }
+        await restoreEffortAfterSwitch();
         await refreshGroups();
         // 钉住成功但该凭据没有 model:请求仍无模型可用 —— 明示而非静默。
         if (!credential.model.trim()) {
@@ -156,6 +167,7 @@ export function ModelPicker() {
           const prev = useAgentStore.getState().session;
           useAgentStore.setState({ session: { model: spec, provider: prev?.provider ?? '' } });
         }
+        await restoreEffortAfterSwitch();
         await refreshGroups();
         // 切到组但没有默认模型:请求仍无模型可用 —— 明示而非静默。
         if (!group.model.trim()) {

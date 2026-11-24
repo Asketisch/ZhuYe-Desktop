@@ -4,6 +4,17 @@
 
 ## 未发布
 
+- **思考强度偏好持久化（修复「选了 max 显示 medium」）**：composer / Models 页选档走
+  `Op::SetEffort` 只写**当前会话线程的内存槽位**，而每次换绑（切换会话、保存设置 /
+  配置热重载、模型切换、重启）都会以 `[model].reasoning_effort` 的配置默认值重新播种
+  档位 —— 用户选的 max 静默变回配置里的 medium。新增 `effortPreference`
+  （per-session localStorage + `'new'` 预创建键，仿 permissionPreference）：显式选档落
+  偏好，bind / 配置重载后 `syncEffortPreference` 对比线程槽位并重放选档（一致则跳过，
+  不发冗余 op）；模型不支持时由能力表在发 wire 前钳制降级，槽位存原始档无损。写入点：
+  composer EffortPicker / Models 页 effort 控件 / `/effort` slash；恢复点：bind 链、
+  模型切换成功后（含 capability 缓存失效）、配置保存成功后、EffortPicker 的
+  `config_reloaded` 监听。
+
 - **权限三档 + `/` 命令对齐 ZCode（第二轮交互收敛）**：
   1. **权限三档**：composer 权限菜单收敛为 ZCode 同款三档单选 ——
      **询问**（wire `prompt`，语义升级见下）/ **自主模式**（wire `auto`，

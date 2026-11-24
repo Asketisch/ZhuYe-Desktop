@@ -2,18 +2,23 @@
  * EffortPicker —— 底栏右侧思考深度 pill。
  *
  * 自原控制行收进卡内：`zhuye_get_effort` 回读 + `zhuye_set_effort`
- * 设置（乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新；
- * config_reloaded 事件触发重读）。档位只给当前模型支持的子集
- * （useEffortCapability，按模型分键查询）；显示值 = 当前模型生效档
- * （effective，换模型即重算，不顶旧模型偏好），偏好保留在槽位、
- * 切回支持模型自动恢复。档位文案直接显示英文原词（协议/厂商原始
- * 档位字，low/medium/high/…），不做本地化映射。
+ * 设置（乐观更新 —— 协议无 effort 变更事件，读回仅在下次挂载时刷新）。
+ * 档位只给当前模型支持的子集（useEffortCapability，按模型分键查询）；
+ * 显示值 = 当前模型生效档（effective，换模型即重算，不顶旧模型偏好），
+ * 偏好保留在槽位、切回支持模型自动恢复。档位文案直接显示英文原词
+ * （协议/厂商原始档位字，low/medium/high/…），不做本地化映射。
+ *
+ * v1.x 偏好持久化：选档只写线程内存槽位，换绑（切会话/热重载/切模型/
+ * 重启）会用 `[model].reasoning_effort` 配置默认重置 —— 显式选择记
+ * per-session 偏好（effortPreference），挂载与配置重载时同步回槽位。
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/permissions';
 import { useI18n } from '@/utils/i18n';
+import { useAgentStore } from '@/stores/agentStore';
+import { syncEffortPreference, writeEffortPreference } from '@/stores/agent/effortPreference';
 import { ALL_EFFORTS, useEffortCapability } from './useEffortCapability';
 import s from '@/render/composer/EffortPicker.module.css';
 
@@ -28,24 +33,27 @@ export function EffortPicker() {
   // 思考强度能力(按当前模型):只提供模型支持的档位,并把「用户选择」与
   // 「实际生效」分开显示 —— 偏好保留,换模型后自动重算。
   const capability = useEffortCapability();
+  const sessionId = useAgentStore((st) => st.loadedSessionId);
   const [effort, setEffort] = useState<Level>('low');
 
-  // 回读当前档位;配置重载(config_reloaded,含设置页保存 / 手改 TOML)
-  // 时重读 —— 默认思考强度落地后引擎重绑新线程带新 initial,这里跟上。
-  const rereadEffort = () => {
-    zhuye_get_effort()
-      .then((level) => setEffort(normalize(level)))
-      .catch(() => {/* 回读失败保持当前显示 */});
-  };
+  // 挂载 / 配置重载都会先用配置默认重置槽位 —— 同步用户偏好后再回读,
+  // pill 恢复到用户显式选过的档（无偏好时 sync 为 no-op,显示配置默认）。
   useEffect(() => {
     let cancelled = false;
-    zhuye_get_effort()
-      .then((level) => {
-        if (!cancelled) setEffort(normalize(level));
-      })
-      .catch(() => {/* 回读失败保持默认 */});
+    const refresh = () =>
+      syncEffortPreference(useAgentStore.getState().loadedSessionId).finally(() => {
+        if (cancelled) return;
+        zhuye_get_effort()
+          .then((level) => {
+            if (!cancelled) setEffort(normalize(level));
+          })
+          .catch(() => {/* 回读失败保持默认 */});
+      });
+    void refresh();
     const unsubscribe = subscribeAgentEvent((event) => {
-      if (event.msg.type === 'config_reloaded') rereadEffort();
+      if (event.msg.type === 'config_reloaded') {
+        void refresh();
+      }
     });
     return () => {
       cancelled = true;
@@ -74,6 +82,10 @@ export function EffortPicker() {
 
   const onSetEffort = (level: Level) => {
     setEffort(level);
+    // 显式选择记 per-session 偏好 —— Op::SetEffort 只写线程内存槽位，
+    // 换绑（切会话/热重载/切模型/重启）会用配置默认值重置档位；偏好
+    // 在 bind / 热重载后由 syncEffortPreference 自动恢复。
+    writeEffortPreference(sessionId, level);
     void zhuye_set_effort(level).catch(() => {
       // 乐观更新失败回滚读不到真值 —— 保持所选，下次挂载会对齐。
     });

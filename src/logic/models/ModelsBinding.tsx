@@ -24,6 +24,8 @@ import {
 } from '@/logic/models/modelGroups';
 import { useI18n } from '@/utils/i18n';
 import { formatTokens } from '@/utils/formatTokens';
+import { useAgentStore } from '@/stores/agentStore';
+import { writeEffortPreference } from '@/stores/agent/effortPreference';
 import type { ModelsViewProps } from '@/contracts/models';
 
 const REASONING_EFFORTS = ALL_EFFORTS;
@@ -56,7 +58,10 @@ export function ModelsBinding({ view: View }: { view: ComponentType<ModelsViewPr
 
   const effortMutation = useMutation({
     mutationFn: async (level: Effort) => zhuye_set_effort(level),
-    onSuccess: () => {
+    onSuccess: (_result, level) => {
+      // 与 composer EffortPicker 同款：显式选档记 per-session 偏好，
+      // 换绑后由 syncEffortPreference 恢复（否则被配置默认重置）。
+      writeEffortPreference(useAgentStore.getState().loadedSessionId, level);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },

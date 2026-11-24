@@ -7,6 +7,7 @@ import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import { writePermissionPreference } from '@/stores/agent/permissionPreference';
+import { syncEffortPreference } from '@/stores/agent/effortPreference';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useSettingsSearch } from './useSettingsSearch';
 
@@ -73,6 +74,9 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
       dirtyRef.current = rawTomlRef.current !== savedToml;
       qc.invalidateQueries({ queryKey: ['config'] });
       qc.invalidateQueries({ queryKey: ['agent-status'] });
+      // 配置保存可能触发热重载 + 强制重绑（模型组段变更）—— 重绑会用
+      // 配置默认重置思考强度槽位，恢复用户在 composer 显式选过的档。
+      void syncEffortPreference(sessionId);
     },
     onError: (e: unknown) => {
       setError(e instanceof Error ? e.message : String(e));
