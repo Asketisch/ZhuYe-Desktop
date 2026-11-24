@@ -4,7 +4,8 @@
 
 ## 未发布
 
-- **CLI 真模型端到端演练脚本（tests/live/cli_e2e.sh）**：把本次人工验证
+- **CLI 真模型端到端演练脚本（tests/live/cli_e2e.sh，本地专用不进
+  CI）**：把本次人工验证
   的全流程固化为可重放自动化 —— 实际构建 zhuye-cli → 隔离工作区 +
   plan 模式启动（stdin JSONL Submission 驱动）→ agent 出具 plan →
   确认 plan（自动批准 auto_mode）→ 正常开发 → git init + commit →
@@ -16,6 +17,7 @@
   引擎配置）。断言只到**协议形状 + 产物存在性**（plan markdown 非空、
   审批后权限切换、全程无 compact_rapid_refill、产物齐、提交由 agent
   在沙箱内完成），不断言模型文本。端点不可达判 **SKIP** 不判失败;
+  本地专用、不进 CI 门禁链（依赖本机真实端点），
   默认跳过，
   `ZHUYE_LIVE=1 bash tests/live/cli_e2e.sh` 开启（本批沙箱修复的真实
   模型回归载体）。
