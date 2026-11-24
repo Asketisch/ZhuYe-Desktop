@@ -4,24 +4,49 @@
 
 ## 未发布
 
-- **submodule 升级（e246299e → d5e29122）—— compact 幽灵压缩修复 + 触发
-  阈值按模型窗口推导**：修复 `compact_rapid_refill` 熔断误杀健康会话
-  （实证：MiniMax-M3.1-Flash（1M 窗口）的 12K token plan-mode 会话在
-  第 5 步被熔断）。两层修复：① **幽灵压缩**——压缩器三级（microcompact
-  提前退出 / smart_prune 未越阈 / 摘要不可用）全部空转时，消息列表原样
-  却被包装成 `SmartPrune(removed=0)` 返回，pre_loop 据此给 rapid-refill
-  守卫登记锚点，上下文没变小 → 后续每步越阈被判 refill，3 连击 Abort；
-  现提前返回与尾部兜底在 removed=0 且 truncated=0 时一律降级 `Noop`，
-  pre_loop 上膛口径收紧为「有效压缩」（removed>0 或有摘要，与落盘空压
-  守卫同齐）。② **阈值推导**——`触发点 = 模型上下文窗口 × 压缩比`，
-  取代一刀切 10K：窗口解析顺序为显式配置（`[context_windows]` /
-  `[model].context_window`）→ 引擎静态表（MiniMax M3 系 = 1M）→
-  models.dev → 128K 兜底；压缩比经新配置 `[compact].trigger_ratio`
-  调整（默认 0.85，>1 钳 1、≤0 回落默认），`[compact].trigger_tokens`
-  保留为显式绝对值逃生舱。桌面 facade 与 CLI exec 两条装配路径统一走
-  同一推导（此前 facade 只认 env/TOML 显式值，窗口联动静默失效）。
-  按新默认无需任何配置：MiniMax-M3.1-Flash 触发点 850K、200K 窗口模型
-  170K、未知私端模型 108.8K。
+- **CLI 真模型端到端演练脚本（tests/live/cli_e2e.sh）**：把本次人工验证
+  的全流程固化为可重放自动化 —— 实际构建 zhuye-cli → 隔离工作区 +
+  plan 模式启动（stdin JSONL Submission 驱动）→ agent 出具 plan →
+  确认 plan（自动批准 auto_mode）→ 正常开发 → git init + commit →
+  断言产物。隔离：mktemp 假 HOME + ZHUYE_HOME（配置从真实 config.toml
+  拷贝、rollout / session notes 全落临时目录，不污染真实 ~/.zhuye），
+  git 身份经假 HOME 的 .gitconfig 提供。断言只到**协议形状 + 产物
+  存在性**（plan markdown 非空、审批后权限切换、全程无
+  compact_rapid_refill、产物齐、提交由 agent 在沙箱内完成），不断言
+  模型文本。端点不可达判 **SKIP** 不判失败;默认跳过，
+  `ZHUYE_LIVE=1 bash tests/live/cli_e2e.sh` 开启（本批沙箱修复的真实
+  模型回归载体）。
+- **submodule 升级（e246299e → a6bd50c1）—— compact 幽灵压缩修复 + 触发
+  阈值按模型窗口推导 + 沙箱 .git 归属快照**：修复 `compact_rapid_refill`
+  熔断误杀健康会话（实证：MiniMax-M3.1-Flash（1M 窗口）的 12K token
+  plan-mode 会话在第 5 步被熔断）。两层修复：① **幽灵压缩**——压缩器
+  三级（microcompact 提前退出 / smart_prune 未越阈 / 摘要不可用）全部
+  空转时，消息列表原样却被包装成 `SmartPrune(removed=0)` 返回，pre_loop
+  据此给 rapid-refill 守卫登记锚点，上下文没变小 → 后续每步越阈被判
+  refill，3 连击 Abort；现提前返回与尾部兜底在 removed=0 且
+  truncated=0 时一律降级 `Noop`，pre_loop 上膛口径收紧为「有效压缩」
+  （removed>0 或有摘要，与落盘空压守卫同齐）。② **阈值推导**——
+  `触发点 = 模型上下文窗口 × 压缩比`，取代一刀切 10K：窗口解析顺序为
+  显式配置（`[context_windows]` / `[model].context_window`）→ 引擎静态
+  表（MiniMax M3 系 = 1M）→ models.dev → 128K 兜底；压缩比经新配置
+  `[compact].trigger_ratio` 调整（默认 0.85，>1 钳 1、≤0 回落默认），
+  `[compact].trigger_tokens` 保留为显式绝对值逃生舱。桌面 facade 与
+  CLI exec 两条装配路径统一走同一推导（此前 facade 只认 env/TOML 显式
+  值，窗口联动静默失效）。按新默认无需任何配置：MiniMax-M3.1-Flash
+  触发点 850K、200K 窗口模型 170K、未知私端模型 108.8K。③ **沙箱 .git
+  归属快照**——两轮修复：顶层 `.git` 无条件只读 deny 会堵死非仓库
+  workspace 的 `git init`（mkdir/touch .git 全 EPERM）；改「存在才
+  deny」后又因 profile 每条命令重建，agent 在同一条命令里 init + add
+  成功、下一条命令起 `.git` 变只读，commit 永远拿不到 index.lock。
+  现以 `GitProtectionSnapshot`（会话级归属快照）定案：只读保护的是
+  **会话开始前已有提交历史的用户仓库**（改 hook 即提权面）；agent
+  `git init` 的空仓库（unborn HEAD）归 agent 所有、全程可写，提交
+  历史一经产生下个会话起恢复保护；判定失败（worktree 指针 / 读不到
+  HEAD）fail-closed 视为用户资产。快照由 `AgentConfig::new` 创建，
+  经 `ToolContext` 同源透传前台 BashTool 与后台 bash，子代理显式继承
+  父会话判定。`.agents` / `.aws` / `.zhuye` 保持无条件只读。
+  真机回归 `agent_can_init_add_and_commit_across_commands`（跨三条
+  命令 init→add→commit，反向验证变异回逐命令语义即红）。
 - **submodule 升级（28c0b9a8 → e246299e，切跟 main）+ MCP 宿主互操作接线**：
   上游 `McpLifecycleEvent` 新增 `Elicitation` / `ToolsChanged` 两个宿主
   变体，协议新增 `EventMsg::mcp_elicitation` 事件与
