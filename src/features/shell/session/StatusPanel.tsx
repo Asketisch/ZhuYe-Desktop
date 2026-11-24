@@ -1,32 +1,29 @@
 /**
  * StatusPanel —— 会话区右侧**常驻工作台列**（zai 工作台同款形态）。
  *
- * 五段（无内容的段自动隐藏）：
+ * 四段（无内容的段自动隐藏）：
  * - 目标：激活时显示计时（⏱ 分秒）+ GoalBody 快照/设目标表单；
  * - 计划：plan 终稿/草稿行，点击 → 检查器 plan 页签；
  * - 进程：todolist 三态清单 + 完成计数；
- * - 上下文容量：总进度条 + 输入/输出/缓存读写分解条 + 缓存命中率；
- * - 凭据池：模型组内凭据健康（healthy/total）。
+ * - 上下文容量：总进度条 + 输入/输出/缓存读写分解条 + 缓存命中率。
  *
  * 布局为 chatpane 的 flex 右列（非 absolute 浮层），可折叠为 44px 窄条。
- * 数据全部来自 store / 既有 IPC（zhuye_credential_pool_status），无新增命令。
+ * 数据全部来自 store / 既有 IPC，无新增命令。
  */
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
-  CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Database,
+  CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
   FileText, Gauge, ListChecks, Target,
 } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_credential_pool_status } from '@/utils/commands/runtimeStatus';
 import { GoalBody } from '@/features/shell/sessionChips/GoalBody';
 import { useContextRatio } from '@/logic/shell/useContextRatio';
 import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
 import s from '@/render/shell/session/session.module.css';
 
-type SectionKey = 'goal' | 'plan' | 'todo' | 'context' | 'pool';
+type SectionKey = 'goal' | 'plan' | 'todo' | 'context';
 
 /** 把 RFC3339 起始时间格式化为「X分Y秒 / X小时Y分」。 */
 function formatElapsed(startedAt: string | undefined, now: number): string {
@@ -71,7 +68,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    goal: true, plan: true, todo: true, context: true, pool: true,
+    goal: true, plan: true, todo: true, context: true,
   });
   const todos = useAgentStore((st) => st.todos);
   const contextComposition = useAgentStore((st) => st.contextComposition);
@@ -97,14 +94,6 @@ export function StatusPanel({ goalActive, turnRunning }: {
   }, [goalActive]);
   const goalElapsed = goalActive ? formatElapsed(goalSnapshot?.started_at, now) : '';
 
-  const poolQ = useQuery({
-    queryKey: ['workbench-pool'],
-    queryFn: zhuye_credential_pool_status,
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-  });
-  const pools = poolQ.data ?? [];
-
   const doneCount = todos.filter((td) => td.status === 'completed').length;
   const planState = plan ? 'ready' : planDraft ? 'draft' : null;
   const planTitle = plan?.markdown?.split('\n').find((l) => l.trim())?.replace(/^#+\s*/, '')
@@ -113,7 +102,7 @@ export function StatusPanel({ goalActive, turnRunning }: {
 
   const hasGoal = goalActive || goalSnapshot != null;
   const hasContent = todos.length > 0 || hasGoal || planState != null || turnRunning
-    || context.ratio != null || pools.length > 0;
+    || context.ratio != null;
 
   const toggleSection = (key: SectionKey) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -300,31 +289,6 @@ export function StatusPanel({ goalActive, turnRunning }: {
                   ))}
                 </div>
               )}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* 凭据池（模型组内凭据健康，30s 轮询） */}
-      {pools.length > 0 && (
-        <section className={s.statusSection} data-status-section="pool">
-          <button type="button" className={s.statusSectionHead} onClick={() => toggleSection('pool')} aria-expanded={openSections.pool}>
-            {openSections.pool
-              ? <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
-              : <ChevronRight size={14} strokeWidth={1.5} aria-hidden />}
-            <span className={s.statusSectionTitle}>{t('statusPanel.pool')}</span>
-            <Database size={12} strokeWidth={1.5} className={s.statusRowIcon} aria-hidden />
-          </button>
-          {openSections.pool && (
-            <div className={s.statusRows} data-testid="status-panel-pool">
-              {pools.map((p) => (
-                <div key={p.group} className={s.statusRow}>
-                  <span className={s.statusRowTxt}>{p.group}</span>
-                  <span className={`${s.statusSide} ${s.wbPoolCount}`} data-ok={p.healthy >= p.total || undefined}>
-                    {p.healthy}/{p.total}
-                  </span>
-                </div>
-              ))}
             </div>
           )}
         </section>

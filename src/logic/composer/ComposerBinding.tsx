@@ -221,12 +221,18 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
 
   // placeholder 三态：运行中排队 / 追问 / 新会话引导（新会话文案顺带
   // 教 @ 与 / 的打字触发 —— 独立图标按钮已收编进「+」菜单）。
+  // 计划挂起时覆盖为审批语境：输入文字发送 = 打回修订并注入反馈。
   const turnsCount = useAgentStore((st) => st.turns.length);
-  const placeholder = isTurnRunning
-    ? t('composer.placeholder.queue')
-    : turnsCount > 0
-      ? t('composer.placeholder.followUp')
-      : t('composer.placeholder.newTask');
+  const pendingPlan = useAgentStore((st) => st.pendingPlan);
+  const placeholder = pendingPlan
+    ? t(pendingPlan.kind === 'request'
+      ? 'composer.placeholder.planRequest'
+      : 'composer.placeholder.planFeedback')
+    : isTurnRunning
+      ? t('composer.placeholder.queue')
+      : turnsCount > 0
+        ? t('composer.placeholder.followUp')
+        : t('composer.placeholder.newTask');
 
   return <View
     t={t} placeholder={placeholder} text={text} busy={busy} canSend={canSend} sendLabel={sendLabel} sendMode={sendMode}

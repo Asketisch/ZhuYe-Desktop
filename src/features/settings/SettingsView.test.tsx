@@ -104,7 +104,7 @@ describe('SettingsView', () => {
     // 权限控件在「行为与工具」分区。
     fireEvent.click(screen.getByTestId('settings-section-behavior'));
     // permission 分段按钮文案:auto/prompt/plan。
-    const planBtn = await screen.findByText('plan', { selector: 'button' });
+    const planBtn = await screen.findByText('Plan', { selector: 'button' });
     fireEvent.click(planBtn);
 
     await waitFor(() => expect(modeArg).toBe('plan'), { timeout: 2000 });

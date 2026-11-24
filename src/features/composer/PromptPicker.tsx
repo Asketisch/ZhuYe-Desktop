@@ -21,6 +21,7 @@ import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { readPromptSelection, writePromptSelection } from '@/stores/agent/promptSelection';
+import { writePermissionPreference } from '@/stores/agent/permissionPreference';
 import type { PromptSelection } from '@/utils/commands/prompts';
 import s from '@/render/composer/PromptPicker.module.css';
 
@@ -148,6 +149,10 @@ export function PromptPicker() {
     // 首页(未建会话)下发的模式只落在占位线程上,首条消息建会话后的
     // 正式校准在 syncPlanPresetPermissionMode(bind → replay 为空时)。
     if (next.mode === 'manual' && next.profile === 'plan') {
+      // 同时登记工作模式偏好：新会话 bind 后由
+      // syncPreferredPermissionMode 校准（与 syncPlanPresetPermissionMode
+      // 双保险），用户显式选择优先于预设推断。
+      writePermissionPreference(sessionId, 'plan');
       setPermissionMode('plan').catch(() => { /* 占位线程未就绪等失败:建会话后会再校准 */ });
     }
     close();

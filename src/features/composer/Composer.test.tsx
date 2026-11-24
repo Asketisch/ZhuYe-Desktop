@@ -5,6 +5,7 @@ import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient, mockInvoke, emitMockEvent, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from '@/stores/agentStore';
 import { setUiPrefs, resetUiPrefsForTests } from '@/utils/uiPrefs';
+import { settleConfirm } from '@/logic/modals/confirm';
 
 // 慢 CI(ubuntu runner)上异步 fetch/渲染链路偶发超过 DTL 默认 1s 窗口,
 // 本文件 waitFor 统一放宽到 5s。
@@ -504,7 +505,7 @@ describe('Composer queue vs steer (C)', () => {
 // ===========================================================================
 
 describe('Composer inline controls', () => {
-  it('权限下拉:切工作模式走 zhuye_set_permission_mode,审批策略独立写偏好', async () => {
+  it('权限下拉:切模式档走 zhuye_set_permission_mode,完全访问只落偏好', async () => {
     const calls: string[] = [];
     mockInvoke('zhuye_set_permission_mode', async (_cmd: string, args?: { mode: string }) => {
       calls.push(args?.mode ?? '');
@@ -513,31 +514,37 @@ describe('Composer inline controls', () => {
     useAgentStore.setState({ permissionMode: 'auto' });
     renderComposer();
 
-    // 打开菜单 → 切到「计划」→ 命令下发,菜单收起。
+    // 打开菜单 → 切到「询问」→ 命令下发,菜单收起,审批策略重置 auto。
     fireEvent.click(await screen.findByTestId('composer-permission-trigger'));
-    fireEvent.click(screen.getByTestId('composer-perm-plan'));
-    await waitFor(() => expect(calls).toEqual(['plan']));
+    fireEvent.click(screen.getByTestId('composer-perm-prompt'));
+    await waitFor(() => expect(calls).toEqual(['prompt']));
     expect(screen.queryByTestId('composer-permission-menu')).toBeNull();
+    expect(localStorage.getItem('zhuye.approvalPolicy.new')).toBe('auto');
 
-    // 审批策略是独立概念:选「帮我批准」只落 per-session 偏好,不发命令。
+    // 完全访问只落 per-session 偏好,不改工作模式；切入先过确认弹窗
+    // （pub/sub 模态,直接 settle「确认」）。
     fireEvent.click(screen.getByTestId('composer-permission-trigger'));
-    fireEvent.click(screen.getByTestId('composer-approval-auto_approve'));
-    expect(calls).toEqual(['plan']);
-    expect(localStorage.getItem('zhuye.approvalPolicy.new')).toBe('auto_approve');
+    fireEvent.click(screen.getByTestId('composer-perm-full_access'));
+    await waitFor(() => expect(screen.queryByTestId('composer-permission-menu')).toBeNull());
+    act(() => settleConfirm(true));
+    await waitFor(() =>
+      expect(localStorage.getItem('zhuye.approvalPolicy.new')).toBe('full_access'),
+    );
+    expect(calls).toEqual(['prompt']);
   });
 
-  it('权限菜单恒为三段:store 残留弃用档也不裸回显第四项', () => {
+  it('权限菜单恒为三档:store 残留弃用档也不裸回显', () => {
     // 正常路径下 reducer/sync 两条写入口都经 normalizePermissionMode
     // 归一(见 agentStore.test);这里强制注入弃用档,锁定「菜单只有
-    // 计划/询问/默认三段、不再出现原始字符串回显」的渲染契约。
+    // 询问/自主模式/完全访问三档、不再出现原始字符串回显」的渲染契约。
     useAgentStore.setState({ permissionMode: 'accept_edits' as never });
     renderComposer();
     fireEvent.click(screen.getByTestId('composer-permission-trigger'));
     const menu = screen.getByTestId('composer-permission-menu');
     expect(menu.textContent).not.toContain('accept_edits');
-    expect(screen.getByTestId('composer-perm-plan')).toBeDefined();
     expect(screen.getByTestId('composer-perm-prompt')).toBeDefined();
     expect(screen.getByTestId('composer-perm-auto')).toBeDefined();
+    expect(screen.getByTestId('composer-perm-full_access')).toBeDefined();
   });
 
   it('lists model groups and switches model via zhuye_set_model', async () => {
@@ -747,11 +754,11 @@ describe('Composer slash popup (stub 下架 + 键盘导航)', () => {
     fireEvent.change(input, { target: { value: '/' } });
     await screen.findByTestId('slash-popup');
 
-    // 首项 effort → ArrowDown 选中第二项 compact。
+    // 首项 plan（六命令置顶）→ ArrowDown 选中第二项 goal。
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    await waitFor(() => expect(input.value).toBe('/compact '));
+    await waitFor(() => expect(input.value).toBe('/goal '));
     // Enter 被弹层消费，不触发 agent 提交。
     await new Promise((r) => setTimeout(r, 30));
     expect(submitted).toHaveLength(0);

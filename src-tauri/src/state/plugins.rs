@@ -64,10 +64,13 @@ pub(crate) fn canonical_enabled(enabled: &[String]) -> Vec<String> {
 /// 而不必重启。调用点:配置保存后的 plugins 段变更、`zhuye_toggle_plugin`。
 pub(crate) fn apply_bundled_tool_gates(agent: &MinimalAgent) {
     let cfg = agent.inner.cfg.read().clone();
-    let gates = zhuye_plugin::bundled_tool_gates(
+    let mut gates = zhuye_plugin::bundled_tool_gates(
         &cfg.plugins.enabled_plugins,
         &cfg.plugins.disabled_plugins,
     );
+    // web_search 额外要求 API key（配置或进程环境）：没有 key 时工具
+    // 调用了也只会失败，不注册比"注册后报错"更干净。
+    gates.web_search = gates.web_search && super::web_search::key_configured(&cfg);
     let tools = agent.tools();
     sync_gated_tool(&tools, "web_search", gates.web_search, || {
         Arc::new(zhuye_tools::builtins::WebSearchTool::new())
@@ -460,7 +463,7 @@ mod tests {
     async fn non_user_input_ops_pass_through() {
         let registry = CommandRegistry::new();
 
-        let submission = Submission::with_id("op-1", Op::Compact);
+        let submission = Submission::with_id("op-1", Op::Compact { instructions: None });
         let out = expand_with_registry(&registry, submission).unwrap();
         assert_eq!(out.id, "op-1");
     }

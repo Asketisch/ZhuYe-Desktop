@@ -308,4 +308,49 @@ describe('Inspector — plan tab renders plan content', () => {
     expect(screen.queryByTestId('inspector-plan-draft')).toBeNull();
     expect(screen.getByTestId('inspector-plan').textContent).toContain('TodoWrite');
   });
+
+  it('挂起计划卡片：ready 显示同意执行/逐项确认/打回修订并发对应决策', async () => {
+    const choices: Array<{ id: string; choice: string }> = [];
+    mockInvoke('zhuye_plan_approval', async (_cmd: string, args: { id: string; choice: string }) => {
+      choices.push(args);
+      return 'sub-1';
+    });
+    useAgentStore.setState({
+      pendingPlan: { id: 'p1', kind: 'ready', payload: { markdown: '# Plan' }, turnId: 't1' },
+      plan: { planId: 'p1', markdown: '## 计划正文', path: null, status: 'ready' },
+    });
+    await openPlanTab();
+    expect(screen.getByTestId('inspector-plan-pending')).toBeDefined();
+
+    fireEvent.click(screen.getByTestId('plan-card-approve'));
+    await waitFor(() => expect(choices).toEqual([{ id: 'p1', choice: 'auto_mode' }]));
+    fireEvent.click(screen.getByTestId('plan-card-manual'));
+    await waitFor(() => expect(choices[1]).toEqual({ id: 'p1', choice: 'manual_approve' }));
+    fireEvent.click(screen.getByTestId('plan-card-revise'));
+    await waitFor(() => expect(choices[2]).toEqual({ id: 'p1', choice: 'revise' }));
+    // 正文仍渲染在卡片下方。
+    expect(screen.getByTestId('inspector-plan-body').textContent).toContain('计划正文');
+  });
+
+  it('挂起计划卡片：request 显示进入/暂不；已在计划模式下不再渲染确认卡', async () => {
+    const choices: Array<{ id: string; choice: string }> = [];
+    mockInvoke('zhuye_plan_approval', async (_cmd: string, args: { id: string; choice: string }) => {
+      choices.push(args);
+      return 'sub-1';
+    });
+    useAgentStore.setState({
+      permissionMode: 'auto',
+      pendingPlan: { id: 'p2', kind: 'request', payload: { task: '调研迁移' }, turnId: 't1' },
+    });
+    await openPlanTab();
+    expect(screen.getByTestId('inspector-plan-pending').textContent).toContain('调研迁移');
+    fireEvent.click(screen.getByTestId('plan-card-enter'));
+    await waitFor(() => expect(choices).toEqual([{ id: 'p2', choice: 'manual_approve' }]));
+
+    // 已在计划模式：冗余 enter 由 usePlanSurfacing 静默应答，页签不渲染确认卡。
+    useAgentStore.setState({ permissionMode: 'plan' });
+    cleanup(); // 同一用例内二次挂载前清场，避免 testid 重复命中
+    await openPlanTab();
+    expect(screen.queryByTestId('inspector-plan-pending')).toBeNull();
+  });
 });

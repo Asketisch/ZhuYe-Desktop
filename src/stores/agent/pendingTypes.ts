@@ -10,7 +10,7 @@ import type { McpElicitationField } from '@/types/protocol';
 
 export interface PendingApproval {
   id: string;
-  /** tool / hook 审批;plan 审批走独立的 PendingPlan + PlanReadyModal(ApprovePlan)。 */
+  /** tool / hook 审批;plan 审批走独立的 PendingPlan（右侧 dock 计划页签 + composer 审批条，`approvePlan`）。 */
   kind: 'tool' | 'hook';
   toolName?: string;
   argsSummary?: string;

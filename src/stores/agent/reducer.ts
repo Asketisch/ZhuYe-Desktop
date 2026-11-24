@@ -312,8 +312,8 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
       return {};
 
     case 'approval_request': {
-      // plan 类型的审批走独立的 plan_ready 事件 + pendingPlan + PlanReadyModal,
-      // 不进 pendingApprovals(后者只收 tool / hook)。
+      // plan 类型的审批走独立的 plan_ready 事件 + pendingPlan（右侧 dock
+      // 计划页签 + composer 审批条），不进 pendingApprovals(后者只收 tool / hook)。
       if (msg.kind.type === 'plan') return {};
       const approval: PendingApproval = {
         id: msg.request_id,

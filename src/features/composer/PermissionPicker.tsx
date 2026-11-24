@@ -1,15 +1,20 @@
 /**
- * PermissionPicker —— 底栏左侧的工作模式触发器 + 弹出菜单。
+ * PermissionPicker —— 底栏左侧的权限档触发器 + 弹出菜单（ZCode 同款三档）。
  *
- * 输入卡下方的控制行（思考深度 / 审批策略 / 权限三段）收进卡内后的
- * 权限入口：一个触发器（盾形图标 + 当前工作模式 + 箭头）带一锅里
- * 向上弹的菜单 —— 工作模式三段（计划 / 询问 / 默认）+ 审批策略四段。
- * 两套概念在菜单里分区单选，语义保持正交：工作模式经
- * `zhuye_set_permission_mode` 下发（事件回读），审批策略按会话存
- * localStorage 并在每次发送的 thread_settings 里携带。
+ * 菜单只有三个单选项：
+ * - **询问**（wire `prompt`）：可运行基本 bash；拦截删除等危险操作；
+ *   不能修改文件（语义在上游审批门 `ask_mode` 判定）。
+ * - **自主模式**（wire `auto`）：在有风险时询问。
+ * - **完全访问**（审批策略 `full_access`）：减少确认次数；切入走确认弹窗。
  *
- * 审批策略为完全访问时触发器转警示色（告警盾）；**切入**完全访问
- * 弹确认框 —— 明确告知「不再确认」的后果后再落偏好。
+ * 计划不在此菜单 —— 入口在「+」菜单 / `/plan`。会话处于计划模式时三档
+ * 都不勾选，菜单顶部显示一条非交互提示行。
+ *
+ * 选中态派生：审批策略为完全访问时优先显示「完全访问」（警示色）；
+ * 否则按工作模式（计划 > 询问 / 自主模式）。工作模式经
+ * `zhuye_set_permission_mode` 下发（事件回读），完全访问按会话存
+ * localStorage 并在每次发送的 thread_settings 里携带；切三档中的模式档
+ * 会把审批策略重置回「跟随模式」。
  */
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -20,30 +25,23 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  Compass,
-  Zap,
 } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
+import { writePermissionPreference } from '@/stores/agent/permissionPreference';
 import { confirmDialog } from '@/logic/modals/confirm';
 import s from '@/render/composer/PermissionPicker.module.css';
 
-/** 会话工作模式三段（wire: plan/prompt/auto）。 */
-const MODES = [
-  { value: 'plan', icon: NotebookPen, labelKey: 'composer.controls.perm.plan', descKey: 'composer.controls.planHint' },
+/** 权限三档（前两档 = wire 工作模式，第三档 = 审批策略完全访问）。 */
+const TIERS = [
   { value: 'prompt', icon: Hand, labelKey: 'composer.controls.perm.ask', descKey: 'composer.controls.askHint' },
-  { value: 'auto', icon: ShieldCheck, labelKey: 'composer.controls.perm.auto', descKey: 'composer.controls.defaultHint' },
+  { value: 'auto', icon: ShieldCheck, labelKey: 'composer.controls.perm.guarded', descKey: 'composer.controls.guardedHint' },
+  { value: 'full_access', icon: ShieldAlert, labelKey: 'composer.controls.perm.full', descKey: 'composer.controls.fullHint' },
 ] as const;
 
-/** 工具审批策略四段（按会话保存，发送时随 thread_settings 携带）。 */
-const APPROVALS = [
-  { value: 'auto', icon: Compass, labelKey: 'composer.controls.approval.follow' },
-  { value: 'prompt', icon: Hand, labelKey: 'composer.controls.approval.prompt' },
-  { value: 'auto_approve', icon: Zap, labelKey: 'composer.controls.approval.auto' },
-  { value: 'full_access', icon: ShieldAlert, labelKey: 'composer.controls.approval.full' },
-] as const;
+type TierValue = (typeof TIERS)[number]['value'];
 
 export function PermissionPicker() {
   const { t } = useI18n();
@@ -67,30 +65,51 @@ export function PermissionPicker() {
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [open]);
 
-  const onPickMode = (mode: string) => {
+  // 选中档派生：完全访问优先；计划模式下三档均不选中。弃用档（store
+  // 残留）同样无选中但不显示计划态提示（提示行只认 plan）。
+  const selectedTier: TierValue | null =
+    approvalPolicy === 'full_access' ? 'full_access' : permissionMode === 'prompt' || permissionMode === 'auto' ? permissionMode : null;
+  const fullAccess = approvalPolicy === 'full_access';
+  const planActive = !fullAccess && permissionMode === 'plan';
+
+  const resetApproval = (sessionIdKey: string | null | undefined) => {
+    setApprovalPolicy('auto');
+    writeApprovalPolicy(sessionIdKey, 'auto');
+  };
+
+  const onPickMode = (mode: 'prompt' | 'auto') => {
     setOpen(false);
+    // 记录用户显式选择：首页写入 'new' 键，待会话 id 落定后转正；
+    // bind → replay 为空的新会话据此校准模式。模式档切换同时把审批
+    // 策略重置回「跟随模式」—— 三档互斥，完全访问只经确认弹窗开启。
+    writePermissionPreference(sessionId, mode);
+    resetApproval(sessionId);
     void setPermissionMode(mode);
   };
 
-  const onPickApproval = async (value: UserApprovalPolicy) => {
+  const onPickFullAccess = async () => {
     setOpen(false);
-    // 切入完全访问：先确认「不再确认」的后果（其余档直接生效）。
-    if (value === 'full_access' && approvalPolicy !== 'full_access') {
+    // 切入完全访问：先确认「不再确认」的后果（退出无需确认）。
+    if (!fullAccess) {
       const ok = await confirmDialog({
         title: t('composer.perm.fullAccessTitle'),
         message: t('composer.perm.fullAccessMessage'),
-        confirmLabel: t('composer.controls.approval.full'),
+        confirmLabel: t('composer.controls.perm.full'),
       });
       if (!ok) return;
     }
-    setApprovalPolicy(value);
-    writeApprovalPolicy(sessionId, value);
+    setApprovalPolicy('full_access');
+    writeApprovalPolicy(sessionId, 'full_access');
   };
 
-  const fullAccess = approvalPolicy === 'full_access';
   const TriggerIcon = fullAccess ? ShieldAlert : Shield;
-  const modeLabel =
-    MODES.find((m) => m.value === permissionMode)?.labelKey ?? 'composer.controls.perm.auto';
+  const triggerLabelKey = fullAccess
+    ? 'composer.controls.perm.full'
+    : planActive
+      ? 'composer.controls.perm.plan'
+      : permissionMode === 'prompt'
+        ? 'composer.controls.perm.ask'
+        : 'composer.controls.perm.guarded';
   const title = [
     t('composer.controls.approval.hint'),
     fullAccess ? t('composer.perm.fullAccessTitle') : null,
@@ -112,7 +131,7 @@ export function PermissionPicker() {
         data-testid="composer-permission-trigger"
       >
         <Icon icon={TriggerIcon} size={14} />
-        <span>{t(modeLabel)}</span>
+        <span>{t(triggerLabelKey)}</span>
         <Icon icon={ChevronDown} size={12} className={s.caret} />
       </button>
       {goalActive && (
@@ -135,45 +154,28 @@ export function PermissionPicker() {
 
       {open && (
         <div className={s.menu} role="menu" data-testid="composer-permission-menu">
-          <span className={s.menuLabel}>{t('composer.perm.modeLabel')}</span>
-          {MODES.map((mode) => (
+          {planActive && (
+            <span className={s.planHint} data-testid="composer-perm-plan-hint">
+              <Icon icon={NotebookPen} size={12} />
+              {t('composer.controls.perm.planActiveHint')}
+            </span>
+          )}
+          {TIERS.map((tier) => (
             <button
-              key={mode.value}
+              key={tier.value}
               type="button"
               role="menuitemradio"
-              aria-checked={permissionMode === mode.value || undefined}
+              aria-checked={selectedTier === tier.value || undefined}
               className={s.option}
-              onClick={() => onPickMode(mode.value)}
-              data-testid={`composer-perm-${mode.value}`}
+              onClick={() => (tier.value === 'full_access' ? void onPickFullAccess() : onPickMode(tier.value))}
+              data-testid={`composer-perm-${tier.value}`}
             >
-              <Icon icon={mode.icon} size={14} className={s.optionIcon} />
+              <Icon icon={tier.icon} size={14} className={s.optionIcon} />
               <span className={s.optionText}>
-                <span className={s.optionTitle}>{t(mode.labelKey)}</span>
-                <span className={s.optionDesc}>{t(mode.descKey)}</span>
+                <span className={s.optionTitle}>{t(tier.labelKey)}</span>
+                <span className={s.optionDesc}>{t(tier.descKey)}</span>
               </span>
-              {permissionMode === mode.value && (
-                <Icon icon={Check} size={14} className={s.optionCheck} />
-              )}
-            </button>
-          ))}
-
-          <div className={s.separator} role="separator" />
-          <span className={s.menuLabel}>{t('composer.controls.approval')}</span>
-          {APPROVALS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="menuitemradio"
-              aria-checked={approvalPolicy === option.value || undefined}
-              className={s.option}
-              onClick={() => void onPickApproval(option.value)}
-              data-testid={`composer-approval-${option.value}`}
-            >
-              <Icon icon={option.icon} size={14} className={s.optionIcon} />
-              <span className={s.optionText}>
-                <span className={s.optionTitle}>{t(option.labelKey)}</span>
-              </span>
-              {approvalPolicy === option.value && (
+              {selectedTier === tier.value && (
                 <Icon icon={Check} size={14} className={s.optionCheck} />
               )}
             </button>

@@ -615,7 +615,7 @@ describe('reduceEvent — approval / ask_user / bubble', () => {
       emptyState(),
       ev('t1', { type: 'approval_request', request_id: 'a2', kind: { type: 'plan', plan_id: 'p1', summary: 'refactor' } }),
     );
-    // plan 审批走 plan_ready 事件 + PlanReadyModal,不进 tool/hook 的 pendingApprovals。
+    // plan 审批走 plan_ready 事件 + composer 审批条/右 dock 计划页签,不进 tool/hook 的 pendingApprovals。
     expect(patch.pendingApprovals).toBeUndefined();
   });
 

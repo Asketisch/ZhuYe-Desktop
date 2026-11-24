@@ -125,9 +125,15 @@ pub async fn zhuye_interrupt(
 
 // ====== 15 个 Op 命令:构造 Op 经 submit_op 真正驱动 AgentThread ======
 
+/// `/compact` —— 手动触发上下文压缩。v1.x:可选附加指示随
+/// `Op::Compact` 下发,下一轮强制压缩时注入摘要 prompt
+/// (「## 用户附加指示」段);`None` = 普通压缩。
 #[tauri::command]
-pub async fn zhuye_compact(agent: State<'_, MinimalAgent>) -> CommandResult<String> {
-    Ok(agent.submit_op(Op::Compact).await?)
+pub async fn zhuye_compact(
+    agent: State<'_, MinimalAgent>,
+    instructions: Option<String>,
+) -> CommandResult<String> {
+    Ok(agent.submit_op(Op::Compact { instructions }).await?)
 }
 
 #[tauri::command]

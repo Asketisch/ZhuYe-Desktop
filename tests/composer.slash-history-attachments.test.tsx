@@ -50,6 +50,53 @@ describe('slash commands (real dispatch → backend)', () => {
     expect(useAgentStore.getState().turns.length).toBe(0);
   });
 
+  it('/compact <指示> forwards instructions; bare /compact sends null', async () => {
+    renderApp();
+    await send('/compact 聚焦数据库改动');
+    await waitFor(() => expect(backend.callsOf('zhuye_compact').length).toBe(1));
+    expect(backend.lastArgsOf('zhuye_compact')).toEqual({ instructions: '聚焦数据库改动' });
+
+    await send('/compact');
+    await waitFor(() => expect(backend.callsOf('zhuye_compact').length).toBe(2));
+    expect(backend.lastArgsOf('zhuye_compact')).toEqual({ instructions: null });
+  });
+
+  it('/init submits the canned AGENTS.md prompt (model-driven)', async () => {
+    renderApp();
+    await send('/init 重点写 rust 工作区');
+
+    // 先 ensure session（无会话时创建）,再以固定提示词提交一轮对话。
+    await waitFor(() => expect(backend.callsOf('zhuye_submit').length).toBe(1));
+    const submitted = backend.lastArgsOf('zhuye_submit') as {
+      submission: { op: { items: Array<{ type: string; text?: string }> } };
+    };
+    const text = submitted.submission.op.items[0].text ?? '';
+    expect(text).toContain('/init');
+    expect(text).toContain('AGENTS.md');
+    expect(text).toContain('重点写 rust 工作区');
+  });
+
+  it('/side <任务> starts a side channel and opens the lanes page', async () => {
+    renderApp();
+    await send('/side 评估迁移风险');
+
+    await waitFor(() => expect(backend.callsOf('zhuye_start_side_channel').length).toBe(1));
+    expect(backend.lastArgsOf('zhuye_start_side_channel')).toEqual({
+      agentName: 'default',
+      prompt: '评估迁移风险',
+    });
+    await waitFor(() => expect(screen.getByTestId('harness-app').getAttribute('data-viewmode')).toBe('lanes'));
+  });
+
+  it('/side without args is rejected with a usage hint', async () => {
+    renderApp();
+    await send('/side');
+    await waitFor(() =>
+      expect(useAgentStore.getState().toasts.some((t) => t.kind === 'warn')).toBe(true),
+    );
+    expect(backend.callsOf('zhuye_start_side_channel').length).toBe(0);
+  });
+
   it('/plan <task> switches to plan mode and submits the task as a message', async () => {
     renderApp();
     await send('/plan refactor the auth module');

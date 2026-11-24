@@ -12,6 +12,7 @@ import { EffortPicker } from './EffortPicker';
 import { BangRunsPanel } from './BangRunsPanel';
 import { ComposerPlusMenu } from './ComposerPlusMenu';
 import { ModelPicker } from './ModelPicker';
+import { PlanApprovalBar } from './PlanApprovalBar';
 
 const slots = {
   SlashPopup,
@@ -25,6 +26,7 @@ const slots = {
   BangRunsPanel,
   ComposerPlusMenu,
   ModelPicker,
+  PlanApprovalBar,
 };
 
 export function Composer() {

@@ -67,9 +67,14 @@ const chat: Record<string, StringEntry> = {
   // 工具调用聚合组（对话式 agent 产品惯例）：连续调用折叠成一行摘要。
   'chat.toolGroup.summary':        { en: 'used {tools}',                                                       'zh-CN': '已使用 {tools}' },
   // 活动（工具+思考混合）聚合组：对话式 agent 产品惯例「执行 N 命令」摘要。
+  // 折叠态也要能看到工具名（思考并入组后单工具不再有独立行）。
   'chat.activityGroup.tools':      { en: 'Ran {count} commands',                                              'zh-CN': '执行 {count} 命令' },
+  'chat.activityGroup.toolsNamed': { en: 'Ran {name} ×{count}',                                               'zh-CN': '执行 {name} ×{count}' },
+  'chat.activityGroup.toolsList':  { en: 'Ran {count} commands ({names})',                                    'zh-CN': '执行 {count} 命令（{names}）' },
   'chat.activityGroup.thinking':   { en: 'Thought {count} times',                                             'zh-CN': '思考 {count} 次' },
   'chat.activityGroup.mixed':      { en: 'Ran {tools} commands, thought {thinking} times',                    'zh-CN': '执行 {tools} 命令 · 思考 {thinking} 次' },
+  'chat.activityGroup.mixedNamed': { en: 'Ran {name} ×{tools}, thought {thinking} times',                     'zh-CN': '执行 {name} ×{tools} · 思考 {thinking} 次' },
+  'chat.activityGroup.mixedList':  { en: 'Ran {tools} commands ({names}), thought {thinking} times',          'zh-CN': '执行 {tools} 命令（{names}）· 思考 {thinking} 次' },
   'chat.activityGroup.running':    { en: 'Running · {label}',                                                 'zh-CN': '正在运行 · {label}' },
   'chat.tool.noPath':              { en: '(no path)',                                                         'zh-CN': '(无路径)' },
   'chat.tool.chars':               { en: '{n} chars',                                                         'zh-CN': '{n} 字符' },

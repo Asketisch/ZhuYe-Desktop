@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Server, Cpu, AlertTriangle, MessageCircleQuestion, Coins, Folder, GitBranch, Gauge, Bot, RefreshCw, Square } from 'lucide-react';
-import { Icon, Badge, IconButton, Tooltip } from '@/features/design-system';
+import { Icon, Badge, Button, IconButton, Tooltip } from '@/features/design-system';
 import { useShallow } from 'zustand/react/shallow';
 import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import type { SubagentProgressEntry } from '@/stores/agentStore';
@@ -27,7 +27,7 @@ import { Markdown } from '@/components/Markdown';
 import { useContextRatio } from './useContextRatio';
 import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
 import { useShellUi } from '@/stores/shellUi';
-import { CredentialPoolSection, SubagentCallsSection } from './RuntimeStatusSections';
+import { SubagentCallsSection } from './RuntimeStatusSections';
 import { TodoPanel } from './TodoPanel';
 import s from '@/render/shell/Inspector.module.css';
 
@@ -288,8 +288,7 @@ function OverviewTab() {
       {/* agent 的 todo 清单(来自 `TodoWrite` 工具输出元数据)。 */}
       <TodoPanel />
 
-      {/* 运行时状态:凭证池健康度 + 已完成的子代理调用。 */}
-      <CredentialPoolSection />
+      {/* 运行时状态:已完成的子代理调用(凭证池不在右侧展示)。 */}
       <SubagentCallsSection />
 
       {lastError && (
@@ -587,8 +586,53 @@ function PlanTab() {
   const queued = useAgentStore(useShallow(selectQueuedForActiveSession));
   const plan = useAgentStore((st) => st.plan);
   const planDraft = useAgentStore((st) => st.planDraft);
+  const pendingPlan = useAgentStore((st) => st.pendingPlan);
+  const approvePlan = useAgentStore((st) => st.approvePlan);
+  const permissionMode = useAgentStore((st) => st.permissionMode);
+  // 已在计划模式下的 plan_request 是冗余 enter —— usePlanSurfacing 会
+  // 静默应答，页签不再重复渲染确认卡。
+  const showRequestCard = pendingPlan?.kind === 'request' && permissionMode !== 'plan';
+  const showReadyCard = pendingPlan != null && pendingPlan.kind !== 'request';
   return (
     <div data-testid="inspector-plan">
+      {/* 挂起计划卡片：审批动作就在计划正文旁（计划不再走全局弹窗）。
+          正文在下方照常渲染终稿/草稿。 */}
+      {pendingPlan && (showRequestCard || showReadyCard) && (
+        <section className={s.planPending} data-kind={pendingPlan.kind} data-testid="inspector-plan-pending">
+          <h3 className={s.sectionTitle}>
+            <Icon icon={ListTodo} size={14} />
+            {t('plan.card.pendingTitle')}
+          </h3>
+          {showRequestCard && (
+            <>
+              <p className={s.planMeta}>
+                {String((pendingPlan.payload as { task?: string } | null)?.task ?? '')}
+              </p>
+              <div className={s.planPendingActions}>
+                <Button size="sm" variant="primary" onClick={() => void approvePlan(pendingPlan.id, 'manual_approve')} data-testid="plan-card-enter">
+                  {t('plan.card.enter')}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => void approvePlan(pendingPlan.id, 'revise')} data-testid="plan-card-decline">
+                  {t('plan.card.decline')}
+                </Button>
+              </div>
+            </>
+          )}
+          {showReadyCard && (
+            <div className={s.planPendingActions}>
+              <Button size="sm" variant="primary" onClick={() => void approvePlan(pendingPlan.id, 'auto_mode')} data-testid="plan-card-approve">
+                {t('plan.card.approveExecution')}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => void approvePlan(pendingPlan.id, 'manual_approve')} data-testid="plan-card-manual">
+                {t('plan.card.manualApprove')}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => void approvePlan(pendingPlan.id, 'revise')} data-testid="plan-card-revise">
+                {t('plan.card.revise')}
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
       {/* plan 正文:终稿优先(live plan_ready / 重放 hydrate),否则实时草稿。
           此前本 tab 只显示 TodoWrite 清单 —— plan 模式会话右侧永远空。 */}
       {plan && (

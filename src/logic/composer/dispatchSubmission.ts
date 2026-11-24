@@ -14,9 +14,11 @@ import {
   zhuye_set_effort,
   zhuye_set_permission_mode,
   zhuye_export_session,
+  zhuye_start_side_channel,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { writePromptSelection } from '@/stores/agent/promptSelection';
+import { writePermissionPreference } from '@/stores/agent/permissionPreference';
 import type { LocaleKey } from '@/utils/i18n';
 
 export type ToastKind = 'info' | 'success' | 'warn' | 'error';
@@ -52,26 +54,71 @@ export async function dispatchSubmission(
 ): Promise<void> {
   const { activeSessionId, pushToast, t, rename } = ctx;
   switch (kind) {
-    case 'compact':
-      await zhuye_compact();
+    case 'compact': {
+      // v1.x:可选附加指示（`/compact 聚焦数据库改动`）随 Op::Compact
+      // 下发,注入下一轮强制压缩的摘要 prompt;无参数 = 普通压缩。
+      const instructions = args.join(' ').trim();
+      await zhuye_compact(instructions || undefined);
       pushToast({ kind: 'info', message: t('composer.compactRequested') });
       break;
+    }
+    case 'init': {
+      // ZCode 同款模型驱动：确保会话后提交 /init 固定提示词,agent 分析
+      // 项目并创建/更新工作区 AGENTS.md（AgentsMdHook 下轮自动读取）。
+      // args 作为用户附加指示拼进提示词。
+      if (!ctx.ensureSessionReady) {
+        pushToast({ kind: 'warn', message: t('composer.unhandledSlash', { kind }) });
+        return;
+      }
+      await ctx.ensureSessionReady(activeSessionId);
+      const extra = args.join(' ').trim();
+      let prompt = t('slash.init.prompt.body');
+      if (extra) {
+        prompt += `\n\n${t('slash.init.prompt.extra', { args: extra })}`;
+      }
+      await useAgentStore.getState().submit(prompt, ctx.workspace ?? null);
+      break;
+    }
+    case 'start_side_chat': {
+      // ZCode 同款 /side · /btw：新建并打开辅助对话（zhuye 落地为侧通道
+      // —— 独立线程、不写主历史），启动后跳泳道页看运行状态。
+      const first = args.join(' ').trim();
+      if (!first) {
+        pushToast({ kind: 'warn', message: t('slash.side.usage') });
+        return;
+      }
+      try {
+        const started = await zhuye_start_side_channel({ agent_name: 'default', prompt: first });
+        ctx.navigate?.('/lanes');
+        pushToast({ kind: 'success', message: t('slash.side.started', { id: started.id }) });
+      } catch (error) {
+        pushToast({
+          kind: 'error',
+          message: t('slash.side.startFailed', {
+            msg: error instanceof Error ? error.message : String(error),
+          }),
+        });
+      }
+      break;
+    }
     case 'enter_plan_mode': {
       // GUI 语义:`/plan <任务>` = 直接进 Plan 模式开跑,不经
       // 「进入计划模式?」审批。旧实现走 `Op::EnterPlanMode` —— 引擎
-      // 对该 op 无条件派发 PlanRequest(submission_loop.rs:1585),GUI
-      // 收到即弹审批框,与「默认直接进入」的预期相悖。
+      // 对该 op 无条件派发 PlanRequest,GUI 收到即弹审批框,与「默认
+      // 直接进入」的预期相悖（现在引擎也补了「已在 Plan 模式则跳过
+      // PlanRequest」守卫，见 submission_loop::dispatch_plan_request）。
       //
       // 与 /plan 提示词预设完全同语义(选中预设 = 登记选择 + 下发
-      // SetPermissionMode):①登记 plan 预设选择 —— 首页(未建会话)时
-      // SetPermissionMode 只落占位线程,首条消息建会话 rebind 出的
-      // 新线程模式回落默认,模型仍会调 EnterPlanModeTool 再弹一次框
-      // (实测踩过);写入选择后 ensureSessionReady 的转正 + bind 时的
-      // syncPlanPresetPermissionMode 双保险兜住新线程。②ensureSessionReady
-      // 前置 —— 模式/消息都落在已绑定的真线程上,而非占位线程。
-      // ③空参数(纯 /plan)只切模式不提交消息。
+      // SetPermissionMode):①登记 plan 预设选择与工作模式偏好 ——
+      // 首页(未建会话)时 SetPermissionMode 只落占位线程,首条消息建
+      // 会话 rebind 出的新线程模式回落默认,模型仍会调 EnterPlanModeTool
+      // 再弹一次框(实测踩过);写入后 ensureSessionReady 的转正 +
+      // bind 时的 syncPreferredPermissionMode / syncPlanPresetPermissionMode
+      // 兜住新线程。②ensureSessionReady 前置 —— 模式/消息都落在已绑定
+      // 的真线程上,而非占位线程。③空参数(纯 /plan)只切模式不提交消息。
       const task = args.join(' ').trim();
       writePromptSelection(activeSessionId, { mode: 'manual', profile: 'plan' });
+      writePermissionPreference(activeSessionId, 'plan');
       if (task && ctx.ensureSessionReady) {
         await ctx.ensureSessionReady(activeSessionId);
       }

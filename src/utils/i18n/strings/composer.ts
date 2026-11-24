@@ -12,6 +12,9 @@ const composer: Record<string, StringEntry> = {
   'composer.placeholder.newTask':            { en: 'Ask ZhuYe anything, use @ to add context, use / for commands and skills', 'zh-CN': '向烛夜提问，使用 @ 添加上下文，使用 / 选择命令或能力' },
   'composer.placeholder.followUp':           { en: 'Describe the follow-up change',                 'zh-CN': '提出后续修改要求' },
   'composer.placeholder.queue':              { en: 'Keep typing to queue the next change',          'zh-CN': '继续输入以排队后续修改' },
+  // 计划挂起时的审批语境 placeholder（发送 = 打回修订并注入反馈）。
+  'composer.placeholder.planFeedback':       { en: 'Type feedback to revise the plan, or approve it above', 'zh-CN': '输入修改意见打回计划，或点击上方「同意执行计划」' },
+  'composer.placeholder.planRequest':        { en: 'Type a message to decline plan mode, or approve above', 'zh-CN': '输入消息婉拒计划模式，或点击上方「进入计划模式」' },
   'composer.ariaLabel':                      { en: 'Message ZhuYe',                                 'zh-CN': '向烛夜发送消息' },
   'composer.toolbar.slashCommands':          { en: 'Slash commands',                                'zh-CN': 'Slash 命令' },
   'composer.toolbar.attachFile':             { en: 'Attach file',                                   'zh-CN': '附加文件' },
@@ -42,7 +45,6 @@ const composer: Record<string, StringEntry> = {
   'composer.startref.localBranches':         { en: 'Local branches',                                'zh-CN': '本地分支' },
   'composer.startref.note':                  { en: 'The branch only sets the start point of the new worktree; the main directory stays on its current branch.', 'zh-CN': '分支只决定新 worktree 的起点，主目录保持当前分支不变。' },
   // ── 权限下拉（底栏左侧）：工作模式 + 审批策略 ───────────────────────
-  'composer.perm.modeLabel':                 { en: 'Session mode',                                  'zh-CN': '会话工作模式' },
   'composer.perm.fullAccessTitle':           { en: 'Enable full access?',                           'zh-CN': '要启用完全访问吗？' },
   'composer.perm.fullAccessMessage':         { en: 'The agent will read/write files, run commands and access the network without asking again. Explicit deny rules still apply.', 'zh-CN': '启用后，agent 读写文件、运行命令、访问网络都不再逐项询问；显式拒绝规则仍然生效。' },
   // ── 思考深度档位（底栏右侧 pill 选项文案）──────────────────────────────
@@ -55,6 +57,8 @@ const composer: Record<string, StringEntry> = {
   'composer.plus.compact':                   { en: 'Compact',                                       'zh-CN': '压缩' },
   'composer.plus.goal':                      { en: 'Goal',                                          'zh-CN': '目标' },
   'composer.plus.plan':                      { en: 'Plan',                                          'zh-CN': '计划' },
+  'composer.plus.side':                      { en: 'Side conversation',                             'zh-CN': '辅助对话' },
+  'composer.plus.init':                      { en: 'Init AGENTS.md',                                'zh-CN': '初始化 AGENTS.md' },
   'composer.plus.empty':                     { en: '(none)',                                        'zh-CN': '（空）' },
   // 发送锁定（底栏锁形按钮）：锁定时 Enter 只换行，防误触发出。
   'composer.sendLock.on':                    { en: 'Send locked — Enter for newline, ⌘/Ctrl+Enter to send', 'zh-CN': '已锁定发送：Enter 换行，⌘/Ctrl+Enter 发送' },
@@ -124,17 +128,20 @@ const composer: Record<string, StringEntry> = {
   'composer.controls.prompt.autoHint':       { en: 'Pick the preset variant that best matches the current model; falls back to the default when nothing matches.', 'zh-CN': '按当前模型自动选择最匹配的提示词方案变体，无匹配时回落默认。' },
   'composer.controls.prompt.hint':           { en: 'Locked once the session starts — a stable system prompt keeps the provider prompt cache warm.', 'zh-CN': '会话开始后锁定 —— 系统提示词恒定才能让供应商提示词缓存持续命中。' },
   'composer.controls.approval':              { en: 'Approval',                                      'zh-CN': '审批权限' },
-  'composer.controls.approval.follow':       { en: 'Follow mode (default)',                         'zh-CN': '跟随模式（默认）' },
-  'composer.controls.approval.prompt':       { en: 'Ask for approval',                              'zh-CN': '请求批准' },
-  'composer.controls.approval.auto':         { en: 'Approve for me (ask for high risk)',            'zh-CN': '帮我批准（高风险需确认）' },
-  'composer.controls.approval.full':         { en: 'Full access',                                   'zh-CN': '完全访问' },
-  'composer.controls.approval.hint':         { en: 'Approval policy applies to the next turn and is independent of the sandbox and plan mode. Explicit deny rules still apply.', 'zh-CN': '审批权限在下一轮生效，与沙箱及计划模式独立；显式拒绝规则仍然生效。' },
+  'composer.controls.approval.hint':         { en: 'Applies from the next turn. Full access also allows all bash commands in plan mode; explicit deny rules still apply.', 'zh-CN': '下一轮生效。「完全访问」在计划模式下也放开全部 bash；显式拒绝规则仍然生效。' },
+  // 权限三档（ZCode 同款）：询问 / 自主模式 / 完全访问。计划不在权限
+  // 菜单 —— 入口在「+」菜单与 /plan（会话处于计划模式时三档都不勾选）。
   'composer.controls.perm.plan':             { en: 'Plan',                                          'zh-CN': '计划' },
+  'composer.controls.perm.planActiveHint':   { en: 'Plan mode is on — manage it from the “+” menu or /plan.', 'zh-CN': '当前为计划模式（入口在「+」菜单 / /plan）' },
   'composer.controls.perm.ask':              { en: 'Ask',                                           'zh-CN': '询问' },
-  'composer.controls.perm.auto':             { en: 'Default',                                       'zh-CN': '默认' },
-  'composer.controls.planHint':              { en: 'Plan only — never executes tools.',             'zh-CN': '仅规划，不执行工具。' },
-  'composer.controls.askHint':               { en: 'Ask before each tool call.',                    'zh-CN': '每次调用工具前询问。' },
-  'composer.controls.defaultHint':           { en: 'Auto-approve file edits; other tools follow rules, high-risk still asks.', 'zh-CN': '自动批准文件编辑；其他工具按规则放行，高危仍需确认。' },
+  'composer.controls.askHint':               { en: 'Basic bash runs freely; dangerous ops like deletes are blocked; files cannot be modified.', 'zh-CN': '可运行基本 bash；拦截删除等危险操作；不能修改文件。' },
+  'composer.controls.perm.guarded':          { en: 'Autonomous',                                    'zh-CN': '自主模式' },
+  'composer.controls.guardedHint':           { en: 'Ask when there’s risk.',                        'zh-CN': '在有风险时询问。' },
+  'composer.controls.perm.full':             { en: 'Full access',                                   'zh-CN': '完全访问' },
+  'composer.controls.fullHint':              { en: 'Run with fewer confirmations.',                 'zh-CN': '减少确认次数。' },
+  'composer.controls.fullOff':               { en: 'Off',                                           'zh-CN': '关闭' },
+  // 旧状态条（StatusBar，v3 壳层不再挂载）仍引用 perm.auto 文案。
+  'composer.controls.perm.auto':             { en: 'Autonomous',                                    'zh-CN': '自主模式' },
   'composer.drop.hint':                      { en: 'Drop files to attach — images become inline previews, others get @-mentions.', 'zh-CN': '松开以添加附件 —— 图片生成内联预览，其他文件添加 @ 提及。' },
   'composer.drop.imageFailed':               { en: 'Failed to read image: {msg}',                   'zh-CN': '读取图片失败：{msg}' },
   'composer.bang.title':                     { en: 'Local shell runs',                              'zh-CN': '本地命令执行' },

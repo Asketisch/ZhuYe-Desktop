@@ -1,5 +1,6 @@
 /*
- * PermissionPicker —— 底栏左侧的工作模式触发器 + 弹出菜单。
+ * PermissionPicker —— 底栏左侧的权限档触发器 + 弹出菜单（ZCode 同款三档：
+ * 询问 / 自主模式 / 完全访问；计划入口在「+」菜单，菜单顶部有计划态提示行）。
  * 触发器为 28px 圆角小胶囊；完全访问档触发器转警示色。
  */
 
@@ -99,6 +100,21 @@
   padding: 6px 10px 2px;
   font-size: var(--fs-xs);
   color: var(--text-muted);
+}
+
+/* 计划态提示行（非交互）：会话处于计划模式时三档都不勾选，顶部说明
+ * 计划入口在「+」菜单 / /plan。 */
+.planHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 4px var(--space-1);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
 }
 
 /* 单选项：图标 + 标题 + 描述两行。 */

@@ -131,21 +131,21 @@ describe('chat → plan → edit full loop (real app mount)', () => {
       thread_settings: { approval_policy: 'auto' },
     });
 
-    // 2. plan 就绪弹窗出现;agent 在 gate 暂停,尚未收到任何决策。
-    const planTitle = await screen.findByText('Plan Ready');
-    const dialog = planTitle.closest('[role="dialog"]') as HTMLDivElement;
-    // 模态展示协议中的计划正文（按 markdown 渲染成结构化文档），审批命令仍使用 plan_id。
-    expect(within(dialog).getByRole('heading', { level: 1 }).textContent).toBe('Migration plan');
+    // 2. plan 就绪 → composer 审批条出现，右 dock 计划页签自动打开；
+    //    agent 在 gate 暂停,尚未收到任何决策。计划正文(markdown)在 dock 渲染。
+    const planBar = await screen.findByTestId('composer-plan-bar');
+    const planBody = await screen.findByTestId('inspector-plan-body');
+    expect(planBody.querySelector('h1')?.textContent).toBe('Migration plan');
     expect(backend.agent.planChoices.length).toBe(0);
 
-    // 3. 用户选 Auto Mode(主按钮)→ 线格式 choice='auto_mode'。
-    fireEvent.click(within(dialog).getByText('Approve plan'));
+    // 3. 用户选「同意执行计划」(主按钮)→ 线格式 choice='auto_mode'。
+    fireEvent.click(within(planBar).getByTestId('plan-bar-approve'));
     await waitFor(() => expect(backend.agent.planChoices.length).toBe(1));
     expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-1', choice: 'auto_mode' });
 
-    // 4. gate 放行:plan_approved 事件到达,pendingPlan 清空,模态关闭。
+    // 4. gate 放行:plan_approved 事件到达,pendingPlan 清空,审批条消失。
     await waitFor(() => expect(useAgentStore.getState().pendingPlan).toBeNull());
-    await waitFor(() => expect(screen.queryByText('Plan Ready')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('composer-plan-bar')).toBeNull());
     await waitFor(() => expect(logText()).toContain('Executing the plan.'));
 
     // 5. 编辑工具需逐工具审批 —— v2:接管卡(非模态)。
@@ -193,9 +193,8 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     renderApp();
     await typeAndSend('prepare a rollback');
 
-    const planTitle = await screen.findByText('Plan Ready');
-    const dialog = planTitle.closest('[role="dialog"]') as HTMLDivElement;
-    fireEvent.click(within(dialog).getByText('Manual Approve'));
+    const planBar = await screen.findByTestId('composer-plan-bar');
+    fireEvent.click(within(planBar).getByTestId('plan-bar-manual'));
 
     await waitFor(() => expect(backend.agent.planChoices.length).toBe(1));
     expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-2', choice: 'manual_approve' });
@@ -226,15 +225,17 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     renderApp();
     await typeAndSend('design the cache layer');
 
-    const planTitle = await screen.findByText('Plan Ready');
-    const dialog = planTitle.closest('[role="dialog"]') as HTMLDivElement;
-    fireEvent.click(within(dialog).getByText('Revise'));
+    // 打回修订走右 dock 计划页签的挂起卡片（composer 审批条只留
+    // 同意执行 / 逐项确认；文字反馈发送 = revise + steer，另见 composer 测试）。
+    const reviseBtn = await screen.findByTestId('plan-card-revise');
+    fireEvent.click(reviseBtn);
 
     await waitFor(() => expect(backend.agent.planChoices.length).toBe(1));
     expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-3', choice: 'revise' });
 
     // plan_rejected 事件驱动关闭;agent 继续(重新出草稿 + 提示语)。
     await waitFor(() => expect(useAgentStore.getState().pendingPlan).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('composer-plan-bar')).toBeNull());
     await waitFor(() => expect(logText()).toContain('Please review the revised approach.'));
     await waitFor(() => expect(backend.agent.finished).toBe(true));
     const turns = useAgentStore.getState().turns;
@@ -253,21 +254,27 @@ describe('chat → plan → edit full loop (real app mount)', () => {
     );
     await waitFor(() => expect(useAgentStore.getState().permissionMode).toBe('plan'));
     // 预设登记(plan 选择)同步落键 —— 新建会话 rebind 后
-    // syncPlanPresetPermissionMode 兜底校准,模型不再弹 EnterPlanMode。
+    // syncPlanPresetPermissionMode / syncPreferredPermissionMode 兜底校准,
+    // 模型不再弹 EnterPlanMode。
     const selectionKeys = Object.keys(window.localStorage).filter((k) =>
       k.startsWith('zhuye.promptSelection.'),
     );
     expect(selectionKeys.length).toBeGreaterThan(0);
     expect(selectionKeys.some((k) => window.localStorage.getItem(k)?.includes('"plan"'))).toBe(true);
+    // 工作模式偏好也落键（用户显式选择优先于预设推断）。
+    const prefKeys = Object.keys(window.localStorage).filter((k) =>
+      k.startsWith('zhuye.permissionMode.'),
+    );
+    expect(prefKeys.some((k) => window.localStorage.getItem(k) === 'plan')).toBe(true);
     await waitFor(() => expect(backend.agent.submissions.length).toBe(1));
     const subId = backend.agent.submissions[0].id;
     expect(JSON.stringify(backend.agent.submissions[0].op)).toContain('migrate the database');
 
-    // agent 在 plan 模式下产出计划,经 plan_ready 推送给用户决策。
+    // agent 在 plan 模式下产出计划,经 plan_ready 推送到 composer 审批条 +
+    // 右 dock 计划页签（不再弹窗）。
     emitEvent(subId, { type: 'plan_ready', plan_id: 'plan-4', markdown: '# From slash' });
-    const planTitle = await screen.findByText('Plan Ready');
-    const dialog = planTitle.closest('[role="dialog"]') as HTMLDivElement;
-    fireEvent.click(within(dialog).getByText('Approve plan'));
+    const planBar = await screen.findByTestId('composer-plan-bar');
+    fireEvent.click(within(planBar).getByTestId('plan-bar-approve'));
     await waitFor(() => expect(backend.agent.planChoices.length).toBe(1));
     expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-4', choice: 'auto_mode' });
 

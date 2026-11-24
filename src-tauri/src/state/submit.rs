@@ -278,7 +278,7 @@ mod tests {
         let transition = agent.inner.session_transition_lock.lock().await;
 
         let user = super::submit(&agent, user_input_submission());
-        let op = super::submit_op(&agent, Op::Compact);
+        let op = super::submit_op(&agent, Op::Compact { instructions: None });
         tokio::pin!(user, op);
         assert!(futures::poll!(&mut user).is_pending());
         assert!(futures::poll!(&mut op).is_pending());
@@ -352,7 +352,11 @@ mod tests {
                 .await
                 .is_err()
         );
-        assert!(super::submit_op(&agent, Op::Compact).await.is_err());
+        assert!(
+            super::submit_op(&agent, Op::Compact { instructions: None })
+                .await
+                .is_err()
+        );
         super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();
         let current = super::current_thread(&agent).unwrap();
         assert!(!std::sync::Arc::ptr_eq(&old, &current));
@@ -446,9 +450,9 @@ mod tests {
     /// 非 UserInput 的 op 不带 thread_settings —— 原样透传。
     #[test]
     fn non_user_input_ops_are_untouched() {
-        let sub = Submission::with_id("s1", Op::Compact);
+        let sub = Submission::with_id("s1", Op::Compact { instructions: None });
         let stamped = super::stamp_sandbox_policy_with(false, sub);
-        assert!(matches!(stamped.op, Op::Compact));
+        assert!(matches!(stamped.op, Op::Compact { .. }));
     }
 
     /// submit_op 在未 install 时必须返回 Err(instead of panic)。
@@ -457,7 +461,9 @@ mod tests {
     #[tokio::test]
     async fn submit_op_returns_err_when_not_installed() {
         let agent = MinimalAgent::new_empty();
-        let result = agent.submit_op(zhuye_protocol::Op::Compact).await;
+        let result = agent
+            .submit_op(zhuye_protocol::Op::Compact { instructions: None })
+            .await;
         assert!(
             result.is_err(),
             "submit_op before install must error, got: {result:?}"

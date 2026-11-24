@@ -5,9 +5,10 @@
  * zhuye_get_config / zhuye_save_config / zhuye_agent_status。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { renderApp, resetAppAfterEach } from './helpers/appHarness';
 import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
+import { settleConfirm } from '@/logic/modals/confirm';
 
 let backend: FakeBackend;
 
@@ -57,7 +58,7 @@ describe('settings status badge', () => {
     // 权限快捷控件只在 Permissions 页显示（不再每个设置页签重复）。
     fireEvent.click(screen.getByTestId('settings-section-behavior'));
     const planBtn = await waitFor(() => {
-      const btn = screen.getByText('plan', { selector: 'button' });
+      const btn = screen.getAllByText('Plan', { selector: 'button' })[0];
       expect(btn).toBeDefined();
       return btn as HTMLButtonElement;
     });
@@ -73,7 +74,7 @@ describe('permission mode controls', () => {
     await openSettings();
     fireEvent.click(screen.getByTestId('settings-section-behavior'));
     const planBtn = await waitFor(() => {
-      const btn = screen.getByText('plan', { selector: 'button' });
+      const btn = screen.getAllByText('Plan', { selector: 'button' })[0];
       expect(btn).toBeDefined();
       return btn as HTMLButtonElement;
     });
@@ -83,14 +84,24 @@ describe('permission mode controls', () => {
     );
   });
 
-  it('permissions section exposes independent approval policies', async () => {
+  it('permissions section exposes the full-access switch (confirm gate + per-session policy)', async () => {
     const app = await openSettings();
     fireEvent.click(screen.getByTestId('settings-section-behavior'));
-    const select = screen.getByRole('combobox', { name: 'Approval' }) as HTMLSelectElement;
-    expect(Array.from(select.options).map((option) => option.value)).toEqual(['auto', 'prompt', 'auto_approve', 'full_access']);
-    fireEvent.change(select, { target: { value: 'full_access' } });
-    expect(select.value).toBe('full_access');
+    // 完全访问开关：启用先弹确认（pub/sub 模态,直接 settle），确认后落
+    // full_access 偏好；关闭重置 auto。不发权限模式命令。
+    const onBtn = screen.getByText('Full access', { selector: 'button' });
+    fireEvent.click(onBtn);
+    await waitFor(() => expect(screen.queryByTestId('settings-page')).toBeDefined());
+    act(() => settleConfirm(true));
+    await waitFor(() =>
+      expect(localStorage.getItem('zhuye.approvalPolicy.new')).toBe('full_access'),
+    );
     expect(backend.lastArgsOf('zhuye_set_permission_mode')).toBeUndefined();
+    const offBtn = screen.getByText('Off', { selector: 'button' });
+    fireEvent.click(offBtn);
+    await waitFor(() =>
+      expect(localStorage.getItem('zhuye.approvalPolicy.new')).toBe('auto'),
+    );
   });
 });
 

@@ -25,6 +25,8 @@ export interface ComposerSlots {
   ComposerPlusMenu: ComponentType<ComponentProps<typeof ComposerPlusMenu>>;
   /** 底栏右侧的模型选择器。 */
   ModelPicker: ComponentType<ComponentProps<typeof ModelPicker>>;
+  /** 输入框上方的计划审批条（计划就绪 / 请求进入计划模式；自取数据）。 */
+  PlanApprovalBar: ComponentType;
 }
 
 export interface ComposerViewProps {

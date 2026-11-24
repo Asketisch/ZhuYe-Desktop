@@ -62,7 +62,7 @@ pnpm tauri dev           # 开发模式（热重载）
 ```
 
 - **左 sidebar**：时间分桶 Session 列表（Now / Today / Yesterday / This week / Older）。点击切换 session。
-- **中部**：chat 主区域 + composer。流式回复带 `▍` 光标。
+- **中部**：chat 主区域 + composer。流式回复逐段渲染（无额外光标）。
 - **右 panel**：M2.5+ 将挂 task / tool inspector / cost tracker。M1 留空，可通过 `Hide right panel` 按钮关闭。
 - **顶 / 底栏**：当前 session model / provider + 主题 / vim / 权限模式 tag。
 

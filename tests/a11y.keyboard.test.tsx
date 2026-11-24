@@ -6,14 +6,17 @@
  *   1. **Tab 焦点陷阱**:真实 ModalStack + 事件驱动打开的模态,连按 Tab
  *      焦点始终留在 dialog 内(键盘用户不会被弹窗后面的侧栏截走);
  *   2. **Escape 的线上回执**:Escape 不是单纯关闭 —— 审批弹窗必须回发
- *      `deny{reason:"dismissed"}`、plan 弹窗必须回发 `revise`,
- *      agent 侧才不会永远挂在等待上。
+ *      `deny{reason:"dismissed"}`,agent 侧才不会永远挂在等待上。
+ *
+ * 计划审批已迁出模态栈（右 dock 计划页签 + composer 审批条）：
+ * plan 挂起不再产生 dialog，也不占用 Escape 语义。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderView } from './helpers/appHarness';
 import { installFakeBackend, emitEvent, type FakeBackend } from './helpers/fakeBackend';
 import { ModalStack } from '@/features/modals';
+import { PlanApprovalBar } from '@/features/composer/PlanApprovalBar';
 import { useAgentStore } from '@/stores/agentStore';
 
 let backend: FakeBackend;
@@ -69,42 +72,39 @@ describe('keyboard a11y: approval modal', () => {
   });
 });
 
-describe('keyboard a11y: plan ready modal', () => {
-  it('traps Tab focus and Escape sends revise on the wire', async () => {
+describe('keyboard a11y: plan approval bar（不再占用模态/Escape 语义）', () => {
+  it('plan_ready 渲染审批条而非 dialog；按钮可键盘触发并回发对应决策', async () => {
+    renderView(<PlanApprovalBar />);
     emitEvent(TURN, {
       type: 'plan_ready',
       plan_id: 'plan-a11y',
       markdown: '# 键盘可达性探针计划\n- step 1',
     });
-    const dialogEl = await waitFor(() => {
-      const el = document.querySelector('[role="dialog"]') as HTMLElement | null;
-      expect(el).not.toBeNull();
-      return el as HTMLElement;
-    });
+    const bar = await screen.findByTestId('composer-plan-bar');
+    // 不产生 dialog：计划正文与审批都在非模态面里（右侧 dock / 输入框上方）。
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[aria-label="Plan Ready"]')).toBeNull();
 
-    await tabStaysTrapped(dialogEl, 8);
-
-    fireEvent.keyDown(dialogEl, { key: 'Escape' });
-    // Escape 的线上语义:回发 revise(等价 dismiss)。
+    // 键盘触发：聚焦按钮 + Enter 等价点击（native button 语义）。
+    const approve = within(bar).getByTestId('plan-bar-approve') as HTMLButtonElement;
+    approve.focus();
+    fireEvent.keyDown(approve, { key: 'Enter' });
+    fireEvent.click(approve);
     await waitFor(() => {
       const receipt = backend.agent.planChoices.at(-1);
       expect(receipt?.id).toBe('plan-a11y');
-      expect(receipt?.choice).toBe('revise');
-    });
-    // 模态关闭是事件驱动的:agent 侧确认(plan_rejected)后才清除。
-    emitEvent(TURN, { type: 'plan_rejected', plan_id: 'plan-a11y' });
-    await waitFor(() => {
-      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(receipt?.choice).toBe('auto_mode');
     });
   });
 });
 
 describe('keyboard a11y: stacked modals', () => {
-  it('only the topmost rendered modal answers Escape; the covered one stays', async () => {
+  it('计划挂起不再参与模态堆叠：只有审批一个 dialog，Escape 仅作用于它', async () => {
+    renderView(<PlanApprovalBar />);
     emitEvent(TURN, {
       type: 'plan_ready',
       plan_id: 'plan-bottom',
-      markdown: '# 底层-plan-弹窗',
+      markdown: '# 底层-plan（现在只在审批条/右侧 dock）',
     });
     emitEvent(TURN, {
       type: 'approval_request',
@@ -113,21 +113,16 @@ describe('keyboard a11y: stacked modals', () => {
       risk: 'low',
     });
     await screen.findByText('Tool Approval');
+    await screen.findByTestId('composer-plan-bar');
     const dialogs = document.querySelectorAll('[role="dialog"]');
-    expect(dialogs.length).toBe(2);
+    expect(dialogs.length).toBe(1);
 
-    // ModalStack 的渲染顺序固定:plan 弹窗永远渲染在审批之后 —— 它同时是
-    // 视觉栈顶(DOM 最后 = 覆盖在上)与交互栈顶(modalStack 最后挂载)。
-    // Escape 只应作用于它;被覆盖的审批弹窗原样保留、不发回执。
-    const top = dialogs[dialogs.length - 1] as HTMLElement;
-    expect(top.getAttribute('aria-label')).toBe('Plan Ready');
-    fireEvent.keyDown(top, { key: 'Escape' });
+    // Escape 只作用于审批弹窗；计划挂起原样保留、不发回执。
+    fireEvent.keyDown(dialogs[0], { key: 'Escape' });
     await waitFor(() => {
-      const receipt = backend.agent.planChoices.at(-1);
-      expect(receipt?.id).toBe('plan-bottom');
-      expect(receipt?.choice).toBe('revise');
+      expect(screen.queryByText('Tool Approval')).toBeNull();
     });
-    expect(screen.queryByText('Tool Approval')).toBeTruthy();
-    expect(backend.agent.toolApprovals).toEqual([]);
+    expect(backend.agent.planChoices).toEqual([]);
+    expect(useAgentStore.getState().pendingPlan?.id).toBe('plan-bottom');
   });
 });

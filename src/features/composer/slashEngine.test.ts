@@ -2,7 +2,7 @@
  * Vitest — slash engine 解析 + 分发测试。
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { setPluginSlashCommands, SLASH_COMMANDS } from './slashCommands';
+import { setPluginSlashCommands, filterSlashCommands, SLASH_COMMANDS } from './slashCommands';
 import {
   parseSlash,
   executeSlash,
@@ -79,6 +79,30 @@ describe('executeSlash — Tier A real dispatch', () => {
     const r = executeSlash(p as ParsedSlash, CTX);
     expect(r.kind).toBe('submit_with_submission');
     expect(r.submission).toBe('compact');
+  });
+
+  it('/init → submit_with_submission:init（模型驱动 AGENTS.md）', () => {
+    const p = parseSlash('/init 补充 rust 工作区说明');
+    if (!p.isSlash) throw new Error('not slash');
+    const r = executeSlash(p as ParsedSlash, CTX);
+    expect(r.kind).toBe('submit_with_submission');
+    expect(r.submission).toBe('init');
+  });
+
+  it('/side 与 /btw → submit_with_submission:start_side_chat（互为等价别名）', () => {
+    for (const name of ['side', 'btw']) {
+      const p = parseSlash(`/${name} 评估迁移风险`);
+      if (!p.isSlash) throw new Error('not slash');
+      const r = executeSlash(p as ParsedSlash, CTX);
+      expect(r.kind).toBe('submit_with_submission');
+      expect(r.submission).toBe('start_side_chat');
+    }
+  });
+
+  it('六命令在弹层候选最前（plan/goal/compact/init/btw/side）', () => {
+    const visible = filterSlashCommands('');
+    const names = visible.slice(0, 6).map((c) => c.name);
+    expect(names).toEqual(['plan', 'goal', 'compact', 'init', 'btw', 'side']);
   });
 
   it('/plan → enter_plan_mode', () => {

@@ -218,7 +218,7 @@ describe('commands forwarding (mapping)', () => {
     }
     expect(seenArgs).toEqual([
       { cmd: 'zhuye_interrupt', args: undefined },
-      { cmd: 'zhuye_compact', args: undefined },
+      { cmd: 'zhuye_compact', args: { instructions: null } },
       { cmd: 'zhuye_shutdown', args: undefined },
     ]);
   });

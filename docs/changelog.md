@@ -4,6 +4,70 @@
 
 ## 未发布
 
+- **权限三档 + `/` 命令对齐 ZCode（第二轮交互收敛）**：
+  1. **权限三档**：composer 权限菜单收敛为 ZCode 同款三档单选 ——
+     **询问**（wire `prompt`，语义升级见下）/ **自主模式**（wire `auto`，
+     在有风险时询问）/ **完全访问**（审批策略 `full_access`，切入走
+     确认弹窗）。计划移出权限菜单，入口保持在「+」菜单与 `/plan`；
+     会话处于计划模式时三档都不勾选，菜单顶部显示计划态提示行。设置页
+     行为分区同步：三段 Segmented（计划/询问/自主模式）+ 完全访问开关；
+     原审批策略四段 Select（跟随模式/请求批准/帮我批准/完全访问）从 UI
+     移除（wire 值保留兼容，偏好读写不变）。
+  2. **询问档语义升级（上游）**：`PermissionMode::Prompt` 从「逐工具
+     审批」升级为「只读探索 + 危险拦截」—— `zhuye-hooks` 新增
+     `ask_mode` 判定（复用 PlanModeGate 只读白名单 + bash 分级）：
+     只读工具与 Safe bash 自动放行（审批门 `ApprovalGate` Prompt 臂
+     免弹窗批准）；写类工具（write/edit/delete_file/notebook_edit/
+     ast 改写）直接拒绝「询问模式下不能修改文件」；Risky/Dangerous
+     bash 拒绝并带命令；其余未知工具落回审批弹窗兜底。`pre_loop` 的
+     write/edit 工具裁剪同步扩展到 Prompt 模式。Op / EventMsg 零变化。
+  3. **`/` 命令对齐 ZCode**：弹层候选置顶六命令 —— `/plan`（开启计划
+     模式）/ `/goal`（显示或设置当前会话目标）/ `/compact`（压缩上下文，
+     **可附加指示**）/ `/init`（根据项目创建或更新工作区 AGENTS.md，
+     模型驱动：固定提示词 + args 附加块，agent 分析项目后写入，
+     `AgentsMdHook` 下轮自动读取）/ `/btw` 与 `/side`（新建并打开辅助
+     对话：启动侧通道后跳转 `/lanes` 泳道页；无参数给用法提示）。
+     「+」菜单同步追加「辅助对话」「初始化 AGENTS.md」。
+  4. **`/compact <指示>` 上游贯通**：`Op::Compact` 增加可选
+     `instructions`（serde default，wire 兼容）；`AgentConfig` 新增
+     `compact_focus` 槽，`pre_loop` 手动压缩时取出注入摘要 prompt
+     （`Summarizer::summarize_*_with_focus`，默认实现回落旧方法，
+     旧 summarizer 实现零适配）。`zhuye_compact(instructions?)` 命令
+     参数随之扩展。
+
+- **计划与消息流交互对齐 ZCode（8 项体验修复）**：
+  1. **计划模式免确认 + 新会话粘性**：上游 `dispatch_plan_request` /
+     `dispatch_plan_request_blocking` 在会话已处于 Plan 模式时直接跳过
+     （不再发 `PlanRequest` 弹「进入计划模式？」）；前端新增
+     `permissionPreference`（per-session localStorage + `'new'` 预创建键，
+     仿 approvalPolicy），首页选「计划」随首条消息建会话后由
+     `syncPreferredPermissionMode` 校准（`useEnsureSession` 转正键、
+     `ChatBinding` bind→replay 后应用；老会话尊重 rollout）。
+  2. **完全访问在计划模式下放开 bash**：上游 `HookContext` 增加
+     `approval_policy` 字段（additive，serde default），工具队列从
+     `ApprovalGate.turn_policy` 注入本回合策略；`PlanModeGate` 的 bash
+     分支在 `FullAccess` 下直接放行（write/edit 仍受 `.zhuye/plan`
+     白名单约束）。Op / EventMsg 零变化。
+  3. **web_search 无 API key 不暴露**：桌面新增 `state/web_search.rs` ——
+     插件门之外再要求 `[web_search].api_key` 或 `BRAVE_API_KEY` 非空，
+     否则工具不进共享注册表（install 与 `apply_bundled_tool_gates`
+     同一判定）；同时 `construct_thread` / 侧通道工厂补
+     `with_tool_env`，配置的 key 此前从未注入（CLI headless 同口径）。
+  4. **计划审批迁出全局弹窗**：`PlanReadyModal` / `PlanRequestModal`
+     删除；计划到达由 `usePlanSurfacing` 自动打开右 dock「计划」页签
+     （`usePlanSurfacing` 同时把已在计划模式下的冗余 request 以
+     manual_approve 静默应答）；Inspector 计划页签新增挂起计划卡片；
+     输入框上方新增 `PlanApprovalBar`（同意执行计划 / 逐项确认 /
+     查看计划；请求态进入 / 暂不）；挂起时输入框 placeholder 切审批
+     语境，发送文本 = `revise` 打回并以 steer 注入反馈（同回合改计划）。
+  5. **思考并入工具折叠栏**：`MessageList::groupToolNodes` 重构为活动
+     缓冲 —— 思考（含 `<think>` 标签拆出）与工具调用同组折叠，跨正文
+     保留到后续工具一起成组，无后续工具回落独立思考块；活动组组头
+     带去重工具名（`执行 bash ×2` 等），折叠态可读「动过什么」。
+  6. **流式光标移除**；**右侧凭据池移除**（StatusPanel 段与 Inspector
+     概览分区，设置页模型组健康点保留）；**标题条 dock 快捷按钮
+     （浏览器/文件/用量）移除**（与 dock 页签重复，档位只在 dock 内
+     切换）。
 - **CLI 端到端演练扩成场景套件（上游 tests/live/cli_e2e.sh，31 场景，
   本地专用不进 CI）**：原单流程脚本（plan → 确认 → 开发 → git commit）
   扩成**场景套件** —— 一场景一进程（崩溃 / 超时互不牵连），每个检查项

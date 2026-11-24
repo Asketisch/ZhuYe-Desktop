@@ -8,7 +8,7 @@
  * 视觉规范见同目录 SettingsPage.module.css 头注释。
  */
 import { ArrowLeft, Search, X } from 'lucide-react';
-import type { SettingsPermissionMode, SettingsViewProps, UserApprovalPolicy } from '@/contracts/settings';
+import type { SettingsPermissionMode, SettingsViewProps } from '@/contracts/settings';
 import { ALL_SECTIONS, GROUPS, GroupCard, Row, Segmented, Select } from './settingsKit';
 import s from './SettingsPage.module.css';
 
@@ -17,9 +17,9 @@ import s from './SettingsPage.module.css';
 /* ===== 页面视图 ===== */
 
 export function SettingsView({ t, locale, onLocaleChange, section, onSectionChange, rawToml,
-  onTomlChange, onCommit, showSecrets, onToggleSecret, approvalPolicy, onApprovalPolicyChange,
-  status, loading, configLoading, saving, permissionPending, saved, error, onOpenPrompts, onPermission,
-  onSave, onClose, permissionMode, search, slots }: SettingsViewProps) {
+  onTomlChange, onCommit, showSecrets, onToggleSecret, approvalPolicy, onFullAccessChange,
+  approvalPending, status, loading, configLoading, saving, permissionPending, saved, error,
+  onOpenPrompts, onPermission, onSave, onClose, permissionMode, search, slots }: SettingsViewProps) {
   const { ConfigInfoLine, ConfigForm, GroupsSection, PermissionRulesSection, DisplaySection,
     NotificationsSection, ConfigHealthBanner, GuardStatsCard, SecurityScanCard, UpdatesSection,
     RemoteSection, MemorySection, AgentsSection, PluginsSection, McpSection, SkillsSection,
@@ -151,29 +151,30 @@ export function SettingsView({ t, locale, onLocaleChange, section, onSectionChan
                   <>
                     <GroupCard>
                       {/* Permission mode 快捷控件(高频操作)—— 三段工作模式,弃用档
-                          (accept_edits/bubble/deny/bypass)不再提供入口。 */}
+                          (accept_edits/bubble/deny/bypass)不再提供入口。标签对齐
+                          composer 权限三档(计划 / 询问 / 自主模式)。 */}
                       <Row label={t('settings.permissionMode')} description={t('settings.permissionModeDesc')}>
                         <Segmented
                           value={permissionMode}
                           disabled={permissionPending}
                           onChange={(v) => onPermission(v as SettingsPermissionMode)}
                           options={[
-                            { value: 'auto', label: 'auto' },
-                            { value: 'prompt', label: 'prompt' },
-                            { value: 'plan', label: 'plan' },
+                            { value: 'plan', label: t('composer.controls.perm.plan') },
+                            { value: 'prompt', label: t('composer.controls.perm.ask') },
+                            { value: 'auto', label: t('composer.controls.perm.guarded') },
                           ]}
                         />
                       </Row>
-                      <Row label={t('composer.controls.approval')} description={t('composer.controls.approval.hint')}>
-                        <Select
-                          value={approvalPolicy}
-                          ariaLabel={t('composer.controls.approval')}
-                          onChange={(v) => onApprovalPolicyChange(v as UserApprovalPolicy)}
+                      {/* 完全访问：单一开关（启用走确认弹窗，写 per-session 偏好；
+                          原四段审批 Select 已收敛进 composer 权限三档模型）。 */}
+                      <Row label={t('composer.controls.perm.full')} description={t('composer.controls.fullHint')}>
+                        <Segmented
+                          value={approvalPolicy === 'full_access' ? 'on' : 'off'}
+                          disabled={approvalPending}
+                          onChange={(v) => onFullAccessChange(v === 'on')}
                           options={[
-                            { value: 'auto', label: t('composer.controls.approval.follow') },
-                            { value: 'prompt', label: t('composer.controls.approval.prompt') },
-                            { value: 'auto_approve', label: t('composer.controls.approval.auto') },
-                            { value: 'full_access', label: t('composer.controls.approval.full') },
+                            { value: 'off', label: t('composer.controls.fullOff') },
+                            { value: 'on', label: t('composer.controls.perm.full') },
                           ]}
                         />
                       </Row>

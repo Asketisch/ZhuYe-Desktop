@@ -69,7 +69,7 @@ export type ZhuyeSubmissionOp =
   | { type: 'user_input'; items: UserInputItem[]; thread_settings?: ThreadSettingsOverrides }
   | { type: 'interrupt'; child_id?: string | null }
   | { type: 'shutdown' }
-  | { type: 'compact' }
+  | { type: 'compact'; instructions?: string | null }
   | { type: 'rewind'; to_turn_id?: string | null }
   /**
    * v1.4 A2:回合中途转向 —— 对正在跑的回合投喂补充指示(`priority:

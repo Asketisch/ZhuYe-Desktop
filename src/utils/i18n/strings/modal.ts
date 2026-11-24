@@ -25,10 +25,9 @@ const modal: Record<string, StringEntry> = {
   'modal.question.fallback':      { en: 'Question {n}',                                                                               'zh-CN': '问题 {n}' },
   'modal.question.option':        { en: 'Option {n}',                                                                                 'zh-CN': '选项 {n}' },
   'modal.question.other':         { en: 'Other (optional)',                                                                           'zh-CN': '其他（可选）' },
-  'modal.planRequest.title':      { en: 'Enter plan mode?',                                                                           'zh-CN': '进入计划模式？' },
-  'modal.planRequest.approve':    { en: 'Enter plan mode',                                                                            'zh-CN': '进入计划模式' },
-  'modal.planRequest.decline':    { en: 'Not now',                                                                                    'zh-CN': '暂不进入' },
-  'modal.planRequest.failed':     { en: 'Plan decision failed: {msg} (dialog closed)',                                                'zh-CN': '计划决策提交失败：{msg}（弹窗已关闭）' },
+  // 计划审批不再走弹窗：条目见 plan.bar.* / plan.card.*（composer 审批条 +
+  // 右 dock 计划页签）。保留失败提示文案（approvePlan 的 toast 用）。
+  'modal.planRequest.failed':     { en: 'Plan decision failed: {msg}',                                                 'zh-CN': '计划决策提交失败：{msg}' },
   'modal.askUser.title':          { en: 'Input requested',                                                                            'zh-CN': '需要输入' },
   'modal.askUser.defaultPrompt':  { en: 'The agent needs your input:',                                                                'zh-CN': 'Agent 需要你的输入:' },
   'modal.askUser.placeholder':    { en: 'Type here...',                                                                               'zh-CN': '在此输入…' },
@@ -38,11 +37,6 @@ const modal: Record<string, StringEntry> = {
   'modal.approval.risk':                                            { en: 'risk: {risk}',                                                                                                                                                      'zh-CN': '风险: {risk}' },
   'modal.approval.neverAgain':                                      { en: 'Deny and never ask again this session',                                                                                                                              'zh-CN': '拒绝且本会话不再询问' },
   'modal.approval.hint':          { en: 'Approve runs this action once. Approve for session skips future prompts of the same kind.',  'zh-CN': '「批准」运行一次操作。「会话内始终允许」则会跳过同类型后续提示。' },
-  'modal.planReady.title':        { en: 'Plan Ready',                                                                                 'zh-CN': '计划已就绪' },
-  'modal.planReady.approve':      { en: 'Approve plan',                                                                               'zh-CN': '批准计划' },
-  'modal.planReady.reject':       { en: 'Revise',                                                                                     'zh-CN': '修改计划' },
-  'modal.planReady.hint':         { en: 'Approve lets the agent execute the plan; Revise keeps plan mode open for feedback.',         'zh-CN': '「批准」让 agent 执行计划；「修改计划」保留计划模式以便反馈。' },
-  'modal.planReady.manualApprove':{ en: 'Manual Approve',                                                                             'zh-CN': '手动审批' },
 };
 
 export default modal;

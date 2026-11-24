@@ -81,8 +81,10 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
   }
 
   switch (cmd.name) {
-    // ===== Tier A — 实装 =====
+    // ===== ZCode 对齐六命令 =====
     case 'compact':
+      // v1.x:可选附加指示随 args 透传（`/compact 聚焦数据库改动`）,
+      // 注入下一轮强制压缩的摘要 prompt。
       return { kind: 'submit_with_submission', submission: 'compact', message: 'Compacting context…' };
     case 'plan':
       return {
@@ -90,6 +92,15 @@ export function executeSlash(parsed: ParsedSlash, _ctx: SlashContext): SlashResu
         submission: 'enter_plan_mode',
         message: `Entering plan mode (task: ${parsed.args.join(' ') || 'unspecified'})…`,
       };
+    case 'init':
+      // ZCode 同款：模型驱动 —— 确保会话后提交 /init 固定提示词,由
+      // agent 分析项目并创建/更新工作区 AGENTS.md;args 作为附加指示。
+      return { kind: 'submit_with_submission', submission: 'init', message: 'Initializing workspace AGENTS.md…' };
+    case 'btw':
+    case 'side':
+      // ZCode 同款：新建并打开辅助对话（zhuye 落地为侧通道,启动后跳
+      // 泳道页）。args 为首条消息,必填。
+      return { kind: 'submit_with_submission', submission: 'start_side_chat', message: 'Starting side conversation…' };
     case 'exit-plan':
       return { kind: 'submit_with_submission', submission: 'exit_plan_mode', message: 'Exiting plan mode…' };
     case 'goal': {

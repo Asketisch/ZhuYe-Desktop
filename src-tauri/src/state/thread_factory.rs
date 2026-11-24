@@ -134,6 +134,10 @@ pub(crate) fn construct_thread(
         .expect("model_registry 必须在 install 阶段已建");
 
     let sanitizer = Arc::new(Sanitizer::with_defaults());
+    // web_search 工具级 env:`[web_search].api_key` → BRAVE_API_KEY
+    // (与 CLI headless 同口径)。此前桌面只注册工具、不注入 key ——
+    // 配了 key 的 web_search 调用仍会报"未配置"。
+    let tool_env = super::web_search::tool_env(&cfg_snapshot);
     // 内置 hook(verification / test_runner / search_budget / plan_completion)
     // 采用**显式启用**语义:`[hooks]` 未配置时一个都不挂,与 headless serve
     // 的 hooks_explicit_only 同一原则。此前默认全开,verification Stop hook
@@ -227,9 +231,9 @@ pub(crate) fn construct_thread(
         // → 运行时查找表(exec bootstrap 同款装配)。此前桌面未装配,
         // SessionConfigured.context_window_size 恒走内置回退表 —— 本地
         // 扩窗模型(如 1M)的配置死信,GUI 容量卡分母错误。
-        .with_context_window_overrides(
-            cfg_snapshot.effective_context_window_overrides(&model_spec),
-        );
+        .with_context_window_overrides(cfg_snapshot.effective_context_window_overrides(&model_spec))
+        // 工具级环境变量（web_search 的 BRAVE_API_KEY 等）。
+        .with_tool_env(tool_env.clone());
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
@@ -331,6 +335,8 @@ pub(crate) fn construct_thread(
         // 模式经 inherited_approval_mode 共享翻转,InheritedPlanGate 直接读
         // 父级模式判定只读边界(不依赖侧线程自身模式)。
         let parent_mode = cfg.permission_mode.clone();
+        // 侧通道线程与主线程同源的工具级 env（web_search key 等）。
+        let tool_env_for_side = tool_env.clone();
         let factory: zhuye_core::side_channel::SideThreadFactory = Arc::new(
             move |agent_name: &str, cancel: tokio_util::sync::CancellationToken| {
                 let workspace = crate::workspace_state::WorkspaceState::get()
@@ -349,7 +355,8 @@ pub(crate) fn construct_thread(
                     .with_m4(m4)
                     .with_cancel(cancel)
                     .with_sandbox_writable(sandbox_writable_for_side.clone())
-                    .with_sandbox_network(Some(sandbox_network_for_side));
+                    .with_sandbox_network(Some(sandbox_network_for_side))
+                    .with_tool_env(tool_env_for_side.clone());
                 side_cfg.inherited_approval_mode = Some(parent_mode.clone());
                 let side_thread = AgentThread::new(
                     side_cfg,

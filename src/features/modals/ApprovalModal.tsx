@@ -14,8 +14,8 @@
  * 推导口径见 `allowRule.ts`(Bash = 可安全表达的单段命令精确匹配;
  * 只读工具 = 整个工具;写类工具不给按钮)。
  *
- * 注:plan 审批走独立的 `PlanReadyModal`(`approvePlan` + PlanApprovalChoice 三选一),
- * 不经过本 modal。
+ * 注:plan 审批走右侧 dock 的「计划」页签与 composer 审批条
+ * （`approvePlan` + PlanApprovalChoice 三选一），不经过本 modal。
  */
 import { useRef, useState } from 'react';
 import { useAgentStore, type PendingApproval } from '@/stores/agentStore';

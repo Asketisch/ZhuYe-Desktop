@@ -19,6 +19,7 @@ import { usePaletteActions } from '@/logic/shell/usePaletteActions';
 import { useCurrentWorkspace, CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
 import { useSessionBadges } from './useSessionBadges';
 import { useHarnessShortcuts } from './useHarnessShortcuts';
+import { usePlanSurfacing } from './usePlanSurfacing';
 
 /** 路由 → harness 视图形态（壳层样式与「更多」菜单高亮的依据）。 */
 function pathnameToViewMode(pathname: string): ShellViewMode {
@@ -33,6 +34,8 @@ function pathnameToViewMode(pathname: string): ShellViewMode {
 /** 绑定主壳的会话、工作区和全局动作。 */
 export function ShellBinding({ view: View, slots, content }: { view: ComponentType<ShellViewProps>; slots: ShellSlots; content: ReactNode }) {
   const { currentWorkspace } = useCurrentWorkspace();
+  // 计划到达 → 右 dock 计划页签；已在计划模式的冗余 enter 静默应答。
+  usePlanSurfacing();
   // 全量列表:侧边栏按项目目录分组展示所有项目(而非只列当前工作区)。
   const sessions = useSessions();
   const pins = useSessionPins();

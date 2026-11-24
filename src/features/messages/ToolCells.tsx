@@ -279,16 +279,29 @@ export interface ActivityGroupProps {
  * 组内单行仍可各自展开看详情（ToolCell 自身折叠）。
  */
 export function ActivityGroup({ entries, children }: ActivityGroupProps) {
-  const { t } = useI18n();
+  const { t, isZh } = useI18n();
   const [open, setOpen] = useState(false);
-  const toolCount = entries.filter((e) => !e.thinking).length;
+  const toolEntries = entries.filter((e) => !e.thinking);
+  const toolCount = toolEntries.length;
   const thinkingCount = entries.length - toolCount;
   const running = entries.some((e) => e.status === 'running');
-  // 组头文案:执行 N 命令(± 思考 M 次);纯思考段「思考 M 次」。
+  // 组头带上去重的工具名 —— 折叠态也能看到「动过什么」（思考并入工具
+  // 组后，单工具不再有独立行，名字不能只留在展开层）。
+  const names: string[] = [];
+  for (const entry of toolEntries) {
+    const name = entry.toolName ?? '';
+    if (name && !names.includes(name)) names.push(name);
+  }
+  const namesLabel = names.join(isZh ? '、' : ', ');
+  // 组头文案:执行 N 命令(± 思考 M 次,带工具名);纯思考段「思考 M 次」。
   const label = toolCount > 0
-    ? (thinkingCount > 0
-      ? t('chat.activityGroup.mixed', { tools: toolCount, thinking: thinkingCount })
-      : t('chat.activityGroup.tools', { count: toolCount }))
+    ? (names.length === 1
+      ? (thinkingCount > 0
+        ? t('chat.activityGroup.mixedNamed', { tools: toolCount, name: names[0], thinking: thinkingCount })
+        : t('chat.activityGroup.toolsNamed', { count: toolCount, name: names[0] }))
+      : (thinkingCount > 0
+        ? t('chat.activityGroup.mixedList', { tools: toolCount, names: namesLabel, thinking: thinkingCount })
+        : t('chat.activityGroup.toolsList', { count: toolCount, names: namesLabel })))
     : t('chat.activityGroup.thinking', { count: thinkingCount });
   return (
     <div className={s.group} data-testid="activity-group" data-open={open || undefined} data-running={running || undefined}>

@@ -328,11 +328,11 @@ fallback spec, a **cross-model degradation**).
 
 | Variant | UI |
 |---|---|
-| `plan_request` | "Enter plan mode?" confirm modal |
-| `plan_ready` | Plan markdown modal (auto mode / manual approval / revise) |
+| `plan_request` | Composer plan approval bar (enter / not now); the engine skips dispatch when the session is already in plan mode (see the `dispatch_plan_request` guard), and the frontend `usePlanSurfacing` auto-approves as a fallback |
+| `plan_ready` | Composer plan approval bar (approve & execute auto_mode / step-by-step approval / view plan) + the right dock "Plan" tab opens automatically (same three choices on the pending card; body rendered as Markdown) — no global modal |
 | `plan_approved` | Status bar plan badge |
 | `plan_rejected` | Status hint |
-| `plan_draft_updated` | none — draft body is refreshed overwrite-style (the TUI uses it for preview); the GUI decision path goes through `plan_ready` → PlanReadyModal, the reducer is a no-op for exhaustiveness |
+| `plan_draft_updated` | none — draft body is refreshed overwrite-style (the TUI uses it for preview); the GUI decision path goes through `plan_ready` → right dock "Plan" tab + composer approval bar, the reducer is a no-op for exhaustiveness |
 | `plan_step` | Plan view "execution progress" checklist — the core reports per step while the agent executes an approved plan; the reducer updates or appends in place by `index` (isomorphic with the core TUI semantics), and clears the previous list when `plan_ready` arrives |
 | `permission_mode_changed` | Status bar mode badge updates |
 
@@ -420,7 +420,7 @@ export type ZhuyeSubmission = {
 
 export type ZhuyeOp =
   | { type: 'user_input'; items: ZhuyeItem[]; thread_settings?: ThreadSettingsOverrides }
-  | { type: 'compact' }
+  | { type: 'compact'; instructions?: string | null }   // v1.x: /compact <instructions>
   | { type: 'interrupt'; child_id?: string | null }
   | { type: 'shutdown' }
   | { type: 'rewind'; to_turn_id?: string }

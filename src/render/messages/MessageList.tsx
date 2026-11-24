@@ -1,78 +1,9 @@
 import { Brain, Wrench, AlertTriangle, MessageSquare, FileDiff, GitBranch, RotateCcw, Pencil, RefreshCw, ChevronsRight } from 'lucide-react';
-import type { MessageListSlots, MessageListViewProps, Turn, TurnItem } from '@/contracts/messageList';
+import type { MessageListSlots, MessageListViewProps, Turn } from '@/contracts/messageList';
 import { Icon } from '../design-system/Icon';
 import { IconButton } from '../design-system/IconButton';
-import { splitAssistantText } from './assistantText';
+import { groupToolNodes, type RenderNode } from './activityGrouping';
 import s from './MessageList.module.css';
-
-type ToolCallItem = Extract<TurnItem, { kind: 'tool_call' }>;
-type ToolOutputItem = Extract<TurnItem, { kind: 'tool_output' }>;
-type ThinkingItem = Extract<TurnItem, { kind: 'thinking' }>;
-/** 一条工具调用（call + 可选配对的 output）。 */
-type ToolEntry = { call: ToolCallItem; output?: ToolOutputItem };
-/** 活动段成员：工具调用或思考块 —— 两者穿插出现时同属一个活动组。 */
-type ActivityEntry = { kind: 'tool'; call: ToolCallItem; output?: ToolOutputItem } | { kind: 'thinking'; item: ThinkingItem };
-type RenderNode =
-  | { kind: 'item'; item: TurnItem }
-  | { kind: 'tool'; call: ToolCallItem; output?: ToolOutputItem }
-  | { kind: 'toolGroup'; entries: ToolEntry[] }
-  | { kind: 'activityGroup'; entries: ActivityEntry[] };
-
-/** 工具调用 + 思考块混合聚合：思考不再打断工具段（对话式 agent 活动组）。
- *  思考-only 段（无任何工具调用）保持独立 ThinkingCollapsible，不套组壳。 */
-function groupToolNodes(items: TurnItem[]): RenderNode[] {
-  const nodes: RenderNode[] = [];
-  const callNodeIdx = new Map<string, number>();
-  for (const item of items) {
-    if (item.kind === 'tool_call') {
-      callNodeIdx.set(item.callId, nodes.length);
-      nodes.push({ kind: 'tool', call: item });
-    } else if (item.kind === 'tool_output') {
-      const idx = callNodeIdx.get(item.callId);
-      const node = idx !== undefined ? nodes[idx] : undefined;
-      if (idx !== undefined && node?.kind === 'tool' && !node.output) {
-        nodes[idx] = { kind: 'tool', call: node.call, output: item };
-      } else {
-        nodes.push({ kind: 'item', item });
-      }
-    } else {
-      nodes.push({ kind: 'item', item });
-    }
-  }
-  // 连续的「活动」（工具调用/思考块穿插）聚合成组：会话默认只露一行摘要，
-  // 组内是紧凑状态行；单条工具调用（前后无思考）保持独立行。
-  // 思考-only 段直接落回 item 节点（沿用 ThinkingCollapsible 折叠）。
-  const out: RenderNode[] = [];
-  let buffer: Array<{ tool?: ToolEntry; thinking?: ThinkingItem }> = [];
-  const flush = () => {
-    if (buffer.length === 0) return;
-    const tools = buffer.filter((b) => b.tool).map((b) => b.tool!);
-    if (tools.length === 0) {
-      // 思考-only 段：不套活动组壳。
-      for (const b of buffer) out.push({ kind: 'item', item: b.thinking! });
-    } else if (buffer.length === 1 && tools.length === 1) {
-      out.push({ kind: 'tool', call: tools[0].call, output: tools[0].output });
-    } else if (tools.length === buffer.length) {
-      // 纯工具段（无思考穿插）—— 保持原 ToolGroup 聚合。
-      out.push({ kind: 'toolGroup', entries: tools });
-    } else {
-      out.push({ kind: 'activityGroup', entries: buffer.map((b) => b.tool ? { kind: 'tool', ...b.tool } : { kind: 'thinking', item: b.thinking! }) });
-    }
-    buffer = [];
-  };
-  for (const node of nodes) {
-    if (node.kind === 'tool') {
-      buffer.push({ tool: { call: node.call, output: node.output } });
-    } else if (node.kind === 'item' && node.item.kind === 'thinking') {
-      buffer.push({ thinking: node.item });
-    } else {
-      flush();
-      out.push(node);
-    }
-  }
-  flush();
-  return out;
-}
 
 export function MessageList({ t, turns, scrollRef, onForkTurn, onRewindTurn, onEditTurn,
   onRegenerateTurn, onContinueTurn, slots }: MessageListViewProps) {
@@ -340,7 +271,7 @@ function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus
 
     case 'assistant_text': {
       const streaming = item.streaming === true && turnStatus === 'streaming';
-      return <AssistantBubble text={item.text} streaming={streaming} t={t} slots={slots} />;
+      return <AssistantBubble text={item.text} streaming={streaming} slots={slots} />;
     }
 
     case 'thinking':
@@ -427,31 +358,17 @@ function ThinkingCollapsible({ text, defaultOpen = false, summaryLabel = false, 
   );
 }
 
-function AssistantBubble({ text, streaming, t, slots }: { text: string; streaming: boolean; t: MessageListViewProps['t']; slots: MessageListSlots }) {
-  const { Markdown, Collapsible, CopyButton } = slots;
-  // 模型把推理以 <think> 标签混进正文、runtime 的 nudge 提醒会让模型
-  // 回显 FINAL ANSWER 标记 —— 都不属于正文,渲染前分段/剥离。
-  const { thinking, content } = splitAssistantText(text);
+function AssistantBubble({ text, streaming, slots }: { text: string; streaming: boolean; slots: MessageListSlots }) {
+  const { Markdown, CopyButton } = slots;
+  // `<think>` 思考段已在活动聚合层（activityGrouping）拆出并并入工具
+  // 折叠组 —— 本气泡只渲染剥离思考后的正文。
   return (
     <div className={s.assistantRow}>
       <div className={s.assistantAvatar} aria-hidden="true">R</div>
       <div className={s.assistantBubble}>
-        {thinking && (
-          <ThinkingCollapsible
-            key={content ? 'with-content' : 'thinking-only'}
-            text={thinking}
-            t={t}
-            Collapsible={Collapsible}
-          />
-        )}
-        {content.length > 0 ? (
-          <Markdown text={content} />
-        ) : (
-          !thinking && <span className={s.thinking}>…</span>
-        )}
-        {streaming && <span className={s.cursor} aria-hidden="true" />}
+        <Markdown text={text} />
         {/* C1:整条复制 —— 复制剥离思考链后的正文 markdown。 */}
-        {!streaming && content.length > 0 && <CopyButton text={content} testId="assistant-copy" />}
+        {!streaming && text.length > 0 && <CopyButton text={text} testId="assistant-copy" />}
       </div>
     </div>
   );

@@ -45,6 +45,7 @@ pub(crate) mod subagents;
 mod submit;
 mod task_hooks;
 mod thread_factory;
+mod web_search;
 
 pub(crate) use autopilot::AutopilotDriverHandle;
 

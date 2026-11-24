@@ -26,15 +26,22 @@ export interface SlashCmd {
 }
 
 export const SLASH_COMMANDS: SlashCmd[] = [
-  { name: 'effort', category: 'mode', summaryKey: 'slash.effort.desc', toolbared: true },
+  // ── ZCode 对齐六命令（弹层最前，顺序固定）─────────────────────────
+  { name: 'plan', category: 'mode', summaryKey: 'slash.enterPlan.desc' },
+  { name: 'goal', category: 'mode', summaryKey: 'slash.goal.desc' },
   { name: 'compact', category: 'session', summaryKey: 'slash.compact.desc', toolbared: true },
+  { name: 'init', category: 'system', summaryKey: 'slash.init.desc' },
+  { name: 'btw', category: 'session', summaryKey: 'slash.side.desc' },
+  { name: 'side', category: 'session', summaryKey: 'slash.side.desc' },
+
+  // ── Tier A（工具条）与其余会话/系统命令 ───────────────────────────
+  { name: 'effort', category: 'mode', summaryKey: 'slash.effort.desc', toolbared: true },
   { name: 'mode', category: 'permissions', summaryKey: 'slash.mode.desc', toolbared: true },
   { name: 'model', category: 'model', summaryKey: 'slash.model.desc', toolbared: true },
   { name: 'provider', aliases: ['prov'], category: 'model', summaryKey: 'slash.provider.desc', toolbared: true },
   { name: 'status', category: 'system', summaryKey: 'slash.status.desc', toolbared: true },
   { name: 'help', aliases: ['?'], category: 'help', summaryKey: 'slash.help.desc', toolbared: true },
 
-  { name: 'init', category: 'system', summaryKey: 'slash.init.desc', hidden: true },
   { name: 'clear', category: 'session', summaryKey: 'slash.clear.desc' },
   { name: 'interrupt', category: 'session', summaryKey: 'slash.interrupt.desc' },
   { name: 'resume', category: 'session', summaryKey: 'slash.resume.desc' },
@@ -64,9 +71,7 @@ export const SLASH_COMMANDS: SlashCmd[] = [
   { name: 'tasks', category: 'tasks', summaryKey: 'slash.tasks.desc', hidden: true },
   { name: 'permissions', category: 'permissions', summaryKey: 'slash.permissions.desc', hidden: true },
   { name: 'skills', category: 'skills', summaryKey: 'slash.skills.desc', hidden: true },
-  { name: 'plan', category: 'mode', summaryKey: 'slash.enterPlan.desc' },
   { name: 'exit-plan', aliases: ['exitplan'], category: 'mode', summaryKey: 'slash.exitPlan.desc' },
-  { name: 'goal', category: 'mode', summaryKey: 'slash.goal.desc' },
   { name: 'keybindings', aliases: ['keys', 'bindings'], category: 'shortcuts', summaryKey: 'slash.keybindings.desc', hidden: true },
   { name: 'statusline', aliases: ['status-line'], category: 'shortcuts', summaryKey: 'slash.statusline.desc', hidden: true },
   { name: 'output-style', category: 'shortcuts', summaryKey: 'slash.outputStyle.desc', hidden: true },

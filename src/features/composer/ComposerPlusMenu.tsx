@@ -20,6 +20,8 @@ import {
   Minimize2,
   Target,
   ListChecks,
+  MessagesSquare,
+  FileCode2,
   ChevronRight,
   Plus,
   SlashSquare,
@@ -302,6 +304,32 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
           >
             <Icon icon={ListChecks} size={15} />
             <span className={s.itemLabel}>{t('composer.plus.plan')}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={s.item}
+            onClick={() => {
+              close();
+              onFillSlash('side');
+            }}
+            data-testid="composer-plus-side"
+          >
+            <Icon icon={MessagesSquare} size={15} />
+            <span className={s.itemLabel}>{t('composer.plus.side')}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={s.item}
+            onClick={() => {
+              close();
+              onFillSlash('init');
+            }}
+            data-testid="composer-plus-init"
+          >
+            <Icon icon={FileCode2} size={15} />
+            <span className={s.itemLabel}>{t('composer.plus.init')}</span>
           </button>
         </div>
       )}

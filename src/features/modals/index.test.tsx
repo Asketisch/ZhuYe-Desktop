@@ -5,7 +5,7 @@
  * 1. 无 pending 时不渲染任何 modal
  * 2. ApprovalModal 从 pendingApprovals 渲染,点击 Approve 调 store action
  * 3. AskUserModal 提交文本调 answerInput
- * 4. PlanReadyModal 从 pendingPlan 渲染
+ * 4. pendingPlan 不再渲染计划弹窗（计划审批走右侧 dock + composer 审批条）
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
@@ -34,7 +34,7 @@ describe('ModalStack', () => {
     render(wrap(<ModalStack />));
     // 没有 modal title 出现。
     expect(screen.queryByText('Tool Approval')).toBeNull();
-    expect(screen.queryByText('Plan Ready')).toBeNull();
+    expect(screen.queryByText('Plan ready')).toBeNull();
   });
 
   it('renders ApprovalModal from pendingApprovals and clears on Approve', async () => {
@@ -180,11 +180,12 @@ describe('ModalStack', () => {
     expect(screen.queryByTestId('approval-allow-always')).toBeNull();
   });
 
-  it('renders PlanReadyModal from pendingPlan', () => {    useAgentStore.setState({
-      pendingPlan: { id: 'p1', payload: { summary: 'Step 1: do X' }, turnId: 't1' },
+  it('pendingPlan 不再产出计划弹窗（审批走右侧 dock + composer 审批条）', () => {
+    useAgentStore.setState({
+      pendingPlan: { id: 'p1', kind: 'ready', payload: { summary: 'Step 1: do X' }, turnId: 't1' },
     });
     render(wrap(<ModalStack />));
-    expect(screen.getByText('Plan Ready')).toBeDefined();
-    expect(screen.getByText(/Step 1: do X/)).toBeDefined();
+    expect(screen.queryByText('Plan ready')).toBeNull();
+    expect(screen.queryByText('等待确认的计划')).toBeNull();
   });
 });

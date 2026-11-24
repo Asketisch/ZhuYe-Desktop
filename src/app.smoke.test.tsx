@@ -352,7 +352,7 @@ describe('Settings save flow', () => {
     fireEvent.click(screen.getByTestId('settings-section-behavior'));
 
     // permission 按钮(auto/prompt/deny/plan)直接 mutate。
-    const planBtn = await screen.findByText('plan', { selector: 'button' });
+    const planBtn = await screen.findByText('Plan', { selector: 'button' });
     await act(async () => {
       planBtn.click();
     });

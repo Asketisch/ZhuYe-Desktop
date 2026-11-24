@@ -7,13 +7,24 @@
 import type { StringEntry } from '../types';
 
 const slash: Record<string, StringEntry> = {
-  'slash.compact.desc':        { en: 'Compact the current session context',  'zh-CN': '压缩当前会话上下文' },
+  // ── ZCode 对齐六命令（弹层最前）─────────────────────────────────
+  'slash.enterPlan.desc':      { en: 'Enable plan mode',                     'zh-CN': '开启计划模式' },
+  'slash.goal.desc':           { en: 'Show or set the current session goal', 'zh-CN': '显示或设置当前会话目标' },
+  'slash.compact.desc':        { en: 'Compact the current conversation with optional instructions', 'zh-CN': '压缩上下文（可附加指示，如 /compact 聚焦数据库改动）' },
+  'slash.init.desc':           { en: 'Create or update workspace AGENTS.md instructions', 'zh-CN': '根据项目创建或更新工作区 AGENTS.md' },
+  'slash.side.desc':           { en: 'Open a new side conversation',         'zh-CN': '新建并打开一个辅助对话' },
+  'slash.side.usage':          { en: 'Usage: /side <first message> — the side conversation runs with it', 'zh-CN': '用法：/side <首条消息> —— 辅助对话将以它启动' },
+  'slash.side.started':        { en: 'Side conversation started: {id}',      'zh-CN': '辅助对话已启动：{id}' },
+  'slash.side.startFailed':    { en: 'Failed to start side conversation: {msg}', 'zh-CN': '辅助对话启动失败：{msg}' },
+  // /init 固定提示词（模型驱动：agent 分析项目后写工作区 AGENTS.md）。
+  'slash.init.prompt.body':    { en: 'You are running ZhuYe\'s built-in /init command. Create or update a concise workspace instruction file for future ZhuYe agents.\n\nTarget:\n- Workspace root: the current workspace.\n- File: exactly AGENTS.md at the workspace root (do NOT write user-level files).\n- If AGENTS.md already exists, EDIT it incrementally — keep existing correct content, do not rewrite it wholesale.\n\nProcess:\n1. Inspect the workspace: README/docs, manifests, build files, directory layout.\n2. Identify the stack, build/typecheck/lint/test commands, and architecture boundaries.\n3. Write (or edit) AGENTS.md so a future agent can work effectively without re-deriving all of this. Keep it short and factual.\n4. Recommended sections: project purpose, build/test/lint commands, architecture layout, conventions, gotchas, key docs to read.\n\nAfter finishing, summarize the sections you wrote and mention the file path.', 'zh-CN': '你正在执行烛夜的内置 /init 命令：为后续的烛夜 agent 创建或更新一份简洁的工作区说明文件。\n\n目标：\n- 工作区根：当前工作区。\n- 文件：工作区根目录下的 AGENTS.md（不要写用户级文件）。\n- 若 AGENTS.md 已存在，做增量编辑 —— 保留既有正确内容，不要整体重写。\n\n流程：\n1. 考察工作区：README/文档、清单文件、构建脚本、目录结构。\n2. 识别技术栈、构建/类型检查/lint/测试命令、架构边界。\n3. 编写（或编辑）AGENTS.md，让后续 agent 无需重新摸索即可高效工作；保持简短、只写事实。\n4. 建议章节：项目用途、构建/测试/lint 命令、架构布局、约定、已知的坑、值得阅读的文档。\n\n完成后，总结你写了哪些章节并给出文件路径。' },
+  'slash.init.prompt.extra':   { en: 'Additional user instructions supplied with /init:\n```text\n{args}\n```', 'zh-CN': '用户随 /init 附带的额外指示：\n```text\n{args}\n```' },
+  // ── 其余命令 ────────────────────────────────────────────────────
   'slash.interrupt.desc':      { en: 'Stop the current task',                'zh-CN': '停止当前任务' },
   'slash.new.desc':            { en: 'Start a new session',                  'zh-CN': '开启新会话' },
   'slash.clear.desc':          { en: 'Clear all sessions',                   'zh-CN': '清空所有会话' },
   'slash.rename.desc':         { en: 'Rename the current session',           'zh-CN': '重命名当前会话' },
   'slash.export.desc':         { en: 'Export the current session',           'zh-CN': '导出当前会话' },
-  'slash.init.desc':           { en: 'Create AGENTS.md in the workspace',    'zh-CN': '在当前工作区创建 AGENTS.md' },
   'slash.approvals.desc':      { en: 'Show approval history',                'zh-CN': '查看权限历史' },
   'slash.help.desc':           { en: 'Show help',                            'zh-CN': '显示帮助' },
   'slash.status.desc':         { en: 'Show agent status',                    'zh-CN': '显示 agent 状态' },
@@ -49,8 +60,6 @@ const slash: Record<string, StringEntry> = {
   'slash.model.desc':          { en: 'Open models view',                     'zh-CN': '打开模型视图' },
   'slash.threads.desc':        { en: 'Open threads view',                    'zh-CN': '打开会话视图' },
   'slash.exitPlan.desc':       { en: 'Exit plan mode',                       'zh-CN': '退出计划模式' },
-  'slash.enterPlan.desc':      { en: 'Enter plan mode',                      'zh-CN': '进入计划模式' },
-  'slash.goal.desc':           { en: 'Enter goal mode (/goal clear to exit)', 'zh-CN': '进入目标模式（/goal clear 退出）' },
   'slash.effort.desc':         { en: 'Set reasoning effort',                 'zh-CN': '设置 reasoning effort' },
   'slash.mode.desc':           { en: 'Cycle permission mode',                'zh-CN': '切换权限模式' },
   'slash.provider.desc':       { en: 'Switch model group',                   'zh-CN': '切换模型组' },

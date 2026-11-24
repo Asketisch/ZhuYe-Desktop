@@ -50,9 +50,12 @@ export async function zhuye_query_subagents(child_id?: string): Promise<string> 
   return invoke<string>('zhuye_query_subagents', { childId: child_id ?? null });
 }
 
-/** 压缩当前会话历史。 */
-export async function zhuye_compact(): Promise<string> {
-  return invoke<string>('zhuye_compact');
+/**
+ * 压缩当前会话历史。v1.x:`instructions` 为可选附加指示
+ * （`/compact <指示>`），随 `Op::Compact` 下发并注入摘要 prompt。
+ */
+export async function zhuye_compact(instructions?: string): Promise<string> {
+  return invoke<string>('zhuye_compact', { instructions: instructions ?? null });
 }
 
 /** 回退到上一个回合（省略参数则丢弃最后一条用户消息）。 */

@@ -162,8 +162,10 @@ describe.skip('window smoke (real process, real backend, local model stub)', () 
     const logText = await driver!.findElement(By.css('[role="log"]')).getText();
     expect(logText).toContain('window-agent-chain-test');
     expect(logText).toContain('window second reply verified');
-    // v3 harness:用量面在右 dock 的「用量」档(标题条按钮直达并唤出)。
-    await driver!.findElement(By.css('[data-testid="harness-dock-usage"]')).click();
+    // v3 harness:用量面在右 dock 的「用量」档（标题条只留 dock 开合，
+    // 档位在 dock 页签行内切换）。
+    await driver!.findElement(By.css('[data-testid="harness-inspect"]')).click();
+    await driver!.findElement(By.css('[data-testid="harness-dock-mode-usage"]')).click();
     const usage = await driver!.wait(
       until.elementLocated(By.css('[data-testid="usage-dock-total"]')),
       30_000,

@@ -14,8 +14,9 @@
  * `zhuye_prompt::FINAL_ANSWER_TEMPLATE`,模型会照字面回显到答案里
  * (常驻注入已从系统提示词移除,但历史会话与边路注入仍会产生)。
  *
- * 在渲染层拆分(而非 reducer 层),streaming 增量、agent_message 定稿、
- * 会话回放三条路径统一生效;正文数据保持原样,不丢信息。
+ * 在渲染层拆分(而非 reducer 层),唯一消费方是 `activityGrouping.ts` 的
+ * 活动聚合 —— `<think>` 思考拆出后与工具调用同组折叠,正文气泡只渲染
+ * 剥离后的内容;正文数据保持原样,不丢信息。
  */
 
 export interface AssistantSegments {

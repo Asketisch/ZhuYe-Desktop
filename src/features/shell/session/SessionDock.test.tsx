@@ -6,7 +6,7 @@
  * （SessionDock）。本文件同时钉住两块的行为。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient } from '@/test/setup';
@@ -179,19 +179,6 @@ describe('StatusPanel · 常驻工作台右列', () => {
     expect(screen.getByTestId('status-panel-context')).toBeTruthy();
     expect(screen.getByTestId('status-panel-context-pct').textContent).toBe('2%');
     expect(screen.getByTestId('status-panel-cache-hit').textContent).toBe('80%');
-  });
-
-  it('凭据池节：组健康计数（healthy/total）', async () => {
-    mockInvoke('zhuye_credential_pool_status', async () => [
-      { group: 'demo', endpoint: 'openai', total: 2, healthy: 2, healthyLabels: ['a', 'b'] },
-    ]);
-    useAgentStore.setState({
-      todos: [{ content: '任务一', status: 'pending' }],
-    });
-    renderPanel();
-    await waitFor(() => expect(screen.getByTestId('status-panel-pool')).toBeTruthy());
-    expect(screen.getByText('demo')).toBeTruthy();
-    expect(screen.getByText('2/2')).toBeTruthy();
   });
 });
 /* ---- shellUi 测试辅助（避免直接 import store 类型噪音） ---- */

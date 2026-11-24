@@ -80,7 +80,10 @@ export interface SettingsViewProps {
   showSecrets: Record<string, boolean>;
   onToggleSecret: (key: string) => void;
   approvalPolicy: UserApprovalPolicy;
-  onApprovalPolicyChange: (value: UserApprovalPolicy) => void;
+  /** 完全访问开关（写 per-session 偏好；启用走确认弹窗）。 */
+  onFullAccessChange: (on: boolean) => void;
+  /** 完全访问开关的 IPC 在途态。 */
+  approvalPending: boolean;
   status: { model: string; degraded_reason?: string | null; has_model: boolean } | undefined;
   loading: boolean;
   configLoading: boolean;

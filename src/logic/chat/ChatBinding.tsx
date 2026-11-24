@@ -6,6 +6,7 @@ import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
 import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import { syncSessionPromptSelection, syncPlanPresetPermissionMode } from '@/stores/agent/promptSelection';
+import { syncPreferredPermissionMode } from '@/stores/agent/permissionPreference';
 import { userItemsFromTurn } from '@/stores/agent/turns';
 import { zhuye_replay_session, zhuye_git_diff } from '@/utils/commands';
 import { zhuye_bind_session, zhuye_fork_session, zhuye_export_session_markdown } from '@/utils/commands/sessions';
@@ -299,6 +300,9 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
         // replay 之后调:用记录空否判定「新会话」,老会话尊重已持久化的
         // 权限模式。records=null = 已水合的老会话,视作有记录跳过。
         syncPlanPresetPermissionMode(sessionId, records === null || records.length > 0);
+        // 用户显式选择的工作模式优先于预设推断：仅新会话（replay 为空）
+        // 应用；老会话尊重 rollout 里已持久化的模式。
+        syncPreferredPermissionMode(sessionId, records === null || records.length > 0);
         // v1.x 后台持续运行:该会话在后台期间积攒的待确认交互(gate 请求
         // 不落 rollout)合并进主 store,否则会话会静默卡在审批上。
         useBackgroundSessions.getState().mergePendingInto(sessionId);
@@ -382,6 +386,8 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
       hydrateSession(sessionId, r);
       // 与主路径同源:plan 预设的新会话校准工作模式。
       syncPlanPresetPermissionMode(sessionId, r.length > 0);
+      // 与主路径同源：用户显式选择的工作模式优先。
+      syncPreferredPermissionMode(sessionId, r.length > 0);
       // v1.12:retry 路径同样水合引擎侧挂起交互。
       const gates = bindGatesRef.current;
       bindGatesRef.current = null;

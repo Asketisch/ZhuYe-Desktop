@@ -6,6 +6,8 @@ import { zhuye_get_config, zhuye_save_config, zhuye_agent_status, zhuye_set_perm
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
+import { writePermissionPreference } from '@/stores/agent/permissionPreference';
+import { confirmDialog } from '@/logic/modals/confirm';
 import { useSettingsSearch } from './useSettingsSearch';
 
 /** 设置草稿、保存并发和权限动作的绑定。 */
@@ -86,7 +88,28 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
   });
 
   const onSave = () => saveMutation.mutate(rawToml);
-  const onPermission = (mode: SettingsPermissionMode) => permMutation.mutate(mode);
+  const onPermission = (mode: SettingsPermissionMode) => {
+    // 只记录 UI 三态；弃用 wire 档（accept_edits/deny/bubble/bypass）
+    // 不在设置页暴露，也不写偏好。会话 id 未定时落 'new' 键。
+    if (mode === 'plan' || mode === 'prompt' || mode === 'auto') {
+      writePermissionPreference(sessionId, mode);
+    }
+    permMutation.mutate(mode);
+  };
+  // 完全访问开关：与 composer 权限菜单同一确认门 —— 启用先弹「不再确认」
+  // 后果，取消不落偏好；关闭直接生效。
+  const onFullAccessChange = async (on: boolean) => {
+    if (on && approvalPolicy !== 'full_access') {
+      const ok = await confirmDialog({
+        title: t('composer.perm.fullAccessTitle'),
+        message: t('composer.perm.fullAccessMessage'),
+        confirmLabel: t('composer.controls.perm.full'),
+      });
+      if (!ok) return;
+    }
+    setApprovalPolicy(on ? 'full_access' : 'auto');
+    writeApprovalPolicy(sessionId, on ? 'full_access' : 'auto');
+  };
 
   // 分区搜索（⌘K）：状态与键盘监听在 logic 层，渲染层只消费。
   const search = useSettingsSearch(setSection);
@@ -100,7 +123,8 @@ export function SettingsBinding({ view: View, slots, onClose }: { view: Componen
     onCommit={(next) => { updateRawToml(next); saveMutation.mutate(next); }}
     showSecrets={showSecrets} onToggleSecret={toggleSecret}
     approvalPolicy={approvalPolicy}
-    onApprovalPolicyChange={(value) => { setApprovalPolicy(value); writeApprovalPolicy(sessionId, value); }}
+    onFullAccessChange={(on) => void onFullAccessChange(on)}
+    approvalPending={permMutation.isPending}
     status={statusQuery.data}
     loading={configQuery.isLoading || statusQuery.isLoading}
     configLoading={configQuery.isLoading}

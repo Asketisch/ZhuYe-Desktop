@@ -43,13 +43,13 @@ export function PlanView({ t, planText, taskLabel, steps, planSteps, pendingPlan
             <div className={s.actions}>
               {pendingPlan.kind === 'request' ? (
                 <>
-                  <Button variant="primary" size="sm" onClick={() => onApprove(pendingPlan.id, 'manual_approve')} leftIcon={<Icon icon={Check} size={14} />}>{t('modal.planRequest.approve')}</Button>
-                  <Button variant="secondary" size="sm" onClick={() => onApprove(pendingPlan.id, 'revise')}>{t('modal.planRequest.decline')}</Button>
+                  <Button variant="primary" size="sm" onClick={() => onApprove(pendingPlan.id, 'manual_approve')} leftIcon={<Icon icon={Check} size={14} />}>{t('plan.bar.requestEnter')}</Button>
+                  <Button variant="secondary" size="sm" onClick={() => onApprove(pendingPlan.id, 'revise')}>{t('plan.bar.requestDecline')}</Button>
                 </>
               ) : (
                 <>
-                  <Button variant="primary" size="sm" onClick={() => onApprove(pendingPlan.id, 'auto_mode')} leftIcon={<Icon icon={Zap} size={14} />}>{t('plan.autoMode')}</Button>
-                  <Button variant="primary" size="sm" onClick={() => onApprove(pendingPlan.id, 'manual_approve')} leftIcon={<Icon icon={Check} size={14} />}>{t('plan.manualApprove')}</Button>
+                  <Button variant="primary" size="sm" onClick={() => onApprove(pendingPlan.id, 'auto_mode')} leftIcon={<Icon icon={Zap} size={14} />}>{t('plan.bar.approveExecution')}</Button>
+                  <Button variant="primary" size="sm" onClick={() => onApprove(pendingPlan.id, 'manual_approve')} leftIcon={<Icon icon={Check} size={14} />}>{t('plan.bar.manualApprove')}</Button>
                   <Button variant="danger" size="sm" onClick={() => onApprove(pendingPlan.id, 'revise')} leftIcon={<Icon icon={Pencil} size={14} />}>{t('plan.revise')}</Button>
                 </>
               )}

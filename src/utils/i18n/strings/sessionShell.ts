@@ -103,7 +103,6 @@ const zh = {
   'statusPanel.contextWindow': { en: 'Window',            'zh-CN': '窗口' },
   'statusPanel.cacheHit':     { en: 'Turn cache hit rate', 'zh-CN': '本回合缓存命中率' },
   'statusPanel.inputOutput':  { en: 'Input / Output',     'zh-CN': '输入 / 输出' },
-  'statusPanel.pool':         { en: 'Credential pool',    'zh-CN': '凭据池' },
   // v1.12:上下文组成六类分解(对齐引擎 ContextComposition)
   'statusPanel.composition':        { en: 'Composition',                 'zh-CN': '上下文构成' },
   'statusPanel.comp.systemPrompt':  { en: 'System prompt',               'zh-CN': '系统提示词' },

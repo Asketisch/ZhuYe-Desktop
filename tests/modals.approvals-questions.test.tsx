@@ -1,15 +1,17 @@
 /**
- * 模态交互全路径 —— ApprovalModal / QuestionModal / AskUserModal / PlanReadyModal。
+ * 挂起交互全路径 —— ApprovalModal / QuestionModal / AskUserModal / PlanApprovalBar。
  *
  * 真实 ModalStack 挂载 + 事件注入驱动 pending 状态 + 用户点击 →
  * 断言 wire 上的决策形状（ReviewDecision / PlanApprovalChoice / answers）
- * 与模态关闭时序。这是"agent 暂停 → 用户决策 → 回执"回路的 UI 侧锁定。
+ * 与关闭时序。这是"agent 暂停 → 用户决策 → 回执"回路的 UI 侧锁定。
+ * 计划审批不走全局弹窗：PlanApprovalBar（composer 审批条）替代 PlanReadyModal。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderView } from './helpers/appHarness';
 import { installFakeBackend, emitEvent, type FakeBackend } from './helpers/fakeBackend';
 import { ModalStack } from '@/features/modals';
+import { PlanApprovalBar } from '@/features/composer/PlanApprovalBar';
 import { useAgentStore } from '@/stores/agentStore';
 
 let backend: FakeBackend;
@@ -259,7 +261,7 @@ describe('AskUserModal', () => {
   });
 });
 
-describe('PlanReadyModal', () => {
+describe('PlanApprovalBar（计划审批不再走全局弹窗，改 composer 审批条）', () => {
   function stagePlan() {
     emitEvent(TURN, {
       type: 'plan_ready',
@@ -268,71 +270,68 @@ describe('PlanReadyModal', () => {
     });
   }
 
-  it('Approve plan sends auto_mode choice', async () => {
+  it('Approve plan sends auto_mode choice and stays until plan_approved arrives', async () => {
     stagePlan();
-    await screen.findByText('Plan Ready');
-    expect(screen.getByText((_, element) =>
-      element?.tagName === 'H1' && element.textContent === 'Migration',
-    )).toBeDefined();
+    renderView(<PlanApprovalBar />);
+    await screen.findByTestId('composer-plan-bar');
+    // 全局模态栈不再承载计划（见下方 coexistence 用例）。
 
-    fireEvent.click(screen.getByText('Approve plan'));
+    fireEvent.click(screen.getByTestId('plan-bar-approve'));
     await waitFor(() =>
       expect(backend.agent.planChoices).toEqual([{ id: 'plan-modal', choice: 'auto_mode' }]),
     );
-    // 关闭是事件驱动：后端确认 plan_approved 后 modal 才消失。
+    // 关闭是事件驱动：后端确认 plan_approved（经 permission_mode_changed /
+    // plan_approved 事件清 pendingPlan）后审批条才消失。
+    expect(screen.getByTestId('composer-plan-bar')).toBeDefined();
     emitEvent(TURN, { type: 'plan_approved', plan_id: 'plan-modal' });
-    await waitFor(() => expect(screen.queryByText('Plan Ready')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('composer-plan-bar')).toBeNull());
   });
 
   it('approves a plan-mode request using its plan id and closes the request', async () => {
+    renderView(<PlanApprovalBar />);
     emitEvent(TURN, { type: 'plan_request', plan_id: 'request-plan-id', task: 'Investigate the migration' });
-    await screen.findByText('Investigate the migration');
-    fireEvent.click(screen.getByText('Enter plan mode'));
+    await screen.findByTestId('composer-plan-bar');
+    fireEvent.click(screen.getByTestId('plan-bar-enter'));
     await waitFor(() => expect(backend.agent.planChoices).toEqual([
       { id: 'request-plan-id', choice: 'manual_approve' },
     ]));
-    await waitFor(() => expect(screen.queryByText('Investigate the migration')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('composer-plan-bar')).toBeNull());
   });
 
   it('declines a plan-mode request using revise and closes it', async () => {
+    renderView(<PlanApprovalBar />);
     emitEvent(TURN, { type: 'plan_request', plan_id: 'request-plan-id', task: 'Investigate the migration' });
-    await screen.findByText('Investigate the migration');
-    fireEvent.click(screen.getByText('Not now'));
+    await screen.findByTestId('composer-plan-bar');
+    fireEvent.click(screen.getByTestId('plan-bar-decline'));
     await waitFor(() => expect(backend.agent.planChoices).toEqual([
       { id: 'request-plan-id', choice: 'revise' },
     ]));
-    await waitFor(() => expect(screen.queryByText('Investigate the migration')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('composer-plan-bar')).toBeNull());
   });
 
-  it('Manual Approve sends manual_approve', async () => {
+  it('Step-by-step approval sends manual_approve; revise stays until event clears', async () => {
     stagePlan();
-    await screen.findByText('Manual Approve');
-    fireEvent.click(screen.getByText('Manual Approve'));
+    renderView(<PlanApprovalBar />);
+    await screen.findByTestId('composer-plan-bar');
+    fireEvent.click(screen.getByTestId('plan-bar-manual'));
     await waitFor(() =>
       expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-modal', choice: 'manual_approve' }),
     );
-  });
 
-  it('Revise sends revise', async () => {
     stagePlan();
-    await screen.findByText('Plan Ready');
-    fireEvent.click(screen.getByText('Revise'));
+    fireEvent.click(screen.getByTestId('plan-bar-approve'));
     await waitFor(() =>
-      expect(backend.agent.planChoices[0]).toEqual({ id: 'plan-modal', choice: 'revise' }),
+      expect(backend.agent.planChoices[1]).toEqual({ id: 'plan-modal', choice: 'auto_mode' }),
     );
-  });
-
-  it('plan_approved event from backend clears the modal without extra IPC', async () => {
+    // revise 也在审批条上可直接触达（打回修订）。
     stagePlan();
-    await screen.findByText('Plan Ready');
-    emitEvent(TURN, { type: 'plan_approved', plan_id: 'plan-modal' });
-    await waitFor(() => expect(screen.queryByText('Plan Ready')).toBeNull());
-    expect(backend.agent.planChoices.length).toBe(0);
+    emitEvent(TURN, { type: 'plan_rejected', plan_id: 'plan-modal', reason: 'x' });
+    await waitFor(() => expect(screen.queryByTestId('composer-plan-bar')).toBeNull());
   });
 });
 
 describe('modal coexistence', () => {
-  it('all four modal kinds can be pending simultaneously and resolve independently', async () => {
+  it('三种打断型模态可同时挂起并独立解决；计划挂起不进模态栈', async () => {
     requestToolApproval('apr-x', 'bash');
     emitEvent(TURN, {
       type: 'ask_user_question',
@@ -345,14 +344,16 @@ describe('modal coexistence', () => {
     await screen.findByText('Tool Approval');
     await screen.findByText('Ok to proceed?');
     await screen.findByText('Notes?');
-    await screen.findByText('Plan Ready');
+    // 计划挂起不再产出任何 modal。
+    expect(screen.queryByText('Plan ready')).toBeNull();
 
-    // 只解决审批，其余三个仍打开。
+    // 只解决审批，其余两个仍打开。
     fireEvent.click(screen.getByText('Approve'));
     await waitFor(() => expect(screen.queryByText('Tool Approval')).toBeNull());
     expect(screen.getByText('Ok to proceed?')).toBeDefined();
     expect(screen.getByText('Notes?')).toBeDefined();
-    expect(screen.getByText('Plan Ready')).toBeDefined();
+    // pendingPlan 仍在 store，等 composer 审批条 / 右侧 dock 消费。
+    expect(useAgentStore.getState().pendingPlan?.id).toBe('plan-x');
   });
 });
 

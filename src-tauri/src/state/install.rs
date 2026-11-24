@@ -42,10 +42,13 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     // 门控型 bundled 插件工具(web_search / notebook_edit)按插件状态决定
     // 是否注册 —— 与 exec headless / lib facade 同一判定源
     // (`zhuye_plugin::bundled_tool_gates`),关闭走 `[plugins].disabled_plugins`。
-    let gates = zhuye_plugin::bundled_tool_gates(
+    // web_search 额外按 API key 门控：没有 `[web_search].api_key`（且进程
+    // `BRAVE_API_KEY` 也缺）时不注册，避免模型看到不可用的工具。
+    let mut gates = zhuye_plugin::bundled_tool_gates(
         &cfg_snapshot.plugins.enabled_plugins,
         &cfg_snapshot.plugins.disabled_plugins,
     );
+    gates.web_search = gates.web_search && super::web_search::key_configured(&cfg_snapshot);
     register_builtin_tools(&tools, max_questions, gates);
     // 2a. 任务工具 —— GUI 里有任务板,agent 也得能驱动它(此前只有 GUI 侧
     //     的 CRUD,agent 既看不到也改不了任务)。

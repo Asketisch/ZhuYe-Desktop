@@ -58,11 +58,5 @@ export function TitleBarBinding({ view: View, sidebarOpen, inspectorOpen, onTogg
     semantic={ui.semantic} onToggleSemantic={ui.toggleSemantic}
     resolvedTheme={resolved} onToggleTheme={cycleTheme}
     onOpenSettings={() => ui.setSettingsOpen(true)}
-    dockMode={ui.dockMode}
-    onSetDockMode={(mode) => {
-      // 点 dock 档位按钮 = 直达该档位；面板收起时顺带唤出。
-      ui.setDockMode(mode);
-      if (!ui.dockOpen) ui.setDockOpen(true);
-    }}
   />;
 }

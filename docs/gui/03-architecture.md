@@ -256,11 +256,10 @@ crates/zhuye-gui/src/
 │   │   │   └── SlashPopup.tsx
 │   │   └── hooks/
 │   │       └── useComposerState.ts
-│   ├── modals/                 # 全局 modal（覆盖全屏）
+│   ├── modals/                 # 全局 modal（覆盖全屏；计划审批已迁 composer 审批条 + 右 dock 计划页签）
 │   │   ├── ApprovalModal.tsx
 │   │   ├── QuestionModal.tsx
 │   │   ├── AskUserModal.tsx
-│   │   ├── PlanReadyModal.tsx
 │   │   └── ErrorModal.tsx
 │   ├── settings/               # Settings 视图
 │   │   ├── SettingsView.tsx

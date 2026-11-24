@@ -377,11 +377,11 @@ fallback spec，**跨模型降级**）。
 
 | Variant | UI |
 |---|---|
-| `plan_request` | "Enter plan mode?" confirm modal |
-| `plan_ready` | Plan markdown modal (auto mode / manual approval / revise) |
+| `plan_request` | Composer 计划审批条（进入 / 暂不进入）；会话已处于计划模式时引擎跳过派发（见 `dispatch_plan_request` 守卫），前端 `usePlanSurfacing` 兜底静默应答 |
+| `plan_ready` | Composer 计划审批条（同意执行 auto_mode / 逐项确认 manual_approve / 查看计划）+ 右 dock「计划」页签自动打开（挂起卡片同款三选一；正文 Markdown 渲染）—— 不再使用全局弹窗 |
 | `plan_approved` | Status bar plan badge |
 | `plan_rejected` | Status hint |
-| `plan_draft_updated` | none —— 草稿正文覆盖式刷新(TUI 用于预览);GUI 决策路径走 `plan_ready` → PlanReadyModal,reducer no-op 保穷尽 |
+| `plan_draft_updated` | none —— 草稿正文覆盖式刷新(TUI 用于预览);GUI 决策路径走 `plan_ready` → 右 dock「计划」页签 + composer 审批条,reducer no-op 保穷尽 |
 | `plan_step` | Plan 视图「执行进度」清单 —— 核心在 agent 执行已批准 plan 时逐 step 上报;reducer 按 `index` 就地更新或追加(与核心 TUI 语义同构),`plan_ready` 到达时清空上一份 |
 | `permission_mode_changed` | Status bar mode badge updates |
 
@@ -487,7 +487,7 @@ export type ZhuyeSubmission = {
 
 export type ZhuyeOp =
   | { type: 'user_input'; items: ZhuyeItem[]; thread_settings?: ThreadSettingsOverrides }
-  | { type: 'compact' }
+  | { type: 'compact'; instructions?: string | null }   // v1.x: /compact <instructions>
   | { type: 'interrupt'; child_id?: string | null }
   | { type: 'shutdown' }
   | { type: 'rewind'; to_turn_id?: string }

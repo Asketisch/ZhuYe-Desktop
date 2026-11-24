@@ -7,7 +7,8 @@
 //! 指向它,离线、确定性),覆盖:
 //!
 //! 1. 纯文本回复:delta 累积 + token_count + turn_complete;
-//! 2. 工具调用:bash tool_use → 审批门(`prompt` 模式)→ approve →
+//! 2. 工具调用:bash tool_use → 审批门(默认 auto 档:bash 不在
+//!    `auto_approves_tool` 名单)→ approve →
 //!    工具真实执行(echo)→ 第二次请求带 tool_result → 最终回复;
 //!    并断言恰好两次 HTTP 请求、非官方 base_url 走 `Authorization: Bearer`;
 //! 3. HTTP 500:error 事件走同一 `zhuye_event` 通道,turn 有终态;
@@ -375,12 +376,14 @@ fn scene_one_plain_text() {
     );
 }
 
-/// 场景二:工具调用全链路 —— tool_use → 审批门(prompt 模式)→ approve →
+/// 场景二:工具调用全链路 —— tool_use → 审批门(默认 auto 档)→ approve →
 /// bash 真实执行 → 第二跳(tool_result)→ 最终回复。
+///
+/// v1.x 询问档语义升级后不再切 `prompt` 模式:`bash touch` 属 Risky 级,
+/// 询问档由审批门 `ask_mode` 判定**直接拒绝**(不弹 modal)—— 全链路
+/// 审批回路改在默认 auto 档覆盖(bash 不在 `auto_approves_tool` 名单,
+/// 照常弹审批)。
 fn scene_two_tool_use(w: &World) {
-    // 「prompt」模式确保工具执行前有审批门 —— 全链路里最常被模拟层遮住的一段。
-    // (默认是 auto:见 session_configured.approval_policy。)
-    common::invoke_ok("zhuye_set_permission_mode", json!({ "mode": "prompt" }));
 
     let rx = collect_events();
     let id = "mock-provider-sub-2";

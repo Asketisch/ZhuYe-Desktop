@@ -18,7 +18,7 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
   onRemoveAttachment, onRetryAttachment, onDismissBang, onKillBang, onSendModeChange, onInterrupt,
   onSend, onRunSlash, onFillSlash, onInsertText, sendLocked, onToggleSendLock,
   slots }: ComposerViewProps) {
-  const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerTopBar, PermissionPicker, PromptPicker, EffortPicker, ComposerPlusMenu, ModelPicker } = slots;
+  const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerTopBar, PermissionPicker, PromptPicker, EffortPicker, ComposerPlusMenu, ModelPicker, PlanApprovalBar } = slots;
   const SendIcon = isTurnRunning ? (sendMode === 'steer' ? CornerDownRight : ListPlus) : ArrowUp;
   return (
     <div className={s.wrap}>
@@ -74,6 +74,9 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
         {/* 内卡：抬升面（无边框描边，聚焦底色轻微提亮）。 */}
         <div className={s.card}>
           <BangRunsPanel runs={bangRuns} onDismiss={onDismissBang} onKill={onKillBang} />
+          {/* 计划审批条：计划就绪 / 请求进入计划模式时取代全局弹窗，
+              正文在右侧 dock 计划页签。 */}
+          <PlanApprovalBar />
           {/* 视觉降级警示：模型明确不支持视觉且带图片附件时常驻提示，
               发送时另有确认弹窗（见 useComposerSubmission）。 */}
           {visionBlocked && (

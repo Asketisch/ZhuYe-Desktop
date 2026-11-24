@@ -14,7 +14,6 @@ export function TitleBar(props: TitleBarProps) {
     t, workspaceLabel, pendingCount,
     onToggleSidebar, onToggleTerm, termOpen, onToggleInspector, inspectorOpen,
     onOpenPalette, onOpenInbox, semantic, onToggleSemantic, resolvedTheme, onToggleTheme,
-    dockMode, onSetDockMode,
   } = props;
   return (
     <header className="titlebar" data-tauri-drag-region data-testid="harness-titlebar">
@@ -65,37 +64,8 @@ export function TitleBar(props: TitleBarProps) {
         >
           <Icon icon={PanelRight} size={15} />
         </button>
-        {/* dock 快捷档位：浏览器 / 文件 / 用量（点按直达对应档位） */}
-        <button
-          type="button"
-          className={`tb-btn${dockMode === 'browser' && inspectorOpen ? ' on' : ''}`}
-          title={t('harness.dock.browser')}
-          aria-label={t('harness.dock.browser')}
-          onClick={() => onSetDockMode('browser')}
-          data-testid="harness-dock-browser"
-        >
-          <span className="mono" style={{ fontSize: 12 }}>◧</span>
-        </button>
-        <button
-          type="button"
-          className={`tb-btn${dockMode === 'files' && inspectorOpen ? ' on' : ''}`}
-          title={t('harness.dock.files')}
-          aria-label={t('harness.dock.files')}
-          onClick={() => onSetDockMode('files')}
-          data-testid="harness-dock-files"
-        >
-          <span className="mono" style={{ fontSize: 12 }}>▤</span>
-        </button>
-        <button
-          type="button"
-          className={`tb-btn${dockMode === 'usage' && inspectorOpen ? ' on' : ''}`}
-          title={t('harness.dock.usage')}
-          aria-label={t('harness.dock.usage')}
-          onClick={() => onSetDockMode('usage')}
-          data-testid="harness-dock-usage"
-        >
-          <span className="mono" style={{ fontSize: 12 }}>◒</span>
-        </button>
+        {/* dock 档位切换只在右 dock 的页签行内提供 —— 标题条不再重复
+            放浏览器 / 文件 / 用量快捷按钮。 */}
         {/* 命令面板 */}
         <button
           type="button"

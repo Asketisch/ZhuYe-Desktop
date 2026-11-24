@@ -251,13 +251,22 @@ export function useComposerSubmission({
         );
         // 剥离后既无文本也无附件(纯图片消息) → 不发送,附件保留待用户处理。
         if (items.length === 0) return;
+        // 计划挂起时发送文本 = 打回修订（revise 释放 plan gate）后把反馈
+        // 以 steer 注入同一在飞回合 —— 模型带着反馈继续改计划，而不是把
+        // 消息压进前端队列等回合结束。
+        const pendingPlan = useAgentStore.getState().pendingPlan;
+        if (pendingPlan) {
+          await useAgentStore.getState().approvePlan(pendingPlan.id, 'revise');
+        }
         // 首页尚未绑定会话：先创建并等待 ChatView 完成绑定，避免把首条
         // 消息投递到上一个会话的线程或未持久化的占位线程。
         if (!activeId) await ensureSessionReady(null);
         const running = selectIsTurnRunning(useAgentStore.getState());
-        if (running && mode === 'steer') {
+        if (running && (mode === 'steer' || pendingPlan)) {
           // v1.4 A2 真·转向:不打断当前 run,下一个安全点注入;已完成
           // 的工具调用与既有上下文全部保留,模型带着进度从新指令继续。
+          // 计划反馈强制走 steer：turn 正阻塞在 plan gate 上，排队只会在
+          // 回合收尾后才送达，错过「继续规划」的语境。
           await useAgentStore.getState().steer(items, steerPriority(items));
           history.commit(value);
         } else if (running) {

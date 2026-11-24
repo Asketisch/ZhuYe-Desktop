@@ -331,6 +331,79 @@ describe('MessageList', () => {
     expect(screen.queryByTestId('activity-group-body')).toBeNull();
   });
 
+  it('思考与工具之间隔着正文时，思考并入后续工具活动组（正文留在组外）', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't11',
+          status: 'done',
+          items: [
+            { kind: 'thinking', text: '先想清楚要查什么' },
+            { kind: 'assistant_text', text: '我先看看目录结构。' },
+            { kind: 'tool_call', toolName: 'bash', callId: 'b1', argsSummary: '{"command":"ls"}', status: 'done' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    // 思考不再独立成折叠块，而是与随后的工具同组。
+    const group = screen.getByTestId('activity-group');
+    fireEvent.click(group.querySelector('button')!);
+    const body = screen.getByTestId('activity-group-body');
+    expect(body.querySelectorAll('[data-tool="bash"]')).toHaveLength(1);
+    const thinkingRow = body.querySelector('[data-accent="info"] > button, [data-accent="success"] > button') as HTMLButtonElement | null;
+    expect(thinkingRow).not.toBeNull();
+    fireEvent.click(thinkingRow!);
+    expect(body.textContent).toContain('先想清楚要查什么');
+    // 正文气泡仍在组外。
+    expect(screen.getByText('我先看看目录结构。')).toBeDefined();
+  });
+
+  it('assistant_text 内的 <think> 段拆出后并入随后的工具活动组', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't12',
+          status: 'done',
+          items: [
+            { kind: 'assistant_text', text: '<think>标签里的推理</think>正文开场白。' },
+            { kind: 'tool_call', toolName: 'grep', callId: 'c1', argsSummary: '{"pattern":"x"}', status: 'done' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    const group = screen.getByTestId('activity-group');
+    fireEvent.click(group.querySelector('button')!);
+    const body = screen.getByTestId('activity-group-body');
+    expect(body.querySelectorAll('[data-tool="grep"]')).toHaveLength(1);
+    const thinkingRow = body.querySelector('[data-accent="info"] > button, [data-accent="success"] > button') as HTMLButtonElement | null;
+    expect(thinkingRow).not.toBeNull();
+    fireEvent.click(thinkingRow!);
+    expect(body.textContent).toContain('标签里的推理');
+    // 正文气泡只剩可见内容，思考不再单独渲染在气泡上方。
+    expect(screen.getByText('正文开场白。')).toBeDefined();
+  });
+
+  it('无后续工具时 <think> 思考保持独立折叠块（阅读顺序不变）', () => {
+    useAgentStore.setState({
+      turns: [
+        {
+          id: 't13',
+          status: 'done',
+          items: [
+            { kind: 'assistant_text', text: '<think>纯推理没有工具</think>最终回答。' },
+          ],
+        },
+      ],
+    });
+    render(wrap(<MessageList />));
+    expect(screen.queryByTestId('activity-group')).toBeNull();
+    // 独立思考折叠块存在（Brain 图标的 info 档），正文在气泡里。
+    expect(document.querySelector('[data-accent="info"]')).not.toBeNull();
+    expect(screen.getByText('最终回答。')).toBeDefined();
+  });
+
   it('defaults merged diff outputs to open without a click', () => {
     useAgentStore.setState({
       turns: [

@@ -1,11 +1,12 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { DockMode } from '@/stores/shellUi';
 
 /**
  * harness 标题条契约。
  *
  * 布局：rail 开关 + 工作区标题 …… 右侧动作组
- * （任务中心铃铛 / 终端 / dock / 命令面板 / 单色 / 主题）。
+ * （任务中心铃铛 / 终端 / dock 开合 / 命令面板 / 单色 / 主题）。
+ * dock 档位（浏览器 / 文件 / 子代理 / 用量）只在右 dock 页签行内切换，
+ * 标题条不放重复快捷入口。
  */
 export interface TitleBarProps {
   t: I18nContextValue['t'];
@@ -31,7 +32,4 @@ export interface TitleBarProps {
   resolvedTheme: 'light' | 'dark';
   onToggleTheme: () => void;
   onOpenSettings: () => void;
-  /** dock 档位（高亮 browser/files/agents/usage 等按钮的状态来源）。 */
-  dockMode: DockMode;
-  onSetDockMode: (mode: DockMode) => void;
 }

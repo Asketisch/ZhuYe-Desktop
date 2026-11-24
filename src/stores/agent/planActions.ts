@@ -2,9 +2,10 @@
  * plan 域 store actions 工厂（queue.ts / toast.ts 同款模式，自 store.ts
  * 拆出守 500 行预算）：plan 审批应答 + 工作模式切换。
  *
- * approvePlan 的容错语义是「计划审批弹窗卡死修复」的一半：命令失败
+ * approvePlan 的容错语义是「计划审批卡死修复」的一半：命令失败
  * （会话已切走 / 引擎查无 waiter）时 toast 告知 + 照常清挂起态 ——
- * gate 在引擎侧已死，弹窗留着只会阻塞会话。僵尸条目不再重发的另一半
+ * gate 在引擎侧已死，审批条（composer 审批条 / 右 dock 计划页签卡片）
+ * 留着只会阻塞会话。僵尸条目不再重发的另一半
  * 在后端 `resolved_plan_gates` 过滤（src-tauri state/agent.rs）。
  */
 import { t } from '@/utils/i18n/lookup';

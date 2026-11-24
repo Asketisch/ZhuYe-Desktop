@@ -89,6 +89,32 @@ git config -f .gitmodules submodule.zhuye-agent.branch develop
 git submodule update --remote zhuye-agent
 ```
 
+### 本地直接改 submodule（临时通道）
+
+默认约定是「上游仓库改 → push → 指针前移」；但体验修复偶尔需要**立即**
+动引擎（桌面不想等上游发版）。此时可直接在 `zhuye-agent/` 内改代码并
+在 submodule 内 commit，再回父仓 `git add zhuye-agent` 前移指针：
+
+```bash
+cd zhuye-agent
+# ... 改 crates/** ...
+git checkout -b desktop-patches   # 别直接压在 main 上
+git add -A && git commit -m "feat(hooks): ..."
+cd ..
+git add zhuye-agent
+git commit -m "chore(submodule): 指针前移 —— <摘要>"
+```
+
+⚠️ **风险与纪律**：
+
+- 本地补丁**未经上游仓库评审**，`git submodule update --remote` 拉取
+  上游新提交时若历史分叉会被拒绝（non-fast-forward），补丁不会静默
+  丢失，但需要手工 rebase 回上游分支后再前移指针。
+- 补丁必须同步回上游（PR 到 ZhuYe 仓库），否则桌面会长期背着分叉的
+  引擎；`docs/plans/protocol-upstream.md` 是登记这些落差的账本。
+- L1 静态门禁的「submodule 指针已提交」检查：submodule 工作树一旦有
+  未提交改动即红 —— 发布前必须完成上面的 commit + 指针前移。
+
 ## 旧 vendor 模式迁移记录
 
 本次迁移(vendor → submodule)顺带修复的版本漂移:

@@ -146,24 +146,6 @@
   color: var(--fg-3);
 }
 
-/* streaming 光标 —— CSS 脉冲块 */
-.cursor {
-  display: inline-block;
-  width: 8px;
-  height: 15px;
-  margin-left: 2px;
-  vertical-align: text-bottom;
-  background: var(--fg);
-  border-radius: 1px;
-  animation: blink 1s steps(2) infinite;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
-}
-
 /* ===== 等宽文本（thinking / tool）===== */
 .monoText {
   font-family: var(--font-mono);
