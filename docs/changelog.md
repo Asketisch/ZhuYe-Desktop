@@ -4,6 +4,27 @@
 
 ## 未发布
 
+- **修复 autopilot 重启用例的 read-modify-write 竞态（Windows runner 判红）**：
+  `ipc_autopilot_restart` 的 `autopilot_recovers_interrupted_run_after_process_restart`
+  在 Windows runner 上判红（同批次 macOS / ubuntu 均绿，本地 macOS 连跑 6 遍全绿）：
+  失败现场的历史里只有一条 `failed`（`"autopilot interrupted by application
+  shutdown"`），缺第二条 `success`。根因是**用例与 autopilot 驱动各写各的
+  `history.json`，没有共同同步点** —— 典型的 lost update：
+  1. 子进程被 kill 后，驱动接管租约的那一拍执行 `finalize_run_by_status`，
+     **读-改-写整个 `history.json`**；
+  2. 用例同时在读历史、改 `executedAtMs` 为「120 秒前」、再整份写回；
+  3. 两者写回互相覆盖 —— 用例的「标过期」被驱动的写回抹掉，
+     `executedAtMs` 复原成运行创建时刻 → `is_due` 判为未到期 → 第二条运行
+     永不创建 → 断言 15s 超时。
+
+  **实证**（CI 失败现场）：失败历史里的 `executedAtMs = 11:20:36`（= 运行创建
+  时刻）而非用例写的 ≈`11:18:38`（120 秒前）→ 确证是被覆盖而非未写。
+
+  修法：①先 `wait_history` 等驱动**完成接管**（历史里目标运行变 `failed`），
+  **再**标到期 —— 此时驱动的最后一次写已发生，用例的写不再被覆盖；②按 run
+  **id** 定位目标记录，不再假定 `history[0]` 就是它（驱动接管时可能在前面插入
+  新记录）。产品行为零变化（仅用例时序）。
+
 - **修复 GitHub CI 持续判红（Windows runner，submodule 侧修复）**：`rust test
   (windows)` job 在 `zhuye-sandbox` 的
   `protected_path_outside_writable_root_is_enforced_by_default` 上失败 ——

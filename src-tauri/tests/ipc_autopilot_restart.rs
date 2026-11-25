@@ -152,6 +152,24 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
     child.0.wait().unwrap();
     let session = common::invoke_ok("zhuye_create_session", json!({}));
     common::invoke_ok("zhuye_bind_session", json!({"id":session}));
+    // 等驱动**接管租约**并把残留运行标记为 failed,再做「标到期」。
+    //
+    // 顺序是硬要求(本用例曾因此在 Windows runner 上判红):
+    // 驱动接管租约的那一拍会 `finalize_run_by_status` 读-改-写整个
+    // history.json。若此时本用例正拿着旧内容往回写,两者的写回互相覆盖 ——
+    // 典型 lost update:本用例写的「120 秒前」被驱动的写回抹掉,
+    // `executedAtMs` 复原成运行创建时刻,`is_due` 判为未到期,
+    // 第二条运行永不创建,断言 15s 超时。
+    //
+    // 实证(CI 失败现场):失败历史里的 executedAtMs = 11:20:36(运行创建
+    // 时刻)而非本用例写的 ≈11:18:38(120 秒前)→ 确证被覆盖。
+    //
+    // 修法:先等驱动完成接管(历史里 old_id 变成 failed),**再**标到期 ——
+    // 此时驱动的最后一次写已发生,本用例的写不会再被覆盖。
+    wait_history(|runs| {
+        runs.iter()
+            .any(|r| r["id"] == old_id && r["status"] == "failed")
+    });
     // 会话就绪之后再把中断运行标记为到期:重试必须落在「当前会话」线程上
     // 提交(submit 的 ptr_eq 守卫语义)。若先标到期再绑会话,慢机器上
     // autopilot 的 tick 会抢在 bind 之前捕获旧线程,提交被拒导致用例竞态
@@ -159,7 +177,15 @@ fn autopilot_recovers_interrupted_run_after_process_restart() {
     let history_file = data.join("autopilot/history.json");
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(&history_file).unwrap()).unwrap();
-    history[0]["executedAtMs"] = json!(
+    // 按 id 定位,而不是假定 history[0] 就是目标运行 —— 驱动接管时可能
+    // 已在前面插入新记录。
+    let target = history
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|run| run["id"] == old_id)
+        .expect("目标运行必须在历史里");
+    target["executedAtMs"] = json!(
         (SystemTime::now() - Duration::from_secs(120))
             .duration_since(UNIX_EPOCH)
             .unwrap()
