@@ -322,6 +322,7 @@ mod tests {
                 turn_id: TurnId::new(),
                 workspace: PathBuf::from("/tmp/ws"),
                 permission_mode: PermissionMode::Auto,
+                approval_policy: None,
             },
         }
     }
