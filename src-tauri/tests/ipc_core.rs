@@ -568,6 +568,109 @@ fn session_archive_and_unarchive_round_trip() {
     );
 }
 
+#[test]
+fn session_list_hides_shells_but_keeps_named_or_child_sessions() {
+    // 壳过滤(2026-11 实测污染):mock 测试/example 直写 ~/.zhuye/sessions/
+    // 留下的「meta + 审计记录、无任何 Message」壳文件,曾以 8 位 ID 空条目
+    // 刷屏侧栏 —— 列表层必须滤掉,但命名壳与子会话要保住。
+    let shell = invoke_ok("zhuye_create_session", json!({}));
+    let shell = shell.as_str().expect("session id 应为字符串").to_string();
+    let named = invoke_ok("zhuye_create_session", json!({}));
+    let named = named.as_str().expect("session id 应为字符串").to_string();
+    let child = invoke_ok("zhuye_create_session", json!({}));
+    let child = child.as_str().expect("session id 应为字符串").to_string();
+    let real = invoke_ok("zhuye_create_session", json!({}));
+    let real = real.as_str().expect("session id 应为字符串").to_string();
+
+    // 壳本体:meta + prompt_selection_changed(message_count ≥ 1 也不救)。
+    seed_shell_rollout(&shell, None);
+    // 命名的壳:同形态 + `_names/<id>.name` sidecar(经真实 rename 命令)。
+    seed_shell_rollout(&named, None);
+    invoke_ok("zhuye_rename_session", json!({ "id": named, "newName": "命名的壳" }));
+    // 孤儿子代理壳:parent_session_id 有值、父文件不存在(不静默丢)。
+    seed_shell_rollout(&child, Some(&shell));
+    // 正常会话:含首条 user Message,标题可派生。
+    seed_rollout_with_user_message(&real);
+
+    let list = invoke_ok("zhuye_list_sessions", json!({}));
+    let arr = list.as_array().expect("会话列表应为数组");
+    let contains =
+        |id: &str| arr.iter().any(|s| s["session_id"] == json!(id));
+    assert!(!contains(&shell), "无消息无命名的壳不应出现在列表: {list}");
+    assert!(contains(&named), "手动命名的壳应保留: {list}");
+    assert!(contains(&child), "孤儿子会话应保留(不静默丢): {list}");
+    assert!(contains(&real), "正常会话应出现: {list}");
+
+    // 清理种子,不给同二进制内其他用例的列表断言添噪音。
+    for id in [&shell, &named, &child, &real] {
+        invoke_ok("zhuye_delete_session", json!({ "id": id }));
+    }
+}
+
+/// 造一条「壳」rollout(meta + 审计记录,无任何 Message)。
+///
+/// `parent = Some` 时在 SessionMeta 带上 `parent_session_id`,模拟子代理
+/// 会话;壳的形态与上游 mock 测试/example 直写 `~/.zhuye/sessions/` 的
+/// 残留一致。路径与 [`seed_rollout`] 同布局。
+fn seed_shell_rollout(id: &str, parent: Option<&str>) {
+    let home = std::env::var("HOME").expect("HOME 未隔离");
+    let now = chrono::Utc::now();
+    let dir = std::path::Path::new(&home)
+        .join(".zhuye/sessions")
+        .join(now.format("%Y").to_string())
+        .join(now.format("%m").to_string())
+        .join(now.format("%d").to_string());
+    std::fs::create_dir_all(&dir).expect("create rollout dir");
+    let mut meta = serde_json::json!({
+        "type": "session_meta",
+        "session_id": id,
+        "model": "mock",
+        "started_at": now.to_rfc3339(),
+    });
+    if let Some(p) = parent {
+        meta["parent_session_id"] = json!(p);
+    }
+    let audit = serde_json::json!({
+        "type": "prompt_selection_changed",
+        "selection": null,
+    });
+    std::fs::write(
+        dir.join(format!("{id}.jsonl")),
+        format!("{meta}\n{audit}\n"),
+    )
+    .expect("write shell rollout file");
+}
+
+/// 造一条含首条 user Message 的正常 rollout(标题可派生)。
+fn seed_rollout_with_user_message(id: &str) {
+    let home = std::env::var("HOME").expect("HOME 未隔离");
+    let now = chrono::Utc::now();
+    let dir = std::path::Path::new(&home)
+        .join(".zhuye/sessions")
+        .join(now.format("%Y").to_string())
+        .join(now.format("%m").to_string())
+        .join(now.format("%d").to_string());
+    std::fs::create_dir_all(&dir).expect("create rollout dir");
+    let meta = serde_json::json!({
+        "type": "session_meta",
+        "session_id": id,
+        "model": "probe/model",
+        "started_at": now.to_rfc3339(),
+    });
+    // Message 记录的 turn_id 是 TurnId(Uuid) —— 非 UUID 会被整行丢弃。
+    let message = serde_json::json!({
+        "type": "message",
+        "turn_id": "00000000-0000-4000-8000-00000000d001",
+        "role": "user",
+        "content": "壳过滤探针:首条用户消息",
+    });
+    std::fs::write(
+        dir.join(format!("{id}.jsonl")),
+        format!("{meta}\n{message}\n"),
+    )
+    .expect("write rollout file");
+}
+
 /// 在 rollout 根目录里造一条真会话记录(`<base>/YYYY/MM/DD/<id>.jsonl`)。
 ///
 /// 首行必须是**合法的** `RolloutRecord::SessionMeta`(`session_id` /

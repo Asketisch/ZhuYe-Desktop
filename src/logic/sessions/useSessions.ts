@@ -86,11 +86,12 @@ export function useSessions(
     staleTime: SESSIONS_STALE_MS,
   });
 
-  // 占位会话过滤：0 条用户消息且未命名的会话是「op-only 占位线程」的
-  // 落盘产物（如默认配置下 submit 的 prompt/permission 同步 op，首个 op
-  // 即触发 SessionMeta 落盘，消息随后被 workspace/模型守卫拒绝）——
-  // 对用户是纯噪音。手动命名过的空会话视为有意保留；首条用户消息落盘
-  // （message_count ≥ 1）后自动回到列表。
+  // 占位会话过滤（双保险）：壳过滤的主防线在后端 `zhuye_list_sessions`
+  // （无首条用户消息且非子会话的条目直接不返回）。注意 `message_count`
+  // 的真实语义是「非 meta 记录行数」——审计记录（permission/token/selection
+  // 等）也占行，因此此处不能只看它：无首条用户消息的壳靠 title 是否为空
+  // 兜底（后端已滤掉绝大多数），message_count 仅拦截极旧的 0 行文件。
+  // 手动命名过的空会话视为有意保留；首条用户消息落盘后自动回到列表。
   const sessions = useMemo(
     () => all.filter((s) => (s.message_count ?? 0) > 0 || Boolean(s.title)),
     [all],

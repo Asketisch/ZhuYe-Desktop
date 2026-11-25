@@ -13,7 +13,7 @@ Tauri 命令表全集，按领域一域一文件（领域文件数以目录与 `
 | `mod.rs` | 薄桶：领域子模块声明与再导出（含 `error::{CommandError, CommandResult}`） |
 | `error.rs` | `CommandError` / `CommandResult` 统一返回包装 + 各上游错误 `From` impl，无命令体 |
 | `agent.rs` | 会话核心：submit / interrupt / compact / rewind / 审批 / plan / goal 模式等 |
-| `sessions.rs` | 会话管理：创建 / 重放 / 改名 / 归档 / 导出（最大领域文件，嵌套 `sessions/{name,sidecar,title_commit}.rs`） |
+| `sessions.rs` | 会话管理：创建 / 重放 / 改名 / 归档 / 导出（最大领域文件，嵌套 `sessions/{name,sidecar,title_commit}.rs`）。`zhuye_list_sessions` 带**壳过滤**：无首条用户消息且非子会话的条目不返回（外部进程直写 / 发送失败残留的 meta+审计壳，防 8 位 ID 空条目刷屏侧栏；命名的壳与孤儿子会话保留，过滤仅在列表层、replay 不受限） |
 | `tasks.rs` | 任务域命令（创建 / 领取 / 更新 / 输出） |
 | `models.rs` | 模型域命令：拉 provider 清单 / 测连通（GUI 展示用直连实现，与引擎 `list_models` 口径一致） |
 | `model_abilities.rs` | 模型域命令：单模型能力查询（`zhuye_lookup_model_abilities`，纯内存查 models.dev 目录，不发网络；从 `models.rs` 拆出以守 500 行预算） |

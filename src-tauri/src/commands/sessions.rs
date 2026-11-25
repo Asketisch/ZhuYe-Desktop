@@ -178,6 +178,16 @@ pub async fn zhuye_bind_session(
 ///   避免把历史会话误归到任何项目视图。
 /// - `limit` + `offset` 提供游标式分页(按时间倒序)。
 ///   `limit = 0` 或省略 → 无上限(返回完整列表)。
+///
+/// 壳过滤:无首条用户消息(`title = None`)且非子会话(`parent_session_id
+/// = None`)的条目不返回。此类壳只可能是落盘残骸(上游 mock 测试/example
+/// 直写 `~/.zhuye/sessions/`、发送失败或 hook Deny 留下的 meta+审计记录),
+/// 列表里展示为 8 位 ID 空条目,对用户是纯噪音(实测污染,2026-11)。
+/// - 手动命名过的壳经 `refine_session_titles` 叠加 sidecar 名后 title
+///   有值 → 保留(命名视为有意保留);
+/// - 孤儿子代理(parent 有值但父不在列表)维持既有"不静默丢"提升策略;
+/// - 讨论-only 会话(无用户消息)同样被隐藏,发首条消息后自动回归。
+/// 被过滤条目仍可经 `zhuye_replay_session` 按 id 访问(过滤仅在列表层)。
 #[tauri::command]
 pub async fn zhuye_list_sessions(
     workspace: Option<String>,
@@ -192,6 +202,14 @@ pub async fn zhuye_list_sessions(
         _ => rollout_index::list_sessions(&base),
     }
     .map_err(CommandError::from)?;
+    // 顺序必须是:精化(全量) → 过滤 → 分页。
+    // - 精化在前:过滤依赖 sidecar 合并后的 title,未精化的内嵌 title 对
+    //   手动命名的壳恒为 None,先滤会误删;
+    // - 过滤在前、分页在后:避免某页恰被壳占满而整页蒸发(短页/空页)。
+    // 精化内部是按 sidecar 目录的全量读,成本与列表长度无关,在全量上
+    // 跑一次即可。
+    refine_session_titles(&base, &mut all);
+    all.retain(|s| s.title.is_some() || s.parent_session_id.is_some());
     let off = offset.unwrap_or(0);
     if off >= all.len() {
         return Ok(Vec::new());
@@ -204,9 +222,6 @@ pub async fn zhuye_list_sessions(
             all.truncate(n);
         }
     }
-    // 分页后再精化,只处理返回页(标题精化本身是一次全局 walk,
-    // 与分页无关,但避免改写整表)。
-    refine_session_titles(&base, &mut all);
     Ok(all)
 }
 

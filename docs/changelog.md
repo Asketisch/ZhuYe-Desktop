@@ -4,6 +4,23 @@
 
 ## 未发布
 
+- **会话列表壳过滤（修复 8 位 ID 空会话刷屏侧栏）**：侧栏曾成批出现 `d4c78c15`
+  式 8 位十六进制空条目（4 小时 8 个）——磁盘实证为**上游 zhuye-agent mock
+  测试 / example 直写真实 `~/.zhuye/sessions/` 的残留**（facade 默认 recorder
+  落 `$HOME/.zhuye`、脚本无 `ZHUYE_HOME` 隔离；壳文件仅含 `session_meta` +
+  审计记录、无任何用户消息，前端过滤被 `message_count` 的「计所有记录类型」
+  语义穿透）。三层修复：
+  1. **后端列表壳过滤**（主防线）：`zhuye_list_sessions` 不再返回「无首条
+     用户消息且非子会话」的条目（`title = None && parent_session_id = None`，
+     精化 → 过滤 → 分页的顺序保证手动命名的壳与分页正确性）；命名的壳与
+     孤儿子代理维持保留策略，被滤条目 `zhuye_replay_session` 仍可按 id 访问。
+  2. **存量清理**：删除当日 8 个 mock 壳文件（删前逐个校验无用户消息）。
+  3. **上游脚本隔离**（上游仓库配套）：mock 测试脚本统一 `ZHUYE_HOME` 沙箱，
+     recorder 不再触碰真实数据目录（上游侧变更，随下次 submodule 同步带入）。
+  前端 `useSessions` 的 `message_count > 0` 过滤保留为双保险（注释对齐真实
+  语义）；L3 `ipc_core.rs` 新增壳过滤用例（壳不出现 / 命名壳保留 / 孤儿子
+  会话保留 / 正常会话出现）。
+
 - **submodule 前移 `a7e5858`：子代理异步派发 + 回合挂起（桌面零代码适配）**：上游 `feat/async-subagent-suspend-turn` 合入 main —— `call_<role>` 新增可选 `mode=async`（缺省仍同步）：异步立即返回占位回执（`tool_call_end` 的 `output.metadata` 带 `async` / `pending` / `child_id`），子代理后台运行，父回合收尾前在 `check_stop` 挂起等待，结果注入当前回合同轮续跑（仍一次 `turn_complete`）；打断父回合同步级联取消在途子代理（异步不跨越派发它的回合）。Op / EventMsg / 命令面零变化，事件流形状不变（占位回执进消息流、子代理进度照常入 dock feed）。桌面配套：根 workspace `Cargo.lock` 的 tokio-util 0.7.18 → 0.7.20（新引擎代码依赖 0.7.20 新增的 `PartialEq for CancellationToken`，旧 lock 编译 E0369）；GUI dock feed「后台运行中」标注为可选增强待接（不阻断）。
 
 - **右侧栏对齐 ZCode + 计划自动展开 / 可滚动 / 可执行**（会话 `889c3bd0` 计划呈递修复）：
