@@ -4,6 +4,27 @@
 
 ## 未发布
 
+- **修复 GitHub CI 持续判红（Windows runner，submodule 侧修复）**：`rust test
+  (windows)` job 在 `zhuye-sandbox` 的
+  `protected_path_outside_writable_root_is_enforced_by_default` 上失败 ——
+  期望 `EnforcedByDefault`，实得 `Unsupported{reason:"当前平台无可用沙箱后端
+  (status=WindowsJobObject)"}`。根因不在生产代码，而在**用例把 macOS/Linux
+  的结论写死**：「可写根外的写被默认拒绝」只在沙箱**真的接管了命令执行**时
+  成立（Seatbelt / Landlock 会把命令裹进沙箱）；Windows 的 Job Object 后端
+  （F24）已实现但**未接入 bash spawn 路径**（`tools/builtins/bash.rs` 只对
+  Seatbelt / Landlock 包裹命令），Windows 上命令透传执行、写权并未被撤销，
+  此时报「已强制只读」是对宿主撒谎。上游 ZhuYe 的跨平台 CI 只跑
+  `-p zhuye-tools -p zhuye-config -p zhuye-core -p zhuye-rollout --lib`
+  （不含本 crate），该用例从未在 Windows 上跑过；桌面端 CI 跑全量
+  `cargo test --workspace --all-targets` 才第一次暴露。修法（submodule 内）：
+  ①用例按 `sandbox.status()` 分平台断言（Seatbelt/Landlock →
+  `EnforcedByDefault`；WindowsJobObject → `Unsupported` 且 `strict_paths`
+  时失败关闭）；②新增**跨平台**回归用例（显式构造
+  `backend=WindowsJobObject` 跑同一份断言并钉住原因文案），避免「只在
+  Windows runner 才红」的盲区；③原因文案按后端如实分述 —— Windows 说
+  「后端已实现但未接入 bash spawn 路径」而非误称「无可用后端」。产品命令 /
+  Op / EventMsg / 配置与 SDK 公开面零变化，桌面端零代码适配。
+
 - **会话列表壳过滤（修复 8 位 ID 空会话刷屏侧栏）**：侧栏曾成批出现 `d4c78c15`
   式 8 位十六进制空条目（4 小时 8 个）——磁盘实证为**上游 zhuye-agent mock
   测试 / example 直写真实 `~/.zhuye/sessions/` 的残留**（facade 默认 recorder
