@@ -586,7 +586,10 @@ fn session_list_hides_shells_but_keeps_named_or_child_sessions() {
     seed_shell_rollout(&shell, None);
     // 命名的壳:同形态 + `_names/<id>.name` sidecar(经真实 rename 命令)。
     seed_shell_rollout(&named, None);
-    invoke_ok("zhuye_rename_session", json!({ "id": named, "newName": "命名的壳" }));
+    invoke_ok(
+        "zhuye_rename_session",
+        json!({ "id": named, "newName": "命名的壳" }),
+    );
     // 孤儿子代理壳:parent_session_id 有值、父文件不存在(不静默丢)。
     seed_shell_rollout(&child, Some(&shell));
     // 正常会话:含首条 user Message,标题可派生。
@@ -594,8 +597,7 @@ fn session_list_hides_shells_but_keeps_named_or_child_sessions() {
 
     let list = invoke_ok("zhuye_list_sessions", json!({}));
     let arr = list.as_array().expect("会话列表应为数组");
-    let contains =
-        |id: &str| arr.iter().any(|s| s["session_id"] == json!(id));
+    let contains = |id: &str| arr.iter().any(|s| s["session_id"] == json!(id));
     assert!(!contains(&shell), "无消息无命名的壳不应出现在列表: {list}");
     assert!(contains(&named), "手动命名的壳应保留: {list}");
     assert!(contains(&child), "孤儿子会话应保留(不静默丢): {list}");

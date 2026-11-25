@@ -384,7 +384,6 @@ fn scene_one_plain_text() {
 /// 审批回路改在默认 auto 档覆盖(bash 不在 `auto_approves_tool` 名单,
 /// 照常弹审批)。
 fn scene_two_tool_use(w: &World) {
-
     let rx = collect_events();
     let id = "mock-provider-sub-2";
     let before = messages_requests(w).len();
