@@ -4,6 +4,8 @@
 
 ## 未发布
 
+- **submodule 前移 `a7e5858`：子代理异步派发 + 回合挂起（桌面零代码适配）**：上游 `feat/async-subagent-suspend-turn` 合入 main —— `call_<role>` 新增可选 `mode=async`（缺省仍同步）：异步立即返回占位回执（`tool_call_end` 的 `output.metadata` 带 `async` / `pending` / `child_id`），子代理后台运行，父回合收尾前在 `check_stop` 挂起等待，结果注入当前回合同轮续跑（仍一次 `turn_complete`）；打断父回合同步级联取消在途子代理（异步不跨越派发它的回合）。Op / EventMsg / 命令面零变化，事件流形状不变（占位回执进消息流、子代理进度照常入 dock feed）。桌面配套：根 workspace `Cargo.lock` 的 tokio-util 0.7.18 → 0.7.20（新引擎代码依赖 0.7.20 新增的 `PartialEq for CancellationToken`，旧 lock 编译 E0369）；GUI dock feed「后台运行中」标注为可选增强待接（不阻断）。
+
 - **右侧栏对齐 ZCode + 计划自动展开 / 可滚动 / 可执行**（会话 `889c3bd0` 计划呈递修复）：
   1. **右 dock 标签页化**：从五档固定按钮改为 ZCode side-pane tabs 同款 —— 标签条（图标胶囊 / 拖拽排序 / 中键关闭 / 右键菜单「关闭·关闭其他·关闭所有」/ 标签总览搜索 + 最近关闭 / ⌘⇧F 完整视图）、新标签页启动器（检查器 / 文件 / 浏览器 / 审查 / 子代理 / 用量，有计划时追加「计划」）、内容面板按标签**保活**渲染（非激活 `hidden`，切来切去不丢状态）、关掉最后一个标签页即收起侧栏、重新展开补启动器。终端保留底部面板（不迁入启动器）；浏览器因后端单实例保持单例。`shellUi` 新增 `dockTabs` / `dockActiveId` / `recentlyClosedTabs` / `dockFullView`，旧 `dockMode` 持久化读入即迁移。
   2. **计划升为顶级 dock 标签**（`PlanDock`，从 Inspector 迁出）：根节点 `flex:1; min-height:0; overflow-y:auto`，配合 `.dock-body` 高度约束层修复「计划不可滚动」；原 Inspector「计划」子页签移除。`usePlanSurfacing` 触发源从仅 `pendingPlan` 扩为 `pendingPlan` / `plan`（终稿，含回放水合）/ `planDraft`（草稿落盘），按 id / 路径去重，同一计划只主动展开一次；切到无计划会话自动关该标签。
