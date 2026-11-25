@@ -15,8 +15,8 @@ import { useEffect, useRef } from 'react';
 import { DX, DY, WORLD, ensureShapes } from './emblemArtwork';
 import s from '@/render/home/ChatHero.module.css';
 
-/* 渲染分辨率（设计稿默认 186；取 224 与 112px 展示在 2x 屏整数对齐）。 */
-const RES = 224;
+/* 渲染分辨率（设计稿默认 186；取 640 与 320px 展示在 2x 屏整数对齐）。 */
+const RES = 640;
 /* 动效幅度：柔和档（设计稿 energyLabels 三档 ['柔和','灵动','炽烈'] = [.45,1,1.65]）。 */
 const ENERGY = 0.45;
 /* 分组离屏画布数量（造型 8 组）。 */

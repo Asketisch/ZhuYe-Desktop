@@ -69,9 +69,9 @@ pnpm tauri build              # 全平台构建
 pnpm tauri build --bundles app  # 仅 macOS .app
 bash scripts/install.sh       # → /usr/local/bin/zhuye-desktop + ~/Applications/ZhuYe.app
 
-# 图标再生成（应用图标源恒为仓库根 logo.png、托盘源恒为 tray.png，与调用目录无关；产物 = src-tauri/icons/ + favicon）
+# 图标再生成（应用图标源恒为仓库根 logo.png、托盘源恒为 tray.png，与调用目录无关；产物 = src-tauri/icons/ + favicon + 侧栏品牌位 brand-mark.png）
 pnpm icons                    # 等价于 bash scripts/gen-icons.sh
-pnpm icons:check              # 只校验：齐全 / 尺寸 / 托盘透明底 / 是否比源图旧
+pnpm icons:check              # 只校验：齐全 / 尺寸 / 托盘透明底 / 品牌位存在 / 是否比源图旧
 
 # submodule 升级（当烛夜发布新版本时，详见 SUBMODULE.md）
 git submodule update --remote zhuye-agent

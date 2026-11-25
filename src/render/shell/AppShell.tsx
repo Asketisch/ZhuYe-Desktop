@@ -59,9 +59,7 @@ export function AppShell({
         <aside className="sidebar" aria-label={sidebarLabel} data-testid="harness-sidebar">
           <div className="brand">
             <span className="brand-mark" data-testid="harness-brand-mark">
-              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                <rect x="3" y="3" width="10" height="10" rx="2.5" fill="currentColor" />
-              </svg>
+              <img src="/brand-mark.png" alt="" width={18} height={18} draggable={false} />
             </span>
             <span className="brand-name">ZhuYe</span>
             <span className="brand-badge">{t('harness.brandBadge')}</span>

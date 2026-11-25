@@ -9,6 +9,7 @@
 #   bash scripts/gen-icons.sh --local               跳过 tauri CLI，只用系统工具链生成
 #   bash scripts/gen-icons.sh --tray-keep           保留现有 icon32.png（托盘图标），不重新推导
 #   bash scripts/gen-icons.sh --no-web              不更新 public/tauri-icon.png（favicon）
+#                                                   与 public/brand-mark.png（侧栏品牌位）
 #
 # 约定（与 docs/changelog.md「采用 logo.png 作为跨平台统一应用 logo」一致）：
 #   应用图标源图 = 本脚本所在仓库（ZhuYe-Desktop）根目录的 logo.png —— 不带参数时始终用它，
@@ -25,6 +26,7 @@
 #   ZHUYE_TRAY_SOURCE   托盘源图（默认 <仓库根>/tray.png）
 #   ZHUYE_ICONS_DIR     产物目录（默认 <仓库根>/src-tauri/icons）
 #   ZHUYE_PUBLIC_ICON   favicon 路径（默认 <仓库根>/public/tauri-icon.png）
+#   ZHUYE_BRAND_MARK    侧栏品牌位路径（默认 <仓库根>/public/brand-mark.png）
 #
 # icon32.png 特殊处理：src-tauri/src/tray.rs 用 include_bytes! 把它编进托盘，并按
 #   icon_as_template(true) 交给 macOS —— 系统只取 alpha 通道画单色剪影，所以它不能是
@@ -38,6 +40,7 @@ set -euo pipefail
 REPO_ROOT="$(cd -P "$(dirname "$0")/.." && pwd)"
 ICONS_DIR="${ZHUYE_ICONS_DIR:-$REPO_ROOT/src-tauri/icons}"
 PUBLIC_ICON="${ZHUYE_PUBLIC_ICON:-$REPO_ROOT/public/tauri-icon.png}"
+BRAND_MARK="${ZHUYE_BRAND_MARK:-$REPO_ROOT/public/brand-mark.png}"
 CONF="$REPO_ROOT/src-tauri/tauri.conf.json"
 
 # 产出文件名（= 现有仓库布局）与期望尺寸；icns/ico 只校验魔数。
@@ -201,6 +204,13 @@ if $CHECK_ONLY; then
   # 托盘源图（tray.png）新鲜度独立校验 —— 与应用图标源（logo.png）互不牵制。
   if [ -f "$TRAY_SOURCE" ] && [ "$TRAY_SOURCE" -nt "$ICONS_DIR/icon32.png" ]; then
     echo "  ✗ 托盘源图比 icon32.png 新：$TRAY_SOURCE —— 请重跑：bash scripts/gen-icons.sh"; fail=1
+  fi
+  # 侧栏品牌位（brand-mark.png）：缺失即失败（前端 <img> 没有回落位）；
+  # 与 icon32.png 同用 tray.png 源但产物独立，新鲜度单独校验。
+  if [ ! -f "$BRAND_MARK" ]; then
+    echo "  ✗ 侧栏品牌位缺失：$BRAND_MARK —— 请重跑：bash scripts/gen-icons.sh"; fail=1
+  elif [ -f "$TRAY_SOURCE" ] && [ "$TRAY_SOURCE" -nt "$BRAND_MARK" ]; then
+    echo "  ✗ 托盘源图比侧栏品牌位新：$TRAY_SOURCE —— 请重跑：bash scripts/gen-icons.sh"; fail=1
   fi
   if [ "$fail" -ne 0 ]; then echo "校验未通过"; exit 1; fi
   report "$ICONS_DIR"
@@ -395,6 +405,38 @@ PY
     cp "$OUT/icon.png" "$PUBLIC_ICON"
   fi
   echo "已写入 ${PUBLIC_ICON}（index.html favicon）"
+
+  # 侧栏品牌位：托盘源图（自带透明底）裁内容 bbox → 方形居中 → 64×64
+  # （内容 56/64，与托盘 28/32 同比例留呼吸位）。保留原色不归黑 —— 品牌位
+  # 要在明暗两套主题下显示彩色徽记，与 template 托盘的用法相反。托盘源图
+  # 缺失时回落应用图标（黑底方形，亮色主题会露出底色，此时建议补 tray.png）。
+  if [ -n "$PYTHON" ] && [ -f "$TRAY_SOURCE" ]; then
+    "$PYTHON" - "$TRAY_SOURCE" "$BRAND_MARK" <<'PY'
+import sys
+from PIL import Image
+
+src, dst = sys.argv[1], sys.argv[2]
+im = Image.open(src).convert("RGBA")
+bbox = im.getchannel("A").getbbox()
+if bbox:
+    im = im.crop(bbox)
+side = max(im.size)
+square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+square.paste(im, ((side - im.size[0]) // 2, (side - im.size[1]) // 2), im)
+mark = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+inner = square.resize((56, 56), Image.LANCZOS)
+mark.paste(inner, (4, 4), inner)
+mark.save(dst, optimization=True)
+PY
+    echo "已写入 ${BRAND_MARK}（侧栏品牌位，托盘源图推导）"
+  elif command -v sips >/dev/null 2>&1 && [ -f "$TRAY_SOURCE" ]; then
+    cp "$TRAY_SOURCE" "$BRAND_MARK"
+    sips -Z 64 "$BRAND_MARK" >/dev/null 2>&1
+    echo "已写入 ${BRAND_MARK}（侧栏品牌位，无 Pillow 改用 sips 直接缩放）"
+  elif [ -f "$OUT/icon.png" ]; then
+    cp "$OUT/icon.png" "$BRAND_MARK"
+    echo "已写入 ${BRAND_MARK}（侧栏品牌位，托盘源图缺失回落应用图标）"
+  fi
 fi
 
 # ------------------------------------------------- 与 tauri.conf.json 对齐

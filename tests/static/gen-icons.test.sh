@@ -4,8 +4,9 @@
 #   2. 缺文件 / 白名单外残留 / 源图比产物新 / 托盘图标无透明底 —— --check 必须失败并点名；
 #   3. --dry-run 不得改动任何已存在的产物；
 #   4. 脚本不得踩 bash 3.2「变量名紧跟多字节字符」的展开陷阱（实测会 unbound variable）。
-# 所有读写都经 ZHUYE_ICONS_DIR / ZHUYE_PUBLIC_ICON / ZHUYE_ICON_SOURCE 重定向到临时目录，
-# 不触碰 src-tauri/icons、public/ 与 logo.png。
+# 所有读写都经 ZHUYE_ICONS_DIR / ZHUYE_PUBLIC_ICON / ZHUYE_ICON_SOURCE /
+# ZHUYE_TRAY_SOURCE / ZHUYE_BRAND_MARK 重定向到临时目录，
+# 不触碰 src-tauri/icons、public/ 与 logo.png、tray.png。
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
@@ -48,13 +49,16 @@ fi
 ICONS="$fixture/icons"
 mkdir -p "$ICONS"
 cp "$ROOT/logo.png" "$fixture/src.png"
+cp "$ROOT/tray.png" "$fixture/tray.png"
 export ZHUYE_ICONS_DIR="$ICONS" ZHUYE_ICON_SOURCE="$fixture/src.png"
+export ZHUYE_TRAY_SOURCE="$fixture/tray.png" ZHUYE_BRAND_MARK="$fixture/brand.png"
 export ZHUYE_PUBLIC_ICON="$fixture/favicon.png"   # 放图标目录外，否则会被判成白名单外残留
 
 bash "$GEN" > "$fixture/gen.log" 2>&1 || fail "生成失败：$(tail -3 "$fixture/gen.log")"
 for f in 32x32.png icon32.png 128x128.png 128x128@2x.png 256x256.png icon.png icon.icns icon.ico; do
     [ -s "$ICONS/$f" ] || fail "产物缺少 $f"
 done
+[ -s "$fixture/brand.png" ] || fail "侧栏品牌位 brand.png 未由托盘源图推导产出"
 bash "$GEN" --check > /dev/null 2>&1 || fail "刚生成的完整产物应通过 --check"
 
 # 白名单外残留（tauri icon 会顺带产出 UWP/android/ios 资产）。
@@ -78,6 +82,14 @@ if python3 -c 'import PIL' >/dev/null 2>&1; then
     printf '%s\n' "$out" | grep -q '无透明底' || fail "托盘实心方块未点名"
     bash "$GEN" > /dev/null 2>&1 || fail "重生成未能修回剪影 alpha"
 fi
+
+# 侧栏品牌位与 icon32.png 同用 tray.png 源，托盘源图更新后必须判过期点名。
+sleep 1
+touch "$fixture/tray.png"
+out="$(bash "$GEN" --check 2>&1)" && fail "托盘源图比侧栏品牌位新时必须判过期"
+printf '%s\n' "$out" | grep -q '比侧栏品牌位新' || fail "侧栏品牌位过期原因未点名"
+touch -r "$ICONS/icon32.png" "$fixture/tray.png"
+bash "$GEN" --check > /dev/null 2>&1 || fail "恢复托盘源图时间戳后应通过 --check"
 
 # ── 3. --dry-run 只读 ─────────────────────────────────────────────────────
 hash_icons() {
