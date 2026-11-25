@@ -5,37 +5,38 @@
  * 内容列 max-width 896px 居中；分区标题 24px 半粗。行卡 / 资源列表 / 工具栏
  * / 表单控件的间距与圆角统一走本套件，分区内容不得自带卡片样式。
  *
- * 主题：默认暗色；`:global([data-theme='light'])` 覆写为亮色。色板经
- * `--z-*` 局部变量承载，仅作用于本页子树，不影响全局 tokens。
+ * 主题：`--z-*` 局部变量是全局 tokens.css 的角色别名（底色 / 卡面 / 描边 /
+ * 强调 / 状态色），暗 / 亮 / 跟随系统由 token 负责，本页不写任何主题色字面值；
+ * 仅作用于本页子树，不影响全局 tokens。
  */
 
-/* ===== 局部色板（暗色 = 默认） ===== */
+/* ===== 局部色板：全局 token 的角色别名 ===== */
 .page {
-  --z-bg: #161616;
-  --z-panel: #161616;
-  --z-card: #2b2b2b;
-  --z-popover: #2b2b2b;
-  --z-header: #202020;
-  --z-surface: rgba(255, 255, 255, 0.05);
-  --z-surface-hover: rgba(255, 255, 255, 0.1);
-  --z-hover: rgba(255, 255, 255, 0.05);
-  --z-selected: rgba(255, 255, 255, 0.1);
-  --z-border: rgba(255, 255, 255, 0.1);
-  --z-border-hover: rgba(255, 255, 255, 0.15);
-  --z-input: #2b2b2b;
-  --z-input-border: rgba(255, 255, 255, 0.1);
-  --z-input-border-hover: rgba(255, 255, 255, 0.15);
-  --z-primary: #ffffff;
-  --z-primary-fg: #000000;
-  --z-secondary: #363636;
-  --z-accent: #001d3d;
-  --z-fg: #f5f5f5;
-  --z-fg-subtle: rgba(212, 212, 212, 0.6);
-  --z-fg-subtlest: rgba(212, 212, 212, 0.3);
-  --z-fg-muted: #b3b3b3;
-  --z-destructive: #e5484d;
-  --z-success: #46bf72;
-  --z-warning: #e07b00;
+  --z-bg: var(--bg);
+  --z-panel: var(--bg);
+  --z-card: var(--surface);
+  --z-popover: var(--tip-bg);
+  --z-header: var(--surface-2);
+  --z-surface: var(--surface);
+  --z-surface-hover: var(--fill);
+  --z-hover: var(--fill);
+  --z-selected: var(--fill-2);
+  --z-border: var(--line);
+  --z-border-hover: var(--line-2);
+  --z-input: var(--surface);
+  --z-input-border: var(--line);
+  --z-input-border-hover: var(--line-2);
+  --z-primary: var(--white);
+  --z-primary-fg: var(--on-white);
+  --z-secondary: var(--fill-2);
+  --z-accent: var(--accent-bg);
+  --z-fg: var(--fg);
+  --z-fg-subtle: var(--text-subtle);
+  --z-fg-subtlest: var(--text-subtlest);
+  --z-fg-muted: var(--fg-2);
+  --z-destructive: var(--danger);
+  --z-success: var(--ok);
+  --z-warning: var(--warn);
 
   /* 字号刻度（基础 14px，随 --z-font 缩放） */
   --z-font: 14px;
@@ -56,33 +57,6 @@
   font-size: var(--z-text-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-}
-
-:global([data-theme='light']) .page {
-  --z-bg: #f8f8f8;
-  --z-panel: #f8f8f8;
-  --z-card: #ffffff;
-  --z-popover: #ffffff;
-  --z-header: #ffffff;
-  --z-surface: rgba(13, 13, 13, 0.03);
-  --z-surface-hover: rgba(13, 13, 13, 0.05);
-  --z-hover: rgba(13, 13, 13, 0.05);
-  --z-selected: rgba(13, 13, 13, 0.05);
-  --z-border: rgba(13, 13, 13, 0.1);
-  --z-border-hover: rgba(13, 13, 13, 0.15);
-  --z-input: #ffffff;
-  --z-input-border: rgba(13, 13, 13, 0.1);
-  --z-input-border-hover: rgba(13, 13, 13, 0.15);
-  --z-primary: #000000;
-  --z-primary-fg: #ffffff;
-  --z-secondary: #e6e6e6;
-  --z-accent: #ebf4ff;
-  --z-fg: #171717;
-  --z-fg-subtle: rgba(23, 23, 23, 0.7);
-  --z-fg-subtlest: rgba(23, 23, 23, 0.4);
-  --z-fg-muted: #595959;
-  --z-destructive: #e03131;
-  --z-success: #1e8a3e;
 }
 
 /* 窄窗口：图标栏 */
@@ -818,42 +792,6 @@
   cursor: not-allowed;
 }
 
-/* 强调色行 */
-.colorRow {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.colorSwatch {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--z-border);
-  border-radius: 999px;
-  background: var(--swatch-color);
-  cursor: pointer;
-}
-.colorSwatch[data-active] {
-  outline: 2px solid var(--z-primary);
-  outline-offset: 2px;
-}
-.colorPicker {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--z-border);
-  border-radius: 999px;
-  background: transparent;
-  cursor: pointer;
-}
-.colorValue {
-  color: var(--z-fg-subtle);
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: var(--z-text-sm);
-}
-
 .hiddenInput {
   display: none;
 }
@@ -1037,7 +975,7 @@
 
 /* 亮色下 bg(#f8f8f8) 与卡(#fff)对比不足 —— 选中项用白底 + 阴影浮起。 */
 :global([data-theme='light']) .segBtn[data-active] {
-  background: #ffffff;
+  background: var(--surface-2);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(13, 13, 13, 0.06);
 }
 .segBtn:disabled {

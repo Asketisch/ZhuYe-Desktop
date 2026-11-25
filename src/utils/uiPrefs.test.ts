@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  DEFAULT_ACCENT_COLOR,
   applyUiPrefs,
   getUiPrefs,
   resetUiPrefsForTests,
@@ -23,7 +22,6 @@ describe('uiPrefs', () => {
     localStorage.setItem('zhuye.uiprefs.v1', JSON.stringify({ chatDiffSplit: true }));
     const prefs = getUiPrefs();
     expect(prefs.chatDiffSplit).toBe(true);
-    expect(prefs.accentColor).toBe(DEFAULT_ACCENT_COLOR);
     expect(prefs.surfaceOpacity).toBe(1);
     expect(prefs.backgroundImage).toBe('');
   });
@@ -62,23 +60,19 @@ describe('uiPrefs', () => {
     unsubscribe();
   });
 
-  it('rejects invalid accent colors and unsafe image schemes', () => {
-    setUiPrefs({ accentColor: 'red', backgroundImage: 'javascript:alert(1)' });
-    expect(getUiPrefs().accentColor).toBe(DEFAULT_ACCENT_COLOR);
+  it('rejects unsafe image schemes', () => {
+    setUiPrefs({ backgroundImage: 'javascript:alert(1)' });
     expect(getUiPrefs().backgroundImage).toBe('');
   });
 
-  it('applies accent derivatives, opacity, and image variables to the DOM', () => {
+  it('applies opacity and image variables to the DOM', () => {
     applyUiPrefs({
       ...getUiPrefs(),
-      accentColor: '#60a5fa',
       surfaceOpacity: 0.72,
       backgroundImage: 'https://example.com/background.jpg',
       backgroundImageOpacity: 0.4,
     });
     const style = document.documentElement.style;
-    expect(style.getPropertyValue('--accent')).toBe('#60a5fa');
-    expect(style.getPropertyValue('--accent-subtle')).toContain('96, 165, 250');
     expect(style.getPropertyValue('--surface-opacity')).toBe('0.72');
     expect(style.getPropertyValue('--background-image')).toContain('example.com/background.jpg');
     expect(document.documentElement.dataset.hasBackgroundImage).toBe('true');
@@ -132,17 +126,15 @@ describe('uiPrefs', () => {
     expect(document.body.style.backgroundColor).toBe('transparent');
   });
 
-  it('derives accent derivatives directly from the rgb join formula', () => {
-    applyUiPrefs({
-      ...getUiPrefs(),
-      accentColor: '#60a5fa',
-      surfaceOpacity: 1,
-      reduceTransparency: false,
-    });
+  it('ignores legacy accentColor and leaves the accent to tokens.css', () => {
+    // 旧版本持久化里的 accentColor 不再是偏好：读入即丢弃，无需迁移。
+    localStorage.setItem('zhuye.uiprefs.v1', JSON.stringify({ accentColor: '#60a5fa' }));
+    expect('accentColor' in getUiPrefs()).toBe(false);
+    applyUiPrefs(getUiPrefs());
+    // 强调色组不再以行内样式写到 <html> 上：暗 / 亮取值由 tokens.css 决定。
     const style = document.documentElement.style;
-    expect(style.getPropertyValue('--accent')).toBe('#60a5fa');
-    expect(style.getPropertyValue('--accent-subtle')).toBe('rgba(96, 165, 250, 0.14)');
-    expect(style.getPropertyValue('--accent-border')).toBe('rgba(96, 165, 250, 0.38)');
-    expect(style.getPropertyValue('--accent-hover')).toBe('#79b3fb');
+    expect(style.getPropertyValue('--accent')).toBe('');
+    expect(style.getPropertyValue('--accent-hover')).toBe('');
+    expect(style.getPropertyValue('--accent-fg')).toBe('');
   });
 });

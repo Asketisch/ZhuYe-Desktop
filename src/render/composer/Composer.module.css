@@ -7,17 +7,18 @@
   margin: 0 auto;
 }
 
-/* 圆形发送按钮：实心圆 + 居中箭头。
-   双类名提高特异性 —— IconButton 的 .btn 来自另一个 CSS Module，
-   加载顺序不保证，圆形必须赢。 */
+/* 发送键：圆角方块（设计稿口径；实心高对比块 + 悬停转琥珀由 IconButton 的
+   primary 变体给出）。双类名提高特异性 —— IconButton 的 .btn 来自另一个
+   CSS Module，加载顺序不保证，这里的取值必须赢。 */
 .sendCircle.sendCircle {
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
 }
 
 /*
- * 输入卡（双层嵌套）：外层 surface（面板底 + 软阴影）承载顶栏胶囊行，
- * 内卡（抬升面，无边框描边）承载输入区与工具栏 —— 两层只靠底色深浅
- * 区分，不画线圈。聚焦反馈走内卡底色轻微提亮。
+ * 输入卡：单层悬浮卡（设计稿 zhuye-agent-theme.html 的 composer）。
+ * 外层 .surface 承担底色 + line-2 描边 + 圆角 + 大软投影 + 1px 微光环
+ * （--shadow-float），顶栏胶囊行与内卡同处一个面；聚焦 = 琥珀描边 + 光晕。
+ * 内卡 .card 只负责排版，不再有独立底色与边界。
  * 注意：内卡不得设 overflow 裁切 —— 底栏各 pill 的弹出菜单（+ 菜单 /
  * 提示词预设 / 权限等）向上溢出卡片边界，裁切会把菜单砍半（实测 bug）。
  */
@@ -27,9 +28,15 @@
   flex-direction: column;
   gap: 4px;
   padding: 4px;
-  background: var(--surface-2);
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 4%), 0 6px 18px rgb(0 0 0 / 4%);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.surface:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px var(--glow), var(--shadow-float);
 }
 
 .card {
@@ -38,21 +45,14 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  transition: background var(--transition-fast);
+  background: transparent;
+  border-radius: var(--radius-md);
 }
 
-/* 聚焦：底色轻微提亮（白以极低比例混入，暗亮两主题都成立）。 */
-.card:focus-within {
-  background: color-mix(in srgb, var(--surface) 94%, var(--white) 6%);
-}
-
-/* 原生文件拖拽悬停 —— 内卡点亮聚焦底色 + 阴影圈 + 覆盖提示层
+/* 原生文件拖拽悬停 —— 外卡点亮琥珀描边 + 覆盖提示层
    （.dropOverlay 铺满 surface）。 */
-.surface[data-drag-active] .card {
-  background: color-mix(in srgb, var(--surface) 94%, var(--white) 6%);
-  box-shadow: var(--shadow-focus);
+.surface[data-drag-active] {
+  border-color: var(--accent);
 }
 
 .dropOverlay {
@@ -64,7 +64,7 @@
   justify-content: center;
   background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
   border: 1px dashed var(--accent);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   color: var(--accent);
   font-size: 0.85rem;
   pointer-events: none;
@@ -75,7 +75,7 @@
   margin: 0 12px;
   padding: 4px 8px;
   border: 1px solid var(--warning-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--warning-bg);
   color: var(--warning);
   font-size: var(--fs-sm);

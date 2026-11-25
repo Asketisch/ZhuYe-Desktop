@@ -6,7 +6,7 @@
   background: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   line-height: var(--lh-normal);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
@@ -21,7 +21,7 @@
 .bare:focus,
 .input:focus {
   outline: none;
-  border-color: var(--accent-border);
+  border-color: var(--accent-line);
   background: var(--bg-elevated);
   box-shadow: var(--shadow-focus);
 }
@@ -64,14 +64,14 @@
   gap: var(--space-2);
   background: var(--bg-input);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: 0 var(--space-2);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
     background var(--transition-fast);
 }
 .wrap:focus-within {
   outline: none;
-  border-color: var(--accent-border);
+  border-color: var(--accent-line);
   background: var(--bg-elevated);
   box-shadow: var(--shadow-focus);
 }

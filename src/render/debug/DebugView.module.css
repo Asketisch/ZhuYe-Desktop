@@ -31,8 +31,8 @@
 .eventLog {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: #c9d1e0;
-  background: #0a0e14;
+  color: var(--term-fg);
+  background: var(--term-bg);
   padding: var(--space-3);
   border-radius: var(--radius-md);
   max-height: 300px;

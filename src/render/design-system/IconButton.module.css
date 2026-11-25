@@ -2,7 +2,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   color: var(--text-secondary);
   background: transparent;
@@ -12,10 +12,7 @@
     border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.btn:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
+/* 焦点反馈走 base.css 的全局琥珀外框（outline），不占 box-shadow 位。 */
 
 .btn:disabled {
   opacity: 0.4;
@@ -55,12 +52,16 @@
   color: var(--accent-hover);
 }
 
+/* primary：白色实心高对比块 + 顶部高光，悬停转琥珀（与 Button 同口径） */
 .btn[data-variant='primary'] {
-  background: var(--accent);
-  color: var(--accent-fg);
+  background: var(--white);
+  color: var(--on-white);
+  border-color: var(--white);
+  box-shadow: var(--shadow-sm);
 }
 .btn[data-variant='primary']:not(:disabled):hover {
-  background: var(--accent-hover);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .btn[data-variant='danger'] {

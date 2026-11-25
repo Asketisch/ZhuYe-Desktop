@@ -101,7 +101,7 @@
   background: var(--fill-2);
 }
 
-/* ===== 用户文本（设计稿 .user-text：满宽 fill 气泡）===== */
+/* ===== 用户文本：surface 细描边气泡，左上角收小（设计稿 .user-content 的招角圆角）===== */
 .userRow {
   display: flex;
   justify-content: flex-start;
@@ -110,10 +110,11 @@
 
 .userBubble {
   max-width: 100%;
-  padding: 10px 13px;
-  background: var(--fill);
+  padding: 10px 14px;
+  background: var(--surface);
   color: var(--fg);
-  border-radius: 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px 10px 10px 10px;
   font-size: 13.5px;
   line-height: 1.7;
   white-space: pre-wrap;

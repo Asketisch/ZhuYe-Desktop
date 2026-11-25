@@ -20,19 +20,19 @@
 }
 
 .warning .arc {
-  stroke: #d97706;
+  stroke: var(--warn);
 }
 
 .warning .label {
-  color: #b45309;
+  color: var(--warn);
 }
 
 .critical .arc {
-  stroke: #dc2626;
+  stroke: var(--danger);
 }
 
 .critical .label {
-  color: #b91c1c;
+  color: var(--danger);
   font-weight: 600;
 }
 

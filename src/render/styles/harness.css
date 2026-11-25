@@ -1,7 +1,9 @@
-/* ZhuYe Harness 全局壳层样式 —— 从 agent-harness-desktop.html 设计稿移植。
+/* ZhuYe Harness 全局壳层样式 —— 类名从 agent-harness-desktop.html 设计稿移植，
+ * 颜色与材质刻度（圆角 / 投影 / 光晕 / 描边两档）取自 zhuye-agent-theme.html
+ * （烛夜 · Amber / Graphite），一律经 tokens.css 消费。
  *
  * 类名与设计稿一一对应（.app / .titlebar / .sidebar / .conv / .tool …），
- * 便于逐行对照；颜色一律消费 tokens.css 的设计原生 token。
+ * 便于逐行对照。
  * 与 CSS Modules 的边界：本文件只承载「壳层骨架 + 跨视图共享的会话流组件」，
  * 视图私有样式仍走 *.module.css。
  *
@@ -30,6 +32,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   position: relative;
   z-index: 20;
   background: var(--bg);
+  border-bottom: 1px solid var(--line);
 }
 .tb-title {
   font-size: 12px;
@@ -42,7 +45,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .tb-btn {
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
   color: var(--fg-3);
@@ -96,6 +99,16 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   min-height: 0;
   position: relative;
 }
+/* 主区顶部琥珀光晕（设计稿 .main 的 --glow）：负 z-index 把它压在所有表面之下、
+   壁纸（base.css 的 body::before）之上；自带底色的页面自然把它盖住。 */
+.main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 52% 0%, var(--glow), transparent 43%);
+}
 /* 路由视图容器：占满主区剩余高度，视图内部自带滚动。 */
 .main-view { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
 .main-view > * { flex: 1; min-height: 0; }
@@ -143,7 +156,8 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
    侧栏
    ============================================================ */
 .brand { display: flex; align-items: center; gap: 8px; padding: 14px 14px 10px; }
-.brand-mark { display: flex; align-items: center; color: var(--fg); }
+.brand-mark { display: flex; align-items: center; }
+.brand-mark img { display: block; width: 18px; height: 18px; }
 .brand-name { font-size: 13px; font-weight: 620; letter-spacing: 0.01em; }
 .brand-badge {
   font-size: 9.5px;
@@ -162,7 +176,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   gap: 9px;
   height: 30px;
   padding: 0 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   color: var(--fg-2);
   font-size: 13px;
   transition: background 0.13s ease, color 0.13s ease;
@@ -172,6 +186,22 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .nav:hover { background: var(--fill); color: var(--fg); }
 .nav.on { background: var(--fill-2); color: var(--fg); }
 .nav .kbd { margin-left: auto; font-size: 11px; color: var(--fg-3); }
+/* 「新建会话」行 = 设计稿 .new 的形态：surface 底 + line-2 描边 + 1px 高光 + 琥珀图标。
+   新建会话没有专属类名 —— 这里按位置选中 .sb-nav 的首项，与 render/shell/AppShell
+   的导航顺序（新建 → 自动化 → 市场）绑定；调整顺序时必须同步这里。 */
+.sb-nav > .nav:first-child {
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font-weight: 560;
+  color: var(--fg);
+}
+.sb-nav > .nav:first-child svg { color: var(--accent); }
+.sb-nav > .nav:first-child:hover,
+.sb-nav > .nav:first-child.on {
+  background: var(--fill);
+  border-color: var(--fg-3);
+}
 .nav-new {
   justify-content: center;
   font-weight: 560;
@@ -182,11 +212,15 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 }
 .nav-new:hover { background: var(--fill-2); filter: brightness(1.25); }
 .sb-scroll { flex: 1; overflow-y: auto; padding: 2px 10px 14px; }
+/* 分组小标签：设计稿 .label 口径（大写、10px、字距 .1em、650） */
 .sb-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--fg-3);
   padding: 14px 8px 6px;
 }
@@ -209,22 +243,51 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   text-align: left;
   height: 32px;
   padding: 0 8px;
-  border-radius: 7px;
+  border-radius: 6px;
+  position: relative;
   color: var(--fg-2);
   font-size: 12.5px;
   transition: background 0.13s ease, color 0.13s ease;
   flex: none;
 }
 .row-item:hover { background: var(--fill); color: var(--fg); }
-.row-item.sel { background: var(--fill-2); color: var(--fg); font-weight: 560; }
+/* 选中态（设计稿 .session.active）：fill 底 + line-2 环；会话行另加左缘 2px 琥珀条
+   （落在 .sb-scroll 的 10px 左内边距里，贴侧栏左缘）。 */
+.row-item.sel {
+  background: var(--fill);
+  color: var(--fg);
+  font-weight: 560;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.row-item.sess.sel::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 2px;
+  height: 21px;
+  margin-top: -10.5px;
+  background: var(--accent);
+  border-radius: 2px;
+}
 .row-item .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-item .tm { font-size: 11px; color: var(--fg-3); flex: none; }
 .row-item .ic { color: var(--fg-3); flex: none; display: grid; place-items: center; }
 .row-item.sel .ic { color: var(--fg-2); }
 .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; display: inline-block; }
-.dot.run { background: var(--ok); }
-.dot.wait { background: var(--warn); }
-.dot.err { background: var(--danger); }
+/* 状态点：同色柔光环（设计稿 .signal）；运行中带扩散脉冲（.pulse），
+   减弱动画时退回静态光环（见文件末的 prefers-reduced-motion 块）。 */
+.dot.run {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 13%, transparent);
+  animation: dot-pulse 2s ease-out infinite;
+}
+.dot.wait { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 13%, transparent); }
+.dot.err { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 13%, transparent); }
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 35%, transparent); }
+  50% { box-shadow: 0 0 0 4px transparent; }
+}
 .dot.idle { background: var(--fg-3); opacity: 0.6; }
 .dot.q { background: var(--fg-2); }
 /* 会话待办标记：非当前会话的「计划待批准 / 等待回答」必须在左栏看得见 */
@@ -336,7 +399,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .btn {
   height: 27px;
   padding: 0 11px;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 560;
   color: var(--fg-2);
@@ -348,11 +411,11 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   flex: none;
 }
 .btn:hover { background: var(--fill-2); color: var(--fg); }
-.btn.primary { background: var(--white); color: var(--on-white); }
-.btn.primary:hover { filter: brightness(0.92); }
-[data-theme="light"] .btn.primary:hover { filter: brightness(1.1); }
+/* 主按钮：白色实心高对比块 + 1px 高光，悬停转琥珀（与设计系统 Button 同口径） */
+.btn.primary { background: var(--white); color: var(--on-white); box-shadow: var(--shadow-sm); }
+.btn.primary:hover { background: var(--accent); color: var(--on-white); }
 .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
-.seg { display: flex; background: var(--fill); border-radius: 8px; padding: 2px; gap: 2px; }
+.seg { display: flex; background: var(--fill); border-radius: 6px; padding: 2px; gap: 2px; }
 .seg button {
   padding: 4px 10px;
   border-radius: 6px;
@@ -362,8 +425,8 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   white-space: nowrap;
 }
 .seg button:hover { color: var(--fg-2); }
-.seg button.on { background: var(--surface-2); color: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22); }
-[data-theme="light"] .seg button.on { background: #fff; }
+.seg button.on { background: var(--surface-2); color: var(--fg); box-shadow: var(--shadow-sm), 0 0 0 1px var(--line-2); }
+[data-theme="light"] .seg button.on { background: var(--surface-2); }
 .sw {
   width: 34px;
   height: 20px;
@@ -505,7 +568,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
    （同 max-width + 同左右内边距），使输入区与消息列左右对齐。 */
 .composer-slot { padding: 8px 0 18px; }
 .composer-col { max-width: 760px; margin: 0 auto; padding: 0 24px; }
-.composer:focus-within { border-color: var(--line-2); box-shadow: 0 0 0 3px rgba(127, 127, 127, 0.08); }
+.composer:focus-within { border-color: var(--line-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 26%, transparent); }
 .c-top { display: flex; align-items: center; gap: 4px; padding: 10px 12px 0; }
 .c-ws {
   display: inline-flex;
@@ -647,7 +710,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .assistant pre code { background: none; padding: 0; font-size: 12px; color: var(--term-fg); }
 
 /* 工具行 */
-.tool { border-radius: 10px; min-width: 0; }
+.tool { border-radius: 8px; min-width: 0; }
 .tool-head {
   display: flex;
   align-items: center;
@@ -742,7 +805,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .ap-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 
 /* 思考 */
-.think { border-radius: 10px; min-width: 0; }
+.think { border-radius: 8px; min-width: 0; }
 .think summary {
   list-style: none;
   cursor: pointer;
@@ -810,7 +873,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   flex: 1;
   min-width: 0;
   height: 29px;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--fill);
   color: var(--fg);
@@ -1103,7 +1166,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .ctx-ring:hover { border-color: var(--line-2); background: var(--fill); }
 .ctx-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .cr-bg { fill: none; stroke: var(--surface-2); stroke-width: 2.5; }
-.cr-fg { fill: none; stroke: var(--white); stroke-width: 2.5; stroke-linecap: round; }
+.cr-fg { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
 .ctx-ring-num {
   position: relative;
   font-size: 9.5px;
@@ -1129,11 +1192,11 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   white-space: nowrap;
   background: var(--tip-bg);
   border: 1px solid var(--line-2);
-  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.82), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.82), 0 0 0 1px rgba(241, 238, 234, 0.04);
   font-size: 11.5px;
   color: var(--fg-2);
 }
-[data-theme="light"] .ctx-tip { box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.26), 0 0 0 1px rgba(0, 0, 0, 0.04); }
+[data-theme="light"] .ctx-tip { box-shadow: 0 18px 44px -16px rgba(52, 43, 28, 0.26), 0 0 0 1px rgba(0, 0, 0, 0.04); }
 .ctx-ring:hover .ctx-tip { display: flex; }
 .ctx-ring.open .ctx-tip { display: none; }
 .ctx-tip b { color: var(--fg); font-weight: 600; font-size: 12px; margin-bottom: 1px; }
@@ -1149,10 +1212,10 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   background: var(--tip-bg);
   border: 1px solid var(--line-2);
   border-radius: 12px;
-  box-shadow: 0 28px 70px -16px rgba(0, 0, 0, 0.86), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  box-shadow: 0 28px 70px -16px rgba(0, 0, 0, 0.86), 0 0 0 1px rgba(241, 238, 234, 0.04);
   padding: 14px;
 }
-[data-theme="light"] .ctx-pop { box-shadow: 0 28px 70px -18px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.04); }
+[data-theme="light"] .ctx-pop { box-shadow: 0 28px 70px -18px rgba(52, 43, 28, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.04); }
 .ctx-pop.on { display: block; animation: pop 0.16s cubic-bezier(0.32, 0.72, 0, 1) both; }
 @keyframes pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .gauge-wrap { display: flex; align-items: center; gap: 14px; margin-bottom: 13px; }
@@ -1199,20 +1262,26 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .dock-tabbar-actions { display: flex; align-items: center; gap: 2px; flex: none; }
 .dock-wide-icon { transform: rotate(45deg); }
 
-/* 28px 胶囊标签：图标 + 标题（超宽遮罩渐隐），激活常显 ×，非激活 hover 显 ×。 */
+/* 28px 圆角标签：图标 + 标题（超宽遮罩渐隐），激活常显 ×，非激活 hover 显 ×。 */
 .dock-tab {
   display: inline-flex;
   align-items: center;
   flex: none;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid transparent;
   color: var(--fg-3);
   font-size: 12px;
   transition: background 0.13s ease, color 0.13s ease;
 }
 .dock-tab:hover { background: var(--fill); color: var(--fg-2); }
-.dock-tab.on { background: var(--fill-2); color: var(--fg); border-color: var(--line); }
+/* 激活标签：surface 底 + line-2 描边 + 2px 琥珀下缘指示条（设计稿 .tabs .selected） */
+.dock-tab.on {
+  background: var(--surface);
+  color: var(--fg);
+  border-color: var(--line-2);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
 .dock-tab-main {
   display: inline-flex;
   align-items: center;
@@ -1263,13 +1332,13 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface);
   text-align: left;
   transition: border-color 0.14s ease, background 0.14s ease;
 }
 .dock-launcher-item:hover { border-color: var(--line-2); background: var(--fill); }
-.dock-launcher-ico { width: 48px; height: 48px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); color: var(--fg-2); flex: none; }
+.dock-launcher-ico { width: 48px; height: 48px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-2); color: var(--fg-2); flex: none; }
 .dock-launcher-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .dock-launcher-text b { font-size: 13px; font-weight: 560; color: var(--fg); }
 .dock-launcher-text small { font-size: 11px; color: var(--fg-3); line-height: 1.5; }
@@ -1283,8 +1352,8 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   z-index: 80;
   background: var(--tip-bg);
   border: 1px solid var(--line-2);
-  border-radius: 12px;
-  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.82);
+  border-radius: 8px;
+  box-shadow: var(--shadow-float);
   padding: 8px;
   animation: pop 0.16s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
@@ -1292,7 +1361,8 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .dock-context-menu { width: 180px; display: flex; flex-direction: column; }
 .dock-overview-search { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px; color: var(--fg-3); }
 .dock-overview-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; font-size: 12px; color: var(--fg); }
-.dock-overview-group h4 { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); margin: 8px 8px 5px; }
+/* 小标签：设计稿 .label 口径（大写、10px、字距 .1em、650） */
+.dock-overview-group h4 { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); font-weight: 650; margin: 8px 8px 5px; }
 .dock-overview-empty { font-size: 11.5px; color: var(--fg-3); padding: 4px 8px; margin: 0; }
 .dock-overview-row,
 .dock-context-menu button {
@@ -1301,7 +1371,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   gap: 8px;
   width: 100%;
   padding: 7px 9px;
-  border-radius: 7px;
+  border-radius: 6px;
   font-size: 12px;
   color: var(--fg-2);
   text-align: left;
@@ -1478,7 +1548,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .us-title { font-size: 11.5px; color: var(--fg-2); font-weight: 600; flex: none; }
 .us-sub { font-size: 10.5px; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .us-body { flex: 1; overflow-y: auto; padding: 12px 12px 20px; display: flex; flex-direction: column; gap: 16px; }
-.us-h { font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--fg-3); font-weight: 700; margin-bottom: 8px; }
+.us-h { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); font-weight: 650; margin-bottom: 8px; }
 .us-card { border: 1px solid var(--line); border-radius: 11px; padding: 10px 11px; display: flex; flex-direction: column; gap: 9px; }
 .us-total { display: flex; align-items: baseline; gap: 7px; }
 .us-total b { font-size: 19px; font-weight: 640; letter-spacing: -0.01em; color: var(--fg); }
@@ -1555,7 +1625,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   z-index: 2;
 }
 .fp-path { font-size: 12px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
-.fp-badge { font-size: 10.5px; color: var(--fg-3); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; flex: none; }
+.fp-badge { font-size: 10.5px; color: var(--fg-3); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; flex: none; }
 .fp-code {
   margin: 0;
   padding: 16px 18px;
@@ -1590,7 +1660,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 }
 .tp-tab {
   padding: 4px 10px;
-  border-radius: 7px;
+  border-radius: 6px;
   font-size: 12px;
   color: var(--fg-3);
   white-space: nowrap;
@@ -1669,7 +1739,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .mk-badge.on { background: var(--white); border-color: transparent; color: var(--on-white); }
 .mk-desc { font-size: 12px; line-height: 1.65; color: var(--fg-2); margin: 0; flex: 1; }
 .mk-perm { border-top: 1px solid var(--line); padding-top: 9px; display: flex; flex-direction: column; gap: 5px; }
-.mk-perm-t { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-3); font-weight: 700; }
+.mk-perm-t { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); font-weight: 650; }
 .mk-perm-row { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--fg-2); }
 .mk-perm-row i { width: 5px; height: 5px; border-radius: 50%; flex: none; background: var(--fg-3); }
 .mk-perm-row.rw i { background: var(--warn); }
@@ -1724,7 +1794,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .lane-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .lane-nm { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
 .lane-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--fg-3); }
-.lane.run .lane-dot { background: var(--fg); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.09); }
+.lane.run .lane-dot { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); }
 .lane.ok .lane-dot { background: var(--ok); }
 .lane.err .lane-dot { background: var(--danger); }
 .lane-task { font-size: 11px; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1765,7 +1835,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   justify-content: center;
   padding-top: 16vh;
 }
-[data-theme="light"] .palette-wrap { background: rgba(20, 20, 25, 0.28); }
+[data-theme="light"] .palette-wrap { background: rgba(39, 35, 29, 0.28); }
 .palette-wrap.on { display: flex; }
 .palette {
   width: min(600px, 90vw);
@@ -1805,17 +1875,13 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 }
 .pal-item .sc { margin-left: auto; font-size: 10.5px; color: var(--fg-3); font-family: var(--font-mono); }
 .pal-foot { border-top: 1px solid var(--line); padding: 7px 12px; display: flex; gap: 14px; font-size: 10.5px; color: var(--fg-3); }
+/* toast 宿主：只负责定位与进出过渡；外观（底色 / 描边 / 圆角 / 投影）由内层
+   设计系统 Toast 给出，避免双层皮。 */
 .toast {
   position: fixed;
   bottom: 28px;
   left: 50%;
   transform: translate(-50%, 10px);
-  padding: 8px 14px;
-  border-radius: 9px;
-  font-size: 12.5px;
-  background: var(--surface-2);
-  border: 1px solid var(--line-2);
-  color: var(--fg);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -1975,7 +2041,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   justify-content: center;
   padding: 40px 20px;
 }
-[data-theme="light"] .modal-wrap { background: rgba(20, 20, 25, 0.3); }
+[data-theme="light"] .modal-wrap { background: rgba(39, 35, 29, 0.3); }
 .modal-wrap.on { display: flex; }
 /* 单列栅格：内容组件自带分区导航（如 SettingsView 的 .nav），
    再套一层「200px 侧栏 + 内容」双列骨架会把内容挤进 200px 窄列
@@ -2139,12 +2205,11 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   z-index: 132;
   min-width: 178px;
   padding: 5px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--tip-bg);
   border: 1px solid var(--line-2);
-  box-shadow: 0 20px 52px -14px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow-float);
 }
-[data-theme="light"] .sess-menu { box-shadow: 0 20px 52px -16px rgba(0, 0, 0, 0.26), 0 0 0 1px rgba(0, 0, 0, 0.04); }
 .sess-menu button {
   display: flex;
   align-items: center;
@@ -2270,7 +2335,8 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   .spin,
   .lb-dot,
   .sa[data-st="run"] .sa-dot,
-  .lane.run .lane-dot { animation: none !important; }
+  .lane.run .lane-dot,
+  .dot.run { animation: none !important; }
 }
 
 .workspace-sessions { padding-left: 14px; }
@@ -2308,12 +2374,12 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .sub-fold-toggle {
   border: 0;
   background: none;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  color: var(--text-secondary, rgba(233, 232, 229, 0.6));
   font-size: 11px;
   text-align: left;
   padding: 3px 0 3px 26px;
   cursor: pointer;
 }
 .sub-fold-toggle:hover {
-  color: var(--text-primary, rgba(255, 255, 255, 0.92));
+  color: var(--text-primary, rgba(233, 232, 229, 0.92));
 }

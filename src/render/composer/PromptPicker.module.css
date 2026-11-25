@@ -1,7 +1,8 @@
 /*
- * PromptPicker —— 底栏左侧提示词预设 pill（触发器按钮 + 两级弹出菜单）。
- * pill 几何与 EffortPicker / ModelPicker 同款（28px 高 + 叠置箭头）；
- * 菜单 / 子菜单样式与 ComposerPlusMenu 同款 token 约定，向上弹出。
+ * PromptPicker —— 底栏左侧提示词预设 chip（触发器按钮 + 两级弹出菜单）。
+ * chip 几何与 EffortPicker / ModelPicker 同款（28px 高 + 叠置箭头）；
+ * 菜单 / 子菜单用浮层统一皮肤（tip-bg + line-2 + 8px + --shadow-float），
+ * 与 ComposerPlusMenu 同款，向上弹出。
  */
 
 .wrap {
@@ -10,7 +11,7 @@
   align-items: center;
 }
 
-/* 触发器按钮 —— 沿用原 native select 的 pill 几何。 */
+/* 触发器按钮 —— 与同族触发器一致的 28px 圆角 chip 几何。 */
 .select {
   appearance: none;
   display: inline-flex;
@@ -20,7 +21,7 @@
   max-width: 160px;
   padding: 0 20px 0 10px;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
@@ -67,10 +68,10 @@
   max-height: 60vh;
   overflow-y: auto;
   padding: var(--space-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elev-2);
-  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--tip-bg);
+  box-shadow: var(--shadow-float);
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -127,10 +128,10 @@
   z-index: 41;
   min-width: 184px;
   padding: var(--space-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elev-2);
-  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--tip-bg);
+  box-shadow: var(--shadow-float);
   display: flex;
   flex-direction: column;
   gap: 1px;

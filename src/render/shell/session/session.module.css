@@ -47,14 +47,15 @@
 }
 .railGrow { flex: 1; }
 
-/* ===== 弹层(popover:更多视图 / 分支 / 队列 / todo)===== */
+/* ===== 弹层(popover:更多视图 / 分支 / 队列 / todo)=====
+ * 浮层统一皮肤：tip-bg + line-2 描边 + 8px + --shadow-float。 */
 .pop {
   position: absolute;
   z-index: var(--z-overlay);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  background: var(--tip-bg);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float);
   min-width: 220px;
   overflow: hidden;
 }
@@ -951,19 +952,20 @@
   color: var(--text-primary);
 }
 
-/* 容量总进度条 + 键值行 */
+/* 容量总进度条 + 键值行：4px 细条，轨道 line-2，填充由 fg-3 渐变到琥珀
+ * （设计稿 .context-bar）。 */
 .wbMeter {
-  height: 6px;
+  height: 4px;
   overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  border-radius: 2px;
+  background: var(--line-2);
   margin: 4px 8px 8px;
 }
 .wbMeter i {
   display: block;
   height: 100%;
-  border-radius: 999px;
-  background: var(--accent);
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--fg-3), var(--accent));
   transition: width 0.3s ease;
 }
 .wbMeter[data-warn] i {
@@ -976,14 +978,14 @@
   max-width: 96px;
   height: 4px;
   overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  border-radius: 2px;
+  background: var(--line-2);
 }
 .wbMeterMini i {
   display: block;
   height: 100%;
-  border-radius: 999px;
-  background: var(--accent);
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--fg-3), var(--accent));
   transition: width 0.3s ease;
 }
 .wbKvRow {

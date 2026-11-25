@@ -6,8 +6,9 @@
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   line-height: 1.4;
-  border-radius: var(--radius-pill);
-  border: 1px solid transparent;
+  /* 设计稿的小标签口径：细描边 + 4px 小圆角（不是全圆胶囊） */
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-default);
   white-space: nowrap;
 }
 

@@ -31,7 +31,9 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
+  /* 琥珀方块（设计稿 .avatar.agent / .brand-mark）：琥珀浅底 + 琥珀描边 */
   background: var(--accent-subtle);
+  border: 1px solid var(--accent-line);
   color: var(--accent);
   flex-shrink: 0;
 }

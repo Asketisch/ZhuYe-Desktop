@@ -1,5 +1,7 @@
 /* Button primitive —— CSS Modules。
  * variant 通过 data-attribute 驱动，size 同理。
+ * 口径（设计稿 zhuye-agent-theme.html）：圆角 6px；primary 是白色实心高对比块 +
+ * 1px 顶部高光，悬停转琥珀；焦点反馈走 base.css 的全局琥珀外框。
  */
 
 .btn {
@@ -11,17 +13,12 @@
   font-weight: var(--fw-medium);
   line-height: 1;
   white-space: nowrap;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
   user-select: none;
   transition: background var(--transition-fast), border-color var(--transition-fast),
     color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
-}
-
-.btn:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
 }
 
 .btn:disabled {
@@ -58,15 +55,16 @@
 
 /* ===== 变体 ===== */
 
-/* primary: 实心 accent */
+/* primary: 白色实心高对比块（琥珀留给焦点 / 选中 / 进行中），悬停才转琥珀 */
 .btn[data-variant='primary'] {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-color: var(--accent);
+  background: var(--white);
+  color: var(--on-white);
+  border-color: var(--white);
+  box-shadow: var(--shadow-sm);
 }
 .btn[data-variant='primary']:not(:disabled):hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 .btn[data-variant='primary']:not(:disabled):active {
   background: var(--accent-active);
@@ -75,13 +73,13 @@
 
 /* secondary: 描边表面色 */
 .btn[data-variant='secondary'] {
-  background: var(--bg-elevated);
+  background: var(--surface);
   color: var(--text-primary);
-  border-color: var(--border-default);
+  border-color: var(--line-2);
 }
 .btn[data-variant='secondary']:not(:disabled):hover {
   background: var(--bg-hover);
-  border-color: var(--border-strong);
+  border-color: var(--fg-3);
 }
 .btn[data-variant='secondary']:not(:disabled):active {
   background: var(--bg-active);

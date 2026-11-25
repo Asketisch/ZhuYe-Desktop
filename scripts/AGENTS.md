@@ -17,9 +17,8 @@
 | gen-update-keys.sh | 生成 OTA 自更新的 minisign 密钥对（私钥不入库） | 直接运行；公钥填 tauri.conf.json > plugins.updater.pubkey |
 | gen-latest-json.sh | 汇总各平台 updater 产物生成更新清单 latest.json（release CI 专用） | `gen-latest-json.sh <目录> <版本> <owner/repo> <输出>` |
 | dump-ts-types.sh | Rust 协议类型经 JSON Schema 生成 TS 类型 | `pnpm types:gen` |
-| gen-icons.sh | logo.png → 全套应用图标 + favicon；tray.png → 托盘图标 | `--check` / `--dry-run` / `--local` / `--tray-keep` / `--no-web`；`pnpm icons` |
+| gen-icons.sh | logo.png → 全套应用图标 + favicon；tray.png → 托盘图标 + 侧栏品牌位 | `--check` / `--dry-run` / `--local` / `--tray-keep` / `--no-web`；`pnpm icons` |
 | install.sh | 装二进制与 .app 到本机 | `--prefix=` / `--app-dir=` / `--dry-run` |
-| render-display-png.py | 纯 Python 渲染设置页截图证据 | 直接运行，产物落 docs/screenshots/ |
 
 ## 各脚本本地契约
 
@@ -27,9 +26,10 @@
 
 - 仓库根 `logo.png` 是**应用图标**源图（与调用目录无关）；产物 = `src-tauri/icons/` 全套 + `public/tauri-icon.png` favicon。
 - 仓库根 `tray.png` 是**托盘图标**独立源图（菜单栏徽章，金焰凤凰花环）；`icon32.png` 从它推导：裁内容 bbox → 方形居中 → 32×32（内容 28/32）→ RGB 归黑 + alpha ×1.35（template 只取 alpha，系统按外观着色）。缺失时回落 logo.png 亮度阈值推导（历史行为）。
-- `--check`（`pnpm icons:check`）只校验不写入：齐全、尺寸、托盘透明底、logo.png/tray.png 各自比产物新。
-- 引擎降级链：优先 `tauri icon` CLI；缺 CLI 时退 python3 + Pillow（macOS `.icns` 走 `iconutil`）。
-- 环境变量钩子：`ZHUYE_ICON_SOURCE` / `ZHUYE_TRAY_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON`，门禁自测靠它们跑在临时目录。
+- 同源第二产物 **`public/brand-mark.png`（侧栏品牌位）**：托盘源图裁 bbox → 方形居中 → 64×64（内容 56/64），**保留原色不归黑**（明暗主题都要显示彩色徽记，与 template 托盘相反）；前端 `AppShell` 品牌位以 `<img src="/brand-mark.png">` 消费。托盘源图缺失时回落应用图标（黑底，亮色主题露底）。
+- `--check`（`pnpm icons:check`）只校验不写入：齐全、尺寸、托盘透明底、brand-mark 存在性、logo.png/tray.png 各自比产物新（含 brand-mark 对 tray.png）。
+- 引擎降级链：优先 `tauri icon` CLI；缺 CLI 时退 python3 + Pillow（macOS `.icns` 走 `iconutil`）。brand-mark 推导缺 Pillow 时退 `sips -Z 64`。
+- 环境变量钩子：`ZHUYE_ICON_SOURCE` / `ZHUYE_TRAY_SOURCE` / `ZHUYE_ICONS_DIR` / `ZHUYE_PUBLIC_ICON` / `ZHUYE_BRAND_MARK`，门禁自测靠它们跑在临时目录。
 
 ### build.sh —— 图标新鲜度只 WARN + 前端内嵌保鲜
 
@@ -55,11 +55,10 @@
 - **有意不删** `target/debug/.fingerprint`（偏离上游 ZhuYe `make gc`，勿「对齐」改回）：对照实验确认删它会让 cargo 把所有单元判为过期、下次构建全量重编依赖，而体积仅 ~38M——省盘收益可忽略、重编代价是整个 deps 树。
 - 前置关系：`[profile.dev] incremental = false` 属 profile 变更，本身会使指纹失效，调整 profile 后的首次构建预期为一次冷构建。
 
-### install.sh / dump-ts-types.sh / render-display-png.py
+### install.sh / dump-ts-types.sh
 
 - install.sh：装 `target/release/zhuye-desktop` 到 `--prefix`（默认 `/usr/local/bin`）+ `ZhuYe.app` 到 `--app-dir`（默认 `~/Applications`）；`ZHUYE_INSTALL_BIN` / `ZHUYE_INSTALL_APP` 供 CI 传入与构建同源的路径。
 - dump-ts-types.sh：`cargo run -p zhuye-protocol --example dump_schema` → `npx json2ts` → `src/types/protocol.generated.ts`。产物为生成文件，勿手改；本脚本不是构建依赖，npx 不可用时跳过。
-- render-display-png.py：纯 Python（zlib + struct，无原生依赖）渲染 `docs/screenshots/display-section.png`，配色镜像 `src/render/styles/tokens.css`。
 
 ## 禁止事项
 

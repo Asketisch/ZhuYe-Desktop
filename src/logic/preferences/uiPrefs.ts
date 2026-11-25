@@ -5,8 +5,6 @@
  */
 import { useSyncExternalStore } from 'react';
 
-export const DEFAULT_ACCENT_COLOR = '#5dd1c6';
-
 import type { UiPrefs } from '@/contracts/appearance';
 export type { UiPrefs } from '@/contracts/appearance';
 import { applyPreferencesAppearance, resolveBackground } from '@/logic/webview/appearance';
@@ -16,7 +14,6 @@ const DEFAULTS: UiPrefs = {
   chatDiffSplit: false,
   fontScale: 1.0,
   compactDensity: 'comfortable',
-  accentColor: DEFAULT_ACCENT_COLOR,
   surfaceOpacity: 1,
   backgroundImage: '',
   backgroundImageOpacity: 0.35,
@@ -32,10 +29,6 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.min(max, Math.max(min, value))
     : fallback;
-}
-
-function isHexColor(value: unknown): value is string {
-  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 }
 
 function sanitizeImage(value: unknown): string {
@@ -56,7 +49,6 @@ function normalize(value: Partial<UiPrefs>): UiPrefs {
       : DEFAULTS.chatDiffSplit,
     fontScale: clamp(value.fontScale, 0.85, 1.2, DEFAULTS.fontScale),
     compactDensity: value.compactDensity === 'compact' ? 'compact' : 'comfortable',
-    accentColor: isHexColor(value.accentColor) ? value.accentColor.toLowerCase() : DEFAULTS.accentColor,
     surfaceOpacity: clamp(value.surfaceOpacity, 0.5, 1, DEFAULTS.surfaceOpacity),
     backgroundImage: sanitizeImage(value.backgroundImage),
     backgroundImageOpacity: clamp(

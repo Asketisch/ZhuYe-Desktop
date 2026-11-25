@@ -10,15 +10,16 @@
   backdrop-filter: blur(2px);
 }
 
+/* 浮层统一皮肤：tip-bg + line-2 描边 + 12px（对话框档）+ --shadow-float */
 .modal {
   width: min(640px, 92vw);
   max-height: 70vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-elev-1, #14161a);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
-  border-radius: var(--radius-md, 8px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  background: var(--tip-bg);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
   overflow: hidden;
 }
 
@@ -47,9 +48,9 @@
   font-family: var(--font-mono, ui-monospace);
   font-size: var(--fs-xs, 11px);
   color: var(--text-muted, #888);
-  background: var(--bg-elev-2, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-  border-radius: 3px;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-xs);
   padding: 1px 6px;
 }
 
@@ -102,9 +103,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted, #888);
-  background: var(--bg-elev-2, rgba(255, 255, 255, 0.04));
+  background: var(--fill);
   padding: 1px 6px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .enterIcon { color: var(--accent, #5eafe6); flex-shrink: 0; }
@@ -124,7 +125,7 @@
   border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   font-size: var(--fs-xs, 11px);
   color: var(--text-muted, #888);
-  background: var(--bg-elev-1, #14161a);
+  background: var(--surface);
 }
 
 .footHint { display: inline-flex; align-items: center; gap: 3px; }

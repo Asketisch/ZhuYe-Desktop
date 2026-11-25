@@ -3,6 +3,7 @@
   border-radius: var(--radius-md);
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 
@@ -61,7 +62,8 @@
 .body {
   padding: var(--space-2) var(--space-3);
   border-top: 1px solid var(--border-subtle);
-  background: var(--bg-input);
+  /* 展开区用代码底色（设计稿 .trace-detail 的 --code） */
+  background: var(--term-bg);
 }
 
 /* accent 主题色 */

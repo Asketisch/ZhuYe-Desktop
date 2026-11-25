@@ -4,10 +4,10 @@
   left: 0;
   right: 0;
   margin-bottom: var(--space-2);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
+  background: var(--tip-bg);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-float);
   max-height: 280px;
   overflow-y: auto;
   padding: var(--space-1);

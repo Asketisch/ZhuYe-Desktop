@@ -15,7 +15,7 @@
 }
 
 .warn {
-  color: #d97706;
+  color: var(--warn);
 }
 
 .text {

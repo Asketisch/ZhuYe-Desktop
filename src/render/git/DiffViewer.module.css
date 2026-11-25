@@ -35,13 +35,13 @@
 }
 
 .add {
-  background: rgba(46, 160, 67, 0.15);
-  color: #b6f0c0;
+  background: var(--diff-add-bg);
+  color: var(--diff-add-fg);
 }
 
 .del {
-  background: rgba(248, 81, 73, 0.15);
-  color: #ffc1bd;
+  background: var(--diff-del-bg);
+  color: var(--diff-del-fg);
 }
 
 .context {
@@ -49,8 +49,8 @@
 }
 
 .hunk {
-  background: rgba(94, 175, 230, 0.12);
-  color: #5eafe6;
+  background: var(--fill);
+  color: var(--fg-2);
 }
 
 .meta {

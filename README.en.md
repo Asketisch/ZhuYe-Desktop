@@ -70,7 +70,7 @@ The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `ref
 
 ### Settings
 
-- Display (light / dark / system-follow theme, accent color, opacity, wallpaper)
+- Display (light / dark / system-follow theme, opacity, wallpaper)
 - Editor (Vim mode / output style)
 - Providers (default provider + API key placeholder)
 - `ConfigForm` covers every section of `zhuye-agent/crates/resources/reflect-config/src/schema.rs`; an advanced raw TOML editor remains as an escape hatch

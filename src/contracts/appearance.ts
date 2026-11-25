@@ -5,7 +5,6 @@ export interface UiPrefs {
   chatDiffSplit: boolean;
   fontScale: number;
   compactDensity: 'comfortable' | 'compact';
-  accentColor: string;
   surfaceOpacity: number;
   backgroundImage: string;
   backgroundImageOpacity: number;

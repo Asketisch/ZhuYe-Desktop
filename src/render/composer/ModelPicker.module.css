@@ -14,8 +14,8 @@
   min-width: 0;
 }
 
-/* 触发器本身：原生 select 伪装成 28px 圆角胶囊 + 下拉箭头（与思考
-   深度 pill 相邻，构成「模型 · 思考深度」观感）。 */
+/* 触发器本身：原生 select 伪装成 28px 圆角 chip + 下拉箭头（与思考
+   深度 chip 相邻，构成「模型 · 思考深度」观感）。 */
 .modelTrigger {
   appearance: none;
   -webkit-appearance: none;
@@ -23,7 +23,7 @@
   max-width: 220px;
   padding: 0 18px 0 10px;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--fs-sm);

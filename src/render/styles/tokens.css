@@ -1,16 +1,30 @@
 /* ZhuYe Harness 设计 token —— 单一事实来源（v3 全新设计）。
  *
- * 设计语言：黑白为唯一主色 —— 界面靠「底色明度差 + 发丝级细线」建立层次，
- * 不使用大面积实心色块；语义色（ok / warn / danger）只出现在状态点 / diff
- * 增删这类必须承载信息的位置，且可经 `data-semantic="off"` 一键中和为灰阶。
+ * 设计语言：暖石墨（graphite）中性色 + 琥珀强调色 —— 界面靠「底色明度差 +
+ * 发丝级细线」建立层次，不使用大面积实心色块；琥珀只出现在品牌标记 / 焦点环 /
+ * 选中指示这类「指向当前焦点」的位置；语义色（ok / warn / danger）只出现在
+ * 状态点 / diff 增删这类必须承载信息的位置，且可经 `data-semantic="off"`
+ * 一键中和为灰阶。
+ *
+ * 色板取自设计稿 `zhuye-agent-theme.html`（烛夜 · Amber / Graphite）：
+ * 暗色底 #101011、侧栏 #161617、卡/输入 #1a1a1b、面板 #202021，
+ * 强调琥珀 #e8b46b（亮色 #94601d），辅以鼠尾草绿 #9aaa93 与砖红 #b77e78。
  *
  * 双命名体系并存：
  *   1) 设计原生名（--bg / --surface / --line / --fg / --fill / --white /
- *      --ok …）—— harness.css 与新组件消费，与 agent-harness-desktop.html
- *      设计稿同名同值，便于逐行对照移植；
+ *      --ok …）—— harness.css 与新组件消费；命名沿用 agent-harness-desktop.html
+ *      设计稿以便逐行对照，取值来自 zhuye-agent-theme.html；
  *   2) 旧 token 名（--bg-app / --text-primary / --border-default …）——
  *      既有视图的 CSS Modules 继续消费，值已重映射到 harness 色板，
  *      旧视图零改动继承新视觉。
+ *
+ * `--accent` 是「强调色」的唯一来源，暗 / 亮各一套固定值（没有用户自定义
+ * 入口）：主操作走 `--white` 实心块，琥珀只给焦点 / 选中 / 进行中；
+ * `--accent-bg` / `--accent-line` 是它的浅底与描边，同样取自设计稿。
+ *
+ * 材质刻度同样取自设计稿：圆角 4 / 6 / 8 / 12；投影三级（高光 / 卡片 /
+ * 悬浮），都是低不透明度的大软投影；`--glow` 用于主区顶部光晕与聚焦光环；
+ * `--shadow-float` 是浮层的统一投影（悬浮投影 + 1px 微光环 `--edge-hairline`）。
  *
  * `data-theme="dark"`（默认）为暗色；`data-theme="light"` 为亮色；
  * `data-theme` 未设置时由 `prefers-color-scheme` 决定。
@@ -65,10 +79,10 @@
   --fw-semibold: 600;
   --fw-bold: 700;
 
-  /* ===== 圆角 ===== */
+  /* ===== 圆角（设计稿刻度：控件 6 / 卡片与浮层 8 / 输入卡与对话框 12）===== */
   --radius-xs: 4px;
-  --radius-sm: 7px;
-  --radius-md: 10px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 18px;
   --radius-pill: 9999px;
@@ -94,31 +108,33 @@
   /* ============================================================
      设计原生 token —— 暗色（默认）
      ============================================================ */
-  --bg: #161616;                    /* 主区（zai-dark background） */
-  --bg-2: #161616;                  /* 侧栏（与主区同底，靠发丝线分隔） */
-  --surface: #2b2b2b;              /* 输入框 / 浮层（zai-dark card/input/popover） */
-  --surface-2: #202020;            /* 面板 / 页头（zai-dark panel/header） */
-  --line: rgba(255, 255, 255, 0.1);     /* 发丝线 */
-  --line-2: rgba(255, 255, 255, 0.15);
-  --fg: #f5f5f5;
-  --fg-2: #b3b3b3;
-  --fg-3: #8a8a8a;
-  --fill: rgba(255, 255, 255, 0.05);    /* hover（zai hover） */
-  --fill-2: rgba(255, 255, 255, 0.1);   /* 选中（zai selected/surface-hover） */
-  --white: #ffffff;                /* 强调色 = 白 */
-  --on-white: #000000;
-  --ok: #46bf72;
-  --warn: #ff8a30;
-  --danger: #ff5c5c;
-  --diff-add-bg: rgba(63, 185, 80, 0.10);
-  --diff-add-fg: #a5e9b3;
-  --diff-del-bg: rgba(248, 81, 73, 0.10);
-  --diff-del-fg: #ffb3ae;
-  --diff-ctx-fg: #8b949e;
-  --diff-gutter: #4d5560;
-  --term-bg: #161616;
-  --term-fg: #c3c3c9;
-  --tip-bg: #2b2b2b;               /* 悬浮气泡 / 浮层菜单底 */
+  --bg: #101011;                    /* 主区底色 */
+  --bg-2: #161617;                  /* 侧栏（比主区略浅，靠发丝线分隔） */
+  --surface: #1a1a1b;               /* 输入框 / 浮层 */
+  --surface-2: #202021;             /* 面板 / 页头 */
+  --surface-3: #242425;             /* 抬升面（浮层菜单 / 气泡） */
+  --line: #2d2d2e;                  /* 发丝线 */
+  --line-2: #373736;
+  --fg: #e9e8e5;
+  --fg-2: #949391;
+  --fg-3: #676765;
+  --fill: #272728;                  /* hover */
+  --fill-2: #303031;                /* 选中 */
+  --white: #f1eeea;                /* 实心高对比块（主按钮 / 开关 / 勾选） */
+  --on-white: #181613;             /* 实心块上的文字 */
+  --ok: #9aaa93;                   /* 鼠尾草绿 */
+  --warn: #d1783c;                 /* 暗金 */
+  --danger: #b77e78;               /* 砖红 */
+  --diff-add-bg: rgba(154, 170, 147, 0.13);
+  --diff-add-fg: #a9bda2;
+  --diff-del-bg: rgba(183, 126, 120, 0.13);
+  --diff-del-fg: #c9948d;
+  --diff-ctx-fg: #8b8880;
+  --diff-gutter: #4a4842;
+  --term-bg: #131314;
+  --term-fg: #c9c6bf;
+  --tip-bg: #242425;               /* 悬浮气泡 / 浮层菜单底 */
+  --glow: #d4a05a12;               /* 主区顶部光晕 / 聚焦光环 */
 
   /* ===== 旧名重映射 —— 暗色（消费方：既有视图 CSS Modules）===== */
   --bg-app: var(--bg);
@@ -127,9 +143,9 @@
   --bg-input: var(--surface);
   --bg-hover: var(--fill);
   --bg-active: var(--fill-2);
-  --bg-app-rgb: 22, 22, 22;
-  --bg-surface-rgb: 43, 43, 43;
-  --bg-elevated-rgb: 32, 32, 32;
+  --bg-app-rgb: 16, 16, 17;
+  --bg-surface-rgb: 26, 26, 27;
+  --bg-elevated-rgb: 32, 32, 33;
   --surface-opacity: 1;
   --background-image: none;
   --background-image-opacity: 0.35;
@@ -141,18 +157,18 @@
   --bg-panel: var(--surface-2);
   --bg-header: var(--surface-2);
   --bg-user-bubble: var(--fill);
-  --bg-surface-faint: rgba(255, 255, 255, 0.03);
+  --bg-surface-faint: rgba(241, 238, 234, 0.03);
 
   --text-primary: var(--fg);
   --text-secondary: var(--fg-2);
   --text-muted: var(--fg-3);
-  --text-disabled: #52525b;
-  --text-subtle: rgba(212, 212, 212, 0.6);
-  --text-subtlest: rgba(212, 212, 212, 0.3);
+  --text-disabled: #565550;
+  --text-subtle: rgba(233, 232, 229, 0.6);
+  --text-subtlest: rgba(233, 232, 229, 0.3);
 
   --border-subtle: var(--line);
   --border-default: var(--line-2);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  --border-strong: rgba(241, 238, 234, 0.2);
   /* 旧视图曾引用但旧 token 表未定义的名字 —— 统一补齐别名。 */
   --border: var(--line-2);
   --bg-inset: var(--surface);
@@ -160,29 +176,31 @@
   --bg-elev: var(--surface-2);
   --bg-elev-1: var(--surface);
 
-  /* 强调色 = 白（黑白主色）*/
-  --accent: var(--white);
-  --accent-hover: var(--white);
-  --accent-active: #d4d4d8;
-  --accent-subtle: rgba(255, 255, 255, 0.08);
-  --accent-border: rgba(255, 255, 255, 0.2);
+  /* 强调色 = 琥珀（固定值，唯一来源；主操作走 --white，琥珀只指向焦点 / 选中）*/
+  --accent: #e8b46b;
+  --accent-hover: #efbe7d;
+  --accent-active: #d29d55;
+  --accent-subtle: rgba(232, 180, 107, 0.14);
+  --accent-border: rgba(232, 180, 107, 0.38);
   --accent-fg: var(--on-white);
+  --accent-bg: #32291e;              /* 琥珀浅底（设计原生名 --amber-bg）*/
+  --accent-line: #5b4630;            /* 琥珀描边（设计原生名 --amber-line）*/
 
   /* 语义色 —— 每个含 fg / bg / border 三态（harness 值）*/
   --success: var(--ok);
   --success-fg: var(--on-white);
-  --success-bg: rgba(70, 191, 114, 0.16);
-  --success-border: rgba(70, 191, 114, 0.3);
+  --success-bg: rgba(154, 170, 147, 0.16);
+  --success-border: rgba(154, 170, 147, 0.3);
 
   --warning: var(--warn);
   --warning-fg: var(--on-white);
-  --warning-bg: rgba(255, 138, 48, 0.14);
-  --warning-border: rgba(255, 138, 48, 0.3);
+  --warning-bg: rgba(209, 120, 60, 0.14);
+  --warning-border: rgba(209, 120, 60, 0.3);
 
   /* --danger 与设计原生名同名同值，无需重映射 */
   --danger-fg: var(--on-white);
-  --danger-bg: rgba(255, 92, 92, 0.12);
-  --danger-border: rgba(255, 92, 92, 0.3);
+  --danger-bg: rgba(183, 126, 120, 0.12);
+  --danger-border: rgba(183, 126, 120, 0.3);
 
   --info: var(--fg-2);
   --info-fg: var(--on-white);
@@ -200,11 +218,14 @@
   --diff-added: var(--diff-add-fg);
   --diff-removed: var(--diff-del-fg);
 
-  /* 阴影（深色用柔和 elevation）*/
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --shadow-focus: 0 0 0 3px rgba(127, 127, 127, 0.15);
+  /* 阴影三级（设计稿取值）：高光 / 卡片 / 悬浮，均为低不透明度的大软投影 */
+  --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.07);
+  --shadow-md: 0 2px 5px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.27);
+  --shadow-focus: 0 0 0 3px rgba(232, 180, 107, 0.18);
+  /* 浮层统一投影：悬浮投影 + 1px 微光环 */
+  --edge-hairline: rgba(241, 238, 234, 0.03);
+  --shadow-float: var(--shadow-lg), 0 0 0 1px var(--edge-hairline);
 
   /* 滚动条（深色）*/
   --scrollbar-thumb: var(--line-2);
@@ -216,31 +237,33 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #f8f8f8;                    /* zai-light background */
-  --bg-2: #f0f0f0;                  /* 侧栏（zai-light sidebar） */
-  --surface: #ffffff;               /* 卡 / 输入（zai-light card/input） */
-  --surface-2: #ffffff;             /* 面板 / 页头（zai-light panel/header） */
-  --line: rgba(13, 13, 13, 0.1);
-  --line-2: rgba(13, 13, 13, 0.15);
-  --fg: #171717;
-  --fg-2: #595959;
-  --fg-3: #8c8c8c;
-  --fill: rgba(13, 13, 13, 0.05);   /* hover */
-  --fill-2: rgba(13, 13, 13, 0.05); /* selected */
-  --white: #000000;                 /* 强调色 = 黑（zai-light primary） */
-  --on-white: #ffffff;
-  --ok: #1e8a3e;
-  --warn: #e07b00;
-  --danger: #e03131;
-  --diff-add-bg: rgba(31, 157, 85, 0.10);
-  --diff-add-fg: #146c3a;
-  --diff-del-bg: rgba(211, 69, 59, 0.09);
-  --diff-del-fg: #a33129;
-  --diff-ctx-fg: #6b7280;
-  --diff-gutter: #9aa1a9;
-  --term-bg: #f7f7f8;
-  --term-fg: #3a3a40;
+  --bg: #f6f5f3;                    /* 主区底色 */
+  --bg-2: #efeeec;                  /* 侧栏 */
+  --surface: #faf9f7;               /* 卡 / 输入 */
+  --surface-2: #ffffff;             /* 面板 / 页头 */
+  --surface-3: #f3f1ee;             /* 抬升面 */
+  --line: #e0ded9;
+  --line-2: #d6d3cc;
+  --fg: #242321;
+  --fg-2: #706e68;
+  --fg-3: #92908a;
+  --fill: #e7e5e1;                  /* hover */
+  --fill-2: #dedbd5;                /* 选中 */
+  --white: #27231d;                 /* 实心高对比块（亮色下为深墨） */
+  --on-white: #faf7f1;              /* 实心块上的文字 */
+  --ok: #55765a;                   /* 鼠尾草绿（深一档） */
+  --warn: #b06a24;                 /* 暗金 */
+  --danger: #9c5a53;               /* 砖红 */
+  --diff-add-bg: rgba(85, 118, 90, 0.10);
+  --diff-add-fg: #3f5c43;
+  --diff-del-bg: rgba(156, 90, 83, 0.10);
+  --diff-del-fg: #8a4f49;
+  --diff-ctx-fg: #6f6d66;
+  --diff-gutter: #a8a49b;
+  --term-bg: #f1f0ed;
+  --term-fg: #3a3833;
   --tip-bg: #ffffff;
+  --glow: #c78c2810;
 
   --bg-app: var(--bg);
   --bg-surface: var(--surface);
@@ -248,9 +271,9 @@
   --bg-input: var(--surface);
   --bg-hover: var(--fill);
   --bg-active: var(--fill-2);
-  --bg-app-rgb: 248, 248, 248;
-  --bg-surface-rgb: 255, 255, 255;
-  --bg-elevated-rgb: 247, 247, 248;
+  --bg-app-rgb: 246, 245, 243;
+  --bg-surface-rgb: 250, 249, 247;
+  --bg-elevated-rgb: 255, 255, 255;
   --surface-opacity: 1;
   --background-image: none;
   --background-image-opacity: 0.35;
@@ -262,18 +285,18 @@
   --bg-panel: var(--surface-2);
   --bg-header: var(--surface-2);
   --bg-user-bubble: var(--fill);
-  --bg-surface-faint: rgba(0, 0, 0, 0.02);
+  --bg-surface-faint: rgba(39, 35, 29, 0.02);
 
   --text-primary: var(--fg);
   --text-secondary: var(--fg-2);
   --text-muted: var(--fg-3);
-  --text-disabled: #a1a1aa;
-  --text-subtle: rgba(23, 23, 26, 0.7);
-  --text-subtlest: rgba(23, 23, 26, 0.4);
+  --text-disabled: #a8a69f;
+  --text-subtle: rgba(36, 35, 33, 0.7);
+  --text-subtlest: rgba(36, 35, 33, 0.4);
 
   --border-subtle: var(--line);
   --border-default: var(--line-2);
-  --border-strong: rgba(0, 0, 0, 0.2);
+  --border-strong: rgba(39, 35, 29, 0.2);
   /* 旧视图曾引用但旧 token 表未定义的名字 —— 统一补齐别名。 */
   --border: var(--line-2);
   --bg-inset: var(--surface);
@@ -281,82 +304,91 @@
   --bg-elev: var(--surface-2);
   --bg-elev-1: var(--surface);
 
-  --accent: var(--white);
-  --accent-hover: var(--white);
-  --accent-active: #27272a;
-  --accent-subtle: rgba(0, 0, 0, 0.06);
-  --accent-border: rgba(0, 0, 0, 0.18);
+  /* 强调色 = 琥珀（亮色为深一档的琥珀棕）*/
+  --accent: #94601d;
+  --accent-hover: #a86f24;
+  --accent-active: #7d4f16;
+  --accent-subtle: rgba(148, 96, 29, 0.12);
+  --accent-border: rgba(148, 96, 29, 0.34);
   --accent-fg: var(--on-white);
+  --accent-bg: #f4e8d5;              /* 琥珀浅底 */
+  --accent-line: #e5d0af;            /* 琥珀描边 */
 
   --success: var(--ok);
-  --success-fg: #ffffff;
-  --success-bg: rgba(31, 157, 85, 0.1);
-  --success-border: rgba(31, 157, 85, 0.3);
+  --success-fg: var(--on-white);
+  --success-bg: rgba(85, 118, 90, 0.1);
+  --success-border: rgba(85, 118, 90, 0.3);
 
   --warning: var(--warn);
-  --warning-fg: #ffffff;
-  --warning-bg: rgba(183, 121, 31, 0.12);
-  --warning-border: rgba(183, 121, 31, 0.3);
+  --warning-fg: var(--on-white);
+  --warning-bg: rgba(176, 106, 36, 0.12);
+  --warning-border: rgba(176, 106, 36, 0.3);
 
   /* --danger 与设计原生名同名同值，无需重映射 */
-  --danger-fg: #ffffff;
-  --danger-bg: rgba(211, 69, 59, 0.1);
-  --danger-border: rgba(211, 69, 59, 0.3);
+  --danger-fg: var(--on-white);
+  --danger-bg: rgba(156, 90, 83, 0.1);
+  --danger-border: rgba(156, 90, 83, 0.3);
 
   --info: var(--fg-2);
-  --info-fg: #ffffff;
+  --info-fg: var(--on-white);
   --info-bg: var(--fill);
   --info-border: var(--line-2);
 
-  --traj-user: #17171a;
-  --traj-assistant: #5d5d65;
-  --traj-reasoning: #8b8b93;
-  --traj-tool-call: #5d5d65;
-  --traj-tool-result: #8b8b93;
+  --traj-user: #242321;
+  --traj-assistant: #706e68;
+  --traj-reasoning: #92908a;
+  --traj-tool-call: #706e68;
+  --traj-tool-result: #92908a;
 
   --diff-added: var(--diff-add-fg);
   --diff-removed: var(--diff-del-fg);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
-  --shadow-focus: 0 0 0 3px rgba(127, 127, 127, 0.18);
+  --shadow-sm: 0 1px 1px rgba(52, 43, 28, 0.06);
+  --shadow-md: 0 2px 5px rgba(52, 43, 28, 0.03);
+  --shadow-lg: 0 12px 40px rgba(52, 43, 28, 0.05);
+  --shadow-focus: 0 0 0 3px rgba(148, 96, 29, 0.16);
+  --edge-hairline: rgba(39, 35, 29, 0.04);
+  --shadow-float: var(--shadow-lg), 0 0 0 1px var(--edge-hairline);
 
-  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
-  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+  --scrollbar-thumb: rgba(39, 35, 29, 0.18);
+  --scrollbar-thumb-hover: rgba(39, 35, 29, 0.28);
   --scrollbar-track: transparent;
 }
 
-/* `system` 主题：未显式设置 data-theme 时，跟随系统。 */
+/* `system` 主题：未显式设置 data-theme 时，跟随系统。
+ * 色值与上面的 `[data-theme="light"]` 段**逐条一致** —— 两处必须同步改，
+ * 否则「系统=亮色」与「手动亮色」会看到两套不同的暖石墨。 */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
 
-    --bg: #f8f8f8;
-    --bg-2: #f0f0f0;
-    --surface: #ffffff;
-    --surface-2: #ffffff;
-    --line: rgba(13, 13, 13, 0.1);
-    --line-2: rgba(13, 13, 13, 0.15);
-    --fg: #171717;
-    --fg-2: #595959;
-    --fg-3: #8c8c8c;
-    --fill: rgba(13, 13, 13, 0.05);
-    --fill-2: rgba(13, 13, 13, 0.05);
-    --white: #111113;
-    --on-white: #ffffff;
-    --ok: #1f9d55;
-    --warn: #b7791f;
-    --danger: #d3453b;
-    --diff-add-bg: rgba(31, 157, 85, 0.10);
-    --diff-add-fg: #146c3a;
-    --diff-del-bg: rgba(211, 69, 59, 0.09);
-    --diff-del-fg: #a33129;
-    --diff-ctx-fg: #6b7280;
-    --diff-gutter: #9aa1a9;
-    --term-bg: #f7f7f8;
-    --term-fg: #3a3a40;
+    --bg: #f6f5f3;                    /* 主区底色 */
+    --bg-2: #efeeec;                  /* 侧栏 */
+    --surface: #faf9f7;               /* 卡 / 输入 */
+    --surface-2: #ffffff;             /* 面板 / 页头 */
+    --surface-3: #f3f1ee;             /* 抬升面 */
+    --line: #e0ded9;
+    --line-2: #d6d3cc;
+    --fg: #242321;
+    --fg-2: #706e68;
+    --fg-3: #92908a;
+    --fill: #e7e5e1;                  /* hover */
+    --fill-2: #dedbd5;                /* 选中 */
+    --white: #27231d;                 /* 实心高对比块（亮色下为深墨） */
+    --on-white: #faf7f1;              /* 实心块上的文字 */
+    --ok: #55765a;                   /* 鼠尾草绿（深一档） */
+    --warn: #b06a24;                 /* 暗金 */
+    --danger: #9c5a53;               /* 砖红 */
+    --diff-add-bg: rgba(85, 118, 90, 0.10);
+    --diff-add-fg: #3f5c43;
+    --diff-del-bg: rgba(156, 90, 83, 0.10);
+    --diff-del-fg: #8a4f49;
+    --diff-ctx-fg: #6f6d66;
+    --diff-gutter: #a8a49b;
+    --term-bg: #f1f0ed;
+    --term-fg: #3a3833;
     --tip-bg: #ffffff;
+    --glow: #c78c2810;
 
     --bg-app: var(--bg);
     --bg-surface: var(--surface);
@@ -364,9 +396,9 @@
     --bg-input: var(--surface);
     --bg-hover: var(--fill);
     --bg-active: var(--fill-2);
-    --bg-app-rgb: 248, 248, 248;
-    --bg-surface-rgb: 255, 255, 255;
-    --bg-elevated-rgb: 247, 247, 248;
+    --bg-app-rgb: 246, 245, 243;
+    --bg-surface-rgb: 250, 249, 247;
+    --bg-elevated-rgb: 255, 255, 255;
     --surface-opacity: 1;
     --background-image: none;
     --background-image-opacity: 0.35;
@@ -375,21 +407,21 @@
     --bg-elevated-alpha: rgba(var(--bg-elevated-rgb), var(--surface-opacity));
 
     --bg-sidebar: var(--bg-2);
-    --bg-panel: var(--bg-2);
-    --bg-header: var(--bg);
+    --bg-panel: var(--surface-2);
+    --bg-header: var(--surface-2);
     --bg-user-bubble: var(--fill);
-    --bg-surface-faint: rgba(0, 0, 0, 0.02);
+    --bg-surface-faint: rgba(39, 35, 29, 0.02);
 
     --text-primary: var(--fg);
     --text-secondary: var(--fg-2);
     --text-muted: var(--fg-3);
-    --text-disabled: #a1a1aa;
-    --text-subtle: rgba(23, 23, 26, 0.7);
-    --text-subtlest: rgba(23, 23, 26, 0.4);
+    --text-disabled: #a8a69f;
+    --text-subtle: rgba(36, 35, 33, 0.7);
+    --text-subtlest: rgba(36, 35, 33, 0.4);
 
     --border-subtle: var(--line);
     --border-default: var(--line-2);
-    --border-strong: rgba(0, 0, 0, 0.2);
+    --border-strong: rgba(39, 35, 29, 0.2);
     /* 旧视图曾引用但旧 token 表未定义的名字 —— 统一补齐别名。 */
     --border: var(--line-2);
     --bg-inset: var(--surface);
@@ -397,67 +429,99 @@
     --bg-elev: var(--surface-2);
     --bg-elev-1: var(--surface);
 
-    --accent: var(--white);
-    --accent-hover: var(--white);
-    --accent-active: #27272a;
-    --accent-subtle: rgba(0, 0, 0, 0.06);
-    --accent-border: rgba(0, 0, 0, 0.18);
+    /* 强调色 = 琥珀（亮色为深一档的琥珀棕）*/
+    --accent: #94601d;
+    --accent-hover: #a86f24;
+    --accent-active: #7d4f16;
+    --accent-subtle: rgba(148, 96, 29, 0.12);
+    --accent-border: rgba(148, 96, 29, 0.34);
     --accent-fg: var(--on-white);
+    --accent-bg: #f4e8d5;            /* 琥珀浅底 */
+    --accent-line: #e5d0af;          /* 琥珀描边 */
 
     --success: var(--ok);
-    --success-fg: #ffffff;
-    --success-bg: rgba(31, 157, 85, 0.1);
-    --success-border: rgba(31, 157, 85, 0.3);
+    --success-fg: var(--on-white);
+    --success-bg: rgba(85, 118, 90, 0.1);
+    --success-border: rgba(85, 118, 90, 0.3);
 
     --warning: var(--warn);
-    --warning-fg: #ffffff;
-    --warning-bg: rgba(183, 121, 31, 0.12);
-    --warning-border: rgba(183, 121, 31, 0.3);
+    --warning-fg: var(--on-white);
+    --warning-bg: rgba(176, 106, 36, 0.12);
+    --warning-border: rgba(176, 106, 36, 0.3);
 
     /* --danger 与设计原生名同名同值，无需重映射 */
-    --danger-fg: #ffffff;
-    --danger-bg: rgba(211, 69, 59, 0.1);
-    --danger-border: rgba(211, 69, 59, 0.3);
+    --danger-fg: var(--on-white);
+    --danger-bg: rgba(156, 90, 83, 0.1);
+    --danger-border: rgba(156, 90, 83, 0.3);
 
     --info: var(--fg-2);
-    --info-fg: #ffffff;
+    --info-fg: var(--on-white);
     --info-bg: var(--fill);
     --info-border: var(--line-2);
 
-    --traj-user: #17171a;
-    --traj-assistant: #5d5d65;
-    --traj-reasoning: #8b8b93;
-    --traj-tool-call: #5d5d65;
-    --traj-tool-result: #8b8b93;
+    --traj-user: #242321;
+    --traj-assistant: #706e68;
+    --traj-reasoning: #92908a;
+    --traj-tool-call: #706e68;
+    --traj-tool-result: #92908a;
 
     --diff-added: var(--diff-add-fg);
     --diff-removed: var(--diff-del-fg);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
-    --shadow-focus: 0 0 0 3px rgba(127, 127, 127, 0.18);
+    --shadow-sm: 0 1px 1px rgba(52, 43, 28, 0.06);
+    --shadow-md: 0 2px 5px rgba(52, 43, 28, 0.03);
+    --shadow-lg: 0 12px 40px rgba(52, 43, 28, 0.05);
+    --shadow-focus: 0 0 0 3px rgba(148, 96, 29, 0.16);
+    --edge-hairline: rgba(39, 35, 29, 0.04);
+    --shadow-float: var(--shadow-lg), 0 0 0 1px var(--edge-hairline);
 
-    --scrollbar-thumb: rgba(0, 0, 0, 0.18);
-    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+    --scrollbar-thumb: rgba(39, 35, 29, 0.18);
+    --scrollbar-thumb-hover: rgba(39, 35, 29, 0.28);
     --scrollbar-track: transparent;
   }
+}
+
+/* ===== 主题无关别名 =====
+ * 旧视图曾引用这些名字但 token 表未定义，导致 `var(--x, #冷色)` 的回退值生效
+ * —— 界面因此漏出与暖石墨体系不一致的冷灰 / 冷蓝。这里补齐别名，指向已有的
+ * 主题感知 token（var() 在计算值阶段替换，故亮暗两套自动跟随，无需按主题重复）。 */
+:root {
+  --text-faint: var(--fg-3);         /* 最弱文字层级 */
+  --bg-base: var(--bg);             /* 最底层底色 */
+  --accent-soft: var(--accent-subtle); /* 强调色浅底 */
+  --text-tertiary: var(--fg-3);     /* 第三级文字 */
+  --text: var(--fg);                /* 无修饰正文色 */
+  --danger-text: var(--danger);
+  --danger-subtle: var(--danger-bg);
+  --bg-elev-3: var(--surface-3);    /* 第三层抬升面 */
+  --bg-subtle: var(--fill);
+  --accent-primary: var(--accent);
+  --accent-primary-alpha: var(--accent-subtle);
+  /* 设计系统前缀（--ds-*）：听写页整页消费，取值对齐同名语义 token */
+  --ds-text: var(--fg);
+  --ds-text-muted: var(--fg-2);
+  --ds-surface-1: var(--term-bg);
+  --ds-surface-2: var(--fill);
+  --ds-surface-3: var(--fill-2);
+  --ds-border: var(--line-2);
+  --ds-danger: var(--danger);
+  --ds-danger-bg: var(--danger-bg);
 }
 
 /* ===== 单色模式：语义色全部中和为灰阶 =====
  * 由壳层在 <html> 上切换 `data-semantic="off"`（⌘⇧M / 设置·外观）。 */
 [data-semantic="off"] {
-  --ok: #8f8f97;
-  --warn: #8f8f97;
-  --danger: #8f8f97;
+  --ok: #8c8a84;
+  --warn: #8c8a84;
+  --danger: #8c8a84;
   --success: var(--ok);
   --warning: var(--warn);
-  --danger-bg: rgba(255, 255, 255, 0.06);
+  --danger-bg: rgba(241, 238, 234, 0.06);
   --danger-border: var(--line-2);
-  --diff-add-bg: rgba(255, 255, 255, 0.055);
-  --diff-add-fg: #e6e6e9;
-  --diff-del-bg: rgba(255, 255, 255, 0.03);
-  --diff-del-fg: #9a9aa2;
+  --diff-add-bg: rgba(241, 238, 234, 0.055);
+  --diff-add-fg: #e6e4de;
+  --diff-del-bg: rgba(241, 238, 234, 0.03);
+  --diff-del-fg: #97958e;
   --diff-added: var(--diff-add-fg);
   --diff-removed: var(--diff-del-fg);
   --success-bg: var(--fill);
@@ -467,13 +531,29 @@
 }
 
 [data-theme="light"][data-semantic="off"] {
-  --ok: #6f6f77;
-  --warn: #6f6f77;
-  --danger: #6f6f77;
-  --diff-add-bg: rgba(0, 0, 0, 0.05);
-  --diff-add-fg: #1c1c20;
-  --diff-del-bg: rgba(0, 0, 0, 0.028);
-  --diff-del-fg: #75757d;
+  --ok: #6d6b64;
+  --warn: #6d6b64;
+  --danger: #6d6b64;
+  --diff-add-bg: rgba(39, 35, 29, 0.05);
+  --diff-add-fg: #1c1b18;
+  --diff-del-bg: rgba(39, 35, 29, 0.028);
+  --diff-del-fg: #76746c;
   --diff-added: var(--diff-add-fg);
   --diff-removed: var(--diff-del-fg);
+}
+
+/* `system` 模式下的亮色 + 单色：上面那条选择器要求 data-theme="light"，
+ * 而 system 模式下该属性为空 —— 这里补齐，否则「系统亮色 + 单色」语义色不褪色。 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"])[data-semantic="off"] {
+    --ok: #6d6b64;
+    --warn: #6d6b64;
+    --danger: #6d6b64;
+    --diff-add-bg: rgba(39, 35, 29, 0.05);
+    --diff-add-fg: #1c1b18;
+    --diff-del-bg: rgba(39, 35, 29, 0.028);
+    --diff-del-fg: #76746c;
+    --diff-added: var(--diff-add-fg);
+    --diff-removed: var(--diff-del-fg);
+  }
 }

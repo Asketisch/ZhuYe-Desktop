@@ -5,3 +5,9 @@
   overflow: hidden;
   background: var(--bg-app);
 }
+
+/* xterm.css 给视口写死了黑色兜底底色，而主题背景只落在内部的滚动层上；
+ * 让外层视口与终端底色同色，避免滚动层未铺满或主题尚未应用时露出纯黑。 */
+.terminal :global(.xterm-viewport) {
+  background-color: var(--term-bg);
+}

@@ -38,7 +38,6 @@ const PREFS: UiPrefs = {
   chatDiffSplit: false,
   fontScale: 1,
   compactDensity: 'comfortable',
-  accentColor: '#5dd1c6',
   surfaceOpacity: 1,
   backgroundImage: '',
   backgroundImageOpacity: 0.35,

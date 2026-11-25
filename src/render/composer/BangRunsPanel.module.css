@@ -8,9 +8,9 @@
 }
 
 .row {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--bg-inset, var(--bg-elevated));
+  background: var(--term-bg);
   overflow: hidden;
 }
 

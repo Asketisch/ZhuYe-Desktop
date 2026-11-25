@@ -119,13 +119,13 @@
   border: 1px solid var(--border-subtle);
 }
 
-/* 代码块 */
+/* 代码块：底色与配色走 token，随主题明暗切换 */
 .codeWrap {
   margin: 0 0 var(--space-3);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border-default);
-  background: #0a0e14;
+  background: var(--term-bg);
 }
 
 .codeHeader {
@@ -133,7 +133,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -166,18 +166,19 @@
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   line-height: var(--lh-normal);
-  color: #e6e9ef;
+  color: var(--term-fg);
 }
 
-/* Prism token 配色（深色 okaidia 风格） */
+/* Prism token 配色：全部走 token。琥珀只给关键字，字符串用鼠尾草绿，
+   数字用暗金，正则与变量用砖红，其余按文字层级区分。 */
 .pre :global(.token.comment),
 .pre :global(.token.prolog),
 .pre :global(.token.doctype),
 .pre :global(.token.cdata) {
-  color: #6b7488;
+  color: var(--fg-3);
 }
 .pre :global(.token.punctuation) {
-  color: #c9d1e0;
+  color: var(--fg-2);
 }
 .pre :global(.token.property),
 .pre :global(.token.tag),
@@ -185,30 +186,30 @@
 .pre :global(.token.number),
 .pre :global(.token.constant),
 .pre :global(.token.symbol) {
-  color: #f7b267;
+  color: var(--warn);
 }
 .pre :global(.token.selector),
 .pre :global(.token.attr-name),
 .pre :global(.token.string),
 .pre :global(.token.char),
 .pre :global(.token.builtin) {
-  color: #5dd1c6;
+  color: var(--ok);
 }
 .pre :global(.token.operator),
 .pre :global(.token.entity),
 .pre :global(.token.url) {
-  color: #a4adbe;
+  color: var(--fg-2);
 }
 .pre :global(.token.atrule),
 .pre :global(.token.attr-value),
 .pre :global(.token.keyword) {
-  color: #a78bfa;
+  color: var(--accent);
 }
 .pre :global(.token.function) {
-  color: #60a5fa;
+  color: color-mix(in srgb, var(--accent) 45%, var(--fg));
 }
 .pre :global(.token.regex),
 .pre :global(.token.important),
 .pre :global(.token.variable) {
-  color: #fbbf24;
+  color: var(--danger);
 }

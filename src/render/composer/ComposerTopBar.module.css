@@ -1,9 +1,10 @@
 /*
  * ComposerTopBar —— 输入卡顶栏（surface 层）。
  *
- * 双层嵌套输入卡：外层 surface 内的胶囊行。工作区 / 分支 / worktree
- * 开关统一为 28px 圆角胶囊；菜单一律向上弹（输入卡贴窗口底部）。
- * WorkspaceMenu / BranchMenu 与本行共用本模块的胶囊与菜单样式。
+ * 单层悬浮输入卡的顶栏：工作区 / 分支触发器是 28px 的描边小圆角 chip，
+ * 运行位置 / worktree 开关 / 「+」同高、无边框；菜单一律向上弹（输入卡贴
+ * 窗口底部），并使用浮层统一皮肤（tip-bg + line-2 + 8px + --shadow-float）。
+ * WorkspaceMenu / BranchMenu 与本行共用本模块的 chip 与菜单样式。
  */
 
 .bar {
@@ -23,9 +24,9 @@
   min-width: 0;
 }
 
-/* ── 胶囊触发器（工作区 / 分支 / 运行位置）────────────────────────── */
+/* ── chip 触发器（工作区 / 分支 / 运行位置）────────────────────────── */
 
-/* 胶囊 + 向上弹菜单的定位包裹。 */
+/* chip + 向上弹菜单的定位包裹。 */
 .pillWrap {
   position: relative;
   display: inline-flex;
@@ -39,34 +40,40 @@
   height: 28px;
   min-width: 0;
   max-width: 100%;
-  padding: 0 10px 0 12px;
-  border: 0;
-  border-radius: 999px;
+  padding: 0 9px 0 11px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
   line-height: 1;
   cursor: pointer;
   white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .pill:hover {
-  background: var(--bg-hover);
+  background: var(--fill);
+  border-color: var(--fg-3);
   color: var(--text-primary);
 }
 
 .pill[aria-expanded='true'] {
-  background: var(--bg-hover);
+  background: var(--fill);
+  border-color: var(--fg-3);
   color: var(--text-primary);
 }
 
-/* 纯展示胶囊（运行位置）：无 hover 语义。 */
+/* 纯展示 chip（运行位置）：无描边、无 hover 语义。 */
 .pillStatic {
+  border-color: transparent;
   cursor: default;
 }
 
 .pillStatic:hover {
   background: transparent;
+  border-color: transparent;
   color: var(--text-secondary);
 }
 
@@ -97,10 +104,10 @@
   width: 288px;
   max-width: calc(100vw - 2rem);
   padding: var(--space-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elev-2);
-  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--tip-bg);
+  box-shadow: var(--shadow-float);
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -197,7 +204,7 @@
   height: 28px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   font-size: var(--fs-sm);
@@ -225,16 +232,17 @@
   flex-shrink: 0;
 }
 
+/* 勾选框：选中为白色实心块（实心高对比块口径），对勾用 --on-white。 */
 .toggleBox:checked {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--white);
+  border-color: var(--white);
 }
 
 .toggleBox:checked::before {
   content: '';
   width: 8px;
   height: 8px;
-  background: var(--accent-fg, #fff);
+  background: var(--on-white);
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 2%, 43% 62%);
 }
 
@@ -258,7 +266,7 @@
   color: var(--text-muted);
 }
 
-/* 顶栏「+」添加工作区小按钮（28px 圆形，同胶囊高度）。 */
+/* 顶栏「+」添加工作区小按钮（28px 圆角方块，同 chip 高度）。 */
 .addButton {
   display: inline-flex;
   align-items: center;
@@ -267,7 +275,7 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;

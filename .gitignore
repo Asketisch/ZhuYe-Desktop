@@ -21,6 +21,9 @@ Thumbs.db
 .test-results/
 .test-runner/
 
+# SSR 证据测试的落盘产物(DisplaySection.ssr.test.tsx 每次运行重新生成)
+docs/screenshots/
+
 # 后端在工作区下落的运行时目录(记忆 / 任务 / spill 大输出落盘等;
 # 能力覆盖层已沙箱化,这条是兜底 —— 避免本地调试时误提交)
 **/.reflect/

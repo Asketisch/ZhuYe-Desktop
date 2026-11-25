@@ -180,9 +180,9 @@
   background: var(--bg-elevated);
 }
 
-.status[data-status^='M'] { color: #f0b860; }
-.status[data-status^='A'] { color: #6cc070; }
-.status[data-status^='D'] { color: #f87171; }
+.status[data-status^='M'] { color: var(--warning); }
+.status[data-status^='A'] { color: var(--ok); }
+.status[data-status^='D'] { color: var(--danger); }
 .status[data-status^='?'] { color: var(--text-muted); }
 .status[data-status^='R'] { color: var(--accent); }
 

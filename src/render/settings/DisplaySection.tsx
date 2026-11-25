@@ -1,10 +1,7 @@
-import type { CSSProperties } from 'react';
-import { Image, LayoutPanelLeft, Minimize2, Monitor, Moon, Palette, Sun } from 'lucide-react';
+import { Image, LayoutPanelLeft, Minimize2, Monitor, Moon, Sun } from 'lucide-react';
 import type { SettingsDisplayProps } from '@/contracts/settingsDisplay';
 import { GroupCard, Row, SubHead, Select } from './settingsKit';
 import kit from './SettingsPage.module.css';
-const DEFAULT_ACCENT_COLOR = '#5dd1c6';
-const ACCENT_PRESETS = ['#5dd1c6', '#60a5fa', '#a78bfa', '#f472b6', '#fb923c', '#4ade80'];
 
 /**
  * DisplaySection —— 外观分区（纯展示）。
@@ -65,38 +62,6 @@ export function DisplaySection({ t, prefs, themeMode, backgroundUrl, imageError,
               { value: 'compact', label: t('settings.display.compact') },
             ]}
           />
-        </Row>
-      </GroupCard>
-
-      <SubHead title={<><Palette size={16} strokeWidth={1.5} aria-hidden /> {t('settings.display.accentColor')}</>} description={t('settings.display.accentColorHelp')} />
-      <GroupCard>
-        <Row label={t('settings.display.accentColor')} detail={(
-          <div className={kit.colorRow}>
-            {ACCENT_PRESETS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                className={kit.colorSwatch}
-                data-active={prefs.accentColor === color || undefined}
-                style={{ '--swatch-color': color } as CSSProperties}
-                aria-label={color}
-                onClick={() => onUpdate({ accentColor: color })}
-              />
-            ))}
-            <input
-              className={kit.colorPicker}
-              type="color"
-              value={prefs.accentColor}
-              aria-label={t('settings.display.customAccent')}
-              onChange={(event) => onUpdate({ accentColor: event.target.value })}
-            />
-            <code className={kit.colorValue}>{prefs.accentColor}</code>
-            <button type="button" className={kit.btn} onClick={() => onUpdate({ accentColor: DEFAULT_ACCENT_COLOR })}>
-              {t('common.reset')}
-            </button>
-          </div>
-        )}>
-          <span />
         </Row>
       </GroupCard>
 

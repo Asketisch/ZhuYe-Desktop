@@ -10,11 +10,12 @@
   padding: var(--space-4);
 }
 
+/* 浮层统一皮肤（对话框档）：tip-bg + line-2 描边 + 12px + --shadow-float */
 .dialog {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
+  background: var(--tip-bg);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-float);
   min-width: 440px;
   max-width: 560px;
   width: 100%;

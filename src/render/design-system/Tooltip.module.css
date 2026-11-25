@@ -5,15 +5,16 @@
 
 .tip {
   position: absolute;
-  background: var(--bg-elevated);
+  /* 浮层统一皮肤：tip-bg + line-2 描边 + 8px + 悬浮投影 */
+  background: var(--tip-bg);
   color: var(--text-primary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
   padding: 4px 8px;
   font-size: var(--fs-xs);
   line-height: 1.4;
   white-space: nowrap;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-float);
   pointer-events: none;
   opacity: 0;
   z-index: var(--z-tooltip);

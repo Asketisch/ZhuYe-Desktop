@@ -70,7 +70,7 @@
 
 ### 设置
 
-- 显示（主题：亮色 / 暗色 / 系统跟随、强调色、透明度、壁纸）
+- 显示（主题：亮色 / 暗色 / 系统跟随、透明度、壁纸）
 - 编辑器（Vim 模式 / 输出样式切换）
 - 模型组（唯一接入层：`[[model_group]]`，组内可挂多条凭据）
 - `ConfigForm` 覆盖 `zhuye-agent/crates/resources/zhuye-config/src/schema/` 中的每个部分；高级原始 TOML 编辑器保留为出口

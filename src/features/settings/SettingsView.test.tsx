@@ -205,11 +205,6 @@ describe('SettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: /Dark/ }));
     expect(getTheme()).toBe('dark');
 
-    fireEvent.change(screen.getByLabelText('Custom accent color'), {
-      target: { value: '#60a5fa' },
-    });
-    expect(getUiPrefs().accentColor).toBe('#60a5fa');
-
     fireEvent.change(screen.getByRole('slider', { name: /Surface opacity/ }), {
       target: { value: '70' },
     });
@@ -232,23 +227,22 @@ describe('SettingsView', () => {
     });
   });
 
-  it('renders the Display screen with all four primary cards (theme / accent / transparency / background)', () => {
+  it('renders the Display screen with all primary cards (theme / transparency / background)', () => {
     const { container } = renderSettingsView();
     fireEvent.click(screen.getByRole('button', { name: 'Appearance' }));
     const headings = Array.from(container.querySelectorAll('h3')).map((h) => h.textContent ?? '');
     expect(headings.some((t) => t.includes('Theme'))).toBe(true);
-    expect(headings.some((t) => t.includes('Accent color'))).toBe(true);
     expect(headings.some((t) => t.includes('Transparency'))).toBe(true);
     expect(headings.some((t) => t.includes('Background image'))).toBe(true);
+    // 主题色已不可自定义：分区里不再有取色器。
+    expect(headings.some((t) => t.includes('Accent color'))).toBe(false);
+    expect(container.querySelector('input[type="color"]')).toBeNull();
     // 三个主题模式按钮都在
     const themeButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
       ['System', 'Dark', 'Light'].some((label) => (b.textContent ?? '').includes(label)),
     );
     expect(themeButtons).toHaveLength(3);
-    // 6 个以上 accent 预设 + 取色输入 + 至少两个 range 输入 + URL 文本框 + 文件输入
-    const swatches = container.querySelectorAll('button[aria-label^="#"]');
-    expect(swatches.length).toBeGreaterThanOrEqual(6);
-    expect(container.querySelector('input[type="color"]')).toBeTruthy();
+    // 至少两个 range 输入 + URL 文本框 + 文件输入
     expect(container.querySelectorAll('input[type="range"]').length).toBeGreaterThanOrEqual(2);
     expect(container.querySelector('input[type="url"]')).toBeTruthy();
     expect(container.querySelector('input[type="file"]')).toBeTruthy();

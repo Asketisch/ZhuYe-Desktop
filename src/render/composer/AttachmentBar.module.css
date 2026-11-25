@@ -1,26 +1,27 @@
 .bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.4rem 0.6rem;
-  background: var(--bg-elev-2, rgba(255, 255, 255, 0.03));
-  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
 }
 
+/* 附件 chip：细描边小标签（设计稿 .filetag 口径），不用琥珀浅底。 */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.5rem;
-  background: var(--accent-subtle, rgba(94, 175, 230, 0.15));
-  border: 1px solid var(--accent-border, rgba(94, 175, 230, 0.4));
-  border-radius: 999px;
-  font-size: 0.78rem;
+  gap: 5px;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
   color: var(--text-primary);
 }
 
 .label {
-  max-width: 14rem;
+  max-width: 224px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -28,12 +29,12 @@
 
 /* inline image 缩略图 —— 简单预览:data-URL 直接作 src。 */
 .thumb {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 38px;
+  height: 38px;
   object-fit: cover;
-  border-radius: 0.35rem;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-  background: var(--bg-base, #0c0e11);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  background: var(--bg);
   display: block;
 }
 
@@ -42,9 +43,9 @@
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 13px;
   line-height: 1;
-  padding: 0 0.1rem;
+  padding: 0 2px;
 }
 
 .remove:hover {
@@ -57,12 +58,12 @@
 }
 
 .chip[data-status='error'] {
-  background: var(--danger-subtle, rgba(224, 100, 100, 0.15));
-  border-color: var(--danger-border, rgba(224, 100, 100, 0.5));
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
 }
 
 .errorIcon {
-  color: var(--danger-text, #e06464);
+  color: var(--danger);
   flex-shrink: 0;
 }
 
@@ -73,7 +74,7 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  padding: 0.05rem;
+  padding: 1px;
 }
 
 .retry:hover {

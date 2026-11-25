@@ -15,14 +15,14 @@
   gap: var(--space-3);
 }
 
-/* 「焰羽生花」动态像素徽记（v5）：四层 224×224 画布 + 双辉光呼吸。
- * 展示 112px：2x 屏 1:1 逐像素、1x 屏整半采样，保持像素纯净。
- * 模糊半径按展示尺寸从设计稿 690px 等比缩放（24px→4px / 8px→1.3px）。 */
+/* 「焰羽生花」动态像素徽记（v5）：四层 640×640 画布 + 双辉光呼吸。
+ * 展示 320px：2x 屏 1:1 逐像素、1x 屏整半采样，保持像素纯净。
+ * 模糊半径按展示尺寸从设计稿 690px 等比缩放（24px→11px / 8px→3.7px）。 */
 .emblem {
   position: relative;
   z-index: 1;
-  width: 112px;
-  height: 112px;
+  width: 320px;
+  height: 320px;
   /* screen 混合 / 辉光都限制在徽记内部，不污染英雄区背景。 */
   isolation: isolate;
 }
@@ -40,7 +40,7 @@
 /* bloom 最底：重度模糊复制层，halo-pulse 呼吸（透明度 + 微缩放）。 */
 .emblemBloom {
   z-index: 0;
-  filter: blur(4px) saturate(1.7);
+  filter: blur(5.5px) saturate(1.7);
   opacity: 0.27;
   mix-blend-mode: screen;
   animation: haloPulse 3.9s ease-in-out infinite;
@@ -50,7 +50,7 @@
 /* soft 中层：轻模糊复制层，soft-glow 交替明暗。 */
 .emblemSoft {
   z-index: 1;
-  filter: blur(1.3px) saturate(1.5);
+  filter: blur(1.9px) saturate(1.5);
   opacity: 0.24;
   mix-blend-mode: screen;
   animation: softGlow 2.7s ease-in-out infinite alternate;
@@ -136,14 +136,15 @@
   flex-shrink: 0;
 }
 
+/* 快捷 chip：描边小圆角（设计稿 .pill 口径） */
 .quickChip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
-  background: var(--fill);
-  border: 1px solid transparent;
-  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
   color: var(--fg-2);
   font-size: var(--fs-sm);
   cursor: pointer;
@@ -152,7 +153,8 @@
 }
 
 .quickChip:hover {
-  background: var(--fill-2);
+  background: var(--fill);
+  border-color: var(--fg-3);
   color: var(--fg);
 }
 

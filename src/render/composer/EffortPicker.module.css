@@ -1,5 +1,5 @@
 /*
- * EffortPicker —— 底栏右侧思考深度 pill（native select 伪装触发器）。
+ * EffortPicker —— 底栏右侧思考深度 chip（native select 伪装触发器）。
  * 与 ModelPicker 相邻呈现「模型 · 思考深度」观感。
  */
 
@@ -9,7 +9,7 @@
   align-items: center;
 }
 
-/* 原生 select 伪装 pill：外观与顶栏胶囊一致，点击弹系统选项列表。 */
+/* 原生 select 伪装 chip：外观与同族触发器一致，点击弹系统选项列表。 */
 .select {
   appearance: none;
   display: inline-flex;
@@ -19,7 +19,7 @@
   max-width: 160px;
   padding: 0 20px 0 10px;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--fs-sm);

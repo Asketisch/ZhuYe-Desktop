@@ -1,7 +1,8 @@
 /*
  * PermissionPicker —— 底栏左侧的权限档触发器 + 弹出菜单（ZCode 同款三档：
  * 询问 / 自主模式 / 完全访问；计划入口在「+」菜单，菜单顶部有计划态提示行）。
- * 触发器为 28px 圆角小胶囊；完全访问档触发器转警示色。
+ * 触发器为 28px 圆角小 chip；完全访问档触发器转警示色。菜单用浮层统一皮肤
+ * （tip-bg + line-2 + 8px + --shadow-float）。
  */
 
 .wrap {
@@ -17,7 +18,7 @@
   min-width: 0;
   padding: 0 8px 0 10px;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
@@ -68,8 +69,8 @@
   align-items: center;
   height: 22px;
   padding: 0 var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-xs);
   background: var(--accent-subtle);
   color: var(--accent);
   font-size: var(--fs-xs);
@@ -87,10 +88,10 @@
   width: 256px;
   max-width: calc(100vw - 2rem);
   padding: var(--space-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elev-2);
-  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--tip-bg);
+  box-shadow: var(--shadow-float);
   display: flex;
   flex-direction: column;
   gap: 1px;

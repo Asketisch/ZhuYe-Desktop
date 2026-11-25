@@ -1,9 +1,31 @@
 import { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
+import type { ITheme } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { onPtyExit, onPtyOutput, zhuye_pty_close, zhuye_pty_resize, zhuye_pty_start, zhuye_pty_write } from '@/utils/commands/terminal';
+import { subscribeTheme } from '@/logic/preferences/theme';
 import styles from '@/render/terminal/InteractiveTerminal.module.css';
+
+/**
+ * 终端配色取自 tokens.css：xterm 需要具体色值（canvas 与 DOM 渲染器都要解析），
+ * 不能直接写 var()，故从 <html> 的计算样式里读。ANSI 16 色保持 xterm 默认。
+ * 读不到的键（极端时序 / 非 DOM 环境）一律剔除，交给 xterm 的内置默认值。
+ */
+function readTerminalTheme(): ITheme {
+  if (typeof document === 'undefined') return {};
+  const computed = getComputedStyle(document.documentElement);
+  const token = (name: string): string | undefined => computed.getPropertyValue(name).trim() || undefined;
+  return Object.fromEntries(
+    Object.entries({
+      background: token('--term-bg'),
+      foreground: token('--term-fg'),
+      cursor: token('--fg'),
+      cursorAccent: token('--term-bg'),
+      selectionBackground: token('--accent-border'),
+    }).filter(([, value]) => value !== undefined),
+  );
+}
 
 export function InteractiveTerminal() {
   const container = useRef<HTMLDivElement>(null);
@@ -11,10 +33,20 @@ export function InteractiveTerminal() {
     const element = container.current;
     if (!element) return;
     const id = crypto.randomUUID();
-    const terminal = new Terminal({ cursorBlink: true, fontFamily: 'monospace', fontSize: 13, convertEol: false });
+    const terminal = new Terminal({
+      cursorBlink: true,
+      fontFamily: 'monospace',
+      fontSize: 13,
+      convertEol: false,
+      theme: readTerminalTheme(),
+    });
     const fit = new FitAddon();
     terminal.loadAddon(fit);
     terminal.open(element);
+    // 主题切换（含跟随系统）后重读 token：终端底色与前景跟随明暗。
+    const unsubscribeTheme = subscribeTheme(() => {
+      terminal.options.theme = readTerminalTheme();
+    });
     let disposed = false;
     let started = false;
     let outputUnlisten: (() => void) | undefined;
@@ -48,6 +80,7 @@ export function InteractiveTerminal() {
     return () => {
       disposed = true;
       observer.disconnect();
+      unsubscribeTheme();
       data.dispose();
       outputUnlisten?.();
       exitUnlisten?.();

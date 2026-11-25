@@ -561,6 +561,15 @@ describe('Design tokens', () => {
     expect(css).toContain('--font-sans:');
   });
 
+  it('tokens.css declares the material tokens (glow / floating shadow / hairline)', async () => {
+    const css = nodeRead('src/render/styles/tokens.css', 'utf8');
+    expect(css).toContain('--glow:');
+    expect(css).toContain('--shadow-float:');
+    expect(css).toContain('--edge-hairline:');
+    // 强调色是固定值：不再有运行时内联覆写它的偏好。
+    expect(css).not.toContain('内联样式覆写');
+  });
+
   it('main.tsx imports tokens.css + base.css', async () => {
     const main = nodeRead('src/main.tsx', 'utf8');
     expect(main).toContain('./render/styles/tokens.css');

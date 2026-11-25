@@ -8,12 +8,12 @@
 }
 
 .thumbBtn {
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
   padding: 0;
   overflow: hidden;
   cursor: zoom-in;
-  background: var(--bg-elev-2, rgba(255, 255, 255, 0.03));
+  background: var(--surface-2);
   line-height: 0;
 }
 
@@ -24,17 +24,18 @@
   display: block;
 }
 
+/* 文件 chip：细描边小标签（设计稿 .filetag 口径） */
 .fileChip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  max-width: 16rem;
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid var(--accent-border, rgba(94, 175, 230, 0.4));
-  background: var(--accent-subtle, rgba(94, 175, 230, 0.15));
-  color: var(--text-primary);
-  font-size: 0.75rem;
+  gap: 5px;
+  max-width: 256px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
 }
 
 .fileName {
