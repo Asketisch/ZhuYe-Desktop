@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialTerminalState, terminalReducer } from './useTerminalController';
+import { initialTerminalState, terminalReducer } from '@/logic/terminal/useTerminalController';
 
 describe('terminal events before command response', () => {
   it('preserves early output and the exit status when the session is added', () => {

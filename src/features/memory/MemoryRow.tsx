@@ -8,7 +8,7 @@ import { Plus, Trash2, Save, X } from 'lucide-react';
 import { Card, Badge, Icon } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import type { ZhuyeMemoryEntry } from '@/utils/commands';
-import { entryKey } from './useMemoryController';
+import { entryKey } from '@/logic/memory/useMemoryController';
 import s from '@/render/memory/MemoryView.module.css';
 
 export interface MemoryRowProps {

@@ -9,7 +9,7 @@ import { render, screen, fireEvent, cleanup, act, waitFor, within } from '@testi
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryView } from './MemoryView';
 import { createTestQueryClient, mockInvoke } from '@/test/setup.tsx';
-import { useMemoryDraftStore } from './memoryDraftStore';
+import { useMemoryDraftStore } from '@/logic/memory/memoryDraftStore';
 
 // 模拟后端调用
 vi.mock('@/utils/commands', async () => {

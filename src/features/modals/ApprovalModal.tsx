@@ -23,7 +23,7 @@ import { useI18n } from '@/utils/i18n';
 import { zhuye_add_permission_rule } from '@/utils/commands';
 import { Badge } from '@/features/design-system';
 import { ModalShell } from './ModalShell';
-import { deriveAllowRule, extractCommand } from './allowRule';
+import { deriveAllowRule, extractCommand } from '@/logic/modals/allowRule';
 import s from '@/render/modals/index.module.css';
 
 export function ApprovalModal({ approval }: { approval: PendingApproval }) {
