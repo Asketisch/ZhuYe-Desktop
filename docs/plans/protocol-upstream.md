@@ -65,24 +65,6 @@ reload / 换绑走引擎快照（跨进程兜底）。
 - 桌面接线与能力面缺口：`docs/capabilities.md` §3.41；线格式：
   `docs/protocol-bridge.md` §3.14。
 
-## 桌面本地补丁落差（SUBMODULE.md「本地直接改 submodule」临时通道，待 PR 回上游）
-
-- **zhuye-subagent 事件转发白名单放行 `InteractionResolved`**：子代理向人
-  发起的审批 / 提问 / 自由文本请求原样转发进父会话事件流，但其**了结广播**
-  (`interaction_resolved`) 只落子线程通道 —— 转发白名单
-  （`zhuye-subagent/src/tools/mod.rs` async 进度回调 +
-  `factory/mod.rs` 同步 drain）此前仅放行
-  `ApprovalRequest / AskUserQuestion / AskUserInput / PermissionBubble` 四类，
-  GUI 对子代理交互的外部了结（TTL 过期 / 取消 / 中断 / 通道关闭）无感知，
-  挂起卡要滞留到回合收尾才被兜底清理。补丁在两处白名单各放行
-  `EventMsg::InteractionResolved(_)`，与请求事件配对转发（request_id 全程
-  同一 uuid，父会话回执经父子共享的 ApprovalContext waiter 表路由，本就
-  覆盖子代理场景）。桌面配套：reducer 移除 `tool_call_end` 按 turnId 连坐
-  清空挂起交互（同回合父 agent 与多个子代理提问共享父 turnId，第一个被
-  应答会把其余挂起卡连坐误删、composer 提前回归）—— 清理收敛为「store
-  action 按 request_id 本地移除 + `interaction_resolved` 按 request_id
-  精确移除 + 回合终态兜底」。**待办：PR 回上游 ZhuYe 仓库 main 后摘除本条。**
-
 ## Roadmap（按价值排序，实现走 SUBMODULE.md 上游流程）
 
 1. **跨进程 gate 应答**：`InteractionRequest` 已落盘，缺「进程重启后重开
