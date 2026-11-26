@@ -10,13 +10,15 @@
 
 | 子区 | 职责 | 进它读哪篇 |
 |---|---|---|
-| `render/` / `logic/` / `contracts/` | 正在迁移的渲染视图、控制器及视图契约；当前覆盖全部路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示和终端页，`main.tsx` 注入 `RendererProvider`。v3 harness 重设计：壳层（`render/shell/AppShell` + TitleBar）与侧栏（`render/sessions/Sidebar`）已换新（`harness.css` 全局类 + tokens 暖石墨 / 琥珀），渲染层保持纯展示（禁 hook / 宿主对象 / 跨层 import，`check-render-boundaries.mjs` 守卫） | [features/AGENTS.md](features/AGENTS.md) |
-| `features/` | 全部功能切片（视图 + 控制器/hook + 就近测试） | [features/AGENTS.md](features/AGENTS.md) |
+| `render/` | 纯展示视图层（9 域族收拢 + `styles/` 全局标记顶层例外；组装点 `index.ts`） | [render/AGENTS.md](render/AGENTS.md) |
+| `logic/` | 控制器与 hook 层（Binding 实现契约 props，与 features 绑定壳分工） | [logic/AGENTS.md](logic/AGENTS.md) |
+| `contracts/` | Slot 契约层（8 簇纯类型 + 根 `renderer.ts` 组装 hub） | [contracts/AGENTS.md](contracts/AGENTS.md) |
+| `features/` | 功能切片绑定壳层（9 域族收拢，`<族>/<切片>/`） | [features/AGENTS.md](features/AGENTS.md) |
 | `stores/` | Zustand 状态层（agent 主状态机、editorStore、回放构建） | [stores/AGENTS.md](stores/AGENTS.md) |
 | `utils/` | IPC 包装、i18n 运行时、桥接降级、通用小工具 | [utils/AGENTS.md](utils/AGENTS.md) |
 | `services/` | `agentEventBus.ts` 持有唯一 Tauri `zhuye_event` 订阅并一对多扇出；`agent.ts`（18 行）是指向 stores 的兼容 re-export | 本篇规则 2、4 |
 | `types/` | 协议类型：`protocol.ts` + `protocol/` 10 个分域手写文件 + `css-modules.d.ts`，另有脚本按需生成物 | 本篇规则 1 |
-| `render/styles/` | `tokens.css`（v3 harness 设计 token，配色与材质刻度取自 `zhuye-agent-theme.html` 烛夜 · Amber / Graphite：暖石墨中性色 + 琥珀强调色双命名体系——设计原生名 `--bg/--surface/--line/--fg/--fill/--white/--ok…` 与旧名 `--bg-app/--text-primary…` 同值并存；`--accent` 组是强调色唯一来源（无用户自定义入口：主操作走 `--white`，琥珀只给焦点 / 选中 / 进行中）；材质刻度——圆角 4 / 6 / 8 / 12、投影三级 `--shadow-sm/md/lg`、浮层统一投影 `--shadow-float`、主区光晕 `--glow`；`data-semantic="off"` 单色模式）+ `base.css`（reset + 全局焦点外框 2px 琥珀 outline）+ `harness.css`（壳层骨架的全局类，类名沿用 agent-harness-desktop.html 设计稿；**不消费圆角 / 投影 token**，字面值须逐条对齐刻度；其中欢迎态 / 旧输入区 / 活跃状态条 / 计划块 / 设置 / 页面框架六个分节已无组件引用，输入卡与消息流实际在 `render/composer/`、`render/messages/` 的 CSS Module） | 根 AGENTS.md「约定」 |
+| `render/styles/` | `tokens.css`（v3 harness 设计 token，配色与材质刻度取自 `zhuye-agent-theme.html` 烛夜 · Amber / Graphite：暖石墨中性色 + 琥珀强调色双命名体系——设计原生名 `--bg/--surface/--line/--fg/--fill/--white/--ok…` 与旧名 `--bg-app/--text-primary…` 同值并存；`--accent` 组是强调色唯一来源（无用户自定义入口：主操作走 `--white`，琥珀只给焦点 / 选中 / 进行中）；材质刻度——圆角 4 / 6 / 8 / 12、投影三级 `--shadow-sm/md/lg`、浮层统一投影 `--shadow-float`、主区光晕 `--glow`；`data-semantic="off"` 单色模式）+ `base.css`（reset + 全局焦点外框 2px 琥珀 outline）+ `harness.css`（壳层骨架的全局类，类名沿用 agent-harness-desktop.html 设计稿；**不消费圆角 / 投影 token**，字面值须逐条对齐刻度；其中欢迎态 / 旧输入区 / 活跃状态条 / 计划块 / 设置 / 页面框架六个分节已无组件引用，输入卡与消息流实际在 `render/input/composer/`、`render/conversation/messages/` 的 CSS Module） | 根 AGENTS.md「约定」 |
 | `components/` | 跨切片通用组件，当前仅 `Markdown.tsx` + 同名 module.css | — |
 | `protocol/` | 前端侧提交构造，当前仅 `submissions.ts` | — |
 | `test/` | `setup.tsx`：Vitest 全局挂载与 mock 契约 | 本篇规则 3 |
@@ -25,11 +27,11 @@
 
 - 常规依赖方向 `features/ → stores/ → utils/`，`utils/bridge.ts` 是最底层。
 - `router.tsx` 是唯一集中 import 全部视图的文件：`rootRoute`（AppShell）+ 41 个 `new Route(` 经 `rootRoute.addChildren([...])` 组树（v3 新增 `/market`、`/lanes`）；`AppProviders`（I18n + React Query + 事件订阅建立）也定义在此，文件尾部保留 `ModalStack` 向后兼容 re-export。
-- 壳层组装链：`features/shell/AppShell.tsx` 组 slots（含 v3 新增 DockPanel / TerminalDock / InboxPanel / SettingsHost）→ `ShellBinding` 供数（含 `harness` 数据包：徽标 / dock / 终端 / 单色）→ `render/shell/AppShell.tsx` 纯展示。壳层快捷键在 `logic/shell/useHarnessShortcuts`。
+- 壳层组装链：`features/harness/shell/AppShell.tsx` 组 slots（含 v3 新增 DockPanel / TerminalDock / InboxPanel / SettingsHost）→ `ShellBinding` 供数（含 `harness` 数据包：徽标 / dock / 终端 / 单色）→ `render/harness/shell/AppShell.tsx` 纯展示。壳层快捷键在 `logic/harness/shell/useHarnessShortcuts`。
 
 ## 跨层边界
 
-- 已知两处反向边：`stores/editorStore.ts` 复用 `features/editor` 的纯 diff 算法、`utils/notify.ts` 读取 `stores/agentStore`——新增反向边前先确认不构成环。
+- 已知两处反向边：`stores/editorStore.ts` 复用 `features/input/editor` 的纯 diff 算法、`utils/notify.ts` 读取 `stores/agentStore`——新增反向边前先确认不构成环。
 - 本层不自拼数据目录路径（根 AGENTS.md「关键不变量」），一切文件/会话路径经后端命令往返。
 
 ## 层通用规则

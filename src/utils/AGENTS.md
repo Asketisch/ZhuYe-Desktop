@@ -17,31 +17,26 @@
 | `tauri.ts` / `commands.ts` / `i18n.ts` | 三个兼容桶，仅保留向后兼容 re-export，文件头明令不再新增 |
 | `i18n/` | 运行时拆分：`context.tsx`（Provider / `useI18n`）、`locale.ts`、`lookup.ts`、`interpolate.ts`、`types.ts` + `strings/` 领域文案目录 |
 | `notify.ts` | 系统通知（本目录最大单文件，约 330 行）；读 agentStore 做通知决策，是 utils → stores 的已知反向边 |
-| `theme.ts` / `uiPrefs.ts` | 主题与 UI 偏好兼容导出；持久化位于 `logic/preferences/`，外观映射位于 `render/appearance.ts`（**主题 → body 底色的重算契约在 `logic/webview/appearance.ts`**：body 背景色是行内样式且依赖当前主题的 `--bg-app-rgb`，显式切主题或系统主题变化时必须重放一次偏好，否则会话区底色冻结在旧主题） |
+| `theme.ts` / `uiPrefs.ts` | 主题与 UI 偏好兼容导出；持久化位于 `logic/harness/preferences/`，外观映射位于 `render/appearance.ts`（**主题 → body 底色的重算契约在 `logic/workbench/webview/appearance.ts`**：body 背景色是行内样式且依赖当前主题的 `--bg-app-rgb`，显式切主题或系统主题变化时必须重放一次偏好，否则会话区底色冻结在旧主题） |
 
-## commands/ 领域登记（全量，以文件系统为准）
+## commands/ 领域登记（按域族分目录，全量以文件系统为准）
 
-| 领域文件 | 领域文件 | 领域文件 | 领域文件 |
-|---|---|---|---|
-| activity | agent | agents | allowlist |
-| approvals | autopilot | browser | config |
-| discussion | events | files | git |
-| goal | health | hooks | importSessions |
-| kms | lsp | mcp | media |
-| memory | models | notes | notifications |
-| pipeline | plan | plugins | preview |
-| prompts | questions | remote | runtimeStatus |
-| sandbox | schedule | search | security |
-| sessions | side_channel | skills | squad |
-| stats | subagents | tasks | teams |
-| terminal | traces | updates | workspaces |
+| 族 | 领域文件 |
+|---|---|
+| `conversation/` | sessions, discussion, notes, workspaces（`workspaces.test.ts` 就近测试） |
+| `harness/` | config, events, health, runtimeStatus, security, allowlist, permissions, updates, lsp, sandbox |
+| `workbench/` | files, git, browser, preview, search, terminal |
+| `orchestration/` | agent, agents, approvals, autopilot, goal, plan, pipeline, questions, schedule, squad, subagents, tasks, teams, mcp, plugins |
+| `telemetry/` | activity, stats, traces, notifications, media |
+| `knowledge/` | memory, models, skills, prompts |
+| `connect/` | hooks, kms, remote, side_channel |
 
-（目录内另有两个非领域文件：`index.ts` 桶与 `workspaces.test.ts`；`side_channel.ts` 是唯一带下划线的文件名，import 时注意拼写。）
+（根 `index.ts` 为 barrel，逐个 `export * from './<族>/<domain>'`；新领域文件建在对应族目录并挂入 barrel。`side_channel.ts` 是唯一带下划线的文件名，import 时注意拼写。）
 
 ## 本地契约与同步点
 
 - **新增 IPC 命令 5 处落点链（本篇独有契约）**：
-  1. `commands/{domain}.ts` 写包装（新领域则建文件并挂入 `commands/index.ts`）；
+  1. `commands/<族>/{domain}.ts` 写包装（新领域则建文件并挂入 `commands/index.ts`；族 = 域族分类学 conversation/input/harness/workbench/orchestration/telemetry/knowledge/connect/pages）；
   2. 后端命令表 `src-tauri/src/commands/`（顺序与文档同步要求见根 AGENTS.md「开发流程检查表」）；
   3. `src/test/setup.tsx` 补默认 stub（mock 契约见 [../AGENTS.md](../AGENTS.md)）；
   4. `tests/helpers/fakeBackend.ts` 补模拟实现（L2 前端行为层的后端）；

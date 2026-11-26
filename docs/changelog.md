@@ -4,6 +4,20 @@
 
 ## 未发布
 
+- **前端四层按 9 域族同构收拢，目录扇出全部落进渐进披露预算**：
+  `contracts/`（61 平铺 → 8 簇 + `renderer.ts` 根 hub）、`features/`（42 切片
+  目录 → 9 族）、`render/`（45 域目录 → 9 族，`styles/` 留顶层）、`logic/`
+  （49 切片目录 → 9 族）统一采用 conversation / input / harness / workbench /
+  orchestration / telemetry / knowledge / connect / pages 域族分类学（源自
+  features 速览分组，设置并入壳层），跨层导航完全对齐；`utils/commands/`
+  48 个领域文件与 `stores/agent/`（types/ + policy/ 拆分）同批归位。
+  共 ~800 处 import 别名改写，`renderer.ts` 组装 hub、`commands/index.ts`
+  barrel、`types/index.ts` 类型桶同步；`features/harness/shell` 与
+  `render/harness/design-system` 的组件族子目录（topbar/pickers/dock/status）
+  一并落位。新增 `render/AGENTS.md`、`logic/AGENTS.md`、`contracts/AGENTS.md`
+  三个路由篇，各层登记表按族重写。每层独立提交，逐批
+  `pnpm typecheck` + 全量 vitest（2089 用例）+ 渲染边界守卫全绿。
+
 - **v3 迁移收尾：`src/features/` 兼容转发 shim 全部退役，73 个转发层清除、34 个测试跟随真身搬家**：
   v3 harness 重设计曾把控制器/hook 真身迁入 `src/logic/`、纯展示视图迁入
   `src/render/`，并在旧 `features/` 路径留下 1–3 行 `export * from` 转发 shim

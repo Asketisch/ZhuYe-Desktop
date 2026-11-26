@@ -21,6 +21,7 @@
 | 想了解什么 | 读哪个 AGENTS.md |
 |---|---|
 | 前端组合根与基础设施（路由 / 协议类型 / 样式 / 测试挂载） | [src/AGENTS.md](src/AGENTS.md) |
+| 前端分层（render 纯视图 / logic 控制器 / contracts 契约，9 域族同构） | [src/render/AGENTS.md](src/render/AGENTS.md) · [src/logic/AGENTS.md](src/logic/AGENTS.md) · [src/contracts/AGENTS.md](src/contracts/AGENTS.md) |
 | 功能切片（切片布局惯例 / 新切片落点链） | [src/features/AGENTS.md](src/features/AGENTS.md) |
 | 代理状态存储（reducer / turns / 兼容层） | [src/stores/AGENTS.md](src/stores/AGENTS.md) |
 | IPC 封装与 i18n（领域命令文件 / bridge / 文案挂载） | [src/utils/AGENTS.md](src/utils/AGENTS.md) |
@@ -79,7 +80,7 @@ git diff --submodule zhuye-agent
 git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 
 # 定向测试（迭代时用定向测试，而不是全量）
-pnpm test -- src/features/settings/SettingsView.test.tsx
+pnpm test -- src/features/harness/settings/SettingsView.test.tsx
 
 # 磁盘治理（cargo 不自动 GC incremental / 覆盖率重建树，契约见 scripts/AGENTS.md）
 bash scripts/gc.sh            # 清 target/**/incremental + llvm-cov-target + examples，保留 .rlib（不全量重编）
@@ -138,7 +139,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 
 **会话层级不变量**：
 
-- `useSessions`（`src/logic/sessions/useSessions.ts`）是会话列表的规范 hook，旧切片路径提供兼容导出
+- `useSessions`（`src/logic/conversation/sessions/useSessions.ts`）是会话列表的规范 hook，旧切片路径提供兼容导出
 - 切换会话 → `zhuye_replay_session(id)` 后水合本地状态
 - 时间分组（`Now/今天/昨天/本周/更早`）在 hook 中，不在侧边栏组件中
 - **切走必降级、切回必恢复**：assistant 内容按步骤增量落盘，但正在流出的
@@ -176,17 +177,17 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
    4. 如果新增后端命令，需同步更新所有相关层级 + 测试 + `docs/protocol-bridge.md` + `docs/changelog.md`。
    5. 核心 crate 新增能力时，同步更新 `docs/capabilities.md`（基座能力 → GUI 覆盖矩阵）——「有命令但无 UI 消费面」视为半接线。
 
-3. **前端行为变更** —— `src/main.tsx` 作为组合根；`src/router.tsx` 作为路由表；有状态的编排逻辑放入 `src/features/<slice>/hooks/*` 或 `<slice>/use*Controller.ts`；表现层 UI 放在功能组件中；Tauri 调用仅放在 `src/utils/commands/`（按领域分文件），`src/utils/tauri.ts` 和 `src/utils/commands.ts` 为兼容桶，不要新增包装；事件订阅广播保持在 `src/services/agent.ts` 和 `src/services/agentEventBus.ts`。
+3. **前端行为变更** —— `src/main.tsx` 作为组合根；`src/router.tsx` 作为路由表；有状态的编排逻辑放入 `src/logic/<族>/<slice>/`（控制器/hook 真身），`src/features/<族>/<slice>/` 只做 slot 组装壳，表现层 UI 放在 `src/render/<族>/<domain>/`；Tauri 调用仅放在 `src/utils/commands/`（按领域分文件），`src/utils/tauri.ts` 和 `src/utils/commands.ts` 为兼容桶，不要新增包装；事件订阅广播保持在 `src/services/agent.ts` 和 `src/services/agentEventBus.ts`。
 
 4. **应用状态同步检查表** —— 当修改同时影响后端和前端的设置/持久化时：
    1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`（均在 `src-tauri/src/` 下））已更新
    2. 前端 IPC（`src/utils/commands/{domain}.ts`）已更新
-   3. 功能设置 UI（`src/features/settings/` 下 `SettingsView.tsx`、`ConfigForm.tsx`、`sections/`、`components/`，配置 schema 在 `src/logic/settings/config/schema.ts`）已更新
+   3. 功能设置 UI（`src/features/harness/settings/` 下 `SettingsView.tsx`、`ConfigForm.tsx`、`sections/`、`components/`，配置 schema 在 `src/logic/harness/settings/config/schema.ts`）已更新
    4. 测试覆盖率已补充
    5. `docs/protocol-bridge.md` 已更新（如果线格式有变更）
    6. `docs/changelog.md` 已添加条目
 
-5. **设计系统规则** —— 使用现有的设计标记（`src/render/styles/tokens.css`，暗色优先，支持亮色/系统主题）和基础组件（`src/features/design-system/primitives/*`）构建共享壳层；不要在功能 CSS 中重复定义已存在的弹窗/提示/面板/浮层样式；所有视图通过 CSS Modules 消费 token（内联样式不硬编码颜色值）。
+5. **设计系统规则** —— 使用现有的设计标记（`src/render/styles/tokens.css`，暗色优先，支持亮色/系统主题）和基础组件（`src/features/harness/design-system/primitives/*`）构建共享壳层；不要在功能 CSS 中重复定义已存在的弹窗/提示/面板/浮层样式；所有视图通过 CSS Modules 消费 token（内联样式不硬编码颜色值）。
 
 6. **验证** —— 按下方「验证矩阵」跑对应命令，全绿再提交。
 

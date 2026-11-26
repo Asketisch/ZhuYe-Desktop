@@ -25,7 +25,7 @@ threads/
 
 ## 依赖关系
 
-- 复用 `features/sessions` 的 `useSessions` + `useActiveSession` + `SessionBucket`（**禁止**直接复制 buckets 规则）
+- 复用 `features/conversation/sessions` 的 `useSessions` + `useActiveSession` + `SessionBucket`（**禁止**直接复制 buckets 规则）
 - ThreadBucketGroup 只接受 SessionBucket 输入 → 单一真相源
 
 ## 测试覆盖

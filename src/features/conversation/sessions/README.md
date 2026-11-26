@@ -1,6 +1,6 @@
 # sessions
 
-会话侧栏（time-bucketed sidebar）+ 时间分桶工具 + 命名 session。会话数据 hook、时间桶和工作区分组实现在 `src/logic/sessions/`，本切片路径提供兼容导出。
+会话侧栏（time-bucketed sidebar）+ 时间分桶工具 + 命名 session。会话数据 hook、时间桶和工作区分组实现在 `src/logic/conversation/sessions/`，本切片路径提供兼容导出。
 
 ## 目录结构
 
@@ -25,7 +25,7 @@ sessions/
 
 ## 入口
 
-- **侧栏主入口**：`src/features/shell/AppShell.tsx` 渲染 `<Sidebar>`（AppShell 是 IDE shell 的 root）
+- **侧栏主入口**：`src/features/harness/shell/AppShell.tsx` 渲染 `<Sidebar>`（AppShell 是 IDE shell 的 root）
 - **路由入口**：`/sessions` 路由用 `ThreadsView`（独立全屏列表视图）
 - **侧栏复用**：AppShell 直接传 props 用 Sidebar 组件
 - **数据获取**：`useSessions()` 返回 `{ buckets, all, loading, error, refetch, refresh, rename }`

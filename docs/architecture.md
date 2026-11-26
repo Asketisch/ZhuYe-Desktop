@@ -75,17 +75,17 @@ ZhuYe-Desktop/
 
 ```text
 ┌───────────────── React 19（单一 Zustand store）─────────────────┐
-│ features/shell/AppShell（ActivityBar / Sidebar / Main / Inspector）│
+│ features/harness/shell/AppShell（ActivityBar / Sidebar / Main / Inspector）│
 │   ↑                                                                   │
 │   │ shell/hooks/{useCommandPaletteShortcut, usePaletteActions,       │
 │   │   useThemeCycle}                                                  │
-│ features/messages/ChatView（MessageList + Composer 再导出）           │
+│ features/conversation/messages/ChatView（MessageList + Composer 再导出）           │
 │   ↑                                                                   │
-│ features/composer/{Composer, SlashPopup, useComposerInput,         │
+│ features/input/composer/{Composer, SlashPopup, useComposerInput,         │
 │   │   useComposerSubmission, useAttachments, usePromptHistory}       │
-│ features/memory/MemoryView ← useMemoryController                     │
-│ features/terminal/TerminalView ← useTerminalController               │
-│ features/modals/ModalStack（Approval/Question/AskUser/PlanReady）     │
+│ features/knowledge/memory/MemoryView ← useMemoryController                     │
+│ features/workbench/terminal/TerminalView ← useTerminalController               │
+│ features/harness/modals/ModalStack（Approval/Question/AskUser/PlanReady）     │
 │   ↑                                                                   │
 │   │ useAgentStore（stores/agent/store.ts）—— 单一事实来源              │
 │   │   分发器：stores/agent/reducer.ts                                 │

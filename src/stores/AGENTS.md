@@ -10,19 +10,19 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 
 | 文件 | 职责 |
 |---|---|
-| `agent/reducer.ts` | `reduceEvent`：EventMsg → 状态 patch 的纯函数核心（约 670 行）；未知 `msg.type` 走 default 分支返回空 patch。**v1.13**：`prompt_switched` 分支只在**生效结果真的变了**时弹「提示词已刷新」（判定抽到 `agent/promptSwitched.ts` 独立文件 —— 本文件已达行数预算不能就地撑大）；切会话必然收到该事件但内容常无变化,无条件弹会让用户每次切会话都看到一条无意义提示 |
+| `agent/reducer.ts` | `reduceEvent`：EventMsg → 状态 patch 的纯函数核心（约 670 行）；未知 `msg.type` 走 default 分支返回空 patch。**v1.13**：`prompt_switched` 分支只在**生效结果真的变了**时弹「提示词已刷新」（判定抽到 `agent/policy/promptSwitched.ts` 独立文件 —— 本文件已达行数预算不能就地撑大）；切会话必然收到该事件但内容常无变化,无条件弹会让用户每次切会话都看到一条无意义提示 |
 | `agent/store.ts` | 活跃 Zustand store：`useAgentStore` 与 `subscribe()`（建立事件订阅，幂等） |
 | `agent/types.ts` | AgentState / Turn 等状态类型联合（约 495 行）；挂起交互类型拆在 `agent/pendingTypes.ts`（含 MCP elicitation 的 `PendingElicitation`：事件入列、`resolveElicitation` 移除，GUI 弹窗待接） |
 | `agent/pendingGates.ts` | v1.12：引擎挂起交互快照（bind 返回 `pending_gates`）→ 合成事件流（零语义复制，走同一份 reducer）；`hydratePendingGates` 按 request_id 去重水合 |
 | `agent/eventGap.ts` | v1.12：`Event.seq` 缺口跟踪器 + 重放收敛（缺口与 `zhuye_event_gap` 合成通知两条触发路径共用） |
 | `agent/turns.ts` | Turn / TurnItem 构建与工具入参、输出摘要；含 `userAttachmentsFromItems`（提交 items → 附件元数据，图片来源标记文本挂到 image meta.source）与 `userItemsFromTurn`（轮内用户内容逆转回可重发 items，重生成用；meta.source 原样重发标记） |
-| `agent/imageProvenance.ts` | 图片来源标注（v1.13）：`ImageProvenance` 通道类型（paste=剪贴板 / bytes=DOM 拖拽·浏览器选择器 / file=原生拖拽·选择器带绝对路径）+ `buildImageMarker`（本地化标记文本，i18n key `composer.imageSource.*`）+ `IMAGE_MARKER_RE`（双语整块判别）。发送时 composer 在每个图片 item 前注入 `[图片 #N：…]` 标记（`useAttachments.toUserInputItems`），模型不再反推图片来源 |
+| `agent/policy/imageProvenance.ts` | 图片来源标注（v1.13）：`ImageProvenance` 通道类型（paste=剪贴板 / bytes=DOM 拖拽·浏览器选择器 / file=原生拖拽·选择器带绝对路径）+ `buildImageMarker`（本地化标记文本，i18n key `composer.imageSource.*`）+ `IMAGE_MARKER_RE`（双语整块判别）。发送时 composer 在每个图片 item 前注入 `[图片 #N：…]` 标记（`useAttachments.toUserInputItems`），模型不再反推图片来源 |
 | `agent/selectors.ts` | 细粒度 selector（`selectHasPendingInteraction` 等），配合 `useAgent` 防过宽 re-render |
 | `agent/index.ts` | 桶导出 `useAgentStore` / `reduceEvent` / `useAgent` 与类型联合；新导出只进这里 |
 | `backgroundSessions.ts` | 后台会话注册表（v1.x 后台持续运行）：消化 `zhuye_session_event` 通道（`{session_id, event}`），每会话持一份主 reducer scratch 投影 running / pending / **实时 turns**（形状零漂移）；`demote` 在切走时把前台投影播种进 scratch，`mergePendingInto` 在切回水合后把待确认交互与在飞 turns 整体注回主 store。v1.12：订阅 `zhuye_event_gap` 后台缺口 → 按 replay 重灌各后台会话 scratch 的 turns（pending 以引擎注册表为权威，切回时 bind 兜底） |
 | `editorStore.ts` | agent 编辑的 pending hunk 列表，自订阅 agentEventBus；Accept 保留内容、Reject 用 inverse patch 经 `zhuye_write_file` 落盘 |
 | `replay.ts` | `zhuye_replay_session` 返回的 RolloutRecord 流 → turns + 压缩聚合统计；剥除引擎注入的 `<system-reminder>` 块（注入内容不冒充用户发言） |
-| `shellUi.ts` | harness 壳层 UI 状态（v3 设计）：rail / **dock 标签页体系**（`dockTabs` / `dockActiveId` / `recentlyClosedTabs` / `dockFullView`，对齐 ZCode side-pane tabs）/ dockOpen / dockWide / dockWidth（用户拖拽出的 dock 宽度，`null` = 未拖过，用各档位默认宽度）/ termOpen / inbox / settings / palette / inspectorTab（检查器内页签：概览/文件/改动/Git；计划已升为顶级 dock 标签）/ dropHint / unread（后台完成未读产出）。`openDockTab` 单例已有则激活、启动器原位替换、仅「文件」可多开；关掉最后一个标签页即收起侧栏，重新展开补「新标签页」启动器；旧 `dockMode` 持久化读入即迁移为单标签。rail·dock·term·semantic·dockWidth 持久化到 localStorage（`zhuye-harness-ui`；dockWidth 拖拽中只改内存态、松手 `commitDockWidth` 落盘一次）；快捷键（`logic/shell/useHarnessShortcuts`）与标题条/侧栏/壳视图全部消费本 store，不另设组件内状态 |
+| `shellUi.ts` | harness 壳层 UI 状态（v3 设计）：rail / **dock 标签页体系**（`dockTabs` / `dockActiveId` / `recentlyClosedTabs` / `dockFullView`，对齐 ZCode side-pane tabs）/ dockOpen / dockWide / dockWidth（用户拖拽出的 dock 宽度，`null` = 未拖过，用各档位默认宽度）/ termOpen / inbox / settings / palette / inspectorTab（检查器内页签：概览/文件/改动/Git；计划已升为顶级 dock 标签）/ dropHint / unread（后台完成未读产出）。`openDockTab` 单例已有则激活、启动器原位替换、仅「文件」可多开；关掉最后一个标签页即收起侧栏，重新展开补「新标签页」启动器；旧 `dockMode` 持久化读入即迁移为单标签。rail·dock·term·semantic·dockWidth 持久化到 localStorage（`zhuye-harness-ui`；dockWidth 拖拽中只改内存态、松手 `commitDockWidth` 落盘一次）；快捷键（`logic/harness/shell/useHarnessShortcuts`）与标题条/侧栏/壳视图全部消费本 store，不另设组件内状态 |
 | `approvalPolicy.ts` | 会话级审批策略偏好（per-session localStorage + `'new'` 预创建键；`wireApprovalPolicy` 发送时进 `thread_settings`；`moveApprovalPolicy` 在会话 id 落定后转正） |
 | `permissionPreference.ts` | 会话级工作模式偏好（per-session localStorage + `'new'` 预创建键）。首页/未绑定会话选「计划/询问/默认」时 `Op::SetPermissionMode` 只落占位线程，首条消息建会话后模式回落默认 —— `syncPreferredPermissionMode` 在 bind→replay 为空（新会话）时按偏好校准；老会话尊重 rollout；`movePermissionPreference` 随会话 id 落定转正。写入点：PermissionPicker / 设置页 / PromptPicker 的 /plan 预设 / `/plan` 斜杠 |
 | `effortPreference.ts` | 会话级思考强度偏好（per-session localStorage + `'new'` 预创建键）。composer 选档走 `Op::SetEffort` 只写线程内存槽位，换绑（切会话 / 热重载 / 切模型 / 重启）会用 `[model].reasoning_effort` 配置默认重置 —— `syncEffortPreference` 在 bind / 配置重载后对比槽位并重放选档（模型不支持时由能力表在发 wire 前钳制降级，槽位存原始档无损）；`moveEffortPreference` 随会话 id 落定转正。写入点：composer EffortPicker / Models 页 effort 控件 |
@@ -37,7 +37,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 - **会话切换水合**：`zhuye_replay_session(id)` → `replay.ts` 构建后灌入 store；会话列表侧不变量见根 AGENTS.md「关键不变量」。
 - **引擎注入块不渲染（回放层职责）**：`app-core/src/prompt_env.rs` 的 `EnvContextHook` / `AgentsMdHook` 以 `<system-reminder>` 包裹注入环境上下文 / AGENTS.md 指令，引擎把它们与用户输入**同批落盘**（role 仍是 user）。`replay.ts::stripInjectedSystemBlocks` 在回放时剥除 —— 模型侧上下文（后端 `records_to_preload`）保持原样，仅 UI 不冒充用户发言。改注入通道时同步这里。
 - **用户附件双路径同型（A2）**：`TurnItem::user_attachments`（图片 data-URL / 文件路径 chip）由两条路径产出——live `submitItems` 乐观渲染（`turns.ts::userAttachmentsFromItems`）与回放水合（`replay.ts`：image 字节数组 → data-URL、整块 `@path(:Ls-Le)` 标注 → 文件 chip）。改任一侧须保持形态一致。
-- **图片来源标记「模型可见、回放还原」**：发送时 `useAttachments.toUserInputItems` 在每个 image / local_image item 前注入 `agent/imageProvenance.ts` 构建的标记文本 item（随消息进 LLM 请求并落盘）；视觉降级剥离走 `toUserInputItems({ excludeImages: true })`（标记与图片同生同灭）。回放侧 `replay.ts::contentToItems` 以 `IMAGE_MARKER_RE` 整块匹配把标记挂到附件 `source` 字段（不渲染为用户正文，与 `@path` 文件 chip 同款约定）；一键重生成经 `userItemsFromTurn` 按 meta.source 原样重发。改标记文案须同步 `IMAGE_MARKER_RE` 的双语前缀（`composer.imageSource.*`）。
+- **图片来源标记「模型可见、回放还原」**：发送时 `useAttachments.toUserInputItems` 在每个 image / local_image item 前注入 `agent/policy/imageProvenance.ts` 构建的标记文本 item（随消息进 LLM 请求并落盘）；视觉降级剥离走 `toUserInputItems({ excludeImages: true })`（标记与图片同生同灭）。回放侧 `replay.ts::contentToItems` 以 `IMAGE_MARKER_RE` 整块匹配把标记挂到附件 `source` 字段（不渲染为用户正文，与 `@path` 文件 chip 同款约定）；一键重生成经 `userItemsFromTurn` 按 meta.source 原样重发。改标记文案须同步 `IMAGE_MARKER_RE` 的双语前缀（`composer.imageSource.*`）。
 - **`turn_rewound` 截断语义**：引擎 `truncate_after(to_turn_id)` 丢弃该 turn **含**及其之后（recorder.rs）；reducer 本地截断同语义（`slice(0, idx)`），与 `editRewindTargetFor`（回退目标恒为目标轮自身 id）配套。
 - **权限模式恒为三态**：store 的 `permissionMode` 只经两个写入口写入——reducer 的 `permission_mode_changed` 与 `syncPermissionMode`（bind 返回值）——两者都过 `normalizePermissionMode`（`src/types/protocol/enums.ts`：`accept_edits→auto`、`bypass→prompt`、其余弃用档→auto）。引擎计划批准的 `auto_mode` 会切到弃用档 `accept_edits`（上游 `submission_loop.rs` 待修），归一化保证输入卡权限下拉（`PermissionPicker`）恒为计划/询问/默认三段、不裸回显 wire 值。
 - **worktree 隔离意图是草稿级临时态**：`worktreeIntent`（非持久，`null` = 关）由输入卡顶栏开关写入、发送链路一次性消费（`useComposerSubmission` 建隔离 worktree → 切 workspace → 首条提交携带 worktree 路径）。`reset()` / `clearSession()` / `hydrateSession`（换会话）三处必须清空 —— 残留会让下一个新会话意外走建树链路。
@@ -56,11 +56,11 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 
 ## 注意事项
 
-- `agent/` 下另有 approvalPolicy / autoCompact / planFailover / guardStats / queue（队列 actions 工厂，按会话隔离）/ servers / tokenTypes / toast 等专题模块及各自 `.test.ts`，职责以文件头注释为准。
+- 专题模块分两目录：`agent/policy/`（审批/权限/思考强度/提示词偏好、plan 工厂、autoCompact、planFailover、guardStats、imageProvenance、promptSwitched 判定）+ `agent/types/`（6 个类型桶文件，`types/index.ts` barrel 兜住 `./types` 导入）；queue（队列 actions 工厂，按会话隔离）/ servers / toast 等机制模块仍留 `agent/` 根，各自 `.test.ts` 就近，职责以文件头注释为准。
 - StrictMode 双 mount 的重复订阅由 `subscribe()` 幂等保证，consumer 侧不要再加防抖或单例守卫。
 
 ## 深入阅读
 
 - [../AGENTS.md](../AGENTS.md) —— src 层篇（事件桥、协议类型分工、测试挂载）
 - [docs/protocol-bridge.md](../../docs/protocol-bridge.md) —— EventMsg 线格式权威定义
-- [../logic/sessions/useSessions.ts](../logic/sessions/useSessions.ts) —— 会话列表规范 hook（消费本层水合结果）
+- [../logic/conversation/sessions/useSessions.ts](../logic/conversation/sessions/useSessions.ts) —— 会话列表规范 hook（消费本层水合结果）

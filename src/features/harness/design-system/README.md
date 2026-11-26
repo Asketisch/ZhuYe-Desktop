@@ -2,7 +2,7 @@
 
 Design System 原语的兼容入口 + token 目录页。
 
-原语的实现与样式统一在 `src/render/design-system/`（CSS Modules + data-attribute 驱动，不用内联样式）；本目录只保留再出口、带状态的薄包装与就近测试，**没有第二套外观** —— 改原语外观一律改 `src/render/design-system/*.module.css`。
+原语的实现与样式统一在 `src/render/harness/design-system/`（CSS Modules + data-attribute 驱动，不用内联样式）；本目录只保留再出口、带状态的薄包装与就近测试，**没有第二套外观** —— 改原语外观一律改 `src/render/harness/design-system/*.module.css`。
 
 ## 目录结构
 
@@ -12,7 +12,7 @@ design-system/
 │   ├── Input.tsx          #   与 render 侧同内容的拷贝，共用 Input.module.css
 │   ├── Toast.tsx          #   包装：加自动消失，再渲染 render 侧 Toast
 │   └── *.test.tsx         #   Button / ContextRing / KeyHint / SegmentedControl / Toast / Tooltip
-├── utils/                 # 对 src/logic/design-system/utils 的再出口 + 纯函数测试
+├── utils/                 # 对 src/logic/harness/design-system/utils 的再出口 + 纯函数测试
 ├── DesignSystemView.tsx   # catalog 页（路由 /design-system）
 ├── index.ts               # barrel：切片取用原语的唯一入口
 └── README.md
@@ -20,7 +20,7 @@ design-system/
 
 ## Primitives（14 个）
 
-| Primitive | 用途 | variant | 样式（`src/render/design-system/`） |
+| Primitive | 用途 | variant | 样式（`src/render/harness/design-system/`） |
 |---|---|---|---|
 | `Button` | 全局 button | primary / secondary / tertiary / danger / ghost × sm / md / lg | `Button.module.css` |
 | `IconButton` | 方形图标按钮 | default / active / primary / danger × sm / md / lg | `IconButton.module.css` |
@@ -34,7 +34,7 @@ design-system/
 | `Spinner` / `Icon` | 加载指示 / 线性图标 | 按 `size` | `Spinner.module.css` / 无样式 |
 | `KeyHint` / `ContextRing` | 快捷键标签 / SVG 分段环 | — | `primitives/*.module.css`（当前无消费方） |
 
-没有 Popover 原语：锚点浮层用 `src/features/shell/AnchoredPopover`（只管定位与 portal），外观由调用方的样式给出。
+没有 Popover 原语：锚点浮层用 `src/features/harness/shell/AnchoredPopover`（只管定位与 portal），外观由调用方的样式给出。
 
 ## 外观口径
 
@@ -55,5 +55,5 @@ design-system/
 ## 使用规约
 
 - **导出**：切片内一律经 `index.ts` 桶文件取用，禁止 deep import `primitives/*`。
-- **新 primitive**：在 `src/render/design-system/` 实现 → 补测试 → catalog 加入示例 → 本目录 `primitives/` 加再出口 → `index.ts` 导出。
+- **新 primitive**：在 `src/render/harness/design-system/` 实现 → 补测试 → catalog 加入示例 → 本目录 `primitives/` 加再出口 → `index.ts` 导出。
 - **跨平台**：快捷键一律过 `shortcutLabel`，禁止直接拼接字符串。
