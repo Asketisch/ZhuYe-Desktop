@@ -3,22 +3,20 @@
  * 任务清单 / 目标已迁移到右上角浮动状态面板（StatusPanel，分节 + mini 胶囊）；
  * 本行保留三块会话内速控内容：
  *   子代理 —— 运行中的 child 快照与进度流尾部；
- *   建议 —— 首页 Hero 的快捷 prompt（预填 composer，不自动发送）；
  *   排队 —— 前端跟进消息队列（移除/立即发送，走 store 既有 action）。
  *
  * 每块一个 chip + 弹层（同一时刻只开一个）。内容体在
  * `features/shell/sessionChips/`；数据全部来自既有 store，不新增 IPC。
  */
 import { useEffect, useRef, useState } from 'react';
-import { List, Loader2, Send, X, Lightbulb, Bot } from 'lucide-react';
+import { List, Loader2, Send, X, Bot } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { SubagentsBody } from '@/features/shell/sessionChips/SubagentsBody';
-import { SuggestionsBody } from '@/features/shell/sessionChips/SuggestionsBody';
 import s from '@/render/shell/session/session.module.css';
 
-/** 可展开的 chips（同一时刻只开一个）。 */type PopKind = 'subagents' | 'suggestions' | 'queue';
+/** 可展开的 chips（同一时刻只开一个）。 */type PopKind = 'subagents' | 'queue';
 
 function useOutsideClose(onClose: () => void) {  const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -47,7 +45,6 @@ export function SessionDock({  turnRunning,
   const drainQueue = useAgentStore((st) => st.drainQueue);
 
   const [openPop, setOpenPop] = useState<PopKind | null>(null);  const subagentsRef = useOutsideClose(() => setOpenPop((v) => (v === 'subagents' ? null : v)));
-  const suggestionsRef = useOutsideClose(() => setOpenPop((v) => (v === 'suggestions' ? null : v)));
   const queueRef = useOutsideClose(() => setOpenPop((v) => (v === 'queue' ? null : v)));
 
   // 子代理：无任何活动时不显示该 chip。
@@ -58,7 +55,7 @@ export function SessionDock({  turnRunning,
     : `${(subagentsStatus ?? []).length}`;
 
   return (    <div className={s.dock} data-testid="session-dock">
-      {/* 任务清单 / 目标已迁移到右上角浮动状态面板（StatusPanel），此处不再重复。 */}
+      {/* 任务清单 / 目标已迁移到会话区折叠胶囊（SessionCapsule），此处不再重复。 */}
 
       {/* ===== 子代理 ===== */}      {hasSubagents && (
         <span className={s.anch} ref={subagentsRef}>
@@ -80,24 +77,6 @@ export function SessionDock({  turnRunning,
           )}
         </span>
       )}
-
-      {/* ===== 建议 ===== */}      <span className={s.anch} ref={suggestionsRef}>
-        <button
-          type="button"
-          className={s.chip}
-          data-testid="session-dock-suggestions"
-          aria-expanded={openPop === 'suggestions'}
-          onClick={() => setOpenPop((v) => (v === 'suggestions' ? null : 'suggestions'))}
-        >
-          <Lightbulb size={13} />
-          <span className={s.chipTxt}>{t('harness.corner.suggestions.title')}</span>
-        </button>
-        {openPop === 'suggestions' && (
-          <span className={`${s.pop} ${s.popUp}`} style={{ minWidth: 300, display: 'block' }}>
-            <SuggestionsBody />
-          </span>
-        )}
-      </span>
 
       {/* ===== 排队 ===== */}      {queued.length > 0 && (
         <span className={s.anch} ref={queueRef}>

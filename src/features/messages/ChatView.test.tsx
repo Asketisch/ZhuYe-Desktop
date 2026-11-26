@@ -402,7 +402,7 @@ describe('ChatView hero (new-chat home)', () => {
     cleanup();
   });
 
-  it('renders greeting, workspace hint and quick prompt chips', async () => {
+  it('renders greeting, workspace hint (quick prompts moved to the + menu)', async () => {
     mockInvoke('zhuye_current_workspace', async () => '/Users/me/Code/alpha');
 
     const { container } = renderWithProviders(<ChatView />);
@@ -415,20 +415,23 @@ describe('ChatView hero (new-chat home)', () => {
       expect(screen.getByTestId('chat-hero-workspace')).toBeDefined();
     });
     expect(screen.getByTestId('chat-hero-workspace').textContent).toContain('alpha');
-    expect(screen.getByTestId('quick-prompt-explore')).toBeDefined();
-    expect(screen.getByTestId('quick-prompt-build')).toBeDefined();
-    expect(screen.getByTestId('quick-prompt-review')).toBeDefined();
-    expect(screen.getByTestId('quick-prompt-fix')).toBeDefined();
+    // v1.13:快捷模板 chips 已从首页 Hero 移除 —— 统一收进「+」菜单的
+    // 「建议」二级目录（唯一入口）。
+    expect(screen.queryByTestId('quick-prompt-explore')).toBeNull();
+    expect(screen.queryByTestId('quick-prompt-fix')).toBeNull();
     // 英雄态下 MessageList 仅视觉隐藏（保持 role="log" 挂载）。
     expect(container.querySelector('[data-testid="chat-messages-area"]')?.getAttribute('data-hero')).toBe('on');
   });
 
-  it('prefills the composer draft (no auto-send) when a quick prompt chip is clicked', async () => {
+  it('prefills the composer draft (no auto-send) from the + menu suggestions submenu', async () => {
     await act(async () => {
       renderWithProviders(<ChatView />);
     });
 
-    fireEvent.click(screen.getByTestId('quick-prompt-fix'));
+    // 「+」菜单 → 「建议」二级目录 → 「修复问题」。
+    fireEvent.click(screen.getByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-suggestions'));
+    fireEvent.click(screen.getByTestId('composer-plus-suggestion-fix'));
     const input = screen.getByRole('textbox', { name: /message ZhuYe/i }) as HTMLTextAreaElement;
     await waitFor(() => {
       expect(input.value).toContain('Fix the following problem');

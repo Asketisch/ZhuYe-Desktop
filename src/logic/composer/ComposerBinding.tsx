@@ -4,7 +4,7 @@ import type { ComposerSlots, ComposerViewProps } from '@/contracts/composer';
 import { filterSlashCommands } from './slashCommands';
 import { usePromptHistory } from './usePromptHistory';
 import { useComposerInput } from './useComposerInput';
-import { useComposerDraft } from './useComposerDraft';
+import { useComposerDraft, emitComposerPrefill } from './useComposerDraft';
 import { useComposerSubmission, type SendMode } from './useComposerSubmission';
 import { useComposerFileEntries } from './useComposerFileEntries';
 import { usePluginCommands } from './usePluginCommands';
@@ -265,6 +265,10 @@ export function ComposerBinding({ view: View, slots }: { view: ComponentType<Com
       setText((previous) => `${previous}${previous && !/\s$/.test(previous) ? ' ' : ''}${value}`);
       focus();
     }}
+    // 「+」菜单「建议」二级目录:预填任务模板(不自动发送)。
+    // 走 `emitComposerPrefill` 总线而非直接 setText —— 与原首页快捷模板
+    // 同一条路径,草稿持久化与聚焦行为保持一致。
+    onPrefill={(text) => { emitComposerPrefill(text); }}
     sendLocked={!sendOnEnter}
     onToggleSendLock={() => updateUiPrefs({ sendOnEnter: !sendOnEnter })}
     slots={slots}

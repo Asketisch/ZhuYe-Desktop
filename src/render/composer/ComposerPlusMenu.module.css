@@ -108,6 +108,25 @@
   color: var(--text-muted);
 }
 
+/* 「建议」二级目录里的分组标题（先读懂 / 再动手）。 */
+.suggestGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.suggestGroup + .suggestGroup {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.suggestGroupTitle {
+  padding: 0 10px 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
 .separator {
   height: 1px;
   margin: var(--space-1) 6px;

@@ -26,6 +26,7 @@ function renderMenu(props: Partial<React.ComponentProps<typeof ComposerPlusMenu>
     onInsertText: vi.fn(),
     onOpenSlash: vi.fn(),
     onMention: vi.fn(),
+    onPrefill: vi.fn(),
     ...props,
   };
   render(
@@ -98,6 +99,31 @@ describe('ComposerPlusMenu 基础动作', () => {
     fireEvent.click(screen.getByTestId('composer-plus-plan'));
     expect(handlers.onFillSlash).toHaveBeenCalledWith('plan');
     expect(handlers.onRunSlash).not.toHaveBeenCalled();
+  });
+
+  it('「建议」是二级子目录，按分组列出四个任务模板', () => {
+    renderMenu();
+    fireEvent.click(screen.getByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-suggestions'));
+    const list = screen.getByTestId('composer-plus-suggestions-list');
+    expect(list.textContent).toContain('探索并理解代码');
+    expect(list.textContent).toContain('构建新功能');
+    expect(list.textContent).toContain('审查代码改动');
+    expect(list.textContent).toContain('修复问题');
+    // 分组标题（先读懂 / 再动手）。
+    expect(list.textContent).toContain('先读懂');
+    expect(list.textContent).toContain('再动手');
+  });
+
+  it('点模板条目 → 预填对应 prompt 并关闭菜单（不自动发送）', () => {
+    const handlers = renderMenu();
+    fireEvent.click(screen.getByTestId('composer-plus'));
+    fireEvent.click(screen.getByTestId('composer-plus-suggestions'));
+    fireEvent.click(screen.getByTestId('composer-plus-suggestion-explore'));
+    const prefill = handlers.onPrefill as ReturnType<typeof vi.fn>;
+    expect(prefill).toHaveBeenCalledTimes(1);
+    expect(String(prefill.mock.calls[0][0])).toContain('探索这个代码库');
+    expect(screen.queryByTestId('composer-plus-menu')).toBeNull();
   });
 
   it('技能与插件是二级子菜单', async () => {

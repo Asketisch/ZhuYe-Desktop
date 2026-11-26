@@ -80,6 +80,8 @@ export interface ComposerViewProps {
   onFillSlash: (command: string) => void;
   /** 「+」菜单：把文本追加到输入框（如技能名）。 */
   onInsertText: (text: string) => void;
+  /** 「+」菜单「建议」二级目录：预填一段任务模板到输入框（不自动发送）。 */
+  onPrefill: (text: string) => void;
   /** 发送锁定（sendOnEnter=false）：Enter 换行、⌘/Ctrl+Enter 发送，防误触。 */
   sendLocked: boolean;
   onToggleSendLock: () => void;

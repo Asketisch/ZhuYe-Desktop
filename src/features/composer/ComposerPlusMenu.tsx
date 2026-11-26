@@ -17,6 +17,7 @@ import {
   Paperclip,
   Sparkles,
   Puzzle,
+  Lightbulb,
   Minimize2,
   Target,
   ListChecks,
@@ -32,6 +33,7 @@ import { useI18n } from '@/utils/i18n';
 import { zhuye_list_skills } from '@/utils/commands/skills';
 import { getPluginSlashCommands } from '@/logic/composer/slashCommands';
 import { usePluginCommands } from '@/logic/composer/usePluginCommands';
+import { groupQuickPrompts } from '@/logic/home/quickPrompts';
 import s from '@/render/composer/ComposerPlusMenu.module.css';
 
 export interface ComposerPlusMenuProps {
@@ -47,12 +49,14 @@ export interface ComposerPlusMenuProps {
   onOpenSlash: () => void;
   /** 原底栏 @ 按钮：末尾追加 `@` 并打开文件引用弹层。 */
   onMention: () => void;
+  /** 预填一段任务模板到输入框（不自动发送）。 */
+  onPrefill: (text: string) => void;
 }
 
 /** 二级子菜单的归属。 */
-type Submenu = 'skills' | 'plugins' | null;
+type Submenu = 'skills' | 'plugins' | 'suggestions' | null;
 
-export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInsertText, onOpenSlash, onMention }: ComposerPlusMenuProps) {
+export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInsertText, onOpenSlash, onMention, onPrefill }: ComposerPlusMenuProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [submenu, setSubmenu] = useState<Submenu>(null);
@@ -264,8 +268,54 @@ export function ComposerPlusMenu({ onAttachFile, onRunSlash, onFillSlash, onInse
             )}
           </div>
 
-          <div className={s.separator} role="separator" />
+          {/* ===== 建议（v1.13：四个通用任务模板的唯一入口）===== */}
+          <div className={s.group} data-testid="composer-plus-suggestions-group">
+            <button
+              type="button"
+              role="menuitem"
+              className={s.item}
+              onClick={(e) => toggleFlyout('suggestions', e.currentTarget)}
+              aria-expanded={submenu === 'suggestions'}
+              aria-haspopup="menu"
+              title={t('composer.plus.suggestionsHint')}
+              data-testid="composer-plus-suggestions"
+            >
+              <Icon icon={Lightbulb} size={15} />
+              <span className={s.itemLabel}>{t('composer.plus.suggestions')}</span>
+              <Icon icon={ChevronRight} size={13} className={s.itemChevron} />
+            </button>
+            {submenu === 'suggestions' && (
+              <div
+                className={s.submenu}
+                data-testid="composer-plus-suggestions-list"
+                style={flyoutPos ? { position: 'fixed', top: flyoutPos.top, left: flyoutPos.left } : undefined}
+              >
+                {groupQuickPrompts().map(({ group, prompts }) => (
+                  <div key={group.id} className={s.suggestGroup}>
+                    <span className={s.suggestGroupTitle}>{t(group.titleKey)}</span>
+                    {prompts.map((prompt) => (
+                      <button
+                        key={prompt.id}
+                        type="button"
+                        role="menuitem"
+                        className={s.item}
+                        title={t(prompt.promptKey)}
+                        onClick={() => {
+                          close();
+                          onPrefill(t(prompt.promptKey));
+                        }}
+                        data-testid={`composer-plus-suggestion-${prompt.id}`}
+                      >
+                        <span className={s.itemLabel}>{t(prompt.titleKey)}</span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
+          <div className={s.separator} role="separator" />
           <button
             type="button"
             role="menuitem"

@@ -16,7 +16,7 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
   onDrop, onDragOver, onPickFile, onPickImage, onSlashActiveChange, onSlashSelect,
   onOpenSlash, onAttachFile, onMention, onPickMention, onCloseMention,
   onRemoveAttachment, onRetryAttachment, onDismissBang, onKillBang, onSendModeChange, onInterrupt,
-  onSend, onRunSlash, onFillSlash, onInsertText, sendLocked, onToggleSendLock,
+  onSend, onRunSlash, onFillSlash, onInsertText, onPrefill, sendLocked, onToggleSendLock,
   slots }: ComposerViewProps) {
   const { SlashPopup, MentionPicker, AttachmentBar, BangRunsPanel, ContextUsage, ComposerTopBar, PermissionPicker, PromptPicker, EffortPicker, ComposerPlusMenu, ModelPicker, PlanApprovalBar } = slots;
   const SendIcon = isTurnRunning ? (sendMode === 'steer' ? CornerDownRight : ListPlus) : ArrowUp;
@@ -113,6 +113,7 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
                 onInsertText={onInsertText}
                 onOpenSlash={onOpenSlash}
                 onMention={onMention}
+                onPrefill={onPrefill}
               />
               <PermissionPicker />
               <PromptPicker />

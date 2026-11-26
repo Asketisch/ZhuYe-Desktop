@@ -2,20 +2,16 @@
  * ChatHero —— 首页工作台的英雄区（新对话空态，v3 harness 设计）。
  *
  * 欢迎态 = 「火中生羽」像素徽记（ZhuyeEmblem）+ 时段问候 + 工作区副标题。
- * 快捷模板 chips（QuickPromptRow）由 ChatView 渲染在 Composer 下方，
- * 点击经 emitComposerPrefill 预填（不自动发送）。
+ *
+ * v1.13:原挂在 Hero 下方的快捷模板 chips（QuickPromptRow）已移除 ——
+ * 四个通用任务模板统一收进「+」菜单的「建议」二级目录,避免同一批模板
+ * 散落在首页与会话内两处。
  */
 import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
 import { isPlaceholderWorkspace } from '@/logic/sessions/workspaceGroups';
-import { emitComposerPrefill } from '@/features/composer/useComposerDraft';
-import { Icon } from '@/features/design-system';
-import { Compass, Hammer, ScanSearch, Bug } from 'lucide-react';
-import { QUICK_PROMPTS, type QuickPrompt } from './quickPrompts';
 import { ZhuyeEmblem } from './ZhuyeEmblem';
 import s from '@/render/home/ChatHero.module.css';
-
-const icons = { explore: Compass, build: Hammer, review: ScanSearch, fix: Bug };
 
 type GreetingKey = 'chat.greeting.morning' | 'chat.greeting.afternoon' | 'chat.greeting.evening';
 
@@ -47,32 +43,5 @@ export function ChatHero() {
         </p>
       )}
     </div>
-  );
-}
-
-/** 快捷模板 chips —— 渲染在 Composer 下方，点击预填不发送。 */
-export function QuickPromptRow() {
-  const { t } = useI18n();
-  return (
-    <div className={s.quickRow} role="group" aria-label={t('chat.quick.title')}>
-      {QUICK_PROMPTS.map((prompt) => (
-        <QuickChip key={prompt.id} prompt={prompt} />
-      ))}
-    </div>
-  );
-}
-
-function QuickChip({ prompt }: { prompt: QuickPrompt }) {
-  const { t } = useI18n();
-  return (
-    <button
-      type="button"
-      className={s.quickChip}
-      onClick={() => emitComposerPrefill(t(prompt.promptKey))}
-      data-testid={`quick-prompt-${prompt.id}`}
-    >
-      <Icon icon={icons[prompt.id]} size={13} />
-      <span>{t(prompt.titleKey)}</span>
-    </button>
   );
 }

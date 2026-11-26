@@ -54,6 +54,9 @@ const composer: Record<string, StringEntry> = {
   'composer.plus.attach':                    { en: 'Add file or image',                             'zh-CN': '添加文件或图片' },
   'composer.plus.skills':                    { en: 'Skills',                                        'zh-CN': '技能' },
   'composer.plus.plugins':                   { en: 'Plugins',                                       'zh-CN': '插件' },
+  // 「建议」二级目录：四个通用任务模板（v1.13 起唯一入口）。
+  'composer.plus.suggestions':               { en: 'Suggestions',                                   'zh-CN': '建议' },
+  'composer.plus.suggestionsHint':           { en: 'Prefill a task template — review before sending', 'zh-CN': '预填任务模板 —— 发送前可自行修改' },
   'composer.plus.compact':                   { en: 'Compact',                                       'zh-CN': '压缩' },
   'composer.plus.goal':                      { en: 'Goal',                                          'zh-CN': '目标' },
   'composer.plus.plan':                      { en: 'Plan',                                          'zh-CN': '计划' },

@@ -3,7 +3,7 @@ import { ChatBinding } from '@/logic/chat/ChatBinding';
 import { ChatView as DefaultView } from '@/render/chat/ChatView';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
-import { ChatHero, QuickPromptRow } from '@/features/home/ChatHero';
+import { ChatHero } from '@/features/home/ChatHero';
 import { ContextBanner } from './ContextBanner';
 import { ScmChanges } from './ScmChanges';
 import { DiffViewer } from '@/features/git/DiffViewer';
@@ -16,7 +16,7 @@ import { BottomTabs } from '@/features/shell/session/BottomTabs';
 import { SubagentViewer } from './SubagentViewer';
 
 export { editRewindTargetFor } from '@/logic/chat/ChatBinding';
-const slots = { MessageList, Composer, ChatHero, QuickPromptRow, ContextBanner, ScmChanges,
+const slots = { MessageList, Composer, ChatHero, ContextBanner, ScmChanges,
   DiffViewer, WorkHead, ViewRing, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
   TrajView, BottomTabs, SubagentViewer };
 

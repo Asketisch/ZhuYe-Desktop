@@ -94,6 +94,9 @@ const chat: Record<string, StringEntry> = {
   'chat.contextCompactNow':        { en: 'Compact now',                                                       'zh-CN': '立即压缩' },
   'chat.hero.workspace':           { en: 'Workspace: {name}',                                                 'zh-CN': '当前工作区：{name}' },
   'chat.quick.title':              { en: 'Try one of these',                                                  'zh-CN': '试试这些' },
+  // 「+」菜单「建议」二级目录的分组标题（先读懂 → 再动手）。
+  'chat.quick.group.understand':   { en: 'Understand first',                                                 'zh-CN': '先读懂' },
+  'chat.quick.group.deliver':      { en: 'Then build',                                                      'zh-CN': '再动手' },
   'chat.quick.explore.title':      { en: 'Explore the code',                                                  'zh-CN': '探索并理解代码' },
   'chat.quick.explore.prompt':     { en: 'Explore this codebase: summarize its overall structure, key modules and how they connect.',        'zh-CN': '探索这个代码库：总结整体结构、关键模块以及它们之间的联系。' },
   'chat.quick.build.title':        { en: 'Build a feature',                                                   'zh-CN': '构建新功能' },

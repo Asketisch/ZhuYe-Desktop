@@ -11,7 +11,6 @@ export interface ChatSlots {
   MessageList: ComponentType<ComponentProps<typeof MessageList>>;
   Composer: ComponentType;
   ChatHero: ComponentType;
-  QuickPromptRow: ComponentType;
   ContextBanner: ComponentType;
   ScmChanges: ComponentType;
   TrajView: ComponentType;

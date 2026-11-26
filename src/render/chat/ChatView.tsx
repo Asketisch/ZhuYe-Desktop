@@ -10,7 +10,7 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
   goalActive, goalText, turnRunning, approval, question, askUser, onFork, onRetry, onExport,
   onCloseTerminal, onOpenSettings, onRewind,
   onEdit, onRegenerate, onContinue, slots }: ChatViewProps) {
-  const { WorkHead, ViewRing, MessageList, Composer, ChatHero, QuickPromptRow, ContextBanner,
+  const { WorkHead, ViewRing, MessageList, Composer, ChatHero, ContextBanner,
     ScmChanges, TrajView, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
     BottomTabs, DiffViewer } = slots;
   const takeover = approval ?? question ?? askUser;
@@ -86,7 +86,6 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
       {!loading && !error && question && <QuestionTakeover question={question} />}
       {!loading && !error && askUser && <AskUserTakeover askUser={askUser} />}
       {!loading && !error && !takeover && <Composer />}
-      {hero && <QuickPromptRow />}
       </div>
       {!loading && !error && (
         <StatusPanel goalActive={goalActive} goalText={goalText} turnRunning={turnRunning} />
