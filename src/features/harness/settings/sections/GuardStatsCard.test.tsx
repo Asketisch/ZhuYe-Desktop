@@ -6,7 +6,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { GuardStatsCard } from './GuardStatsCard';
 // 直接引用 IPC 包装函数 —— 命令面静态门禁要求每条已注册命令在测试源码中
 // 有引用(非仅字符串 mock)。
-import { zhuye_query_guard_stats } from '@/utils/commands/skills';
+import { zhuye_query_guard_stats } from '@/utils/commands/knowledge/skills';
 import { mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
 
 describe('GuardStatsCard', () => {

@@ -1,6 +1,6 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { ZhuyeAgentDef, ZhuyeMemoryScope } from '@/utils/commands';
-import type { SubagentSpecInfo } from '@/utils/commands/subagents';
+import type { SubagentSpecInfo } from '@/utils/commands/orchestration/subagents';
 
 export interface AgentEditorViewProps {
   t: I18nContextValue['t'];

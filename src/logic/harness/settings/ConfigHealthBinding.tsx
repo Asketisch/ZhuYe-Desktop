@@ -3,9 +3,9 @@ import { useState } from 'react';
 import type { ComponentType } from 'react';
 import type { ConfigHealthKey, ConfigHealthViewProps } from '@/contracts/harness/configHealth';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_get_config } from '@/utils/commands/config';
-import { ping } from '@/utils/commands/health';
-import { zhuye_config_info } from '@/utils/commands/runtimeStatus';
+import { zhuye_get_config } from '@/utils/commands/harness/config';
+import { ping } from '@/utils/commands/harness/health';
+import { zhuye_config_info } from '@/utils/commands/harness/runtimeStatus';
 
 /** 向配置诊断视图提供当前问题和探活动作。 */
 export function ConfigHealthBinding({ view: View }: { view: ComponentType<ConfigHealthViewProps> }) {

@@ -23,7 +23,7 @@ import {
   type ZhuyeActivityFilter,
   type ZhuyeActivityLevel,
   extractMentions,
-} from '@/utils/commands/activity';
+} from '@/utils/commands/telemetry/activity';
 
 export const ACTIVITY_QUERY_KEY = ['activity'] as const;
 export const ACTIVITY_MENTIONS_QUERY_KEY = ['activity', 'mentions'] as const;

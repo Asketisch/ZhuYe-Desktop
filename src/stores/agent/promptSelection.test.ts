@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const promptCommand = vi.fn(async () => 'sub-1');
-vi.mock('@/utils/commands/prompts', () => ({
+vi.mock('@/utils/commands/knowledge/prompts', () => ({
   zhuye_prompt_command: (...args: unknown[]) => promptCommand(...(args as [])),
 }));
 

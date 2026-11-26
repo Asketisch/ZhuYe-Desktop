@@ -16,12 +16,12 @@ import { Monitor, Plus } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/logic/harness/shell/useCurrentWorkspace';
-import { zhuye_git_status, zhuye_list_worktrees } from '@/utils/commands/git';
-import { zhuye_remote_sessions } from '@/utils/commands/remote';
+import { zhuye_git_status, zhuye_list_worktrees } from '@/utils/commands/workbench/git';
+import { zhuye_remote_sessions } from '@/utils/commands/connect/remote';
 import {
   zhuye_pick_workspace_folder,
   zhuye_set_workspace,
-} from '@/utils/commands/workspaces';
+} from '@/utils/commands/conversation/workspaces';
 import { useAgentStore } from '@/stores/agentStore';
 import { WorkspaceMenu, invalidateWorkspaceQueries } from './WorkspaceMenu';
 import { BranchMenu, StartRefPicker } from './BranchMenu';

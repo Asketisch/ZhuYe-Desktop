@@ -15,8 +15,8 @@ import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient } from '@/test/setup.tsx';
 import { ModelPicker } from './ModelPicker';
 
-vi.mock('@/utils/commands/config', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/commands/config')>('@/utils/commands/config');
+vi.mock('@/utils/commands/harness/config', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/commands/harness/config')>('@/utils/commands/harness/config');
   return {
     ...actual,
     zhuye_get_config: vi.fn(),
@@ -24,15 +24,15 @@ vi.mock('@/utils/commands/config', async () => {
     zhuye_set_model: vi.fn(),
   };
 });
-vi.mock('@/utils/commands/models', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/commands/models')>('@/utils/commands/models');
+vi.mock('@/utils/commands/knowledge/models', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/commands/knowledge/models')>('@/utils/commands/knowledge/models');
   return {
     ...actual,
     zhuye_list_provider_models: vi.fn(),
   };
 });
-vi.mock('@/utils/commands/permissions', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/commands/permissions')>('@/utils/commands/permissions');
+vi.mock('@/utils/commands/harness/permissions', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/commands/harness/permissions')>('@/utils/commands/harness/permissions');
   return {
     ...actual,
     zhuye_get_effort: vi.fn().mockResolvedValue('low'),
@@ -44,8 +44,8 @@ import {
   zhuye_get_config,
   zhuye_agent_status,
   zhuye_set_model,
-} from '@/utils/commands/config';
-import { zhuye_list_provider_models } from '@/utils/commands/models';
+} from '@/utils/commands/harness/config';
+import { zhuye_list_provider_models } from '@/utils/commands/knowledge/models';
 
 const GROUP_TOML = `[active]
 group = "demo"

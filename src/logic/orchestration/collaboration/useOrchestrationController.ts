@@ -17,13 +17,13 @@ import {
   zhuye_cancel_discussions,
   type DiscussionRunOutcome,
   type DiscussionSessionInfo,
-} from '@/utils/commands/discussion';
+} from '@/utils/commands/conversation/discussion';
 import {
   zhuye_run_team_pipeline,
   type PipelineReport,
-} from '@/utils/commands/pipeline';
-import { zhuye_list_teams } from '@/utils/commands/teams';
-import { zhuye_pick_file } from '@/utils/commands/workspaces';
+} from '@/utils/commands/orchestration/pipeline';
+import { zhuye_list_teams } from '@/utils/commands/orchestration/teams';
+import { zhuye_pick_file } from '@/utils/commands/conversation/workspaces';
 
 export interface OrchestrationController {
   // —— 历史讨论 ——

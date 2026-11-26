@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Terminal as TerminalIcon, Globe, Eye, Plus, FileText } from 'lucide-react';
-import { zhuye_read_file } from '@/utils/commands/files';
+import { zhuye_read_file } from '@/utils/commands/workbench/files';
 import { useI18n } from '@/utils/i18n';
 import { InteractiveTerminal } from '@/features/workbench/terminal/InteractiveTerminal';
 import s from '@/render/harness/shell/session/session.module.css';

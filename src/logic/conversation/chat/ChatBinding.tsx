@@ -10,7 +10,7 @@ import { syncPreferredPermissionMode } from '@/stores/agent/permissionPreference
 import { syncEffortPreference } from '@/stores/agent/effortPreference';
 import { userItemsFromTurn } from '@/stores/agent/turns';
 import { zhuye_replay_session, zhuye_git_diff } from '@/utils/commands';
-import { zhuye_bind_session, zhuye_fork_session, zhuye_export_session_markdown } from '@/utils/commands/sessions';
+import { zhuye_bind_session, zhuye_fork_session, zhuye_export_session_markdown } from '@/utils/commands/conversation/sessions';
 import type { PendingGateSnapshot } from '@/types/protocol';
 import { useCurrentWorkspace } from '@/logic/harness/shell/useCurrentWorkspace';
 import { useActiveSession, useSessions } from '@/logic/conversation/sessions/useSessions';

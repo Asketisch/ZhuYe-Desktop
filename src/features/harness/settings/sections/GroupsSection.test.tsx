@@ -18,7 +18,7 @@ import { render, screen, fireEvent, within, waitFor } from '@testing-library/rea
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { zhuye_list_provider_models } from '@/utils/commands';
-import { zhuye_credential_pool_status } from '@/utils/commands/runtimeStatus';
+import { zhuye_credential_pool_status } from '@/utils/commands/harness/runtimeStatus';
 import { AUTO_FAILOVER_PREF_KEY } from '@/stores/agent/planFailover';
 import { GroupsSection } from './GroupsSection';
 import { clearModelCatalogCache } from '@/logic/harness/settings/config/modelCatalog';
@@ -33,9 +33,9 @@ vi.mock('@/utils/commands', async () => {
     zhuye_list_provider_models: vi.fn(),
   };
 });
-vi.mock('@/utils/commands/runtimeStatus', async () => {
-  const actual = await vi.importActual<typeof import('@/utils/commands/runtimeStatus')>(
-    '@/utils/commands/runtimeStatus',
+vi.mock('@/utils/commands/harness/runtimeStatus', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/commands/harness/runtimeStatus')>(
+    '@/utils/commands/harness/runtimeStatus',
   );
   return {
     ...actual,

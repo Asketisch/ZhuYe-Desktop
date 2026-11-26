@@ -17,7 +17,7 @@ import { useI18n } from '@/utils/i18n';
 import {
   zhuye_list_note_sessions,
   zhuye_list_session_notes,
-} from '@/utils/commands/notes';
+} from '@/utils/commands/conversation/notes';
 import s from '@/render/knowledge/memory/MemoryView.module.css';
 
 export function SessionNotes() {

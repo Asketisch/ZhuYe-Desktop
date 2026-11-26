@@ -16,7 +16,7 @@ import {
   zhuye_install_skill_from_market,
   zhuye_refresh_skill_market_index,
 } from '@/utils/commands';
-import type { SkillMarketEntry } from '@/utils/commands/skills';
+import type { SkillMarketEntry } from '@/utils/commands/knowledge/skills';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import type { SkillsViewProps, ToolGroupView } from '@/contracts/knowledge/skills';

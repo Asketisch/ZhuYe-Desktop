@@ -11,7 +11,7 @@
  * - 原生拖拽(useComposerDragDrop)负责 Tauri WKWebView 下 Finder 拖入。
  */
 import { useCallback, useRef, type ClipboardEvent, type DragEvent, type RefObject } from 'react';
-import { zhuye_pick_files } from '@/utils/commands/workspaces';
+import { zhuye_pick_files } from '@/utils/commands/conversation/workspaces';
 import type { ImageProvenance } from '@/stores/agent/imageProvenance';
 import { useAttachments } from '@/logic/input/composer/useAttachments';
 import { useFileIngest } from '@/logic/input/composer/useFileIngest';

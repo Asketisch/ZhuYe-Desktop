@@ -14,7 +14,7 @@ import type {
 } from './pendingTypes';
 
 export type { PendingApproval, PendingAskUser, PendingPlan, PendingQuestion };
-import type { GoalSnapshotPayload } from '@/utils/commands/goal';
+import type { GoalSnapshotPayload } from '@/utils/commands/orchestration/goal';
 import type { PlanApprovalChoice, ZhuyeRolloutRecord, ReviewDecision } from '@/utils/types';
 import type { TokenSnapshot } from './tokenTypes';
 
@@ -285,7 +285,7 @@ import type { GuardStatsState } from './guardStats';
 export type { GuardStatsState };
 
 export interface PromptState {
-  selection?: import('@/utils/commands/prompts').PromptSelection;
+  selection?: import('@/utils/commands/knowledge/prompts').PromptSelection;
   profile?: string;
   fallbackReason?: string;
   /** 可绑定的层文件名(不含 `.md`;内置厂商层 + 工具变体 + 用户目录层,去重)。 */
@@ -295,7 +295,7 @@ export interface PromptState {
   /** 当前 spec 实际命中的用户层文件名(诊断用,内嵌层不记录)。 */
   activeLayers: string[];
   /** v1.7:两级菜单工具分组(工具 → 模型变体);旧引擎不发,缺省 undefined。 */
-  groups?: import('@/utils/commands/prompts').PromptGroup[];
+  groups?: import('@/utils/commands/knowledge/prompts').PromptGroup[];
   /** 最近一次提示词库重扫时间(ms);null = 尚未重扫过。 */
   switchedAt: number | null;
 }

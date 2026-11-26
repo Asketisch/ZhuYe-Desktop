@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Bot, CheckCircle } from 'lucide-react';
 import { Badge, Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_recovery_state } from '@/utils/commands/runtimeStatus';
+import { zhuye_recovery_state } from '@/utils/commands/harness/runtimeStatus';
 import s from '@/render/harness/shell/Inspector.module.css';
 
 /** 已完成的子代理调用(核心 registry 快照)。 */

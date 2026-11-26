@@ -11,7 +11,7 @@
  */
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { zhuye_list_plugin_commands } from '@/utils/commands/plugins';
+import { zhuye_list_plugin_commands } from '@/utils/commands/orchestration/plugins';
 import { setPluginSlashCommands } from '@/logic/input/composer/slashCommands';
 
 export const PLUGIN_COMMANDS_QUERY_KEY = ['plugin-commands'] as const;

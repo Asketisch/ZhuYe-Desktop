@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { zhuye_git_diff, zhuye_git_status } from '@/utils/commands/git';
+import { zhuye_git_diff, zhuye_git_status } from '@/utils/commands/workbench/git';
 
 export interface GitSummary {
   files: number;

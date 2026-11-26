@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { mockInvoke } from '@/test/setup';
-import { zhuye_bind_session } from '@/utils/commands/sessions';
-import { zhuye_set_workspace } from '@/utils/commands/workspaces';
+import { zhuye_bind_session } from '@/utils/commands/conversation/sessions';
+import { zhuye_set_workspace } from '@/utils/commands/conversation/workspaces';
 
 it('serializes backend binds and continues after a failure', async () => {
   const calls: string[] = [];

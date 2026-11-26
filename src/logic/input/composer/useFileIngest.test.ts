@@ -20,7 +20,7 @@ function makeFile(name: string, content = 'hello'): File {
 // FileReader 在 happy-dom 可用;invoke 走 fakeBackend(见 tests/helpers)。
 // 这里直接 mock '@/../utils/commands/files' 模块,聚焦状态机本身。
 const uploadMock = vi.hoisted(() => vi.fn());
-vi.mock('@/utils/commands/files', () => ({
+vi.mock('@/utils/commands/workbench/files', () => ({
   zhuye_ingest_upload: (...args: unknown[]) => uploadMock(...(args as [string, string])),
 }));
 

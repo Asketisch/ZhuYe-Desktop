@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
-import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/permissions';
+import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/harness/permissions';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { syncEffortPreference, writeEffortPreference } from '@/stores/agent/effortPreference';

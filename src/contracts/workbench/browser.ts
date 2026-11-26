@@ -1,5 +1,5 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ZhuyeBrowserStatus } from '@/utils/commands/browser';
+import type { ZhuyeBrowserStatus } from '@/utils/commands/workbench/browser';
 
 /** 浏览器面板视图 props(渲染层可整体替换)。 */
 export interface BrowserPanelProps {

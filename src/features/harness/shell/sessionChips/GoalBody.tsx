@@ -16,7 +16,7 @@ import { useI18n } from '@/utils/i18n';
 import {
   zhuye_exit_goal_mode,
   type GoalSnapshotPayload,
-} from '@/utils/commands/goal';
+} from '@/utils/commands/orchestration/goal';
 import { emitComposerPrefill } from '@/logic/input/composer/useComposerDraft';
 import s from '@/render/harness/shell/SessionChips.module.css';
 

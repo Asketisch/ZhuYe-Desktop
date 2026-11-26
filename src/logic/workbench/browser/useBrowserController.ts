@@ -11,7 +11,7 @@ import {
   zhuye_browser_stop,
   listen_browser_frame,
   type ZhuyeBrowserStatus,
-} from '@/utils/commands/browser';
+} from '@/utils/commands/workbench/browser';
 
 export interface BrowserViewState {
   /** 面板状态(null = 尚未查询)。 */

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_query_guard_stats } from '@/utils/commands/skills';
+import { zhuye_query_guard_stats } from '@/utils/commands/knowledge/skills';
 import type { GuardStatsCardProps } from '@/contracts/settings/settingsCards';
 export function GuardStatsBinding({ view: View }: { view: ComponentType<GuardStatsCardProps> }) {
   const { t } = useI18n(); const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [queried, setQueried] = useState(false);

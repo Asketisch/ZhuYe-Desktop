@@ -22,7 +22,7 @@ import {
   zhuye_session_stats,
   type RateCard,
   type SessionStats,
-} from '@/utils/commands/stats';
+} from '@/utils/commands/telemetry/stats';
 import type { ZhuyeSessionInfo } from '@/utils/types';
 
 /** 跨会话成本对比最多展示的会话条数。 */

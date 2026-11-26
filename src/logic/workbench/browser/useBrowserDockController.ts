@@ -27,7 +27,7 @@ import {
   zhuye_browser_stop,
   type ZhuyeBrowserStatus,
   type ZhuyeBrowserInputEvent,
-} from '@/utils/commands/browser';
+} from '@/utils/commands/workbench/browser';
 
 /** 设备档位标识(渲染层只收字符串,不反依赖逻辑层)。 */
 export type BrowserDevicePreset = 'desktop' | 'tablet' | 'phone';

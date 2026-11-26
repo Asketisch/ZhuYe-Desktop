@@ -14,7 +14,7 @@
 import { useEffect, useRef } from 'react';
 import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { useAgentStore } from '@/stores/agentStore';
-import { zhuye_set_dock_badge } from '@/utils/commands/notifications';
+import { zhuye_set_dock_badge } from '@/utils/commands/telemetry/notifications';
 
 export interface AgentNotifyOptions {
   /** 是否启用声音(默认 true 直到用户在 Settings 里关闭)。 */

@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_list_skills } from '@/utils/commands/skills';
+import { zhuye_list_skills } from '@/utils/commands/knowledge/skills';
 import { getPluginSlashCommands } from '@/logic/input/composer/slashCommands';
 import { usePluginCommands } from '@/logic/input/composer/usePluginCommands';
 import { groupQuickPrompts } from '@/logic/conversation/home/quickPrompts';

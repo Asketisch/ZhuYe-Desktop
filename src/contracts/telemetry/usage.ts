@@ -1,6 +1,6 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ModelUsage, RateCard, SessionStats } from '@/utils/commands/stats';
-export type { ModelUsage } from '@/utils/commands/stats';
+import type { ModelUsage, RateCard, SessionStats } from '@/utils/commands/telemetry/stats';
+export type { ModelUsage } from '@/utils/commands/telemetry/stats';
 import type { LiveModelUsage } from '@/stores/agent/types';
 
 export interface UsageViewProps {

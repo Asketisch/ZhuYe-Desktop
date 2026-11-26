@@ -8,7 +8,7 @@ import {
   trackClick,
   type ClickState,
 } from '@/logic/workbench/browser/browserInput';
-import { browserModifiersFrom } from '@/utils/commands/browser';
+import { browserModifiersFrom } from '@/utils/commands/workbench/browser';
 
 const RECT = { left: 100, top: 50, width: 400, height: 200 };
 

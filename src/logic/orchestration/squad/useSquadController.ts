@@ -20,9 +20,9 @@ import {
   zhuye_assign_squad_task,
   type ZhuyeSquadSpec,
   type ZhuyeSquadMember,
-} from '@/utils/commands/squad';
-import { zhuye_list_tasks, type ZhuyeTask } from '@/utils/commands/tasks';
-import type { ZhuyeActor } from '@/utils/commands/activity';
+} from '@/utils/commands/orchestration/squad';
+import { zhuye_list_tasks, type ZhuyeTask } from '@/utils/commands/orchestration/tasks';
+import type { ZhuyeActor } from '@/utils/commands/telemetry/activity';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 

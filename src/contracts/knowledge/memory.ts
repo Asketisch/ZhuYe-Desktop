@@ -1,7 +1,7 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ZhuyeMemoryEntry } from '@/utils/commands/memory';
-export type { ZhuyeMemoryEntry } from '@/utils/commands/memory';
-import type { MemorySectionInfo } from '@/utils/commands/runtimeStatus';
+import type { ZhuyeMemoryEntry } from '@/utils/commands/knowledge/memory';
+export type { ZhuyeMemoryEntry } from '@/utils/commands/knowledge/memory';
+import type { MemorySectionInfo } from '@/utils/commands/harness/runtimeStatus';
 
 export type MemoryCounts = Record<string, number>;
 export interface MemorySectionView extends MemorySectionInfo {}

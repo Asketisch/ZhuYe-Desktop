@@ -22,7 +22,7 @@ import { useI18n } from '@/utils/i18n';
 import {
   zhuye_list_permission_rules,
   type PermissionRuleInfo,
-} from '@/utils/commands/permissions';
+} from '@/utils/commands/harness/permissions';
 import s from '@/render/harness/settings/sections/PermissionRulesSection.module.css';
 
 const SCOPE_LABEL: Record<PermissionRuleInfo['scope'], string> = {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { zhuye_delete_subagent_spec, zhuye_get_subagent_spec, zhuye_list_subagent_specs, zhuye_save_subagent_spec } from '@/utils/commands/subagents';
+import { zhuye_delete_subagent_spec, zhuye_get_subagent_spec, zhuye_list_subagent_specs, zhuye_save_subagent_spec } from '@/utils/commands/orchestration/subagents';
 export function useSubagentSpecs() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<{ role: string; markdown: string } | null>(null);

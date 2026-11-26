@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity } from 'lucide-react';
 import { Badge, Card, EmptyState, Icon, Select } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_list_span_logs, zhuye_read_span_log } from '@/utils/commands/traces';
+import { zhuye_list_span_logs, zhuye_read_span_log } from '@/utils/commands/telemetry/traces';
 import s from '@/render/telemetry/traces/TracesView.module.css';
 
 export function SpansPanel() {

@@ -12,7 +12,7 @@
  * 图片不走这里(多模态内容,保持 base64 内联,见 Composer.onPickImage)。
  */
 import { useCallback } from 'react';
-import { zhuye_ingest_upload } from '@/utils/commands/files';
+import { zhuye_ingest_upload } from '@/utils/commands/workbench/files';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import type { UseAttachmentsResult } from '@/logic/input/composer/useAttachments';

@@ -14,7 +14,7 @@ import { useCallback, useRef } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useBrowserDockController } from '@/logic/workbench/browser/useBrowserDockController';
 import { normalizedPoint, printableText, trackClick, type ClickState } from '@/logic/workbench/browser/browserInput';
-import { browserModifiersFrom } from '@/utils/commands/browser';
+import { browserModifiersFrom } from '@/utils/commands/workbench/browser';
 import { BrowserDockView } from '@/render/workbench/browser/BrowserDockView';
 
 export function BrowserDock() {

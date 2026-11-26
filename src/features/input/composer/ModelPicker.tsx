@@ -15,7 +15,7 @@
  */
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { zhuye_agent_status, zhuye_get_config, zhuye_set_model } from '@/utils/commands/config';
+import { zhuye_agent_status, zhuye_get_config, zhuye_set_model } from '@/utils/commands/harness/config';
 import { syncEffortPreference } from '@/stores/agent/effortPreference';
 import { useQueryClient } from '@tanstack/react-query';
 import {

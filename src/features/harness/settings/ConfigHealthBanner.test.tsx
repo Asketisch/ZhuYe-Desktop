@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ConfigHealthBanner } from './ConfigHealthBanner';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
-import type { ConfigHealthIssue } from '@/utils/commands/runtimeStatus';
+import type { ConfigHealthIssue } from '@/utils/commands/harness/runtimeStatus';
 
 function wrap(node: React.ReactNode) {
   return <QueryClientProvider client={createTestQueryClient()}>{node}</QueryClientProvider>;

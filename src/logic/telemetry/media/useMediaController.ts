@@ -21,7 +21,7 @@ import {
   type ZhuyeComputerUseAction,
   type ZhuyeMediaAsset,
   type ZhuyeMediaCapabilities,
-} from '@/utils/commands/media';
+} from '@/utils/commands/telemetry/media';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 

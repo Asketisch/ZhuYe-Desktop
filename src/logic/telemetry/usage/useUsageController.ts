@@ -15,7 +15,7 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
-import { zhuye_list_sessions } from '@/utils/commands/sessions';
+import { zhuye_list_sessions } from '@/utils/commands/conversation/sessions';
 import type { LiveModelUsage } from '@/stores/agent/types';
 import {
   zhuye_all_model_usage,
@@ -24,7 +24,7 @@ import {
   type ModelUsage,
   type RateCard,
   type SessionStats,
-} from '@/utils/commands/stats';
+} from '@/utils/commands/telemetry/stats';
 
 export interface UsageController {
   /** 当前绑定的会话 id(null = 尚未绑定任何会话)。 */

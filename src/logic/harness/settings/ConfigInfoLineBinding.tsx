@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { zhuye_config_info } from '@/utils/commands/runtimeStatus';
+import { zhuye_config_info } from '@/utils/commands/harness/runtimeStatus';
 import { useI18n } from '@/utils/i18n';
 import type { SettingsConfigInfoLineProps } from '@/contracts/settings/settingsConfigInfoLine';
 export function ConfigInfoLineBinding({ view: View }: { view: ComponentType<SettingsConfigInfoLineProps> }) {

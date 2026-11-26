@@ -9,7 +9,7 @@
  * 档位(用户可以先选),引擎在服务端拒绝时自动降级。
  */
 import { useQuery } from '@tanstack/react-query';
-import { zhuye_effort_capability, type ZhuyeEffortCapability } from '@/utils/commands/permissions';
+import { zhuye_effort_capability, type ZhuyeEffortCapability } from '@/utils/commands/harness/permissions';
 import { useAgentStore } from '@/stores/agentStore';
 
 /**

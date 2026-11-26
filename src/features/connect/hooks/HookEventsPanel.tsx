@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Card, Spinner } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_list_hook_events } from '@/utils/commands/hooks';
+import { zhuye_list_hook_events } from '@/utils/commands/connect/hooks';
 import s from '@/render/connect/hooks/HooksView.module.css';
 
 export function HookEventsPanel() {

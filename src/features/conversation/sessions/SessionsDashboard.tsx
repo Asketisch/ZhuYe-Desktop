@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard } from 'lucide-react';
 import { Badge, Card, Icon } from '@/features/harness/design-system';
-import { zhuye_list_sessions } from '@/utils/commands/sessions';
+import { zhuye_list_sessions } from '@/utils/commands/conversation/sessions';
 import s from '@/render/conversation/sessions/SessionsDashboard.module.css';
 
 /** 最近 N 天活跃分布的天数窗口。 */

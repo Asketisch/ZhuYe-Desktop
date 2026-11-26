@@ -211,11 +211,11 @@ export interface PromptListPayload {
   current_spec: string;
   /** 当前 spec 实际命中的用户层文件名(诊断用,内嵌层不记录)。 */
   active_layers: string[];
-  selection?: import('@/utils/commands/prompts').PromptSelection;
+  selection?: import('@/utils/commands/knowledge/prompts').PromptSelection;
   profile?: string;
   fallback_reason?: string;
   /** v1.7:两级菜单工具分组(工具 → 模型变体);旧引擎不发,缺省 undefined。 */
-  groups?: import('@/utils/commands/prompts').PromptGroup[];
+  groups?: import('@/utils/commands/knowledge/prompts').PromptGroup[];
 }
 
 /**
@@ -227,7 +227,7 @@ export interface PromptSwitchedPayload {
   action: string;
   /** 重扫后当前 spec 的生效用户层(让 UI 立即看到新命中)。 */
   active_layers: string[];
-  selection?: import('@/utils/commands/prompts').PromptSelection;
+  selection?: import('@/utils/commands/knowledge/prompts').PromptSelection;
   profile?: string;
   fallback_reason?: string;
 }

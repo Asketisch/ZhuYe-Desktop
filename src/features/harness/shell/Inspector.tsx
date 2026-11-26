@@ -18,8 +18,8 @@ import { useAgentStore } from '@/stores/agentStore';
 import type { SubagentProgressEntry } from '@/stores/agentStore';
 import { GitCommitHorizontal } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_list_dir, type ZhuyeDirEntry } from '@/utils/commands/files';
-import { zhuye_git_diff } from '@/utils/commands/git';
+import { zhuye_list_dir, type ZhuyeDirEntry } from '@/utils/commands/workbench/files';
+import { zhuye_git_diff } from '@/utils/commands/workbench/git';
 import { FileTree } from '@/features/workbench/files/FileTree';
 import { DiffViewer } from '@/features/workbench/git/DiffViewer';
 import { useContextRatio } from '@/logic/harness/shell/useContextRatio';
@@ -575,12 +575,12 @@ export function ChangesTab() {
 
 function GitTab() {
   const { t } = useI18n();
-  type ZhuyeGitStatusT = import('@/utils/commands/git').ZhuyeGitStatus;
+  type ZhuyeGitStatusT = import('@/utils/commands/workbench/git').ZhuyeGitStatus;
   const [status, setStatus] = useState<ZhuyeGitStatusT | null>(null);
-  const [log, setLog] = useState<import('@/utils/commands/git').ZhuyeGitLogEntry[]>([]);
+  const [log, setLog] = useState<import('@/utils/commands/workbench/git').ZhuyeGitLogEntry[]>([]);
   useEffect(() => {
     let alive = true;
-    void import('@/utils/commands/git').then((m) => {
+    void import('@/utils/commands/workbench/git').then((m) => {
       void m.zhuye_git_status().then((r) => { if (alive) setStatus(r); }).catch(() => undefined);
       void m.zhuye_git_log(8).then((r) => { if (alive) setLog(r); }).catch(() => undefined);
     });

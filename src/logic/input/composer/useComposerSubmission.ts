@@ -13,9 +13,9 @@ import {
 import { useEnsureSession } from '@/logic/conversation/sessions/useEnsureSession';
 import { confirmDialog } from '@/logic/harness/modals/confirm';
 import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/harness/shell/useCurrentWorkspace';
-import { zhuye_lookup_model_abilities } from '@/utils/commands/models';
-import { zhuye_create_worktree } from '@/utils/commands/git';
-import { zhuye_set_workspace } from '@/utils/commands/workspaces';
+import { zhuye_lookup_model_abilities } from '@/utils/commands/knowledge/models';
+import { zhuye_create_worktree } from '@/utils/commands/workbench/git';
+import { zhuye_set_workspace } from '@/utils/commands/conversation/workspaces';
 import { useI18n } from '@/utils/i18n';
 import {
   useAgentStore,

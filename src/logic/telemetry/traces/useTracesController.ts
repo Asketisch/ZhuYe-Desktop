@@ -12,7 +12,7 @@ import {
   zhuye_list_traces,
   type TraceCall,
   type TraceSessionSummary,
-} from '@/utils/commands/traces';
+} from '@/utils/commands/telemetry/traces';
 
 export interface TracesController {
   /** session 摘要列表(可能为空:尚无 LLM 调用记录)。 */

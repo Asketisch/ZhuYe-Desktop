@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, GitBranch } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_git_branches, zhuye_git_stage, zhuye_git_commit, zhuye_git_checkout, type ZhuyeBranchInfo } from '@/utils/commands/git';
+import { zhuye_git_branches, zhuye_git_stage, zhuye_git_commit, zhuye_git_checkout, type ZhuyeBranchInfo } from '@/utils/commands/workbench/git';
 import { confirmDialog } from '@/logic/harness/modals/confirm';
 import { useAgentStore } from '@/stores/agentStore';
 import s from '@/render/input/composer/ComposerTopBar.module.css';

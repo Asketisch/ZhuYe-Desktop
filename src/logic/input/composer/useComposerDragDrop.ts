@@ -13,7 +13,7 @@
  *   的 /read 按需读取）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { zhuye_read_image_base64 } from '@/utils/commands/files';
+import { zhuye_read_image_base64 } from '@/utils/commands/workbench/files';
 import { onWebviewDragDrop } from '@/utils/dragDrop';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';

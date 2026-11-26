@@ -13,7 +13,7 @@ import {
   zhuye_set_effort,
   zhuye_set_model,
 } from '@/utils/commands';
-import { zhuye_get_effort } from '@/utils/commands/permissions';
+import { zhuye_get_effort } from '@/utils/commands/harness/permissions';
 import { ALL_EFFORTS, useEffortCapability, type Effort } from '@/logic/input/composer/useEffortCapability';
 import { useModelAbilities } from '@/logic/knowledge/models/useModelAbilities';
 import {

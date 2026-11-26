@@ -23,8 +23,8 @@ import {
   zhuye_create_worktree,
   zhuye_list_worktrees,
   zhuye_remove_worktree,
-} from '@/utils/commands/git';
-import { zhuye_set_workspace } from '@/utils/commands/workspaces';
+} from '@/utils/commands/workbench/git';
+import { zhuye_set_workspace } from '@/utils/commands/conversation/workspaces';
 import s from '@/render/workbench/git/GitView.module.css';
 
 export function WorktreePanel() {

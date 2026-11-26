@@ -19,7 +19,7 @@ import {
   type ZhuyeMemoryEntry,
   type MemoryContext,
 } from '@/utils/commands';
-import { zhuye_get_active_agent } from '@/utils/commands/agents';
+import { zhuye_get_active_agent } from '@/utils/commands/orchestration/agents';
 import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/harness/shell/useCurrentWorkspace';
 import { useAgentStore } from '@/stores/agentStore';
 import type { LocaleKey } from '@/utils/i18n';

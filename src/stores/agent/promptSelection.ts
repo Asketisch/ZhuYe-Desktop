@@ -16,7 +16,7 @@
  * 镜像会回落到全局默认,既导致每次切会话都误弹「提示词已刷新」,
  * 又因初始为 null 而漏下发 Select,让上个会话的提示词串到下个会话。
  */
-import { zhuye_prompt_command, type PromptSelection } from '@/utils/commands/prompts';
+import { zhuye_prompt_command, type PromptSelection } from '@/utils/commands/knowledge/prompts';
 import { useAgentStore } from './store';
 
 const KEY = 'zhuye.promptSelection.';

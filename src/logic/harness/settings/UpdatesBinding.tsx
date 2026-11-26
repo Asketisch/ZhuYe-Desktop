@@ -8,7 +8,7 @@ import {
   listen_update_progress,
   type ZhuyeUpdateInfo,
   type ZhuyeUpdateProgress,
-} from '@/utils/commands/updates';
+} from '@/utils/commands/harness/updates';
 import type { UpdateInstallState, UpdatesSectionProps } from '@/contracts/settings/settingsCards';
 export function UpdatesBinding({ view: View }: { view: ComponentType<UpdatesSectionProps> }) {
   const { t } = useI18n();

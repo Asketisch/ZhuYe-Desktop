@@ -7,7 +7,7 @@
  * 渲染每次都打一遍 IPC。
  */
 import { useQuery } from '@tanstack/react-query';
-import { zhuye_lookup_model_abilities } from '@/utils/commands/models';
+import { zhuye_lookup_model_abilities } from '@/utils/commands/knowledge/models';
 
 /** 能力查询的缓存键前缀（model spec 作后缀）。 */
 export const MODEL_ABILITIES_QUERY_KEY = ['model-abilities'] as const;

@@ -1,5 +1,5 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { SkillMarketEntry } from '@/utils/commands/skills';
+import type { SkillMarketEntry } from '@/utils/commands/knowledge/skills';
 
 export interface SkillRowView {
   name: string;

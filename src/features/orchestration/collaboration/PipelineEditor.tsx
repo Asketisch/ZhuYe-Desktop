@@ -18,7 +18,7 @@ import {
   zhuye_list_pipeline_configs,
   zhuye_save_pipeline_config,
   zhuye_validate_pipeline,
-} from '@/utils/commands/pipeline';
+} from '@/utils/commands/orchestration/pipeline';
 import s from '@/render/orchestration/collaboration/CollaborationView.module.css';
 
 /** 新建时的模板 —— 一个最小的两节点 DAG。 */

@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { zhuye_get_effective_prompt, zhuye_prompt_command } from '@/utils/commands/prompts';
-import type { PromptSelection } from '@/utils/commands/prompts';
+import { zhuye_get_effective_prompt, zhuye_prompt_command } from '@/utils/commands/knowledge/prompts';
+import type { PromptSelection } from '@/utils/commands/knowledge/prompts';
 import { ModalShell } from './ModalShell';
 import s from '@/render/harness/modals/PromptLayersModal.module.css';
 
