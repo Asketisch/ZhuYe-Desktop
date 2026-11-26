@@ -65,29 +65,11 @@ cd src-tauri && cargo check   # Rust 类型检查
 # 发布门禁（分层，见下方「验证矩阵」）
 bash tests/run_all.sh         # 静态 + 前端 + 真后端 + 产物
 
-# 发布构建
-pnpm tauri build              # 全平台构建
-pnpm tauri build --bundles app  # 仅 macOS .app
-bash scripts/install.sh       # → /usr/local/bin/zhuye-desktop + ~/Applications/ZhuYe.app
-
-# 图标再生成（应用图标源恒为仓库根 logo.png、托盘源恒为 tray.png，与调用目录无关；产物 = src-tauri/icons/ + favicon + 侧栏品牌位 brand-mark.png）
-pnpm icons                    # 等价于 bash scripts/gen-icons.sh
-pnpm icons:check              # 只校验：齐全 / 尺寸 / 托盘透明底 / 品牌位存在 / 是否比源图旧
-
-# submodule 升级（当烛夜发布新版本时，详见 SUBMODULE.md）
-git submodule update --remote zhuye-agent
-git diff --submodule zhuye-agent
-git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
-
 # 定向测试（迭代时用定向测试，而不是全量）
 pnpm test -- src/features/harness/settings/SettingsView.test.tsx
-
-# 磁盘治理（cargo 不自动 GC incremental / 覆盖率重建树，契约见 scripts/AGENTS.md）
-bash scripts/gc.sh            # 清 target/**/incremental + llvm-cov-target + examples，保留 .rlib（不全量重编）
-bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷构建，仅磁盘告急时用）
 ```
 
-脚本契约（打包前图标检查、磁盘治理 gc、版本四处同步等）见 [scripts/AGENTS.md](scripts/AGENTS.md)。
+发布构建 / 图标再生成 / submodule 升级 / 磁盘治理等场景命令见 [docs/architecture.md](docs/architecture.md) §7；脚本契约见 [scripts/AGENTS.md](scripts/AGENTS.md)。
 
 > 历史：本仓库曾用 `vendor/` + `scripts/vendor-sync.sh`（rsync 手动同步）复用核心 crate，已迁移为 git submodule。旧的 vendor 运行手册不再适用。
 
@@ -122,32 +104,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 5. 保持前端 IPC 协议与后端命令表一致（`src/utils/commands/` ↔ `src-tauri/src/commands/mod.rs`）。
 6. 数据目录以 submodule 为准（用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`）。路径只经 `zhuye_config::paths` 取，不在功能代码里自拼目录名；与 sessions 树必须同级的目录（归档）从 `zhuye_rollout::path::default_base()` 派生。
 
-**协议不变量**：
-
-- 线格式为 `zhuye_protocol::Event` / `Submission`（snake_case JSON）
-- 所有 `Op` 变体 → Tauri 命令（见 `docs/protocol-bridge.md` §2）
-- 所有 `EventMsg` 变体 → 单一 `zhuye_event` 通道，前端通过 `msg.type` 分发
-- Submission id ↔ Event id 配对用于流关联
-- `EVENT_ID_NONE = ""` 用于生命周期事件（无匹配提交）
-
-**AgentThread 宿主状态不变量**：
-
-- `MinimalAgent` 是封装器，持有 `Arc<AgentThread>` + `tokio::sync::broadcast` 用于会话事件广播
-- `install_agent_thread()` 在 Tauri `setup()` 中调用（运行时初始化后），不要在 `manage()` 中调用（同步阶段）
-- 慢订阅者触发 `RecvError::Lagged(n)` — 记录日志但任务继续运行
-- macOS 关闭按钮 → 隐藏到托盘（不退出），通过 `on_window_event`；点击 Dock 图标 → `RunEvent::Reopen` 唤回主窗口（无可见窗口时），在 `run()` 的 run 回调中处理
-
-**会话层级不变量**：
-
-- `useSessions`（`src/logic/conversation/sessions/useSessions.ts`）是会话列表的规范 hook，旧切片路径提供兼容导出
-- 切换会话 → `zhuye_replay_session(id)` 后水合本地状态
-- 时间分组（`Now/今天/昨天/本周/更早`）在 hook 中，不在侧边栏组件中
-- **切走必降级、切回必恢复**：assistant 内容按步骤增量落盘，但正在流出的
-  半截文本、运行态，以及审批 / 提问 / plan 这些 gate 请求仍不在 rollout 里。
-  切走时旧会话若有在飞 turn 或待确认交互，必须把前台实时投影播种进后台注册表
-  （`useBackgroundSessions.demote`），切回时由 `mergePendingInto` 整体
-  注回。否则最新增量丢失、运行态退化成「已结束」（停止按钮消失）、审批框
-  永久丢失、回合永远挂着
+**协议 / 宿主状态 / 会话层级不变量**：见 [docs/architecture.md](docs/architecture.md) §6「运行时与会话不变量」——线格式 `zhuye_protocol::Event`/`Submission`、`zhuye_event` 单通道、`MinimalAgent` 装配时序、切走降级/切回恢复是每次改动都要核对的红线；架构红线 6 条仍留本篇（常驻契约）。
 
 ## 开发流程检查表（改任何代码前必读）
 
