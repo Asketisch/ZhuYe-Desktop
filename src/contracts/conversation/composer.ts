@@ -2,10 +2,10 @@ import type { ComponentProps, ComponentType, Ref, ChangeEventHandler, ClipboardE
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { StagedAttachment } from '@/logic/input/composer/useAttachments';
 import type { BangRun } from '@/logic/input/composer/useBangShell';
-import type { SlashPopup } from '@/features/input/composer/SlashPopup';
-import type { MentionPicker } from '@/features/input/composer/MentionPicker';
-import type { ComposerPlusMenu } from '@/features/input/composer/ComposerPlusMenu';
-import type { ModelPicker } from '@/features/input/composer/ModelPicker';
+import type { SlashPopup } from '@/features/input/composer/menus/SlashPopup';
+import type { MentionPicker } from '@/features/input/composer/pickers/MentionPicker';
+import type { ComposerPlusMenu } from '@/features/input/composer/menus/ComposerPlusMenu';
+import type { ModelPicker } from '@/features/input/composer/pickers/ModelPicker';
 
 export interface ComposerSlots {
   SlashPopup: ComponentType<ComponentProps<typeof SlashPopup>>;

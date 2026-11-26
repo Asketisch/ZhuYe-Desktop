@@ -25,8 +25,8 @@ import { DiffViewer } from '@/features/workbench/git/DiffViewer';
 import { useContextRatio } from '@/logic/harness/shell/useContextRatio';
 import { useTurnCacheHitRate } from '@/logic/telemetry/usage/cacheHitRate';
 import { useShellUi } from '@/stores/shellUi';
-import { SubagentCallsSection } from './RuntimeStatusSections';
-import { TodoPanel } from './TodoPanel';
+import { SubagentCallsSection } from '@/features/harness/shell/status/RuntimeStatusSections';
+import { TodoPanel } from '@/features/harness/shell/status/TodoPanel';
 import s from '@/render/harness/shell/Inspector.module.css';
 
 export function Inspector() {

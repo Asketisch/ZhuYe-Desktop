@@ -3,7 +3,7 @@
  *
  * 关闭标签 / 关闭其他标签（仅 1 个时禁用）/ 关闭所有标签。
  */
-import { AnchoredPopover } from './AnchoredPopover';
+import { AnchoredPopover } from '@/features/harness/shell/AnchoredPopover';
 import { useI18n } from '@/utils/i18n';
 
 export interface DockContextMenuProps {

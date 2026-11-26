@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { StatusBar } from '@/features/harness/shell/StatusBar';
+import { StatusBar } from '@/features/harness/shell/status/StatusBar';
 import { useAgentStore } from '@/stores/agentStore';
 import { resetMockInvoke, createTestQueryClient, mockInvoke } from '@/test/setup.tsx';
 import type { TokenSnapshot } from '@/stores/agent/types';

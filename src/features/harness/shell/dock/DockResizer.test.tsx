@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
-import { DockResizer, DOCK_WIDTH_MIN, clampDockWidth, maxDockWidth } from '@/features/harness/shell/DockResizer';
+import { DockResizer, DOCK_WIDTH_MIN, clampDockWidth, maxDockWidth } from '@/features/harness/shell/dock/DockResizer';
 import { useShellUi } from '@/stores/shellUi';
 
 /** jsdom 不做布局 —— 用固定矩形替代测量结果。 */

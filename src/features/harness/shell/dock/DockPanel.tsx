@@ -15,7 +15,7 @@
  * - new-tab：启动器（DockLauncher）
  */
 import type { DockTab } from '@/contracts/harness/shell';
-import { Inspector, ChangesTab } from './Inspector';
+import { Inspector, ChangesTab } from '@/features/harness/shell/Inspector';
 import { BrowserDock } from '@/features/workbench/browser/BrowserDock';
 import { FilesDock } from '@/features/workbench/files/FilesDock';
 import { AgentsDock } from '@/features/orchestration/agents/AgentsDock';

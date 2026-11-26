@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
-import { SlashPopup } from '@/features/input/composer/SlashPopup';
+import { SlashPopup } from '@/features/input/composer/menus/SlashPopup';
 import { setPluginSlashCommands } from '@/logic/input/composer/slashCommands';
 
 afterEach(() => {

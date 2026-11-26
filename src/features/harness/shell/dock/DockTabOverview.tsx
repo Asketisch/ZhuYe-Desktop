@@ -9,7 +9,7 @@ import { Search } from 'lucide-react';
 import type { DockTab } from '@/contracts/harness/shell';
 import { DOCK_TAB_META } from '@/render/harness/shell/DockTabBar';
 import { Icon } from '@/features/harness/design-system';
-import { AnchoredPopover } from './AnchoredPopover';
+import { AnchoredPopover } from '@/features/harness/shell/AnchoredPopover';
 import { useI18n } from '@/utils/i18n';
 
 export interface DockTabOverviewProps {
