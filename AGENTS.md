@@ -13,7 +13,7 @@
 
 ## AGENTS.md 体系导航
 
-桌面端路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示与终端页已拆分为 `src/render/`、`src/logic/` 与 `src/contracts/`。少量共享子面板仍在兼容迁移中。
+桌面端路由页面、主壳、会话侧栏、消息流、输入框、配置健康提示与终端页已拆分为 `src/render/`（纯视图）、`src/logic/`（控制器/hook）与 `src/contracts/`（slot 契约）；`src/features/` 只留绑定壳，兼容转发 shim 已全部退役。
 
 本体系按**渐进式披露**组织：根篇常驻上下文，目录级篇按需展开，系统级说明放 `docs/`。
 **修改任何目录前，先读该目录（或其所在层）的 AGENTS.md。**
@@ -107,7 +107,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 
 - `AgentThread`（submodule）消费 `Submission`，事件经 `src-tauri/src/events.rs` 转发到单一 `zhuye_event` 通道。
 - 前端唯一订阅点 `services/agentEventBus.ts` 扇出 → `stores/agent/reducer.ts` 的 `reduceEvent` 产出 patch → Zustand store 应用。
-- 发送意图经 `stores/agent/index.ts::useAgentStore` 构造 `Op` → `zhuye_submit` 命令 → 宿主 `state/submit.rs` 提交。
+- 发送意图经 `stores/agent/index.ts::useAgentStore` 构造 `Op` → `zhuye_submit` 命令 → 宿主 `src-tauri/src/state/submit.rs` 提交。
 - 文件/会话路径一律经后端命令往返，前端不自拼数据目录路径。
 
 ### 关键不变量
@@ -181,7 +181,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 4. **应用状态同步检查表** —— 当修改同时影响后端和前端的设置/持久化时：
    1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`）已更新
    2. 前端 IPC（`src/utils/commands/{domain}.ts`）已更新
-   3. 功能设置 UI（`src/features/settings/` 下 `SettingsView.tsx`、`ConfigForm.tsx`、`sections/`、`components/`、`config/schema.ts`）已更新
+   3. 功能设置 UI（`src/features/settings/` 下 `SettingsView.tsx`、`ConfigForm.tsx`、`sections/`、`components/`，配置 schema 在 `src/logic/settings/config/schema.ts`）已更新
    4. 测试覆盖率已补充
    5. `docs/protocol-bridge.md` 已更新（如果线格式有变更）
    6. `docs/changelog.md` 已添加条目

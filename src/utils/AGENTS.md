@@ -46,7 +46,7 @@
   3. `src/test/setup.tsx` 补默认 stub（mock 契约见 [../AGENTS.md](../AGENTS.md)）；
   4. `tests/helpers/fakeBackend.ts` 补模拟实现（L2 前端行为层的后端）；
   5. 涉线格式契约时更新 `tests/contracts/`（events / ops / payloads / roundtrips）与 `docs/protocol-bridge.md`。
-- **i18n 文案挂载**：新切片文案进 `i18n/strings/<domain>.ts`，并在 `strings/index.ts` import + merge 进单一 STRINGS dict；flat key + 编译期 `LocaleString` 类型校验，缺中文 fallback 英文、缺英文返 key，占位符仅支持 `{key}` 简单语法。
+- **i18n 文案挂载**：新切片文案进 `i18n/strings/<domain>.ts`，并在 `i18n/strings/index.ts` import + merge 进单一 STRINGS dict；flat key + 编译期 `LocaleString` 类型校验，缺中文 fallback 英文、缺英文返 key，占位符仅支持 `{key}` 简单语法。
 - **降级语义**：包装层不得假设 `invoke` 必有返回值（浏览器环境为 `undefined`）；测试统一用 setup 的 `mockInvoke`，不在包装里做环境探测。
 
 ## 禁止事项

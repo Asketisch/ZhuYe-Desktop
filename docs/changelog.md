@@ -4,6 +4,18 @@
 
 ## 未发布
 
+- **v3 迁移收尾：`src/features/` 兼容转发 shim 全部退役，73 个转发层清除、34 个测试跟随真身搬家**：
+  v3 harness 重设计曾把控制器/hook 真身迁入 `src/logic/`、纯展示视图迁入
+  `src/render/`，并在旧 `features/` 路径留下 1–3 行 `export * from` 转发 shim
+  过渡。本次按「测试与源码同目录」惯例收尾：73 个 shim 全删；34 个
+  就近测试 `git mv` 跟随真身进入 `logic/`（如 composer 9 个 hook/引擎
+  测试、design-system 7 个、sessions 4 个）；全仓约 60 处旧路径 import
+  （含 `logic/` 内部的反向引用与 `render/` 29 处 `PageShell` 引用）改写
+  至真身别名。`features/` 只剩绑定壳（slot 组装件）与其测试；
+  `features/AGENTS.md` 布局规则同步改写（控制器/hook 一律 `logic/<slice>/`）。
+  每批独立提交并跑 `pnpm typecheck` + 全量 vitest（2089 用例），
+  L1 静态门禁 27 项全过。
+
 - **图片附件自带来源标注，模型不再反推「这图是哪来的」**：
   粘贴 / 拖拽 / 文件选择器导入的图片一律以内联字节提交，协议里只有
   字节 + MIME，模型无从得知出处 —— 实测会先在工作区 glob/ls 一轮反推。

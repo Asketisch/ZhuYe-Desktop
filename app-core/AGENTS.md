@@ -19,8 +19,8 @@
 | `tailscale.rs` | Tailscale 检测与远程主机建议 | |
 | `sandbox.rs` | OS 沙箱桌面侧胶水（解析已收编上游 `zhuye_sandbox`） | |
 | `prompt_env.rs` | 内置上下文注入 hooks：`AgentsMdHook`（AGENTS.md 项目指令，复刻 `zhuye-exec::builtin_hooks` 同名实现）+ `EnvContextHook`（环境上下文块：工作目录/平台/OS 版本/日期/shell）；`thread_factory` 注册 | 上游 exec crate 拖 clap/opentelemetry 不适合 GUI 依赖，**上游收敛候选**（把 hooks 下沉出 exec 后桌面改用上游版）。AGENTS.md 上限由桌面偏好 `agents_md_max_bytes` 注入（`None` = 不截断，缺省；有值按字符边界截断 + 可见提示） |
-| `worktree.rs` | git worktree 域服务：`worktree_list/add/remove/prune` + `WorktreeInfo`（UI 无关），判脏复用 `zhuye_tools::worktree::worktree_dirty` | GUI 用户操作面而非 agent 能力，不上游化；`commands/git.rs` 薄封装 |
-| `git_branch.rs` | git 本地分支域服务：`branch_list`（`git for-each-ref refs/heads` 解析）+ `branch_checkout`（分支名校验防选项注入）+ `BranchInfo`（UI 无关） | GUI 用户操作面而非 agent 能力，不上游化；`commands/git.rs` 薄封装，脏树「提交后重试」编排在前端 |
+| `worktree.rs` | git worktree 域服务：`worktree_list/add/remove/prune` + `WorktreeInfo`（UI 无关），判脏复用 `zhuye_tools::worktree::worktree_dirty` | GUI 用户操作面而非 agent 能力，不上游化；`src-tauri/src/commands/git.rs` 薄封装 |
+| `git_branch.rs` | git 本地分支域服务：`branch_list`（`git for-each-ref refs/heads` 解析）+ `branch_checkout`（分支名校验防选项注入）+ `BranchInfo`（UI 无关） | GUI 用户操作面而非 agent 能力，不上游化；`src-tauri/src/commands/git.rs` 薄封装，脏树「提交后重试」编排在前端 |
 | `activity.rs` | activity 审计：实现已收编上游 `zhuye_telemetry`，本地仅留共享句柄与再导出 | |
 
 ## 层内依赖约定
