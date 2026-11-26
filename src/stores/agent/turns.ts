@@ -1,5 +1,6 @@
 import type { Turn, TurnItem, TurnStatus, UserAttachmentMeta } from './types';
 import type { UserInputItem } from '@/types/protocol';
+import { isImageMarkerText } from './imageProvenance';
 
 export const EVENT_ID_NONE = '';
 
@@ -7,15 +8,32 @@ export const EVENT_ID_NONE = '';
  * 提交的 UserInputItem 列表 → 可渲染附件元数据(A2)。
  * - `image`(base64/data-URL 内联)→ 缩略图元数据;
  * - `file`(路径 mention)→ 文件 chip 元数据(含行区间);
- * - `text` / `skill` / `local_image`(遗留占位)不产生附件展示。
+ * - 图片来源标记文本(imageProvenance,紧贴在图片前的独立文本块)不产生
+ *   附件展示,挂到紧随其后的 image meta.source 上;
+ * - 其余 `text` / `skill` / `local_image`(遗留占位)不产生附件展示。
  */
 export function userAttachmentsFromItems(items: UserInputItem[]): UserAttachmentMeta[] {
   const out: UserAttachmentMeta[] = [];
+  /** 待挂来源:标记文本只对紧随其后的图片生效,被其他 item 隔断即失效。 */
+  let pendingSource: string | undefined;
   for (const item of items) {
-    if (item.type === 'image') {
-      out.push({ kind: 'image', src: item.data, mime: item.mime_type });
+    if (item.type === 'text') {
+      const trimmed = item.text.trim();
+      pendingSource = isImageMarkerText(trimmed) ? trimmed : undefined;
+    } else if (item.type === 'image') {
+      out.push({
+        kind: 'image',
+        src: item.data,
+        mime: item.mime_type,
+        ...(pendingSource ? { source: pendingSource } : {}),
+      });
+      pendingSource = undefined;
     } else if (item.type === 'file') {
       out.push(item.range ? { kind: 'file', path: item.path, range: item.range } : { kind: 'file', path: item.path });
+      pendingSource = undefined;
+    } else {
+      // skill / local_image:不产生附件展示,也不消费标记(标记只指向图片)。
+      pendingSource = undefined;
     }
   }
   return out;
@@ -25,6 +43,8 @@ export function userAttachmentsFromItems(items: UserInputItem[]): UserAttachment
  * 轮内用户内容 → 可重发的 UserInputItem 列表(C2 一键重生成用)。
  * `user_text` → text item;`user_attachments` 逆转回 image / file item
  * (image 的 src 为 data-URL,后端 `normalize_image_data` 会解码)。
+ * image 携带来源标记原文时按原位重发标记 item —— 重生成的提交与原提交
+ * 语境一致(否则出处信息在第二次发送时丢失)。
  * 找不到用户内容(纯助手轮 / 错误轮)返回 null。
  */
 export function userItemsFromTurn(turn: Turn): UserInputItem[] | null {
@@ -37,6 +57,7 @@ export function userItemsFromTurn(turn: Turn): UserInputItem[] | null {
     } else if (item.kind === 'user_attachments') {
       for (const att of item.attachments) {
         if (att.kind === 'image') {
+          if (att.source) items.push({ type: 'text', text: att.source });
           items.push({ type: 'image', data: att.src, mime_type: att.mime });
         } else {
           items.push(att.range ? { type: 'file', path: att.path, range: att.range } : { type: 'file', path: att.path });

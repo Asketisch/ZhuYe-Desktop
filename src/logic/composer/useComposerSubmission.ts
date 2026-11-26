@@ -243,12 +243,12 @@ export function useComposerSubmission({
             }
           }
         }
+        // 剥离在附件层完成(excludeImages):图片来源标记与图片同生同灭,
+        // 不会留下孤儿文本。
         const items: UserInputItem[] = [
           ...(value ? [{ type: 'text' as const, text: value }] : []),
-          ...attachments.toUserInputItems(),
-        ].filter(
-          (item) => !stripImages || (item.type !== 'image' && item.type !== 'local_image'),
-        );
+          ...attachments.toUserInputItems({ excludeImages: stripImages }),
+        ];
         // 剥离后既无文本也无附件(纯图片消息) → 不发送,附件保留待用户处理。
         if (items.length === 0) return;
         // 计划挂起时发送文本 = 打回修订（revise 释放 plan gate）后把反馈

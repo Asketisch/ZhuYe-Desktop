@@ -15,6 +15,7 @@ import {
   userItemsFromTurn,
 } from './turns';
 import type { Turn, TurnItem } from './types';
+import type { UserInputItem } from '@/types/protocol';
 
 describe('summarizeToolOutput', () => {
   it('passes plain strings through', () => {
@@ -254,6 +255,45 @@ describe('userAttachmentsFromItems / userItemsFromTurn(A2/C2 附件元数据往�
       { type: 'image', data: 'data:image/png;base64,AA', mime_type: 'image/png' },
       { type: 'file', path: '/ws/a.ts' },
       { type: 'file', path: '/ws/b.rs', range: { start_line: 3, end_line: 9 } },
+    ]);
+  });
+
+  it('图片前的来源标记文本挂到 image meta.source,普通文本隔断标记', () => {
+    const marker = '[Image #1: pasted from clipboard]';
+    const items: UserInputItem[] = [
+      { type: 'text', text: 'hi' },
+      { type: 'text', text: marker },
+      { type: 'image', data: 'data:image/png;base64,AA', mime_type: 'image/png' },
+      // 普通文本(非标记)会重置待挂来源,不会泄漏到下一张图。
+      { type: 'text', text: '普通说明' },
+      { type: 'image', data: 'data:image/png;base64,BB', mime_type: 'image/png' },
+    ];
+    expect(userAttachmentsFromItems(items)).toEqual([
+      { kind: 'image', src: 'data:image/png;base64,AA', mime: 'image/png', source: marker },
+      { kind: 'image', src: 'data:image/png;base64,BB', mime: 'image/png' },
+    ]);
+  });
+
+  it('userItemsFromTurn 重生成时按 meta.source 原样重发标记 item', () => {
+    const turn: Turn = {
+      id: 't4',
+      items: [
+        { kind: 'user_text', text: '看图' },
+        {
+          kind: 'user_attachments',
+          attachments: [
+            { kind: 'image', src: 'data:image/png;base64,AA', mime: 'image/png', source: '[图片 #1：剪贴板粘贴]' },
+            { kind: 'file', path: '/ws/a.ts' },
+          ],
+        },
+      ],
+      status: 'done',
+    };
+    expect(userItemsFromTurn(turn)).toEqual([
+      { type: 'text', text: '看图' },
+      { type: 'text', text: '[图片 #1：剪贴板粘贴]' },
+      { type: 'image', data: 'data:image/png;base64,AA', mime_type: 'image/png' },
+      { type: 'file', path: '/ws/a.ts' },
     ]);
   });
 

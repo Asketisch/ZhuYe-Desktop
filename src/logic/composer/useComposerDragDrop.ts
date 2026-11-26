@@ -56,9 +56,12 @@ export function useComposerDragDrop(attachments: UseAttachmentsResult): Composer
           const res = await zhuye_read_image_base64(p);
           // 非 Tauri 环境 invoke 降级返回 undefined —— 无字节可加,跳过。
           if (!res) continue;
+          // 原生拖拽 / 原生选择器都持有真实绝对路径 —— file 通道,
+          // 发送时出处标记携带该路径(见 imageProvenance)。
           attachments.addInlineImage(
             `data:${res.mime_type};base64,${res.base64}`,
             res.mime_type,
+            { channel: 'file', path: p },
           );
         } catch (e) {
           pushToast({

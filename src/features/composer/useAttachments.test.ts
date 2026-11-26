@@ -18,13 +18,14 @@ describe('useAttachments', () => {
     expect(result.current.attachments[0].attachment).toEqual({ kind: 'local_image', path: '/tmp/a.png' });
   });
 
-  it('addInlineImage appends with mime', () => {
+  it('addInlineImage appends with mime and source channel', () => {
     const { result } = renderHook(() => useAttachments());
-    act(() => result.current.addInlineImage('data:image/png;base64,abc', 'image/png'));
+    act(() => result.current.addInlineImage('data:image/png;base64,abc', 'image/png', { channel: 'paste' }));
     expect(result.current.attachments[0].attachment).toEqual({
       kind: 'image',
       data: 'data:image/png;base64,abc',
       mime_type: 'image/png',
+      source: { channel: 'paste' },
     });
   });
 
@@ -128,18 +129,49 @@ describe('useAttachments', () => {
     ]);
   });
 
+  // 测试环境无 I18nProvider → useI18n 回落 DEFAULT_LOCALE('en'),标记为英文形态。
   it('toUserInputItems converts each kind', () => {
     const { result } = renderHook(() => useAttachments());
     act(() => {
       result.current.addLocalImage('/x.png');
-      result.current.addInlineImage('d', 'image/png');
+      result.current.addInlineImage('d', 'image/png', { channel: 'paste' });
       result.current.addSkillMention('s');
     });
     const items = result.current.toUserInputItems();
     expect(items).toEqual([
+      { type: 'text', text: '[Image #1: from local file /x.png]' },
       { type: 'local_image', path: '/x.png' },
+      { type: 'text', text: '[Image #2: pasted from clipboard]' },
       { type: 'image', data: 'd', mime_type: 'image/png' },
       { type: 'skill', name: 's' },
+    ]);
+  });
+
+  it('toUserInputItems 图片来源标记按图片顺序连续编号,paste/file 通道分形态', () => {
+    const { result } = renderHook(() => useAttachments());
+    act(() => {
+      result.current.addInlineImage('d1', 'image/png', { channel: 'paste' });
+      result.current.addFileMention('/ws/a.ts');
+      result.current.addInlineImage('d2', 'image/jpeg', { channel: 'file', path: '/tmp/b.jpg' });
+    });
+    expect(result.current.toUserInputItems()).toEqual([
+      { type: 'text', text: '[Image #1: pasted from clipboard]' },
+      { type: 'image', data: 'd1', mime_type: 'image/png' },
+      { type: 'file', path: '/ws/a.ts' },
+      { type: 'text', text: '[Image #2: from local file /tmp/b.jpg]' },
+      { type: 'image', data: 'd2', mime_type: 'image/jpeg' },
+    ]);
+  });
+
+  it('toUserInputItems(excludeImages) 剥离图片与本地图片及其来源标记,其余保留', () => {
+    const { result } = renderHook(() => useAttachments());
+    act(() => {
+      result.current.addInlineImage('d', 'image/png', { channel: 'paste' });
+      result.current.addLocalImage('/x.png');
+      result.current.addFileMention('/ws/a.ts');
+    });
+    expect(result.current.toUserInputItems({ excludeImages: true })).toEqual([
+      { type: 'file', path: '/ws/a.ts' },
     ]);
   });
 

@@ -1,5 +1,6 @@
 import type { ZhuyeRolloutRecord } from '@/utils/types';
 import type { CompactionStats, PlanDocState, Turn, TurnItem, UserAttachmentMeta } from './agent/types';
+import { isImageMarkerText } from './agent/imageProvenance';
 import { summarizeArgs, summarizeToolOutput } from './agent/turns';
 
 /**
@@ -99,6 +100,8 @@ export function turnsFromRollout(records: ZhuyeRolloutRecord[]): {
  * A2:用户侧附件在回放里还原 —— `image` 块(0-255 字节数组)转 data-URL
  * 缩略图;引擎把 `UserInputItem::File` 展开成的独立 `@path(:Ls-Le)` 文本
  * 块解析回文件 chip(只认整块匹配,用户正文里手打的 `@xxx` 不受影响)。
+ * GUI 注入的图片来源标记(imageProvenance,发送时紧贴图片前)同理整块
+ * 还原 —— 挂到附件 `source` 字段,不渲染为用户正文。
  */
 function contentToItems(content: unknown, role: string): TurnItem[] {
   if (role !== 'user' && role !== 'assistant') return [];
@@ -110,6 +113,8 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
   if (!Array.isArray(content)) return [];
 
   const items: TurnItem[] = [];
+  /** 待挂来源:GUI 注入的图片来源标记文本,作用于紧随其后的 image 块。 */
+  let pendingImageSource: string | undefined;
   /** 相邻附件块合并进同一个 user_attachments item(chip 行视觉成组)。 */
   const pushAttachment = (attachment: UserAttachmentMeta) => {
     const last = items[items.length - 1];
@@ -132,6 +137,12 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
         // 后端 `records_to_preload` 不受影响:模型侧上下文保持原样。
         const text = stripInjectedSystemBlocks(raw);
         if (!text) break;
+        // GUI 注入的图片来源标记(stores/agent/imageProvenance,发送时
+        // 紧贴在图片前):不渲染为用户正文,挂到下一个 image 块的附件上。
+        if (role === 'user' && isImageMarkerText(text)) {
+          pendingImageSource = text;
+          break;
+        }
         // 引擎 File item 的落盘形态:独立文本块 `@path` / `@path:Ls-Le`。
         const mention = FILE_MENTION_RE.exec(text);
         if (role === 'user' && mention) {
@@ -146,13 +157,20 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
           );
           break;
         }
+        pendingImageSource = undefined;
         items.push(textItem(role, text));
         break;
       }
       case 'image': {
         const mime = typeof b.mime_type === 'string' ? b.mime_type : 'image/png';
         if (!Array.isArray(b.data)) break;
-        pushAttachment({ kind: 'image', src: `data:${mime};base64,${bytesToBase64(b.data as number[])}`, mime });
+        pushAttachment({
+          kind: 'image',
+          src: `data:${mime};base64,${bytesToBase64(b.data as number[])}`,
+          mime,
+          ...(pendingImageSource ? { source: pendingImageSource } : {}),
+        });
+        pendingImageSource = undefined;
         break;
       }
       case 'tool_use': {

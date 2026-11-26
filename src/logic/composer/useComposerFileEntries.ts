@@ -12,6 +12,7 @@
  */
 import { useCallback, useRef, type ClipboardEvent, type DragEvent, type RefObject } from 'react';
 import { zhuye_pick_files } from '@/utils/commands/workspaces';
+import type { ImageProvenance } from '@/stores/agent/imageProvenance';
 import { useAttachments } from './useAttachments';
 import { useFileIngest } from './useFileIngest';
 import { useComposerDragDrop } from './useComposerDragDrop';
@@ -27,11 +28,12 @@ export function useComposerFileEntries(fileInputRef: RefObject<HTMLInputElement 
   dropRef.current = drop;
 
   // 图片字节 → base64 内联附件(选择器 / 粘贴 / DOM drop 兜底共用)。
+  // source 记录进入通道,发送时展开为模型可见的出处标记(见 imageProvenance)。
   const addImageFile = useCallback(
-    (file: File) => {
+    (file: File, source: ImageProvenance) => {
       const reader = new FileReader();
       reader.onload = () => {
-        if (typeof reader.result === 'string') attachments.addInlineImage(reader.result, file.type);
+        if (typeof reader.result === 'string') attachments.addInlineImage(reader.result, file.type, source);
       };
       reader.readAsDataURL(file);
     },
@@ -42,7 +44,8 @@ export function useComposerFileEntries(fileInputRef: RefObject<HTMLInputElement 
     (files: FileList | null) => {
       if (!files) return;
       Array.from(files).forEach((file) => {
-        if (file.type.startsWith('image/')) addImageFile(file);
+        // DOM 隐藏 input 兜底拿不到绝对路径 → bytes 通道。
+        if (file.type.startsWith('image/')) addImageFile(file, { channel: 'bytes' });
       });
     },
     [addImageFile],
@@ -73,7 +76,7 @@ export function useComposerFileEntries(fileInputRef: RefObject<HTMLInputElement 
     (files: FileList | null) => {
       if (!files) return;
       const { images, others } = splitByType(Array.from(files));
-      images.forEach(addImageFile);
+      images.forEach((file) => addImageFile(file, { channel: 'bytes' }));
       ingest.ingestFiles(others);
     },
     [addImageFile, ingest],
@@ -91,7 +94,8 @@ export function useComposerFileEntries(fileInputRef: RefObject<HTMLInputElement 
       if (fileList.length === 0) return;
       event.preventDefault();
       const { images, others } = splitByType(fileList);
-      images.forEach(addImageFile);
+      // 剪贴板里的图片无源路径 —— paste 通道。
+      images.forEach((file) => addImageFile(file, { channel: 'paste' }));
       ingest.ingestFiles(others);
     },
     [addImageFile, ingest],
@@ -104,7 +108,8 @@ export function useComposerFileEntries(fileInputRef: RefObject<HTMLInputElement 
       if (!files || files.length === 0) return;
       event.preventDefault();
       const { images, others } = splitByType(Array.from(files));
-      images.forEach(addImageFile);
+      // DOM drop 兜底(浏览器/测试)只有字节无绝对路径 —— bytes 通道。
+      images.forEach((file) => addImageFile(file, { channel: 'bytes' }));
       ingest.ingestFiles(others);
     },
     [addImageFile, drop.nativeDrop, ingest],

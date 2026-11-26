@@ -344,6 +344,101 @@ describe('turnsFromRollout 用户附件还原(A2)', () => {
       { kind: 'assistant_text', text: '@/ws/README.md' },
     ]);
   });
+
+  it('图片来源标记文本块不渲染为正文,挂到紧随其后的 image 附件 source', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        // 落盘形态 = 发送 items:[text, 标记, image] 经引擎合块后的样子。
+        content: [
+          { type: 'text', text: '这是什么' },
+          { type: 'text', text: '[图片 #1：剪贴板粘贴]' },
+          { type: 'image', data: [0, 0, 0], mime_type: 'image/png' },
+        ],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'user_text', text: '这是什么' },
+      {
+        kind: 'user_attachments',
+        attachments: [
+          {
+            kind: 'image',
+            src: 'data:image/png;base64,AAAA',
+            mime: 'image/png',
+            source: '[图片 #1：剪贴板粘贴]',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('多张图各挂各的来源标记,英文标记同样还原', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [
+          { type: 'text', text: '[Image #1: from local file /tmp/a.png]' },
+          { type: 'image', data: [0, 0, 0], mime_type: 'image/png' },
+          { type: 'text', text: '[Image #2: imported via drag or file picker]' },
+          { type: 'image', data: [0, 0, 1], mime_type: 'image/jpeg' },
+        ],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      {
+        kind: 'user_attachments',
+        attachments: [
+          { kind: 'image', src: 'data:image/png;base64,AAAA', mime: 'image/png', source: '[Image #1: from local file /tmp/a.png]' },
+          { kind: 'image', src: 'data:image/jpeg;base64,AAAB', mime: 'image/jpeg', source: '[Image #2: imported via drag or file picker]' },
+        ],
+      },
+    ]);
+  });
+
+  it('标记后无 image 块时丢弃,不渲染成用户气泡(无可渲染项 → turn 不物化)', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [{ type: 'text', text: '[图片 #1：剪贴板粘贴]' }],
+      }),
+    ]);
+    expect(turns).toEqual([]);
+  });
+
+  it('正文中段的标记同形文本不误判(仅整块匹配才挂附件)', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'user',
+        content: [{ type: 'text', text: '参考 [图片 #1：剪贴板粘贴] 的说法' }],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'user_text', text: '参考 [图片 #1：剪贴板粘贴] 的说法' },
+    ]);
+  });
+
+  it('assistant 侧的标记同形文本原样渲染(仅用户侧剥除)', () => {
+    const { turns } = turnsFromRollout([
+      rec({
+        type: 'message',
+        turn_id: T1,
+        role: 'assistant',
+        content: [{ type: 'text', text: '[图片 #1：剪贴板粘贴]' }],
+      }),
+    ]);
+    expect(turns[0].items).toEqual([
+      { kind: 'assistant_text', text: '[图片 #1：剪贴板粘贴]' },
+    ]);
+  });
 });
 
 describe('turnsFromRollout 引擎注入块剥除', () => {

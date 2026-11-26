@@ -149,6 +149,13 @@ const composer: Record<string, StringEntry> = {
   'composer.controls.perm.auto':             { en: 'Autonomous',                                    'zh-CN': '自主模式' },
   'composer.drop.hint':                      { en: 'Drop files to attach — images become inline previews, others get @-mentions.', 'zh-CN': '松开以添加附件 —— 图片生成内联预览，其他文件添加 @ 提及。' },
   'composer.drop.imageFailed':               { en: 'Failed to read image: {msg}',                   'zh-CN': '读取图片失败：{msg}' },
+  // ── 图片来源标记(stores/agent/imageProvenance.ts) ──────────────────
+  // 发送时注入在图片 item 前的出处标注文案(方括号由 buildImageMarker
+  // 包裹),让模型无需反推"这图是哪来的";文案形态需与 IMAGE_MARKER_RE
+  // 的双语前缀(`图片 #N：` / `Image #N:`)保持一致。
+  'composer.imageSource.paste':              { en: 'Image #{n}: pasted from clipboard',             'zh-CN': '图片 #{n}：剪贴板粘贴' },
+  'composer.imageSource.bytes':              { en: 'Image #{n}: imported via drag or file picker',  'zh-CN': '图片 #{n}：拖拽或选择器导入' },
+  'composer.imageSource.file':               { en: 'Image #{n}: from local file {path}',            'zh-CN': '图片 #{n}：来自本地文件 {path}' },
   'composer.bang.title':                     { en: 'Local shell runs',                              'zh-CN': '本地命令执行' },
   'composer.bang.hint':                      { en: 'Local runs are not sent to the model or saved to the session.', 'zh-CN': '本地执行不会发送给模型，也不会写入会话历史。' },
   'composer.bang.running':                   { en: 'running…',                                      'zh-CN': '运行中…' },

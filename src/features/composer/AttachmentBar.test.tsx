@@ -11,7 +11,7 @@ const base: StagedAttachment[] = [
   {
     id: 'a1',
     status: 'ready',
-    attachment: { kind: 'image', data: 'data:image/png;base64,AAAA', mime_type: 'image/png' },
+    attachment: { kind: 'image', data: 'data:image/png;base64,AAAA', mime_type: 'image/png', source: { channel: 'paste' } },
   },
   {
     id: 'a2',

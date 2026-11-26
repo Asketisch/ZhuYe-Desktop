@@ -62,7 +62,13 @@ describe('useComposerDragDrop', () => {
     // A3:staged 形状({id, status, attachment}),断言取 .attachment。
     const [img, mention] = result.current.attachments.attachments;
     expect(img.status).toBe('ready');
-    expect(img.attachment).toEqual({ kind: 'image', data: 'data:image/png;base64,AAAA', mime_type: 'image/png' });
+    // 原生拖拽持真实路径 → file 通道来源(发送时展开为出处标记)。
+    expect(img.attachment).toEqual({
+      kind: 'image',
+      data: 'data:image/png;base64,AAAA',
+      mime_type: 'image/png',
+      source: { channel: 'file', path: '/tmp/shot.png' },
+    });
     expect(mention.attachment).toEqual({ kind: 'file', path: '/tmp/notes.txt' });
   });
 

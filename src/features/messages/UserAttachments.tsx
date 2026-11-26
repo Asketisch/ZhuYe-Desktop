@@ -31,6 +31,7 @@ export function UserAttachments({ attachments }: { attachments: UserAttachmentMe
             onClick={() => setPreview(att.src)}
             data-testid={`user-attachment-image-${i}`}
             aria-label="放大图片"
+            title={att.source}
           >
             <img src={att.src} alt={att.mime} className={s.thumb} />
           </button>

@@ -12,13 +12,16 @@
  */
 import { useCallback, useState } from 'react';
 import type { FileRange, UserInputItem } from '@/types/protocol';
+import { buildImageMarker } from '@/stores/agent/imageProvenance';
+import type { ImageProvenance } from '@/stores/agent/imageProvenance';
+import { useI18n } from '@/utils/i18n';
 
 /** 附件的就绪状态:pending=落盘中 / ready=可发送 / error=失败(可重试或删除)。 */
 export type AttachmentStatus = 'pending' | 'ready' | 'error';
 
 export type PendingAttachment =
   | { kind: 'local_image'; path: string }
-  | { kind: 'image'; data: string; mime_type: string }
+  | { kind: 'image'; data: string; mime_type: string; /** 来源通道,发送时展开为出处标记(见 imageProvenance)。 */ source: ImageProvenance }
   | { kind: 'skill'; name: string }
   | { kind: 'file'; path: string; range?: FileRange }
   | {
@@ -39,7 +42,7 @@ export interface StagedAttachment {
 export interface UseAttachmentsResult {
   attachments: StagedAttachment[];
   addLocalImage: (path: string) => void;
-  addInlineImage: (data: string, mimeType: string) => void;
+  addInlineImage: (data: string, mimeType: string, source: ImageProvenance) => void;
   addSkillMention: (name: string) => void;
   /** v1.x：把 MentionPicker 选中的文件加入待发列表。 */
   addFileMention: (path: string, range?: FileRange) => void;
@@ -53,7 +56,11 @@ export interface UseAttachmentsResult {
   removeById: (id: string) => void;
   clear: () => void;
   clearSent: (sent: StagedAttachment[]) => void;
-  toUserInputItems: () => UserInputItem[];
+  /**
+   * 组装待发 items。`excludeImages` = 视觉降级剥离:图片 / 本地图片附件
+   * 连同其来源标记一起跳过(标记与图片同生同灭,不留孤儿文本)。
+   */
+  toUserInputItems: (opts?: { excludeImages?: boolean }) => UserInputItem[];
 }
 
 let attachmentSeq = 0;
@@ -61,6 +68,7 @@ const nextAttachmentId = () => `att-${Date.now().toString(36)}-${++attachmentSeq
 
 export function useAttachments(): UseAttachmentsResult {
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
+  const { t } = useI18n();
 
   const push = useCallback((attachment: PendingAttachment, status: AttachmentStatus = 'ready') => {
     const id = nextAttachmentId();
@@ -72,8 +80,8 @@ export function useAttachments(): UseAttachmentsResult {
     push({ kind: 'local_image', path });
   }, [push]);
 
-  const addInlineImage = useCallback((data: string, mimeType: string) => {
-    push({ kind: 'image', data, mime_type: mimeType });
+  const addInlineImage = useCallback((data: string, mimeType: string, source: ImageProvenance) => {
+    push({ kind: 'image', data, mime_type: mimeType, source });
   }, [push]);
 
   const addSkillMention = useCallback((name: string) => {
@@ -117,25 +125,46 @@ export function useAttachments(): UseAttachmentsResult {
     setAttachments((current) => current.filter((item) => !sentSet.has(item)));
   }, []);
 
-  const toUserInputItems = useCallback((): UserInputItem[] => {
-    return attachments.map(({ attachment: a }): UserInputItem => {
-      switch (a.kind) {
-        case 'local_image':
-          return { type: 'local_image', path: a.path };
-        case 'image':
-          return { type: 'image', data: a.data, mime_type: a.mime_type };
-        case 'skill':
-          return { type: 'skill', name: a.name };
-        case 'browser_file':
-          // 正常流程到不了这里(发送被 pending 门禁挡住);兜底按文件名 mention。
-          return { type: 'file', path: a.path };
-        case 'file':
-          return a.range
-            ? { type: 'file', path: a.path, range: a.range }
-            : { type: 'file', path: a.path };
+  const toUserInputItems = useCallback(
+    (opts?: { excludeImages?: boolean }): UserInputItem[] => {
+      const excludeImages = opts?.excludeImages ?? false;
+      const out: UserInputItem[] = [];
+      let imageSeq = 0;
+      for (const { attachment: a } of attachments) {
+        // 视觉降级剥离:图片类附件(及其来源标记)一并跳过。
+        if (excludeImages && (a.kind === 'image' || a.kind === 'local_image')) continue;
+        switch (a.kind) {
+          case 'local_image':
+            // 遗留 kind:引擎只按路径读字节,模型看不到路径 —— 同样注入出处标记。
+            out.push({ type: 'text', text: buildImageMarker({ channel: 'file', path: a.path }, ++imageSeq, t) });
+            out.push({ type: 'local_image', path: a.path });
+            break;
+          case 'image':
+            // 出处标记紧贴图片 item(独立文本块),模型不再反推图片来源;
+            // 回放侧按 imageProvenance.IMAGE_MARKER_RE 还原,不渲染为正文。
+            out.push({ type: 'text', text: buildImageMarker(a.source, ++imageSeq, t) });
+            out.push({ type: 'image', data: a.data, mime_type: a.mime_type });
+            break;
+          case 'skill':
+            out.push({ type: 'skill', name: a.name });
+            break;
+          case 'browser_file':
+            // 正常流程到不了这里(发送被 pending 门禁挡住);兜底按文件名 mention。
+            out.push({ type: 'file', path: a.path });
+            break;
+          case 'file':
+            out.push(
+              a.range
+                ? { type: 'file', path: a.path, range: a.range }
+                : { type: 'file', path: a.path },
+            );
+            break;
+        }
       }
-    });
-  }, [attachments]);
+      return out;
+    },
+    [attachments, t],
+  );
 
   return {
     attachments,
