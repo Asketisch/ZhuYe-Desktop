@@ -116,12 +116,12 @@ export function Composer({ t, placeholder, text, busy, canSend, sendLabel, sendM
                 onPrefill={onPrefill}
               />
               <PermissionPicker />
-              <PromptPicker />
+              <span className={s.promptSlot}><PromptPicker /></span>
             </div>
             <div className={s.bottomRight}>
               <ContextUsage />
               <ModelPicker />
-              <EffortPicker />
+              <span className={s.effortSlot}><EffortPicker /></span>
               {isTurnRunning && (
                 <>
                   <div className={s.modeSwitch} role="radiogroup" aria-label={t('composer.mode.label')} data-testid="composer-mode-switch">

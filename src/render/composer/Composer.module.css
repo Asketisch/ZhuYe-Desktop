@@ -109,12 +109,19 @@
   color: color-mix(in srgb, var(--text-primary) 40%, transparent);
 }
 
-/* 工具行：基线对齐（输入区在上、控件行贴底），左簇占满 / 右簇贴右。 */
+/* 工具行：基线对齐（输入区在上、控件行贴底），左簇占满 / 右簇贴右。
+ *
+ * `flex-wrap: wrap` + 左簇 `flex: 1 1 auto`（basis = 内容宽，而非 0）:
+ * 空间真的放不下时右簇整体换到第二行，而不是把控件压扁互相重叠。
+ * 此前左簇是 `flex: 1`（basis 0）+ `min-width: 0`,可以塌到 0 宽,其
+ * 子控件便溢出压到右簇上 —— 右栏拖宽、对话列被挤窄时最明显。 */
 .bottomBar {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
+  row-gap: 6px;
   padding: 0;
 }
 
@@ -127,12 +134,40 @@
 }
 
 .bottomLeft {
-  flex: 1;
+  /* basis = 内容宽（不是 0）—— 放不下时触发换行而不是塌缩成 0 宽。 */
+  flex: 1 1 auto;
 }
 
+/* 右簇禁止收缩 —— 它是固定宽度的控件组(用量环 / 模型 / 思考深度 /
+ * 发送)。此前没有这条,左簇 `flex: 1` 会把右簇压到 236px,而内容需要
+ * 311px,于是右侧控件互相重叠(右栏展开、对话列变窄时尤其明显)。
+ * 空间不足时由下方容器查询收起次要控件,而不是让控件互相压盖。 */
 .bottomRight {
+  flex: none;
   margin-left: auto;
   gap: 6px;
+}
+
+/* 次要控件的容器查询挂点(窄对话列时收起,优先保模型与发送)。 */
+.promptSlot,
+.effortSlot {
+  display: inline-flex;
+  min-width: 0;
+}
+
+/* 对话列窄于 620px:收「提示词预设」pill —— 它只在空会话占位,
+ * 是最先该让位的。 */
+@container conversation (max-width: 620px) {
+  .promptSlot {
+    display: none;
+  }
+}
+
+/* 对话列窄于 520px:再收「思考深度」chip —— 模型与发送必须始终可见。 */
+@container conversation (max-width: 520px) {
+  .effortSlot {
+    display: none;
+  }
 }
 
 /* 上下文用量环：常驻（无数据 = 空环），≥80% 转 warning 色。 */
