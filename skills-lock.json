@@ -1,11 +1,19 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
+    "agents-map": {
+      "source": "Asketisch/agents-map-skill",
+      "commit": "3f19bd34cf94879982094931414ddaa8971215ba",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "ca0872536c7d55a8a205504b5e6e99f33707d82f237ae617c7eed8e3a01155fd"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
       "skillPath": "skills/find-skills/SKILL.md",
-      "computedHash": "913b9d37d0d54047dd65222bb8c67b2bf04e3cb87dcad1729068d7a8b2c8c396"
+      "computedHash": "7bc223e2aafbdbf6e50ea243ba6ef67fe432bb069ab439fea0390795dac0bf7f",
+      "commit": "57217cf86ba38148a57af9e90d14a4c049558330"
     }
   }
 }
