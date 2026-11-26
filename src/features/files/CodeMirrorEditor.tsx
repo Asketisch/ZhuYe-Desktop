@@ -22,7 +22,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { LanguageDescription } from '@codemirror/language';
 import { languages as languageData } from '@codemirror/language-data';
-import { locateHunk, type DiffHunk } from '../editor/diffHunks';
+import { locateHunk, type DiffHunk } from '@/logic/editor/diffHunks';
 import s from '@/render/files/CodeMirrorEditor.module.css';
 
 /** 外部内容版本变化时整体替换缓冲(Reject 落盘后同步)。 */

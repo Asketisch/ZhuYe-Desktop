@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { zhuye_list_tools } from '@/utils/commands';
-import { useOrchestrationController } from './useOrchestrationController';
+import { useOrchestrationController } from '@/logic/collaboration/useOrchestrationController';
 import type { CollaborationViewProps } from '@/contracts/collaboration';
 
 export function CollaborationBinding({ view: View, McpManager, PluginsPanel, PipelineEditor }: {

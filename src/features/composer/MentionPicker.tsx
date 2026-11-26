@@ -17,7 +17,7 @@ import {
   type ZhuyeDirEntry,
   type ZhuyeDirListing,
 } from '@/utils/commands';
-import { fuzzy } from '@/features/command-palette/fuzzy';
+import { fuzzy } from '@/logic/command-palette/fuzzy';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/composer/MentionPicker.module.css';
 

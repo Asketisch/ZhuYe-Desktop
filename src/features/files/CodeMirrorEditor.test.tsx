@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import { CodeMirrorEditor } from './CodeMirrorEditor';
-import { parseUnifiedDiff } from '../editor/diffHunks';
+import { parseUnifiedDiff } from '@/logic/editor/diffHunks';
 
 const DIFF = [
   '@@ -1,2 +1,2 @@',

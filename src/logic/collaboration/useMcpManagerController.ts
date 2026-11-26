@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
-import { parseMcpArguments } from './parseMcpArguments';
+import { parseMcpArguments } from '@/logic/collaboration/parseMcpArguments';
 import { zhuye_delete_mcp_server, zhuye_list_mcp_prompts, zhuye_list_mcp_resources, zhuye_list_mcp_servers, zhuye_mcp_catalog, zhuye_upsert_mcp_server, type McpServerEntry } from '@/utils/commands/mcp';
 
 export const MCP_TRANSPORTS: McpServerEntry['type'][] = ['stdio', 'http', 'sse'];

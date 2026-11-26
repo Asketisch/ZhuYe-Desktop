@@ -4,7 +4,7 @@ import { zhuye_agent_status, zhuye_list_dir, zhuye_read_file, zhuye_lsp_set_enab
 import { useI18n } from '@/utils/i18n';
 import { useEditorStore } from '@/stores/editorStore';
 import { useAgentStore } from '@/stores/agentStore';
-import { useFileDraftController } from './useFileDraftController';
+import { useFileDraftController } from '@/logic/files/useFileDraftController';
 
 export function lspPrefKey(workspace: string | null): string { return `zhuye.lsp.enabled.${workspace ?? 'none'}`; }
 export function readLspPref(workspace: string | null): boolean { try { return localStorage.getItem(lspPrefKey(workspace)) === 'on'; } catch { return false; } }

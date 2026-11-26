@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
-import { useDictation } from './useDictation';
+import { useDictation } from '@/logic/dictation/useDictation';
 import type { DictationViewProps } from '@/contracts/dictation';
 
 export function DictationBinding({ view: View, onInsert }: { view: ComponentType<DictationViewProps>; onInsert?: (text: string) => void }) {
