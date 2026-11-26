@@ -17,7 +17,7 @@ import { zhuye_read_image_base64 } from '@/utils/commands/files';
 import { onWebviewDragDrop } from '@/utils/dragDrop';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import type { UseAttachmentsResult } from './useAttachments';
+import type { UseAttachmentsResult } from '@/logic/composer/useAttachments';
 
 const IMAGE_PATH_RE = /\.(png|jpe?g|gif|webp|bmp)$/i;
 

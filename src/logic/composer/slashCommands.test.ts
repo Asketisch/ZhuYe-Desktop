@@ -9,7 +9,7 @@ import {
   setPluginSlashCommands,
   getPluginSlashCommands,
   isPluginCommand,
-} from '@/features/composer/slashCommands';
+} from '@/logic/composer/slashCommands';
 
 afterEach(() => {
   // 注册表是模块级状态,每个用例后复位,避免串扰。

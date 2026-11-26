@@ -2,7 +2,7 @@
  * Vitest — slash engine 解析 + 分发测试。
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { setPluginSlashCommands, filterSlashCommands, SLASH_COMMANDS } from './slashCommands';
+import { setPluginSlashCommands, filterSlashCommands, SLASH_COMMANDS } from '@/logic/composer/slashCommands';
 import {
   parseSlash,
   executeSlash,

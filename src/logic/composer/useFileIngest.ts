@@ -15,7 +15,7 @@ import { useCallback } from 'react';
 import { zhuye_ingest_upload } from '@/utils/commands/files';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import type { UseAttachmentsResult } from './useAttachments';
+import type { UseAttachmentsResult } from '@/logic/composer/useAttachments';
 
 /** 单文件上限,与后端 `INGEST_MAX` 对齐(64 MiB)。 */
 export const INGEST_MAX_BYTES = 64 * 1024 * 1024;

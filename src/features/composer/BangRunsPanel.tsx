@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { ChevronRight, Square, TerminalSquare, X } from 'lucide-react';
 import { Icon, IconButton, Spinner } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import type { BangRun } from './useBangShell';
+import type { BangRun } from '@/logic/composer/useBangShell';
 import s from '@/render/composer/BangRunsPanel.module.css';
 
 const COLLAPSED_OUTPUT_CHARS = 1200;

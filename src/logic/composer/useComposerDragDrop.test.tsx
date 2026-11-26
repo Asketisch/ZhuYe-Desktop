@@ -11,7 +11,7 @@ import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useAgentStore } from '@/stores/agentStore';
-import { useAttachments } from './useAttachments';
+import { useAttachments } from '@/logic/composer/useAttachments';
 import { useComposerDragDrop, isImagePath } from './useComposerDragDrop';
 
 function wrap({ children }: { children: React.ReactNode }) {

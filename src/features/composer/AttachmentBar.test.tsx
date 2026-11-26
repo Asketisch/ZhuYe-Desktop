@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AttachmentBar } from './AttachmentBar';
-import type { StagedAttachment } from './useAttachments';
+import type { StagedAttachment } from '@/logic/composer/useAttachments';
 
 const base: StagedAttachment[] = [
   {

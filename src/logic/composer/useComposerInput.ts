@@ -1,5 +1,5 @@
 import { useCallback, type ChangeEvent, type KeyboardEvent, type RefObject } from 'react';
-import type { PromptHistoryApi } from './usePromptHistory';
+import type { PromptHistoryApi } from '@/logic/composer/usePromptHistory';
 
 const SLASH_QUERY = /(^|\s)(\/\w*)$/;
 /**

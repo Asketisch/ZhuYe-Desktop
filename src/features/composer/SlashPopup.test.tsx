@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { SlashPopup } from '@/features/composer/SlashPopup';
-import { setPluginSlashCommands } from '@/features/composer/slashCommands';
+import { setPluginSlashCommands } from '@/logic/composer/slashCommands';
 
 afterEach(() => {
   // 插件命令注册表是模块级状态,用例后复位。

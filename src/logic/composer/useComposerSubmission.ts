@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { dispatch } from './slashEngine';
-import { dispatchSubmission } from './dispatchSubmission';
-import type { UseAttachmentsResult } from './useAttachments';
+import { dispatch } from '@/logic/composer/slashEngine';
+import { dispatchSubmission } from '@/logic/composer/dispatchSubmission';
+import type { UseAttachmentsResult } from '@/logic/composer/useAttachments';
 import { useAgent } from '@/services/agent';
 import {
   useSessions,
@@ -22,7 +22,7 @@ import {
   selectIsTurnRunning,
 } from '@/stores/agentStore';
 import type { UserInputItem } from '@/types/protocol';
-import type { PromptHistoryApi } from './usePromptHistory';
+import type { PromptHistoryApi } from '@/logic/composer/usePromptHistory';
 
 /** C：运行中发送的两种语义 —— 排队（默认,turn 收尾后送出）或转向（v1.4 A2 真·转向,安全点注入）。 */
 export type SendMode = 'queue' | 'steer';

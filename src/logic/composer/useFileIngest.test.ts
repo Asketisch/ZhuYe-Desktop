@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useAttachments } from './useAttachments';
+import { useAttachments } from '@/logic/composer/useAttachments';
 import { useFileIngest } from './useFileIngest';
 import { useAgentStore } from '@/stores/agentStore';
 

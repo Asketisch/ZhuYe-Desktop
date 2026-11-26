@@ -13,7 +13,7 @@
  * B4 涵盖 46 个命令的核心语义。Tier A 9 个有"实装"的执行,其余标记为
  * 'no-op' 但仍然 parse + dispatch(避免 silent failure)。
  */
-import { SLASH_COMMANDS, type SlashCmd, isPluginCommand } from './slashCommands';
+import { SLASH_COMMANDS, type SlashCmd, isPluginCommand } from '@/logic/composer/slashCommands';
 
 export interface ParsedSlash {
   command: string;

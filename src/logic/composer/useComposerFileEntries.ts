@@ -13,9 +13,9 @@
 import { useCallback, useRef, type ClipboardEvent, type DragEvent, type RefObject } from 'react';
 import { zhuye_pick_files } from '@/utils/commands/workspaces';
 import type { ImageProvenance } from '@/stores/agent/imageProvenance';
-import { useAttachments } from './useAttachments';
-import { useFileIngest } from './useFileIngest';
-import { useComposerDragDrop } from './useComposerDragDrop';
+import { useAttachments } from '@/logic/composer/useAttachments';
+import { useFileIngest } from '@/logic/composer/useFileIngest';
+import { useComposerDragDrop } from '@/logic/composer/useComposerDragDrop';
 
 export function useComposerFileEntries(fileInputRef: RefObject<HTMLInputElement | null>) {
   const attachments = useAttachments();
