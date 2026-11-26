@@ -171,7 +171,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 
 2. **后端行为变更** —— 遵循以下顺序：
    1. 核心 crate（`zhuye-agent/crates/**/zhuye-*`，通过 submodule）— 跨运行时逻辑的首选位置。如果变更应放在上游，修改 ZhuYe 仓库并升级 submodule（见 `SUBMODULE.md`）。
-   2. 应用适配层和 Tauri 命令表（`src-tauri/src/lib.rs` + `commands/mod.rs`）。
+   2. 应用适配层和 Tauri 命令表（`src-tauri/src/lib.rs` + `src-tauri/src/commands/mod.rs`）。
    3. 前端 IPC 包装（`src/utils/commands/{domain}.ts`）。
    4. 如果新增后端命令，需同步更新所有相关层级 + 测试 + `docs/protocol-bridge.md` + `docs/changelog.md`。
    5. 核心 crate 新增能力时，同步更新 `docs/capabilities.md`（基座能力 → GUI 覆盖矩阵）——「有命令但无 UI 消费面」视为半接线。
@@ -179,7 +179,7 @@ bash scripts/gc.sh gc-deep    # 再清 target/debug/deps（下次构建 ≈ 冷�
 3. **前端行为变更** —— `src/main.tsx` 作为组合根；`src/router.tsx` 作为路由表；有状态的编排逻辑放入 `src/features/<slice>/hooks/*` 或 `<slice>/use*Controller.ts`；表现层 UI 放在功能组件中；Tauri 调用仅放在 `src/utils/commands/`（按领域分文件），`src/utils/tauri.ts` 和 `src/utils/commands.ts` 为兼容桶，不要新增包装；事件订阅广播保持在 `src/services/agent.ts` 和 `src/services/agentEventBus.ts`。
 
 4. **应用状态同步检查表** —— 当修改同时影响后端和前端的设置/持久化时：
-   1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`）已更新
+   1. 后端（`src-tauri/src/state.rs` + `commands/<domain>.rs` / `commands/mod.rs`（均在 `src-tauri/src/` 下））已更新
    2. 前端 IPC（`src/utils/commands/{domain}.ts`）已更新
    3. 功能设置 UI（`src/features/settings/` 下 `SettingsView.tsx`、`ConfigForm.tsx`、`sections/`、`components/`，配置 schema 在 `src/logic/settings/config/schema.ts`）已更新
    4. 测试覆盖率已补充

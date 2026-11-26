@@ -38,7 +38,7 @@
 2. **新切片落点链（本篇独有契约，缺一不可）**：
    1. 建 `src/features/<slice>/` 绑定壳 + `src/render/<domain>/` 视图 + `src/logic/<slice>/` 控制器（测试随真身同目录）；
    2. `src/router.tsx` 三处接线：import 视图 → `new Route(` → 挂入 `rootRoute.addChildren([...])`；
-   3. `src/utils/i18n/strings/<domain>.ts` 新建文案模块并在 `strings/index.ts` import + merge（挂载机制见 [utils/AGENTS.md](../utils/AGENTS.md)）；
+   3. `src/utils/i18n/strings/<domain>.ts` 新建文案模块并在 `i18n/strings/index.ts` import + merge（挂载机制见 [utils/AGENTS.md](../utils/AGENTS.md)）；
    4. 视觉基线：`tests/visual/__baselines__/{linux,macos,windows}/` 补 `<route>--{dark,light}.png`（路由 × 双主题，数量以基线目录为准）；
    5. 带测试——`tests/views.untested-slices.test.tsx` 为零就地测试视图（about/apps/debug/dictation/home/mobile/models/prompts/skills）提供行为级兜底，新切片不要进这份清单。
 3. **同名 Composer 分叉澄清**：`features/composer/Composer.tsx` 是编辑器运行时规范实现；`features/messages/Composer.tsx` 是一行薄 re-export（`export { Composer } from '@/features/composer/Composer'`）。二者同名不同物，改编辑器行为只动前者。
