@@ -1,7 +1,7 @@
 import { useParams, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
-import type { ChatSlots, ChatViewProps } from '@/contracts/chat';
+import type { ChatSlots, ChatViewProps } from '@/contracts/conversation/chat';
 import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
 import { useAgentStore, selectIsTurnRunning } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';

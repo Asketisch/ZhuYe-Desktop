@@ -9,7 +9,7 @@ import {
   type ZhuyeUpdateInfo,
   type ZhuyeUpdateProgress,
 } from '@/utils/commands/updates';
-import type { UpdateInstallState, UpdatesSectionProps } from '@/contracts/settingsCards';
+import type { UpdateInstallState, UpdatesSectionProps } from '@/contracts/settings/settingsCards';
 export function UpdatesBinding({ view: View }: { view: ComponentType<UpdatesSectionProps> }) {
   const { t } = useI18n();
   const [info, setInfo] = useState<ZhuyeUpdateInfo | null>(null);

@@ -1,4 +1,4 @@
-import type { Appearance, UiPrefs } from '@/contracts/appearance';
+import type { Appearance, UiPrefs } from '@/contracts/harness/appearance';
 
 function background(prefs: UiPrefs, rgb: string): string {
   if (prefs.backgroundImage) return 'transparent';

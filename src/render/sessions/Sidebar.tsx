@@ -7,8 +7,8 @@
  * 全部交互状态（搜索开关 / 仅看待处理 / 菜单 / 计时）由 SidebarBinding 持有。
  */
 import { ChevronDown, ChevronRight, Filter, Plus, RotateCw, Search, X } from 'lucide-react';
-import type { SidebarViewProps } from '@/contracts/sidebar';
-import type { SessionBadge } from '@/contracts/shell';
+import type { SidebarViewProps } from '@/contracts/harness/sidebar';
+import type { SessionBadge } from '@/contracts/harness/shell';
 import { Icon } from '../design-system/Icon';
 
 /** 渲染层本地结构类型：会话行的最小字段面（不依赖 utils/commands）。 */

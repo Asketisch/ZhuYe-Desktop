@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
-import type { ComposerSlots, ComposerViewProps } from '@/contracts/composer';
+import type { ComposerSlots, ComposerViewProps } from '@/contracts/conversation/composer';
 import { filterSlashCommands } from '@/logic/composer/slashCommands';
 import { usePromptHistory } from '@/logic/composer/usePromptHistory';
 import { useComposerInput } from '@/logic/composer/useComposerInput';

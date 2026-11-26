@@ -1,7 +1,7 @@
 /** 会话菜单挂到窗口层，避开侧栏滚动容器裁切。 */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { SidebarMenuAction } from '@/contracts/sidebar';
+import type { SidebarMenuAction } from '@/contracts/harness/sidebar';
 
 export function SidebarMenu({ sessionId, anchorKey, actions, onClose }: {
   sessionId: string;

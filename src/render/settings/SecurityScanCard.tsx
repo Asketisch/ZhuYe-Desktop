@@ -1,5 +1,5 @@
 import { ShieldCheck, Loader2 } from 'lucide-react';
-import type { SecurityScanCardProps } from '@/contracts/settingsCards';
+import type { SecurityScanCardProps } from '@/contracts/settings/settingsCards';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';
 import { Card } from '../design-system/Card';

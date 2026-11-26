@@ -5,7 +5,7 @@ import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';
 import { Icon } from '../design-system/Icon';
 import { EmptyState } from '../design-system/EmptyState';
-import type { PlanViewProps } from '@/contracts/plan';
+import type { PlanViewProps } from '@/contracts/orchestration/plan';
 import s from './PlanView.module.css';
 
 function PlanStatusBadge({ status }: { status: string }) {

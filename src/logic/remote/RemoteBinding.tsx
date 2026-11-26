@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useRemoteController } from './useRemoteController';
-import type { RemoteViewProps } from '@/contracts/remote';
+import type { RemoteViewProps } from '@/contracts/connect/remote';
 
 export function RemoteBinding({ view: View }: { view: ComponentType<RemoteViewProps> }) {
   const { t } = useI18n();

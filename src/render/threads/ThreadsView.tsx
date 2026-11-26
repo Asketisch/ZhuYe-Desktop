@@ -1,5 +1,5 @@
 import { Archive, ArchiveRestore, MessagesSquare, Trash2 } from 'lucide-react';
-import type { ThreadsViewProps } from '@/contracts/threads';
+import type { ThreadsViewProps } from '@/contracts/conversation/threads';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { EmptyState } from '../design-system/EmptyState';

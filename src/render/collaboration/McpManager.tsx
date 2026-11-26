@@ -1,5 +1,5 @@
 import { Boxes, Library, Plus, Server, Trash2 } from 'lucide-react';
-import type { McpManagerProps, McpServerEntry } from '@/contracts/mcpManager';
+import type { McpManagerProps, McpServerEntry } from '@/contracts/orchestration/mcpManager';
 import { Spinner } from '../design-system/Spinner';
 import kit from '../settings/SettingsPage.module.css';
 

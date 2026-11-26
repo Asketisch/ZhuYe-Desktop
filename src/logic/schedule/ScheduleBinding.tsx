@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useScheduleController } from '@/logic/schedule/useScheduleController';
-import type { ScheduleViewProps } from '@/contracts/scheduleView';
+import type { ScheduleViewProps } from '@/contracts/orchestration/scheduleView';
 
 /** 定时任务页面绑定。 */
 export function ScheduleBinding({ view: View }: { view: ComponentType<ScheduleViewProps> }) {

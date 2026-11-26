@@ -7,7 +7,7 @@
  * 浮层锚点态同样在绑定层，这里只把回调透传并把 DockOverlays slot 渲染出来。
  */
 import { AlarmClock, Circle, Plus, Settings } from 'lucide-react';
-import type { ShellViewProps } from '@/contracts/shell';
+import type { ShellViewProps } from '@/contracts/harness/shell';
 import { Icon } from '../design-system/Icon';
 import { DockTabBar } from './DockTabBar';
 

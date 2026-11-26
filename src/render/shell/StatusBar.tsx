@@ -1,5 +1,5 @@
 import { Sun, Moon, Monitor, AlertCircle, MessagesSquare, Coins, Shield } from 'lucide-react';
-import type { StatusBarProps } from '@/contracts/statusBar';
+import type { StatusBarProps } from '@/contracts/harness/statusBar';
 import { Icon } from '../design-system/Icon';
 import { IconButton } from '../design-system/IconButton';
 import { Tooltip } from '../design-system/Tooltip';

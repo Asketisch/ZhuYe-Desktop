@@ -7,7 +7,7 @@
  * 测试锚点（memory-*）全部保留。
  */
 import { Brain, Plus, ShieldAlert, X } from 'lucide-react';
-import type { MemoryViewProps } from '@/contracts/memory';
+import type { MemoryViewProps } from '@/contracts/knowledge/memory';
 import { PageShell } from '../shell/PageShell';
 import { Spinner } from '../design-system/Spinner';
 import { MemoryRow } from './MemoryRow';

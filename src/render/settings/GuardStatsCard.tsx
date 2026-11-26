@@ -1,5 +1,5 @@
 import { ShieldAlert, Loader2 } from 'lucide-react';
-import type { GuardStatsCardProps } from '@/contracts/settingsCards';
+import type { GuardStatsCardProps } from '@/contracts/settings/settingsCards';
 import { Button } from '../design-system/Button';
 import { Card } from '../design-system/Card';
 import { Icon } from '../design-system/Icon';

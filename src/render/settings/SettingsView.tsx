@@ -8,7 +8,7 @@
  * 视觉规范见同目录 SettingsPage.module.css 头注释。
  */
 import { ArrowLeft, Search, X } from 'lucide-react';
-import type { SettingsPermissionMode, SettingsViewProps } from '@/contracts/settings';
+import type { SettingsPermissionMode, SettingsViewProps } from '@/contracts/settings/settings';
 import { ALL_SECTIONS, GROUPS, GroupCard, Row, Segmented, Select } from './settingsKit';
 import s from './SettingsPage.module.css';
 

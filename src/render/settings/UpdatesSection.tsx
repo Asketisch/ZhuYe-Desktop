@@ -1,5 +1,5 @@
 import { Download, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
-import type { UpdatesSectionProps } from '@/contracts/settingsCards';
+import type { UpdatesSectionProps } from '@/contracts/settings/settingsCards';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';
 import { Card } from '../design-system/Card';

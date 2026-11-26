@@ -27,7 +27,7 @@ import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { useAgentStore } from '@/stores/agentStore';
 import { selectIsTurnRunning } from '@/stores/agent/selectors';
 import { useI18n } from '@/utils/i18n';
-import type { LaneRow, LaneStep, LaneTone } from '@/contracts/lanes';
+import type { LaneRow, LaneStep, LaneTone } from '@/contracts/orchestration/lanes';
 
 /** side-channel 查询键(中止后精确失效)。 */
 export const LANES_SIDECHANNELS_KEY = ['lanes', 'side-channels'] as const;

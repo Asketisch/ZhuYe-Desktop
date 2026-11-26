@@ -2,11 +2,11 @@
  * SideChannel 绑定——控制器/查询/动作转发给可替换视图。
  */
 import type { ComponentType } from 'react';
-import type { SideChannelViewProps } from '@/contracts/sideChannel';
+import type { SideChannelViewProps } from '@/contracts/conversation/sideChannel';
 import { useI18n } from '@/utils/i18n';
 import { useSideChannelController } from '@/logic/side-channel/useSideChannelController';
-import type { SideChannelStatus } from '@/contracts/sideChannel';
-import type { SideChannelStatusVariant } from '@/contracts/sideChannel';
+import type { SideChannelStatus } from '@/contracts/conversation/sideChannel';
+import type { SideChannelStatusVariant } from '@/contracts/conversation/sideChannel';
 
 const STATUS_VARIANT: Record<SideChannelStatus, SideChannelStatusVariant> = {
   running: 'accent',

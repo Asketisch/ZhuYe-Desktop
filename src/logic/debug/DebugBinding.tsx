@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ComponentType } from 'react';
-import type { DebugViewProps } from '@/contracts/basicPages';
+import type { DebugViewProps } from '@/contracts/harness/basicPages';
 import { useAgent } from '@/services/agent';
 
 /** 读取 agent 状态并维护调试记录。 */

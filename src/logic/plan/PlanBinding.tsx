@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import type { PlanViewProps, PlanViewSlots } from '@/contracts/plan';
+import type { PlanViewProps, PlanViewSlots } from '@/contracts/orchestration/plan';
 
 /** 计划页状态与审批动作绑定。 */
 export function PlanBinding({ view: View, slots }: { view: ComponentType<PlanViewProps>; slots: PlanViewSlots }) {

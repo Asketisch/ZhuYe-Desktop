@@ -2,7 +2,7 @@
  * Workspaces —— 项目工作区管理，含最近项目与附加目录编辑。
  */
 import { FolderOpen, CheckCircle2, ArrowRight, FolderSearch, FileSearch, FolderPlus, RotateCcw, Trash2, X } from 'lucide-react';
-import type { WorkspacesViewProps } from '@/contracts/workspaces';
+import type { WorkspacesViewProps } from '@/contracts/workbench/workspaces';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

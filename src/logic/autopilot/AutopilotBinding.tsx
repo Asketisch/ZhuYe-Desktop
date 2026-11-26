@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_get_autopilot_config, zhuye_update_autopilot_config, zhuye_autopilot_history, zhuye_list_agent_defs, type ZhuyeAutopilotConfig } from '@/utils/commands';
-import type { AutopilotRunView, AutopilotViewProps } from '@/contracts/autopilot';
+import type { AutopilotRunView, AutopilotViewProps } from '@/contracts/orchestration/autopilot';
 
 const DEFAULT_CONFIG: ZhuyeAutopilotConfig = { enabled: false, schedule: '', taskTemplate: '', agent: null, maxConcurrent: 1 };
 

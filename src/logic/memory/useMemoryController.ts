@@ -25,8 +25,8 @@ import { useAgentStore } from '@/stores/agentStore';
 import type { LocaleKey } from '@/utils/i18n';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import { emptyForm, nextDraftRevision, useMemoryDraftStore, type EditDraft, type FormDraft } from './memoryDraftStore';
-import { memoryEntryKey as entryKey } from '@/contracts/memory';
-export { memoryEntryKey as entryKey } from '@/contracts/memory';
+import { memoryEntryKey as entryKey } from '@/contracts/knowledge/memory';
+export { memoryEntryKey as entryKey } from '@/contracts/knowledge/memory';
 
 export const MEMORY_QUERY_KEY = ['memory'] as const;
 export const MEMORY_SECTIONS_QUERY_KEY = ['memory-sections'] as const;

@@ -14,7 +14,7 @@
  * - plan：计划文档 + 审批（PlanDock，可滚动、可提交执行）
  * - new-tab：启动器（DockLauncher）
  */
-import type { DockTab } from '@/contracts/shell';
+import type { DockTab } from '@/contracts/harness/shell';
 import { Inspector, ChangesTab } from './Inspector';
 import { BrowserDock } from '@/features/browser/BrowserDock';
 import { FilesDock } from '@/features/files/FilesDock';

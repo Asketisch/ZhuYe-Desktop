@@ -7,7 +7,7 @@ import { EmptyState } from '../design-system/EmptyState';
 import { Icon } from '../design-system/Icon';
 import { Select } from '../design-system/Select';
 import { Spinner } from '../design-system/Spinner';
-import type { MemoryViewProps } from '@/contracts/memory';
+import type { MemoryViewProps } from '@/contracts/knowledge/memory';
 import s from './MemoryView.module.css';
 
 function formatTime(iso: string): string {

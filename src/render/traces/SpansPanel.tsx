@@ -2,7 +2,7 @@
  * SpansPanel —— span 日志纯展示视图。
  */
 import { Activity } from 'lucide-react';
-import type { SpansPanelViewProps } from '@/contracts/traces_spans';
+import type { SpansPanelViewProps } from '@/contracts/telemetry/traces_spans';
 import { Badge } from '../design-system/Badge';
 import { Card } from '../design-system/Card';
 import { EmptyState } from '../design-system/EmptyState';

@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useUiPrefs } from '@/logic/preferences/uiPrefs';
 import { getTheme, setTheme, type ThemeMode } from '@/logic/preferences/theme';
-import type { SettingsDisplayProps } from '@/contracts/settingsDisplay';
+import type { SettingsDisplayProps } from '@/contracts/settings/settingsDisplay';
 export function DisplayBinding({ view: View }: { view: ComponentType<SettingsDisplayProps> }) {
   const [prefs, update] = useUiPrefs(); const { t } = useI18n();
   const [themeMode, setThemeMode] = useState<ThemeMode>(getTheme);

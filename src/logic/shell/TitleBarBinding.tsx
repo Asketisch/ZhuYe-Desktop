@@ -8,7 +8,7 @@ import { zhuye_agent_status, zhuye_current_workspace } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useThemeCycle } from './useThemeCycle';
 import { isUsableModelSpec } from './modelLabel';
-import type { TitleBarProps } from '@/contracts/titleBar';
+import type { TitleBarProps } from '@/contracts/harness/titleBar';
 
 /**
  * harness 标题条绑定：会话/模型状态 + 壳层 UI 状态 → 视图 props。

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { systemTimeNow, type ZhuyeTeam, type ZhuyeTeamMember } from '@/utils/commands';
-import type { TeamMemberDraft } from '@/contracts/tasksBoard';
+import type { TeamMemberDraft } from '@/contracts/orchestration/tasksBoard';
 
 const NAME_RE = /^[a-z0-9_-]{1,64}$/;
 

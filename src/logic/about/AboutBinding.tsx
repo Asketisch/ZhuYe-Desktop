@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
-import type { AboutViewProps } from '@/contracts/basicPages';
+import type { AboutViewProps } from '@/contracts/harness/basicPages';
 import { ping, zhuye_agent_status } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 

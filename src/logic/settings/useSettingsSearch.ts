@@ -7,7 +7,7 @@
  * 依赖方向门禁拦下；渲染层拿到 query 后用普通表达式自行过滤。
  */
 import { useEffect, useState } from 'react';
-import type { SettingsSection } from '@/contracts/settings';
+import type { SettingsSection } from '@/contracts/settings/settings';
 
 export interface SettingsSearchState {
   open: boolean;

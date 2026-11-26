@@ -1,5 +1,5 @@
 import { TriangleAlert, ShieldOff, ShieldQuestion } from 'lucide-react';
-import type { ConfigHealthViewProps } from '@/contracts/configHealth';
+import type { ConfigHealthViewProps } from '@/contracts/harness/configHealth';
 import { Badge } from '../design-system/Badge';
 import { Card } from '../design-system/Card';
 import { Icon } from '../design-system/Icon';

@@ -1,7 +1,7 @@
 import { render, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import type { SkillsViewProps } from '@/contracts/skills';
+import type { SkillsViewProps } from '@/contracts/knowledge/skills';
 import { SkillsView } from '@/features/skills/SkillsView';
 import { RendererProvider } from '@/logic/renderer/RendererProvider';
 import { renderer } from '@/render';

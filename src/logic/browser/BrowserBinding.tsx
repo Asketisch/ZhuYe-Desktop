@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useBrowserController } from '@/logic/browser/useBrowserController';
-import type { BrowserPanelProps } from '@/contracts/browser';
+import type { BrowserPanelProps } from '@/contracts/workbench/browser';
 
 /** 浏览器面板绑定:控制器 → 视图 props。 */
 export function BrowserBinding({ view: View }: { view: ComponentType<BrowserPanelProps> }) {

@@ -11,7 +11,7 @@ import {
   Anchor, BarChart3, Blocks, Bot, Brain, Cable, ChevronDown, HardDrive,
   Package, Palette, Search, Settings2, SlidersHorizontal, User, WandSparkles, Wrench, X,
 } from 'lucide-react';
-import type { SettingsSection, SettingsSectionMeta } from '@/contracts/settings';
+import type { SettingsSection, SettingsSectionMeta } from '@/contracts/settings/settings';
 import kit from './SettingsPage.module.css';
 
 interface SectionDef {

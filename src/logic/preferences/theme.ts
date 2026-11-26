@@ -9,8 +9,8 @@
  * 系统模式下监听系统深浅变化并重算外观偏好。
  */
 
-import type { ThemeMode } from '@/contracts/appearance';
-export type { ThemeMode } from '@/contracts/appearance';
+import type { ThemeMode } from '@/contracts/harness/appearance';
+export type { ThemeMode } from '@/contracts/harness/appearance';
 import { applyThemeAppearance } from '@/logic/webview/appearance';
 
 const STORAGE_KEY = 'zhuye-theme';

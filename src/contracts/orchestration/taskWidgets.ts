@@ -1,6 +1,6 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { ZhuyeTask, ZhuyeTaskStatus } from '@/utils/commands';
-import type { TeamData, TeamMemberDraft } from '@/contracts/tasksBoard';
+import type { TeamData, TeamMemberDraft } from '@/contracts/orchestration/tasksBoard';
 
 export interface TaskRowViewProps {
   task: ZhuyeTask;

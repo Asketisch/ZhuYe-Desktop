@@ -4,7 +4,7 @@
 import { Save } from 'lucide-react';
 import { Card } from '../design-system/Card';
 import { Icon } from '../design-system/Icon';
-import type { MemoryViewProps } from '@/contracts/memory';
+import type { MemoryViewProps } from '@/contracts/knowledge/memory';
 import s from './MemoryView.module.css';
 
 export interface MemoryAddFormProps {

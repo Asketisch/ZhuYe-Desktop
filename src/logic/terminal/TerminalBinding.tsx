@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { TerminalViewProps } from '@/contracts/terminal';
+import type { TerminalViewProps } from '@/contracts/workbench/terminal';
 import { useI18n } from '@/utils/i18n';
 import { useTerminalScroll } from '@/logic/webview/useTerminalScroll';
 import { useTerminalController } from './useTerminalController';

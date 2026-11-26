@@ -4,7 +4,7 @@
  */
 import { ArrowLeft, Blocks, Plug, Puzzle } from 'lucide-react';
 import type { ComponentType } from 'react';
-import type { MarketCard, MarketLocaleKey, MarketViewProps } from '@/contracts/market';
+import type { MarketCard, MarketLocaleKey, MarketViewProps } from '@/contracts/knowledge/market';
 
 /** 分类 → 图标字形。 */
 const GLYPH_ICON: Record<MarketCard['glyph'], ComponentType<{ size?: number; strokeWidth?: number }>> = {

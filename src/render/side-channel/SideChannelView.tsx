@@ -3,7 +3,7 @@
  */
 import { Plus, X, GitBranch, XCircle, Loader2 } from 'lucide-react';
 import type { ComponentType } from 'react';
-import type { SideChannelViewProps, SideChannelRowInfo } from '@/contracts/sideChannel';
+import type { SideChannelViewProps, SideChannelRowInfo } from '@/contracts/conversation/sideChannel';
 import { PageShell } from '../shell/PageShell';
 import { Badge } from '../design-system/Badge';
 import { Card } from '../design-system/Card';

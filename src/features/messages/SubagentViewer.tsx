@@ -22,7 +22,7 @@ import { Collapsible } from './Collapsible';
 import { TurnChangesCard } from './TurnChangesCard';
 import { CopyButton } from './CopyButton';
 import { Markdown } from '@/components/Markdown';
-import type { MessageListSlots, Turn } from '@/contracts/messageList';
+import type { MessageListSlots, Turn } from '@/contracts/conversation/messageList';
 
 /** 查看器无消息队列 —— MessageList 的队列槽位空实现。 */
 function NoQueuedMessages() {

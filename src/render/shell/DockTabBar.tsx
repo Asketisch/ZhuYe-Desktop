@@ -21,7 +21,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { DockTab } from '@/contracts/shell';
+import type { DockTab } from '@/contracts/harness/shell';
 import { Icon } from '../design-system/Icon';
 
 export interface DockTabBarProps {

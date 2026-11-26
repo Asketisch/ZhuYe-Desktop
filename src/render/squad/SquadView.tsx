@@ -1,5 +1,5 @@
 import { Plus, Users, Trash2, Zap, X } from 'lucide-react';
-import type { ZhuyeSquadMember, SquadController, SquadViewProps } from '@/contracts/squad';
+import type { ZhuyeSquadMember, SquadController, SquadViewProps } from '@/contracts/orchestration/squad';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Icon } from '../design-system/Icon';

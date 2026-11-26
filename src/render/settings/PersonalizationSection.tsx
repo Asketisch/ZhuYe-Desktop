@@ -5,7 +5,7 @@
  * AgentsMdHook 与项目级合并注入，对所有会话生效。视觉走设置页套件
  * （SettingsPage.module.css）：说明行 + 大编辑框 + 字节计数 + 保存/重置。
  */
-import type { SettingsPersonalizationProps } from '@/contracts/settingsPersonalization';
+import type { SettingsPersonalizationProps } from '@/contracts/settings/settingsPersonalization';
 import kit from './SettingsPage.module.css';
 
 export function PersonalizationSection({ t, content, loading, saving, saved, dirty, error, onChange, onSave, onReset }: SettingsPersonalizationProps) {

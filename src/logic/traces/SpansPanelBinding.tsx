@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { zhuye_list_span_logs, zhuye_read_span_log } from '@/utils/commands/traces';
 import type { ComponentType } from 'react';
-import type { SpansPanelViewProps } from '@/contracts/traces_spans';
+import type { SpansPanelViewProps } from '@/contracts/telemetry/traces_spans';
 import { useI18n } from '@/utils/i18n';
 
 export function SpansPanelBinding({ view: SpansPanelView }: { view: ComponentType<SpansPanelViewProps> }) {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Appearance } from '@/contracts/appearance';
+import type { Appearance } from '@/contracts/harness/appearance';
 import { appearance as defaultAppearance } from '@/render/appearance';
 import { getUiPrefs, setUiPrefs } from '@/logic/preferences/uiPrefs';
 import { setTheme } from '@/logic/preferences/theme';

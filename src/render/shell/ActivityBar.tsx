@@ -1,6 +1,6 @@
 import { MessageSquare, FolderGit2, Wrench, GitBranch, Bell, Settings, Info, Terminal, Home, FolderKanban, Clock, Bot, Workflow, Wifi, Mic, BookOpen, Zap, Users, Image, Search, Ellipsis, GitPullRequestArrow, Webhook, Activity, Gauge } from 'lucide-react';
 import type { ComponentType } from 'react';
-import type { ActivityBarProps, LocaleKey } from '@/contracts/activityBar';
+import type { ActivityBarProps, LocaleKey } from '@/contracts/harness/activityBar';
 import { Icon } from '../design-system/Icon';
 import { IconButton } from '../design-system/IconButton';
 import { Tooltip } from '../design-system/Tooltip';

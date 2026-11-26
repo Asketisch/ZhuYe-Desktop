@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { TerminalViewProps } from '@/contracts/terminal';
+import type { TerminalViewProps } from '@/contracts/workbench/terminal';
 import { emitMockEvent, mockInvoke, resetMockInvoke } from '@/test/setup';
 import { TerminalBinding } from './TerminalBinding';
 import { RendererProvider } from '@/logic/renderer/RendererProvider';

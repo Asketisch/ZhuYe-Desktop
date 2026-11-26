@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useAgentsController } from '@/logic/agents/useAgentsController';
-import type { AgentsViewProps } from '@/contracts/agents';
+import type { AgentsViewProps } from '@/contracts/orchestration/agents';
 
 export function AgentsBinding({ view: View, AgentEditor, SubagentSpecsPanel }: {
   view: ComponentType<AgentsViewProps>;

@@ -1,5 +1,5 @@
 import { Save, X } from 'lucide-react';
-import type { AgentEditorViewProps } from '@/contracts/agentWidgets';
+import type { AgentEditorViewProps } from '@/contracts/orchestration/agentWidgets';
 import { Card } from '../design-system/Card';
 import { Icon } from '../design-system/Icon';
 import { Input } from '../design-system/Input';

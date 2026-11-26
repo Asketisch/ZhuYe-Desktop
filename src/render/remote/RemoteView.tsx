@@ -1,5 +1,5 @@
 import { Loader2, PlugZap, RefreshCw, Save, Terminal, Trash2, Wifi, X } from 'lucide-react';
-import type { RemoteConfigDraft, RemoteViewProps } from '@/contracts/remote';
+import type { RemoteConfigDraft, RemoteViewProps } from '@/contracts/connect/remote';
 import { PageShell } from '../shell/PageShell';
 import { Spinner } from '../design-system/Spinner';
 import kit from '../settings/SettingsPage.module.css';

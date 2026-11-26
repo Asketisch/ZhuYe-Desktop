@@ -7,7 +7,7 @@ import { IconButton } from '../design-system/IconButton';
 import { Spinner } from '../design-system/Spinner';
 import s from './TasksBoardView.module.css';
 
-import type { TaskDetailViewProps } from '@/contracts/taskWidgets';
+import type { TaskDetailViewProps } from '@/contracts/orchestration/taskWidgets';
 export function TaskDetail({ task, output, outputLoading, onClose, labels }: TaskDetailViewProps) {
   return (
     <div className={s.detail} data-testid="task-detail">

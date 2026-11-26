@@ -1,5 +1,5 @@
 import { ArrowUp, Square, ListPlus, CornerDownRight, Lock, LockOpen } from 'lucide-react';
-import type { ComposerViewProps } from '@/contracts/composer';
+import type { ComposerViewProps } from '@/contracts/conversation/composer';
 import { Icon } from '../design-system/Icon';
 import { IconButton } from '../design-system/IconButton';
 import { Tooltip } from '../design-system/Tooltip';

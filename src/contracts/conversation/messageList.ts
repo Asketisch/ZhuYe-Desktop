@@ -8,7 +8,7 @@ import type { UserAttachments } from '@/features/messages/UserAttachments';
 import type { Collapsible } from '@/features/messages/Collapsible';
 import type { TurnChangesCard } from '@/features/messages/TurnChangesCard';
 import type { Markdown } from '@/components/Markdown';
-import type { CopyButtonProps } from '@/contracts/copyButton';
+import type { CopyButtonProps } from '@/contracts/conversation/copyButton';
 
 export interface MessageListSlots {
   ToolCell: ComponentType<ComponentProps<typeof ToolCell>>;

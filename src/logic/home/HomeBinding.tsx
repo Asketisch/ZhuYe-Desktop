@@ -5,7 +5,7 @@ import { useSessions } from '@/logic/sessions/useSessions';
 import { useAgent } from '@/services/agent';
 import { useI18n } from '@/utils/i18n';
 import { relativeTime } from '@/utils/time';
-import type { HomeViewProps } from '@/contracts/home';
+import type { HomeViewProps } from '@/contracts/conversation/home';
 
 export function HomeBinding({ view: View }: { view: ComponentType<HomeViewProps> }) {
   const { buckets } = useSessions();

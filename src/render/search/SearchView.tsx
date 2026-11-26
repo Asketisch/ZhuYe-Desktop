@@ -1,5 +1,5 @@
 import { MessageSquare, Search, X } from 'lucide-react';
-import type { SearchViewProps } from '@/contracts/search';
+import type { SearchViewProps } from '@/contracts/workbench/search';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

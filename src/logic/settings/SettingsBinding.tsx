@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
-import type { SettingsPermissionMode, SettingsSection, SettingsSlots, SettingsViewProps } from '@/contracts/settings';
+import type { SettingsPermissionMode, SettingsSection, SettingsSlots, SettingsViewProps } from '@/contracts/settings/settings';
 import { zhuye_get_config, zhuye_save_config, zhuye_agent_status, zhuye_set_permission_mode } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';

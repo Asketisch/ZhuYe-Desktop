@@ -5,7 +5,7 @@
  * 「设为默认」写 `[active].group`。
  */
 import { Cpu, Folder, AlertTriangle, CheckCircle2, Zap } from 'lucide-react';
-import type { ModelsViewProps } from '@/contracts/models';
+import type { ModelsViewProps } from '@/contracts/knowledge/models';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';

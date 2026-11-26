@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_gh_pr_list, type ZhuyeGhPullRequest } from '@/utils/commands';
-import type { PullRequestsViewProps } from '@/contracts/pulls';
+import type { PullRequestsViewProps } from '@/contracts/workbench/pulls';
 
 export function PullRequestsBinding({ view: View }: { view: ComponentType<PullRequestsViewProps> }) {
   const { t, tp } = useI18n();

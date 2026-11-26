@@ -1,5 +1,5 @@
 import { Terminal as TerminalIcon, CornerDownLeft, Square, Trash2 } from 'lucide-react';
-import type { TerminalViewProps } from '@/contracts/terminal';
+import type { TerminalViewProps } from '@/contracts/workbench/terminal';
 import s from './TerminalView.module.css';
 
 export function TerminalView({ state, activeLines, activeSession, bottomRef, t, tp,

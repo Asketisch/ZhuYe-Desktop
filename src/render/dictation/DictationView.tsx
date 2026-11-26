@@ -1,5 +1,5 @@
 import { Mic, MicOff, Copy, ClipboardPaste, Trash2, AlertTriangle } from 'lucide-react';
-import type { DictationViewProps } from '@/contracts/dictation';
+import type { DictationViewProps } from '@/contracts/conversation/dictation';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

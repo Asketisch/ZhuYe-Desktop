@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_search_files, zhuye_search_sessions, type ZhuyeFileSearchHit, type ZhuyeSessionSearchHit, type SearchRank } from '@/utils/commands';
-import type { SearchTab, SearchViewProps } from '@/contracts/search';
+import type { SearchTab, SearchViewProps } from '@/contracts/workbench/search';
 
 export function SearchBinding({ view: View }: { view: ComponentType<SearchViewProps> }) {
   const navigate = useNavigate();

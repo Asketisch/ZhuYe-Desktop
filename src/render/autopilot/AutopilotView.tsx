@@ -1,5 +1,5 @@
 import { Zap, Clock, History } from 'lucide-react';
-import type { AutopilotViewProps } from '@/contracts/autopilot';
+import type { AutopilotViewProps } from '@/contracts/orchestration/autopilot';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

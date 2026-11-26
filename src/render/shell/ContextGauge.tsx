@@ -1,4 +1,4 @@
-import type { StatusBarProps } from '@/contracts/statusBar';
+import type { StatusBarProps } from '@/contracts/harness/statusBar';
 import s from './ContextGauge.module.css';
 
 const RADIUS = 7;

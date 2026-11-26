@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import { Icon } from '../design-system/Icon';
 import s from './TasksBoardView.module.css';
 
-import type { TaskCreateFormViewProps } from '@/contracts/taskWidgets';
+import type { TaskCreateFormViewProps } from '@/contracts/orchestration/taskWidgets';
 export function TaskCreateForm({ newSubject, newDescription, newOwner, setNewSubject, setNewDescription, setNewOwner, onSubmit, labels }: TaskCreateFormViewProps) {
   return (
     <form className={s.addForm} data-testid="task-create-form" onSubmit={(e) => { e.preventDefault(); void onSubmit(); }}>

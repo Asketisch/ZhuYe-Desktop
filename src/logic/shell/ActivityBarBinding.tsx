@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useLocation, useRouter } from '@tanstack/react-router';
 import { useI18n } from '@/utils/i18n';
 import { useUiPrefs } from '@/logic/preferences/uiPrefs';
-import type { ActivityBarProps } from '@/contracts/activityBar';
+import type { ActivityBarProps } from '@/contracts/harness/activityBar';
 export function ActivityBarBinding({ view: View }: { view: ComponentType<ActivityBarProps> }) {
   const router = useRouter(); const location = useLocation(); const { t } = useI18n();
   const [prefs] = useUiPrefs(); const [moreOpen, setMoreOpen] = useState(false);

@@ -1,5 +1,5 @@
 import { AppWindow } from 'lucide-react';
-import type { AppsViewProps } from '@/contracts/basicPages';
+import type { AppsViewProps } from '@/contracts/harness/basicPages';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

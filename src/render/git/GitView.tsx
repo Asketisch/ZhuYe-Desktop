@@ -1,5 +1,5 @@
 import { GitBranch, GitCommitHorizontal, Check, ArrowRight, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
-import type { GitViewProps } from '@/contracts/git';
+import type { GitViewProps } from '@/contracts/workbench/git';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Icon } from '../design-system/Icon';

@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider, saveLocale } from '@/utils/i18n';
-import type { SidebarViewProps } from '@/contracts/sidebar';
+import type { SidebarViewProps } from '@/contracts/harness/sidebar';
 import { Sidebar } from './Sidebar';
 
 const PARENT = { session_id: 'parent-1', started_at: '2026-11-22T10:00:00Z', title: '主会话' };

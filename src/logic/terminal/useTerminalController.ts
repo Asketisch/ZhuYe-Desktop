@@ -24,8 +24,8 @@ import {
   type ZhuyeShellSession,
 } from '@/utils/commands';
 
-import type { TerminalLine, TerminalLineStream, TerminalSession, TerminalState } from '@/contracts/terminal';
-export type { TerminalLine, TerminalLineStream, TerminalSession, TerminalState } from '@/contracts/terminal';
+import type { TerminalLine, TerminalLineStream, TerminalSession, TerminalState } from '@/contracts/workbench/terminal';
+export type { TerminalLine, TerminalLineStream, TerminalSession, TerminalState } from '@/contracts/workbench/terminal';
 
 export const MAX_LINES_PER_SESSION = 5_000;
 

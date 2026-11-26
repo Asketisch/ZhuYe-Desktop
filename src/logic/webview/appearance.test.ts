@@ -10,7 +10,7 @@
  * 后 body 底色不变。
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Appearance, ThemeMode, UiPrefs } from '@/contracts/appearance';
+import type { Appearance, ThemeMode, UiPrefs } from '@/contracts/harness/appearance';
 import { appearance as defaultAppearance } from '@/render/appearance';
 import { applyPreferencesAppearance, applyThemeAppearance, setAppearance } from '@/logic/webview/appearance';
 

@@ -1,5 +1,5 @@
 import { MessageSquare, GitBranch } from 'lucide-react';
-import type { ChatViewProps } from '@/contracts/chat';
+import type { ChatViewProps } from '@/contracts/conversation/chat';
 import { Button } from '../design-system/Button';
 import { Icon } from '../design-system/Icon';
 import { Spinner } from '../design-system/Spinner';

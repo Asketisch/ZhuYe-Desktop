@@ -1,5 +1,5 @@
 import { Brain, Wrench, AlertTriangle, MessageSquare, FileDiff, GitBranch, RotateCcw, Pencil, RefreshCw, ChevronsRight } from 'lucide-react';
-import type { MessageListSlots, MessageListViewProps, Turn } from '@/contracts/messageList';
+import type { MessageListSlots, MessageListViewProps, Turn } from '@/contracts/conversation/messageList';
 import { Icon } from '../design-system/Icon';
 import { IconButton } from '../design-system/IconButton';
 import { groupToolNodes, type RenderNode } from './activityGrouping';

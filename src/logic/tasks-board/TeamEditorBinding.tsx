@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { useTeamEditor } from './useTeamEditor';
-import type { TeamEditorBindingProps, TeamEditorViewProps } from '@/contracts/taskWidgets';
+import type { TeamEditorBindingProps, TeamEditorViewProps } from '@/contracts/orchestration/taskWidgets';
 export function TeamEditorBinding({ view: View, teams, onSave, onDelete, busy, error, t }: TeamEditorBindingProps & { view: ComponentType<TeamEditorViewProps> }) {
   const editor = useTeamEditor({ teams, onSave, onDelete, invalidNameMessage: t('tasks.teamNameInvalid') });
   return <View teams={teams} editing={editor.editing} name={editor.name} description={editor.description} members={editor.members}

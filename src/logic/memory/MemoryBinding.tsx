@@ -10,8 +10,8 @@ import { zhuye_memory_sections } from '@/utils/commands/runtimeStatus';
 import { zhuye_list_note_sessions, zhuye_list_session_notes } from '@/utils/commands/notes';
 import { useAgentStore } from '@/stores/agentStore';
 import { FILTERS, MEMORY_SECTIONS_QUERY_KEY, SCOPE_KEYS, useMemoryController, entryKey } from './useMemoryController';
-import { memoryEntryKey } from '@/contracts/memory';
-import type { MemoryViewProps } from '@/contracts/memory';
+import { memoryEntryKey } from '@/contracts/knowledge/memory';
+import type { MemoryViewProps } from '@/contracts/knowledge/memory';
 
 function noteErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;

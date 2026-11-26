@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { StatusViewProps } from '@/contracts/generic';
+import type { StatusViewProps } from '@/contracts/harness/generic';
 
 /** 将静态文案与状态投影给展示组件。 */
 export function createStatusBinding(text: string, testId?: string) {

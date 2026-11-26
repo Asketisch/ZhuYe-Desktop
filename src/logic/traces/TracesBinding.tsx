@@ -3,11 +3,11 @@
  */
 import { useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
-import type { TracesViewProps } from '@/contracts/traces';
+import type { TracesViewProps } from '@/contracts/telemetry/traces';
 import { useI18n } from '@/utils/i18n';
 import { useTracesController } from './useTracesController';
 import { SpansPanelBinding } from './SpansPanelBinding';
-import type { SpansPanelViewProps } from '@/contracts/traces_spans';
+import type { SpansPanelViewProps } from '@/contracts/telemetry/traces_spans';
 
 export function TracesBinding({ view: View, spansView }: { view: ComponentType<TracesViewProps>; spansView: ComponentType<SpansPanelViewProps> }) {
   const c = useTracesController();

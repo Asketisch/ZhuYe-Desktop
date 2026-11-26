@@ -1,5 +1,5 @@
 import { Image as ImageIcon } from 'lucide-react';
-import type { MediaTab, MediaViewProps } from '@/contracts/media';
+import type { MediaTab, MediaViewProps } from '@/contracts/telemetry/media';
 import { PageShell } from '../shell/PageShell';
 import { Badge } from '../design-system/Badge';
 import { SegmentedControl, type SegmentedOption } from '../design-system/SegmentedControl';

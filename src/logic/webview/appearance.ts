@@ -1,4 +1,4 @@
-import type { Appearance, AppearanceValues, ThemeMode, UiPrefs } from '@/contracts/appearance';
+import type { Appearance, AppearanceValues, ThemeMode, UiPrefs } from '@/contracts/harness/appearance';
 
 let appearance: Appearance | null = null;
 /**

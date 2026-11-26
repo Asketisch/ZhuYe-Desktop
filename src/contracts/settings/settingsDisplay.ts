@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ThemeMode, UiPrefs } from '@/contracts/appearance';
+import type { ThemeMode, UiPrefs } from '@/contracts/harness/appearance';
 export interface SettingsDisplayProps {
   t: I18nContextValue['t']; prefs: UiPrefs; themeMode: ThemeMode; backgroundUrl: string;
   imageError: string; fileInput: RefObject<HTMLInputElement | null>;

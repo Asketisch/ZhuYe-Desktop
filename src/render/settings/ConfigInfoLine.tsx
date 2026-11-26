@@ -1,5 +1,5 @@
 import { FileCog } from 'lucide-react';
-import type { SettingsConfigInfoLineProps } from '@/contracts/settingsConfigInfoLine';
+import type { SettingsConfigInfoLineProps } from '@/contracts/settings/settingsConfigInfoLine';
 import { Icon } from '../design-system/Icon';
 import s from './ConfigInfoLine.module.css';
 export function ConfigInfoLine({ t, info }: SettingsConfigInfoLineProps) {

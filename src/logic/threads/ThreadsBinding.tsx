@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
 import { confirmDialog } from '@/logic/modals/confirm';
-import type { ThreadsViewProps } from '@/contracts/threads';
+import type { ThreadsViewProps } from '@/contracts/conversation/threads';
 
 export function ThreadsBinding({ view: View, BucketGroup }: { view: ComponentType<ThreadsViewProps>; BucketGroup: ThreadsViewProps['BucketGroup'] }) {
   const { buckets, archived, rename, fork, generateTitle, remove, archive, unarchive, export: exportSession } = useSessions();

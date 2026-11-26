@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { TerminalLine } from '@/contracts/terminal';
+import type { TerminalLine } from '@/contracts/workbench/terminal';
 
 export function useTerminalScroll(lines: TerminalLine[], activeId: string | null) {
   const bottomRef = useRef<HTMLDivElement>(null);

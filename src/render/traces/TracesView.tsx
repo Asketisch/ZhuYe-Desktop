@@ -3,7 +3,7 @@
  */
 import { Activity } from 'lucide-react';
 import type { ComponentType } from 'react';
-import type { TraceCallRow, TracesViewProps } from '@/contracts/traces';
+import type { TraceCallRow, TracesViewProps } from '@/contracts/telemetry/traces';
 import { PageShell } from '../shell/PageShell';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';

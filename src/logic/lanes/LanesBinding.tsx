@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useI18n } from '@/utils/i18n';
 import { useLanesController } from './useLanesController';
-import type { LanesViewProps } from '@/contracts/lanes';
+import type { LanesViewProps } from '@/contracts/orchestration/lanes';
 
 /** 将泳道状态与动作交给调用方提供的展示组件。 */
 export function LanesBinding({ view: View }: { view: ComponentType<LanesViewProps> }) {

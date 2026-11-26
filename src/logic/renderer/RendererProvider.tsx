@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import type { Renderer } from '@/contracts/renderer';
-import type { RenderSlots } from '@/contracts/renderLayer';
+import type { RenderSlots } from '@/contracts/harness/renderLayer';
 
 const RendererContext = createContext<Renderer | null>(null);
 const SlotContext = createContext<RenderSlots>({});

@@ -1,5 +1,5 @@
 import { Image, LayoutPanelLeft, Minimize2, Monitor, Moon, Sun } from 'lucide-react';
-import type { SettingsDisplayProps } from '@/contracts/settingsDisplay';
+import type { SettingsDisplayProps } from '@/contracts/settings/settingsDisplay';
 import { GroupCard, Row, SubHead, Select } from './settingsKit';
 import kit from './SettingsPage.module.css';
 

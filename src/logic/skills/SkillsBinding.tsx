@@ -19,7 +19,7 @@ import {
 import type { SkillMarketEntry } from '@/utils/commands/skills';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import type { SkillsViewProps, ToolGroupView } from '@/contracts/skills';
+import type { SkillsViewProps, ToolGroupView } from '@/contracts/knowledge/skills';
 
 /** 输入停止 300ms 后才发起搜索,避免每敲一个字打一次本地索引。 */
 const SEARCH_DEBOUNCE_MS = 300;

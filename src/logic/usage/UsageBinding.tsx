@@ -2,7 +2,7 @@
  * Usage 绑定——控制器数据转发给可替换视图。
  */
 import type { ComponentType } from 'react';
-import type { UsageViewProps } from '@/contracts/usage';
+import type { UsageViewProps } from '@/contracts/telemetry/usage';
 import { useI18n } from '@/utils/i18n';
 import { useUsageController } from './useUsageController';
 

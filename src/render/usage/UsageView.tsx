@@ -3,7 +3,7 @@
  */
 import { Gauge } from 'lucide-react';
 import type { ComponentType } from 'react';
-import type { ModelUsage, UsageViewProps } from '@/contracts/usage';
+import type { ModelUsage, UsageViewProps } from '@/contracts/telemetry/usage';
 import { PageShell } from '../shell/PageShell';
 import kit from '../settings/SettingsPage.module.css';
 import s from './UsageView.module.css';

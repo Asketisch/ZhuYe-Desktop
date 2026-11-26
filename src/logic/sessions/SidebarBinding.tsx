@@ -6,8 +6,8 @@ import { displayTitle } from './buckets';
 import { useCollapsedGroups } from './useCollapsedGroups';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
 import type { WorkspaceSessionGroup } from './workspaceGroups';
-import type { SidebarViewProps } from '@/contracts/sidebar';
-import type { SessionBadge } from '@/contracts/shell';
+import type { SidebarViewProps } from '@/contracts/harness/sidebar';
+import type { SessionBadge } from '@/contracts/harness/shell';
 
 export interface SidebarBindingProps {
   groups: WorkspaceSessionGroup[];

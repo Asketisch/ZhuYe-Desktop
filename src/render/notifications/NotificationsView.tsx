@@ -1,7 +1,7 @@
 import { AlertCircle, AlertTriangle, Info, BellOff, History, AtSign, Inbox } from 'lucide-react';
 import type { ComponentType } from 'react';
-import type { NotificationsViewProps } from '@/contracts/notifications';
-import type { NotifItem, NotificationFilter, NotificationTab, ZhuyeActivityEvent } from '@/contracts/notifications';
+import type { NotificationsViewProps } from '@/contracts/telemetry/notifications';
+import type { NotifItem, NotificationFilter, NotificationTab, ZhuyeActivityEvent } from '@/contracts/telemetry/notifications';
 type Filter = NotificationFilter;
 type Tab = NotificationTab;
 import { Card } from '../design-system/Card';

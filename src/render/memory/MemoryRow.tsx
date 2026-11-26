@@ -5,8 +5,8 @@ import { Plus, Trash2, Save, X } from 'lucide-react';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';
 import { Icon } from '../design-system/Icon';
-import type { MemoryViewProps } from '@/contracts/memory';
-import type { ZhuyeMemoryEntry } from '@/contracts/memory';
+import type { MemoryViewProps } from '@/contracts/knowledge/memory';
+import type { ZhuyeMemoryEntry } from '@/contracts/knowledge/memory';
 import s from './MemoryView.module.css';
 
 export interface MemoryRowProps {

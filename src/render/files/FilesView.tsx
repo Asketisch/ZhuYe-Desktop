@@ -1,5 +1,5 @@
 import { FolderOpen, RefreshCcw, ChevronRight, Check, Undo2, Zap, AlertTriangle } from 'lucide-react';
-import type { FilesViewProps } from '@/contracts/files';
+import type { FilesViewProps } from '@/contracts/workbench/files';
 import { PageShell } from '../shell/PageShell';
 import { Icon } from '../design-system/Icon';
 import { Spinner } from '../design-system/Spinner';

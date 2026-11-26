@@ -1,5 +1,5 @@
 import { Globe, Loader2, Monitor, RefreshCw, Square } from 'lucide-react';
-import type { BrowserPanelProps } from '@/contracts/browser';
+import type { BrowserPanelProps } from '@/contracts/workbench/browser';
 import { Button } from '../design-system/Button';
 import { Icon } from '../design-system/Icon';
 import s from './BrowserPanel.module.css';

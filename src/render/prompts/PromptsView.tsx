@@ -3,7 +3,7 @@ import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Button } from '../design-system/Button';
 import { Icon } from '../design-system/Icon';
-import type { PromptsViewProps } from '@/contracts/prompts';
+import type { PromptsViewProps } from '@/contracts/knowledge/prompts';
 import s from './PromptsView.module.css';
 
 export function PromptsView({ prompts, selectedId, sentId, onToggle, onSend }: PromptsViewProps) {

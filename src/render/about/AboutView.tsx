@@ -1,5 +1,5 @@
 import { Info, Github, Heart } from 'lucide-react';
-import type { AboutViewProps } from '@/contracts/basicPages';
+import type { AboutViewProps } from '@/contracts/harness/basicPages';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
-import type { SessionBadge } from '@/contracts/shell';
+import type { SessionBadge } from '@/contracts/harness/shell';
 
 /** 未读产出（后台会话结束但还没被打开过）——壳层 store 承载。 */
 export interface UnreadRegistry {

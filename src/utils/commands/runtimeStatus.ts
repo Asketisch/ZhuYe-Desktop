@@ -9,8 +9,8 @@
  */
 import { invoke } from '../bridge';
 import type { MemoryContext } from './memory';
-import type { ConfigHealthIssue } from '@/contracts/configHealth';
-export type { ConfigHealthIssue } from '@/contracts/configHealth';
+import type { ConfigHealthIssue } from '@/contracts/harness/configHealth';
+export type { ConfigHealthIssue } from '@/contracts/harness/configHealth';
 
 /** 单个模型组的凭证池健康度（与后端 `runtime_status.rs` camelCase 出线对齐）。 */
 export interface CredentialPoolStatus {

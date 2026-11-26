@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_get_user_instructions, zhuye_save_user_instructions } from '@/utils/commands';
-import type { SettingsPersonalizationProps } from '@/contracts/settingsPersonalization';
+import type { SettingsPersonalizationProps } from '@/contracts/settings/settingsPersonalization';
 
 /** 个性化（用户级自定义指令）绑定：读 / 写 `<用户数据目录>/AGENTS.md`。 */
 export function PersonalizationBinding({ view: View }: { view: ComponentType<SettingsPersonalizationProps> }) {

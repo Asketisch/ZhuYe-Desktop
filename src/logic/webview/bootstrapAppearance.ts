@@ -1,4 +1,4 @@
-import type { Appearance } from '@/contracts/appearance';
+import type { Appearance } from '@/contracts/harness/appearance';
 import { initTheme } from '@/logic/preferences/theme';
 import { bootstrapUiPrefs } from '@/logic/preferences/uiPrefs';
 import { setAppearance } from './appearance';

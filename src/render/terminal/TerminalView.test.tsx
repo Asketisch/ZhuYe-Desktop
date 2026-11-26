@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TerminalView } from './TerminalView';
-import type { TerminalViewProps } from '@/contracts/terminal';
+import type { TerminalViewProps } from '@/contracts/workbench/terminal';
 
 describe('终端展示契约', () => {
   it('仅依据传入的数据展示输出并转发操作', () => {

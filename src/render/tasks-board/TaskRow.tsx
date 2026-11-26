@@ -2,7 +2,7 @@
  * TaskRow —— 任务行纯展示组件。
  */
 import { CheckCircle, Play, Trash2, Hand, Square, FileText, Unlock } from 'lucide-react';
-import type { TaskStatus } from '@/contracts/tasksBoard';
+import type { TaskStatus } from '@/contracts/orchestration/tasksBoard';
 import { Badge } from '../design-system/Badge';
 import { Icon } from '../design-system/Icon';
 import s from './TasksBoardView.module.css';
@@ -14,7 +14,7 @@ const STATUS_VARIANT: Record<TaskStatus, 'neutral' | 'accent' | 'success' | 'dan
   deleted: 'danger',
 };
 
-import type { TaskRowViewProps } from '@/contracts/taskWidgets';
+import type { TaskRowViewProps } from '@/contracts/orchestration/taskWidgets';
 export function TaskRow({ task, labels, statusLabels, onClaim, onAdvance, onRemove, onSelect, onStop, onRelease }: TaskRowViewProps) {
   return (
     <div className={s.row} data-testid={`task-row-${task.id}`}>

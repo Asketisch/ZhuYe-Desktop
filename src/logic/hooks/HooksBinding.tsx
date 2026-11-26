@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { zhuye_list_hooks, zhuye_toggle_hook, zhuye_list_hook_events } from '@/utils/commands';
-import type { HooksViewProps, HookView } from '@/contracts/hooks';
+import type { HooksViewProps, HookView } from '@/contracts/connect/hooks';
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;

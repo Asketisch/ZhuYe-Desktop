@@ -1,5 +1,5 @@
 import { Bot, Plus, Trash2, Save, X } from 'lucide-react';
-import type { SubagentSpecsViewProps } from '@/contracts/agentWidgets';
+import type { SubagentSpecsViewProps } from '@/contracts/orchestration/agentWidgets';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';
 import { Card } from '../design-system/Card';

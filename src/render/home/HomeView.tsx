@@ -5,7 +5,7 @@ import { Badge } from '../design-system/Badge';
 import { Icon } from '../design-system/Icon';
 import { Button } from '../design-system/Button';
 import { EmptyState } from '../design-system/EmptyState';
-import type { HomeViewProps } from '@/contracts/home';
+import type { HomeViewProps } from '@/contracts/conversation/home';
 import s from './HomeView.module.css';
 
 interface QuickAction {

@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useSubagentSpecs } from './useSubagentSpecs';
-import type { SubagentSpecsViewProps } from '@/contracts/agentWidgets';
+import type { SubagentSpecsViewProps } from '@/contracts/orchestration/agentWidgets';
 export function SubagentSpecsBinding({ view: View }: { view: ComponentType<SubagentSpecsViewProps> }) {
   const { t } = useI18n(); const ctrl = useSubagentSpecs();
   return <View t={t} specs={ctrl.specs} loading={ctrl.loading} editing={ctrl.editing}

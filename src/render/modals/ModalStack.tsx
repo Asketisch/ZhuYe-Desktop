@@ -1,4 +1,4 @@
-import type { ModalStackProps } from '@/contracts/modalStack';
+import type { ModalStackProps } from '@/contracts/harness/modalStack';
 
 /**
  * 全局模态栈：只处理「必须打断」的挂起交互（工具/钩子审批、提问、

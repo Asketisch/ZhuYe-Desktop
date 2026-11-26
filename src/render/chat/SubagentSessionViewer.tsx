@@ -6,7 +6,7 @@
  */
 import { X } from 'lucide-react';
 import type { RefObject } from 'react';
-import type { MessageListViewProps, MessageListSlots, Turn } from '@/contracts/messageList';
+import type { MessageListViewProps, MessageListSlots, Turn } from '@/contracts/conversation/messageList';
 import { MessageList } from '../messages/MessageList';
 import { Icon } from '../design-system/Icon';
 import s from './SubagentSessionViewer.module.css';

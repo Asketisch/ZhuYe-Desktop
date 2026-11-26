@@ -2,7 +2,7 @@
  * TasksBoardView —— 任务看板纯展示视图。
  */
 import { KanbanSquare, List as ListIcon, Plus, X, FolderKanban, Users } from 'lucide-react';
-import type { BoardView, TaskStatus, TasksBoardViewProps } from '@/contracts/tasksBoard';
+import type { BoardView, TaskStatus, TasksBoardViewProps } from '@/contracts/orchestration/tasksBoard';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { EmptyState } from '../design-system/EmptyState';

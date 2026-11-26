@@ -4,7 +4,7 @@ import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';
 import { Input } from '../design-system/Input';
-import type { HtmlPreviewProps } from '@/contracts/htmlPreview';
+import type { HtmlPreviewProps } from '@/contracts/workbench/htmlPreview';
 import s from './HtmlPreviewView.module.css';
 
 export function HtmlPreviewView({ t, relPath, onPathChange, onOpen, disabled, workspace, content, isHtml, loading, error, ports }: HtmlPreviewProps) {

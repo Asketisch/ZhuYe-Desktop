@@ -1,5 +1,5 @@
 import { Bot, Plus, Pencil, Trash2, Check } from 'lucide-react';
-import type { AgentsViewProps, ZhuyeAgentDef } from '@/contracts/agents';
+import type { AgentsViewProps, ZhuyeAgentDef } from '@/contracts/orchestration/agents';
 import { PageShell } from '../shell/PageShell';
 import { Spinner } from '../design-system/Spinner';
 import kit from '../settings/SettingsPage.module.css';

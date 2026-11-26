@@ -6,7 +6,7 @@
  * 测试锚点（skill-market-* / skill-row-* / market-install-*）全部保留。
  */
 import { Hammer, Search, Sparkles, Store, Wrench, RefreshCw, Check } from 'lucide-react';
-import type { SkillsViewProps } from '@/contracts/skills';
+import type { SkillsViewProps } from '@/contracts/knowledge/skills';
 import { PageShell } from '../shell/PageShell';
 import { Spinner } from '../design-system/Spinner';
 import kit from '../settings/SettingsPage.module.css';

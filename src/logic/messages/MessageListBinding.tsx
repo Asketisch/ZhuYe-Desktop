@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { useMessageListScroll } from '@/logic/webview/useMessageListScroll';
-import type { MessageListSlots, MessageListViewProps } from '@/contracts/messageList';
+import type { MessageListSlots, MessageListViewProps } from '@/contracts/conversation/messageList';
 
 export function MessageListBinding({ view: View, slots, onForkTurn, onRewindTurn, onEditTurn, onRegenerateTurn, onContinueTurn }: {
   view: ComponentType<MessageListViewProps>;

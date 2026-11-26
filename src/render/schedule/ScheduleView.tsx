@@ -5,7 +5,7 @@ import { Card } from '../design-system/Card';
 import { EmptyState } from '../design-system/EmptyState';
 import { Icon } from '../design-system/Icon';
 import { Spinner } from '../design-system/Spinner';
-import type { ScheduleViewProps } from '@/contracts/scheduleView';
+import type { ScheduleViewProps } from '@/contracts/orchestration/scheduleView';
 import s from './ScheduleView.module.css';
 
 export function ScheduleView({ t, status, showForm, onToggleForm, newSchedule, newPrompt, newName, onNewSchedule, onNewPrompt, onNewName, onSubmitCreate, loading, error, jobs, isMutating, onToggle, onRemove }: ScheduleViewProps) {

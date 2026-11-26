@@ -5,7 +5,7 @@
  * 终端保留底部面板、不进启动器（用户已确认）；ZCode 的部署/辅助对话在
  * 烛夜无侧栏等价物，不列入。
  */
-import type { DockTabKind } from '@/contracts/shell';
+import type { DockTabKind } from '@/contracts/harness/shell';
 import { DOCK_TAB_META } from './DockTabBar';
 import { Icon } from '../design-system/Icon';
 import { ArrowRight } from 'lucide-react';

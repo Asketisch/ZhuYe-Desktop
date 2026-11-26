@@ -4,7 +4,7 @@
  * 锚点态在绑定层（render 层禁止 hook），本组件按 props 渲染浮层；
  * tabs 从 shellUi store 直接读取（浮层只读展示，无需层层透传）。
  */
-import type { DockOverlaysProps } from '@/contracts/shell';
+import type { DockOverlaysProps } from '@/contracts/harness/shell';
 import { useShellUi } from '@/stores/shellUi';
 import { DockTabOverview } from './DockTabOverview';
 import { DockContextMenu } from './DockContextMenu';

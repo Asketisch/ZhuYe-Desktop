@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { ComponentType } from 'react';
-import type { ConfigHealthKey, ConfigHealthViewProps } from '@/contracts/configHealth';
+import type { ConfigHealthKey, ConfigHealthViewProps } from '@/contracts/harness/configHealth';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_get_config } from '@/utils/commands/config';
 import { ping } from '@/utils/commands/health';

@@ -12,7 +12,7 @@
  * `<think>` 系标签混在正文里的思考在此拆出，和 `thinking_delta` 条目
  * 走同一条聚合路径；正文气泡只保留可见内容。
  */
-import type { TurnItem } from '@/contracts/messageList';
+import type { TurnItem } from '@/contracts/conversation/messageList';
 import { splitAssistantText } from './assistantText';
 
 export type ToolCallItem = Extract<TurnItem, { kind: 'tool_call' }>;

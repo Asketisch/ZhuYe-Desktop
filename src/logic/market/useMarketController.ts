@@ -31,7 +31,7 @@ import {
 } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import type { MarketCard, MarketKind, MarketPermTone } from '@/contracts/market';
+import type { MarketCard, MarketKind, MarketPermTone } from '@/contracts/knowledge/market';
 
 // ====== 查询键(突变后按前缀失效) ======
 export const MARKET_MCP_KEY = ['market', 'mcp'] as const;

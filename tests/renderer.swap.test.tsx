@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import type { ChatViewProps } from '@/contracts/chat';
-import type { ComposerViewProps } from '@/contracts/composer';
-import type { ShellViewProps } from '@/contracts/shell';
-import type { SettingsViewProps } from '@/contracts/settings';
+import type { ChatViewProps } from '@/contracts/conversation/chat';
+import type { ComposerViewProps } from '@/contracts/conversation/composer';
+import type { ShellViewProps } from '@/contracts/harness/shell';
+import type { SettingsViewProps } from '@/contracts/settings/settings';
 import { renderer } from '@/render';
 import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
 import { renderApp, resetAppAfterEach } from './helpers/appHarness';

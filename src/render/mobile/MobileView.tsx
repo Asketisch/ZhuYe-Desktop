@@ -1,4 +1,4 @@
-import type { MobileViewProps } from '@/contracts/mobile';
+import type { MobileViewProps } from '@/contracts/harness/mobile';
 import { Smartphone } from 'lucide-react';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';

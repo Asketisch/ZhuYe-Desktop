@@ -4,7 +4,7 @@
  */
 import { Fragment } from 'react';
 import { ArrowLeft, RefreshCw, Square } from 'lucide-react';
-import type { LaneRow, LanesViewProps } from '@/contracts/lanes';
+import type { LaneRow, LanesViewProps } from '@/contracts/orchestration/lanes';
 
 /** token 数紧凑格式:1200 → 1.2k。 */
 function fmtTokens(n: number): string {

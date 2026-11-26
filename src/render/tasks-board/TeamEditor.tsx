@@ -10,7 +10,7 @@ import { Input } from '../design-system/Input';
 import { Textarea } from '../design-system/Textarea';
 import s from './TasksBoardView.module.css';
 
-import type { TeamEditorViewProps } from '@/contracts/taskWidgets';
+import type { TeamEditorViewProps } from '@/contracts/orchestration/taskWidgets';
 export function TeamEditor({ teams, editing, name, description, members, busy, error, onStartCreate, onStartEdit, onCancel, onNameChange, onDescriptionChange, onAddMember, onUpdateMember, onRemoveMember, onSubmit, onDelete, labels }: TeamEditorViewProps) {
   return (
     <Card level="flat" padding="sm" className={s.teamPanel} data-testid="tasks-team-editor">

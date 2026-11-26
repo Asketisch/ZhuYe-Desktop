@@ -1,5 +1,5 @@
 import { BookOpen, Plus, Search, Trash2, FileText } from 'lucide-react';
-import type { KmsViewProps, ZhuyePage, ZhuyeSearchResult, ZhuyeWikiInfo } from '@/contracts/kms';
+import type { KmsViewProps, ZhuyePage, ZhuyeSearchResult, ZhuyeWikiInfo } from '@/contracts/connect/kms';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

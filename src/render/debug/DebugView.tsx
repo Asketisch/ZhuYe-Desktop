@@ -1,5 +1,5 @@
 import { Bug, Activity, Database } from 'lucide-react';
-import type { DebugViewProps } from '@/contracts/basicPages';
+import type { DebugViewProps } from '@/contracts/harness/basicPages';
 import { PageShell } from '../shell/PageShell';
 import { Badge } from '../design-system/Badge';
 import { Icon } from '../design-system/Icon';

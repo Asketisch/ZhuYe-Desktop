@@ -1,5 +1,5 @@
 import { Network, Cpu, Users, Workflow } from 'lucide-react';
-import type { CollaborationViewProps } from '@/contracts/collaboration';
+import type { CollaborationViewProps } from '@/contracts/orchestration/collaboration';
 import { PageShell } from '../shell/PageShell';
 import { Badge } from '../design-system/Badge';
 import { Button } from '../design-system/Button';

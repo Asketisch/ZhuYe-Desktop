@@ -20,7 +20,7 @@ import { relativeTime } from '@/utils/time';
 import { useAgentStore } from '@/stores/agentStore';
 import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
 import { SESSIONS_QUERY_KEY } from '@/logic/sessions/useSessions';
-import type { WorkspacesViewProps } from '@/contracts/workspaces';
+import type { WorkspacesViewProps } from '@/contracts/workbench/workspaces';
 
 function basename(path: string): string {
   const parts = path.replace(/\/$/, '').split('/');

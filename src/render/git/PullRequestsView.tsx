@@ -1,5 +1,5 @@
 import { GitPullRequestArrow, ExternalLink } from 'lucide-react';
-import type { PullRequestsViewProps } from '@/contracts/pulls';
+import type { PullRequestsViewProps } from '@/contracts/workbench/pulls';
 import { PageShell } from '../shell/PageShell';
 import { Card } from '../design-system/Card';
 import { Badge } from '../design-system/Badge';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
-import type { PromptTemplateView, PromptsViewProps } from '@/contracts/prompts';
+import type { PromptTemplateView, PromptsViewProps } from '@/contracts/knowledge/prompts';
 
 const PROMPTS: PromptTemplateView[] = [
   { id: 'review', name: 'Review code', description: '审查当前工作区的代码(找 bug / 安全 / 风格)', body: '请审查当前工作区的代码,关注:潜在的 bug、安全问题、风格一致性。先列出你审查的文件,再给出具体建议。' },

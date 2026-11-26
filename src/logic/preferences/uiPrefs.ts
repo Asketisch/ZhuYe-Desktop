@@ -5,8 +5,8 @@
  */
 import { useSyncExternalStore } from 'react';
 
-import type { UiPrefs } from '@/contracts/appearance';
-export type { UiPrefs } from '@/contracts/appearance';
+import type { UiPrefs } from '@/contracts/harness/appearance';
+export type { UiPrefs } from '@/contracts/harness/appearance';
 import { applyPreferencesAppearance, resolveBackground } from '@/logic/webview/appearance';
 
 const DEFAULTS: UiPrefs = {

@@ -4,7 +4,7 @@ import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { zhuye_read_file, zhuye_scan_local_ports } from '@/utils/commands';
-import type { HtmlPreviewProps } from '@/contracts/htmlPreview';
+import type { HtmlPreviewProps } from '@/contracts/workbench/htmlPreview';
 
 /** HTML 预览绑定。 */
 export function HtmlPreviewBinding({ view: View }: { view: ComponentType<HtmlPreviewProps> }) {

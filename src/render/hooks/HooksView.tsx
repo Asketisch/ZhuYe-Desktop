@@ -1,7 +1,7 @@
 import { Anchor, RefreshCw, Webhook } from 'lucide-react';
 import { PageShell } from '../shell/PageShell';
 import { Spinner } from '../design-system/Spinner';
-import type { HooksViewProps } from '@/contracts/hooks';
+import type { HooksViewProps } from '@/contracts/connect/hooks';
 import kit from '../settings/SettingsPage.module.css';
 
 /**

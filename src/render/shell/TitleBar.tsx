@@ -1,5 +1,5 @@
 import { Bell, Contrast, Command, PanelLeft, PanelRight, Moon, Sun, SquareTerminal } from 'lucide-react';
-import type { TitleBarProps } from '@/contracts/titleBar';
+import type { TitleBarProps } from '@/contracts/harness/titleBar';
 import { Icon } from '../design-system/Icon';
 
 /**

@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ComponentType, ReactNode } from 'react';
-import type { ShellSlots, ShellViewProps, ShellViewMode } from '@/contracts/shell';
+import type { ShellSlots, ShellViewProps, ShellViewMode } from '@/contracts/harness/shell';
 import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
 import { unpin, useSessionPins } from '@/logic/sessions/pins';
 import { useAgentStore as useZAgentStore } from '@/stores/agentStore';

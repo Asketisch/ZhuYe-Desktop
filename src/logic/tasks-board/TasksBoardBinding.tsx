@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { useTasksBoardController } from './useTasksBoardController';
 import { useTeamEditor } from './useTeamEditor';
-import type { TaskStatus, TasksBoardViewProps, TeamData } from '@/contracts/tasksBoard';
+import type { TaskStatus, TasksBoardViewProps, TeamData } from '@/contracts/orchestration/tasksBoard';
 
 /** 将任务看板控制器与本地界面状态投影给渲染视图。 */
 export function TasksBoardBinding({ view: View }: { view: ComponentType<TasksBoardViewProps> }) {

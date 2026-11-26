@@ -1,5 +1,5 @@
 import { Bell, Check, Volume2 } from 'lucide-react';
-import type { SettingsNotificationsProps } from '@/contracts/settingsNotifications';
+import type { SettingsNotificationsProps } from '@/contracts/settings/settingsNotifications';
 import { GroupCard, Row, SubHead, Select } from './settingsKit';
 import kit from './SettingsPage.module.css';
 
