@@ -13,7 +13,7 @@ it('serializes backend binds and continues after a failure', async () => {
       await new Promise<void>((resolve) => { finish = resolve; });
       throw new Error('bind failed');
     }
-    return 'auto';
+    return { permission_mode: 'auto', pending_gates: [], prompt_selection: null };
   });
   const first = zhuye_bind_session('first');
   const failure = expect(first).rejects.toThrow('bind failed');
@@ -21,7 +21,7 @@ it('serializes backend binds and continues after a failure', async () => {
   await vi.waitFor(() => expect(calls).toEqual(['first']));
   finish();
   await failure;
-  await expect(second).resolves.toBe('auto');
+  await expect(second).resolves.toMatchObject({ permission_mode: 'auto' });
   expect(calls).toEqual(['first', 'second']);
 });
 
@@ -32,7 +32,10 @@ it('waits for queued workspace switches before binding', async () => {
     calls.push('switch');
     await new Promise<void>((resolve) => { finish = resolve; });
   });
-  mockInvoke('zhuye_bind_session', async () => { calls.push('bind'); return 'auto'; });
+  mockInvoke('zhuye_bind_session', async () => {
+    calls.push('bind');
+    return { permission_mode: 'auto', pending_gates: [], prompt_selection: null };
+  });
   const switching = zhuye_set_workspace('/project');
   const binding = zhuye_bind_session('session');
   await Promise.resolve();
@@ -40,6 +43,6 @@ it('waits for queued workspace switches before binding', async () => {
   expect(calls).toEqual(['switch']);
   finish();
   await switching;
-  await expect(binding).resolves.toBe('auto');
+  await expect(binding).resolves.toMatchObject({ permission_mode: 'auto' });
   expect(calls).toEqual(['switch', 'bind']);
 });

@@ -3,6 +3,7 @@ import { normalizePermissionMode } from '@/types/protocol';
 import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, PluginLoadedInfo, TodoItem, TurnTokenUsage } from './types';
 import { COMPACTION_RECORD_CAP, SUBAGENT_FEED_CAP } from './types';
 import { upsertServer } from './servers';
+import { shouldToastPromptSwitched } from './promptSwitched';
 import {
   abortTurnOrLatestStreaming,
   appendItem,
@@ -460,7 +461,18 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
 
     // v1.6.1:提示词库重扫完成 —— 立即 toast 提示「提示词已刷新」并
     // 展示新命中层(协议约定由 UI 提示)。
+    //
+    // v1.13:只在**生效结果真的变了**时提示 —— 切会话时前端会下发
+    // `Select`,引擎必回本事件,但内容常常完全没变(同一 selection
+    // 解析出同一组生效层)。此前无条件弹 toast,于是每次切会话都冒
+    // 出一条「提示词已刷新」而用户什么都没看到。判定见
+    // `./promptSwitched`(独立文件:`reducer.ts` 已达行数预算)。
     case 'prompt_switched': {
+      const changed = shouldToastPromptSwitched(state.prompt, {
+        activeLayers: msg.active_layers,
+        selection: msg.selection,
+        profile: msg.profile,
+      });
       const toast: AgentState['toasts'][number] = {
         id: `prompt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         kind: 'info',
@@ -482,7 +494,8 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           groups: state.prompt?.groups,
           switchedAt: Date.now(),
         },
-        toasts: [...state.toasts, toast],
+        // 内容没变 → 不产出 toast(连字段都不带,避免无谓的数组替换)。
+        ...(changed ? { toasts: [...state.toasts, toast] } : {}),
       };
     }
 

@@ -48,33 +48,46 @@ describe('per-session prompt selection', () => {
   });
 });
 
-describe('syncSessionPromptSelection (bind 恢复三分支)', () => {
-  it('re-submits the saved selection when the session has one', () => {
+describe('syncSessionPromptSelection (bind 恢复 —— 按后端权威值判定)', () => {
+  // v1.13:第二参数是后端 `zhuye_bind_session` 回传的该会话**权威
+  // override**(取自 rollout 末次 PromptSelectionChanged;null = 无覆盖
+  // = 跟随全局默认)。前端不再拿自己的 `store.prompt.selection` 镜像
+  // 当依据 —— 镜像会回落到全局默认,既让每次切会话都误弹「提示词已
+  // 刷新」,又因初始为 null 漏下发 Select 让上个会话串味到下个会话。
+
+  it('有记录且与权威值不同 → 提交该记录', () => {
     writePromptSelection('s1', { mode: 'manual', profile: 'gpt' });
-    syncSessionPromptSelection('s1');
+    syncSessionPromptSelection('s1', null);
     expect(promptCommand).toHaveBeenCalledWith({ type: 'select', selection: { mode: 'manual', profile: 'gpt' } });
   });
 
-  it('falls back to follow-default when the previous session left a lock behind', () => {
-    // 无记录 + 进程锁残留(manual) → 提交 Select(null) 恢复跟随默认。
-    useAgentStore.setState({ prompt: {
-      available: [], currentSpec: 'openai/gpt-x', activeLayers: [],
-      selection: { mode: 'manual', profile: 'qwen' }, profile: 'qwen',
-      switchedAt: null,
-    } });
-    syncSessionPromptSelection('s2');
+  it('有记录且与权威值相同 → 不提交(不写冗余 rollout,也不弹 toast)', () => {
+    writePromptSelection('s1', { mode: 'manual', profile: 'gpt' });
+    syncSessionPromptSelection('s1', { mode: 'manual', profile: 'gpt' });
+    expect(promptCommand).not.toHaveBeenCalled();
+  });
+
+  it('无记录但权威值有覆盖(上个会话残留) → 提交 Select(null) 恢复跟随默认', () => {
+    syncSessionPromptSelection('s2', { mode: 'manual', profile: 'qwen' });
     expect(promptCommand).toHaveBeenCalledWith({ type: 'select', selection: null });
   });
 
-  it('skips the call when no record exists and the lock already follows default', () => {
-    syncSessionPromptSelection('s3');
+  it('无记录且权威值为 null(已是跟随默认) → 跳过', () => {
+    syncSessionPromptSelection('s3', null);
     expect(promptCommand).not.toHaveBeenCalled();
+  });
+
+  it('null 与 {mode:default} 不等价(前者=无覆盖,后者=显式覆盖)', () => {
+    writePromptSelection('s4', { mode: 'default' });
+    // 权威值是 null(无覆盖) ≠ 显式 default → 需要下发。
+    syncSessionPromptSelection('s4', null);
+    expect(promptCommand).toHaveBeenCalledWith({ type: 'select', selection: { mode: 'default' } });
   });
 
   it('端到端:首页选 gpt → 创建转正 → bind 恢复提交 manual{gpt}', () => {
     writePromptSelection('new', { mode: 'manual', profile: 'gpt' });
     movePromptSelection('new', 'sess-e2e');
-    syncSessionPromptSelection('sess-e2e');
+    syncSessionPromptSelection('sess-e2e', null);
     expect(promptCommand).toHaveBeenCalledWith({ type: 'select', selection: { mode: 'manual', profile: 'gpt' } });
   });
 });

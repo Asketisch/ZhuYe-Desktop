@@ -104,7 +104,12 @@ beforeEach(() => {
 
   // zhuye_bind_session —— 把后端 AgentThread 绑到指定 session id
   // (后端幂等;未知 id 走空历史分支,不报错 → mock 为 no-op)
-  mockInvoke('zhuye_bind_session', async () => 'auto');
+  // 返回值是结构体(权限模式 + 挂起交互快照 + 提示词 override)。
+  mockInvoke('zhuye_bind_session', async () => ({
+    permission_mode: 'auto',
+    pending_gates: [],
+    prompt_selection: null,
+  }));
 
   // zhuye_list_archived_sessions —— 默认无归档会话
   mockInvoke('zhuye_list_archived_sessions', async () => []);

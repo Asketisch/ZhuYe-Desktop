@@ -801,14 +801,18 @@ export function installFakeBackend(): FakeBackend {
     }),
   );
   // zhuye_bind_session：把后端 AgentThread 绑到指定 session id。
-  // 后端幂等(同 id 短路);fakeBackend 记录最近绑定的 id 供断言。
-  // 返回值 = 绑定后线程的 PermissionMode(线格式字符串,真实后端从会话
-  // 审计轨迹恢复);ChatView 用它同步本地徽标,不能返回 undefined。
+  // 后端幂等(同 id 短路。fakeBackend 记录最近绑定的 id 供断言。
+  // 返回值是结构体(真实后端返回权限模式 + 挂起交互快照 + 提示词
+  // override);ChatView 用它同步本地徽标,不能返回 undefined。
   handle(
     'zhuye_bind_session',
     handler((args) => {
       backend.state.boundSessionId = String(args?.id ?? '');
-      return backend.state.permissionMode;
+      return {
+        permission_mode: backend.state.permissionMode,
+        pending_gates: [],
+        prompt_selection: null,
+      };
     }),
   );
   handle(

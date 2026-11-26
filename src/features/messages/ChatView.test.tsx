@@ -60,7 +60,11 @@ describe('ChatView', () => {
     navigateSpy.mockClear();
     // v1.x:ChatView 加载序列第一步是 bind;默认 mock 为 no-op
     // (resetMockInvoke 会清掉 setup 里的默认 mock,需在本文件重注册)。
-    mockInvoke('zhuye_bind_session', async () => 'auto');
+    mockInvoke('zhuye_bind_session', async () => ({
+      permission_mode: 'auto',
+      pending_gates: [],
+      prompt_selection: null,
+    }));
     saveLocale('en');
     window.__chatTestSessionId = undefined;
     window.__chatTestPath = '/chat';
@@ -111,7 +115,9 @@ describe('ChatView', () => {
 
   it('clears old interactions before the new backend bind finishes', async () => {
     let finish!: (mode: string) => void;
-    mockInvoke('zhuye_bind_session', () => new Promise<string>((resolve) => { finish = resolve; }));
+    mockInvoke('zhuye_bind_session', () => new Promise<any>((resolve) => {
+      finish = () => resolve({ permission_mode: 'auto', pending_gates: [], prompt_selection: null });
+    }));
     useAgentStore.setState({ loadedSessionId: 'old', pendingApprovals: [
       { id: 'approval', kind: 'tool', turnId: 'turn' },
     ] });
@@ -284,7 +290,7 @@ describe('ChatView', () => {
     const order: string[] = [];
     mockInvoke('zhuye_bind_session', async (_cmd: string, args?: { id: string }) => {
       order.push(`bind:${args?.id ?? ''}`);
-      return 'auto';
+      return { permission_mode: 'auto', pending_gates: [], prompt_selection: null };
     });
     mockInvoke('zhuye_replay_session', async () => {
       order.push('replay');
@@ -312,7 +318,7 @@ describe('ChatView', () => {
     const binds: string[] = [];
     mockInvoke('zhuye_bind_session', async (_cmd: string, args?: { id: string }) => {
       binds.push(args?.id ?? '');
-      return 'auto';
+      return { permission_mode: 'auto', pending_gates: [], prompt_selection: null };
     });
     mockInvoke('zhuye_replay_session', async () => []);
 
@@ -375,7 +381,11 @@ describe('ChatView', () => {
 describe('ChatView hero (new-chat home)', () => {
   beforeEach(() => {
     resetMockInvoke();
-    mockInvoke('zhuye_bind_session', async () => 'auto');
+    mockInvoke('zhuye_bind_session', async () => ({
+      permission_mode: 'auto',
+      pending_gates: [],
+      prompt_selection: null,
+    }));
     saveLocale('en');
     window.__chatTestSessionId = undefined;
     window.__chatTestPath = '/chat';

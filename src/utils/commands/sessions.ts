@@ -9,6 +9,7 @@ import { invoke } from '../bridge';
 import { waitForWorkspaceSwitches } from './workspaces';
 import type { ZhuyeRolloutRecord, ZhuyeSessionInfo } from '../types';
 import type { PendingGateSnapshot } from '@/types/protocol';
+import type { PromptSelection } from './prompts';
 
 /** `zhuye_list_sessions` 返回的 session 元数据。 */
 export type { ZhuyeSessionInfo } from '../types';
@@ -61,6 +62,13 @@ export interface BindSessionOutput {
   permission_mode: string;
   /** 引擎侧挂起交互快照(审批/问答/询问/plan),reload/换绑重水合数据源。 */
   pending_gates: PendingGateSnapshot[];
+  /**
+   * v1.13:该会话的提示词选择 override(权威值;`null` = 跟随全局默认)。
+   *
+   * 前端据此判定切会话后是否真的需要下发 Select —— 相同则不发,
+   * 既不写冗余 rollout 记录,也不弹「提示词已刷新」。
+   */
+  prompt_selection: PromptSelection | null;
 }
 
 export function zhuye_bind_session(id: string): Promise<BindSessionOutput> {

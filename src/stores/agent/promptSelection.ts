@@ -10,6 +10,11 @@
  * 恢复该会话自己的选择(提交 `Op::PromptCommand::Select`,rollout 记录
  * `PromptSelectionChanged`,resume 语义原生支持);未选择过的会话恢复跟随
  * 全局默认(`selection: null`)。
+ *
+ * v1.13:同步决策改用后端回传的**权威值**(该会话 rollout 末次的
+ * `PromptSelectionChanged`),不再读前端 `store.prompt.selection` 镜像 ——
+ * 镜像会回落到全局默认,既导致每次切会话都误弹「提示词已刷新」,
+ * 又因初始为 null 而漏下发 Select,让上个会话的提示词串到下个会话。
  */
 import { zhuye_prompt_command, type PromptSelection } from '@/utils/commands/prompts';
 import { useAgentStore } from './store';
@@ -47,26 +52,58 @@ export function movePromptSelection(from: string, to: string): void {
 /**
  * bind 会话后恢复该会话的提示词选择(引擎共享锁,下一次 model_call 生效)。
  *
- * 三分支:
- * - 有会话记录 → 提交 Select(记录) —— 该会话从创建起提示词恒定;
- * - 无记录但进程锁当前**不**是跟随默认(上个会话留下的) → 提交
- *   Select(null) 恢复跟随全局默认,避免会话间串味;
- * - 无记录且锁已是跟随默认 → 跳过,不写冗余 rollout 记录。
+ * v1.13:`authoritative` 是后端 `zhuye_bind_session` 回传的**该会话生效
+ * 的 override**(取自本会话 rollout 末次 `PromptSelectionChanged`,
+ * `null` = 无覆盖 = 跟随全局默认)。这是唯一权威依据。
+ *
+ * 此前的前端镜像方案有两个缺陷:
+ * - 镜像取自 `current_prompt_selection()`,它会回落到全局默认 → 几乎
+ *   恒为非 null → 切会话永远走「下发 select(null)」→ 每次都误弹
+ *   「提示词已刷新」;
+ * - 镜像初始为 `null`(store 初始态 `prompt: null`) → 首个会话被误判
+ *   「已是跟随默认」而跳过 Select → 上个会话的提示词残留到下个会话。
+ *
+ * 三分支(全按权威值判定):
+ * - 有会话记录且与权威值不同 → 提交 Select(记录);
+ * - 有会话记录且与权威值相同 → 跳过(不写冗余 rollout,不动引擎);
+ * - 无会话记录但权威值非 null(上个会话残留) → 提交 Select(null)
+ *   恢复跟随全局默认,避免会话间串味;
+ * - 无会话记录且权威值为 null → 跳过。
  *
  * fire-and-forget:Select 不开 turn,应答经 `prompt_switched` 事件回流。
  */
-export function syncSessionPromptSelection(sessionId: string | null | undefined): void {
+export function syncSessionPromptSelection(
+  sessionId: string | null | undefined,
+  authoritative: PromptSelection | null = null,
+): void {
   const saved = readPromptSelection(sessionId);
+  // 权威值与目标值一致 → 引擎已是目标态,什么都不用做。
+  const alreadyCorrect = sameSelection(saved ?? null, authoritative);
   if (saved) {
+    if (alreadyCorrect) return;
     void zhuye_prompt_command({ type: 'select', selection: saved }).catch(() => {
       /* 选择失败不阻断会话 —— 下次 bind 会再试;错误经事件通道无回显需求 */
     });
     return;
   }
-  const current = useAgentStore.getState().prompt?.selection ?? null;
-  if (current !== null) {
+  // 无会话记录:引擎若还留着上个会话的 override 就得清掉。
+  if (authoritative !== null) {
     void zhuye_prompt_command({ type: 'select', selection: null }).catch(() => { /* 同上 */ });
   }
+}
+
+/**
+ * 两个提示词选择是否等价。
+ *
+ * 语义:`null` = 跟随全局默认(无覆盖),与 `{mode:'default'}` **不等价**
+ * —— 前者是「本会话不覆盖」,后者是「本会话显式覆盖为 default」,
+ * 引擎侧 `prompt_selection` 槽位存的就是这个差别。
+ */
+export function sameSelection(a: PromptSelection | null, b: PromptSelection | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.mode !== b.mode) return false;
+  if (a.mode === 'manual' && b.mode === 'manual') return a.profile === b.profile;
+  return true;
 }
 
 /**

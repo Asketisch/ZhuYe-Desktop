@@ -816,6 +816,58 @@ describe('reduceEvent — prompt layers', () => {
     expect(patch.prompt).toMatchObject({ available: [], currentSpec: '', activeLayers: [] });
   });
 
+  // v1.13:切会话时前端会下发 Select,引擎必回 prompt_switched —— 但
+  // 内容常常完全没变(同一 selection 解析出同一组生效层)。此时不再
+  // 弹「提示词已刷新」,否则用户每次切会话都看到一条无意义提示。
+  it('prompt_switched 内容未变 → 不弹 toast(仍更新时间戳)', () => {
+    let s: AgentState = emptyState();
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('', {
+          type: 'prompt_switched',
+          action: 'select',
+          active_layers: ['my-layer'],
+          selection: { mode: 'manual', profile: 'my-layer' },
+          profile: 'my-layer',
+        }),
+      ),
+    };
+    expect(s.toasts?.length).toBe(1);
+
+    const before = Date.now();
+    const patch = reduceEvent(
+      s,
+      ev('', {
+        type: 'prompt_switched',
+        action: 'select',
+        active_layers: ['my-layer'],
+        selection: { mode: 'manual', profile: 'my-layer' },
+        profile: 'my-layer',
+      }),
+    );
+    expect(patch.toasts).toBeUndefined();
+    expect(patch.prompt!.switchedAt).toBeGreaterThanOrEqual(before);
+  });
+
+  it('prompt_switched 生效层变化 → 仍弹 toast', () => {
+    let s: AgentState = emptyState();
+    s = {
+      ...s,
+      ...reduceEvent(
+        s,
+        ev('', { type: 'prompt_switched', action: 'select', active_layers: ['a'] }),
+      ),
+    };
+    const patch = reduceEvent(
+      s,
+      ev('', { type: 'prompt_switched', action: 'select', active_layers: ['b'] }),
+    );
+    // 首轮已产生 1 条 toast,变化这轮追加第 2 条。
+    expect(patch.toasts?.length).toBe(2);
+  });
+
   it('guard_stats writes the four counters into guardStats (F01)', () => {
     const patch = reduceEvent(
       emptyState(),

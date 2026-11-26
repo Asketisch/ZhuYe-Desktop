@@ -276,13 +276,19 @@ export function ChatBinding({ view: View, slots }: { view: ComponentType<ChatVie
     // 返回值是该会话恢复出的权限模式 —— 模式绑定会话而非进程,切换
     // 会话后用返回值同步本地徽标/切换器,避免沿用上一会话的显示。
     void zhuye_bind_session(sessionId)
-      .then(({ permission_mode, pending_gates }) => {
+      .then(({ permission_mode, pending_gates, prompt_selection }) => {
         if (requestIdRef.current !== myId) return null;
         syncPermissionMode(permission_mode);
         // 会话级提示词预设恢复:读 per-session 覆盖提交 Op::PromptCommand::
         // Select(无记录恢复跟随默认)。Select 不开 turn;该会话内提示词
         // 从此恒定 —— system 指纹稳定是供应商 prompt cache 命中的前提。
-        syncSessionPromptSelection(sessionId);
+        //
+        // v1.13:`prompt_selection` 是后端回传的该会话**权威 override**
+        // (取自 rollout 末次 PromptSelectionChanged)—— 前端不再拿自己的
+        // `store.prompt.selection` 镜像当依据:镜像会回落到全局默认,既
+        // 让切会话每次都误弹「提示词已刷新」,又因初始为 null 漏下发
+        // Select,让上个会话的提示词串味到下个会话。
+        syncSessionPromptSelection(sessionId, prompt_selection ?? null);
         // v1.12:引擎侧挂起交互快照暂存 —— hydrate 后水合(mergePendingInto
         // 整体替换 pending,先注会丢;hydratePendingGates 按 request_id
         // 去重,两侧同 id 不重复)。

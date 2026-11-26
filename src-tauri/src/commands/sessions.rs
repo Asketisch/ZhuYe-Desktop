@@ -21,8 +21,8 @@ use zhuye_llm::{
     UserContent,
 };
 use zhuye_protocol::{
-    MessageRole, PendingInteraction, PermissionMode, RolloutRecord, SessionInfo, ThreadId, TurnId,
-    derive_title,
+    MessageRole, PendingInteraction, PermissionMode, PromptSelection, RolloutRecord, SessionInfo,
+    ThreadId, TurnId, derive_title,
 };
 use zhuye_rollout::{index as rollout_index, reader as rollout_reader, types::MAX_ROTATED_FILES};
 
@@ -70,6 +70,23 @@ pub struct BindSessionOutput {
     /// 远端引擎的挂起态不随本命令返回)。
     #[serde(default)]
     pub pending_gates: Vec<PendingInteraction>,
+    /// 该会话的**提示词选择 override**(会话级覆盖,`None` = 跟随全局
+    /// 默认)。
+    ///
+    /// v1.13:前端此前靠自己的 `prompt.selection` 镜像判断「引擎锁是否
+    /// 已是跟随默认」,而该镜像来自 `current_prompt_selection()` —— 它会
+    /// 回落到全局默认,于是几乎恒为非 null → 切会话时永远走「下发
+    /// select(null)」分支 → 每次都误弹「提示词已刷新」。此字段是权威
+    /// 值:前端据此判定是否真的需要下发 Select(相同则不发,既不写冗余
+    /// rollout 也不弹 toast)。
+    ///
+    /// 取值来源是本会话 rollout 里的末次 `PromptSelectionChanged`
+    /// (与引擎自身的恢复逻辑 `submission_loop` 同源同序),**不是**读
+    /// 线程 config —— 引擎在 `AgentThread::new` 派生的 submission_loop
+    /// 里**异步**从 rollout 恢复覆盖,rebind 返回的瞬间读 config 会与
+    /// 那个异步恢复竞态,读到还没恢复的旧值。
+    #[serde(default)]
+    pub prompt_selection: Option<PromptSelection>,
 }
 
 /// v1.x:把后端 AgentThread 绑到指定 session id(回放历史 → preload → 重建)。
@@ -101,6 +118,9 @@ pub async fn zhuye_bind_session(
         return Ok(BindSessionOutput {
             permission_mode: id.to_string(),
             pending_gates: Vec::new(),
+            // 远端引擎的提示词选择本地无从得知(同挂起态的已知限制)——
+            // 回 `None`(跟随默认),前端不会据此误判。
+            prompt_selection: None,
         });
     }
     // 切回本地会话:清远程前台插槽(submit 回本地线程)。
@@ -167,6 +187,21 @@ pub async fn zhuye_bind_session(
     Ok(BindSessionOutput {
         permission_mode: mode,
         pending_gates,
+        // v1.13:会话级提示词 override(权威值)。取本会话 rollout 里末次
+        // `PromptSelectionChanged` —— 与引擎自身的恢复逻辑同源同序;
+        // 不读线程 config(引擎在派生的 submission_loop 里异步恢复覆盖,
+        // rebind 返回瞬间读 config 会与之竞态)。
+        //
+        // 记录里的 `selection` 自身是 `Option`(空 = 恢复跟随默认),
+        // 末次记录为空值即「本会话无覆盖」→ flatten 后为 `None`。
+        prompt_selection: records
+            .iter()
+            .rev()
+            .find_map(|r| match r {
+                RolloutRecord::PromptSelectionChanged { selection } => Some(selection.clone()),
+                _ => None,
+            })
+            .flatten(),
     })
 }
 
