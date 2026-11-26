@@ -2,7 +2,7 @@
  * Vitest — threads 工具测试。
  */
 import { describe, it, expect } from 'vitest';
-import { chatLinkFor, shortTimestamp } from '@/features/threads/utils/threadLabels';
+import { chatLinkFor, shortTimestamp } from '@/logic/threads/utils/threadLabels';
 
 describe('chatLinkFor', () => {
   it('builds /chat/<id>', () => {
