@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
 # scripts/gen-icons.sh 的自测。锁四件事：
-#   1. 默认源图永远解析到仓库根 logo.png，与调用目录无关；
+#   1. 默认源图永远解析到 zhuye-agent/res/logo.png（submodule 资源），与调用目录无关；
 #   2. 缺文件 / 白名单外残留 / 源图比产物新 / 托盘图标无透明底 —— --check 必须失败并点名；
 #   3. --dry-run 不得改动任何已存在的产物；
 #   4. 脚本不得踩 bash 3.2「变量名紧跟多字节字符」的展开陷阱（实测会 unbound variable）。
 # 所有读写都经 ZHUYE_ICONS_DIR / ZHUYE_PUBLIC_ICON / ZHUYE_ICON_SOURCE /
 # ZHUYE_TRAY_SOURCE / ZHUYE_BRAND_MARK 重定向到临时目录，
-# 不触碰 src-tauri/icons、public/ 与 logo.png、tray.png。
+# 不触碰 src-tauri/icons、public/ 与 zhuye-agent/res/。
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 GEN="$ROOT/scripts/gen-icons.sh"
+
+# 源图在 submodule 里；未初始化时跳过自测（build.sh 的 icons:check 会以
+# 「源图不存在」显式点名，门禁不会被静默弱化）。
+if [ ! -f "$ROOT/zhuye-agent/res/logo.png" ] || [ ! -f "$ROOT/zhuye-agent/res/clear-logo.png" ]; then
+    echo 'gen-icons.test.sh self-test: skip（zhuye-agent/res 源图缺失，submodule 未初始化）'
+    exit 0
+fi
+
 fixture="$(mktemp -d)"
 trap 'rm -rf "$fixture"' EXIT
 
@@ -32,11 +40,11 @@ fi
 mkdir -p "$fixture/empty" "$fixture/elsewhere"
 out="$( (cd "$fixture/elsewhere" && ZHUYE_ICONS_DIR="$fixture/empty" bash "$GEN" --check) 2>&1)" \
     && fail "空图标目录必须校验失败"
-printf '%s\n' "$out" | grep -Fq "$ROOT/logo.png（仓库默认源图）" \
-    || fail "默认源图未指向仓库根 logo.png：$(printf '%s\n' "$out" | head -1)"
+printf '%s\n' "$out" | grep -Fq "$ROOT/zhuye-agent/res/logo.png（仓库默认源图）" \
+    || fail "默认源图未指向 submodule res/logo.png：$(printf '%s\n' "$out" | head -1)"
 printf '%s\n' "$out" | grep -q '缺失' || fail "缺失文件未点名"
 
-cp "$ROOT/logo.png" "$fixture/other.png"
+cp "$ROOT/zhuye-agent/res/logo.png" "$fixture/other.png"
 out="$(ZHUYE_ICONS_DIR="$fixture/empty" bash "$GEN" --check "$fixture/other.png" 2>&1)"
 printf '%s\n' "$out" | grep -q '命令行指定' || fail "显式源图未标注来源"
 
@@ -48,8 +56,8 @@ fi
 # ── 2. 真生成 + 四类失败路径 ──────────────────────────────────────────────
 ICONS="$fixture/icons"
 mkdir -p "$ICONS"
-cp "$ROOT/logo.png" "$fixture/src.png"
-cp "$ROOT/tray.png" "$fixture/tray.png"
+cp "$ROOT/zhuye-agent/res/logo.png" "$fixture/src.png"
+cp "$ROOT/zhuye-agent/res/clear-logo.png" "$fixture/tray.png"
 export ZHUYE_ICONS_DIR="$ICONS" ZHUYE_ICON_SOURCE="$fixture/src.png"
 export ZHUYE_TRAY_SOURCE="$fixture/tray.png" ZHUYE_BRAND_MARK="$fixture/brand.png"
 export ZHUYE_PUBLIC_ICON="$fixture/favicon.png"   # 放图标目录外，否则会被判成白名单外残留
@@ -83,7 +91,7 @@ if python3 -c 'import PIL' >/dev/null 2>&1; then
     bash "$GEN" > /dev/null 2>&1 || fail "重生成未能修回剪影 alpha"
 fi
 
-# 侧栏品牌位与 icon32.png 同用 tray.png 源，托盘源图更新后必须判过期点名。
+# 侧栏品牌位与 icon32.png 同用托盘源图（clear-logo.png），托盘源图更新后必须判过期点名。
 sleep 1
 touch "$fixture/tray.png"
 out="$(bash "$GEN" --check 2>&1)" && fail "托盘源图比侧栏品牌位新时必须判过期"

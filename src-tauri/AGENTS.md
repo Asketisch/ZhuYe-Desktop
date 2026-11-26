@@ -28,7 +28,7 @@
 | `src/mcp_tools.rs` | MCP 工具注册所有权（per-server 跟踪，卸载/清单刷新不误删他方工具） |
 | `src/lsp_runtime.rs` | LSP 运行时接入（按工作区手动开启，从 mcp.rs 拆出） |
 | `src/menu.rs` | 应用菜单 + macOS close-to-tray 处理 |
-| `src/tray.rs` | macOS 托盘（icon32.png 模板图） |
+| `src/tray.rs` | macOS 托盘（icon32.png 彩色图，非 template，源 = zhuye-agent/res/clear-logo.png） |
 | `src/shortcut.rs` | 全局快捷键 |
 | `src/dock.rs` | macOS dock 徽标 |
 | `src/media_backend.rs` | 真实 Media/Computer Use 后端（xcap/enigo，实现 app-core media trait） |

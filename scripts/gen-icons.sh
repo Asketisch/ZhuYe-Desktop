@@ -2,7 +2,7 @@
 # gen-icons.sh —— 一键生成 ZhuYe 桌面端全平台应用图标
 #
 # 用法：
-#   bash scripts/gen-icons.sh                       用 ZhuYe-Desktop/logo.png 重生成全部图标
+#   bash scripts/gen-icons.sh                       用 zhuye-agent/res/logo.png 重生成全部图标
 #   bash scripts/gen-icons.sh path/to/logo.png      换源图（正方形 PNG，或 SVG）
 #   bash scripts/gen-icons.sh --check               只校验现有图标是否齐全、尺寸是否正确、是否过期
 #   bash scripts/gen-icons.sh --dry-run             生成到临时目录并打印结果，不写入仓库
@@ -12,31 +12,32 @@
 #                                                   与 public/brand-mark.png（侧栏品牌位）
 #
 # 约定（与 docs/changelog.md「采用 logo.png 作为跨平台统一应用 logo」一致）：
-#   应用图标源图 = 本脚本所在仓库（ZhuYe-Desktop）根目录的 logo.png —— 不带参数时始终用它，
-#   与当前工作目录无关；产物 = src-tauri/icons/，文件名白名单见 EXPECTED。
-#   托盘图标源图 = 仓库根 tray.png（菜单栏徽章，独立于应用图标；缺失时回落
-#   logo.png 推导）。tauri icon 顺带产出的无消费方资产（UWP Square*Logo.png、
+#   应用图标源图 = zhuye-agent/res/logo.png（submodule 资源，ZhuYe-Desktop 根目录不另存副本）
+#   —— 不带参数时始终用它，与当前工作目录无关；产物 = src-tauri/icons/，文件名白名单见 EXPECTED。
+#   托盘图标源图 = zhuye-agent/res/clear-logo.png（透明底彩色徽章，独立于应用图标；缺失时回落
+#   logo.png 推导）。源图在 submodule 里，只读不写；未初始化 submodule 时先
+#   `git submodule update --init`。tauri icon 顺带产出的无消费方资产（UWP Square*Logo.png、
 #   android/、ios/、64x64.png）会被清掉，保证目录内容与 tauri.conf.json 的
 #   bundle.icon 一一对应。
 #   引擎优先级：tauri CLI（官方，.icns/.ico 最稳）→ 本地 python3 + Pillow（macOS 上
 #   .icns 走 iconutil，其他平台用内置 icns 写入器）。
 #
 # 环境变量覆盖（与 install.sh 的 ZHUYE_INSTALL_* 同风格，门禁自测靠它们跑在临时目录）：
-#   ZHUYE_ICON_SOURCE   默认源图（默认 <仓库根>/logo.png）
-#   ZHUYE_TRAY_SOURCE   托盘源图（默认 <仓库根>/tray.png）
+#   ZHUYE_ICON_SOURCE   默认源图（默认 <仓库根>/zhuye-agent/res/logo.png）
+#   ZHUYE_TRAY_SOURCE   托盘源图（默认 <仓库根>/zhuye-agent/res/clear-logo.png）
 #   ZHUYE_ICONS_DIR     产物目录（默认 <仓库根>/src-tauri/icons）
 #   ZHUYE_PUBLIC_ICON   favicon 路径（默认 <仓库根>/public/tauri-icon.png）
 #   ZHUYE_BRAND_MARK    侧栏品牌位路径（默认 <仓库根>/public/brand-mark.png）
 #
-# icon32.png 特殊处理：src-tauri/src/tray.rs 用 include_bytes! 把它编进托盘，并按
-#   icon_as_template(true) 交给 macOS —— 系统只取 alpha 通道画单色剪影，所以它不能是
-#   整张方图标（否则菜单栏里是一个实心方块）。托盘源图（tray.png）自带透明底时沿用其
-#   alpha 并 RGB 归黑（template 惯例）；回落 logo.png 时按亮度阈值推导剪影。
+# icon32.png 特殊处理：src-tauri/src/tray.rs 用 include_bytes! 把它编进托盘，彩色直出
+#   （非 template，不走系统着色），所以它不能是整张方图标（否则菜单栏里是一个实心方块），
+#   且必须自带透明底。托盘源图（clear-logo.png）自带透明底时裁 bbox 保色缩放；回落
+#   logo.png 时按亮度阈值推导剪影 alpha、RGB 保留原图亮部颜色。
 
 set -euo pipefail
 
 # 仓库根 = 本脚本父目录的父目录；-P 解析软链接，保证无论从哪儿调用，
-# 默认源图都落在 ZhuYe-Desktop/logo.png 上。
+# 默认源图都落在 ZhuYe-Desktop/zhuye-agent/res/logo.png（submodule 资源）上。
 REPO_ROOT="$(cd -P "$(dirname "$0")/.." && pwd)"
 ICONS_DIR="${ZHUYE_ICONS_DIR:-$REPO_ROOT/src-tauri/icons}"
 PUBLIC_ICON="${ZHUYE_PUBLIC_ICON:-$REPO_ROOT/public/tauri-icon.png}"
@@ -93,24 +94,27 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# 源图优先级：命令行参数 > ZHUYE_ICON_SOURCE > 仓库根 logo.png（默认）
-[ -n "$SRC" ] || SRC="${ZHUYE_ICON_SOURCE:-$REPO_ROOT/logo.png}"
+# 源图优先级：命令行参数 > ZHUYE_ICON_SOURCE > zhuye-agent/res/logo.png（默认，
+# submodule 资源）
+DEFAULT_SRC="$REPO_ROOT/zhuye-agent/res/logo.png"
+[ -n "$SRC" ] || SRC="${ZHUYE_ICON_SOURCE:-$DEFAULT_SRC}"
 case "$SRC" in "~"*) SRC="$HOME${SRC#\~}" ;; esac
 if [ ! -f "$SRC" ]; then
   echo "源图不存在：$SRC" >&2
-  if [ "$SRC" = "$REPO_ROOT/logo.png" ]; then
-    echo "默认源图是仓库根 logo.png（$REPO_ROOT/logo.png）；如要换图，把路径作为第一个参数传入。" >&2
+  if [ "$SRC" = "$DEFAULT_SRC" ]; then
+    echo "默认源图在 submodule 里（${DEFAULT_SRC}）；未初始化时先跑 git submodule update --init。" >&2
+    echo "如要换图，把路径作为第一个参数传入。" >&2
   fi
   usage >&2
   exit 1
 fi
 case "$SRC" in /*) ;; *) SRC="$PWD/$SRC" ;; esac
 SRC_IS_DEFAULT=false
-if [ "$SRC" = "$REPO_ROOT/logo.png" ]; then SRC_IS_DEFAULT=true; fi
+if [ "$SRC" = "$DEFAULT_SRC" ]; then SRC_IS_DEFAULT=true; fi
 
-# 托盘源图优先级：ZHUYE_TRAY_SOURCE > 仓库根 tray.png；缺失时回落 logo.png
-# 推导（历史行为，兼容未入库托盘源图的临时目录场景）。
-TRAY_SOURCE="${ZHUYE_TRAY_SOURCE:-$REPO_ROOT/tray.png}"
+# 托盘源图优先级：ZHUYE_TRAY_SOURCE > zhuye-agent/res/clear-logo.png（submodule 资源）；
+# 缺失时回落 logo.png 推导（历史行为，兼容无透明底托盘源图的临时目录场景）。
+TRAY_SOURCE="${ZHUYE_TRAY_SOURCE:-$REPO_ROOT/zhuye-agent/res/clear-logo.png}"
 case "$TRAY_SOURCE" in "~"*) TRAY_SOURCE="$HOME${TRAY_SOURCE#\~}" ;; esac
 case "$TRAY_SOURCE" in /*) ;; *) TRAY_SOURCE="$PWD/$TRAY_SOURCE" ;; esac
 
@@ -188,7 +192,7 @@ if $CHECK_ONLY; then
         got="$(png_size "$p")"
         [ "$got" = "${SIZES[$i]}x${SIZES[$i]}" ] || { echo "  ✗ $f 尺寸 ${got}，应为 ${SIZES[$i]}x${SIZES[$i]}"; fail=1; } ;;
     esac
-    # 托盘图标以 template 方式渲染，实心方块会糊满菜单栏，必须有透明底
+    # 托盘图标彩色直出，实心方块会糊满菜单栏，必须有透明底
     if [ "$f" = "icon32.png" ] && [ -n "$PYTHON" ]; then
       share="$("$PYTHON" -c 'import sys;from PIL import Image;a=Image.open(sys.argv[1]).getchannel("A").histogram();print("%.3f"%(sum(a[:1])/(32*32)))' "$p" 2>/dev/null || true)"
       if [ -n "$share" ] && [ "$(awk -v s="$share" 'BEGIN{print (s < 0.02) ? 1 : 0}')" = "1" ]; then
@@ -201,12 +205,12 @@ if $CHECK_ONLY; then
   if [ -f "$ICONS_DIR/icon.png" ] && [ "$SRC" -nt "$ICONS_DIR/icon.png" ]; then
     echo "  ✗ 源图比现有图标更新，请重跑：bash scripts/gen-icons.sh"; fail=1
   fi
-  # 托盘源图（tray.png）新鲜度独立校验 —— 与应用图标源（logo.png）互不牵制。
+  # 托盘源图（clear-logo.png）新鲜度独立校验 —— 与应用图标源（logo.png）互不牵制。
   if [ -f "$TRAY_SOURCE" ] && [ "$TRAY_SOURCE" -nt "$ICONS_DIR/icon32.png" ]; then
     echo "  ✗ 托盘源图比 icon32.png 新：$TRAY_SOURCE —— 请重跑：bash scripts/gen-icons.sh"; fail=1
   fi
   # 侧栏品牌位（brand-mark.png）：缺失即失败（前端 <img> 没有回落位）；
-  # 与 icon32.png 同用 tray.png 源但产物独立，新鲜度单独校验。
+  # 与 icon32.png 同用 clear-logo.png 源但产物独立，新鲜度单独校验。
   if [ ! -f "$BRAND_MARK" ]; then
     echo "  ✗ 侧栏品牌位缺失：$BRAND_MARK —— 请重跑：bash scripts/gen-icons.sh"; fail=1
   elif [ -f "$TRAY_SOURCE" ] && [ "$TRAY_SOURCE" -nt "$BRAND_MARK" ]; then
@@ -320,14 +324,14 @@ fi
 # ------------------------------------------- 仓库专有尺寸/别名（CLI 不产出）
 [ -f "$OUT/256x256.png" ] || cp "$OUT/128x128@2x.png" "$OUT/256x256.png"
 
-# 托盘图标 icon32.png：macOS 按 template 只取 alpha，所以给它"剪影 + 透明底"。
+# 托盘图标 icon32.png：彩色直出（非 template，不走系统着色），自带透明底。
 if $TRAY_KEEP && [ -f "$ICONS_DIR/icon32.png" ]; then
   cp "$ICONS_DIR/icon32.png" "$OUT/icon32.png"
   echo "  · icon32.png 保留仓库现有版本（--tray-keep）"
 elif [ -n "$PYTHON" ] && [ -f "$TRAY_SOURCE" ]; then
-  # 托盘独立源图（tray.png）：自带透明底 → 裁内容 bbox、方形居中填充、
-  # 缩到 32×32（内容 28/32 留菜单栏呼吸位）；RGB 归黑（template 只取
-  # alpha，系统按外观自动着色）。
+  # 托盘独立源图（clear-logo.png，透明底彩色）：裁内容 bbox、方形居中填充、
+  # 缩到 32×32（内容 28/32 留菜单栏呼吸位）；保留原色原 alpha 直出 ——
+  # tray.rs 不走 icon_as_template，菜单栏明暗外观都显示彩色徽记。
   "$PYTHON" - "$TRAY_SOURCE" "$OUT/icon32.png" <<'PY'
 import sys
 from PIL import Image
@@ -343,16 +347,14 @@ square.paste(im, ((side - im.size[0]) // 2, (side - im.size[1]) // 2), im)
 pad = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
 inner = square.resize((28, 28), Image.LANCZOS)
 pad.paste(inner, (2, 2), inner)
-black = Image.new("L", (32, 32), 0)
+pad.save(dst, optimization=True)
 alpha = pad.getchannel("A")
-# 菜单栏实际渲染 16-18pt,半透明抗锯齿会显淡 —— 轻度增益补笔画实度
-# (近零区不动,保留真实透明底)。
-alpha = alpha.point(lambda v: min(255, int(v * 1.35)) if v > 8 else v)
-Image.merge("RGBA", (black, black, black, alpha)).save(dst, optimization=True)
 share = sum(alpha.histogram()[:1]) / (32 * 32)
-print(f"  · icon32.png 由托盘源图推导（trim + 方形居中，内容 28/32，RGB 归黑 + alpha ×1.35；透明占比 {share:.0%}）")
+print(f"  · icon32.png 由托盘源图推导（trim + 方形居中，内容 28/32，彩色直出；透明占比 {share:.0%}）")
 PY
 elif [ -n "$PYTHON" ]; then
+  # 回落：托盘源图缺失，用应用图标源推导。亮度阈值出 alpha、RGB 保留原图
+  # 亮部颜色（黑底 logo 得出金亮色剪影），彩色直出下明暗菜单栏均可辨。
   "$PYTHON" - "$NORM" "$OUT/icon32.png" "$TRAY_ALPHA_CUT" "$TRAY_ALPHA_GAIN" <<'PY'
 import sys
 from PIL import Image, ImageOps
@@ -407,9 +409,9 @@ PY
   echo "已写入 ${PUBLIC_ICON}（index.html favicon）"
 
   # 侧栏品牌位：托盘源图（自带透明底）裁内容 bbox → 方形居中 → 64×64
-  # （内容 56/64，与托盘 28/32 同比例留呼吸位）。保留原色不归黑 —— 品牌位
-  # 要在明暗两套主题下显示彩色徽记，与 template 托盘的用法相反。托盘源图
-  # 缺失时回落应用图标（黑底方形，亮色主题会露出底色，此时建议补 tray.png）。
+  # （内容 56/64，与托盘 28/32 同比例留呼吸位）。保留原色 —— 品牌位与托盘
+  # 一样都是彩色直出，明暗两套主题下显示彩色徽记。托盘源图缺失时回落应用
+  # 图标（黑底方形，亮色主题会露出底色，此时建议补 zhuye-agent/res/clear-logo.png）。
   if [ -n "$PYTHON" ] && [ -f "$TRAY_SOURCE" ]; then
     "$PYTHON" - "$TRAY_SOURCE" "$BRAND_MARK" <<'PY'
 import sys

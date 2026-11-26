@@ -273,10 +273,11 @@ if ! $NO_FRONTEND; then
 fi
 
 # ── 应用图标新鲜度 ───────────────────────────────────────────────────────
-# 打包读的是 src-tauri/icons/，改了仓库根 logo.png 忘记重生成就会静默出旧图标
-# （0.0.5 实际踩过）。这里只做提示：--check 全读、不改任何文件，因此 dry-run 也跑。
+# 打包读的是 src-tauri/icons/，改了 zhuye-agent/res/logo.png 忘记重生成就会
+# 静默出旧图标（0.0.5 实际踩过）。这里只做提示：--check 全读、不改任何文件，
+# 因此 dry-run 也跑。
 if ! bash "$REPO_ROOT/scripts/gen-icons.sh" --check >/dev/null 2>&1; then
-  echo "WARN: src-tauri/icons/ 与仓库根 logo.png 不一致 —— 产物可能带旧图标" >&2
+  echo "WARN: src-tauri/icons/ 与 zhuye-agent/res/logo.png 不一致 —— 产物可能带旧图标" >&2
   echo "      修复：bash scripts/gen-icons.sh （或 pnpm icons），然后重新构建" >&2
 fi
 

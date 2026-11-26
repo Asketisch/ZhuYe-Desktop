@@ -3,9 +3,11 @@
 //! 托盘结构：
 //! - 左键单击 = 直接弹菜单 (`show_menu_on_left_click(true)`);
 //! - 菜单项 = Show / Hide / Quit,click 后由 `handle_tray_menu_event` 派发;
-//! - 图标作为 macOS template image 自动着色 (`icon_as_template(true)`)。
+//! - 图标彩色直出 (非 template,不走系统按外观着色 —— 明暗菜单栏都显示
+//!   原色徽记)。
 //!
-//! 复用 `src-tauri/icons/icon32.png` 作为托盘图标 (已是 RGBA PNG)。
+//! 复用 `src-tauri/icons/icon32.png` 作为托盘图标 (32×32 彩色 RGBA,
+//! 由 gen-icons.sh 从 zhuye-agent/res/clear-logo.png 推导)。
 //!
 //! 非 macOS 平台:托盘仅在 macOS 激活,Linux/Windows 下本文件的辅助
 //! 函数与导入自然 dead —— 平台 stub 语义,抑制 dead_code/unused_imports
@@ -42,7 +44,6 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .tooltip("烛夜 ZhuYe")
         .show_menu_on_left_click(true)
         .icon(load_tray_icon()?)
-        .icon_as_template(true)
         .on_menu_event(handle_tray_menu_event::<R>)
         .on_tray_icon_event(handle_tray_icon_event::<R>)
         .build(app)?;
@@ -67,7 +68,7 @@ fn build_tray_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     Menu::with_items(app, &[&show, &new_agent, &hide, &separator, &quit])
 }
 
-/// 加载托盘图标 (RGBA PNG, 32x32)。`include_bytes!` 在编译期嵌入。
+/// 加载托盘图标 (32×32 彩色 RGBA PNG,非 template)。`include_bytes!` 在编译期嵌入。
 fn load_tray_icon() -> tauri::Result<Image<'static>> {
     Image::from_bytes(include_bytes!("../icons/icon32.png"))
         .map_err(|e| tauri::Error::AssetNotFound(format!("tray icon: {e}")))
