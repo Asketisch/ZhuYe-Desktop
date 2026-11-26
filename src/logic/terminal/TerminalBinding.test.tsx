@@ -4,7 +4,7 @@ import type { TerminalViewProps } from '@/contracts/workbench/terminal';
 import { emitMockEvent, mockInvoke, resetMockInvoke } from '@/test/setup';
 import { TerminalBinding } from './TerminalBinding';
 import { RendererProvider } from '@/logic/renderer/RendererProvider';
-import { TerminalView } from '@/features/terminal/TerminalView';
+import { TerminalView } from '@/features/workbench/terminal/TerminalView';
 import { renderer } from '@/render';
 
 function AlternateTerminal({ state, activeLines, onInputChange, onSubmit }: TerminalViewProps) {

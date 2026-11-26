@@ -15,8 +15,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderView } from './helpers/appHarness';
 import { installFakeBackend, emitEvent, type FakeBackend } from './helpers/fakeBackend';
-import { ModalStack } from '@/features/modals';
-import { PlanApprovalBar } from '@/features/composer/PlanApprovalBar';
+import { ModalStack } from '@/features/harness/modals';
+import { PlanApprovalBar } from '@/features/input/composer/PlanApprovalBar';
 import { useAgentStore } from '@/stores/agentStore';
 
 let backend: FakeBackend;

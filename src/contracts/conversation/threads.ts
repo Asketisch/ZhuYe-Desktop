@@ -1,8 +1,8 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { SessionBucket } from '@/features/sessions';
+import type { SessionBucket } from '@/features/conversation/sessions';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
-import type { ThreadBucketGroupProps } from '@/features/threads/components/ThreadBucketGroup';
+import type { ThreadBucketGroupProps } from '@/features/conversation/threads/components/ThreadBucketGroup';
 
 export interface ThreadsViewProps {
   t: I18nContextValue['t'];

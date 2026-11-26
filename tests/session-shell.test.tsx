@@ -6,10 +6,10 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { SessionDock } from '@/features/shell/session/SessionDock';
-import { SessionCapsule } from '@/features/shell/session/SessionCapsule';
-import { ApprovalTakeover } from '@/features/shell/session/Takeovers';
-import { TrajView } from '@/features/shell/session/TrajView';
+import { SessionDock } from '@/features/harness/shell/session/SessionDock';
+import { SessionCapsule } from '@/features/harness/shell/session/SessionCapsule';
+import { ApprovalTakeover } from '@/features/harness/shell/session/Takeovers';
+import { TrajView } from '@/features/harness/shell/session/TrajView';
 import { deriveTrajEntries } from '@/logic/shell/session/traj';
 import { useAgentStore } from '@/stores/agentStore';
 import type { Turn, TodoItem } from '@/stores/agentStore';

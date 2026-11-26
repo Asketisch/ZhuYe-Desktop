@@ -2,11 +2,11 @@ import type { ComponentProps, ComponentType, RefObject } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { Turn } from '@/stores/agent/types';
 export type { Turn, TurnItem } from '@/stores/agent/types';
-import type { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup, ActivityEntryData } from '@/features/messages/ToolCells';
-import type { QueuedMessages } from '@/features/messages/QueuedMessages';
-import type { UserAttachments } from '@/features/messages/UserAttachments';
-import type { Collapsible } from '@/features/messages/Collapsible';
-import type { TurnChangesCard } from '@/features/messages/TurnChangesCard';
+import type { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup, ActivityEntryData } from '@/features/conversation/messages/ToolCells';
+import type { QueuedMessages } from '@/features/conversation/messages/QueuedMessages';
+import type { UserAttachments } from '@/features/conversation/messages/UserAttachments';
+import type { Collapsible } from '@/features/conversation/messages/Collapsible';
+import type { TurnChangesCard } from '@/features/conversation/messages/TurnChangesCard';
 import type { Markdown } from '@/components/Markdown';
 import type { CopyButtonProps } from '@/contracts/conversation/copyButton';
 

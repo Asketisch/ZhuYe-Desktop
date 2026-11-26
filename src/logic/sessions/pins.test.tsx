@@ -6,7 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@/utils/i18n';
 import { isPinned, readPins, resetPinsForTests, togglePin, unpin, useSessionPins } from '@/logic/sessions/pins';
 import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
-import { Sidebar } from '@/features/sessions/components/Sidebar';
+import { Sidebar } from '@/features/conversation/sessions/components/Sidebar';
 
 beforeEach(() => {
   window.localStorage.clear();

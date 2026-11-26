@@ -2,7 +2,7 @@
  * Icon —— lucide-react 统一封装。
  *
  * 用法：
- *   import { Icon } from '@/features/design-system';
+ *   import { Icon } from '@/features/harness/design-system';
  *   import { MessageSquare } from 'lucide-react';
  *   <Icon icon={MessageSquare} size={16} />
  *

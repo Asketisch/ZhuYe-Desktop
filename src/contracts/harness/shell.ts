@@ -1,9 +1,9 @@
 import type { ComponentProps, ComponentType, ReactNode } from 'react';
-import type { TitleBar } from '@/features/shell/TitleBar';
-import type { Sidebar } from '@/features/sessions/components/Sidebar';
-import type { CommandPalette } from '@/features/command-palette/CommandPalette';
-import type { ModalStack } from '@/features/modals';
-import type { Toast as ToastView } from '@/features/design-system';
+import type { TitleBar } from '@/features/harness/shell/TitleBar';
+import type { Sidebar } from '@/features/conversation/sessions/components/Sidebar';
+import type { CommandPalette } from '@/features/input/command-palette/CommandPalette';
+import type { ModalStack } from '@/features/harness/modals';
+import type { Toast as ToastView } from '@/features/harness/design-system';
 import type { Toast } from '@/stores/agent/types';
 import type { DockTab, DockTabKind, InboxTab } from '@/stores/shellUi';
 

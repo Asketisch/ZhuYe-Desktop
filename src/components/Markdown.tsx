@@ -44,7 +44,7 @@ import 'prismjs/components/prism-swift.js';
 import 'prismjs/components/prism-lua.js';
 import 'prismjs/components/prism-markdown.js';
 import { Check, Copy } from 'lucide-react';
-import { Icon } from '@/features/design-system';
+import { Icon } from '@/features/harness/design-system';
 import { Lightbox } from './Lightbox';
 import { MermaidDiagram } from './MermaidDiagram';
 import s from './Markdown.module.css';

@@ -1,0 +1,153 @@
+/**
+ * ApprovalModal —— 工具 / Hook 权限审批弹窗（聚焦版）。
+ *
+ * 行为契约(从原 modals/index.tsx 抽出):
+ *   - title 按 kind 取 tool / hook 对应 i18n 标题。
+ *   - 三按钮:tertiary Deny / secondary Approve-for-session / primary Approve(autoFocus)。
+ *   - onClose 走 store `approve(kind, id, { deny: { reason: 'dismissed' } })`。
+ *   - 内容仅渲染 toolName(若有)+ argsSummary(若有)+ hint 文案。
+ *
+ * 第四个动作「始终允许这条命令」(仅在能推导出安全规则时出现):
+ * 把一条 allow 规则写进**核心的用户级权限文件**
+ * (`~/.zhuye/permissions.toml`)—— 落盘即生效(核心 resolver 每次
+ * 评估都重读文件),且同一条规则会在 Settings → Permissions 可见。
+ * 推导口径见 `allowRule.ts`(Bash = 可安全表达的单段命令精确匹配;
+ * 只读工具 = 整个工具;写类工具不给按钮)。
+ *
+ * 注:plan 审批走右侧 dock 的「计划」页签与 composer 审批条
+ * （`approvePlan` + PlanApprovalChoice 三选一），不经过本 modal。
+ */
+import { useRef, useState } from 'react';
+import { useAgentStore, type PendingApproval } from '@/stores/agentStore';
+import { useI18n } from '@/utils/i18n';
+import { zhuye_add_permission_rule } from '@/utils/commands';
+import { Badge } from '@/features/harness/design-system';
+import { ModalShell } from './ModalShell';
+import { deriveAllowRule, extractCommand } from '@/logic/modals/allowRule';
+import s from '@/render/modals/index.module.css';
+
+export function ApprovalModal({ approval }: { approval: PendingApproval }) {
+  const { t } = useI18n();
+  const approve = useAgentStore((st) => st.approve);
+  const [allowBusy, setAllowBusy] = useState(false);
+  const allowBusyRef = useRef(false);
+  const shellBusyRef = useRef(false);
+  const [shellBusy, setShellBusy] = useState(false);
+  const [allowError, setAllowError] = useState<string | null>(null);
+  const kindLabel =
+    approval.kind === 'tool' ? t('modal.approval.toolTitle') : t('modal.approval.hookTitle');
+
+  const allowRule =
+    approval.kind === 'tool' ? deriveAllowRule(approval.toolName, approval.args) : null;
+
+  // F06:拒绝且本会话不再问(RejectForSession)——引擎把工具名记入
+  // 会话级拒绝表,后续同名调用直接拒绝不再弹窗。仅 tool 类提供
+  // (hook 审批无会话拒绝表语义)。
+  const neverAgain = async () => {
+    if (approval.kind !== 'tool' || allowBusyRef.current || shellBusyRef.current) return;
+    allowBusyRef.current = true;
+    setAllowBusy(true);
+    setAllowError(null);
+    try {
+      await approve(
+        approval.kind,
+        approval.id,
+        { reject_for_session: { reason: 'denied by user (never ask again this session)' } },
+      );
+    } catch (e) {
+      setAllowError(e instanceof Error ? e.message : String(e));
+    } finally {
+      allowBusyRef.current = false;
+      setAllowBusy(false);
+    }
+  };
+
+  const allowAlways = async () => {
+    if (!allowRule || allowBusyRef.current || shellBusyRef.current) return;
+    allowBusyRef.current = true;
+    setAllowBusy(true);
+    setAllowError(null);
+    try {
+      await zhuye_add_permission_rule(allowRule);
+      await approve(approval.kind, approval.id, 'approve');
+    } catch (e) {
+      setAllowError(e instanceof Error ? e.message : String(e));
+    } finally {
+      allowBusyRef.current = false;
+      setAllowBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      title={kindLabel}
+      open={true}
+      externalBusy={allowBusy}
+      onBusyChange={(busy) => { shellBusyRef.current = busy; setShellBusy(busy); }}
+      onClose={() => approve(approval.kind, approval.id, { deny: { reason: 'dismissed' } })}
+      tertiaryAction={{
+        label: t('modal.approval.deny'),
+        onClick: () => approve(approval.kind, approval.id, { deny: { reason: 'denied by user' } }),
+      }}
+      secondaryAction={{
+        label: t('modal.approval.always'),
+        onClick: () => approve(approval.kind, approval.id, 'approve_for_session'),
+      }}
+      primaryAction={{
+        label: t('modal.approval.allow'),
+        onClick: () => approve(approval.kind, approval.id, 'approve'),
+        autoFocus: true,
+      }}
+    >
+      {approval.toolName && (
+        <div className={s.codeBlock}>
+          {approval.toolName}
+          {approval.risk && (
+            <Badge
+              variant={approval.risk === 'high' ? 'danger' : approval.risk === 'medium' ? 'warning' : 'neutral'}
+              data-testid={`approval-risk-${approval.risk}`}
+              className={s.riskBadge}
+            >
+              {t('modal.approval.risk', { risk: approval.risk })}
+            </Badge>
+          )}
+        </div>
+      )}
+      {approval.argsSummary && (
+        <pre className={s.argsBlock}>{approval.argsSummary}</pre>
+      )}
+      {allowRule && (
+        <button
+          type="button"
+          className={s.allowAlwaysBtn}
+          disabled={allowBusy || shellBusy}
+          onClick={() => void allowAlways()}
+          data-testid="approval-allow-always"
+        >
+          {allowRule.shellPattern
+            ? t('modal.approval.allowAlwaysCmd', { cmd: extractCommand(approval.args) ?? '' })
+            : t('modal.approval.allowAlwaysTool', { tool: allowRule.tool })}
+        </button>
+      )}
+      {approval.kind === 'tool' && (
+        <button
+          type="button"
+          className={s.neverAgainBtn}
+          disabled={allowBusy || shellBusy}
+          onClick={() => void neverAgain()}
+          data-testid="approval-never-again"
+        >
+          {t('modal.approval.neverAgain')}
+        </button>
+      )}
+      {allowError && (
+        <p className={s.errorText} data-testid="approval-allow-error">
+          {allowError}
+        </p>
+      )}
+      <p className={s.hint}>
+        {t('modal.approval.hint')}
+      </p>
+    </ModalShell>
+  );
+}

@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { AppShell } from '@/features/shell/AppShell';
+import { AppShell } from '@/features/harness/shell/AppShell';
 
 // node:fs 的类型化小封装，避免引入 @types/node 依赖。
 declare const require: (id: string) => unknown;
@@ -23,11 +23,11 @@ function nodeRead(p: string, enc: string = 'utf8'): string {
 function nodeExists(p: string): boolean {
   return (require('node:fs') as { existsSync: (p: string) => boolean; readFileSync: (p: string, enc: string) => string }).existsSync(p);
 }
-import { ChatView } from '@/features/messages/ChatView';
-import { SettingsView } from '@/features/settings/SettingsView';
-import { HomeView } from '@/features/home/HomeView';
-import { DesignSystemView } from '@/features/design-system/DesignSystemView';
-import { ThreadsView } from '@/features/threads/ThreadsView';
+import { ChatView } from '@/features/conversation/messages/ChatView';
+import { SettingsView } from '@/features/harness/settings/SettingsView';
+import { HomeView } from '@/features/conversation/home/HomeView';
+import { DesignSystemView } from '@/features/harness/design-system/DesignSystemView';
+import { ThreadsView } from '@/features/conversation/threads/ThreadsView';
 import { useAgent } from '@/services/agent';
 import { useAgentStore } from '@/stores/agentStore';
 
@@ -413,7 +413,7 @@ describe('DesignSystemView catalog', () => {
 
 describe('Feature barrel exports', () => {
   it('sessions barrel exposes public API', async () => {
-    const mod = await import('@/features/sessions');
+    const mod = await import('@/features/conversation/sessions');
     // Sidebar 是主入口（AppShell 直接渲染）；SessionsView 薄包装已删除。
     expect(mod.Sidebar).toBeDefined();
     expect(mod.SessionItem).toBeDefined();
@@ -427,7 +427,7 @@ describe('Feature barrel exports', () => {
   });
 
   it('threads barrel exposes public API', async () => {
-    const mod = await import('@/features/threads');
+    const mod = await import('@/features/conversation/threads');
     expect(mod.ThreadsView).toBeDefined();
     expect(mod.ThreadItem).toBeDefined();
     expect(mod.ThreadBucketGroup).toBeDefined();
@@ -436,7 +436,7 @@ describe('Feature barrel exports', () => {
   });
 
   it('design-system barrel exposes primitives + utils', async () => {
-    const mod = await import('@/features/design-system');
+    const mod = await import('@/features/harness/design-system');
     expect(mod.Button).toBeDefined();
     expect(mod.IconButton).toBeDefined();
     expect(mod.Icon).toBeDefined();

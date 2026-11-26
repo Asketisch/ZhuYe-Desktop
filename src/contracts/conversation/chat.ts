@@ -2,8 +2,8 @@ import type { ComponentProps, ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { PendingApproval, PendingQuestion, PendingAskUser, Turn } from '@/stores/agent/types';
 import type { GitSummary } from '@/logic/chat/gitSummary';
-import type { WorkHead, ViewRing } from '@/features/shell/session/WorkHead';
-import type { MessageList } from '@/features/messages/MessageList';
+import type { WorkHead, ViewRing } from '@/features/harness/shell/session/WorkHead';
+import type { MessageList } from '@/features/conversation/messages/MessageList';
 
 export interface ChatSlots {
   WorkHead: ComponentType<ComponentProps<typeof WorkHead>>;

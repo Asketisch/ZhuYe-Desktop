@@ -2,8 +2,8 @@ import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
 import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
-import type { WorkspaceGroupProps } from '@/features/sessions/components/WorkspaceGroup';
-import type { SessionItemProps } from '@/features/sessions/components/SessionItem';
+import type { WorkspaceGroupProps } from '@/features/conversation/sessions/components/WorkspaceGroup';
+import type { SessionItemProps } from '@/features/conversation/sessions/components/SessionItem';
 import type { SessionBadge } from './shell';
 
 /** 会话 ⋯ 菜单动作（回调由绑定层闭包，视图只渲染）。 */

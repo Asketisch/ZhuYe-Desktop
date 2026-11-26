@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { Icon, IconButton } from '@/features/design-system';
+import { Icon, IconButton } from '@/features/harness/design-system';
 import s from './Lightbox.module.css';
 
 export function Lightbox({ src, onClose, alt }: { src: string | null; onClose: () => void; alt?: string }) {

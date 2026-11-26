@@ -3,7 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { SettingsViewProps } from '@/contracts/settings/settings';
 import { RendererProvider } from '@/logic/renderer/RendererProvider';
-import { SettingsView } from '@/features/settings/SettingsView';
+import { SettingsView } from '@/features/harness/settings/SettingsView';
 import { renderer } from '@/render';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup';
 
