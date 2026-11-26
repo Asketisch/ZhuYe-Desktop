@@ -120,7 +120,7 @@ pub(crate) async fn hot_reload_provider_stack(
         info!("[zhuye-gui] model group stack changed; rebuilding registry + quota tracker");
 
         // 1. 重建模型注册表，内置工具仍由共享工具表管理。
-        zhuye_config::discovery::clear_catalog_cache();
+        zhuye_config::model_discovery::clear_catalog_cache();
         let registry = super::thread_factory::build_registry(new);
 
         // 3. 诊断字段同步:model spec + 降级原因(语义同 install 步骤 1/5)。

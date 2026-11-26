@@ -163,7 +163,8 @@ pub async fn zhuye_lsp_warmup(
         });
     }
     let workspace = agent.workspace();
-    let Some(route) = zhuye_lsp::matching::pick_server_for(&abs, &workspace, &handles, None) else {
+    let Some(route) =
+        zhuye_lsp::session::matching::pick_server_for(&abs, &workspace, &handles, None) else {
         return Ok(LspWarmupResult {
             warmed: false,
             server: None,

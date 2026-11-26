@@ -10,7 +10,7 @@
 //! `stop_one_server`)。
 //!
 //! 精选 catalog(内置离线清单 + 安装提示)经核心的
-//! `zhuye_mcp::registry` 暴露 —— 解决「我不知道能装哪些 MCP」。
+//! `zhuye_mcp::catalog::registry` 暴露 —— 解决「我不知道能装哪些 MCP」。
 
 use std::collections::BTreeMap;
 
@@ -134,10 +134,10 @@ pub(crate) async fn plugin_capabilities(
 /// 列出内置精选 MCP catalog(离线清单 + 安装提示)。
 #[tauri::command]
 pub async fn zhuye_mcp_catalog() -> CommandResult<Vec<McpCatalogEntry>> {
-    Ok(zhuye_mcp::registry::curated_catalog()
+    Ok(zhuye_mcp::catalog::registry::curated_catalog()
         .into_iter()
         .map(|e| {
-            let hint = zhuye_mcp::registry::install_hint(&e);
+            let hint = zhuye_mcp::catalog::registry::install_hint(&e);
             McpCatalogEntry {
                 id: e.id,
                 name: e.name,

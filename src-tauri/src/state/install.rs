@@ -75,7 +75,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //     解析要打网络。解析失败 → 降级原因如实上报,model 落 `stub/test`
     //     —— 绝不落占位串 `"provider/free"`:那是发给 provider 的假模型名,
     //     表现为难诊断的「模型不存在」。
-    zhuye_config::discovery::clear_catalog_cache();
+    zhuye_config::model_discovery::clear_catalog_cache();
     let (resolved_spec, discovery_error) =
         super::model_spec::resolve_model_spec_with_discovery(&cfg_snapshot, &registry).await;
     let model_spec = resolved_spec.unwrap_or_else(|| "stub/test".to_string());

@@ -8,8 +8,9 @@
 //! 按「共享/领域逻辑进 app-core」红线落在这里，`src-tauri` 命令层只做
 //! 薄封装。未来若 TUI 需要同款操作，按 SUBMODULE.md 流程上游化。
 //!
-//! 判脏复用上游 `zhuye_tools::worktree::worktree_dirty`（与 agent 侧
-//! 同语义）；git 一律走外部 CLI（与桌面 `commands/git.rs` 同款环境：
+//! 判脏复用上游 `zhuye_tools::worktree_dirty`（与 agent 侧同语义，
+//! 上游 0.1.17 目录重组后由 `checkpoint::worktree` 根级 re-export）；git
+//! 一律走外部 CLI（与桌面 `commands/git.rs` 同款环境：
 //! `core.quotepath=off` + `GIT_LITERAL_PATHSPECS=1`）。
 
 use std::path::{Path, PathBuf};
@@ -185,7 +186,7 @@ pub fn worktree_list(repo: &Path) -> Result<Vec<WorktreeInfo>> {
         if path.is_empty() {
             continue;
         }
-        let dirty = zhuye_tools::worktree::worktree_dirty(Path::new(&path)).unwrap_or(false);
+        let dirty = zhuye_tools::worktree_dirty(Path::new(&path)).unwrap_or(false);
         infos.push(WorktreeInfo {
             path,
             branch,
