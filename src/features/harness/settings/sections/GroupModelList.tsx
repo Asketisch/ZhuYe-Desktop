@@ -9,7 +9,7 @@ import { Button, Icon, Input } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import type { ProviderModelInfo } from '@/utils/commands';
 import { ModelOptionsList } from '../components/ModelOptionsList';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface GroupModelListProps {
   /** 组默认模型（表单字段）。 */

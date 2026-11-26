@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { MediaBinding } from '@/logic/media/MediaBinding';
-import { MediaView as DefaultView } from '@/render/media/MediaView';
+import { MediaView as DefaultView } from '@/render/telemetry/media/MediaView';
 import { StudioTab, ComputerUseTab } from './MediaTabs';
 
 export function MediaView() {

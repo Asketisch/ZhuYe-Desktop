@@ -6,7 +6,7 @@
  */
 import { useRenderer } from '@/logic/renderer/RendererProvider';
 import { MarketBinding } from '@/logic/market/MarketBinding';
-import { MarketView as MarketPresentation } from '@/render/market/MarketView';
+import { MarketView as MarketPresentation } from '@/render/knowledge/market/MarketView';
 
 export function MarketView() {
   const renderer = useRenderer();

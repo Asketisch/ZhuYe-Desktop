@@ -6,7 +6,7 @@ import { Card } from '@/features/harness/design-system';
 import { Badge } from '@/features/harness/design-system';
 import { Button } from '@/features/harness/design-system';
 import { Icon } from '@/features/harness/design-system';
-import s from '@/render/squad/SquadView.module.css';
+import s from '@/render/orchestration/squad/SquadView.module.css';
 
 export function SquadTaskRow(props: {
   task: ZhuyeTask;

@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { GitBinding } from '@/logic/git/GitBinding';
-import { GitView as DefaultView } from '@/render/git/GitView';
+import { GitView as DefaultView } from '@/render/workbench/git/GitView';
 import { DiffViewer } from './DiffViewer';
 import { WorktreePanel } from './WorktreePanel';
 

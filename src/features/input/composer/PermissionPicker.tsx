@@ -32,7 +32,7 @@ import { useAgentStore } from '@/stores/agentStore';
 import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
 import { writePermissionPreference } from '@/stores/agent/permissionPreference';
 import { confirmDialog } from '@/logic/modals/confirm';
-import s from '@/render/composer/PermissionPicker.module.css';
+import s from '@/render/input/composer/PermissionPicker.module.css';
 
 /** 权限三档（前两档 = wire 工作模式，第三档 = 审批策略完全访问）。 */
 const TIERS = [

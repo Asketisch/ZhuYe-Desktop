@@ -5,7 +5,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { onPtyExit, onPtyOutput, zhuye_pty_close, zhuye_pty_resize, zhuye_pty_start, zhuye_pty_write } from '@/utils/commands/terminal';
 import { subscribeTheme } from '@/logic/preferences/theme';
-import styles from '@/render/terminal/InteractiveTerminal.module.css';
+import styles from '@/render/workbench/terminal/InteractiveTerminal.module.css';
 
 /**
  * 终端配色取自 tokens.css：xterm 需要具体色值（canvas 与 DOM 渲染器都要解析），

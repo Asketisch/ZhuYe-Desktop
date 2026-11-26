@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { MemoryBinding } from '@/logic/memory/MemoryBinding';
-import { MemoryView as DefaultView } from '@/render/memory/MemoryView';
+import { MemoryView as DefaultView } from '@/render/knowledge/memory/MemoryView';
 
 export function MemoryView() {
   const View = useRenderView('MemoryView', DefaultView);

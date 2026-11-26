@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { AgentsBinding } from '@/logic/agents/AgentsBinding';
-import { AgentsView as DefaultView } from '@/render/agents/AgentsView';
+import { AgentsView as DefaultView } from '@/render/orchestration/agents/AgentsView';
 import { AgentEditor } from './AgentEditor';
 import { SubagentSpecsPanel } from './SubagentSpecsPanel';
 

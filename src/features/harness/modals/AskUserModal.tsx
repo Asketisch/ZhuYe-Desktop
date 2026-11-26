@@ -13,7 +13,7 @@ import { useAgentStore, type PendingAskUser } from '@/stores/agentStore';
 import type { AskUserInputPayload } from '@/types/protocol';
 import { useI18n } from '@/utils/i18n';
 import { ModalShell } from './ModalShell';
-import s from '@/render/modals/index.module.css';
+import s from '@/render/harness/modals/index.module.css';
 
 export function AskUserModal({ askUser }: { askUser: PendingAskUser }) {
   const { t } = useI18n();

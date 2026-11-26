@@ -1,6 +1,6 @@
 import { useRenderer } from '@/logic/renderer/RendererProvider';
 import { TerminalBinding } from '@/logic/terminal/TerminalBinding';
-import { TerminalView as TerminalPresentation } from '@/render/terminal/TerminalView';
+import { TerminalView as TerminalPresentation } from '@/render/workbench/terminal/TerminalView';
 
 export function TerminalView() {
   const renderer = useRenderer();

@@ -36,7 +36,7 @@ import { GroupCredentialsEditor } from './GroupCredentialsEditor';
 import { GroupModelList } from './GroupModelList';
 import { GroupAdvancedFields } from './GroupAdvancedFields';
 import { ProviderAvatar } from './ProviderAvatar';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface GroupDetailProps {
   /** 选中的组；null = 新增模式（空表单）。 */

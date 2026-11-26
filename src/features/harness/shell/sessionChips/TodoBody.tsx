@@ -9,7 +9,7 @@
  */
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
-import s from '@/render/shell/SessionChips.module.css';
+import s from '@/render/harness/shell/SessionChips.module.css';
 
 export function TodoBody() {
   const todos = useAgentStore((st) => st.todos);

@@ -3,7 +3,7 @@
  */
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { SideChannelBinding } from '@/logic/side-channel/SideChannelBinding';
-import { SideChannelView as DefaultView } from '@/render/side-channel/SideChannelView';
+import { SideChannelView as DefaultView } from '@/render/connect/side-channel/SideChannelView';
 
 export function SideChannelView() {
   const View = useRenderView('SideChannelView', DefaultView);

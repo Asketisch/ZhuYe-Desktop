@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { DX, DY, WORLD, ensureShapes } from './emblemArtwork';
-import s from '@/render/home/ChatHero.module.css';
+import s from '@/render/conversation/home/ChatHero.module.css';
 
 /* 渲染分辨率（设计稿默认 186；取 640 与 320px 展示在 2x 屏整数对齐）。 */
 const RES = 640;

@@ -21,7 +21,7 @@ import { FilesDock } from '@/features/workbench/files/FilesDock';
 import { AgentsDock } from '@/features/orchestration/agents/AgentsDock';
 import { UsageDock } from '@/features/telemetry/usage/UsageDock';
 import { PlanDock } from './PlanDock';
-import { DockLauncher } from '@/render/shell/DockLauncher';
+import { DockLauncher } from '@/render/harness/shell/DockLauncher';
 import { useI18n } from '@/utils/i18n';
 import { useShellUi } from '@/stores/shellUi';
 import { useAgentStore } from '@/stores/agentStore';

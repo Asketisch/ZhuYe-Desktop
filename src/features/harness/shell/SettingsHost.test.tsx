@@ -8,18 +8,13 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { SettingsHost } from '@/features/harness/shell/SettingsHost';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
 
-const PAGE_CSS = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../../src/render/settings/SettingsPage.module.css',
-);
 
 function renderHost() {
   return render(
@@ -100,7 +95,8 @@ describe('SettingsHost · 设置页宿主', () => {
   });
 
   it('CSS 契约：.page 是固定铺满的两栏栅格（268px + 1fr）', () => {
-    const css = readFileSync(PAGE_CSS, 'utf8');
+    // 以仓库根为锚读取 CSS 契约（vitest 恒在仓库根运行），不随本文件搬移失效
+    const css = readFileSync(resolve(process.cwd(), 'src/render/harness/settings/SettingsPage.module.css'), 'utf8');
     const rule = css.match(/\.page\s*\{([^}]*)\}/);
     expect(rule, 'SettingsPage.module.css 缺 .page 规则').toBeTruthy();
     const body = rule?.[1] ?? '';

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/messages/MessageList.module.css';
+import s from '@/render/conversation/messages/MessageList.module.css';
 
 export function CopyButton({ text, testId }: { text: string; testId: string }) {
   const { t } = useI18n();

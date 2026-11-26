@@ -27,7 +27,7 @@ import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
 import { useShellUi } from '@/stores/shellUi';
 import { SubagentCallsSection } from './RuntimeStatusSections';
 import { TodoPanel } from './TodoPanel';
-import s from '@/render/shell/Inspector.module.css';
+import s from '@/render/harness/shell/Inspector.module.css';
 
 export function Inspector() {
   const { t } = useI18n();

@@ -11,7 +11,7 @@ import { Terminal as TerminalIcon, Globe, Eye, Plus, FileText } from 'lucide-rea
 import { zhuye_read_file } from '@/utils/commands/files';
 import { useI18n } from '@/utils/i18n';
 import { InteractiveTerminal } from '@/features/workbench/terminal/InteractiveTerminal';
-import s from '@/render/shell/session/session.module.css';
+import s from '@/render/harness/shell/session/session.module.css';
 
 type BottomTab = 'term' | 'browser' | 'preview';
 

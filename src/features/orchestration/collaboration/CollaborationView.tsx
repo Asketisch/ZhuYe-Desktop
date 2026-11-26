@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { CollaborationBinding } from '@/logic/collaboration/CollaborationBinding';
-import { CollaborationView as DefaultView } from '@/render/collaboration/CollaborationView';
+import { CollaborationView as DefaultView } from '@/render/orchestration/collaboration/CollaborationView';
 import { McpManager } from './McpManager';
 import { PluginsPanel } from './PluginsPanel';
 import { PipelineEditor } from './PipelineEditor';

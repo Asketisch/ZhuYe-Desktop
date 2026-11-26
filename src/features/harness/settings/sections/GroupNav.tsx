@@ -12,7 +12,7 @@ import { useI18n } from '@/utils/i18n';
 import { zhuye_credential_pool_status } from '@/utils/commands';
 import { groupDisplayLabel, type GroupEntry } from '@/logic/settings/config/groups';
 import { ProviderAvatar } from './ProviderAvatar';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface GroupNavProps {
   groups: GroupEntry[];

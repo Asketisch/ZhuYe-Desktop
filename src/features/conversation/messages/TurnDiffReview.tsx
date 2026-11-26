@@ -17,7 +17,7 @@ import { Eye } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import { DiffViewer } from '@/features/workbench/git/DiffViewer';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/messages/TurnChangesCard.module.css';
+import s from '@/render/conversation/messages/TurnChangesCard.module.css';
 
 export interface TurnDiffReviewProps {
   /** 目标文件路径（浮层标题）。 */

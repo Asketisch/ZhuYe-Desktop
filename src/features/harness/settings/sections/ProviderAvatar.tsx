@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { providerIconUrl } from '@/logic/settings/config/providerIcon';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface ProviderAvatarProps {
   group: { id: string; label: string; endpoint: string; baseUrl: string };

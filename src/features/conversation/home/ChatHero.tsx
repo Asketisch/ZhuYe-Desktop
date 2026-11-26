@@ -11,7 +11,7 @@ import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { isPlaceholderWorkspace } from '@/logic/sessions/workspaceGroups';
 import { ZhuyeEmblem } from './ZhuyeEmblem';
-import s from '@/render/home/ChatHero.module.css';
+import s from '@/render/conversation/home/ChatHero.module.css';
 
 type GreetingKey = 'chat.greeting.morning' | 'chat.greeting.afternoon' | 'chat.greeting.evening';
 

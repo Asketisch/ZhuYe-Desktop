@@ -15,7 +15,7 @@ import { zhuye_replay_session } from '@/utils/commands';
 import { turnsFromRollout } from '@/stores/replay';
 import { useMessageListScroll } from '@/logic/webview/useMessageListScroll';
 import { commandErrorMsg } from '@/logic/chat/ChatBinding';
-import { SubagentSessionViewer as DefaultView } from '@/render/chat/SubagentSessionViewer';
+import { SubagentSessionViewer as DefaultView } from '@/render/conversation/chat/SubagentSessionViewer';
 import { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup } from './ToolCells';
 import { UserAttachments } from './UserAttachments';
 import { Collapsible } from './Collapsible';

@@ -25,7 +25,7 @@ import {
 import { useAgentStore } from '@/stores/agentStore';
 import { WorkspaceMenu, invalidateWorkspaceQueries } from './WorkspaceMenu';
 import { BranchMenu, StartRefPicker } from './BranchMenu';
-import s from '@/render/composer/ComposerTopBar.module.css';
+import s from '@/render/input/composer/ComposerTopBar.module.css';
 
 /** 路径等价比较（去尾斜杠直比；worktree 落盘路径无符号链接歧义）。 */
 function samePath(a: string, b: string): boolean {

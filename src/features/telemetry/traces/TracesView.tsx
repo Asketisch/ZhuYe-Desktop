@@ -3,8 +3,8 @@
  */
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { TracesBinding } from '@/logic/traces/TracesBinding';
-import { TracesView as DefaultView } from '@/render/traces/TracesView';
-import { SpansPanel } from '@/render/traces/SpansPanel';
+import { TracesView as DefaultView } from '@/render/telemetry/traces/TracesView';
+import { SpansPanel } from '@/render/telemetry/traces/SpansPanel';
 
 export function TracesView() {
   const View = useRenderView('TracesView', DefaultView);

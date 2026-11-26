@@ -10,7 +10,7 @@ import { Badge, Icon } from '@/features/harness/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/shell/SessionChips.module.css';
+import s from '@/render/harness/shell/SessionChips.module.css';
 
 export function SubagentsBody() {
   const { t } = useI18n();

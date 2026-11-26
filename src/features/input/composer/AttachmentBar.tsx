@@ -9,7 +9,7 @@
 import { AlertCircle, RotateCw } from 'lucide-react';
 import { Icon, Spinner } from '@/features/harness/design-system';
 import type { StagedAttachment } from '@/logic/composer/useAttachments';
-import s from '@/render/composer/AttachmentBar.module.css';
+import s from '@/render/input/composer/AttachmentBar.module.css';
 
 export interface AttachmentBarProps {
   attachments: StagedAttachment[];

@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { MessageListBinding } from '@/logic/messages/MessageListBinding';
-import { MessageList as DefaultView } from '@/render/messages/MessageList';
+import { MessageList as DefaultView } from '@/render/conversation/messages/MessageList';
 import { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup } from './ToolCells';
 import { QueuedMessages } from './QueuedMessages';
 import { UserAttachments } from './UserAttachments';

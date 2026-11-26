@@ -17,7 +17,7 @@ import { useI18n } from '@/utils/i18n';
 import { zhuye_git_branches, zhuye_git_stage, zhuye_git_commit, zhuye_git_checkout, type ZhuyeBranchInfo } from '@/utils/commands/git';
 import { confirmDialog } from '@/logic/modals/confirm';
 import { useAgentStore } from '@/stores/agentStore';
-import s from '@/render/composer/ComposerTopBar.module.css';
+import s from '@/render/input/composer/ComposerTopBar.module.css';
 
 /** 分支很多时只展示前若干项，保持菜单紧凑。 */
 const MAX_LISTED_BRANCHES = 30;

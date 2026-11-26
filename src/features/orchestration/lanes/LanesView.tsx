@@ -6,7 +6,7 @@
  */
 import { useRenderer } from '@/logic/renderer/RendererProvider';
 import { LanesBinding } from '@/logic/lanes/LanesBinding';
-import { LanesView as LanesPresentation } from '@/render/lanes/LanesView';
+import { LanesView as LanesPresentation } from '@/render/orchestration/lanes/LanesView';
 
 export function LanesView() {
   const renderer = useRenderer();

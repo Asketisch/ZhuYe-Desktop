@@ -1,6 +1,6 @@
 import { useRenderer } from '@/logic/renderer/RendererProvider';
 import { ChatBinding } from '@/logic/chat/ChatBinding';
-import { ChatView as DefaultView } from '@/render/chat/ChatView';
+import { ChatView as DefaultView } from '@/render/conversation/chat/ChatView';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { ChatHero } from '@/features/conversation/home/ChatHero';

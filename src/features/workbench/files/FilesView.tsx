@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { FilesBinding } from '@/logic/files/FilesBinding';
-import { FilesView as DefaultView } from '@/render/files/FilesView';
+import { FilesView as DefaultView } from '@/render/workbench/files/FilesView';
 import { FileTree } from './FileTree';
 import { CodeMirrorEditor } from './CodeMirrorEditor';
 

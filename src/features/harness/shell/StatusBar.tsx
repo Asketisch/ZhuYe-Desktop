@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { StatusBarBinding } from '@/logic/shell/StatusBarBinding';
-import { StatusBar as DefaultView } from '@/render/shell/StatusBar';
+import { StatusBar as DefaultView } from '@/render/harness/shell/StatusBar';
 
 export function StatusBar() {
   const View = useRenderView('StatusBar', DefaultView);

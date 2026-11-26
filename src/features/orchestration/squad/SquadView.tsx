@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { SquadBinding } from '@/logic/squad/SquadBinding';
-import { SquadView as DefaultView } from '@/render/squad/SquadView';
+import { SquadView as DefaultView } from '@/render/orchestration/squad/SquadView';
 import { SquadTaskRow } from './SquadTaskRow';
 
 export function SquadView() {

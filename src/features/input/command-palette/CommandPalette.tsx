@@ -12,7 +12,7 @@ import { useI18n } from '@/utils/i18n';
 import { t as tStatic } from '@/utils/i18n/lookup';
 import { buildPaletteItems, type PaletteItem } from './registry';
 import { fuzzy } from '@/logic/command-palette/fuzzy';
-import s from '@/render/command-palette/CommandPalette.module.css';
+import s from '@/render/input/command-palette/CommandPalette.module.css';
 
 export interface CommandPaletteProps {
   open: boolean;

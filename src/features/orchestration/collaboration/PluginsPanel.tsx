@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { PluginsPanelBinding } from '@/logic/collaboration/PluginsPanelBinding';
-import { PluginsPanel as DefaultView } from '@/render/collaboration/PluginsPanel';
+import { PluginsPanel as DefaultView } from '@/render/orchestration/collaboration/PluginsPanel';
 import { MarketplaceRow } from './MarketplaceRow';
 
 export function PluginsPanel() {

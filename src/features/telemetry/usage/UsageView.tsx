@@ -3,7 +3,7 @@
  */
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { UsageBinding } from '@/logic/usage/UsageBinding';
-import { UsageView as DefaultView } from '@/render/usage/UsageView';
+import { UsageView as DefaultView } from '@/render/telemetry/usage/UsageView';
 
 export function UsageView() {
   const View = useRenderView('UsageView', DefaultView);

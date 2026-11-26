@@ -23,7 +23,7 @@ import { useAgentStore } from '@/stores/agentStore';
 import { readPromptSelection, writePromptSelection } from '@/stores/agent/promptSelection';
 import { writePermissionPreference } from '@/stores/agent/permissionPreference';
 import type { PromptSelection } from '@/utils/commands/prompts';
-import s from '@/render/composer/PromptPicker.module.css';
+import s from '@/render/input/composer/PromptPicker.module.css';
 
 /** zustand selector 的稳定空引用 —— 数组字段用 `?? []` 每次新建会让
  *  useSyncExternalStore 快照永不相等而无限重渲染。 */

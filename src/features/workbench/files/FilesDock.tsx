@@ -6,7 +6,7 @@
  * 文案已全部在 controller 内翻译完成。
  */
 import { useFilesDockController } from '@/logic/files/useFilesDockController';
-import { FilesDockView } from '@/render/files/FilesDockView';
+import { FilesDockView } from '@/render/workbench/files/FilesDockView';
 
 export function FilesDock() {
   const ctrl = useFilesDockController();

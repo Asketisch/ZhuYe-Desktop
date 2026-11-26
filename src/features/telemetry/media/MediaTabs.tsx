@@ -3,7 +3,7 @@ import { Image as ImageIcon, MousePointer2, Camera, Keyboard, RefreshCw } from '
 import { useMediaController } from '@/logic/media/useMediaController';
 import { Button, Card, EmptyState, Icon, Input, Spinner } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/media/MediaView.module.css';
+import s from '@/render/telemetry/media/MediaView.module.css';
 
 export function StudioTab({ ctrl }: { ctrl: ReturnType<typeof useMediaController> }) {
   const { t } = useI18n();

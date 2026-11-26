@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { PersonalizationBinding } from '@/logic/settings/PersonalizationBinding';
-import { PersonalizationSection as DefaultView } from '@/render/settings/PersonalizationSection';
+import { PersonalizationSection as DefaultView } from '@/render/harness/settings/PersonalizationSection';
 
 export function PersonalizationSection() {
   const View = useRenderView('PersonalizationSection', DefaultView);

@@ -15,7 +15,7 @@ import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore
 import { useI18n } from '@/utils/i18n';
 import { SubagentsBody } from '@/features/harness/shell/sessionChips/SubagentsBody';
 import { QueueList } from '@/features/conversation/messages/QueuedMessages';
-import s from '@/render/shell/session/session.module.css';
+import s from '@/render/harness/shell/session/session.module.css';
 
 /** 可展开的 chips（同一时刻只开一个）。 */type PopKind = 'subagents' | 'queue';
 

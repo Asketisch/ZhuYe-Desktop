@@ -9,7 +9,7 @@ import { Card, Badge, Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import type { ZhuyeMemoryEntry } from '@/utils/commands';
 import { entryKey } from '@/logic/memory/useMemoryController';
-import s from '@/render/memory/MemoryView.module.css';
+import s from '@/render/knowledge/memory/MemoryView.module.css';
 
 export interface MemoryRowProps {
   entry: ZhuyeMemoryEntry;

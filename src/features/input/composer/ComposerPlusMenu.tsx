@@ -34,7 +34,7 @@ import { zhuye_list_skills } from '@/utils/commands/skills';
 import { getPluginSlashCommands } from '@/logic/composer/slashCommands';
 import { usePluginCommands } from '@/logic/composer/usePluginCommands';
 import { groupQuickPrompts } from '@/logic/home/quickPrompts';
-import s from '@/render/composer/ComposerPlusMenu.module.css';
+import s from '@/render/input/composer/ComposerPlusMenu.module.css';
 
 export interface ComposerPlusMenuProps {
   /** 打开原生文件选择器（图片同样可选）。 */

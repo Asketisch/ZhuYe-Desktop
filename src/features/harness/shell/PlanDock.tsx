@@ -15,7 +15,7 @@ import { useI18n } from '@/utils/i18n';
 import { useAgentStore, selectIsTurnRunning, selectQueuedForActiveSession } from '@/stores/agentStore';
 import { markDraftSubmitPending } from '@/logic/shell/planSubmitSignal';
 import { Markdown } from '@/components/Markdown';
-import s from '@/render/shell/Inspector.module.css';
+import s from '@/render/harness/shell/Inspector.module.css';
 
 export function PlanDock() {
   const { t } = useI18n();

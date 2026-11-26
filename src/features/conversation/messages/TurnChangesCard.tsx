@@ -25,7 +25,7 @@ import {
 } from '@/features/conversation/messages/turnChanges';
 import { useI18n } from '@/utils/i18n';
 import type { Turn } from '@/stores/agent/types';
-import s from '@/render/messages/TurnChangesCard.module.css';
+import s from '@/render/conversation/messages/TurnChangesCard.module.css';
 
 export interface TurnChangesCardProps {
   /** 该轮的完整 items（用于派生改动）。 */

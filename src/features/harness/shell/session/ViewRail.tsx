@@ -15,7 +15,7 @@ import {
 import type { ComponentType } from 'react';
 import { useRouter, useLocation } from '@tanstack/react-router';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/shell/session/session.module.css';
+import s from '@/render/harness/shell/session/session.module.css';
 
 interface NavItem {
   to: string;

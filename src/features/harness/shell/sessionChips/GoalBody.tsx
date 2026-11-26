@@ -18,7 +18,7 @@ import {
   type GoalSnapshotPayload,
 } from '@/utils/commands/goal';
 import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
-import s from '@/render/shell/SessionChips.module.css';
+import s from '@/render/harness/shell/SessionChips.module.css';
 
 const STATUS_KEY: Record<string, string> = {
   active: 'harness.corner.goal.status.active',

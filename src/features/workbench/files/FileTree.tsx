@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, FileCode2, File } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import type { ZhuyeDirEntry } from '@/utils/commands';
-import s from '@/render/files/FileTree.module.css';
+import s from '@/render/workbench/files/FileTree.module.css';
 
 const TEXT_EXTS = new Set([
   'md', 'txt', 'json', 'toml', 'yaml', 'yml', 'ini', 'env', 'log',

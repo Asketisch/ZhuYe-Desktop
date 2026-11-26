@@ -15,7 +15,7 @@ import { Button, Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
-import s from '@/render/composer/PlanApprovalBar.module.css';
+import s from '@/render/input/composer/PlanApprovalBar.module.css';
 
 export function PlanApprovalBar() {
   const { t } = useI18n();

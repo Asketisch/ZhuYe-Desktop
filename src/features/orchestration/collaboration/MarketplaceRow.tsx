@@ -7,7 +7,7 @@ import { zhuye_browse_marketplace, zhuye_install_from_marketplace } from '@/util
 import { PLUGIN_COMMANDS_QUERY_KEY } from '@/logic/composer/usePluginCommands';
 import { AGENTS_QUERY_KEY } from '@/logic/agents/useAgentsController';
 import { pluginErrorMessage as errorMessage } from '@/logic/collaboration/usePluginsPanelController';
-import s from '@/render/collaboration/CollaborationView.module.css';
+import s from '@/render/orchestration/collaboration/CollaborationView.module.css';
 
 export function MarketplaceRow({
   name,

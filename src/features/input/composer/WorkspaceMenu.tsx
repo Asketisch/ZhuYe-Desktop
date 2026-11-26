@@ -22,7 +22,7 @@ import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
 import { SESSIONS_QUERY_KEY, WORKSPACES_QUERY_KEY } from '@/logic/sessions/useSessions';
 import { isPlaceholderWorkspace } from '@/logic/sessions/workspaceGroups';
 import { useAgentStore } from '@/stores/agentStore';
-import s from '@/render/composer/ComposerTopBar.module.css';
+import s from '@/render/input/composer/ComposerTopBar.module.css';
 
 function basename(p: string): string {
   const parts = p.replace(/\/$/, '').split('/');

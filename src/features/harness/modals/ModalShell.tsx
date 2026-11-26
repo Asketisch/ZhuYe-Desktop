@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Icon, IconButton } from '@/features/harness/design-system';
-import s from '@/render/modals/ModalShell.module.css';
+import s from '@/render/harness/modals/ModalShell.module.css';
 
 interface Props {
   title: string;

@@ -5,7 +5,7 @@
  */
 import { forwardRef } from 'react';
 import type { InputHTMLAttributes, ReactNode } from 'react';
-import s from '@/render/design-system/Input.module.css';
+import s from '@/render/harness/design-system/Input.module.css';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   size?: 'sm' | 'md';

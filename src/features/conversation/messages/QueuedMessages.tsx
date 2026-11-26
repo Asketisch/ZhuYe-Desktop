@@ -19,7 +19,7 @@ import { Icon, IconButton } from '@/features/harness/design-system';
 import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import type { QueuedMessage } from '@/stores/agent/types';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/messages/QueuedMessages.module.css';
+import s from '@/render/conversation/messages/QueuedMessages.module.css';
 
 /** 入队项里的附件展示名（图片 / 本地图片 / 文件引用）。 */
 function attachmentNames(items: QueuedMessage['items']): string[] {

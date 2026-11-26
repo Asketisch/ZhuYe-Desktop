@@ -14,7 +14,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Badge, Button, Icon, Input } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { type GroupCredentialEntry } from '@/logic/settings/config/groups';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface GroupCredentialsEditorProps {
   credentials: GroupCredentialEntry[];

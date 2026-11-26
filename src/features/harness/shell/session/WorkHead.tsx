@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { GitBranch, Ellipsis, Settings, ClipboardCopy, Search } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/shell/session/session.module.css';
+import s from '@/render/harness/shell/session/session.module.css';
 
 export { summarizeDiff, useGitSummary } from '@/logic/chat/gitSummary';
 import type { GitSummary } from '@/logic/chat/gitSummary';

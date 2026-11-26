@@ -1,5 +1,5 @@
 import { PullRequestsBinding } from '@/logic/git-pulls/PullRequestsBinding';
-import { PullRequestsView as DefaultView } from '@/render/git/PullRequestsView';
+import { PullRequestsView as DefaultView } from '@/render/workbench/git/PullRequestsView';
 import { useRenderView } from '@/logic/renderer/useRenderView';
 
 export function PullRequestsView() {

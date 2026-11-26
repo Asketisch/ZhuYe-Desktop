@@ -11,7 +11,7 @@ import { Clock, CornerDownRight, Wrench, GitBranch, Search, ChevronRight, X } fr
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { deriveLanes, deriveTrajEntries } from '@/logic/shell/session/traj';
-import s from '@/render/shell/session/session.module.css';
+import s from '@/render/harness/shell/session/session.module.css';
 
 export function TrajView() {
   const { t } = useI18n();

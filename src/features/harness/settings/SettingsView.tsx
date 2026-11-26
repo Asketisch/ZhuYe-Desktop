@@ -1,6 +1,6 @@
 import { useRenderer } from '@/logic/renderer/RendererProvider';
 import { SettingsBinding } from '@/logic/settings/SettingsBinding';
-import { SettingsView as DefaultView } from '@/render/settings/SettingsView';
+import { SettingsView as DefaultView } from '@/render/harness/settings/SettingsView';
 import { ConfigForm } from './ConfigForm';
 import { DisplaySection } from './sections/DisplaySection';
 import { NotificationsSection } from './sections/NotificationsSection';

@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export function GroupFold({
   label,

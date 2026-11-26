@@ -6,7 +6,7 @@
 import { Input } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import type { FormState } from './GroupDetail';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface GroupAdvancedFieldsProps {
   form: FormState;

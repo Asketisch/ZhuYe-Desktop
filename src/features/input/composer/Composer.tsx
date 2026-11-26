@@ -1,6 +1,6 @@
 import { useRenderer } from '@/logic/renderer/RendererProvider';
 import { ComposerBinding } from '@/logic/composer/ComposerBinding';
-import { Composer as DefaultView } from '@/render/composer/Composer';
+import { Composer as DefaultView } from '@/render/input/composer/Composer';
 import { SlashPopup } from './SlashPopup';
 import { AttachmentBar } from './AttachmentBar';
 import { MentionPicker } from './MentionPicker';

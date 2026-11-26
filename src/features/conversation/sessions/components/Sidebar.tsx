@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { SidebarBinding, type SidebarBindingProps } from '@/logic/sessions/SidebarBinding';
-import { Sidebar as DefaultView } from '@/render/sessions/Sidebar';
+import { Sidebar as DefaultView } from '@/render/conversation/sessions/Sidebar';
 import { WorkspaceGroup } from './WorkspaceGroup';
 import { SessionItem } from './SessionItem';
 import { SidebarMenu } from './SidebarMenu';

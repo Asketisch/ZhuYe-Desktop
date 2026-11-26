@@ -11,7 +11,7 @@ import type { ZhuyeSessionInfo } from '@/utils/commands';
 import { chatLinkFor, shortTimestamp } from '@/logic/threads/utils/threadLabels';
 import { SessionItemMenu } from '@/features/conversation/sessions/components/SessionItemMenu';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/threads/components/ThreadItem.module.css';
+import s from '@/render/conversation/threads/components/ThreadItem.module.css';
 
 export interface ThreadItemProps {
   session: ZhuyeSessionInfo;

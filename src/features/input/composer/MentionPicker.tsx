@@ -19,7 +19,7 @@ import {
 } from '@/utils/commands';
 import { fuzzy } from '@/logic/command-palette/fuzzy';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/composer/MentionPicker.module.css';
+import s from '@/render/input/composer/MentionPicker.module.css';
 
 export interface MentionPickerProps {
   visible: boolean;

@@ -11,7 +11,7 @@ import { Icon, IconButton } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
 import { SessionItem } from './SessionItem';
-import s from '@/render/sessions/components/WorkspaceGroup.module.css';
+import s from '@/render/conversation/sessions/components/WorkspaceGroup.module.css';
 
 export interface WorkspaceGroupProps {
   group: WorkspaceSessionGroup;

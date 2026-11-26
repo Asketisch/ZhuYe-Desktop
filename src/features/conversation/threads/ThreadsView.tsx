@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { ThreadsBinding } from '@/logic/threads/ThreadsBinding';
-import { ThreadsView as DefaultView } from '@/render/threads/ThreadsView';
+import { ThreadsView as DefaultView } from '@/render/conversation/threads/ThreadsView';
 import { ThreadBucketGroup } from './components/ThreadBucketGroup';
 
 export function ThreadsView() {

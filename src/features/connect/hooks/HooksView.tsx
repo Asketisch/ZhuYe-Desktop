@@ -1,6 +1,6 @@
 import { useRenderView } from '@/logic/renderer/useRenderView';
 import { HooksBinding } from '@/logic/hooks/HooksBinding';
-import { HooksView as DefaultView } from '@/render/hooks/HooksView';
+import { HooksView as DefaultView } from '@/render/connect/hooks/HooksView';
 
 export function HooksView() {
   const View = useRenderView('HooksView', DefaultView);

@@ -13,7 +13,7 @@ import React, { type ReactNode } from 'react';
 import { useLocation } from '@tanstack/react-router';
 
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/shell/ErrorBoundary.module.css';
+import s from '@/render/harness/shell/ErrorBoundary.module.css';
 
 type FallbackRenderer = (error: Error, retry: () => void) => ReactNode;
 

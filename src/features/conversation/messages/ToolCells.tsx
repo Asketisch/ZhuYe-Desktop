@@ -27,7 +27,7 @@ import {
 import { Icon } from '@/features/harness/design-system';
 import { DiffViewer } from '@/features/workbench/git/DiffViewer';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/messages/ToolCells.module.css';
+import s from '@/render/conversation/messages/ToolCells.module.css';
 
 /** 配对 tool_output 的渲染字段（与 TurnItem tool_output 同构）。 */
 export interface ToolCellOutput {

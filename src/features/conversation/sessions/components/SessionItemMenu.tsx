@@ -15,7 +15,7 @@ import { useState } from 'react';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { confirmDialog } from '@/features/harness/modals/ConfirmDialog';
-import s from '@/render/sessions/components/SessionItemMenu.module.css';
+import s from '@/render/conversation/sessions/components/SessionItemMenu.module.css';
 
 export interface SessionItemMenuProps {
   session: ZhuyeSessionInfo;

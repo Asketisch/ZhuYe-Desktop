@@ -15,7 +15,7 @@ import { useBackgroundSessions } from '@/stores/backgroundSessions';
 import { displayTitle } from '@/logic/sessions/buckets';
 import { basename } from '@/logic/sessions/workspaceGroups';
 import { SessionItemMenu } from './SessionItemMenu';
-import s from '@/render/sessions/components/SessionItem.module.css';
+import s from '@/render/conversation/sessions/components/SessionItem.module.css';
 
 export interface SessionItemProps {
   session: ZhuyeSessionInfo;

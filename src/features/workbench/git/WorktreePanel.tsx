@@ -25,7 +25,7 @@ import {
   zhuye_remove_worktree,
 } from '@/utils/commands/git';
 import { zhuye_set_workspace } from '@/utils/commands/workspaces';
-import s from '@/render/git/GitView.module.css';
+import s from '@/render/workbench/git/GitView.module.css';
 
 export function WorktreePanel() {
   const { t } = useI18n();

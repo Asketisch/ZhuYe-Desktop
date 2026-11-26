@@ -9,7 +9,7 @@ import { ChevronRight, Square, TerminalSquare, X } from 'lucide-react';
 import { Icon, IconButton, Spinner } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import type { BangRun } from '@/logic/composer/useBangShell';
-import s from '@/render/composer/BangRunsPanel.module.css';
+import s from '@/render/input/composer/BangRunsPanel.module.css';
 
 const COLLAPSED_OUTPUT_CHARS = 1200;
 

@@ -5,7 +5,7 @@
  */
 import type { SessionBucket } from '@/features/conversation/sessions';
 import { ThreadItem } from './ThreadItem';
-import s from '@/render/threads/components/ThreadBucketGroup.module.css';
+import s from '@/render/conversation/threads/components/ThreadBucketGroup.module.css';
 
 export interface ThreadBucketGroupProps {
   bucket: SessionBucket;

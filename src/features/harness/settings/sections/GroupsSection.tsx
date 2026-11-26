@@ -32,7 +32,7 @@ import {
 import { GroupNav } from './GroupNav';
 import { useEffortCapability } from '@/logic/composer/useEffortCapability';
 import { GroupDetail } from './GroupDetail';
-import s from '@/render/settings/SettingsView.module.css';
+import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface GroupsSectionProps {
   rawToml: string;

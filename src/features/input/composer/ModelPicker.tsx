@@ -27,7 +27,7 @@ import {
 } from '@/logic/models/modelGroups';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import s from '@/render/composer/ModelPicker.module.css';
+import s from '@/render/input/composer/ModelPicker.module.css';
 
 /** option value 前缀 —— 两类目标的稳定键。 */
 const GROUP_VALUE = 'group:';
