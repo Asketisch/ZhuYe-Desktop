@@ -36,6 +36,21 @@ const skip = (name, reason) => emit('SKIP', name, reason);
 // ── 通用文件工具 ───────────────────────────────────────────────────────────
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
+/** 递归收集命令包装文件（相对 src/utils/commands/，含域族子目录）。 */
+const collectCommandWrappers = (dir = 'src/utils/commands') => {
+  const out = [];
+  for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+    const rel = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...collectCommandWrappers(rel));
+    else if (entry.name.endsWith('.ts') && entry.name !== 'index.ts') out.push(rel);
+  }
+  return out;
+};
+/** 与 collectCommandWrappers 对应的模块名（去掉 .ts 与 src/utils/commands/ 前缀）。 */
+const commandModuleNames = () => collectCommandWrappers()
+  .map((f) => f.slice('src/utils/commands/'.length, -3).replace(/\.test$|\.spec$/, ''))
+  .filter((f, i, all) => all.indexOf(f) === i);
+
 function walk(dir, filter, out = []) {
   const abs = join(ROOT, dir);
   if (!existsSync(abs)) return out;
@@ -100,8 +115,8 @@ if (!handlerMatch) {
   );
 
   // 1a. 注册了但前端没有消费面 —— AGENTS.md 定义的"半接线"。
-  const frontendFiles = readdirSync(join(ROOT, 'src/utils/commands')).filter((f) => f.endsWith('.ts'));
-  const frontendSrc = frontendFiles.map((f) => read(`src/utils/commands/${f}`)).join('\n');
+  const frontendFiles = collectCommandWrappers();
+  const frontendSrc = frontendFiles.map((f) => read(f)).join('\n');
   const frontendCommands = new Set(
     [...frontendSrc.matchAll(/export (?:async )?function (ping|zhuye_\w+)/g)].map((m) => m[1]),
   );
@@ -284,9 +299,7 @@ if (unmerged.length === 0) {
 
 // ── 7. 前端命令 barrel 完整 ───────────────────────────────────────────────
 const cmdBarrel = read('src/utils/commands/index.ts');
-const domainFiles = readdirSync(join(ROOT, 'src/utils/commands'))
-  .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.endsWith('.spec.ts') && f !== 'index.ts')
-  .map((f) => f.replace(/\.ts$/, ''));
+const domainFiles = commandModuleNames().filter((d) => !d.endsWith('.test') && !d.endsWith('.spec'));
 const notExported = domainFiles.filter((d) => !cmdBarrel.includes(`'./${d}'`));
 if (notExported.length === 0) {
   pass('commands-barrel-complete', `${domainFiles.length} 个领域模块全部从 barrel 导出`);
