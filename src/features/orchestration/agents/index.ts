@@ -3,5 +3,5 @@
  */
 export { AgentsView } from './AgentsView';
 export { AgentEditor } from './AgentEditor';
-export { useAgentsController, emptyAgentDraft, parseCsv, joinCsv } from '@/logic/agents/useAgentsController';
-export type { AgentsController } from '@/logic/agents/useAgentsController';
+export { useAgentsController, emptyAgentDraft, parseCsv, joinCsv } from '@/logic/orchestration/agents/useAgentsController';
+export type { AgentsController } from '@/logic/orchestration/agents/useAgentsController';

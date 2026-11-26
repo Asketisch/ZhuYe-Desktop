@@ -15,8 +15,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { AlertTriangle, GitBranch, Plus, Trash2 } from 'lucide-react';
 import { Badge, Card, Icon } from '@/features/harness/design-system';
-import { confirmDialog } from '@/logic/modals/confirm';
-import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
+import { confirmDialog } from '@/logic/harness/modals/confirm';
+import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/harness/shell/useCurrentWorkspace';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import {

@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { PlanBinding } from '@/logic/plan/PlanBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { PlanBinding } from '@/logic/orchestration/plan/PlanBinding';
 import { PlanView as DefaultView } from '@/render/orchestration/plan/PlanView';
 import { Markdown } from '@/components/Markdown';
 

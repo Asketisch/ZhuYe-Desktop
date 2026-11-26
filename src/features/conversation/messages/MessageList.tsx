@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { MessageListBinding } from '@/logic/messages/MessageListBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { MessageListBinding } from '@/logic/conversation/messages/MessageListBinding';
 import { MessageList as DefaultView } from '@/render/conversation/messages/MessageList';
 import { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup } from './ToolCells';
 import { QueuedMessages } from './QueuedMessages';

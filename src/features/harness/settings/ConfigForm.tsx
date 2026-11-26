@@ -15,7 +15,7 @@ import {
   COMPLEX_SECTIONS,
   SIMPLE_FIELDS_BY_SECTION,
   type FieldSpec,
-} from '@/logic/settings/config/schema';
+} from '@/logic/harness/settings/config/schema';
 import { StructuredField } from './components/StructuredField';
 import { ComplexSection, UnknownSection } from './components/ComplexEditors';
 import s from '@/render/harness/settings/SettingsView.module.css';

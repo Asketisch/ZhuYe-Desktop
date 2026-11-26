@@ -12,7 +12,7 @@
  *   - visible=false / 无匹配时返回 null
  */
 import { useEffect } from 'react';
-import { filterSlashCommands } from '@/logic/composer/slashCommands';
+import { filterSlashCommands } from '@/logic/input/composer/slashCommands';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/input/composer/SlashPopup.module.css';
 

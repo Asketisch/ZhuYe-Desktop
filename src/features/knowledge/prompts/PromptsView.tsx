@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { PromptsBinding } from '@/logic/prompts/PromptsBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { PromptsBinding } from '@/logic/knowledge/prompts/PromptsBinding';
 import { PromptsView as DefaultView } from '@/render/knowledge/prompts/PromptsView';
 
 export function PromptsView() {

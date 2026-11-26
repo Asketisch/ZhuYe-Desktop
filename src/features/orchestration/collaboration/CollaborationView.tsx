@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { CollaborationBinding } from '@/logic/collaboration/CollaborationBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { CollaborationBinding } from '@/logic/orchestration/collaboration/CollaborationBinding';
 import { CollaborationView as DefaultView } from '@/render/orchestration/collaboration/CollaborationView';
 import { McpManager } from './McpManager';
 import { PluginsPanel } from './PluginsPanel';

@@ -9,8 +9,8 @@
 import { describe, it, expect } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { invalidateWorkspaceQueries } from './WorkspaceMenu';
-import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
-import { SESSIONS_QUERY_KEY, WORKSPACES_QUERY_KEY } from '@/logic/sessions/useSessions';
+import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/harness/shell/useCurrentWorkspace';
+import { SESSIONS_QUERY_KEY, WORKSPACES_QUERY_KEY } from '@/logic/conversation/sessions/useSessions';
 
 const REQUIRED_KEYS: readonly (readonly unknown[])[] = [
   CURRENT_WORKSPACE_QUERY_KEY,

@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { StatusBarBinding } from '@/logic/shell/StatusBarBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { StatusBarBinding } from '@/logic/harness/shell/StatusBarBinding';
 import { StatusBar as DefaultView } from '@/render/harness/shell/StatusBar';
 
 export function StatusBar() {

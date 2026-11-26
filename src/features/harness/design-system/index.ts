@@ -44,7 +44,7 @@ export type { TooltipProps } from '@/render/harness/design-system/Tooltip';
 
 export { Toast } from './primitives/Toast';
 export type { ToastProps } from './primitives/Toast';
-export type { ToastKind } from '@/logic/design-system/utils/toast';
+export type { ToastKind } from '@/logic/harness/design-system/utils/toast';
 
 export { ContextRing } from '@/render/harness/design-system/ContextRing';
 export type { ContextRingProps } from '@/render/harness/design-system/ContextRing';
@@ -54,10 +54,10 @@ export { KeyHint } from '@/render/harness/design-system/KeyHint';
 export type { KeyHintProps } from '@/render/harness/design-system/KeyHint';
 
 // ===== Utils (保留 token 常量供外部用) =====
-export { shortcutLabel, platformLabel, detectPlatform } from '@/logic/design-system/utils/keyHints';
-export type { Platform } from '@/logic/design-system/utils/keyHints';
+export { shortcutLabel, platformLabel, detectPlatform } from '@/logic/harness/design-system/utils/keyHints';
+export type { Platform } from '@/logic/harness/design-system/utils/keyHints';
 
 export { ringGeometry, segmentArc } from '@/render/harness/design-system/ring';
 export type { RingGeometry } from '@/render/harness/design-system/ring';
 
-export { TOAST_COLORS, DEFAULT_TOAST_MS } from '@/logic/design-system/utils/toast';
+export { TOAST_COLORS, DEFAULT_TOAST_MS } from '@/logic/harness/design-system/utils/toast';

@@ -4,9 +4,9 @@ import { Store } from 'lucide-react';
 import { Badge, Button, Icon, Spinner } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_browse_marketplace, zhuye_install_from_marketplace } from '@/utils/commands';
-import { PLUGIN_COMMANDS_QUERY_KEY } from '@/logic/composer/usePluginCommands';
-import { AGENTS_QUERY_KEY } from '@/logic/agents/useAgentsController';
-import { pluginErrorMessage as errorMessage } from '@/logic/collaboration/usePluginsPanelController';
+import { PLUGIN_COMMANDS_QUERY_KEY } from '@/logic/input/composer/usePluginCommands';
+import { AGENTS_QUERY_KEY } from '@/logic/orchestration/agents/useAgentsController';
+import { pluginErrorMessage as errorMessage } from '@/logic/orchestration/collaboration/usePluginsPanelController';
 import s from '@/render/orchestration/collaboration/CollaborationView.module.css';
 
 export function MarketplaceRow({

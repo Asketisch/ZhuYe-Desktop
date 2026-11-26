@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { SearchBinding } from '@/logic/search/SearchBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { SearchBinding } from '@/logic/workbench/search/SearchBinding';
 import { SearchView as DefaultView } from '@/render/workbench/search/SearchView';
 
 export function SearchView() {

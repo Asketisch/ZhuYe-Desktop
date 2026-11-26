@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { renderApp, resetAppAfterEach } from './helpers/appHarness';
 import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
-import { settleConfirm } from '@/logic/modals/confirm';
+import { settleConfirm } from '@/logic/harness/modals/confirm';
 
 let backend: FakeBackend;
 

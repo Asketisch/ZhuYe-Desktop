@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { DictationBinding } from '@/logic/dictation/DictationBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { DictationBinding } from '@/logic/input/dictation/DictationBinding';
 import { DictationView as DefaultView } from '@/render/input/dictation/DictationView';
 
 export interface DictationViewProps { onInsertIntoComposer?: (text: string) => void }

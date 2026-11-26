@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { SquadBinding } from '@/logic/squad/SquadBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { SquadBinding } from '@/logic/orchestration/squad/SquadBinding';
 import { SquadView as DefaultView } from '@/render/orchestration/squad/SquadView';
 import { SquadTaskRow } from './SquadTaskRow';
 

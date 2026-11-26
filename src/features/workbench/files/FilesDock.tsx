@@ -5,7 +5,7 @@
  * 展示层按仓库分层约定不感知逻辑层类型，这里做一次显式的 props 映射；
  * 文案已全部在 controller 内翻译完成。
  */
-import { useFilesDockController } from '@/logic/files/useFilesDockController';
+import { useFilesDockController } from '@/logic/workbench/files/useFilesDockController';
 import { FilesDockView } from '@/render/workbench/files/FilesDockView';
 
 export function FilesDock() {

@@ -1,4 +1,4 @@
-import { useToastAutoDismiss } from '@/logic/webview/toastAutoDismiss';
+import { useToastAutoDismiss } from '@/logic/workbench/webview/toastAutoDismiss';
 import type { ToastProps } from '@/render/harness/design-system/Toast';
 import { Toast as DefaultView } from '@/render/harness/design-system/Toast';
 

@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { OrchestrationController } from '@/logic/collaboration/useOrchestrationController';
+import type { OrchestrationController } from '@/logic/orchestration/collaboration/useOrchestrationController';
 
 export interface CollaborationViewProps {
   t: I18nContextValue['t'];

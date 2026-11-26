@@ -13,7 +13,7 @@
  * 源码展示,块写完后自动变为图。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { subscribeTheme } from '@/logic/preferences/theme';
+import { subscribeTheme } from '@/logic/harness/preferences/theme';
 import s from './MermaidDiagram.module.css';
 
 type MermaidModule = typeof import('mermaid')['default'];

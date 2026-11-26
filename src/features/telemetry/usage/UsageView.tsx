@@ -1,8 +1,8 @@
 /**
  * UsageView —— 薄装配入口。
  */
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { UsageBinding } from '@/logic/usage/UsageBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { UsageBinding } from '@/logic/telemetry/usage/UsageBinding';
 import { UsageView as DefaultView } from '@/render/telemetry/usage/UsageView';
 
 export function UsageView() {

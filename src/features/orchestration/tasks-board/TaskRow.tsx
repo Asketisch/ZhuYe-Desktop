@@ -1,6 +1,6 @@
 import { useI18n } from '@/utils/i18n';
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { TaskRowBinding } from '@/logic/tasks-board/TaskRowBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { TaskRowBinding } from '@/logic/orchestration/tasks-board/TaskRowBinding';
 import { TaskRow as DefaultView } from '@/render/orchestration/tasks-board/TaskRow';
 import type { TaskRowBindingProps } from '@/contracts/orchestration/taskWidgets';
 export type TaskRowProps = Omit<TaskRowBindingProps, 't'>;

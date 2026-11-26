@@ -31,9 +31,9 @@ import {
 import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_list_skills } from '@/utils/commands/skills';
-import { getPluginSlashCommands } from '@/logic/composer/slashCommands';
-import { usePluginCommands } from '@/logic/composer/usePluginCommands';
-import { groupQuickPrompts } from '@/logic/home/quickPrompts';
+import { getPluginSlashCommands } from '@/logic/input/composer/slashCommands';
+import { usePluginCommands } from '@/logic/input/composer/usePluginCommands';
+import { groupQuickPrompts } from '@/logic/conversation/home/quickPrompts';
 import s from '@/render/input/composer/ComposerPlusMenu.module.css';
 
 export interface ComposerPlusMenuProps {

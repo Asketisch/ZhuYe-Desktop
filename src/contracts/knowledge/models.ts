@@ -1,5 +1,5 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { Effort } from '@/logic/composer/useEffortCapability';
+import type { Effort } from '@/logic/input/composer/useEffortCapability';
 
 /** 模型组卡片视图 —— 模型页按组列出（组 id 才是切换目标）。 */
 export interface ModelsGroupView {

@@ -17,7 +17,7 @@ import {
   zhuye_exit_goal_mode,
   type GoalSnapshotPayload,
 } from '@/utils/commands/goal';
-import { emitComposerPrefill } from '@/logic/composer/useComposerDraft';
+import { emitComposerPrefill } from '@/logic/input/composer/useComposerDraft';
 import s from '@/render/harness/shell/SessionChips.module.css';
 
 const STATUS_KEY: Record<string, string> = {

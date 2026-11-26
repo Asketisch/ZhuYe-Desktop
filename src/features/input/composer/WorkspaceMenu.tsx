@@ -18,9 +18,9 @@ import {
   zhuye_set_workspace,
   type ZhuyeWorkspaceInfo,
 } from '@/utils/commands/workspaces';
-import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/shell/useCurrentWorkspace';
-import { SESSIONS_QUERY_KEY, WORKSPACES_QUERY_KEY } from '@/logic/sessions/useSessions';
-import { isPlaceholderWorkspace } from '@/logic/sessions/workspaceGroups';
+import { CURRENT_WORKSPACE_QUERY_KEY } from '@/logic/harness/shell/useCurrentWorkspace';
+import { SESSIONS_QUERY_KEY, WORKSPACES_QUERY_KEY } from '@/logic/conversation/sessions/useSessions';
+import { isPlaceholderWorkspace } from '@/logic/conversation/sessions/workspaceGroups';
 import { useAgentStore } from '@/stores/agentStore';
 import s from '@/render/input/composer/ComposerTopBar.module.css';
 

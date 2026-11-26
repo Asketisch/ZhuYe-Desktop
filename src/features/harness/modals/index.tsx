@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { ModalStackBinding } from '@/logic/modals/ModalStackBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { ModalStackBinding } from '@/logic/harness/modals/ModalStackBinding';
 import { ModalStack as DefaultView } from '@/render/harness/modals/ModalStack';
 import { ApprovalModal } from './ApprovalModal';
 import { QuestionModal } from './QuestionModal';

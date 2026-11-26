@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image as ImageIcon, MousePointer2, Camera, Keyboard, RefreshCw } from 'lucide-react';
-import { useMediaController } from '@/logic/media/useMediaController';
+import { useMediaController } from '@/logic/telemetry/media/useMediaController';
 import { Button, Card, EmptyState, Icon, Input, Spinner } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/telemetry/media/MediaView.module.css';

@@ -13,7 +13,7 @@ import { cleanup, render as rtlRender, type RenderOptions } from '@testing-libra
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { resetUiPrefsForTests } from '@/utils/uiPrefs';
-import { resetPinsForTests } from '@/logic/sessions/pins';
+import { resetPinsForTests } from '@/logic/conversation/sessions/pins';
 
 // ====== DOM polyfills(jsdom 缺失,CodeMirror 6 依赖) ======
 

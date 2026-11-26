@@ -11,10 +11,10 @@
 import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { useShellUi, type InboxTab } from '@/stores/shellUi';
-import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
-import { useSessionBadges } from '@/logic/shell/useSessionBadges';
+import { useSessions, useActiveSession } from '@/logic/conversation/sessions/useSessions';
+import { useSessionBadges } from '@/logic/harness/shell/useSessionBadges';
 import { useI18n } from '@/utils/i18n';
-import { displayTitle } from '@/logic/sessions/buckets';
+import { displayTitle } from '@/logic/conversation/sessions/buckets';
 
 export function InboxPanel({ inboxTab }: { inboxTab: InboxTab; onNavigateSession: (id: string) => void }) {
   const { t } = useI18n();

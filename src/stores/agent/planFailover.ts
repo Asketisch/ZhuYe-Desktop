@@ -22,7 +22,7 @@ import {
   listGroups,
   pickFailoverGroup,
   setActiveGroup,
-} from '@/logic/models/modelGroups';
+} from '@/logic/knowledge/models/modelGroups';
 import { zhuye_get_config, zhuye_save_config } from '@/utils/commands';
 import type { ToastKind } from './types';
 

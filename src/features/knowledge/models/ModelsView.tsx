@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { ModelsBinding } from '@/logic/models/ModelsBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { ModelsBinding } from '@/logic/knowledge/models/ModelsBinding';
 import { ModelsView as DefaultView } from '@/render/knowledge/models/ModelsView';
 
 export function ModelsView() {

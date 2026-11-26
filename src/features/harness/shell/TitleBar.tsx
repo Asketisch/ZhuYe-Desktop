@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { TitleBarBinding } from '@/logic/shell/TitleBarBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { TitleBarBinding } from '@/logic/harness/shell/TitleBarBinding';
 import { TitleBar as DefaultView } from '@/render/harness/shell/TitleBar';
 
 export function TitleBar(props: { sidebarOpen: boolean; onToggleSidebar: () => void; inspectorOpen: boolean; onToggleInspector: () => void }) {

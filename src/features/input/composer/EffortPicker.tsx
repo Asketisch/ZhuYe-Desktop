@@ -19,7 +19,7 @@ import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/permissions
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { syncEffortPreference, writeEffortPreference } from '@/stores/agent/effortPreference';
-import { ALL_EFFORTS, useEffortCapability } from '@/logic/composer/useEffortCapability';
+import { ALL_EFFORTS, useEffortCapability } from '@/logic/input/composer/useEffortCapability';
 import s from '@/render/input/composer/EffortPicker.module.css';
 
 type Level = (typeof ALL_EFFORTS)[number];

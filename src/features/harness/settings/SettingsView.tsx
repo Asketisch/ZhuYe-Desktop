@@ -1,5 +1,5 @@
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { SettingsBinding } from '@/logic/settings/SettingsBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { SettingsBinding } from '@/logic/harness/settings/SettingsBinding';
 import { SettingsView as DefaultView } from '@/render/harness/settings/SettingsView';
 import { ConfigForm } from './ConfigForm';
 import { DisplaySection } from './sections/DisplaySection';

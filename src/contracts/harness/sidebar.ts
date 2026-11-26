@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
-import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
+import type { WorkspaceSessionGroup } from '@/logic/conversation/sessions/workspaceGroups';
 import type { WorkspaceGroupProps } from '@/features/conversation/sessions/components/WorkspaceGroup';
 import type { SessionItemProps } from '@/features/conversation/sessions/components/SessionItem';
 import type { SessionBadge } from './shell';

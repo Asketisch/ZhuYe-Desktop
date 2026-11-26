@@ -1,5 +1,5 @@
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { ChatBinding } from '@/logic/chat/ChatBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { ChatBinding } from '@/logic/conversation/chat/ChatBinding';
 import { ChatView as DefaultView } from '@/render/conversation/chat/ChatView';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
@@ -14,7 +14,7 @@ import { TrajView } from '@/features/harness/shell/session/TrajView';
 import { BottomTabs } from '@/features/harness/shell/session/BottomTabs';
 import { SubagentViewer } from './SubagentViewer';
 
-export { editRewindTargetFor } from '@/logic/chat/ChatBinding';
+export { editRewindTargetFor } from '@/logic/conversation/chat/ChatBinding';
 const slots = { MessageList, Composer, ChatHero, ContextBanner,
   DiffViewer, WorkHead, ViewRing, SessionDock, SessionCapsule, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
   TrajView, BottomTabs, SubagentViewer };

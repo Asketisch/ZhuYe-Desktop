@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { MemoryBinding } from '@/logic/memory/MemoryBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { MemoryBinding } from '@/logic/knowledge/memory/MemoryBinding';
 import { MemoryView as DefaultView } from '@/render/knowledge/memory/MemoryView';
 
 export function MemoryView() {

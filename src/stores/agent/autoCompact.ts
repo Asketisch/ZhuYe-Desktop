@@ -17,8 +17,8 @@ import {
   listGroups,
   readActiveCredential,
   readActiveGroup,
-} from '@/logic/models/modelGroups';
-import { readContextWindowForModel } from '@/logic/settings/config/toml';
+} from '@/logic/knowledge/models/modelGroups';
+import { readContextWindowForModel } from '@/logic/harness/settings/config/toml';
 
 /** 默认触发阈值：已用输入 token ≥ max_context × 85%。 */
 export const DEFAULT_TRIGGER_RATIO = 0.85;

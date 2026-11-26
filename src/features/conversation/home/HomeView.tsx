@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { HomeBinding } from '@/logic/home/HomeBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { HomeBinding } from '@/logic/conversation/home/HomeBinding';
 import { HomeView as DefaultView } from '@/render/conversation/home/HomeView';
 
 export function HomeView() {

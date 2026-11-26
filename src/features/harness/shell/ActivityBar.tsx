@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { ActivityBarBinding } from '@/logic/shell/ActivityBarBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { ActivityBarBinding } from '@/logic/harness/shell/ActivityBarBinding';
 import { ActivityBar as DefaultView } from '@/render/harness/shell/ActivityBar';
 
 export function ActivityBar() {

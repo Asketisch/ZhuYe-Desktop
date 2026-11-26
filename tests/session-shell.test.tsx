@@ -10,7 +10,7 @@ import { SessionDock } from '@/features/harness/shell/session/SessionDock';
 import { SessionCapsule } from '@/features/harness/shell/session/SessionCapsule';
 import { ApprovalTakeover } from '@/features/harness/shell/session/Takeovers';
 import { TrajView } from '@/features/harness/shell/session/TrajView';
-import { deriveTrajEntries } from '@/logic/shell/session/traj';
+import { deriveTrajEntries } from '@/logic/harness/shell/session/traj';
 import { useAgentStore } from '@/stores/agentStore';
 import type { Turn, TodoItem } from '@/stores/agentStore';
 import { I18nProvider } from '@/utils/i18n';

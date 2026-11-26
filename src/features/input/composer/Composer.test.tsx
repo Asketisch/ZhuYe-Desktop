@@ -5,7 +5,7 @@ import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient, mockInvoke, emitMockEvent, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from '@/stores/agentStore';
 import { setUiPrefs, resetUiPrefsForTests } from '@/utils/uiPrefs';
-import { settleConfirm } from '@/logic/modals/confirm';
+import { settleConfirm } from '@/logic/harness/modals/confirm';
 
 // 慢 CI(ubuntu runner)上异步 fetch/渲染链路偶发超过 DTL 默认 1s 窗口,
 // 本文件 waitFor 统一放宽到 5s。

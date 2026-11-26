@@ -1,5 +1,5 @@
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { DebugBinding } from '@/logic/debug/DebugBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { DebugBinding } from '@/logic/telemetry/debug/DebugBinding';
 import { DebugView as DefaultView } from '@/render/telemetry/debug/DebugView';
 
 export function DebugView() {

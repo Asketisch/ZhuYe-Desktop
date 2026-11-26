@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { GitBinding } from '@/logic/git/GitBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { GitBinding } from '@/logic/workbench/git/GitBinding';
 import { GitView as DefaultView } from '@/render/workbench/git/GitView';
 import { DiffViewer } from './DiffViewer';
 import { WorktreePanel } from './WorktreePanel';

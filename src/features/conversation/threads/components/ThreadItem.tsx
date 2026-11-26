@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
-import { chatLinkFor, shortTimestamp } from '@/logic/threads/utils/threadLabels';
+import { chatLinkFor, shortTimestamp } from '@/logic/conversation/threads/utils/threadLabels';
 import { SessionItemMenu } from '@/features/conversation/sessions/components/SessionItemMenu';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/conversation/threads/components/ThreadItem.module.css';

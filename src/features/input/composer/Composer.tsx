@@ -1,5 +1,5 @@
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { ComposerBinding } from '@/logic/composer/ComposerBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { ComposerBinding } from '@/logic/input/composer/ComposerBinding';
 import { Composer as DefaultView } from '@/render/input/composer/Composer';
 import { SlashPopup } from './SlashPopup';
 import { AttachmentBar } from './AttachmentBar';

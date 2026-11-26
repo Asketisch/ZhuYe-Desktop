@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { HooksBinding } from '@/logic/hooks/HooksBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { HooksBinding } from '@/logic/connect/hooks/HooksBinding';
 import { HooksView as DefaultView } from '@/render/connect/hooks/HooksView';
 
 export function HooksView() {

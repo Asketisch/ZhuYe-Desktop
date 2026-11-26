@@ -14,10 +14,10 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ThreadsView } from '@/features/conversation/threads/ThreadsView';
 import { ConfirmDialogHost } from '@/features/harness/modals/ConfirmDialog';
 import { resetMockInvoke, createTestQueryClient } from '@/test/setup.tsx';
-import { useSessions, useActiveSession } from '@/logic/sessions/useSessions';
+import { useSessions, useActiveSession } from '@/logic/conversation/sessions/useSessions';
 
 // 模拟 useSessions + useActiveSession hooks
-vi.mock('@/logic/sessions/useSessions', () => ({
+vi.mock('@/logic/conversation/sessions/useSessions', () => ({
   useSessions: vi.fn(),
   useActiveSession: vi.fn(),
 }));

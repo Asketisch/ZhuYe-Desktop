@@ -1,7 +1,7 @@
 import type { ComponentProps, ComponentType, Ref, ChangeEventHandler, ClipboardEventHandler, DragEventHandler, KeyboardEventHandler } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { StagedAttachment } from '@/logic/composer/useAttachments';
-import type { BangRun } from '@/logic/composer/useBangShell';
+import type { StagedAttachment } from '@/logic/input/composer/useAttachments';
+import type { BangRun } from '@/logic/input/composer/useBangShell';
 import type { SlashPopup } from '@/features/input/composer/SlashPopup';
 import type { MentionPicker } from '@/features/input/composer/MentionPicker';
 import type { ComposerPlusMenu } from '@/features/input/composer/ComposerPlusMenu';

@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_credential_pool_status } from '@/utils/commands';
-import { groupDisplayLabel, type GroupEntry } from '@/logic/settings/config/groups';
+import { groupDisplayLabel, type GroupEntry } from '@/logic/harness/settings/config/groups';
 import { ProviderAvatar } from './ProviderAvatar';
 import s from '@/render/harness/settings/SettingsView.module.css';
 

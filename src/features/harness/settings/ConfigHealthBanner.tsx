@@ -1,5 +1,5 @@
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { ConfigHealthBinding } from '@/logic/settings/ConfigHealthBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { ConfigHealthBinding } from '@/logic/harness/settings/ConfigHealthBinding';
 import { ConfigHealthBanner as DefaultView } from '@/render/harness/settings/ConfigHealthBanner';
 
 export function ConfigHealthBanner() {

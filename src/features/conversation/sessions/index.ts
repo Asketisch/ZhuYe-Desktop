@@ -12,21 +12,21 @@ export {
   useActiveSession,
   SESSIONS_QUERY_KEY,
   WORKSPACES_QUERY_KEY,
-} from '@/logic/sessions/useSessions';
-export type { SessionBucket, SessionBucketLabel } from '@/logic/sessions/buckets';
+} from '@/logic/conversation/sessions/useSessions';
+export type { SessionBucket, SessionBucketLabel } from '@/logic/conversation/sessions/buckets';
 export {
   bucketFor,
   bucketSessions,
   displayTitle,
   SESSION_BUCKET_LABELS,
-} from '@/logic/sessions/buckets';
+} from '@/logic/conversation/sessions/buckets';
 export {
   groupSessionsByWorkspace,
   groupKeyFor,
   basename,
   isPlaceholderWorkspace,
   UNASSIGNED_GROUP_KEY,
-} from '@/logic/sessions/workspaceGroups';
-export type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
+} from '@/logic/conversation/sessions/workspaceGroups';
+export type { WorkspaceSessionGroup } from '@/logic/conversation/sessions/workspaceGroups';
 
 export { SessionsDashboard } from './SessionsDashboard';

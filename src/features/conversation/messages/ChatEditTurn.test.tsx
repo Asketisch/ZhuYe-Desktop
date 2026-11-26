@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useComposerDraft, emitComposerPrefill } from '@/logic/composer/useComposerDraft';
+import { useComposerDraft, emitComposerPrefill } from '@/logic/input/composer/useComposerDraft';
 import { editRewindTargetFor } from '@/features/conversation/messages/ChatView';
 
 const TURNS = [

@@ -28,9 +28,9 @@ import {
   removeGroup,
   setActiveGroup,
   setDefaultEffort,
-} from '@/logic/settings/config/groups';
+} from '@/logic/harness/settings/config/groups';
 import { GroupNav } from './GroupNav';
-import { useEffortCapability } from '@/logic/composer/useEffortCapability';
+import { useEffortCapability } from '@/logic/input/composer/useEffortCapability';
 import { GroupDetail } from './GroupDetail';
 import s from '@/render/harness/settings/SettingsView.module.css';
 

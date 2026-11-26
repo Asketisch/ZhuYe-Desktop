@@ -24,7 +24,7 @@ import {
   readActiveCredential,
   readActiveGroup,
   type GroupEntry,
-} from '@/logic/models/modelGroups';
+} from '@/logic/knowledge/models/modelGroups';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/input/composer/ModelPicker.module.css';

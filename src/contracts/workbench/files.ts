@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { FilesController } from '@/logic/files/useFilesController';
+import type { FilesController } from '@/logic/workbench/files/useFilesController';
 import type { FileTreeProps } from '@/features/workbench/files/FileTree';
 import type { CodeMirrorEditorProps } from '@/features/workbench/files/CodeMirrorEditor';
 

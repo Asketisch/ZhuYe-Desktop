@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { ZhuyeAgentDef } from '@/logic/agents/useAgentsController';
-export type { ZhuyeAgentDef } from '@/logic/agents/useAgentsController';
+import type { ZhuyeAgentDef } from '@/logic/orchestration/agents/useAgentsController';
+export type { ZhuyeAgentDef } from '@/logic/orchestration/agents/useAgentsController';
 
 export interface AgentsViewProps {
   t: I18nContextValue['t'];

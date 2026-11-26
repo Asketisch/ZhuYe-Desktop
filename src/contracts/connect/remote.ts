@@ -1,5 +1,5 @@
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { RemoteController } from '@/logic/remote/useRemoteController';
+import type { RemoteController } from '@/logic/connect/remote/useRemoteController';
 
 export interface RemoteViewProps {
   t: I18nContextValue['t'];
@@ -8,4 +8,4 @@ export interface RemoteViewProps {
   onCopyPreview: () => void;
 }
 
-export type { RemoteConfigDraft } from '@/logic/remote/useRemoteController';
+export type { RemoteConfigDraft } from '@/logic/connect/remote/useRemoteController';

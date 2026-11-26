@@ -6,7 +6,7 @@
 import { Save } from 'lucide-react';
 import { Card, Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import { NEW_SCOPES } from '@/logic/memory/useMemoryController';
+import { NEW_SCOPES } from '@/logic/knowledge/memory/useMemoryController';
 import s from '@/render/knowledge/memory/MemoryView.module.css';
 
 export interface MemoryAddFormProps {

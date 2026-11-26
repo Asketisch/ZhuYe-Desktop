@@ -18,7 +18,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button, Icon, Input, Select } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_test_provider_chat, type ProviderModelInfo } from '@/utils/commands';
-import { fetchProviderModels } from '@/logic/settings/config/modelCatalog';
+import { fetchProviderModels } from '@/logic/harness/settings/config/modelCatalog';
 import { GroupFold } from './GroupFold';
 import {
   GROUP_ENDPOINTS,
@@ -31,7 +31,7 @@ import {
   type GroupCredentialEntry,
   type GroupEndpoint,
   type GroupEntry,
-} from '@/logic/settings/config/groups';
+} from '@/logic/harness/settings/config/groups';
 import { GroupCredentialsEditor } from './GroupCredentialsEditor';
 import { GroupModelList } from './GroupModelList';
 import { GroupAdvancedFields } from './GroupAdvancedFields';

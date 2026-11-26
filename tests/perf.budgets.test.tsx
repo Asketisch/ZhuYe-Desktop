@@ -18,7 +18,7 @@ import { renderApp, resetAppAfterEach } from './helpers/appHarness';
 import { installFakeBackend, type FakeBackend } from './helpers/fakeBackend';
 import { useAgentStore } from '@/stores/agentStore';
 import { reduceEvent } from '@/stores/agent';
-import { bucketSessions } from '@/logic/sessions/buckets';
+import { bucketSessions } from '@/logic/conversation/sessions/buckets';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
 
 /** 宽松预算(默认,防数量级回归)/ 严格预算(PERF_STRICT=1,本地性能迭代用)。 */

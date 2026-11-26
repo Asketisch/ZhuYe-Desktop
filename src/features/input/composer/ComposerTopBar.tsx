@@ -15,7 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Monitor, Plus } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
-import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
+import { useCurrentWorkspace } from '@/logic/harness/shell/useCurrentWorkspace';
 import { zhuye_git_status, zhuye_list_worktrees } from '@/utils/commands/git';
 import { zhuye_remote_sessions } from '@/utils/commands/remote';
 import {

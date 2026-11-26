@@ -1,5 +1,5 @@
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { TerminalBinding } from '@/logic/terminal/TerminalBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { TerminalBinding } from '@/logic/workbench/terminal/TerminalBinding';
 import { TerminalView as TerminalPresentation } from '@/render/workbench/terminal/TerminalView';
 
 export function TerminalView() {

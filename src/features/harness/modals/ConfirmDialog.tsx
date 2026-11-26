@@ -22,9 +22,9 @@ import { useSyncExternalStore } from 'react';
 import { useI18n } from '@/utils/i18n';
 import { ModalShell } from './ModalShell';
 
-export { confirmDialog } from '@/logic/modals/confirm';
-export type { ConfirmOptions } from '@/logic/modals/confirm';
-import { subscribeConfirm, getConfirmRequest, settleConfirm } from '@/logic/modals/confirm';
+export { confirmDialog } from '@/logic/harness/modals/confirm';
+export type { ConfirmOptions } from '@/logic/harness/modals/confirm';
+import { subscribeConfirm, getConfirmRequest, settleConfirm } from '@/logic/harness/modals/confirm';
 
 /** 应用根部的宿主组件：有确认请求时渲染 ModalShell。 */
 export function ConfirmDialogHost() {

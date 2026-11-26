@@ -13,8 +13,8 @@ import { GitBranch, Ellipsis, Settings, ClipboardCopy, Search } from 'lucide-rea
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/harness/shell/session/session.module.css';
 
-export { summarizeDiff, useGitSummary } from '@/logic/chat/gitSummary';
-import type { GitSummary } from '@/logic/chat/gitSummary';
+export { summarizeDiff, useGitSummary } from '@/logic/conversation/chat/gitSummary';
+import type { GitSummary } from '@/logic/conversation/chat/gitSummary';
 
 export function DiffSum({ sum }: { sum: GitSummary | null }) {
   if (!sum || sum.files === 0) return null;

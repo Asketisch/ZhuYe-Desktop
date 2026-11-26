@@ -19,8 +19,8 @@ import {
   removeSubSection,
   setFlag,
   updateSubSection,
-} from '@/logic/settings/config/toml';
-import { applyField, readField } from '@/logic/settings/config/schema';
+} from '@/logic/harness/settings/config/toml';
+import { applyField, readField } from '@/logic/harness/settings/config/schema';
 import s from '@/render/harness/settings/SettingsView.module.css';
 
 const COMPLEX_DESCRIPTIONS: Record<string, LocaleKey> = {

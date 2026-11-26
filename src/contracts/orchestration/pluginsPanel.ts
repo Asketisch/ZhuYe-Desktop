@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { PluginsPanelController } from '@/logic/collaboration/usePluginsPanelController';
+import type { PluginsPanelController } from '@/logic/orchestration/collaboration/usePluginsPanelController';
 export interface MarketplaceRowProps { name: string; source: string; location: string; autoUpdate: boolean }
 export interface PluginsPanelProps { t: I18nContextValue['t']; ctrl: PluginsPanelController; MarketplaceRow: ComponentType<MarketplaceRowProps> }
 

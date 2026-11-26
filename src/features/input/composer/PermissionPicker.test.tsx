@@ -16,7 +16,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient, mockInvoke, resetMockInvoke } from '@/test/setup.tsx';
 import { useAgentStore } from '@/stores/agentStore';
-import { settleConfirm } from '@/logic/modals/confirm';
+import { settleConfirm } from '@/logic/harness/modals/confirm';
 import { PermissionPicker } from './PermissionPicker';
 
 function renderPicker() {

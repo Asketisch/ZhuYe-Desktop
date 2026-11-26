@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { HtmlPreviewBinding } from '@/logic/preview/HtmlPreviewBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { HtmlPreviewBinding } from '@/logic/workbench/preview/HtmlPreviewBinding';
 import { HtmlPreviewView as DefaultView } from '@/render/workbench/preview/HtmlPreviewView';
 
 export function HtmlPreviewView() {

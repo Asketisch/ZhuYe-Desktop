@@ -13,7 +13,7 @@ import { ListTodo, Send } from 'lucide-react';
 import { Button, Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore, selectIsTurnRunning, selectQueuedForActiveSession } from '@/stores/agentStore';
-import { markDraftSubmitPending } from '@/logic/shell/planSubmitSignal';
+import { markDraftSubmitPending } from '@/logic/harness/shell/planSubmitSignal';
 import { Markdown } from '@/components/Markdown';
 import s from '@/render/harness/shell/Inspector.module.css';
 

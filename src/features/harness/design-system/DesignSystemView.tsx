@@ -1,4 +1,4 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
 import { DesignSystemView as DefaultView } from '@/render/harness/design-system-page/DesignSystemView';
 
 export function DesignSystemView() {

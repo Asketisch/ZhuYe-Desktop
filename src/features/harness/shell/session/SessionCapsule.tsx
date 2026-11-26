@@ -22,8 +22,8 @@ import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
 import { useI18n } from '@/utils/i18n';
 import { GoalBody } from '@/features/harness/shell/sessionChips/GoalBody';
-import { useContextRatio } from '@/logic/shell/useContextRatio';
-import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
+import { useContextRatio } from '@/logic/harness/shell/useContextRatio';
+import { useTurnCacheHitRate } from '@/logic/telemetry/usage/cacheHitRate';
 import s from '@/render/harness/shell/session/sessionCapsule.module.css';
 
 /** 展开面板里的分节。 */

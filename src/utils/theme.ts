@@ -1,4 +1,4 @@
-import { ensureAppearance } from '@/logic/webview/appearance';
+import { ensureAppearance } from '@/logic/workbench/webview/appearance';
 import { appearance } from '@/render/appearance';
 ensureAppearance(appearance);
-export * from '@/logic/preferences/theme';
+export * from '@/logic/harness/preferences/theme';

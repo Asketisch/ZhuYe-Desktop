@@ -1,6 +1,6 @@
 import { useI18n } from '@/utils/i18n';
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { TaskCreateFormBinding } from '@/logic/tasks-board/TaskCreateFormBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { TaskCreateFormBinding } from '@/logic/orchestration/tasks-board/TaskCreateFormBinding';
 import { TaskCreateForm as DefaultView } from '@/render/orchestration/tasks-board/TaskCreateForm';
 import type { TaskCreateFormBindingProps } from '@/contracts/orchestration/taskWidgets';
 export type TaskCreateFormProps = Omit<TaskCreateFormBindingProps, 't'>;

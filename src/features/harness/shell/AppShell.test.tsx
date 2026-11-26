@@ -8,7 +8,7 @@ import { AppShell } from '@/features/harness/shell/AppShell';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
 import { resetMockInvoke, mockInvoke, createTestQueryClient } from '@/test/setup.tsx';
-import { isPinned, togglePin, unpin } from '@/logic/sessions/pins';
+import { isPinned, togglePin, unpin } from '@/logic/conversation/sessions/pins';
 
 const navigate = vi.hoisted(() => vi.fn());
 const routerNavigate = vi.hoisted(() => vi.fn());

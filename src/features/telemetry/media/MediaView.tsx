@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { MediaBinding } from '@/logic/media/MediaBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { MediaBinding } from '@/logic/telemetry/media/MediaBinding';
 import { MediaView as DefaultView } from '@/render/telemetry/media/MediaView';
 import { StudioTab, ComputerUseTab } from './MediaTabs';
 

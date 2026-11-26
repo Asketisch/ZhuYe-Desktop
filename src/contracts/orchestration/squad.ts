@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-import type { SquadController } from '@/logic/squad/useSquadController';
-export type { SquadController } from '@/logic/squad/useSquadController';
+import type { SquadController } from '@/logic/orchestration/squad/useSquadController';
+export type { SquadController } from '@/logic/orchestration/squad/useSquadController';
 import type { ZhuyeSquadMember, ZhuyeTask } from '@/utils/commands';
 export type { ZhuyeSquadMember, ZhuyeTask } from '@/utils/commands';
 

@@ -4,8 +4,8 @@
  * 视图经 RendererProvider 可替换;无替换实现时回退默认展示组件,
  * 状态编排全部在 `src/logic/lanes/` 的 binding + controller。
  */
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { LanesBinding } from '@/logic/lanes/LanesBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { LanesBinding } from '@/logic/orchestration/lanes/LanesBinding';
 import { LanesView as LanesPresentation } from '@/render/orchestration/lanes/LanesView';
 
 export function LanesView() {

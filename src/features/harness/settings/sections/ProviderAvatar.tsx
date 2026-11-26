@@ -3,7 +3,7 @@
  * 加载失败回退字母 monogram（图标是增强不是依赖 —— 离线 / 冷门组照常可用）。
  */
 import { useState } from 'react';
-import { providerIconUrl } from '@/logic/settings/config/providerIcon';
+import { providerIconUrl } from '@/logic/harness/settings/config/providerIcon';
 import s from '@/render/harness/settings/SettingsView.module.css';
 
 export interface ProviderAvatarProps {

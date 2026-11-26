@@ -1,6 +1,6 @@
 import { Outlet } from '@tanstack/react-router';
-import { useRenderer } from '@/logic/renderer/RendererProvider';
-import { ShellBinding } from '@/logic/shell/ShellBinding';
+import { useRenderer } from '@/logic/harness/renderer/RendererProvider';
+import { ShellBinding } from '@/logic/harness/shell/ShellBinding';
 import { AppShell as DefaultView } from '@/render/harness/shell/AppShell';
 import { TitleBar } from './TitleBar';
 import { StatusBar } from './StatusBar';

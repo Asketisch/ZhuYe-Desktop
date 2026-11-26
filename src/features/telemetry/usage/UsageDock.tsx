@@ -9,8 +9,8 @@
  */
 import { RefreshCw } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
-import { useUsageDock, buildSegments, formatUsd, type UsageDockSegment } from '@/logic/usage/useUsageDock';
-import { clampRate01 } from '@/logic/usage/cacheHitRate';
+import { useUsageDock, buildSegments, formatUsd, type UsageDockSegment } from '@/logic/telemetry/usage/useUsageDock';
+import { clampRate01 } from '@/logic/telemetry/usage/cacheHitRate';
 
 /** 单色系分段填充与图例文案（仅用设计 token,无硬编码色）。 */
 const SEGMENT_COLOR: Record<UsageDockSegment['key'], string> = {

@@ -9,8 +9,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Sidebar } from '@/features/conversation/sessions/components/Sidebar';
 import { ConfirmDialogHost } from '@/features/harness/modals/ConfirmDialog';
 import { useShellUi } from '@/stores/shellUi';
-import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
-import { UNASSIGNED_GROUP_KEY } from '@/logic/sessions/workspaceGroups';
+import type { WorkspaceSessionGroup } from '@/logic/conversation/sessions/workspaceGroups';
+import { UNASSIGNED_GROUP_KEY } from '@/logic/conversation/sessions/workspaceGroups';
 
 const WS_A = '/Users/me/Code/alpha';
 const WS_B = '/Users/me/Code/beta';

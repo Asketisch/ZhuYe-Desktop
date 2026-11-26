@@ -1,5 +1,5 @@
-import { useRenderView } from '@/logic/renderer/useRenderView';
-import { NotificationsBinding } from '@/logic/notifications/NotificationsBinding';
+import { useRenderView } from '@/logic/harness/renderer/useRenderView';
+import { NotificationsBinding } from '@/logic/telemetry/notifications/NotificationsBinding';
 import { NotificationsView as DefaultView } from '@/render/telemetry/notifications/NotificationsView';
 
 export function NotificationsView() {

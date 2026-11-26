@@ -18,5 +18,5 @@ export {
   readField,
   type FieldKind,
   type FieldSpec,
-} from '@/logic/settings/config/schema';
+} from '@/logic/harness/settings/config/schema';
 export { StructuredField, type StructuredFieldProps } from './components/StructuredField';
