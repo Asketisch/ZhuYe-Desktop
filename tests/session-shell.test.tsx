@@ -10,7 +10,7 @@ import { SessionDock } from '@/features/shell/session/SessionDock';
 import { SessionCapsule } from '@/features/shell/session/SessionCapsule';
 import { ApprovalTakeover } from '@/features/shell/session/Takeovers';
 import { TrajView } from '@/features/shell/session/TrajView';
-import { deriveTrajEntries } from '@/features/shell/session/traj';
+import { deriveTrajEntries } from '@/logic/shell/session/traj';
 import { useAgentStore } from '@/stores/agentStore';
 import type { Turn, TodoItem } from '@/stores/agentStore';
 import { I18nProvider } from '@/utils/i18n';
