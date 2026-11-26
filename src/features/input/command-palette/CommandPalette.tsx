@@ -11,7 +11,7 @@ import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { t as tStatic } from '@/utils/i18n/lookup';
 import { buildPaletteItems, type PaletteItem } from './registry';
-import { fuzzy } from '@/logic/input/command-palette/fuzzy';
+import { fuzzy } from '@/logic/input/fuzzy';
 import s from '@/render/input/command-palette/CommandPalette.module.css';
 
 export interface CommandPaletteProps {
