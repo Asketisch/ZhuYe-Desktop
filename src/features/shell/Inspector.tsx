@@ -22,7 +22,7 @@ import { zhuye_list_dir, type ZhuyeDirEntry } from '@/utils/commands/files';
 import { zhuye_git_diff } from '@/utils/commands/git';
 import { FileTree } from '@/features/files/FileTree';
 import { DiffViewer } from '@/features/git/DiffViewer';
-import { useContextRatio } from './useContextRatio';
+import { useContextRatio } from '@/logic/shell/useContextRatio';
 import { useTurnCacheHitRate } from '@/logic/usage/cacheHitRate';
 import { useShellUi } from '@/stores/shellUi';
 import { SubagentCallsSection } from './RuntimeStatusSections';

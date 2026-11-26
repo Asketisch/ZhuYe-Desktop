@@ -7,7 +7,7 @@
  * Normal(<75%) / Warning(≥75%) / Critical(≥90%)。
  */
 import { useI18n } from '@/utils/i18n';
-import { useContextRatio } from './useContextRatio';
+import { useContextRatio } from '@/logic/shell/useContextRatio';
 import s from '@/render/shell/ContextGauge.module.css';
 
 const RADIUS = 7;

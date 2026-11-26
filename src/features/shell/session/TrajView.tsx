@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { Clock, CornerDownRight, Wrench, GitBranch, Search, ChevronRight, X } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { deriveLanes, deriveTrajEntries } from './traj';
+import { deriveLanes, deriveTrajEntries } from '@/logic/shell/session/traj';
 import s from '@/render/shell/session/session.module.css';
 
 export function TrajView() {
