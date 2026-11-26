@@ -19,7 +19,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { zhuye_list_provider_models } from '@/utils/commands';
 import { zhuye_credential_pool_status } from '@/utils/commands/harness/runtimeStatus';
-import { AUTO_FAILOVER_PREF_KEY } from '@/stores/agent/planFailover';
+import { AUTO_FAILOVER_PREF_KEY } from '@/stores/agent/policy/planFailover';
 import { GroupsSection } from './GroupsSection';
 import { clearModelCatalogCache } from '@/logic/harness/settings/config/modelCatalog';
 import { createTestQueryClient } from '@/test/setup';

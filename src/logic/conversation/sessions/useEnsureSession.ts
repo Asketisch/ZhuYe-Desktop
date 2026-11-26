@@ -16,10 +16,10 @@
 import { useCallback } from 'react';
 import { zhuye_create_session } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
-import { moveApprovalPolicy } from '@/stores/agent/approvalPolicy';
-import { moveEffortPreference } from '@/stores/agent/effortPreference';
-import { movePermissionPreference } from '@/stores/agent/permissionPreference';
-import { movePromptSelection } from '@/stores/agent/promptSelection';
+import { moveApprovalPolicy } from '@/stores/agent/policy/approvalPolicy';
+import { moveEffortPreference } from '@/stores/agent/policy/effortPreference';
+import { movePermissionPreference } from '@/stores/agent/policy/permissionPreference';
+import { movePromptSelection } from '@/stores/agent/policy/promptSelection';
 import { useActiveSession } from './useSessions';
 
 const BIND_TIMEOUT_MS = 10_000;

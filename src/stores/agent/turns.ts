@@ -1,6 +1,6 @@
 import type { Turn, TurnItem, TurnStatus, UserAttachmentMeta } from './types';
 import type { UserInputItem } from '@/types/protocol';
-import { isImageMarkerText } from './imageProvenance';
+import { isImageMarkerText } from './policy/imageProvenance';
 
 export const EVENT_ID_NONE = '';
 

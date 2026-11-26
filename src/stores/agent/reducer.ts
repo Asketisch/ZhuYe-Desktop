@@ -3,7 +3,7 @@ import { normalizePermissionMode } from '@/types/protocol';
 import type { AgentState, CompactionRecord, PendingApproval, PlanStepState, PluginLoadedInfo, TodoItem, TurnTokenUsage } from './types';
 import { COMPACTION_RECORD_CAP, SUBAGENT_FEED_CAP } from './types';
 import { upsertServer } from './servers';
-import { shouldToastPromptSwitched } from './promptSwitched';
+import { shouldToastPromptSwitched } from './policy/promptSwitched';
 import {
   abortTurnOrLatestStreaming,
   appendItem,

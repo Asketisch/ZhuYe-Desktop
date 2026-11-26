@@ -5,9 +5,9 @@ import type { SettingsPermissionMode, SettingsSection, SettingsSlots, SettingsVi
 import { zhuye_get_config, zhuye_save_config, zhuye_agent_status, zhuye_set_permission_mode } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
-import { writePermissionPreference } from '@/stores/agent/permissionPreference';
-import { syncEffortPreference } from '@/stores/agent/effortPreference';
+import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/policy/approvalPolicy';
+import { writePermissionPreference } from '@/stores/agent/policy/permissionPreference';
+import { syncEffortPreference } from '@/stores/agent/policy/effortPreference';
 import { confirmDialog } from '@/logic/harness/modals/confirm';
 import { useSettingsSearch } from './useSettingsSearch';
 

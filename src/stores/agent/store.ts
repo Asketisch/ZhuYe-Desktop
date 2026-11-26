@@ -26,17 +26,17 @@ import {
 import { planFromRollout, turnsFromRollout } from '../replay';
 import {
   createAutoCompactController,
-} from './autoCompact';
+} from './policy/autoCompact';
 import {
   createWiredPlanFailoverController,
   extractExhaustionSignal,
-} from './planFailover';
+} from './policy/planFailover';
 import { reduceEvent } from './reducer';
 import { appendItem, markTurn, userAttachmentsFromItems } from './turns';
-import { runQueryGuardStats } from './guardStats'; // F01
-import { wireApprovalPolicy } from './approvalPolicy';
+import { runQueryGuardStats } from './policy/guardStats'; // F01
+import { wireApprovalPolicy } from './policy/approvalPolicy';
 import { createQueueActions } from './queue';
-import { createPlanActions } from './planActions';
+import { createPlanActions } from './policy/planActions';
 import { createToastActions, uuid } from './toast';
 import type { AgentState, SubagentsState, TurnItem } from './types';
 import type { PendingGateSnapshot } from '@/types/protocol';

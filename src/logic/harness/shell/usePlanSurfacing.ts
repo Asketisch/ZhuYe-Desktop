@@ -18,7 +18,7 @@
 import { useEffect, useRef } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useShellUi } from '@/stores/shellUi';
-import { readPermissionPreference } from '@/stores/agent/permissionPreference';
+import { readPermissionPreference } from '@/stores/agent/policy/permissionPreference';
 import { consumeDraftSubmitPending } from './planSubmitSignal';
 
 /** 执行兜底指令：审批通过但回合已结束时补发，让 agent 接着干。 */

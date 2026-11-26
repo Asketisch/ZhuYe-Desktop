@@ -281,7 +281,7 @@ export const SUBAGENT_FEED_CAP = 200;
  * 不清理此字段。
  */
 // F01:prompt_guard 统计类型拆到 `./guardStats`(单文件行数预算)。
-import type { GuardStatsState } from './guardStats';
+import type { GuardStatsState } from '../policy/guardStats';
 export type { GuardStatsState };
 
 export interface PromptState {

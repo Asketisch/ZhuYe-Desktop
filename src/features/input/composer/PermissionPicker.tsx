@@ -29,8 +29,8 @@ import {
 import { Icon } from '@/features/harness/design-system';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
-import { writePermissionPreference } from '@/stores/agent/permissionPreference';
+import { readApprovalPolicy, writeApprovalPolicy, type UserApprovalPolicy } from '@/stores/agent/policy/approvalPolicy';
+import { writePermissionPreference } from '@/stores/agent/policy/permissionPreference';
 import { confirmDialog } from '@/logic/harness/modals/confirm';
 import s from '@/render/input/composer/PermissionPicker.module.css';
 

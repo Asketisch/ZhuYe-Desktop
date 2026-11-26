@@ -20,7 +20,7 @@ import { useI18n } from '@/utils/i18n';
 import {
   AUTO_FAILOVER_PREF_KEY,
   isAutoFailoverEnabled,
-} from '@/stores/agent/planFailover';
+} from '@/stores/agent/policy/planFailover';
 import {
   listGroups,
   readActiveGroup,

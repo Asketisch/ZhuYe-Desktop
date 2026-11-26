@@ -17,8 +17,8 @@ import {
   zhuye_start_side_channel,
 } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
-import { writePromptSelection } from '@/stores/agent/promptSelection';
-import { writePermissionPreference } from '@/stores/agent/permissionPreference';
+import { writePromptSelection } from '@/stores/agent/policy/promptSelection';
+import { writePermissionPreference } from '@/stores/agent/policy/permissionPreference';
 import type { LocaleKey } from '@/utils/i18n';
 
 export type ToastKind = 'info' | 'success' | 'warn' | 'error';

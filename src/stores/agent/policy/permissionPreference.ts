@@ -11,7 +11,7 @@
  * 已持久化的模式，不被覆盖。
  */
 import type { UiPermissionMode } from '@/types/protocol';
-import { useAgentStore } from './store';
+import { useAgentStore } from '../store';
 
 const KEY = 'zhuye.permissionMode.';
 const memory = new Map<string, UiPermissionMode>();

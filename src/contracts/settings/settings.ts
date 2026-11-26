@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { I18nContextValue } from '@/utils/i18n/context';
-export type { UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
-import type { UserApprovalPolicy } from '@/stores/agent/approvalPolicy';
+export type { UserApprovalPolicy } from '@/stores/agent/policy/approvalPolicy';
+import type { UserApprovalPolicy } from '@/stores/agent/policy/approvalPolicy';
 
 export type SettingsSection =
   | 'general'

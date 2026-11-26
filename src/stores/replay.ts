@@ -1,6 +1,6 @@
 import type { ZhuyeRolloutRecord } from '@/utils/types';
 import type { CompactionStats, PlanDocState, Turn, TurnItem, UserAttachmentMeta } from './agent/types';
-import { isImageMarkerText } from './agent/imageProvenance';
+import { isImageMarkerText } from './agent/policy/imageProvenance';
 import { summarizeArgs, summarizeToolOutput } from './agent/turns';
 
 /**

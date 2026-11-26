@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from './store';
-import { readApprovalPolicy, writeApprovalPolicy } from './approvalPolicy';
+import { readApprovalPolicy, writeApprovalPolicy } from './policy/approvalPolicy';
 import type { ZhuyeSubmission } from '@/types/protocol';
 
 describe('store.syncPermissionMode — 弃用档归一化', () => {

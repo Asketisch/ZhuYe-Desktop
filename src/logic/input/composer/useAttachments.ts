@@ -12,8 +12,8 @@
  */
 import { useCallback, useState } from 'react';
 import type { FileRange, UserInputItem } from '@/types/protocol';
-import { buildImageMarker } from '@/stores/agent/imageProvenance';
-import type { ImageProvenance } from '@/stores/agent/imageProvenance';
+import { buildImageMarker } from '@/stores/agent/policy/imageProvenance';
+import type { ImageProvenance } from '@/stores/agent/policy/imageProvenance';
 import { useI18n } from '@/utils/i18n';
 
 /** 附件的就绪状态:pending=落盘中 / ready=可发送 / error=失败(可重试或删除)。 */

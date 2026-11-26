@@ -18,7 +18,7 @@ import {
 } from '@/utils/commands';
 import type { StoreApi } from 'zustand';
 import type { PlanApprovalChoice } from '@/types/protocol';
-import type { AgentState } from './types';
+import type { AgentState } from '../types/types';
 
 type SetAgentState = StoreApi<AgentState>['setState'];
 type GetAgentState = StoreApi<AgentState>['getState'];

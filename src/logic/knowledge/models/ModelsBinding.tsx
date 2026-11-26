@@ -25,7 +25,7 @@ import {
 import { useI18n } from '@/utils/i18n';
 import { formatTokens } from '@/utils/formatTokens';
 import { useAgentStore } from '@/stores/agentStore';
-import { writeEffortPreference } from '@/stores/agent/effortPreference';
+import { writeEffortPreference } from '@/stores/agent/policy/effortPreference';
 import type { ModelsViewProps } from '@/contracts/knowledge/models';
 
 const REASONING_EFFORTS = ALL_EFFORTS;

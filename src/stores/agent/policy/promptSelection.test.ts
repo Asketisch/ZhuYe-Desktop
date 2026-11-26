@@ -11,7 +11,7 @@ vi.mock('@/utils/commands/knowledge/prompts', () => ({
   zhuye_prompt_command: (...args: unknown[]) => promptCommand(...(args as [])),
 }));
 
-import { useAgentStore } from './store';
+import { useAgentStore } from '../store';
 import {
   movePromptSelection,
   readPromptSelection,

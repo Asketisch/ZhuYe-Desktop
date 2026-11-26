@@ -18,7 +18,7 @@ import { subscribeAgentEvent } from '@/services/agentEventBus';
 import { zhuye_get_effort, zhuye_set_effort } from '@/utils/commands/harness/permissions';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import { syncEffortPreference, writeEffortPreference } from '@/stores/agent/effortPreference';
+import { syncEffortPreference, writeEffortPreference } from '@/stores/agent/policy/effortPreference';
 import { ALL_EFFORTS, useEffortCapability } from '@/logic/input/composer/useEffortCapability';
 import s from '@/render/input/composer/EffortPicker.module.css';
 

@@ -20,8 +20,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import { readPromptSelection, writePromptSelection } from '@/stores/agent/promptSelection';
-import { writePermissionPreference } from '@/stores/agent/permissionPreference';
+import { readPromptSelection, writePromptSelection } from '@/stores/agent/policy/promptSelection';
+import { writePermissionPreference } from '@/stores/agent/policy/permissionPreference';
 import type { PromptSelection } from '@/utils/commands/knowledge/prompts';
 import s from '@/render/input/composer/PromptPicker.module.css';
 

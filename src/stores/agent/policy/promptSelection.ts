@@ -17,7 +17,7 @@
  * 又因初始为 null 而漏下发 Select,让上个会话的提示词串到下个会话。
  */
 import { zhuye_prompt_command, type PromptSelection } from '@/utils/commands/knowledge/prompts';
-import { useAgentStore } from './store';
+import { useAgentStore } from '../store';
 
 const KEY = 'zhuye.promptSelection.';
 const memory = new Map<string, PromptSelection>();

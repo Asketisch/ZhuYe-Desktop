@@ -9,7 +9,7 @@
  * 这里抽出比较逻辑(独立文件 —— `reducer.ts` 已达行数预算,不能就地撑大):
  * 只有**生效结果真的变了**才提示;纯时间戳刷新不提示。
  */
-import type { PromptState } from './types';
+import type { PromptState } from '../types/types';
 import type { PromptSelection } from '@/utils/commands/knowledge/prompts';
 
 /** `prompt_switched` 事件里与「生效结果」有关的字段。 */

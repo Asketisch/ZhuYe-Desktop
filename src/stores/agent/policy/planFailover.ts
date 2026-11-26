@@ -24,7 +24,7 @@ import {
   setActiveGroup,
 } from '@/logic/knowledge/models/modelGroups';
 import { zhuye_get_config, zhuye_save_config } from '@/utils/commands';
-import type { ToastKind } from './types';
+import type { ToastKind } from '../types/types';
 
 /** 额度耗尽的文本特征（小写匹配）。涵盖上游 ALL_CREDENTIALS_EXHAUSTED、
  * 各家订阅计划的 usage limit / quota / 余额类报错。AUTH(401) 不在此列 ——

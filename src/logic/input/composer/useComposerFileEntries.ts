@@ -12,7 +12,7 @@
  */
 import { useCallback, useRef, type ClipboardEvent, type DragEvent, type RefObject } from 'react';
 import { zhuye_pick_files } from '@/utils/commands/conversation/workspaces';
-import type { ImageProvenance } from '@/stores/agent/imageProvenance';
+import type { ImageProvenance } from '@/stores/agent/policy/imageProvenance';
 import { useAttachments } from '@/logic/input/composer/useAttachments';
 import { useFileIngest } from '@/logic/input/composer/useFileIngest';
 import { useComposerDragDrop } from '@/logic/input/composer/useComposerDragDrop';
