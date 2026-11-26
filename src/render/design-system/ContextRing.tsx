@@ -3,8 +3,8 @@
  *
  * 5 个分类 segment:tools / system / skills / messages / other
  */
-import { ringGeometry, segmentArc } from './ring';
-import type { RingSegment } from './ring';
+import { ringGeometry, segmentArc } from '@/logic/design-system/utils/ring';
+import type { RingSegment } from '@/logic/design-system/utils/ring';
 import s from '@/render/design-system/primitives/ContextRing.module.css';
 
 export interface ContextRingProps {

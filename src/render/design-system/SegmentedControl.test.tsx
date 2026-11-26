@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import { SegmentedControl } from '@/features/design-system/primitives/SegmentedControl';
+import { SegmentedControl } from '@/render/design-system/SegmentedControl';
 
 const OPTIONS = [
   { value: 'a', label: 'Option A' },

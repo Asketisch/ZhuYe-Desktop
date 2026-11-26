@@ -6,58 +6,58 @@
 export { DesignSystemView } from './DesignSystemView';
 
 // ===== Primitives =====
-export { Button } from './primitives/Button';
-export type { ButtonProps, ButtonVariant, ButtonSize } from './primitives/Button';
+export { Button } from '@/render/design-system/Button';
+export type { ButtonProps, ButtonVariant, ButtonSize } from '@/render/design-system/Button';
 
-export { IconButton } from './primitives/IconButton';
-export type { IconButtonProps } from './primitives/IconButton';
+export { IconButton } from '@/render/design-system/IconButton';
+export type { IconButtonProps } from '@/render/design-system/IconButton';
 
-export { Icon } from './primitives/Icon';
-export type { IconProps } from './primitives/Icon';
+export { Icon } from '@/render/design-system/Icon';
+export type { IconProps } from '@/render/design-system/Icon';
 
 export { Input } from './primitives/Input';
 export type { InputProps } from './primitives/Input';
 
-export { Textarea } from './primitives/Textarea';
-export type { TextareaProps } from './primitives/Textarea';
+export { Textarea } from '@/render/design-system/Textarea';
+export type { TextareaProps } from '@/render/design-system/Textarea';
 
-export { Select } from './primitives/Select';
-export type { SelectProps } from './primitives/Select';
+export { Select } from '@/render/design-system/Select';
+export type { SelectProps } from '@/render/design-system/Select';
 
-export { SegmentedControl } from './primitives/SegmentedControl';
-export type { SegmentedControlProps, SegmentedOption } from './primitives/SegmentedControl';
+export { SegmentedControl } from '@/render/design-system/SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption } from '@/render/design-system/SegmentedControl';
 
-export { Badge } from './primitives/Badge';
-export type { BadgeProps, BadgeVariant } from './primitives/Badge';
+export { Badge } from '@/render/design-system/Badge';
+export type { BadgeProps, BadgeVariant } from '@/render/design-system/Badge';
 
-export { Card } from './primitives/Card';
-export type { CardProps } from './primitives/Card';
+export { Card } from '@/render/design-system/Card';
+export type { CardProps } from '@/render/design-system/Card';
 
-export { EmptyState } from './primitives/EmptyState';
-export type { EmptyStateProps } from './primitives/EmptyState';
+export { EmptyState } from '@/render/design-system/EmptyState';
+export type { EmptyStateProps } from '@/render/design-system/EmptyState';
 
-export { Spinner } from './primitives/Spinner';
-export type { SpinnerProps } from './primitives/Spinner';
+export { Spinner } from '@/render/design-system/Spinner';
+export type { SpinnerProps } from '@/render/design-system/Spinner';
 
-export { Tooltip } from './primitives/Tooltip';
-export type { TooltipProps } from './primitives/Tooltip';
+export { Tooltip } from '@/render/design-system/Tooltip';
+export type { TooltipProps } from '@/render/design-system/Tooltip';
 
 export { Toast } from './primitives/Toast';
 export type { ToastProps } from './primitives/Toast';
-export type { ToastKind } from './utils/toast';
+export type { ToastKind } from '@/logic/design-system/utils/toast';
 
-export { ContextRing } from './primitives/ContextRing';
-export type { ContextRingProps } from './primitives/ContextRing';
-export type { RingSegment } from './utils/ring';
+export { ContextRing } from '@/render/design-system/ContextRing';
+export type { ContextRingProps } from '@/render/design-system/ContextRing';
+export type { RingSegment } from '@/logic/design-system/utils/ring';
 
-export { KeyHint } from './primitives/KeyHint';
-export type { KeyHintProps } from './primitives/KeyHint';
+export { KeyHint } from '@/render/design-system/KeyHint';
+export type { KeyHintProps } from '@/render/design-system/KeyHint';
 
 // ===== Utils (保留 token 常量供外部用) =====
-export { shortcutLabel, platformLabel, detectPlatform } from './utils/keyHints';
-export type { Platform } from './utils/keyHints';
+export { shortcutLabel, platformLabel, detectPlatform } from '@/logic/design-system/utils/keyHints';
+export type { Platform } from '@/logic/design-system/utils/keyHints';
 
-export { ringGeometry, segmentArc } from './utils/ring';
-export type { RingGeometry } from './utils/ring';
+export { ringGeometry, segmentArc } from '@/logic/design-system/utils/ring';
+export type { RingGeometry } from '@/logic/design-system/utils/ring';
 
-export { TOAST_COLORS, DEFAULT_TOAST_MS } from './utils/toast';
+export { TOAST_COLORS, DEFAULT_TOAST_MS } from '@/logic/design-system/utils/toast';

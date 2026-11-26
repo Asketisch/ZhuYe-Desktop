@@ -1,7 +1,7 @@
 /**
  * KeyHint —— 单个键盘快捷键标签（CSS Modules 版）。
  */
-import { shortcutLabel, type Platform } from './keyHints';
+import { shortcutLabel, type Platform } from '@/logic/design-system/utils/keyHints';
 import s from '@/render/design-system/primitives/KeyHint.module.css';
 
 export interface KeyHintProps {

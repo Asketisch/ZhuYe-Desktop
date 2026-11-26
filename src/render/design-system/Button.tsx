@@ -10,7 +10,7 @@
 import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import s from './Button.module.css';
-import { Spinner } from './Spinner';
+import { Spinner } from '@/render/design-system/Spinner';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'danger' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';

@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { KeyHint } from '@/features/design-system/primitives/KeyHint';
+import { KeyHint } from '@/render/design-system/KeyHint';
 
 describe('KeyHint', () => {
   it('renders macos combo glyphs', () => {

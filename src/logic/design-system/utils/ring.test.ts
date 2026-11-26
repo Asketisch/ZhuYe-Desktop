@@ -2,7 +2,7 @@
  * Vitest — ring 工具测试。
  */
 import { describe, it, expect } from 'vitest';
-import { ringGeometry, segmentArc } from '@/features/design-system/utils/ring';
+import { ringGeometry, segmentArc } from '@/logic/design-system/utils/ring';
 
 describe('ringGeometry', () => {
   it('computes geometry from size + stroke', () => {

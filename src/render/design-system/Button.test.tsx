@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Button } from '@/features/design-system/primitives/Button';
+import { Button } from '@/render/design-system/Button';
 
 describe('Button', () => {
   it('renders text', () => {

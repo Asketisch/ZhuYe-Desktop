@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { ContextRing } from '@/features/design-system/primitives/ContextRing';
+import { ContextRing } from '@/render/design-system/ContextRing';
 
 describe('ContextRing', () => {
   it('renders SVG circle elements', () => {

@@ -2,7 +2,7 @@
  * Vitest — keyHints 工具测试。
  */
 import { describe, it, expect } from 'vitest';
-import { shortcutLabel, platformLabel } from '@/features/design-system/utils/keyHints';
+import { shortcutLabel, platformLabel } from '@/logic/design-system/utils/keyHints';
 
 describe('shortcutLabel', () => {
   it('renders macos combo without +', () => {
