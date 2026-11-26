@@ -596,6 +596,8 @@ describe.skip('window smoke (real process, real backend, local model stub)', () 
       }
     };
     await clickOpt('Pear');
+    // v1.13:多题改为页签呈现（一次只答一道）—— 切到第二题再答。
+    await dialog.findElement(By.css('[data-testid="question-tab-1"]')).click();
     await clickOpt('Auth');
     await clickOpt('Audit', 2);
     await clickOpt('Cache');

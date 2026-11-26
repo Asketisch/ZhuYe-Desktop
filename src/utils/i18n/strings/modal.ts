@@ -25,6 +25,12 @@ const modal: Record<string, StringEntry> = {
   'modal.question.fallback':      { en: 'Question {n}',                                                                               'zh-CN': '问题 {n}' },
   'modal.question.option':        { en: 'Option {n}',                                                                                 'zh-CN': '选项 {n}' },
   'modal.question.other':         { en: 'Other (optional)',                                                                           'zh-CN': '其他（可选）' },
+  // 多选题分页签呈现（一次只答一道，避免把 composer 座位撑成一大片）。
+  'modal.question.prev':          { en: 'Previous',                                                                                   'zh-CN': '上一题' },
+  'modal.question.next':          { en: 'Next',                                                                                       'zh-CN': '下一题' },
+  'modal.question.progress':      { en: '{current} / {total}',                                                                        'zh-CN': '{current} / {total}' },
+  'modal.question.answered':      { en: 'answered',                                                                                   'zh-CN': '已答' },
+  'modal.question.tabsAria':      { en: 'Questions',                                                                                  'zh-CN': '问题页签' },
   // 计划审批不再走弹窗：条目见 plan.bar.* / plan.card.*（composer 审批条 +
   // 右 dock 计划页签）。保留失败提示文案（approvePlan 的 toast 用）。
   'modal.planRequest.failed':     { en: 'Plan decision failed: {msg}',                                                 'zh-CN': '计划决策提交失败：{msg}' },
