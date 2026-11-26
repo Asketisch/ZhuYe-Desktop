@@ -90,6 +90,8 @@ const composer: Record<string, StringEntry> = {
   'composer.queued.edit':                    { en: 'Edit',                                          'zh-CN': '编辑' },
   'composer.queued.save':                    { en: 'Save',                                          'zh-CN': '保存' },
   'composer.queued.cancel':                  { en: 'Cancel',                                        'zh-CN': '取消' },
+  // 队列拖拽排序 + 行内附带附件名（ZCode 同款行形态）。
+  'composer.queued.dragHint':                { en: 'Drag to reorder',                               'zh-CN': '拖拽调整顺序' },
   'composer.compactRequested':               { en: 'Compact requested.',                            'zh-CN': '已请求压缩上下文。' },
   'composer.exported':                       { en: 'Exported → {path}',                             'zh-CN': '已导出 → {path}' },
   'composer.exportedNoPath':                 { en: 'Exported → (no path)',                          'zh-CN': '已导出 → (无路径)' },

@@ -89,6 +89,7 @@ const emptyState = (): AgentState => ({
   enqueueMessage: () => {},
   removeQueued: () => {},
   updateQueued: () => {},
+  reorderQueued: () => {},
   drainQueue: async () => {},
   interrupt: async () => {},
   compact: async () => {},

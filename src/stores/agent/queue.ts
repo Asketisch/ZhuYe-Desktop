@@ -58,6 +58,33 @@ export function createQueueActions(set: SetAgentState, get: GetAgentState) {
       }));
     },
 
+    /**
+     * 拖拽排序：在前台会话的队列子序列内移动，其他会话条目的槽位不动。
+     *
+     * `queuedMessages` 是所有会话混存的一个数组（每条入队时盖章
+     * `sessionId`）。直接对全局下标做 splice 会把别的会话条目挤错位置；
+     * 所以先取前台子序列重排，再按原槽位写回。
+     */
+    reorderQueued: (fromId: string, toIndex: number) => {
+      set((state) => {
+        const active = selectQueuedForActiveSession(state);
+        const from = active.findIndex((m) => m.id === fromId);
+        if (from < 0) return {};
+        const to = Math.max(0, Math.min(toIndex, active.length - 1));
+        if (from === to) return {};
+        const next = [...active];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        const activeIds = new Set(active.map((m) => m.id));
+        let cursor = 0;
+        return {
+          queuedMessages: state.queuedMessages.map((m) =>
+            activeIds.has(m.id) ? next[cursor++] : m,
+          ),
+        };
+      });
+    },
+
     drainQueue: async () => {
       const state = get();
       // 只排空前台会话的队列(undefined 视作当前会话)。

@@ -64,6 +64,35 @@ describe('QueuedMessages', () => {
     expect(useAgentStore.getState().queuedMessages[0].text).toBe('新文本');
   });
 
+  it('v1.13:每行带拖拽柄，附件名显示在正文下方', () => {
+    useAgentStore.getState().enqueueMessage([
+      { type: 'text', text: '看图' },
+      { type: 'local_image', path: '/tmp/shot.png' },
+    ]);
+    renderQueued();
+    const row = screen.getByTestId('queued-item-0');
+    expect(row.querySelector('[title]')?.getAttribute('title')).toBeTruthy();
+    expect(row.textContent).toContain('shot.png');
+  });
+
+  it('v1.13:拖拽到另一行 → 队列顺序按拖放位置重排', () => {
+    const store = useAgentStore.getState();
+    store.enqueueMessage([{ type: 'text', text: 'A' }]);
+    store.enqueueMessage([{ type: 'text', text: 'B' }]);
+    store.enqueueMessage([{ type: 'text', text: 'C' }]);
+    renderQueued();
+
+    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: () => {} };
+    const rowA = screen.getByTestId('queued-item-0');
+    const rowC = screen.getByTestId('queued-item-2');
+
+    fireEvent.dragStart(rowA, { dataTransfer });
+    fireEvent.dragOver(rowC, { dataTransfer });
+    fireEvent.drop(rowC, { dataTransfer });
+
+    expect(useAgentStore.getState().queuedMessages.map((m) => m.text)).toEqual(['B', 'C', 'A']);
+  });
+
   it('send-now submits the message immediately and clears it from the queue', async () => {
     const submitted: unknown[] = [];
     mockInvoke('zhuye_submit', async (_cmd, args) => {

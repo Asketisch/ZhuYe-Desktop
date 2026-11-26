@@ -9,11 +9,12 @@
  * `features/shell/sessionChips/`；数据全部来自既有 store，不新增 IPC。
  */
 import { useEffect, useRef, useState } from 'react';
-import { List, Loader2, Send, X, Bot } from 'lucide-react';
+import { List, Loader2, Bot } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAgentStore, selectQueuedForActiveSession } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
 import { SubagentsBody } from '@/features/shell/sessionChips/SubagentsBody';
+import { QueueList } from '@/features/messages/QueuedMessages';
 import s from '@/render/shell/session/session.module.css';
 
 /** 可展开的 chips（同一时刻只开一个）。 */type PopKind = 'subagents' | 'queue';
@@ -41,8 +42,6 @@ export function SessionDock({  turnRunning,
   const subagentsStatus = useAgentStore((st) => st.subagents.lastStatus);
   // v1.x 后台持续运行:只展示当前前台会话的队列。
   const queued = useAgentStore(useShallow(selectQueuedForActiveSession));
-  const removeQueued = useAgentStore((st) => st.removeQueued);
-  const drainQueue = useAgentStore((st) => st.drainQueue);
 
   const [openPop, setOpenPop] = useState<PopKind | null>(null);  const subagentsRef = useOutsideClose(() => setOpenPop((v) => (v === 'subagents' ? null : v)));
   const queueRef = useOutsideClose(() => setOpenPop((v) => (v === 'queue' ? null : v)));
@@ -91,44 +90,24 @@ export function SessionDock({  turnRunning,
             <span className={s.chipTxt}>{t('dock.queue')} {queued.length}</span>
           </button>
           {openPop === 'queue' && (
-            <span className={`${s.pop} ${s.popUp}`} style={{ minWidth: 360, display: 'block', right: 0, left: 'auto' }}>
+            /* 左锚（`s.popUp` 自带的 `left: 0`）—— 排队 chip 在底栏最左，
+             * 右锚会让 380px 宽的弹层向左顶出窗口被裁掉。 */
+            <span className={`${s.pop} ${s.popUp}`} style={{ minWidth: 380, maxWidth: 480, display: 'block' }}>
               <span className={s.popHead} style={{ display: 'flex' }}>
                 <List size={12} /> {t('dock.queue')}({queued.length})
               </span>
-              <span style={{ display: 'block' }}>
-                {queued.map((qm, i) => (
-                  <span key={qm.id} className={s.qrow} style={{ display: 'flex' }}>
-                    <span className={s.zyQno ?? ''}>{i + 1}</span>
-                    <span className={s.zyQtxt ?? ''}>{qm.text}</span>
-                    <span style={{ display: 'inline-flex', gap: 2, flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        className={s.popRow}
-                        style={{ width: 'auto', padding: '2px 6px' }}
-                        title={t('dock.remove')}
-                        aria-label={t('dock.remove')}
-                        onClick={() => removeQueued(qm.id)}
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  </span>
-                ))}
-              </span>
-              <span className={s.popHead} style={{ display: 'flex', borderTop: '1px solid var(--border-subtle)' }}>
-                {turnRunning ? (
-                  <><Loader2 size={12} className={s.zySpin ?? ''} /> {t('dock.queueRunning')}</>
-                ) : (
-                  <button
-                    type="button"
-                    className={s.popRow}
-                    style={{ color: 'var(--accent)', width: 'auto' }}
-                    onClick={() => { void drainQueue(); setOpenPop(null); }}
-                  >
-                    <Send size={12} /> {t('dock.sendNow')}
-                  </button>
-                )}
-              </span>
+              {/* v1.13:行 UI 与消息流底部面板共用 QueueList（ZCode 同款行 +
+                  拖拽排序），两处不再各维护一套。 */}
+              <div className={s.queueBody}>
+                <QueueList compact />
+              </div>
+              {/* 运行中给一行提示；空闲时不再提供「立即发送」——每行已有
+                  自己的「立即」，自动排空也负责收尾（ZCode 同款无底栏动作）。 */}
+              {turnRunning && (
+                <span className={s.popHead} style={{ display: 'flex', borderTop: '1px solid var(--border-subtle)' }}>
+                  <Loader2 size={12} className={s.zySpin ?? ''} /> {t('dock.queueRunning')}
+                </span>
+              )}
             </span>
           )}
         </span>

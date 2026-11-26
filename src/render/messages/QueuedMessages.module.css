@@ -1,12 +1,16 @@
-/* 跟进消息队列（QueuedMessages）—— 消息流底部的待发送气泡列表。 */
+/* QueuedMessages —— 跟进消息队列（v1.13 对齐 ZCode 行形态）。
+ *
+ * 每行：[⠿ 拖拽柄] 正文（附件名弱化下一行） … [↑ 立即] [✎] [🗑]
+ * 整块是一张圆角卡，行间细分隔；拖拽时目标行上方画插入指示线。 */
+
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   margin: var(--space-2) 0;
-  padding: var(--space-2);
-  border: 1px dashed var(--border-default);
-  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
 }
 
@@ -15,48 +19,141 @@
   color: var(--text-muted);
 }
 
-.item {
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 会话内「排队」弹层里的紧凑档：外框由弹层本身提供，列表只留行。 */
+.listCompact {
+  gap: 0;
+}
+
+.row {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  border-radius: var(--radius-md);
 }
 
-.index {
+.row + .row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+/* 拖拽中：原行半透明；目标行顶部画琥珀插入线。 */
+.row[data-dragging] {
+  opacity: 0.4;
+}
+
+.row[data-drop-target]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+/* 拖拽柄 —— 常驻弱化，hover 行时加深。 */
+.handle {
   flex: none;
-  min-width: 18px;
-  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--accent-subtle);
-  color: var(--accent);
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
+  width: 20px;
+  height: 22px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: grab;
+  user-select: none;
+}
+
+.row:hover .handle {
+  opacity: 1;
+}
+
+.row[data-dragging] .handle {
+  cursor: grabbing;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 1px;
 }
 
 .text {
-  flex: 1;
-  min-width: 0;
   white-space: pre-wrap;
   word-break: break-word;
   font-size: var(--fs-sm);
+  line-height: 1.5;
   color: var(--text-primary);
 }
 
-.actions,
+/* 附件名（ZCode 同款：正文下方一行弱化小字）。 */
+.atts {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+/* 「立即」——带箭头的文字按钮（ZCode 的 ↑ 立即）。 */
+.sendBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sendBtn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.editArea {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 .editActions {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   flex: none;
-}
-
-.editArea {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }
 
 .editInput {

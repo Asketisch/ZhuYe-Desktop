@@ -50,6 +50,46 @@ describe('queuedMessages — 队列状态机', () => {
     expect(useAgentStore.getState().queuedMessages[0].text).toBe('v1-edited');
   });
 
+  it('v1.13 reorderQueued：在当前会话子序列内重排，其他会话槽位不动', () => {
+    // 会话 A 两条，会话 B 一条，再回 A 一条（模拟交错入队）。
+    useAgentStore.setState({ loadedSessionId: 'A' });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'a1' }]);
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'a2' }]);
+    useAgentStore.setState({ loadedSessionId: 'B' });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'b1' }]);
+    useAgentStore.setState({ loadedSessionId: 'A' });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'a3' }]);
+
+    const a3 = useAgentStore.getState().queuedMessages.find((m) => m.text === 'a3');
+    // 把 a3 拖到会话 A 队列最前。
+    useAgentStore.getState().reorderQueued(a3!.id, 0);
+
+    // 全局槽位不变：A 的三条仍占据 0/1/3 槽，B 的 b1 仍在索引 2。
+    expect(useAgentStore.getState().queuedMessages.map((m) => m.text)).toEqual([
+      'a3', 'a1', 'b1', 'a2',
+    ]);
+    // 前台会话 A 的队列顺序 = a3, a1, a2。
+    const activeA = useAgentStore.getState().queuedMessages
+      .filter((m) => m.sessionId === 'A')
+      .map((m) => m.text);
+    expect(activeA).toEqual(['a3', 'a1', 'a2']);
+    // 会话 B 的队列不受影响。
+    const activeB = useAgentStore.getState().queuedMessages
+      .filter((m) => m.sessionId === 'B')
+      .map((m) => m.text);
+    expect(activeB).toEqual(['b1']);
+  });
+
+  it('v1.13 reorderQueued：越界下标钳制到队尾', () => {
+    const store = useAgentStore.getState();
+    store.enqueueMessage([{ type: 'text', text: 'x1' }]);
+    store.enqueueMessage([{ type: 'text', text: 'x2' }]);
+    store.enqueueMessage([{ type: 'text', text: 'x3' }]);
+    const x1 = useAgentStore.getState().queuedMessages.find((m) => m.text === 'x1');
+    useAgentStore.getState().reorderQueued(x1!.id, 99);
+    expect(useAgentStore.getState().queuedMessages.map((m) => m.text)).toEqual(['x2', 'x3', 'x1']);
+  });
+
   it('drainQueue：turn 运行中不排空', async () => {
     useAgentStore.setState({ turns: [{ id: 't1', items: [], status: 'streaming' }] });
     useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'q1' }]);

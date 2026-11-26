@@ -119,19 +119,10 @@ export interface Turn {
   status: TurnStatus;
 }
 
-/** 跟进消息队列（C：Queue vs Steer）——运行中提交的消息先留在前端，可见可编辑。 */
-export interface QueuedMessage {
-  id: string;
-  /** 完整 UserInputItem 列表（text + 附件），实际发送内容。 */
-  items: UserInputItem[];
-  /** 纯文本预览（首个 text item；用于待发送气泡展示与编辑）。 */
-  text: string;
-  /** 提交时注入的 workspace（入队时的现场）。 */
-  workspace?: string | null;
-  /** v1.x 后台持续运行:入队时盖章的会话 id（队列按会话隔离）。 */
-  sessionId?: string;
-  createdAt: number;
-}
+// 队列条目类型拆到 `./queueTypes`（本文件已达行数预算）—— 这里
+// re-export，既有导入路径（`@/stores/agent/types`）保持有效。
+export type { QueuedMessage } from './queueTypes';
+import type { QueuedMessage } from './queueTypes';
 
 
 /**
@@ -445,6 +436,14 @@ export interface AgentState {
   removeQueued: (id: string) => void;
   /** C：编辑队列消息的纯文本内容（仅首个 text item）。 */
   updateQueued: (id: string, text: string) => void;
+  /**
+   * v1.13：把一条排队消息拖到新位置（拖拽排序）。
+   *
+   * `toIndex` 是**当前会话队列内**的目标下标（0 起），越界自动钳制。
+   * 队列按会话混存在一个数组里，重排只在前台会话的子序列内进行，
+   * 其他会话的条目槽位保持不变。
+   */
+  reorderQueued: (fromId: string, toIndex: number) => void;
   /**
    * C：排空队列 —— 无运行中 turn 且无待处理交互（审批/提问/输入/plan）
    * 时，取出队首消息直接提交。turn_complete / turn_aborted 后自动调用。
