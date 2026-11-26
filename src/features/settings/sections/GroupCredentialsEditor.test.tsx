@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { I18nProvider } from '@/utils/i18n';
 import { GroupCredentialsEditor } from './GroupCredentialsEditor';
-import type { GroupCredentialEntry } from '../config/groups';
+import type { GroupCredentialEntry } from '@/logic/settings/config/groups';
 
 function credential(over: Partial<GroupCredentialEntry> = {}): GroupCredentialEntry {
   return { label: 'backup', apiKey: 'sk-backup', baseUrl: '', model: 'm1', weight: 1, quota: null, ...over };

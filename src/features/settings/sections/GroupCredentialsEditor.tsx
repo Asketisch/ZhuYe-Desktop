@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Badge, Button, Icon, Input } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import { type GroupCredentialEntry } from '../config/groups';
+import { type GroupCredentialEntry } from '@/logic/settings/config/groups';
 import s from '@/render/settings/SettingsView.module.css';
 
 export interface GroupCredentialsEditorProps {

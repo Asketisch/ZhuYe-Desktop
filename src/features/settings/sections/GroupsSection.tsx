@@ -28,7 +28,7 @@ import {
   removeGroup,
   setActiveGroup,
   setDefaultEffort,
-} from '../config/groups';
+} from '@/logic/settings/config/groups';
 import { GroupNav } from './GroupNav';
 import { useEffortCapability } from '@/logic/composer/useEffortCapability';
 import { GroupDetail } from './GroupDetail';

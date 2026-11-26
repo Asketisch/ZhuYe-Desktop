@@ -7,7 +7,7 @@
 
 import { Input, Select } from '@/features/design-system';
 import { t as i18nT } from '@/utils/i18n';
-import { applyField, readField, type FieldSpec } from '../config/schema';
+import { applyField, readField, type FieldSpec } from '@/logic/settings/config/schema';
 
 export interface StructuredFieldProps {
   spec: FieldSpec;

@@ -7,7 +7,7 @@ import {
   bucketSessions,
   displayTitle,
   SESSION_BUCKET_LABELS,
-} from '@/features/sessions/utils/buckets';
+} from '@/logic/sessions/buckets';
 import type { ZhuyeSessionInfo } from '@/utils/commands';
 
 function makeSession(overrides: Partial<ZhuyeSessionInfo> = {}): ZhuyeSessionInfo {

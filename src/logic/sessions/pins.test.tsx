@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@/utils/i18n';
-import { isPinned, readPins, resetPinsForTests, togglePin, unpin, useSessionPins } from '@/features/sessions/utils/pins';
-import type { WorkspaceSessionGroup } from '@/features/sessions/utils/workspaceGroups';
+import { isPinned, readPins, resetPinsForTests, togglePin, unpin, useSessionPins } from '@/logic/sessions/pins';
+import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
 import { Sidebar } from '@/features/sessions/components/Sidebar';
 
 beforeEach(() => {

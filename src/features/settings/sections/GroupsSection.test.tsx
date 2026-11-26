@@ -23,7 +23,7 @@ import { AUTO_FAILOVER_PREF_KEY } from '@/stores/agent/planFailover';
 import { GroupsSection } from './GroupsSection';
 import { clearModelCatalogCache } from '@/logic/settings/config/modelCatalog';
 import { createTestQueryClient } from '@/test/setup';
-import { listGroups, readActiveGroup } from '../config/groups';
+import { listGroups, readActiveGroup } from '@/logic/settings/config/groups';
 
 // 只替换模型清单 / 凭据池健康 IPC，其余 barrel 导出保持真实实现。
 vi.mock('@/utils/commands', async () => {

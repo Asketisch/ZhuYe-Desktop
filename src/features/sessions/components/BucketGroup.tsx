@@ -1,7 +1,7 @@
 /**
  * BucketGroup —— 单个时间分桶（CSS Modules 版）。
  */
-import type { SessionBucket } from '../utils/buckets';
+import type { SessionBucket } from '@/logic/sessions/buckets';
 import { SessionItem } from './SessionItem';
 import { useI18n, type LocaleKey } from '@/utils/i18n';
 import s from '@/render/sessions/components/BucketGroup.module.css';

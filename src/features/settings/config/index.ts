@@ -6,5 +6,5 @@
  * 可以独立测试与消费。
  */
 
-export * from './schema';
-export * from './toml';
+export * from '@/logic/settings/config/schema';
+export * from '@/logic/settings/config/toml';

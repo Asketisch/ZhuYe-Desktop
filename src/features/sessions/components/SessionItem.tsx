@@ -12,8 +12,8 @@ import type { ZhuyeSessionInfo } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
 import { useBackgroundSessions } from '@/stores/backgroundSessions';
-import { displayTitle } from '../utils/buckets';
-import { basename } from '../utils/workspaceGroups';
+import { displayTitle } from '@/logic/sessions/buckets';
+import { basename } from '@/logic/sessions/workspaceGroups';
 import { SessionItemMenu } from './SessionItemMenu';
 import s from '@/render/sessions/components/SessionItem.module.css';
 

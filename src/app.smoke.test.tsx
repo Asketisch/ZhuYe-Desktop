@@ -281,7 +281,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
   });
 
   it('renders buckets (Now + This week) with correct labels', async () => {
-    const { useSessions } = await import('@/features/sessions/hooks/useSessions');
+    const { useSessions } = await import('@/logic/sessions/useSessions');
     const { renderHook, waitFor } = await import('@testing-library/react');
     const { result } = renderHook(() => useSessions(), { wrapper: ({ children }) => wrap(children) });
 
@@ -292,7 +292,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
   });
 
   it('rename forwards { id, newName } to backend', async () => {
-    const { useSessions } = await import('@/features/sessions/hooks/useSessions');
+    const { useSessions } = await import('@/logic/sessions/useSessions');
     const { renderHook, waitFor, act } = await import('@testing-library/react');
     const { result } = renderHook(() => useSessions(), { wrapper: ({ children }) => wrap(children) });
 
@@ -311,7 +311,7 @@ describe('Sessions pipeline (useSessions + rename)', () => {
       return [];
     });
 
-    const { useSessions } = await import('@/features/sessions/hooks/useSessions');
+    const { useSessions } = await import('@/logic/sessions/useSessions');
     const { renderHook, waitFor, act } = await import('@testing-library/react');
     const { result } = renderHook(() => useSessions(), { wrapper: ({ children }) => wrap(children) });
 

@@ -19,8 +19,8 @@ import {
   removeSubSection,
   setFlag,
   updateSubSection,
-} from '../config/toml';
-import { applyField, readField } from '../config/schema';
+} from '@/logic/settings/config/toml';
+import { applyField, readField } from '@/logic/settings/config/schema';
 import s from '@/render/settings/SettingsView.module.css';
 
 const COMPLEX_DESCRIPTIONS: Record<string, LocaleKey> = {

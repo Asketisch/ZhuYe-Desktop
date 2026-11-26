@@ -9,7 +9,7 @@
 import { ChevronRight, Folder, FolderOpen, Plus, X } from 'lucide-react';
 import { Icon, IconButton } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
-import type { WorkspaceSessionGroup } from '../utils/workspaceGroups';
+import type { WorkspaceSessionGroup } from '@/logic/sessions/workspaceGroups';
 import { SessionItem } from './SessionItem';
 import s from '@/render/sessions/components/WorkspaceGroup.module.css';
 

@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/features/design-system';
 import { useI18n } from '@/utils/i18n';
 import { zhuye_credential_pool_status } from '@/utils/commands';
-import { groupDisplayLabel, type GroupEntry } from '../config/groups';
+import { groupDisplayLabel, type GroupEntry } from '@/logic/settings/config/groups';
 import { ProviderAvatar } from './ProviderAvatar';
 import s from '@/render/settings/SettingsView.module.css';
 

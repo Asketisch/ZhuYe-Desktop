@@ -31,7 +31,7 @@ import {
   type GroupCredentialEntry,
   type GroupEndpoint,
   type GroupEntry,
-} from '../config/groups';
+} from '@/logic/settings/config/groups';
 import { GroupCredentialsEditor } from './GroupCredentialsEditor';
 import { GroupModelList } from './GroupModelList';
 import { GroupAdvancedFields } from './GroupAdvancedFields';
