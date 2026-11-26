@@ -50,7 +50,8 @@ export function SubagentViewer({ subId, title, onClose }: {
   const { t } = useI18n();
   const [turns, setTurns] = useState<Turn[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const scrollRef = useMessageListScroll(turns ?? []);
+  // 子会话 id 作为 sessionKey:切换查看的子会话时强制回底。
+  const scrollRef = useMessageListScroll(turns ?? [], subId);
 
   useEffect(() => {
     let cancelled = false;
