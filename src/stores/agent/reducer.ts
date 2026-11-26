@@ -240,12 +240,16 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
         (i): i is Extract<typeof i, { kind: 'tool_call' }> =>
           i.kind === 'tool_call' && i.callId === msg.call_id,
       );
-      // 外部文件回复或取消也会结束工具，不一定经过本地弹窗的提交动作。
-      if (toolCall?.toolName === 'ask_user' || toolCall?.toolName === 'request_human_input') {
-        patch.pendingAskUser = state.pendingAskUser.filter((item) => item.turnId !== turnId);
-      } else if (toolCall?.toolName === 'ask_user_question') {
-        patch.pendingQuestions = state.pendingQuestions.filter((item) => item.turnId !== turnId);
-      }
+      // 挂起交互(提问/自由文本)的清理不再在这里按 turnId 连坐:同一回合
+      // 里父 agent 与多个子代理的提问共享同一 turnId(子代理事件转发时
+      // 重打父信封 id),第一个提问被应答的 tool_call_end 会把其余 agent
+      // 仍挂起的提问卡一并删掉,composer 提前回归(用户可在引擎还在等答案
+      // 时发新消息)。清理收敛为三条已验证路径:
+      // 1. answerQuestion / answerInput 动作本地按 request_id 移除;
+      // 2. interaction_resolved 事件按 request_id 移除(引擎应答/跳过/超时/
+      //    取消/中断全路径必发;子代理路径经 zhuye-subagent 转发白名单
+      //    进父事件流);
+      // 3. turn_complete / turn_aborted 按 turnId 兜底(回合终态,见上方 case)。
       if (toolCall?.toolName === 'TodoWrite') {
         const todos = extractTodos(msg.output.metadata);
         if (todos) patch.todos = todos;

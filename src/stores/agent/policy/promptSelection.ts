@@ -22,6 +22,20 @@ import { useAgentStore } from '../store';
 const KEY = 'zhuye.promptSelection.';
 const memory = new Map<string, PromptSelection>();
 
+// 键值变更的进程内订阅 —— localStorage 没有同页签变更事件,pill 回显
+// (PromptPicker 的本地 selection 态)靠它感知「缓存键被自清理」并回落。
+const listeners = new Set<() => void>();
+
+/** 订阅提示词选择缓存键的变更(写入 / 转正 / 清除)。返回退订函数。 */
+export function subscribePromptSelectionChanges(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function notifyListeners(): void {
+  for (const listener of listeners) listener();
+}
+
 /** 无记录时返回 null = 跟随全局默认(引擎 `prompt_selection.unwrap_or(prompt_default)`)。 */
 export function readPromptSelection(sessionId: string | null | undefined): PromptSelection | null {
   try {
@@ -36,6 +50,7 @@ export function writePromptSelection(sessionId: string | null | undefined, value
   const key = sessionId ?? 'new';
   memory.set(key, value);
   try { localStorage.setItem(KEY + key, JSON.stringify(value)); } catch { /* storage unavailable */ }
+  notifyListeners();
 }
 
 /** 会话 id 落定后把预创建键(`'new'`)的选择转正到正式会话键。
@@ -47,6 +62,23 @@ export function movePromptSelection(from: string, to: string): void {
   writePromptSelection(to, value);
   memory.delete(from);
   try { localStorage.removeItem(KEY + from); } catch { /* storage unavailable */ }
+}
+
+/**
+ * 清除某个会话的陈旧提示词选择缓存(store 订阅 error 事件时调用)。
+ *
+ * 触发场景:bind 恢复把缓存的手动 profile 原样重发,引擎报
+ * `PROMPT_PROFILE_NOT_FOUND` —— profile 已不在当前线程提示词库
+ * (换工作区打开老会话 / 内置变体随版本改名 / 用户层文件被删)。
+ * 缓存键不清掉的话失败被静默吞掉,每次切回该会话都重复报错;清掉后
+ * 下次 bind 读到 null,恢复跟随全局默认。store 随后调 `promptList()`
+ * 让引擎权威 selection 经 `prompt_list` 事件回流校准 UI 镜像。
+ */
+export function clearStalePromptSelection(sessionId: string | null | undefined): void {
+  const key = sessionId ?? 'new';
+  memory.delete(key);
+  try { localStorage.removeItem(KEY + key); } catch { /* storage unavailable */ }
+  notifyListeners();
 }
 
 /**
@@ -82,7 +114,9 @@ export function syncSessionPromptSelection(
   if (saved) {
     if (alreadyCorrect) return;
     void zhuye_prompt_command({ type: 'select', selection: saved }).catch(() => {
-      /* 选择失败不阻断会话 —— 下次 bind 会再试;错误经事件通道无回显需求 */
+      /* 选择失败不阻断会话;错误经事件通道回显。若失败原因是 profile 已
+       * 失效(PROMPT_PROFILE_NOT_FOUND),store 订阅会清掉本缓存键 ——
+       * 下次 bind 恢复跟随全局默认,不再重复报错(见 clearStalePromptSelection) */
     });
     return;
   }

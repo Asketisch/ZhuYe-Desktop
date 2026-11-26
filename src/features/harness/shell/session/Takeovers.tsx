@@ -82,8 +82,9 @@ export function ApprovalTakeover({ approval }: { approval: PendingApproval }) {
 /* ===== 多选/单选问题(协议 questions[])=====
  * v1.13:**一道题一个页签**,一次只呈现一道(原先全部堆叠,三题就能把
  * composer 座位撑成一整屏,选项要滚好几屏才够到提交)。答案仍按题号
- * 存在 `selections` / `custom` 里,切页签不丢;提交一次性回传 answers[],
- * 未作答的题给空选择(与「跳过」同语义)。 */
+ * 存在 `selections` / `custom` 里,切页签不丢;提交一次性回传 answers[]。
+ * 提交门控:每题都「选了选项或填了自定义」才可提交(未答完置灰,
+ * 与模态版同口径);显式跳过走 Skip 按钮,整体回传空选择。 */
 export function QuestionTakeover({ question }: { question: PendingQuestion }) {
   const { t } = useI18n();
   const answerQuestion = useAgentStore((st) => st.answerQuestion);
@@ -109,6 +110,10 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
   /** 该题是否已答(选了选项或填了自定义)。 */
   const answered = (qi: number) =>
     (selections[qi]?.length ?? 0) > 0 || Boolean(custom[qi]?.trim());
+
+  // 提交门控:全部题已答才可提交。空 questions 的请求 every 恒真,
+  // 保持可提交 —— 空答案即可解锁引擎(与模态版同口径)。
+  const allAnswered = items.every((_, qi) => answered(qi));
 
   const submit = () => {
     setBusy(true);
@@ -232,7 +237,7 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
           type="button"
           className={s.popRow}
           style={{ width: 'auto', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 500 }}
-          disabled={busy}
+          disabled={busy || !allAnswered}
           autoFocus
           data-testid="question-submit"
           onClick={submit}
@@ -279,7 +284,7 @@ export function AskUserTakeover({ askUser }: { askUser: PendingAskUser }) {
           type="button"
           className={s.popRow}
           style={{ width: 'auto', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 500 }}
-          disabled={busy}
+          disabled={busy || !text.trim()}
           onClick={() => { setBusy(true); answerInput(askUser.id, text).catch(() => undefined).finally(() => setBusy(false)); }}
         >
           {busy ? <Loader2 size={13} /> : <Check size={13} />} {t('modal.submit')}

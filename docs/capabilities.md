@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `502a620`（上一审计 `545fe21`）：范围 545fe218..502a620b（2 提交，`c63c4095` 新增 `res/clear-logo.png` 资源 + 合并提交）—— **纯资源新增，零代码**。`crates/` 无变更，协议 / 命令面 / 配置零变化，桌面零适配零接线。
+> 最近审计：submodule `ea7039d`（上一审计 `502a620`）：范围 502a620b..ea7039db（2 提交）—— `8a52b295` 托盘透明图标修复（纯资源，零代码）；`ea7039db` **桌面本地补丁**（SUBMODULE.md 临时通道，desktop-patches 分支）：zhuye-subagent 两条事件转发白名单放行 `EventMsg::InteractionResolved`，子代理挂起交互的了结广播（§3.34 `interaction_resolved`）得以进入父会话事件流 —— **事件变体已存在，协议 / 命令面 / 配置零变化**，仅转发路径补全；桌面配套接线（reducer 移除连坐清理 + 提交门控）见 changelog「多 agent 同回合提问不再提前放行提交」条。待 PR 回上游后摘除 `docs/plans/protocol-upstream.md`「桌面本地补丁落差」登记。
 >
 > 上一轮审计：submodule `545fe21`（上一审计 `6a4e773`）：范围 6a4e773e..545fe218（1 提交，桌面授权的 submodule 直改落 main）—— **zhuye-kms Windows 编译修复**：`platform/windows/browse.rs:121` 裸引用 `page::pinned_modified`，但该文件只命名导入 `{PinnedDir, pin_child, pin_root, read_file_at}`，Windows 平台编译 `zhuye-kms` 直接 E0433（0.1.17 平台目录重组 `5c96b391`/`abdb3ad8` 的残留；上游跨平台 CI 未跑此 crate，桌面端 native e2e windows 在 `cargo build -p zhuye-desktop` 处暴露）。修法按同目录 `admin.rs` 命名导入惯例补 `pinned_modified` 并改直接调用；host 侧 `cargo check -p zhuye-kms` 复验通过。**协议 / 命令面 / 配置零变化**，桌面零适配（仅 rustfmt 顺带重排 `commands/lsp.rs` 的 let-else）。
 >

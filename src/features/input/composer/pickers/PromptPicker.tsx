@@ -20,7 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
 import { useAgentStore } from '@/stores/agentStore';
-import { readPromptSelection, writePromptSelection } from '@/stores/agent/policy/promptSelection';
+import { readPromptSelection, writePromptSelection, subscribePromptSelectionChanges } from '@/stores/agent/policy/promptSelection';
 import { writePermissionPreference } from '@/stores/agent/policy/permissionPreference';
 import type { PromptSelection } from '@/utils/commands/knowledge/prompts';
 import s from '@/render/input/composer/PromptPicker.module.css';
@@ -43,6 +43,15 @@ export function PromptPicker() {
     () => readPromptSelection(sessionId) ?? { mode: 'default' },
   );
   useEffect(() => { setSelection(readPromptSelection(sessionId) ?? { mode: 'default' }); }, [sessionId]);
+  // 缓存键被自清理(陈旧手动 profile 触发 PROMPT_PROFILE_NOT_FOUND 后
+  // store 清键)时同步回落回显 —— localStorage 无同页签变更事件,靠
+  // policy 模块的进程内订阅。
+  useEffect(
+    () => subscribePromptSelectionChanges(() => {
+      setSelection(readPromptSelection(sessionId) ?? { mode: 'default' });
+    }),
+    [sessionId],
+  );
 
   const [open, setOpen] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);

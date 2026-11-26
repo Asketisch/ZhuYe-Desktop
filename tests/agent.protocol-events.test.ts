@@ -304,12 +304,77 @@ describe('approval & question events', () => {
     expect(st().pendingAskUser.length).toBe(1);
   });
 
+  it('同回合多 agent 提问:其一的工具结束不连坐清空其余挂起提问,了结按 request_id 精确移除', () => {
+    seedTurn();
+    // 父 agent 与子代理的提问经转发共享同一父 turnId,先后入列。
+    emitEvent(TURN, {
+      type: 'ask_user_question',
+      request_id: 'q-a',
+      questions: [{ question: 'A?', options: [{ label: 'a1' }] }],
+    });
+    emitEvent(TURN, {
+      type: 'ask_user_question',
+      request_id: 'q-b',
+      questions: [{ question: 'B?', options: [{ label: 'b1' }] }],
+    });
+    expect(st().pendingQuestions.map((q) => q.id)).toEqual(['q-a', 'q-b']);
+    // 第一个提问的 ask_user_question 工具调用结束(应答后引擎关闸)。
+    emitEvent(TURN, { type: 'tool_call_begin', call_id: 'c-a', tool_name: 'ask_user_question', args: {} });
+    emitEvent(TURN, {
+      type: 'tool_call_end',
+      call_id: 'c-a',
+      is_error: false,
+      elapsed_ms: 5,
+      output: { content: [{ type: 'text', text: 'answered' }], is_error: false, metadata: null, elapsed_ms: 5 },
+    });
+    // 历史缺陷:tool_call_end 曾按 turnId 连坐清空 —— 其余 agent 仍挂起
+    // 的提问卡被误删、composer 提前回归。两条挂起现在都必须还在。
+    expect(st().pendingQuestions.map((q) => q.id)).toEqual(['q-a', 'q-b']);
+    // q-a 的了结广播到达:仅移除 q-a,q-b 不受影响。
+    emitEvent(TURN, {
+      type: 'interaction_resolved',
+      request_id: 'q-a',
+      kind: { type: 'question' },
+      outcome: 'answered',
+    });
+    expect(st().pendingQuestions.map((q) => q.id)).toEqual(['q-b']);
+  });
+
   it('permission_bubble becomes a non-blocking toast, not a synthetic approval', () => {
     emitEvent(TURN, { type: 'permission_bubble', tool_name: 'write_file', risk: 'medium' });
     // bubble = core 已自动批准,只提示;合成 approval 会渲染成无法应答的 modal。
     expect(st().pendingApprovals.length).toBe(0);
     expect(st().toasts.length).toBe(1);
     expect(st().toasts[0].message).toContain('write_file');
+  });
+});
+
+describe('PROMPT_PROFILE_NOT_FOUND 自清理(store 订阅接线)', () => {
+  it('error 事件到达即清除该会话的提示词缓存键,其他会话不受影响', () => {
+    // 陈旧手动 profile 缓存:bind 恢复会原样重发,引擎报本错误且校验失败
+    // 不落 rollout —— 订阅清键后下次 bind 不再重发、不再重复报错。
+    localStorage.setItem('zhuye.promptSelection.sess-stale', JSON.stringify({ mode: 'manual', profile: 'bogus' }));
+    localStorage.setItem('zhuye.promptSelection.other', JSON.stringify({ mode: 'auto' }));
+    useAgentStore.setState({ loadedSessionId: 'sess-stale' });
+
+    emitEvent('', { type: 'error', code: 'PROMPT_PROFILE_NOT_FOUND', message: '提示词方案不存在' });
+    // 缓存键已清;错误本身仍按事件通道原样落 lastError 展示一次。
+    expect(localStorage.getItem('zhuye.promptSelection.sess-stale')).toBeNull();
+    expect(st().lastError).toBe('PROMPT_PROFILE_NOT_FOUND: 提示词方案不存在');
+    // 其他会话键不受影响。
+    expect(localStorage.getItem('zhuye.promptSelection.other')).toBe(JSON.stringify({ mode: 'auto' }));
+
+    localStorage.removeItem('zhuye.promptSelection.other');
+  });
+
+  it('其他 error code 不触发清键', () => {
+    localStorage.setItem('zhuye.promptSelection.sess-ok', JSON.stringify({ mode: 'auto' }));
+    useAgentStore.setState({ loadedSessionId: 'sess-ok' });
+
+    emitEvent('', { type: 'error', code: 'PROMPT_SAVE_FAILED', message: '提示词方案不存在' });
+    expect(localStorage.getItem('zhuye.promptSelection.sess-ok')).toBe(JSON.stringify({ mode: 'auto' }));
+
+    localStorage.removeItem('zhuye.promptSelection.sess-ok');
   });
 });
 

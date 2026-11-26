@@ -26,7 +26,7 @@ interface Props {
   onClose: () => void | Promise<void>;
   externalBusy?: boolean;
   onBusyChange?: (busy: boolean) => void;
-  primaryAction?: { label: string; onClick: () => void | Promise<void>; autoFocus?: boolean; dataTestId?: string };
+  primaryAction?: { label: string; onClick: () => void | Promise<void>; autoFocus?: boolean; dataTestId?: string; disabled?: boolean };
   secondaryAction?: { label: string; onClick: () => void | Promise<void>; dataTestId?: string };
   tertiaryAction?: { label: string; onClick: () => void | Promise<void> };
   children: ReactNode;
@@ -143,6 +143,9 @@ export function ModalShell({
       }
       const primary = primaryActionRef.current;
       if (e.key === 'Enter' && primary) {
+        // primary 被调用方置 disabled（如提问弹窗未答完不得提交）时,
+        // Enter 不应绕过按钮的禁用态直接触发动作。
+        if (primary.disabled) return;
         const active = document.activeElement as HTMLElement | null;
         const tag = active?.tagName;
         // 仅当焦点在 dialog 容器本身（dialog 自身或非表单控件子元素）时
@@ -208,7 +211,7 @@ export function ModalShell({
               <button
                 ref={primaryRef}
                 className={s.btnPrimary}
-                disabled={busy || externalBusy}
+                disabled={busy || externalBusy || primaryAction.disabled}
                 onClick={() => execute(primaryAction.onClick)}
                 autoFocus={primaryAction.autoFocus}
                 data-testid={primaryAction.dataTestId}

@@ -13,8 +13,10 @@ vi.mock('@/utils/commands/knowledge/prompts', () => ({
 
 import { useAgentStore } from '../store';
 import {
+  clearStalePromptSelection,
   movePromptSelection,
   readPromptSelection,
+  subscribePromptSelectionChanges,
   syncPlanPresetPermissionMode,
   syncSessionPromptSelection,
   writePromptSelection,
@@ -45,6 +47,49 @@ describe('per-session prompt selection', () => {
   it('promoting an absent key is a no-op', () => {
     movePromptSelection('new', 'sess-2');
     expect(readPromptSelection('sess-2')).toBeNull();
+  });
+});
+
+describe('clearStalePromptSelection (PROMPT_PROFILE_NOT_FOUND 自清理)', () => {
+  it('清除指定会话的缓存键(memory + localStorage)', () => {
+    writePromptSelection('s1', { mode: 'manual', profile: 'stale' });
+    clearStalePromptSelection('s1');
+    expect(readPromptSelection('s1')).toBeNull();
+  });
+
+  it('null 会话清除预创建键(new)', () => {
+    writePromptSelection('new', { mode: 'manual', profile: 'stale' });
+    clearStalePromptSelection(null);
+    expect(readPromptSelection('new')).toBeNull();
+  });
+
+  it('只清目标键,其他会话不受影响', () => {
+    writePromptSelection('s1', { mode: 'manual', profile: 'stale' });
+    writePromptSelection('s2', { mode: 'auto' });
+    clearStalePromptSelection('s1');
+    expect(readPromptSelection('s2')).toEqual({ mode: 'auto' });
+  });
+
+  it('清除后通知订阅者(pill 回显回落)', () => {
+    writePromptSelection('s1', { mode: 'manual', profile: 'stale' });
+    const seen: Array<ReturnType<typeof readPromptSelection>> = [];
+    const unsubscribe = subscribePromptSelectionChanges(() => seen.push(readPromptSelection('s1')));
+    clearStalePromptSelection('s1');
+    unsubscribe();
+    // 订阅者在清理后读到 null —— 回显据此回落「跟随默认」。
+    expect(seen).toEqual([null]);
+  });
+
+  it('storage 不可用走 memory 回退时,清除同样生效', () => {
+    writePromptSelection('s1', { mode: 'manual', profile: 'stale' });
+    // readPromptSelection 只在 getItem 抛错时回退 memory —— 模拟 storage 不可用。
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+    expect(readPromptSelection('s1')).toEqual({ mode: 'manual', profile: 'stale' });
+    clearStalePromptSelection('s1');
+    expect(readPromptSelection('s1')).toBeNull();
+    spy.mockRestore();
   });
 });
 

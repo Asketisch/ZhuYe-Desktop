@@ -35,6 +35,7 @@ import { reduceEvent } from './reducer';
 import { appendItem, markTurn, userAttachmentsFromItems } from './turns';
 import { runQueryGuardStats } from './policy/guardStats'; // F01
 import { wireApprovalPolicy } from './policy/approvalPolicy';
+import { clearStalePromptSelection } from './policy/promptSelection';
 import { createQueueActions } from './queue';
 import { createPlanActions } from './policy/planActions';
 import { createToastActions, uuid } from './toast';
@@ -241,6 +242,14 @@ export const useAgentStore = create<AgentState>((set, get) => {
       if (event.msg.type === 'quota_exhausted' || event.msg.type === 'error') {
         const signal = extractExhaustionSignal(event.msg, get().session?.provider ?? null);
         if (signal) void planFailover.handle(signal);
+      }
+      // 提示词方案失效自清理:bind 恢复重发的手动 profile 已不在当前线程
+      // 提示词库(换工作区/内置变体改名/用户层被删)时引擎报本错误且校验
+      // 失败不落 rollout —— 清掉 per-session 缓存键(不清则每次切回该会话
+      // 重复报错),层清单重拉让权威 selection 经 prompt_list 事件回流。
+      if (event.msg.type === 'error' && event.msg.code === 'PROMPT_PROFILE_NOT_FOUND') {
+        clearStalePromptSelection(get().loadedSessionId);
+        void get().promptList().catch(() => {});
       }
       // plan 最大上下文 ≥80% → 自动压缩（内部有开关/节流/触发闩）。
       if (event.msg.type === 'token_count') {

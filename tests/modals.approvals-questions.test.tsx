@@ -147,16 +147,23 @@ describe('QuestionModal', () => {
     await waitFor(() => expect(screen.queryByText('Which database?')).toBeNull());
   });
 
-  it('submitting without selection sends an empty answer for each question', async () => {
+  it('submit 禁用直至每题都答(选选项或填自定义);点击无效,不回传空答案', async () => {
     askQuestion();
     await screen.findByText('Which database?');
-    fireEvent.click(screen.getByText('Submit'));
-    await waitFor(() =>
-      expect(backend.agent.questionResponses[0]).toEqual({
-        id: 'q-modal',
-        answers: { answers: [{ selected: [] }, { selected: [] }] },
-      }),
-    );
+    const submit = screen.getByText('Submit') as HTMLButtonElement;
+    // 未作答 → 禁用,点击不产生回执(显式跳过走 Esc 关闭,见下例)。
+    expect(submit.disabled).toBe(true);
+    fireEvent.click(submit);
+    expect(backend.agent.questionResponses).toEqual([]);
+
+    // 第二题填自定义文本即可(选项与自定义任一算已答),但第一题未答仍禁用。
+    fireEvent.click(screen.getByLabelText(/Auth/));
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(/Other.*Which features/), { target: { value: 'Metrics' } });
+    expect(submit.disabled).toBe(true);
+    // 第一题也作答后解锁。
+    fireEvent.click(screen.getByLabelText(/Postgres/));
+    expect(submit.disabled).toBe(false);
   });
 
   it('closing sends a cancelled answer for each question', async () => {
@@ -186,8 +193,11 @@ describe('AskUserModal', () => {
     askInput();
     await screen.findByText('Name the release branch:');
     const textarea = screen.getByPlaceholderText('release/v2') as HTMLTextAreaElement;
+    // 空文本时 Submit 置灰(显式跳过走关闭)。
+    expect((screen.getByText('Submit') as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.change(textarea, { target: { value: 'release/v2.1' } });
+    expect((screen.getByText('Submit') as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByText('Submit'));
 
     await waitFor(() =>
@@ -236,12 +246,15 @@ describe('AskUserModal', () => {
       prompt: 'External answer?',
     });
     await screen.findByText('External answer?');
+    // 外部回执(文件投递等)不经本地弹窗提交动作 —— 引擎统一走
+    // resolve_pending 广播 interaction_resolved,前端据此按 request_id
+    // 精确移除挂起态(tool_call_end 不再按 turnId 连坐清空,避免误删
+    // 同回合其他 agent 的挂起交互)。
     emitEvent(TURN, {
-      type: 'tool_call_end',
-      call_id: 'human-tool',
-      output: { content: [{ type: 'text', text: 'file-answer' }], is_error: false, metadata: {}, elapsed_ms: 1 },
-      is_error: false,
-      elapsed_ms: 1,
+      type: 'interaction_resolved',
+      request_id: 'external-answer',
+      kind: { type: 'ask_user' },
+      outcome: 'answered',
     });
     await waitFor(() => expect(screen.queryByText('External answer?')).toBeNull());
     expect(backend.agent.inputResponses).toEqual([]);

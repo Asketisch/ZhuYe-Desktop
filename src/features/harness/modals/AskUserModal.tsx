@@ -1,10 +1,11 @@
 /**
  * AskUserModal —— 自由文本输入弹窗（聚焦版）。
  *
- * 行为契约(从原 modals/index.tsx 抽出,不可变):
+ * 行为契约(从原 modals/index.tsx 抽出):
  *   - title 为 i18n `modal.askUser.title`。
  *   - 内容渲染 prompt(默认 fallback)+ textarea(autoFocus)。
- *   - primary 为 Submit(autoFocus=false),onClose 提交空字符串。
+ *   - primary 为 Submit(autoFocus=false),输入为空时置灰(显式跳过走
+ *     关闭,onClose 提交空字符串)。
  *   - 提交把 textarea 当前值走 store `answerInput`。
  */
 import { useState } from 'react';
@@ -27,7 +28,7 @@ export function AskUserModal({ askUser }: { askUser: PendingAskUser }) {
       title={t('modal.askUser.title')}
       open={true}
       onClose={() => answerInput(askUser.id, '')}
-      primaryAction={{ label: t('modal.submit'), onClick: () => answerInput(askUser.id, text), autoFocus: false }}
+      primaryAction={{ label: t('modal.submit'), onClick: () => answerInput(askUser.id, text), autoFocus: false, disabled: !text.trim() }}
     >
       <p className={s.promptText}>{prompt}</p>
       {payload?.secret ? (
