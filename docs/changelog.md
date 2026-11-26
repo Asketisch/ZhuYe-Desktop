@@ -4,6 +4,10 @@
 
 ## 未发布
 
+（空）
+
+## 0.0.8 — 2026-11-27
+
 - **submodule 前移 `ea7039db` → `5127f722` —— Seatbelt 放行 Mach IPC，修 Chrome headless `Abort trap: 6` 与 `/tmp` 死规则**：`(deny default)` profile 下补 `(allow mach-lookup)` / `(allow mach-register)` / `(allow ipc-posix-shm)` 三规则 —— Chromium 系工具起进程即需 launchd 服务查询与 `bootstrap_check_in`（MachPortRendezvous），缺任一直接 SIGABRT，`--no-sandbox` 也绕不开（本机 sandbox-exec 消融实证，最小集即此三条）；`/tmp`、`/var/tmp` 是指向 `/private/*` 的符号链接，Seatbelt 按 vnode 真实路径匹配，字面规则不生效（生产会话实证 `> /tmp/x` EPERM、heredoc 建临时文件失败），改写 `/private/tmp`、`/private/var/tmp`。`zhuye-sandbox` 103 测试全绿（含 rm -rf 拦截、git 保护等真实 sandbox-exec 集成用例），新增 profile 内容断言（三规则必须在、死规则字面必须不在）。
 
 - **多 agent 同回合提问不再提前放行提交**：父 agent 与子代理同回合的提问共享同一父 turnId（子代理事件转发时重打父信封 id），reducer 曾在 `tool_call_end` 按 turnId **连坐清空**整个回合的 `pendingQuestions` / `pendingAskUser` —— 第一个提问被应答后，其余 agent 仍挂起的提问卡被误删、composer 在引擎还在等答案时提前回归。现移除连坐清理，挂起交互收敛为三条清理路径：store action（`approve` / `answerQuestion` / `answerInput`）IPC 后按 `request_id` 本地移除、`interaction_resolved` 事件按 `request_id` 逐条移除、`turn_complete` / `turn_aborted` 按 turnId 兜底。配套两处：① submodule 补丁（`zhuye-subagent` 转发白名单两处放行 `EventMsg::InteractionResolved`，`ea7039db` 已随 submodule main 直推上游）让子代理提问的了结广播进入父事件流，外部了结（TTL 过期/取消/中断）的挂起卡也能精确清理；② 提交门控补齐 —— `QuestionTakeover` / `QuestionModal` 每题都「选了选项或填了自定义」才「显示」提交按钮（未答完不渲染而非置灰，Enter 无从触发；两处同口径；空 questions 的请求保持可提交以解锁引擎），`AskUserTakeover` / `AskUserModal` 空文本置灰提交，显式跳过走 Skip / 关闭（空答案语义不变）。
