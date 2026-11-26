@@ -43,7 +43,7 @@ reload / 换绑走引擎快照（跨进程兜底）。
   归并为 6，语义不丢）。
 - 唯一计量点：`model_call` 在 ChatRequest 组装后（复用 compact 全局估计器，
   估算值非精确计量，不保证求和 = input_tokens）；**组成指纹无变化省略不发**。
-- 消费：工作台容量卡六类构成条形（`StatusPanel`）——
+- 消费：会话区胶囊六类构成条形（`SessionCapsule`）——
   `docs/visual-parity.md` #3 收口。
 
 ## 已落地（第二批：v1.x 可靠性与治理能力，上游 feat/zcode-gap-v1x → develop `5fd69a08`，桌面 submodule 跟随 develop）
