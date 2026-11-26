@@ -5,9 +5,9 @@
  *   - title 为 i18n `modal.question.title`。
  *   - 选项模式和回执遵循协议的 `multi_select` / `selected` 字段。
  *   - 每题支持可选的自定义答案。
- *   - 提交门控:每题都「选了选项或填了自定义」才可提交(未答完按钮
- *     置灰,Enter 同样被拦);显式跳过走关闭(Esc / 右上角 X),逐题
- *     发送空答案。
+ *   - 提交门控:每题都「选了选项或填了自定义」才「显示」提交按钮
+ *     (未答完不渲染,Enter 无从触发);显式跳过走关闭(Esc / 右上角
+ *     X),逐题发送空答案。
  */
 import { useState } from 'react';
 import { Input } from '@/features/harness/design-system';
@@ -43,8 +43,9 @@ export function QuestionModal({ question }: { question: PendingQuestion }) {
     return answerQuestion(question.id, { answers });
   };
 
-  // 提交门控:每题都答了(选选项或填自定义)才允许提交。空 questions 的
-  // 请求 every 恒真 —— 保持可提交,空答案即可解锁引擎(与旧行为一致)。
+  // 提交门控:每题都答了(选选项或填自定义)才「显示」提交按钮(未答完
+  // 不渲染,与页签卡同口径)。空 questions 的请求 every 恒真 —— 保持可
+  // 提交,空答案即可解锁引擎(与旧行为一致)。
   const allAnswered = items.every(
     (_, qIdx) => (selections[qIdx]?.length ?? 0) > 0 || Boolean(customAnswers[qIdx]?.trim()),
   );
@@ -54,7 +55,7 @@ export function QuestionModal({ question }: { question: PendingQuestion }) {
       title={t('modal.question.title')}
       open={true}
       onClose={() => answerQuestion(question.id, { answers: items.map(() => ({ selected: [] })) })}
-      primaryAction={{ label: t('modal.submit'), onClick: submit, autoFocus: false, disabled: !allAnswered }}
+      primaryAction={allAnswered ? { label: t('modal.submit'), onClick: submit, autoFocus: false } : undefined}
     >
       {items.length === 0 && <p>{t('modal.question.empty')}</p>}
       {items.map((item, qIdx) => {

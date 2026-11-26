@@ -147,23 +147,26 @@ describe('QuestionModal', () => {
     await waitFor(() => expect(screen.queryByText('Which database?')).toBeNull());
   });
 
-  it('submit 禁用直至每题都答(选选项或填自定义);点击无效,不回传空答案', async () => {
+  it('submit 未全部作答不渲染(选选项或填自定义任一算已答),答完才出现', async () => {
     askQuestion();
     await screen.findByText('Which database?');
-    const submit = screen.getByText('Submit') as HTMLButtonElement;
-    // 未作答 → 禁用,点击不产生回执(显式跳过走 Esc 关闭,见下例)。
-    expect(submit.disabled).toBe(true);
-    fireEvent.click(submit);
+    // 未作答 → 不渲染提交按钮(显式跳过走 Esc 关闭,见下例)。
+    expect(screen.queryByText('Submit')).toBeNull();
     expect(backend.agent.questionResponses).toEqual([]);
 
-    // 第二题填自定义文本即可(选项与自定义任一算已答),但第一题未答仍禁用。
+    // 第二题填自定义文本也算已答,但第一题未答仍不显示。
     fireEvent.click(screen.getByLabelText(/Auth/));
-    expect(submit.disabled).toBe(true);
+    expect(screen.queryByText('Submit')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Other.*Which features/), { target: { value: 'Metrics' } });
-    expect(submit.disabled).toBe(true);
-    // 第一题也作答后解锁。
+    expect(screen.queryByText('Submit')).toBeNull();
+    // 第一题也作答后提交出现,点击可正常回执。
     fireEvent.click(screen.getByLabelText(/Postgres/));
-    expect(submit.disabled).toBe(false);
+    fireEvent.click(screen.getByText('Submit'));
+    await waitFor(() =>
+      expect(backend.agent.questionResponses).toEqual([
+        { id: 'q-modal', answers: { answers: [{ selected: [0] }, { selected: [0], custom: 'Metrics' }] } },
+      ]),
+    );
   });
 
   it('closing sends a cancelled answer for each question', async () => {

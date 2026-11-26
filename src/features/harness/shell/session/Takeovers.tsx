@@ -111,8 +111,8 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
   const answered = (qi: number) =>
     (selections[qi]?.length ?? 0) > 0 || Boolean(custom[qi]?.trim());
 
-  // 提交门控:全部题已答才可提交。空 questions 的请求 every 恒真,
-  // 保持可提交 —— 空答案即可解锁引擎(与模态版同口径)。
+  // 提交门控:全部题已答才「显示」提交按钮(未答完不渲染,而非置灰)。
+  // 空 questions 的请求 every 恒真,保持可提交 —— 空答案即可解锁引擎。
   const allAnswered = items.every((_, qi) => answered(qi));
 
   const submit = () => {
@@ -233,17 +233,19 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
             </button>
           </>
         )}
-        <button
-          type="button"
-          className={s.popRow}
-          style={{ width: 'auto', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 500 }}
-          disabled={busy || !allAnswered}
-          autoFocus
-          data-testid="question-submit"
-          onClick={submit}
-        >
-          {busy ? <Loader2 size={13} /> : <Check size={13} />} {t('modal.submit')}
-        </button>
+        {/* 全部题已答才渲染提交(未答完不显示;busy 时保留但禁用)。 */}
+        {allAnswered && (
+          <button
+            type="button"
+            className={s.popRow}
+            style={{ width: 'auto', background: 'var(--accent)', color: 'var(--accent-fg)', fontWeight: 500 }}
+            disabled={busy}
+            data-testid="question-submit"
+            onClick={submit}
+          >
+            {busy ? <Loader2 size={13} /> : <Check size={13} />} {t('modal.submit')}
+          </button>
+        )}
       </div>
     </div>
   );
