@@ -6,6 +6,7 @@ import type { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup, ActivityEntryD
 import type { QueuedMessages } from '@/features/messages/QueuedMessages';
 import type { UserAttachments } from '@/features/messages/UserAttachments';
 import type { Collapsible } from '@/features/messages/Collapsible';
+import type { TurnChangesCard } from '@/features/messages/TurnChangesCard';
 import type { Markdown } from '@/components/Markdown';
 import type { CopyButtonProps } from '@/contracts/copyButton';
 
@@ -14,11 +15,13 @@ export interface MessageListSlots {
   ToolOutputBody: ComponentType<ComponentProps<typeof ToolOutputBody>>;
   /** 连续工具调用的聚合组（对话式 agent 产品惯用的摘要行）。 */
   ToolGroup: ComponentType<ComponentProps<typeof ToolGroup>>;
-  /** 工具 + 思考混合活动组（思考不打断工具流,对话式 agent 产品惯例）。 */
+  /** 工具 + 思考混合活动组（思考不打断工具流,同组折叠（对话式 agent 产品惯例）。 */
   ActivityGroup: ComponentType<ComponentProps<typeof ActivityGroup>>;
   QueuedMessages: ComponentType<ComponentProps<typeof QueuedMessages>>;
   UserAttachments: ComponentType<ComponentProps<typeof UserAttachments>>;
   Collapsible: ComponentType<ComponentProps<typeof Collapsible>>;
+  /** 每轮末尾的「本轮改动」卡（v1.13：逐轮汇总 + 逐文件审查）。 */
+  TurnChangesCard: ComponentType<ComponentProps<typeof TurnChangesCard>>;
   Markdown: ComponentType<ComponentProps<typeof Markdown>>;
   CopyButton: ComponentType<CopyButtonProps>;
 }

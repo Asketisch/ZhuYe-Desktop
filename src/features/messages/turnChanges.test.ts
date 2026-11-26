@@ -1,0 +1,98 @@
+/**
+ * turnChanges —— 「本轮改动」派生纯函数测试。
+ *
+ * 覆盖：从 turn 的 items 派生文件改动清单（写类工具过滤 / path 兜底 /
+ * 同轮同文件合并）、unified diff 行数统计、卡片头汇总。
+ */
+import { describe, it, expect } from 'vitest';
+import {
+  countDiffLines,
+  deriveChangesFromTurn,
+  summarizeTurnChanges,
+} from '@/features/messages/turnChanges';
+import type { Turn, TurnItem } from '@/stores/agent/types';
+
+function turnWith(items: TurnItem[]): Turn {
+  return { id: 'turn-1', status: 'done', items };
+}
+
+describe('deriveChangesFromTurn', () => {
+  it('只收写类工具的输出，读类工具不计', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'bash', argsSummary: '{}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: 'ok', isError: false, path: '/w/a.txt' },
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'c2', status: 'done' },
+      { kind: 'tool_output', callId: 'c2', text: '', isError: false, path: '/w/b.txt' },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].path).toBe('/w/b.txt');
+    expect(changes[0].toolName).toBe('edit');
+  });
+
+  it('metadata 缺 path 时回退到工具参数的 path', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{"path":"src/x.ts"}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: '', isError: false },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].path).toBe('src/x.ts');
+  });
+
+  it('同轮同文件多次改动合并为一条（保留最后的 diff）', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: '', isError: false, path: '/w/a.txt', diff: '+first' },
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'c2', status: 'done' },
+      { kind: 'tool_output', callId: 'c2', text: '', isError: false, path: '/w/a.txt', diff: '+second' },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].diff).toBe('+second');
+  });
+
+  it('失败标记不丢（成功 + 失败同文件合并后仍标失败）', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: '', isError: true, path: '/w/a.txt' },
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'c2', status: 'done' },
+      { kind: 'tool_output', callId: 'c2', text: '', isError: false, path: '/w/a.txt' },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].isError).toBe(true);
+  });
+
+  it('孤儿输出（无配对 tool_call）不计', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_output', callId: 'ghost', text: '', isError: false, path: '/w/a.txt' },
+    ]));
+    expect(changes).toHaveLength(0);
+  });
+});
+
+describe('countDiffLines', () => {
+  it('排除 +++ / --- 文件头，只数真实增删', () => {
+    const diff = [
+      '--- a/x.ts',
+      '+++ b/x.ts',
+      '@@ -1 +1 @@',
+      ' context',
+      '-old',
+      '+new',
+      '+new2',
+    ].join('\n');
+    expect(countDiffLines(diff)).toEqual({ added: 2, removed: 1 });
+  });
+
+  it('空 diff → 0/0', () => {
+    expect(countDiffLines('')).toEqual({ added: 0, removed: 0 });
+  });
+});
+
+describe('summarizeTurnChanges', () => {
+  it('汇总文件数与增删行数', () => {
+    const changes = [
+      { path: '/a', diff: '+x\n-y', isError: false, toolName: 'edit' },
+      { path: '/b', diff: '+p\n+q\n-r', isError: false, toolName: 'write' },
+    ];
+    expect(summarizeTurnChanges(changes)).toEqual({ files: 2, added: 3, removed: 2 });
+  });
+});

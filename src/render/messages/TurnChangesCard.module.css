@@ -1,0 +1,128 @@
+/* TurnChangesCard —— 每轮末尾的「本轮改动」卡（v1.13）。
+ * 折叠头复用 Collapsible 的皮肤；这里只做卡片壳 + 文件行 + 审查浮层。 */
+
+.card {
+  margin: var(--space-2) 0;
+  flex-shrink: 0;
+}
+
+.headLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* 增删行数 —— 与 diff 配色同源（added 绿 / removed 红）。 */
+.stat {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat[data-kind='added'] {
+  color: var(--success);
+}
+
+.stat[data-kind='removed'] {
+  color: var(--danger);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 4px 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.failed {
+  color: var(--danger);
+}
+
+/* 「审查」按钮 —— 浮在行尾,hover 才显形（不挤视觉重心）。 */
+.reviewWrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.reviewBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.reviewBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* diff 预览浮层 —— fixed 定位逃逸消息流的滚动裁剪。 */
+.reviewFlyout {
+  position: absolute;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  width: 520px;
+  max-width: calc(100vw - 16px);
+  max-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--tip-bg);
+  box-shadow: var(--shadow-float);
+}
+
+.reviewHead {
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-2);
+}

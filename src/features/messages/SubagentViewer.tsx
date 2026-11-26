@@ -19,6 +19,7 @@ import { SubagentSessionViewer as DefaultView } from '@/render/chat/SubagentSess
 import { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup } from './ToolCells';
 import { UserAttachments } from './UserAttachments';
 import { Collapsible } from './Collapsible';
+import { TurnChangesCard } from './TurnChangesCard';
 import { CopyButton } from './CopyButton';
 import { Markdown } from '@/components/Markdown';
 import type { MessageListSlots, Turn } from '@/contracts/messageList';
@@ -36,6 +37,7 @@ const MESSAGE_SLOTS: MessageListSlots = {
   QueuedMessages: NoQueuedMessages,
   UserAttachments,
   Collapsible,
+  TurnChangesCard,
   Markdown,
   CopyButton,
 };

@@ -12,7 +12,6 @@ export interface ChatSlots {
   Composer: ComponentType;
   ChatHero: ComponentType;
   ContextBanner: ComponentType;
-  ScmChanges: ComponentType;
   TrajView: ComponentType;
   SessionDock: ComponentType<{ goalActive: boolean; goalText: string; turnRunning: boolean }>;
   /** 右上角浮动状态面板（目标 / 计划 / 进程）。 */

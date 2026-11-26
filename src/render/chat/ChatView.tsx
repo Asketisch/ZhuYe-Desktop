@@ -11,7 +11,7 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
   onCloseTerminal, onOpenSettings, onRewind,
   onEdit, onRegenerate, onContinue, slots }: ChatViewProps) {
   const { WorkHead, ViewRing, MessageList, Composer, ChatHero, ContextBanner,
-    ScmChanges, TrajView, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
+    TrajView, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
     BottomTabs, DiffViewer } = slots;
   const takeover = approval ?? question ?? askUser;
   return (
@@ -67,7 +67,6 @@ export function ChatView({ t, sessionId, title, loading, error, isLoaded, turnCo
       )}
       {hero && <ChatHero />}
       {!hero && <ContextBanner />}
-      {!hero && <ScmChanges />}
       {!loading && !error && (
         // 英雄态仅视觉隐藏（display:none），保持 MessageList 挂载 ——
         // 其 role="log" 区与滚动锚点被集成测试和自动滚动消费。

@@ -63,6 +63,7 @@ function TurnView({
   onContinueTurn?: (turnId: string) => void;
 }) {
   const nodes = groupToolNodes(turn.items);
+  const { TurnChangesCard } = slots;
   // 流式中的 turn 尚未落全（rollout 记录还在追加），不作为 fork 点；
   // 历史回放与已结束的 turn 均可「从此轮（含）分叉」。
   const canFork = Boolean(onForkTurn) && turn.status !== 'streaming';
@@ -100,6 +101,10 @@ function TurnView({
           slots={slots}
         />
       ))}
+      {/* v1.13:本轮改动卡 —— 挂在该轮内容之后、轮操作行之前。
+          改动是逐轮产生的,跟着轮次走才读得懂「这一轮改了什么」
+          （对齐 ZCode v4 的 ConversationFileSummaryPanel 位置约定）。 */}
+      <TurnChangesCard turn={turn} />
       {(canFork || canRewind || canRegenerate || canContinue) && (
         <div className={s.turnActions}>
           {canContinue && (

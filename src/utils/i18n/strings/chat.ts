@@ -93,6 +93,11 @@ const chat: Record<string, StringEntry> = {
   'chat.contextWarn':              { en: 'Context window is {pct}% full — consider compacting to keep the session fast.',  'zh-CN': '上下文已用 {pct}%，建议压缩以保持会话流畅。' },
   'chat.contextCompactNow':        { en: 'Compact now',                                                       'zh-CN': '立即压缩' },
   'chat.hero.workspace':           { en: 'Workspace: {name}',                                                 'zh-CN': '当前工作区：{name}' },
+  // 每轮末尾的「本轮改动」卡（v1.13）。
+  'turnChanges.title':             { en: 'Changes this turn',                                                 'zh-CN': '本轮改动' },
+  'turnChanges.review':            { en: 'Review',                                                            'zh-CN': '审查' },
+  'turnChanges.failed':            { en: 'failed',                                                           'zh-CN': '失败' },
+  'turnChanges.noDiff':            { en: 'No diff recorded for this file.',                                   'zh-CN': '该文件没有记录到 diff。' },
   'chat.quick.title':              { en: 'Try one of these',                                                  'zh-CN': '试试这些' },
   // 「+」菜单「建议」二级目录的分组标题（先读懂 → 再动手）。
   'chat.quick.group.understand':   { en: 'Understand first',                                                 'zh-CN': '先读懂' },
