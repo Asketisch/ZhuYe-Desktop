@@ -12,7 +12,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 |---|---|
 | `agent/reducer.ts` | `reduceEvent`：EventMsg → 状态 patch 的纯函数核心（约 670 行）；未知 `msg.type` 走 default 分支返回空 patch。**v1.13**：`prompt_switched` 分支只在**生效结果真的变了**时弹「提示词已刷新」（判定抽到 `agent/policy/promptSwitched.ts` 独立文件 —— 本文件已达行数预算不能就地撑大）；切会话必然收到该事件但内容常无变化,无条件弹会让用户每次切会话都看到一条无意义提示 |
 | `agent/store.ts` | 活跃 Zustand store：`useAgentStore` 与 `subscribe()`（建立事件订阅，幂等） |
-| `agent/types.ts` | AgentState / Turn 等状态类型联合（约 495 行）；挂起交互类型拆在 `agent/pendingTypes.ts`（含 MCP elicitation 的 `PendingElicitation`：事件入列、`resolveElicitation` 移除，GUI 弹窗待接） |
+| `agent/types/types.ts` | AgentState / Turn 等状态类型联合（约 495 行）；挂起交互类型拆在 `agent/types/pendingTypes.ts`（含 MCP elicitation 的 `PendingElicitation`：事件入列、`resolveElicitation` 移除，GUI 弹窗待接） |
 | `agent/pendingGates.ts` | v1.12：引擎挂起交互快照（bind 返回 `pending_gates`）→ 合成事件流（零语义复制，走同一份 reducer）；`hydratePendingGates` 按 request_id 去重水合 |
 | `agent/eventGap.ts` | v1.12：`Event.seq` 缺口跟踪器 + 重放收敛（缺口与 `zhuye_event_gap` 合成通知两条触发路径共用） |
 | `agent/turns.ts` | Turn / TurnItem 构建与工具入参、输出摘要；含 `userAttachmentsFromItems`（提交 items → 附件元数据，图片来源标记文本挂到 image meta.source）与 `userItemsFromTurn`（轮内用户内容逆转回可重发 items，重生成用；meta.source 原样重发标记） |
@@ -45,7 +45,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 - **在飞内容靠内存投影跨会话存活（关键）**：上游已按步骤增量落盘 assistant 内容（`persist_assistant_step`），但正在流出的半截文本、运行态，以及审批 / 提问 / plan 这些 gate 请求仍不在 rollout 里。因此切走时必须 `demote`（播种前台 turns + pending），切回时 `mergePendingInto` 整体注回 —— 否则切回后最新增量丢失、运行态退化成「已结束」（停止按钮随之消失，卡住的回合再也停不下来）、审批框永久丢失。
 - **队列按会话隔离**：`QueuedMessage.sessionId` 在入队时盖章（`enqueueMessage` 取 `loadedSessionId`）；展示（`QueuedMessages` / `Inspector` / `ZDock`，均经 `selectQueuedForActiveSession` + `useShallow`——选择器返回新数组，裸用会触发 zustand v5 无限重渲）与排空（`drainQueue`）只作用于前台会话的队列项。**v1.13 拖拽排序** `reorderQueued(fromId, toIndex)`：`toIndex` 是**前台会话子序列内**的下标，实现先取子序列重排、再按原槽位写回完整数组——直接对全局下标 splice 会把别的会话条目挤错位。
 - **壳层 UI 状态归 shellUi**：窗口摆法（rail / dock / 终端面板 / 任务中心 / 设置弹窗 / 命令面板 / 单色模式）只进 `shellUi.ts`，不进组件 useState —— 标题条按钮、快捷键、侧栏按钮三方共享同一状态；paletteOpen 由 `useCommandPaletteShortcut`（⌘K）与标题条按钮共用。
-- **`token_count` 有两种语义，靠 `turn_total` 区分（v1.x）**：引擎逐次模型调用发一条**单次调用快照**（`turn_total` 缺省 `false`），回合收尾再发一条**本回合累计**（`turn_total = true`，数字 = 本回合逐次调用的累计）。reducer 只把 `false` 的事件累加进 `sessionTotal` / `sessionCost`（一并累计会让会话总量与费用翻倍），且回合累计**不覆盖**「最后一次调用」快照（`input` / `output` / `cached` / `cacheWrite` / `total`）—— 后者是上下文占比的判据。回合级累计另存 `tokens.turn`（按 `event.id` 归零，回合收尾时由引擎的累计事件校准），供「本回合缓存命中率」使用。改 `token_count` 分支前先读 `agent/tokenTypes.ts` 的口径注释。
+- **`token_count` 有两种语义，靠 `turn_total` 区分（v1.x）**：引擎逐次模型调用发一条**单次调用快照**（`turn_total` 缺省 `false`），回合收尾再发一条**本回合累计**（`turn_total = true`，数字 = 本回合逐次调用的累计）。reducer 只把 `false` 的事件累加进 `sessionTotal` / `sessionCost`（一并累计会让会话总量与费用翻倍），且回合累计**不覆盖**「最后一次调用」快照（`input` / `output` / `cached` / `cacheWrite` / `total`）—— 后者是上下文占比的判据。回合级累计另存 `tokens.turn`（按 `event.id` 归零，回合收尾时由引擎的累计事件校准），供「本回合缓存命中率」使用。改 `token_count` 分支前先读 `agent/types/tokenTypes.ts` 的口径注释。
 
 ## 禁止事项
 
@@ -56,7 +56,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 
 ## 注意事项
 
-- 专题模块分两目录：`agent/policy/`（审批/权限/思考强度/提示词偏好、plan 工厂、autoCompact、planFailover、guardStats、imageProvenance、promptSwitched 判定）+ `agent/types/`（6 个类型桶文件，`types/index.ts` barrel 兜住 `./types` 导入）；queue（队列 actions 工厂，按会话隔离）/ servers / toast 等机制模块仍留 `agent/` 根，各自 `.test.ts` 就近，职责以文件头注释为准。
+- 专题模块分两目录：`agent/policy/`（审批/权限/思考强度/提示词偏好、plan 工厂、autoCompact、planFailover、guardStats、imageProvenance、promptSwitched 判定）+ `agent/types/`（6 个类型桶文件，`agent/types/index.ts` barrel 兜住 `./types` 导入）；queue（队列 actions 工厂，按会话隔离）/ servers / toast 等机制模块仍留 `agent/` 根，各自 `.test.ts` 就近，职责以文件头注释为准。
 - StrictMode 双 mount 的重复订阅由 `subscribe()` 幂等保证，consumer 侧不要再加防抖或单例守卫。
 
 ## 深入阅读
