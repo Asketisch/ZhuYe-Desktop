@@ -55,6 +55,12 @@ function wrap(node: React.ReactNode) {
 describe('AppShell collapse behavior', () => {
   beforeEach(() => {
     resetMockInvoke();
+    // 侧栏底部版本 / 更新提示所依赖的命令（resetMockInvoke 会清掉全局默认 stub）。
+    mockInvoke('ping', async () => ({ msg: 'pong', version: '0.1.0' }));
+    mockInvoke('zhuye_check_update', async () => ({
+      currentVersion: '0.1.0', latestVersion: '0.1.0', updateAvailable: false,
+      releaseUrl: null, releaseNotes: null, probedAt: 0, error: null,
+    }));
     navigate.mockClear();
     route.pathname = '/';
     useAgentStore.getState().reset();
@@ -224,5 +230,37 @@ describe('AppShell collapse behavior', () => {
     // .app 的第一个子元素应当是 titlebar。
     const shell = container.firstChild as HTMLElement;
     expect(shell.firstChild).toBe(titlebar);
+  });
+
+  // 侧栏底部：设置入口整行可点，下方展示版本；点击设置仍打开设置弹窗。
+  it('sidebar footer shows full-width settings entry with version', async () => {
+    mockInvoke('ping', async () => ({ msg: 'pong', version: '9.8.7' }));
+    render(wrap(<AppShell />));
+    const settings = screen.getByTestId('harness-settings');
+    expect(settings.textContent).toContain('Settings');
+    expect(await screen.findByText('Version 9.8.7')).toBeDefined();
+    fireEvent.click(settings);
+    expect(useShellUi.getState().settingsOpen).toBe(true);
+  });
+
+  // 有更新时展示提示，点击提示直达设置页（发布说明 / 安装在设置里）。
+  it('sidebar footer surfaces an available update and opens settings', async () => {
+    mockInvoke('zhuye_check_update', async () => ({
+      currentVersion: '0.1.0', latestVersion: '2.0.0', updateAvailable: true,
+      releaseUrl: 'https://example.test/release', releaseNotes: '',
+      probedAt: 0, error: null,
+    }));
+    render(wrap(<AppShell />));
+    const hint = await screen.findByTestId('harness-update-hint');
+    expect(hint.textContent).toContain('2.0.0');
+    fireEvent.click(hint);
+    expect(useShellUi.getState().settingsOpen).toBe(true);
+  });
+
+  // 探测失败（离线 / 返回 null）时不显示提示——不谎报「已是最新」。
+  it('sidebar footer hides update hint when probe fails', async () => {
+    mockInvoke('zhuye_check_update', async () => null);
+    render(wrap(<AppShell />));
+    await waitFor(() => expect(screen.queryByTestId('harness-update-hint')).toBeNull());
   });
 });

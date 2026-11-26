@@ -208,6 +208,16 @@ beforeEach(() => {
 
   // ping
   mockInvoke('ping', async () => ({ msg: 'pong', version: '0.1.0' }));
+  // 侧栏底部版本 / 更新提示：默认「已是最新」，单测可按需 override。
+  mockInvoke('zhuye_check_update', async () => ({
+    currentVersion: '0.1.0',
+    latestVersion: '0.1.0',
+    updateAvailable: false,
+    releaseUrl: null,
+    releaseNotes: null,
+    probedAt: 0,
+    error: null,
+  }));
 });
 
 // ====== 模拟 @tauri-apps/api/core ======

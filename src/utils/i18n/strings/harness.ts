@@ -43,6 +43,8 @@ const harness: Record<string, StringEntry> = {
   'harness.title.mono':          { en: 'Toggle monochrome mode',        'zh-CN': '单色 / 语义色' },
   'harness.title.theme':         { en: 'Toggle light / dark theme',     'zh-CN': '亮色 / 暗色主题' },
   'harness.title.settings':      { en: 'Settings',                      'zh-CN': '设置' },
+  'harness.version':             { en: 'Version {version}',              'zh-CN': '版本 {version}' },
+  'harness.updateAvailable':     { en: 'Update available · v{version}',  'zh-CN': '有可用更新 · v{version}' },
   'harness.mono.on':             { en: 'Semantic colors restored',      'zh-CN': '已恢复语义色' },
   'harness.mono.off':            { en: 'Monochrome · semantic colors neutralized', 'zh-CN': '单色模式 · 语义色已中和' },
   'harness.theme.dark':          { en: 'Dark theme',                    'zh-CN': '暗色主题' },

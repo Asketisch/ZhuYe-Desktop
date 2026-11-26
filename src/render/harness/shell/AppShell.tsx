@@ -92,14 +92,33 @@ export function AppShell({
           <div className="sb-foot">
             <button
               type="button"
-              className="tb-btn"
+              className="sb-foot-settings"
               title={t('harness.title.settings')}
               aria-label={t('harness.title.settings')}
               onClick={data.openSettings}
               data-testid="harness-settings"
             >
               <Icon icon={Settings} size={15} />
+              <span className="sb-foot-settings-label">{t('harness.title.settings')}</span>
             </button>
+            <div className="sb-foot-status" aria-live="polite">
+              <div className="sb-foot-status-line">
+                <span className="sb-foot-dot sb-foot-dot-ok" />
+                <span className="mono">{t('harness.version', { version: data.version })}</span>
+              </div>
+              {data.updateVersion && (
+                <button
+                  type="button"
+                  className="sb-foot-status-line sb-foot-update"
+                  onClick={data.openSettings}
+                  data-testid="harness-update-hint"
+                  title={t('harness.updateAvailable', { version: data.updateVersion })}
+                >
+                  <span className="sb-foot-dot sb-foot-dot-update" />
+                  <span>{t('harness.updateAvailable', { version: data.updateVersion })}</span>
+                </button>
+              )}
+            </div>
           </div>
         </aside>
 

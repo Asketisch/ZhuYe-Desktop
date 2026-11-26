@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from '@tanstack/react-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType, ReactNode } from 'react';
 import type { ShellSlots, ShellViewProps, ShellViewMode } from '@/contracts/harness/shell';
 import { useSessions, useActiveSession } from '@/logic/conversation/sessions/useSessions';
@@ -10,7 +10,7 @@ import { useShellUi } from '@/stores/shellUi';
 import { confirmDialog } from '@/logic/harness/modals/confirm';
 import { useI18n } from '@/utils/i18n';
 import { useAgentNotifications, loadNotifyOptions } from '@/utils/notify';
-import { zhuye_pick_workspace_folder, zhuye_set_workspace, zhuye_remove_workspace } from '@/utils/commands';
+import { ping, zhuye_check_update, zhuye_pick_workspace_folder, zhuye_set_workspace, zhuye_remove_workspace } from '@/utils/commands';
 import { useAgentStore } from '@/stores/agentStore';
 import { useThemeCycle } from '@/logic/harness/shell/useThemeCycle';
 import { useCommandPaletteShortcut } from '@/logic/harness/shell/useCommandPaletteShortcut';
@@ -266,6 +266,21 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
   // 「更多」菜单已移除（旧路由页入口待重新决策）；路由跳转仍由
   // navigate 供侧栏固定项使用。
   const harnessNavigate = useCallback((to: string) => { void router.navigate({ to }); }, [router]);
+  // 侧栏底部版本 / 更新提示：版本走本地 ping，更新走既有 releases 探测。
+  // 探测失败（离线 / 非 200）时 query 数据为 null 或 error，一律不显示提示——
+  // 宁可没有提示，也不谎报「已是最新」。
+  const pingQuery = useQuery({ queryKey: ['ping'], queryFn: ping, staleTime: Infinity, retry: false });
+  const updateQuery = useQuery({
+    queryKey: ['update-check'],
+    queryFn: zhuye_check_update,
+    staleTime: 30 * 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const version = pingQuery.data?.version ?? '—';
+  const updateVersion = updateQuery.data?.updateAvailable && updateQuery.data.latestVersion
+    ? updateQuery.data.latestVersion
+    : null;
   const harnessData = useMemo(() => ({
     t,
     viewMode,
@@ -273,10 +288,12 @@ export function ShellBinding({ view: View, slots, content }: { view: ComponentTy
     navigate: harnessNavigate,
     pathname,
     openSettings: () => ui.setSettingsOpen(true),
+    version,
+    updateVersion,
     badges,
     pendingCount,
     runningCount,
-  }), [t, viewMode, workspaceLabel, pathname, harnessNavigate, ui.setSettingsOpen, badges, pendingCount, runningCount]);
+  }), [t, viewMode, workspaceLabel, pathname, harnessNavigate, ui.setSettingsOpen, version, updateVersion, badges, pendingCount, runningCount]);
 
   // harness 快捷键（⌘\ / ⌘` / dock 档位 / 任务中心 / 单色 / 主题 …）。
   useHarnessShortcuts({

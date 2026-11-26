@@ -4,6 +4,8 @@
 
 ## 未发布
 
+- **侧栏左下角改成整行设置按钮 + 版本 / 更新状态**：原先孤立的 26px 齿轮按钮改为铺满侧栏宽度的横向入口（齿轮 + 「设置」文案），点击下方新增状态行——绿点 + 当前版本号（`ping`），有可用更新时再显示琥珀点 + `有可用更新 · vX.Y.Z`（点击打开设置页的更新分区）。探测失败 / 离线时不显示更新提示，不谎报「已是最新」；rail 收起态只保留齿轮，状态行隐藏。版本与更新检查分别复用 `ping` / `zhuye_check_update`，无新增命令；`ShellBinding` 供数经 `HarnessData` 新增 `version` / `updateVersion` 两字段传给纯展示视图。补 3 个交互测试（整行入口与版本、更新提示点击、探测失败不显示）；顺手修复视觉构建入口 `tests/visual/main.tsx` 两处 v3 重组遗留的旧 import 路径（`RendererProvider` / `bootstrapAppearance`），`vite build --config vite.config.visual.ts` 已可产出并截图核对效果。
+
 - **submodule 前移 `9e96988` → `991ab86b`（v0.1.17）—— 引擎目录大重组，桌面 4 处模块路径适配**：上游 37 提交里 30 个是把 45 个 crate 的内部实现按职责分入子目录（`zhuye-llm/billing`、`zhuye-memory/{insight,lifecycle,retrieval,storage}`、`zhuye-tools/{builtins,guards,checkpoint,interaction,execution,fs,web,human,plan,exec,meta}`、`zhuye-mcp/{protocol,protocol_ext,client,tools,catalog}`、`zhuye-lsp/{protocol,session}`、`zhuye-config/model_discovery` 等），`crates/protocol/` 零变更（`Op` / `EventMsg` / `Submission` 线格式不动），前端零改动。桌面适配 4 处「模块搬家、根级 re-export 未覆盖」：`app-core/src/worktree.rs` 的 `zhuye_tools::worktree::worktree_dirty` → 根级 `zhuye_tools::worktree_dirty`；`commands/lsp.rs` 的 `zhuye_lsp::matching` → `zhuye_lsp::session::matching`；`commands/mcp.rs` 的 `zhuye_mcp::registry` → `zhuye_mcp::catalog::registry`；`state/{install,reload}.rs` 的 `zhuye_config::discovery` → `zhuye_config::model_discovery`。同批带入上游行为修复（桌面均零适配）：大输出回执改头尾各半并标注总字节数与头尾偏移、bash 新增 `stdout_truncated` / `stderr_truncated` 且落盘文案改「已捕获输出」（`056f13a5`）；压缩管线四缺陷修复——单行超长内容绕过字符预算、快速回填守卫误用 `below_trigger`、手动强制压缩静默失效、`Skip` 不推进窗口锚点（`53909596`）；项目描述进默认提示词（`c80b6e26`）。
 
 - **前端四层按 9 域族同构收拢，目录扇出全部落进渐进披露预算**：

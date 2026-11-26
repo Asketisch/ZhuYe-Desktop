@@ -45,6 +45,10 @@ export interface HarnessData {
   navigate: (to: string) => void;
   /** 打开设置弹窗。 */
   openSettings: () => void;
+  /** 当前应用版本（ping 上报；离线或未知时为 `—`）。 */
+  version: string;
+  /** 可用更新的版本号；`null` = 已是最新 / 探测失败 / 离线。 */
+  updateVersion: string | null;
   /** 每会话徽标（运行态 / 待办 / 未读）。 */
   badges: Record<string, SessionBadge>;
   /** 待处理会话数（任务中心角标）。 */
