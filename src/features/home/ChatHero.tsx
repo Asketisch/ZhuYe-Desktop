@@ -8,7 +8,7 @@
  * 散落在首页与会话内两处。
  */
 import { useI18n } from '@/utils/i18n';
-import { useCurrentWorkspace } from '@/features/shell/hooks/useCurrentWorkspace';
+import { useCurrentWorkspace } from '@/logic/shell/useCurrentWorkspace';
 import { isPlaceholderWorkspace } from '@/logic/sessions/workspaceGroups';
 import { ZhuyeEmblem } from './ZhuyeEmblem';
 import s from '@/render/home/ChatHero.module.css';

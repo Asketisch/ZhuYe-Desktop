@@ -10,7 +10,7 @@ import { TriangleAlert, WandSparkles } from 'lucide-react';
 import { Icon } from '@/features/design-system';
 import { useAgentStore } from '@/stores/agentStore';
 import { useI18n } from '@/utils/i18n';
-import { useContextRatio } from '@/features/shell/useContextRatio';
+import { useContextRatio } from '@/logic/shell/useContextRatio';
 import s from '@/render/messages/ContextBanner.module.css';
 
 export function ContextBanner() {

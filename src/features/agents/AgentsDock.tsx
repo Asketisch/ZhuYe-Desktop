@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { RefreshCw, Wrench } from 'lucide-react';
 import { useI18n } from '@/utils/i18n';
-import { useContextRatio } from '@/features/shell/useContextRatio';
+import { useContextRatio } from '@/logic/shell/useContextRatio';
 import { useAgentsDock, formatDuration, type AgentsDockRecord, type AgentsDockTool } from '@/logic/agents/useAgentsDock';
 
 /** 会话短 id（侧栏同款口径:uuid 前 8 位）。 */
