@@ -14,8 +14,8 @@ export interface ChatSlots {
   ContextBanner: ComponentType;
   TrajView: ComponentType;
   SessionDock: ComponentType<{ goalActive: boolean; goalText: string; turnRunning: boolean }>;
-  /** 右上角浮动状态面板（目标 / 计划 / 进程）。 */
-  StatusPanel: ComponentType<{ goalActive: boolean; goalText: string; turnRunning: boolean }>;
+  /** 会话区的折叠胶囊（目标 / 进程 / 上下文；v1.13 取代原 300px 右列）。 */
+  SessionCapsule: ComponentType<{ goalActive: boolean; turnRunning: boolean }>;
   ApprovalTakeover: ComponentType<{ approval: PendingApproval }>;
   QuestionTakeover: ComponentType<{ question: PendingQuestion }>;
   AskUserTakeover: ComponentType<{ askUser: PendingAskUser }>;

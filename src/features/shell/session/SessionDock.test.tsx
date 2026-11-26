@@ -1,9 +1,10 @@
 /**
- * SessionDock + StatusPanel —— 会话内速控行与右上角状态面板测试。
+ * SessionDock + SessionCapsule —— 会话内速控行与折叠胶囊测试。
  *
- * 架构：任务清单 / 目标 / 计划 三块在右上角浮动状态面板（StatusPanel，
- * 分节 + mini 胶囊）；子代理 / 建议 / 排队 留在 composer 上方的 chips 行
- * （SessionDock）。本文件同时钉住两块的行为。
+ * 架构（v1.13）：任务清单 / 目标 / 上下文 三块收进**会话区的折叠胶囊**
+ * （SessionCapsule，收起=单行摘要 / 展开=分节面板）；计划正文仍在右 dock
+ * 的「计划」标签页，胶囊里只给跳转入口。子代理 / 排队留在 composer 上方
+ * 的 chips 行（SessionDock）。本文件同时钉住两块的行为。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
@@ -11,7 +12,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/utils/i18n';
 import { createTestQueryClient } from '@/test/setup';
 import { SessionDock } from '@/features/shell/session/SessionDock';
-import { StatusPanel } from '@/features/shell/session/StatusPanel';
+import { SessionCapsule } from '@/features/shell/session/SessionCapsule';
 import { useAgentStore } from '@/stores/agentStore';
 import { resetMockInvoke, mockInvoke } from '@/test/setup.tsx';
 
@@ -23,15 +24,11 @@ function renderDock() {
   );
 }
 
-function renderPanel(props: { goalActive?: boolean; goalText?: string } = {}) {
+function renderCapsule(props: { goalActive?: boolean } = {}) {
   return render(
     <I18nProvider>
       <QueryClientProvider client={createTestQueryClient()}>
-        <StatusPanel
-          goalActive={props.goalActive ?? false}
-          goalText={props.goalText ?? ''}
-          turnRunning={false}
-        />
+        <SessionCapsule goalActive={props.goalActive ?? false} turnRunning={false} />
       </QueryClientProvider>
     </I18nProvider>,
   );
@@ -56,12 +53,9 @@ describe('SessionDock · 会话内速控行', () => {
     expect(screen.getByTestId('session-dock-subagents')).toBeTruthy();
   });
 
-  it('建议 chip 常驻，展开后列出快捷 prompt', () => {
+  it('v1.13:不再有「建议」chip（模板统一收进「+」菜单的二级目录）', () => {
     renderDock();
-    const chip = screen.getByTestId('session-dock-suggestions');
-    expect(chip).toBeTruthy();
-    fireEvent.click(chip);
-    expect(screen.getByTestId('corner-suggestions-body')).toBeTruthy();
+    expect(screen.queryByTestId('session-dock-suggestions')).toBeNull();
   });
 
   it('无排队消息时不出排队 chip', () => {
@@ -69,7 +63,7 @@ describe('SessionDock · 会话内速控行', () => {
     expect(screen.queryByTestId('session-dock-queue')).toBeNull();
   });
 
-  it('不再承载任务 / 目标 chips（已迁移到状态面板）', () => {
+  it('不再承载任务 / 目标 chips（已迁移到折叠胶囊）', () => {
     useAgentStore.setState({
       todos: [{ content: '任务一', status: 'pending' }],
     });
@@ -79,7 +73,7 @@ describe('SessionDock · 会话内速控行', () => {
   });
 });
 
-describe('StatusPanel · 常驻工作台右列', () => {
+describe('SessionCapsule · 会话区折叠胶囊', () => {
   beforeEach(() => {
     resetMockInvoke();
     localStorage.clear();
@@ -88,14 +82,21 @@ describe('StatusPanel · 常驻工作台右列', () => {
   });
   afterEach(() => cleanup());
 
-  it('非 goal 模式不显示「目标」段（面板信息按需出现，空闲态只留面板级空态提示）', () => {
-    renderPanel();
-    expect(screen.getByTestId('workbench-panel')).toBeTruthy();
-    expect(screen.getByText(/Nothing running yet/)).toBeTruthy();
-    // 空闲态不常驻「目标」空段（含 /goal 引导按钮）—— 输入唯一入口是 composer /goal。
-    expect(screen.queryByTestId('status-panel-goal')).toBeNull();
-    expect(screen.queryByTestId('corner-goal-form')).toBeNull();
-    expect(screen.queryByTestId('corner-goal-fill-slash')).toBeNull();
+  it('空闲态不占位（没有内容就没有胶囊）', () => {
+    renderCapsule();
+    expect(screen.queryByTestId('session-capsule')).toBeNull();
+  });
+
+  it('有 todo 时出胶囊；收起只显单行摘要，展开才出分节', () => {
+    useAgentStore.setState({
+      todos: [{ content: '任务一', status: 'pending' }],
+    });
+    renderCapsule();
+    expect(screen.getByTestId('session-capsule')).toBeTruthy();
+    // 收起态：分节内容不渲染。
+    expect(screen.queryByTestId('capsule-todo-row')).toBeNull();
+    fireEvent.click(screen.getByTestId('session-capsule-summary'));
+    expect(screen.getByTestId('capsule-todo-row')).toBeTruthy();
   });
 
   it('进程节直接列出 todo 三态与完成计数', () => {
@@ -105,8 +106,9 @@ describe('StatusPanel · 常驻工作台右列', () => {
         { content: '写实现', status: 'in_progress', active_form: '正在写实现' },
       ],
     });
-    renderPanel();
-    expect(screen.getAllByTestId('status-panel-todo-row').length).toBe(2);
+    renderCapsule();
+    fireEvent.click(screen.getByTestId('session-capsule-summary'));
+    expect(screen.getAllByTestId('capsule-todo-row').length).toBe(2);
     expect(screen.getByText('读需求')).toBeTruthy();
     expect(screen.getByText('正在写实现')).toBeTruthy();
     expect(screen.getByText('1/2')).toBeTruthy();
@@ -121,38 +123,27 @@ describe('StatusPanel · 常驻工作台右列', () => {
         started_at: new Date(Date.now() - 90_000).toISOString(), turns: [],
       },
     } as never);
-    renderPanel({ goalActive: true, goalText: '把功能做完' });
-    const elapsed = screen.getByTestId('status-panel-goal-elapsed');
+    renderCapsule({ goalActive: true });
+    fireEvent.click(screen.getByTestId('session-capsule-summary'));
+    const elapsed = screen.getByTestId('capsule-goal-elapsed');
     expect(elapsed.textContent).toContain('⏱');
     expect(elapsed.textContent).toContain('分');
   });
 
-  it('有 plan 终稿时「计划」节可见，点击打开 dock 计划标签页', () => {
+  it('有 plan 终稿时给跳转入口，点击打开 dock 计划标签页', () => {
     useShellUiSetForTest();
     useAgentStore.setState({
       todos: [{ content: '任务一', status: 'pending' }],
       plan: { planId: 'p1', markdown: '# 实施计划\n\n第一步', status: 'ready' },
     } as never);
-    renderPanel();
-    expect(screen.getByTestId('status-panel-plan')).toBeTruthy();
+    renderCapsule();
+    fireEvent.click(screen.getByTestId('session-capsule-summary'));
+    expect(screen.getByTestId('capsule-plan')).toBeTruthy();
     expect(screen.getByText('实施计划')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('status-panel-plan'));
+    fireEvent.click(screen.getByTestId('capsule-plan'));
     expect(useShellUiGet().dockOpen).toBe(true);
     expect(useShellUiGet().dockTabs.some((tab) => tab.kind === 'plan')).toBe(true);
     expect(useShellUiGet().dockActiveId).toBe('plan');
-  });
-
-  it('可折叠为窄条并可展开（collapse / expand）', () => {
-    useAgentStore.setState({
-      todos: [{ content: '任务一', status: 'pending' }],
-    });
-    renderPanel();
-    expect(screen.getByTestId('workbench-panel')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('status-panel-collapse'));
-    expect(screen.getByTestId('workbench-collapsed')).toBeTruthy();
-    expect(screen.queryByTestId('workbench-panel')).toBeNull();
-    fireEvent.click(screen.getByTestId('workbench-expand'));
-    expect(screen.getByTestId('workbench-panel')).toBeTruthy();
   });
 
   it('上下文容量节：总进度 + 缓存命中率（有 token 上报时）', () => {
@@ -175,10 +166,11 @@ describe('StatusPanel · 常驻工作台右列', () => {
       },
       contextWindowSize: 100_000,
     } as never);
-    renderPanel();
-    expect(screen.getByTestId('status-panel-context')).toBeTruthy();
-    expect(screen.getByTestId('status-panel-context-pct').textContent).toBe('2%');
-    expect(screen.getByTestId('status-panel-cache-hit').textContent).toBe('80%');
+    renderCapsule();
+    fireEvent.click(screen.getByTestId('session-capsule-summary'));
+    expect(screen.getByTestId('capsule-context')).toBeTruthy();
+    expect(screen.getByTestId('capsule-context-pct').textContent).toBe('2%');
+    expect(screen.getByTestId('capsule-cache-hit').textContent).toBe('80%');
   });
 });
 /* ---- shellUi 测试辅助（避免直接 import store 类型噪音） ---- */

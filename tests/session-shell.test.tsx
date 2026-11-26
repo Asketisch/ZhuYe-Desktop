@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { SessionDock } from '@/features/shell/session/SessionDock';
-import { StatusPanel } from '@/features/shell/session/StatusPanel';
+import { SessionCapsule } from '@/features/shell/session/SessionCapsule';
 import { ApprovalTakeover } from '@/features/shell/session/Takeovers';
 import { TrajView } from '@/features/shell/session/TrajView';
 import { deriveTrajEntries } from '@/features/shell/session/traj';
@@ -32,24 +32,26 @@ describe('SessionDock', () => {
     mockInvoke('zhuye_credential_pool_status', async () => []);
   });
 
-  it('无排队时不出排队 chip；任务/目标已迁移到状态面板，本行不再承载', () => {
+  it('无排队时不出排队 chip；任务/目标已迁移到折叠胶囊，本行不再承载', () => {
     useAgentStore.setState({ todos: [], queuedMessages: [], goalActive: false });
     const { container } = mount(<SessionDock goalActive={false} goalText="" turnRunning={false} />);
     expect(container.querySelector('[data-testid="session-dock-todo"]')).toBeNull();
     expect(container.querySelector('[data-testid="session-dock-queue"]')).toBeNull();
-    // 任务 / 目标在右上角状态面板（StatusPanel）；本行只留子代理 / 建议 / 排队。
+    // 任务 / 目标在会话区折叠胶囊（SessionCapsule）；本行只留子代理 / 排队。
     expect(container.querySelector('[data-testid="session-dock-goal"]')).toBeNull();
-    expect(container.querySelector('[data-testid="session-dock-suggestions"]')).not.toBeNull();
+    // v1.13:「建议」chip 已移除（模板统一收进「+」菜单的二级目录）。
+    expect(container.querySelector('[data-testid="session-dock-suggestions"]')).toBeNull();
   });
 
-  it('todo 清单在状态面板的「进程」节中列出三态', () => {
+  it('todo 清单在折叠胶囊的「进程」节中列出三态', () => {
     const todos: TodoItem[] = [
       { content: '定位根因', status: 'completed', active_form: null },
       { content: 'NT 收口', status: 'in_progress', active_form: '收口中' },
       { content: '回归', status: 'pending', active_form: null },
     ];
     useAgentStore.setState({ todos, queuedMessages: [], goalActive: false });
-    mount(<StatusPanel goalActive={false} goalText="" turnRunning={false} />);
+    mount(<SessionCapsule goalActive={false} turnRunning={false} />);
+    fireEvent.click(screen.getByTestId('session-capsule-summary'));
     expect(screen.getByText('1/3')).toBeTruthy();
     expect(screen.getByText('收口中')).toBeTruthy();
     expect(screen.getAllByText('定位根因').length).toBeGreaterThanOrEqual(1);

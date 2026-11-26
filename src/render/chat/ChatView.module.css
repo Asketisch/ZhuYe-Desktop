@@ -124,13 +124,19 @@
 }
 .chatpane {
   position: relative;
-  /* 会话列 + 常驻工作台右列的横向 flex。 */
+  /* 会话主列（原「会话列 + 常驻工作台右列」的右列已收进浮动胶囊）。 */
   container: conversation / inline-size;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  /* 禁止横向滚动:输入卡里的 tooltip 是绝对定位浮层(隐藏时仍占布局),
+   * 靠右的触发点会把 scrollWidth 撑出容器 —— 此时点击/聚焦容器内靠右的
+   * 元素会让浏览器把整个对话列横向滚过去,表现为「界面整体左移一截」。
+   * 纵向保持 visible(胶囊浮层可越出内容区)。 */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 /* 会话主列（横幅 / 消息区 / chips / composer 都在这里）。 */

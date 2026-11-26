@@ -8,7 +8,7 @@ import { ContextBanner } from './ContextBanner';
 import { DiffViewer } from '@/features/git/DiffViewer';
 import { WorkHead, ViewRing } from '@/features/shell/session/WorkHead';
 import { SessionDock } from '@/features/shell/session/SessionDock';
-import { StatusPanel } from '@/features/shell/session/StatusPanel';
+import { SessionCapsule } from '@/features/shell/session/SessionCapsule';
 import { ApprovalTakeover, QuestionTakeover, AskUserTakeover } from '@/features/shell/session/Takeovers';
 import { TrajView } from '@/features/shell/session/TrajView';
 import { BottomTabs } from '@/features/shell/session/BottomTabs';
@@ -16,7 +16,7 @@ import { SubagentViewer } from './SubagentViewer';
 
 export { editRewindTargetFor } from '@/logic/chat/ChatBinding';
 const slots = { MessageList, Composer, ChatHero, ContextBanner,
-  DiffViewer, WorkHead, ViewRing, SessionDock, StatusPanel, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
+  DiffViewer, WorkHead, ViewRing, SessionDock, SessionCapsule, ApprovalTakeover, QuestionTakeover, AskUserTakeover,
   TrajView, BottomTabs, SubagentViewer };
 
 export function ChatView() {
