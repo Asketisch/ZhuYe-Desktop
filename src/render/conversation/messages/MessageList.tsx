@@ -1,5 +1,5 @@
-import { Brain, Wrench, AlertTriangle, MessageSquare, FileDiff, GitBranch, RotateCcw, Pencil, RefreshCw, ChevronsRight } from 'lucide-react';
-import type { MessageListSlots, MessageListViewProps, Turn } from '@/contracts/conversation/messageList';
+import { Wrench, AlertTriangle, MessageSquare, FileDiff, GitBranch, RotateCcw, Pencil, RefreshCw, ChevronsRight } from 'lucide-react';
+import type { MessageListSlots, MessageListViewProps, Turn, TurnItem } from '@/contracts/conversation/messageList';
 import { Icon } from '@/render/harness/design-system/Icon';
 import { IconButton } from '@/render/harness/design-system/IconButton';
 import { groupToolNodes, isSubagentFollowUp, type RenderNode } from './activityGrouping';
@@ -96,6 +96,7 @@ function TurnView({
           // 是后到的,同一节点从无到有）。
           key={`${i}-${node.kind === 'tool' && node.output?.diff ? 'diff' : node.kind}`}
           node={node}
+          turn={turn}
           turnStatus={turn.status}
           t={t}
           slots={slots}
@@ -163,8 +164,14 @@ function TurnView({
   );
 }
 
-function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus: Turn['status']; t: MessageListViewProps['t']; slots: MessageListSlots }) {
-  const { ToolCell, ToolOutputBody, UserAttachments, Collapsible, ToolGroup, ActivityGroup } = slots;
+function ItemView({ node, turn, turnStatus, t, slots }: { node: RenderNode; turn: Turn; turnStatus: Turn['status']; t: MessageListViewProps['t']; slots: MessageListSlots }) {
+  const { ToolCell, ToolOutputBody, UserAttachments, Collapsible, ToolGroup, ActivityGroup, ThinkingCollapsible } = slots;
+
+  // 思考条目是否仍在流式生成:turn 还在 streaming 且该条目就是轮内末条
+  // （thinking_delta 一直追加到末条;一旦工具/正文落位即不再是末条）。
+  // `<think>` 拆段合成的条目不是 store 对象,恒判为已结束。
+  const isThinkingStreaming = (item: TurnItem) =>
+    turnStatus === 'streaming' && turn.items[turn.items.length - 1] === item;
 
   if (node.kind === 'activityGroup') {
     // 工具 + 思考混合段：思考不打断工具流,同组折叠（对话式 agent 产品惯例）。
@@ -177,7 +184,17 @@ function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus
       <ActivityGroup entries={entryMeta}>
         {node.entries.map((entry, i) =>
           entry.kind === 'thinking' ? (
-            <ThinkingCollapsible key={`th-${i}-${entry.item.text.length}`} text={entry.item.text} compact summaryLabel={entry.item.variant === 'summary'} t={t} Collapsible={Collapsible} />
+            // key 不再掺 text.length —— 思考块升级为有状态组件（时长摘要 +
+            // 吸底滚动），文本每增一点就重挂会把展开态/滚动位置打回原点。
+            <ThinkingCollapsible
+              key={`th-${i}`}
+              text={entry.item.text}
+              streaming={isThinkingStreaming(entry.item)}
+              startedAt={entry.item.startedAt}
+              endedAt={entry.item.endedAt}
+              summaryLabel={entry.item.variant === 'summary'}
+              compact
+            />
           ) : (
             <ToolCell
               key={entry.call.callId}
@@ -283,10 +300,14 @@ function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus
       // F50:summary(推理摘要)与 raw(流式思考)区分渲染 —— 语义不同,
       // 摘要带专属标签(与引擎 ThinkingDeltaKind::Summary →
       // ReasoningSummary 的路由语义一致)。
-      return item.variant === 'summary' ? (
-        <ThinkingCollapsible text={item.text} summaryLabel t={t} Collapsible={slots.Collapsible} />
-      ) : (
-        <ThinkingCollapsible text={item.text} t={t} Collapsible={slots.Collapsible} />
+      return (
+        <ThinkingCollapsible
+          text={item.text}
+          streaming={isThinkingStreaming(item)}
+          startedAt={item.startedAt}
+          endedAt={item.endedAt}
+          summaryLabel={item.variant === 'summary'}
+        />
       );
 
     case 'tool_output': {
@@ -337,31 +358,9 @@ function UserBubble({ text, CopyButton }: { text: string; CopyButton: MessageLis
   );
 }
 
-/** 思考过程折叠块（ThinkingDelta 事件与正文 <think> 分段共用）。
- *  文字用弱化色 —— 思考与正式输出视觉分级。compact=活动组内的单行态。 */
-function ThinkingCollapsible({ text, defaultOpen = false, summaryLabel = false, compact = false, t, Collapsible }: {
-  text: string; defaultOpen?: boolean; summaryLabel?: boolean; compact?: boolean;
-  t: MessageListViewProps['t']; Collapsible: MessageListSlots['Collapsible'];
-}) {
-  const snippet = text.slice(0, 60).replace(/\s+/g, ' ');
-  const label = summaryLabel
-    ? t('chat.thinkingSummary')
-    : text.length > 60
-      ? t('chat.thinkingWith', { snippet })
-      : t('chat.thinking');
-  return (
-    <div className={compact ? s.thinkingCompact : undefined}>
-      <Collapsible
-        icon={<Icon icon={Brain} size={13} />}
-        accent={summaryLabel ? 'success' : 'info'}
-        defaultOpen={defaultOpen}
-        label={label}
-      >
-        <pre className={`${s.monoText} ${s.thinkingText}`}>{text}</pre>
-      </Collapsible>
-    </div>
-  );
-}
+/** 思考过程折叠块已升级为有状态切片组件 `features/conversation/messages/
+ *  ThinkingCollapsible.tsx`（时长摘要 + 流式吸底滚动，经 slots 注入）——
+ *  render 层保持纯展示，不在此地持有展开态与滚动编排。 */
 
 function AssistantBubble({ text, streaming, slots }: { text: string; streaming: boolean; slots: MessageListSlots }) {
   const { Markdown, CopyButton } = slots;

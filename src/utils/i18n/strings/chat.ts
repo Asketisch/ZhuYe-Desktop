@@ -47,8 +47,12 @@ const chat: Record<string, StringEntry> = {
   'chat.backgroundBadgeRunning':   { en: 'Running in background',                                             'zh-CN': '后台运行中' },
   'chat.backgroundBadgePending':   { en: '{n} pending confirmation(s)',                                       'zh-CN': '{n} 项待确认' },
   'chat.sessionBadgeRunning':      { en: 'Running',                                                           'zh-CN': '运行中' },
+  // 思考折叠块标签（对齐 ZCode Reasoning）：流式「思考中」（扫光），
+  // 结束「思考 持续了 N 秒」；无打点（回放 / <think> 合成条目）回退「几秒」。
   'chat.thinking':                 { en: 'thinking',                                                          'zh-CN': '思考中' },
-  'chat.thinkingWith':             { en: 'thinking: {snippet}',                                               'zh-CN': '思考中: {snippet}' },
+  'chat.thinking.thought':         { en: 'thought',                                                           'zh-CN': '思考' },
+  'chat.thinking.durationSeconds': { en: 'lasted {seconds}s',                                                 'zh-CN': '持续了 {seconds} 秒' },
+  'chat.thinking.durationFewSeconds': { en: 'lasted a few seconds',                                           'zh-CN': '持续了几秒' },
   'chat.thinkingSummary':          { en: 'reasoning summary',                                                 'zh-CN': '推理摘要' },
   'chat.output':                   { en: 'output',                                                            'zh-CN': '输出' },
   'chat.outputError':              { en: 'output (error)',                                                    'zh-CN': '输出 (错误)' },

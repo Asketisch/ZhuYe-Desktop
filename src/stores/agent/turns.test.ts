@@ -6,7 +6,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   abortTurnOrLatestStreaming,
+  appendItem,
   finalizeAssistantText,
+  markTurn,
   resetStreamingOutput,
   summarizeToolOutput,
   upsertDelta,
@@ -106,10 +108,65 @@ describe('upsertThinking segment interleaving', () => {
 
   it('starts a new thinking segment after other items', () => {
     const turns = upsertThinking(turnWith(toolCallItem), 't1', 'a');
-    expect(turns[0].items).toEqual([
-      toolCallItem,
-      { kind: 'thinking', text: 'a', variant: 'raw' },
-    ]);
+    expect(turns[0].items[0]).toEqual(toolCallItem);
+    // 新开条目带 startedAt 打点（「思考持续了 N 秒」的计时起点）。
+    expect(turns[0].items[1]).toMatchObject({ kind: 'thinking', text: 'a', variant: 'raw', startedAt: expect.any(Number) });
+  });
+});
+
+// ── 思考起止打点:折叠摘要「思考持续了 N 秒」的数据来源 ────────────────
+
+describe('thinking duration stamping', () => {
+  /** 取轮内第 i 个 item（类型收窄到 thinking）。 */
+  function thinkingAt(turns: Turn[], i = 0) {
+    const item = turns[0].items[i];
+    if (item?.kind !== 'thinking') throw new Error(`item#${i} 不是 thinking`);
+    return item;
+  }
+
+  it('新开条目记录 startedAt;后续增量保留起点', () => {
+    let turns = upsertThinking(turnWith(), 't1', 'a');
+    const startedAt = thinkingAt(turns).startedAt;
+    expect(startedAt).toEqual(expect.any(Number));
+    turns = upsertThinking(turns, 't1', 'b');
+    const item = thinkingAt(turns);
+    expect(item.text).toBe('ab');
+    expect(item.startedAt).toBe(startedAt);
+    expect(item.endedAt).toBeUndefined();
+  });
+
+  it('raw ↔ summary 切换新开条目时终结上一段', () => {
+    let turns = upsertThinking(turnWith(), 't1', 'a', 'raw');
+    const startedAt = thinkingAt(turns).startedAt;
+    turns = upsertThinking(turns, 't1', 's', 'summary');
+    const prev = thinkingAt(turns, 0);
+    expect(prev).toMatchObject({ text: 'a', startedAt, endedAt: expect.any(Number) });
+    expect(thinkingAt(turns, 1)).toMatchObject({ text: 's', variant: 'summary', startedAt: expect.any(Number) });
+    // 新条目未终结:无 endedAt 键(读值为 undefined)。
+    expect(thinkingAt(turns, 1).endedAt).toBeUndefined();
+  });
+
+  it('工具落位即思考终点:appendItem 补记 endedAt', () => {
+    let turns = upsertThinking(turnWith(), 't1', 'a');
+    const startedAt = thinkingAt(turns).startedAt;
+    turns = appendItem(turns, 't1', toolCallItem);
+    const item = thinkingAt(turns);
+    expect(item.startedAt).toBe(startedAt);
+    expect(item.endedAt).toEqual(expect.any(Number));
+    expect(item.endedAt!).toBeGreaterThanOrEqual(item.startedAt!);
+  });
+
+  it('回合收尾仍挂着的思考在此终结:markTurn(done) 补记 endedAt', () => {
+    let turns = upsertThinking(turnWith(), 't1', 'a');
+    turns = markTurn(turns, 't1', 'done');
+    expect(turns[0].items[0]).toMatchObject({ kind: 'thinking', endedAt: expect.any(Number) });
+  });
+
+  it('无打点条目(回放/<think> 合成)不被终结打点污染', () => {
+    // 回放水合的 thinking 没有 startedAt —— 收尾时原样保留,
+    // 渲染层据此回退「持续了几秒」文案。
+    const turns = markTurn(turnWith({ kind: 'thinking', text: 'x' }), 't1', 'done');
+    expect(turns[0].items[0]).toEqual({ kind: 'thinking', text: 'x' });
   });
 });
 

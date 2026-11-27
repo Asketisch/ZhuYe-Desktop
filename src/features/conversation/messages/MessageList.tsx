@@ -5,6 +5,7 @@ import { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup } from './ToolCells'
 import { QueuedMessages } from './QueuedMessages';
 import { UserAttachments } from './UserAttachments';
 import { Collapsible } from './Collapsible';
+import { ThinkingCollapsible } from './ThinkingCollapsible';
 import { TurnChangesCard } from './TurnChangesCard';
 import { Markdown } from '@/components/Markdown';
 import { CopyButton } from './CopyButton';
@@ -22,6 +23,6 @@ export function MessageList(props: MessageListProps = {}) {
   return <MessageListBinding view={View} {...props}
     slots={{
       ToolCell, ToolOutputBody, ToolGroup, ActivityGroup, QueuedMessages,
-      UserAttachments, Collapsible, TurnChangesCard, Markdown, CopyButton,
+      UserAttachments, Collapsible, ThinkingCollapsible, TurnChangesCard, Markdown, CopyButton,
     }} />;
 }

@@ -147,7 +147,9 @@
   color: var(--fg-3);
 }
 
-/* ===== 等宽文本（thinking / tool）===== */
+/* ===== 等宽文本（thinking / tool）=====
+ * 限高滚动移入外层 .thinkingScroll（吸底跟随 hook 需要独立的滚动容器,
+ * 正文层只保留排版）。 */
 .monoText {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -155,9 +157,40 @@
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  max-height: 320px;
-  overflow: auto;
   line-height: var(--lh-normal);
+}
+
+/* 思考正文滚动容器 —— 限高 + overflow（对齐 ZCode max-h-60 = 15rem）:
+ * 流式增长时由 useBottomFollowingScroll 吸底跟随,上下边缘 24px 渐隐
+ * 遮罩由 hook 内联注入。 */
+.thinkingScroll {
+  max-height: 15rem;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+/* 思考进行中的标签扫光（对齐 ZCode animated-gradient-text）:
+ * 弱色 → 主色 → 弱色循环流动,流结束即被时长摘要替换。 */
+.thinkingLive {
+  background: linear-gradient(
+    90deg,
+    var(--fg-3) 0%,
+    var(--fg-3) 34%,
+    var(--fg) 50%,
+    var(--fg-3) 66%,
+    var(--fg-3) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: thinkingShimmer 4s linear infinite;
+}
+
+@keyframes thinkingShimmer {
+  0% { background-position: 100% 0; }
+  50% { background-position: 0% 0; }
+  100% { background-position: 0% 0; }
 }
 
 /* 思考过程文字 —— 比正文/工具输出更弱的视觉层级(浅色) */

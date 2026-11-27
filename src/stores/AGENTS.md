@@ -15,7 +15,7 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 | `agent/types/types.ts` | AgentState / Turn 等状态类型联合（约 495 行）；挂起交互类型拆在 `agent/types/pendingTypes.ts`（含 MCP elicitation 的 `PendingElicitation`：事件入列、`resolveElicitation` 移除，GUI 弹窗待接） |
 | `agent/pendingGates.ts` | v1.12：引擎挂起交互快照（bind 返回 `pending_gates`）→ 合成事件流（零语义复制，走同一份 reducer）；`hydratePendingGates` 按 request_id 去重水合 |
 | `agent/eventGap.ts` | v1.12：`Event.seq` 缺口跟踪器 + 重放收敛（缺口与 `zhuye_event_gap` 合成通知两条触发路径共用） |
-| `agent/turns.ts` | Turn / TurnItem 构建与工具入参、输出摘要；含 `userAttachmentsFromItems`（提交 items → 附件元数据，图片来源标记文本挂到 image meta.source）与 `userItemsFromTurn`（轮内用户内容逆转回可重发 items，重生成用；meta.source 原样重发标记） |
+| `agent/turns.ts` | Turn / TurnItem 构建与工具入参、输出摘要；含 `userAttachmentsFromItems`（提交 items → 附件元数据，图片来源标记文本挂到 image meta.source）与 `userItemsFromTurn`（轮内用户内容逆转回可重发 items，重生成用；meta.source 原样重发标记）。思考条目带起止打点 `startedAt`/`endedAt`：新开思考记起点（`upsertThinking`），新条目落位（`appendItem`）/ 正文分段（`upsertDelta`、`finalizeAssistantText`）/ raw↔summary 切换 / 回合收尾（`markTurn`、`abortTurnOrLatestStreaming`）补记终点 —— 折叠摘要「思考持续了 N 秒」的数据来源；回放水合与 `<think>` 合成条目无打点，渲染层回退「持续了几秒」 |
 | `agent/policy/imageProvenance.ts` | 图片来源标注（v1.13）：`ImageProvenance` 通道类型（paste=剪贴板 / bytes=DOM 拖拽·浏览器选择器 / file=原生拖拽·选择器带绝对路径）+ `buildImageMarker`（本地化标记文本，i18n key `composer.imageSource.*`）+ `IMAGE_MARKER_RE`（双语整块判别）。发送时 composer 在每个图片 item 前注入 `[图片 #N：…]` 标记（`useAttachments.toUserInputItems`），模型不再反推图片来源 |
 | `agent/selectors.ts` | 细粒度 selector（`selectHasPendingInteraction` 等），配合 `useAgent` 防过宽 re-render |
 | `agent/index.ts` | 桶导出 `useAgentStore` / `reduceEvent` / `useAgent` 与类型联合；新导出只进这里 |

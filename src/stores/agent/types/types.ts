@@ -42,6 +42,9 @@ export type TurnItem =
        * 两种内容,渲染与折叠策略分开(摘要带「推理摘要」标签)。
        */
       variant?: 'raw' | 'summary';
+      /** 起止打点(ms epoch,live 流式路径才有):「思考持续了 N 秒」摘要用;回放与 `<think>` 合成条目无打点 → 渲染回退「持续了几秒」。 */
+      startedAt?: number;
+      endedAt?: number;
     }
   | {
       kind: 'tool_call';

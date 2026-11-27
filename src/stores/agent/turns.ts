@@ -69,20 +69,46 @@ export function userItemsFromTurn(turn: Turn): UserInputItem[] | null {
   return hasUser ? items : null;
 }
 
+/**
+ * 思考条目终结打点:末尾的 thinking 若已开始(有 startedAt)未终结,
+ * 就地补记 endedAt —— 折叠摘要据此显示「思考持续了 N 秒」。调用方
+ * 必须传入可变副本(turns.ts 各 map 函数里 `[...turn.items]` 后调用)。
+ */
+function closeThinkingInPlace(items: TurnItem[]): void {
+  const last = items[items.length - 1];
+  if (last?.kind === 'thinking' && last.startedAt !== undefined && last.endedAt === undefined) {
+    items[items.length - 1] = { ...last, endedAt: Date.now() };
+  }
+}
+
 export function appendItem(turns: Turn[], turnId: string, item: TurnItem): Turn[] {
   if (turnId === EVENT_ID_NONE) return turns;
   const index = turns.findIndex((turn) => turn.id === turnId);
   if (index === -1) {
     return [...turns, { id: turnId, items: [item], status: 'streaming' }];
   }
-  return turns.map((turn, i) =>
-    i === index ? { ...turn, items: [...turn.items, item] } : turn,
-  );
+  return turns.map((turn, i) => {
+    if (i !== index) return turn;
+    const items = [...turn.items];
+    // 新条目落位即上一段思考的终点(工具开始 / 正文开写…)。
+    closeThinkingInPlace(items);
+    items.push(item);
+    return { ...turn, items };
+  });
 }
 
 export function markTurn(turns: Turn[], turnId: string, status: TurnStatus): Turn[] {
   if (turnId === EVENT_ID_NONE) return turns;
-  return turns.map((turn) => (turn.id === turnId ? { ...turn, status } : turn));
+  return turns.map((turn) => {
+    if (turn.id !== turnId) return turn;
+    if (turn.status === 'streaming' && status !== 'streaming') {
+      // 回合收尾:仍挂着的思考条目在此终结(模型答完/中断)。
+      const items = [...turn.items];
+      closeThinkingInPlace(items);
+      return { ...turn, status, items };
+    }
+    return { ...turn, status };
+  });
 }
 
 export function upsertDelta(turns: Turn[], turnId: string, delta: string): Turn[] {
@@ -97,6 +123,7 @@ export function upsertDelta(turns: Turn[], turnId: string, delta: string): Turn[
     // （文本 → 工具调用 → 文本 …），工具 item 插入后新文本必须另起
     // 气泡，才能与事件流保持时序交错 —— 否则整轮文本都合并进首个
     // 气泡，工具调用在视觉上全部被挤到对话流底部。
+    closeThinkingInPlace(items);
     items.push({ kind: 'assistant_text', text: delta, streaming: true });
     return { ...turn, items };
   });
@@ -117,7 +144,10 @@ export function upsertThinking(
       items[items.length - 1] = { ...last, text: last.text + delta, variant };
       return { ...turn, items };
     }
-    items.push({ kind: 'thinking', text: delta, variant });
+    // 新开思考条目:先终结上一段(raw ↔ summary 切换),再记录起点
+    // (「思考持续了 N 秒」的计时起点)。
+    closeThinkingInPlace(items);
+    items.push({ kind: 'thinking', text: delta, variant, startedAt: Date.now() });
     return { ...turn, items };
   });
 }
@@ -134,6 +164,7 @@ export function finalizeAssistantText(
       items[items.length - 1] = { kind: 'assistant_text', text, streaming: false };
       return { ...turn, items };
     }
+    closeThinkingInPlace(items);
     items.push({ kind: 'assistant_text', text, streaming: false });
     return { ...turn, items };
   });
@@ -155,7 +186,9 @@ export function abortTurnOrLatestStreaming(turns: Turn[], turnId: string): Turn[
   for (let i = turns.length - 1; i >= 0; i -= 1) {
     if (turns[i].status === 'streaming') {
       const next = [...turns];
-      next[i] = { ...next[i], status: 'aborted' };
+      const items = [...next[i].items];
+      closeThinkingInPlace(items);
+      next[i] = { ...next[i], status: 'aborted', items };
       return next;
     }
   }

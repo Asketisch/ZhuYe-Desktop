@@ -61,6 +61,10 @@
   white-space: pre-wrap;
   word-break: break-word;
   border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  /* 长命令/长参数不撑爆卡片 —— 限高滚动（ZCode 命令区 max-h-60 口径）。
+   * 15rem 约合 10 行,再长交给滚动条 + 顶部渐隐。 */
+  max-height: 15rem;
+  overflow: auto;
 }
 
 /* 框内输出区：args 下方,带小节标签 + 分隔线。 */
@@ -178,9 +182,17 @@
   transform: rotate(90deg);
 }
 
+/* 组体滚动容器 —— 限高（ZCode 组体 max-h-[16lh+120px] 口径的取整档）:
+ * 长活动段不撑爆会话列;运行组经 useBottomFollowingScroll 吸底跟随,
+ * 上下边缘 24px 渐隐遮罩由 hook 内联注入。左缩进随容器走。 */
+.groupScroll {
+  margin-left: 0.5rem;
+  max-height: 26rem;
+  overflow-y: auto;
+}
+
 /* 组内列表：左侧一条竖线串起各条工具调用。 */
 .groupBody {
-  margin-left: 0.5rem;
   padding-left: 0.6rem;
   border-left: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }

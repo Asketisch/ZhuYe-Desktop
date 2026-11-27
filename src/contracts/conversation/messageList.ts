@@ -6,6 +6,7 @@ import type { ToolCell, ToolOutputBody, ToolGroup, ActivityGroup, ActivityEntryD
 import type { QueuedMessages } from '@/features/conversation/messages/QueuedMessages';
 import type { UserAttachments } from '@/features/conversation/messages/UserAttachments';
 import type { Collapsible } from '@/features/conversation/messages/Collapsible';
+import type { ThinkingCollapsible } from '@/features/conversation/messages/ThinkingCollapsible';
 import type { TurnChangesCard } from '@/features/conversation/messages/TurnChangesCard';
 import type { Markdown } from '@/components/Markdown';
 import type { CopyButtonProps } from '@/contracts/conversation/copyButton';
@@ -20,6 +21,8 @@ export interface MessageListSlots {
   QueuedMessages: ComponentType<ComponentProps<typeof QueuedMessages>>;
   UserAttachments: ComponentType<ComponentProps<typeof UserAttachments>>;
   Collapsible: ComponentType<ComponentProps<typeof Collapsible>>;
+  /** 思考过程折叠块（时长摘要 + 流式吸底滚动，ZCode Reasoning 同款）。 */
+  ThinkingCollapsible: ComponentType<ComponentProps<typeof ThinkingCollapsible>>;
   /** 每轮末尾的「本轮改动」卡（v1.13：逐轮汇总 + 逐文件审查）。 */
   TurnChangesCard: ComponentType<ComponentProps<typeof TurnChangesCard>>;
   Markdown: ComponentType<ComponentProps<typeof Markdown>>;

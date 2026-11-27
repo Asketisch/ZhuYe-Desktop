@@ -313,8 +313,9 @@ describe('MessageList', () => {
     fireEvent.click(group.querySelector('button')!);
     const body = screen.getByTestId('activity-group-body');
     expect(body.querySelectorAll('[data-tool="bash"]')).toHaveLength(2);
-    // 思考行以折叠块形式在组内(en locale label='thinking';正文在其自身展开层)。
-    expect(body.textContent).toContain('thinking');
+    // 思考行以折叠块形式在组内(en locale 已结束无打点 → label='thought
+    // lasted a few seconds';正文在其自身展开层)。
+    expect(body.textContent).toContain('thought');
     // 点思考行展开正文（Collapsible 类名经 CSS Modules hash,以图标颜色档定位）。
     const thinkingRow = body.querySelector('[data-accent="info"] > button, [data-accent="success"] > button') as HTMLButtonElement | null;
     expect(thinkingRow).not.toBeNull();

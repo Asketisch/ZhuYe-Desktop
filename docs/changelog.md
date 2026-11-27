@@ -4,6 +4,16 @@
 
 ## 未发布
 
+- **思考 / 工具活动显示对齐 ZCode Reasoning 方案 —— 思考滚动、展开可滚动**：思考折叠块升级为有状态切片组件
+  `ThinkingCollapsible`（render 层本地实现退役，经 messageList slots 注入）：折叠摘要不再倾泻 60 字符原文快照，
+  流式显示「思考中」扫光文字（ZCode `animated-gradient-text` 同款），结束后显示「思考 持续了 N 秒」—— 打点数据
+  来自 store thinking item 新增的 `startedAt`/`endedAt`（新开思考记起点，工具落位 / 正文分段 / raw↔summary 切换 /
+  回合收尾补记终点；回放与 `<think>` 合成条目无打点，回退「持续了几秒」）。展开正文 15rem 限高滚动 + 流式吸底跟随
+  （新 hook `logic/conversation/messages/useBottomFollowingScroll`，移植 ZCode scrollMask：离底 ≤2px 跟随、上滚
+  暂停、回底恢复，上下边缘 24px 渐隐遮罩）；已结束的内容展开停在顶部，阅读位置交给用户。工具侧：活动组 / 工具组
+  组体限高 26rem 滚动（运行中的活动组吸底跟随），工具行参数区 15rem 限高滚动（长命令不再撑爆卡片）；`Collapsible`
+  新增受控 `open`/`onToggle` 形态。i18n 退役 `chat.thinkingWith`，新增 `chat.thinking.thought` /
+  `chat.thinking.durationSeconds` / `chat.thinking.durationFewSeconds`。
 - **界面文字层级按 WCAG AA 重校准 —— 弱文字从 3.35:1 抬到 7.8:1，底色同步抬一档**：设计稿
   原值（暗色 `--fg` / `--fg-2` / `--fg-3` = `#e9e8e5` / `#949391` / `#676765`）在暖石墨底上
   只有 3.35:1（浅色更差，2.93:1），问候语副标题、会话时间戳、「对话 / 轨迹」标签、输入框

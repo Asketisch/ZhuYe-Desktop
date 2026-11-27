@@ -27,6 +27,7 @@ import {
 import { Icon } from '@/features/harness/design-system';
 import { DiffViewer } from '@/features/workbench/git/DiffViewer';
 import { useI18n } from '@/utils/i18n';
+import { useBottomFollowingScroll } from '@/logic/conversation/messages/useBottomFollowingScroll';
 import s from '@/render/conversation/messages/ToolCells.module.css';
 
 /** 配对 tool_output 的渲染字段（与 TurnItem tool_output 同构）。 */
@@ -235,6 +236,9 @@ export function ToolGroup({ toolNames, count, defaultOpen = false, hasFollowUp =
   useEffect(() => {
     if (defaultOpen) setOpen(true);
   }, [defaultOpen]);
+  // 组体限高滚动（内容多时不撑爆会话列）；吸底跟随不启用 —— 工具段
+  // 无流式增长,阅读位置交给用户（ZCode 组体同款容器,仅运行组跟随）。
+  const scroll = useBottomFollowingScroll(open, count);
   const joined = toolNames.join(isZh ? ' 和 ' : ' and ');
   return (
     <div className={s.group} data-testid="tool-group" data-open={open || undefined}>
@@ -250,8 +254,15 @@ export function ToolGroup({ toolNames, count, defaultOpen = false, hasFollowUp =
         <span className={s.groupCount}>{count}</span>
       </button>
       {open && (
-        <div className={s.groupBody} data-testid="tool-group-body">
-          {children}
+        <div
+          className={s.groupScroll}
+          ref={scroll.scrollRef}
+          onScroll={scroll.onScroll}
+          style={scroll.maskStyle}
+        >
+          <div className={s.groupBody} ref={scroll.contentRef} data-testid="tool-group-body">
+            {children}
+          </div>
         </div>
       )}
     </div>
@@ -288,6 +299,9 @@ export function ActivityGroup({ entries, children }: ActivityGroupProps) {
   const toolCount = toolEntries.length;
   const thinkingCount = entries.length - toolCount;
   const running = entries.some((e) => e.status === 'running');
+  // 组体限高滚动；组运行中展开时吸底跟随（新思考/新工具落位自动滚到
+  // 最新,上滚即暂停 —— ZCode 组体 data-summary-group-scroll 同款）。
+  const scroll = useBottomFollowingScroll(open, entries.length, running && open);
   // 组头带上去重的工具名 —— 折叠态也能看到「动过什么」（思考并入工具
   // 组后，单工具不再有独立行，名字不能只留在展开层）。
   const names: string[] = [];
@@ -324,8 +338,15 @@ export function ActivityGroup({ entries, children }: ActivityGroupProps) {
         <span className={s.groupCount}>{entries.length}</span>
       </button>
       {open && (
-        <div className={s.groupBody} data-testid="activity-group-body">
-          {children}
+        <div
+          className={s.groupScroll}
+          ref={scroll.scrollRef}
+          onScroll={scroll.onScroll}
+          style={scroll.maskStyle}
+        >
+          <div className={s.groupBody} ref={scroll.contentRef} data-testid="activity-group-body">
+            {children}
+          </div>
         </div>
       )}
     </div>
