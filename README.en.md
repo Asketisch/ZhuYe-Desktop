@@ -15,6 +15,9 @@
 
 > A standalone desktop app for the ZhuYe agent: Tauri 2 + React 19, bridging the ZhuYe core through the `zhuye-protocol` envelope.
 
+
+<p align="center"><img src="res/main.jpg" alt="烛夜官方 logo" width="1024"></p>
+
 ---
 
 ## What is this?

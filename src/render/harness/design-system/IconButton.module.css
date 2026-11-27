@@ -15,7 +15,7 @@
 /* 焦点反馈走 base.css 的全局琥珀外框（outline），不占 box-shadow 位。 */
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 

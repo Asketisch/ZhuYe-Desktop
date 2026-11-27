@@ -6,6 +6,7 @@
   <b>中文</b> · <a href="README.en.md">English</a>
 </p>
 
+
 [![CI](https://github.com/Asketisch/ZhuYe-Desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/Asketisch/ZhuYe-Desktop/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Asketisch/ZhuYe-Desktop)](https://github.com/Asketisch/ZhuYe-Desktop/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -16,6 +17,8 @@
 > 烛夜（ZhuYe）独立桌面应用：Tauri 2 + React 19，通过 `zhuye-protocol` 协议桥接烛夜 agent 核心。
 
 ---
+
+<p align="center"><img src="res/main.jpg" alt="烛夜官方 logo" width="1024"></p>
 
 ## 项目说明
 

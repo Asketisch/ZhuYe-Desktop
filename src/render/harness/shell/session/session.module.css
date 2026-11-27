@@ -228,7 +228,9 @@
   font-family: inherit;
 }
 .tjFold:hover { color: var(--text-primary); }
-.tjFold[data-off='true'] { color: var(--text-muted); opacity: 0.6; }
+/* 折叠态：靠 --text-muted 的颜色本身表达「收起」，不再叠 opacity ——
+ * 叠上去会把弱文字压到 3.3:1（低于 AA），去层后 6.5:1。 */
+.tjFold[data-off='true'] { color: var(--text-muted); }
 .tjSearch {
   margin-left: auto;
   width: 300px;
@@ -341,7 +343,7 @@
 .ledRole[data-role='assistant'] { color: var(--traj-assistant); }
 .ledRole[data-role='reasoning'] { color: var(--traj-reasoning); }
 .ledRole[data-role='tool_call'] { color: var(--traj-tool-call); }
-.ledRole[data-role='tool_output'] { color: var(--traj-tool-result); opacity: 0.7; }
+.ledRole[data-role='tool_output'] { color: var(--traj-tool-result); opacity: 0.9; }
 .ledRole[data-role='error'] { color: var(--danger); }
 .ledLine {
   flex: 1;

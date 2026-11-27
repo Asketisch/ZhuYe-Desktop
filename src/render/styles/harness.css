@@ -458,7 +458,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 /* 主按钮：白色实心高对比块 + 1px 高光，悬停转琥珀（与设计系统 Button 同口径） */
 .btn.primary { background: var(--white); color: var(--on-white); box-shadow: var(--shadow-sm); }
 .btn.primary:hover { background: var(--accent); color: var(--on-white); }
-.btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.btn[disabled] { opacity: 0.55; cursor: not-allowed; }
 .seg { display: flex; background: var(--fill); border-radius: 6px; padding: 2px; gap: 2px; }
 .seg button {
   padding: 4px 10px;
@@ -675,7 +675,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 }
 .c-send:hover { background: var(--white); color: var(--on-white); }
 .c-send:active { transform: scale(0.94); }
-.c-send:disabled { opacity: 0.4; cursor: not-allowed; background: var(--fill); }
+.c-send:disabled { opacity: 0.55; cursor: not-allowed; background: var(--fill); }
 .c-perm { color: var(--fg-2); }
 .c-perm .dot { margin-right: 1px; }
 /* 附件 chip */
@@ -1423,7 +1423,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
 .dock-overview-row:hover,
 .dock-context-menu button:hover { background: var(--fill); color: var(--fg); }
 .dock-overview-row.on { color: var(--fg); background: var(--fill-2); }
-.dock-context-menu button[disabled] { opacity: 0.4; cursor: not-allowed; }
+.dock-context-menu button[disabled] { opacity: 0.55; cursor: not-allowed; }
 .app.dock-wide .body { grid-template-columns: var(--workspace-sidebar-width) minmax(260px, 1fr) var(--dock-user-width, minmax(520px, 1.6fr)); }
 .app.dock-wide.no-inspector .body { grid-template-columns: var(--workspace-sidebar-width) minmax(260px, 1fr) 0; }
 /* 文件 / 子代理模式：右栏要同时放下树与预览，单独给一档宽度 */
@@ -2299,7 +2299,7 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   text-align: left;
 }
 .sess-menu button:hover { background: var(--fill-2); color: var(--fg); }
-.sess-menu button[disabled] { opacity: 0.38; cursor: default; }
+.sess-menu button[disabled] { opacity: 0.55; cursor: default; }
 .sess-menu button[disabled]:hover { background: transparent; color: var(--fg-2); }
 .sess-menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
 .sess-menu .k { margin-left: auto; font-size: 10.5px; color: var(--fg-3); font-family: var(--font-mono); }
