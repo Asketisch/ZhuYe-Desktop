@@ -1,5 +1,7 @@
 # 烛夜 ZhuYe
 
+<p align="center">“折烛夜一花，倾与二君子尝。”<br><sub>——《纂异记·嵩岳嫁女》</sub></p>
+
 <p align="center">
   <b>中文</b> · <a href="README.en.md">English</a>
 </p>
