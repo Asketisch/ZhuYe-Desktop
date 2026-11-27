@@ -52,6 +52,7 @@ const SAMPLES = Object.entries(doc.events);
  * - `stream_recovery_anchor_selected|tail_discarded|retry_started` —— 流
  *   恢复的审计级诊断,用户可见面由 `stream_recovery_started` 的 toast
  *   覆盖,保穷尽性守卫 no-op。
+ * - `task_budget_snapshot` —— 预算时点快照，暂不投影到用量统计。
  * 白名单外的变体出现空 patch = 落入 unknown 分支 = 类型漂移。
  */
 const NO_PATCH_WHITELIST: ReadonlySet<string> = new Set([
@@ -65,6 +66,7 @@ const NO_PATCH_WHITELIST: ReadonlySet<string> = new Set([
   'turn_rewound',
   'plan_draft_updated',
   'cache_warming',
+  'task_budget_snapshot',
   'stream_recovery_anchor_selected',
   'stream_recovery_tail_discarded',
   'stream_recovery_retry_started',

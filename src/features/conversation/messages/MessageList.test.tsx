@@ -180,6 +180,15 @@ describe('MessageList', () => {
     expect(document.querySelector('[data-testid="diff-viewer"]')).not.toBeNull();
   });
 
+  it('折叠的工具组显示子代理续派', () => {
+    useAgentStore.setState({ turns: [{ id: 'follow-up', status: 'done', items: [
+      { kind: 'tool_call', toolName: 'call_explorer', callId: 'one', argsSummary: '{"session_id":"child-1","prompt":"继续"}', status: 'done' },
+      { kind: 'tool_call', toolName: 'bash', callId: 'two', argsSummary: '{}', status: 'done' },
+    ] }] });
+    render(wrap(<MessageList />));
+    expect(screen.getByTestId('tool-group').textContent).toMatch(/继续子代理对话|Continuing subagent conversation/);
+  });
+
   it('merges paired tool_call + tool_output into one cell', () => {
     useAgentStore.setState({
       turns: [

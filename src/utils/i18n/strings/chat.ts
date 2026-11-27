@@ -68,6 +68,7 @@ const chat: Record<string, StringEntry> = {
   'chat.toolGroup.summary':        { en: 'used {tools}',                                                       'zh-CN': '已使用 {tools}' },
   // 活动（工具+思考混合）聚合组：对话式 agent 产品惯例「执行 N 命令」摘要。
   // 折叠态也要能看到工具名（思考并入组后单工具不再有独立行）。
+  'chat.subagent.followUp': { en: 'Continuing subagent conversation', 'zh-CN': '继续子代理对话' },
   'chat.activityGroup.tools':      { en: 'Ran {count} commands',                                              'zh-CN': '执行 {count} 命令' },
   'chat.activityGroup.toolsNamed': { en: 'Ran {name} ×{count}',                                               'zh-CN': '执行 {name} ×{count}' },
   'chat.activityGroup.toolsList':  { en: 'Ran {count} commands ({names})',                                    'zh-CN': '执行 {count} 命令（{names}）' },

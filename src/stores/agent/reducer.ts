@@ -187,7 +187,7 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
           kind: 'tool_call',
           toolName: msg.tool_name,
           callId: msg.call_id,
-          argsSummary: summarizeArgs(msg.args),
+          argsSummary: summarizeArgs(msg.args, msg.tool_name),
           status: 'running',
         }),
       };
@@ -418,6 +418,21 @@ export function reduceEvent(state: AgentState, event: ZhuyeEvent): Partial<Agent
     // stream_error / agent_message_reset 的既有语义与顺序。此前半成品
     // 输出被 reset 清空后用户只看到「输出无故蒸发」;started 给一个
     // 「正在自动恢复」的显性反馈(engine 从安全锚点重开流)。
+    case 'tool_execution_uncertain': {
+      const toast: AgentState['toasts'][number] = {
+        id: `uncertain-${msg.call_id}-${Date.now()}`,
+        kind: 'warn',
+        message: `工具 ${msg.tool_name} 的执行结果无法确认，请检查后再继续。`,
+        ttlMs: 10000,
+        createdAt: Date.now(),
+      };
+      return { toasts: [...state.toasts, toast] };
+    }
+
+    // 预算是同一账本的时点快照，不能累加为用量事件。
+    case 'task_budget_snapshot':
+      return {};
+
     case 'stream_recovery_started': {
       const toast: AgentState['toasts'][number] = {
         id: `stream-recovery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

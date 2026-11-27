@@ -363,3 +363,22 @@ async fn installed_thread_registers_context_injection_hooks() {
         "GUI 主线程必须注册 agents-md-inject(`[active] agents_md` 缺省开),实得 {names:?}"
     );
 }
+
+#[tokio::test]
+async fn recovery_records_are_injected_only_for_new_threads() {
+    let agent = MinimalAgent::new_empty();
+    agent.install_agent_thread().await;
+    let sid = ThreadId::new();
+    let uncertain = zhuye_protocol::ToolExecutionUncertainEvent {
+        session_id: sid,
+        turn_id: zhuye_protocol::TurnId::new(),
+        call_id: "call-1".into(),
+        tool_name: "write".into(),
+    };
+    rebind_session_with_recovery(&agent, sid, vec![], None, vec![uncertain.clone()]).unwrap();
+    let thread = agent.inner.thread.lock().clone().unwrap();
+    assert_eq!(thread.config().recovered_tool_executions.lock().len(), 1);
+    thread.config().recovered_tool_executions.lock().clear();
+    rebind_session_with_recovery(&agent, sid, vec![], None, vec![uncertain]).unwrap();
+    assert!(thread.config().recovered_tool_executions.lock().is_empty());
+}

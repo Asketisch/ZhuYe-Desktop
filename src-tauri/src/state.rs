@@ -39,6 +39,7 @@ pub(crate) mod reload;
 pub mod remote;
 mod remote_config;
 pub(crate) mod sandbox;
+mod sandbox_writable;
 mod session;
 pub mod side_channel_forwarder;
 pub(crate) mod subagents;

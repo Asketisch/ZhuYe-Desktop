@@ -30,6 +30,16 @@ export type RenderNode =
   | { kind: 'toolGroup'; entries: ToolEntry[] }
   | { kind: 'activityGroup'; entries: ActivityEntry[] };
 
+export function isSubagentFollowUp(call: ToolCallItem): boolean {
+  if (!call.toolName.startsWith('call_')) return false;
+  try {
+    const args = JSON.parse(call.argsSummary || call.argsStream || '');
+    return typeof args?.session_id === 'string' && args.session_id.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function groupToolNodes(items: TurnItem[]): RenderNode[] {
   const nodes: RenderNode[] = [];
   const callNodeIdx = new Map<string, number>();

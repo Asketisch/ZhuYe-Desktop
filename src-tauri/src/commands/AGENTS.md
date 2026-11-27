@@ -13,7 +13,7 @@ Tauri 命令表全集，按领域一域一文件（领域文件数以目录与 `
 | `mod.rs` | 薄桶：领域子模块声明与再导出（含 `error::{CommandError, CommandResult}`） |
 | `error.rs` | `CommandError` / `CommandResult` 统一返回包装 + 各上游错误 `From` impl，无命令体 |
 | `agent.rs` | 会话核心：submit / interrupt / compact / rewind / 审批 / plan / goal 模式等 |
-| `sessions.rs` | 会话管理：创建 / 重放 / 改名 / 归档 / 导出（最大领域文件，嵌套 `sessions/{name,sidecar,title_commit}.rs`）。`zhuye_list_sessions` 带**壳过滤**：无首条用户消息且非子会话的条目不返回（外部进程直写 / 发送失败残留的 meta+审计壳，防 8 位 ID 空条目刷屏侧栏；命名的壳与孤儿子会话保留，过滤仅在列表层、replay 不受限）。**v1.13**：`zhuye_bind_session` 返回体追加 `prompt_selection`（该会话的提示词选择 override，`None` = 跟随全局默认）—— 取自本会话 rollout 末次 `PromptSelectionChanged`（与引擎恢复逻辑同源同序），**不读线程 config**（引擎在派生的 submission_loop 里异步恢复覆盖，rebind 返回瞬间读 config 会竞态）；前端据此判定切会话后是否真要下发 Select |
+| `sessions.rs` | 会话管理：创建 / 重放 / 改名 / 归档 / 导出（最大领域文件，嵌套 `sessions/{name,sidecar,title_commit}.rs`）。`zhuye_list_sessions` 带**壳过滤**：无首条用户消息且非子会话的条目不返回（外部进程直写 / 发送失败残留的 meta+审计壳，防 8 位 ID 空条目刷屏侧栏；命名的壳与孤儿子会话保留，过滤仅在列表层、replay 不受限）。**v1.13**：`zhuye_bind_session` 从回放恢复未结清工具执行记录，并在新建线程时注入；返回体追加 `prompt_selection`（该会话的提示词选择 override，`None` = 跟随全局默认）—— 取自本会话 rollout 末次 `PromptSelectionChanged`（与引擎恢复逻辑同源同序），**不读线程 config**（引擎在派生的 submission_loop 里异步恢复覆盖，rebind 返回瞬间读 config 会竞态）；前端据此判定切会话后是否真要下发 Select |
 | `tasks.rs` | 任务域命令（创建 / 领取 / 更新 / 输出） |
 | `models.rs` | 模型域命令：拉 provider 清单 / 测连通（GUI 展示用直连实现，与引擎 `list_models` 口径一致） |
 | `model_abilities.rs` | 模型域命令：单模型能力查询（`zhuye_lookup_model_abilities`，纯内存查 models.dev 目录，不发网络；从 `models.rs` 拆出以守 500 行预算） |

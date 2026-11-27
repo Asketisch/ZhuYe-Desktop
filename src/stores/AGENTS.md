@@ -49,6 +49,8 @@ Zustand 状态层：`agent/` 子目录是主状态机（EventMsg → `reduceEven
 - **壳层 UI 状态归 shellUi**：窗口摆法（rail / dock / 终端面板 / 任务中心 / 设置弹窗 / 命令面板 / 单色模式）只进 `shellUi.ts`，不进组件 useState —— 标题条按钮、快捷键、侧栏按钮三方共享同一状态；paletteOpen 由 `useCommandPaletteShortcut`（⌘K）与标题条按钮共用。
 - **`token_count` 有两种语义，靠 `turn_total` 区分（v1.x）**：引擎逐次模型调用发一条**单次调用快照**（`turn_total` 缺省 `false`），回合收尾再发一条**本回合累计**（`turn_total = true`，数字 = 本回合逐次调用的累计）。reducer 只把 `false` 的事件累加进 `sessionTotal` / `sessionCost`（一并累计会让会话总量与费用翻倍），且回合累计**不覆盖**「最后一次调用」快照（`input` / `output` / `cached` / `cacheWrite` / `total`）—— 后者是上下文占比的判据。回合级累计另存 `tokens.turn`（按 `event.id` 归零，回合收尾时由引擎的累计事件校准），供「本回合缓存命中率」使用。改 `token_count` 分支前先读 `agent/types/tokenTypes.ts` 的口径注释。
 
+- `tool_execution_uncertain` 显示工具结果待核实提示；`task_budget_snapshot` 是时点快照，不并入 token 累计。
+
 ## 禁止事项
 
 - 不要绕过 reducer 直接改 turns / 交互等待状态——`set` 只用于应用 reduceEvent 产物与显式 UI 动作。

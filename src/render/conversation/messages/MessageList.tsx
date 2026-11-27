@@ -2,7 +2,7 @@ import { Brain, Wrench, AlertTriangle, MessageSquare, FileDiff, GitBranch, Rotat
 import type { MessageListSlots, MessageListViewProps, Turn } from '@/contracts/conversation/messageList';
 import { Icon } from '@/render/harness/design-system/Icon';
 import { IconButton } from '@/render/harness/design-system/IconButton';
-import { groupToolNodes, type RenderNode } from './activityGrouping';
+import { groupToolNodes, isSubagentFollowUp, type RenderNode } from './activityGrouping';
 import s from './MessageList.module.css';
 
 export function MessageList({ t, turns, scrollRef, onForkTurn, onRewindTurn, onEditTurn,
@@ -171,7 +171,7 @@ function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus
     const entryMeta = node.entries.map((entry) =>
       entry.kind === 'thinking'
         ? { thinking: true }
-        : { toolName: entry.call.toolName, status: entry.call.status },
+        : { toolName: entry.call.toolName, argsSummary: entry.call.argsSummary || entry.call.argsStream, status: entry.call.status },
     );
     return (
       <ActivityGroup entries={entryMeta}>
@@ -214,7 +214,7 @@ function ItemView({ node, turnStatus, t, slots }: { node: RenderNode; turnStatus
     // 组内有 diff 输出时默认展开 —— 改动内容不该被折叠藏起来。
     const hasDiff = node.entries.some((entry) => Boolean(entry.output?.diff));
     return (
-      <ToolGroup toolNames={names} count={node.entries.length} defaultOpen={hasDiff}>
+      <ToolGroup toolNames={names} count={node.entries.length} defaultOpen={hasDiff} hasFollowUp={node.entries.some((entry) => isSubagentFollowUp(entry.call))}>
         {node.entries.map((entry) => (
           <ToolCell
             // diff 输出到达时重挂载,让 defaultOpen 生效（流式期间 output

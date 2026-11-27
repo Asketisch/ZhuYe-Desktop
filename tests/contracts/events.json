@@ -1,5 +1,5 @@
 {
-  "comment": "EventMsg 跨运行时线格式契约样本表 —— 全部 52 个变体各一条最小合法样本。同一份样本被三层消费:L1 tests/static/event-parity.mjs(Rust enum ↔ TS 联合 ↔ 样本表三方奇偶)、L2 tests/ipc.event-contract.test.ts(样本经真实 bus → reducer,不落 unknown 分支)、L3 src-tauri/tests/ipc_event_contract.rs(真后端 serde 反序列化 + roundtrip)。字段口径:必填字段全、可选字段带代表值;样本非法时三层中至少一层会失败。",
+  "comment": "EventMsg 跨运行时线格式契约样本表 —— 全部变体各一条最小合法样本。同一份样本被三层消费:L1 tests/static/event-parity.mjs(Rust enum ↔ TS 联合 ↔ 样本表三方奇偶)、L2 tests/ipc.event-contract.test.ts(样本经真实 bus → reducer,不落 unknown 分支)、L3 src-tauri/tests/ipc_event_contract.rs(真后端 serde 反序列化 + roundtrip)。字段口径:必填字段全、可选字段带代表值;样本非法时三层中至少一层会失败。",
   "events": {
     "session_configured": {
       "type": "session_configured",
@@ -313,7 +313,9 @@
             "name": "repo",
             "title": "仓库",
             "required": true,
-            "kind": { "type": "text" }
+            "kind": {
+              "type": "text"
+            }
           }
         ]
       }
@@ -494,6 +496,25 @@
       "attempt": 1,
       "anchor": "previous_message",
       "retry_in_ms": 500
+    },
+    "tool_execution_uncertain": {
+      "type": "tool_execution_uncertain",
+      "session_id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+      "turn_id": "5f8a3c1e-9b2d-4c6a-8e7f-1a2b3c4d5e6f",
+      "call_id": "call-1",
+      "tool_name": "write"
+    },
+    "task_budget_snapshot": {
+      "type": "task_budget_snapshot",
+      "task_id": "task-1",
+      "turn_id": "5f8a3c1e-9b2d-4c6a-8e7f-1a2b3c4d5e6f",
+      "estimated_tokens": 100,
+      "actual_tokens": 90,
+      "reserved_tokens": 10,
+      "unknown_estimated_tokens": 0,
+      "unknown_calls": 0,
+      "estimate_overrun_tokens": 0,
+      "dispatched_subagents": 1
     }
   }
 }

@@ -133,7 +133,8 @@ export function ToolCell({ toolName, argsSummary, argsStream, status, output, de
   // argsStream;回放路径 argsSummary 有完整 JSON,优先。
   const rawArgs = argsSummary || argsStream || '';
   const args = parseArgs(rawArgs);
-  const summary = summarize(toolName, args);
+  const isFollowUp = toolName.startsWith('call_') && typeof args?.session_id === 'string' && args.session_id.length > 0;
+  const summary = isFollowUp ? t('chat.subagent.followUp') : summarize(toolName, args);
   // 生成期间 JSON 尚未拼完整,解析不出来 —— 直接展示已收到的片段(截断),
   // 让用户看到参数正在生成;解析成功后切回结构化摘要。
   const streamingSummary =
@@ -214,6 +215,8 @@ export interface ToolGroupProps {
   count: number;
   /** 初始展开（组内有 diff 输出时由 MessageList 传 true）。 */
   defaultOpen?: boolean;
+  /** 组内是否有子代理续派。 */
+  hasFollowUp?: boolean;
   /** 组内工具单元（ToolCell）。 */
   children: ReactNode;
 }
@@ -224,7 +227,7 @@ export interface ToolGroupProps {
  * 会话默认只露出「模型动过什么」的一行摘要，具体参数与输出留在折叠层内；
  * 思考过程同理默认折叠，会话里默认只显示模型的真实输出。
  */
-export function ToolGroup({ toolNames, count, defaultOpen = false, children }: ToolGroupProps) {
+export function ToolGroup({ toolNames, count, defaultOpen = false, hasFollowUp = false, children }: ToolGroupProps) {
   const { t, isZh } = useI18n();
   const [open, setOpen] = useState(defaultOpen);
   // 流式期间输出是后到的：组内出现 diff 输出后要自动展开 ——
@@ -243,7 +246,7 @@ export function ToolGroup({ toolNames, count, defaultOpen = false, children }: T
       >
         <Icon icon={ChevronRight} size={12} className={s.caret} />
         <Icon icon={Terminal} size={13} className={s.groupIcon} />
-        <span className={s.groupLabel}>{t('chat.toolGroup.summary', { tools: joined })}</span>
+        <span className={s.groupLabel}>{t('chat.toolGroup.summary', { tools: joined })}{hasFollowUp ? ` · ${t('chat.subagent.followUp')}` : ''}</span>
         <span className={s.groupCount}>{count}</span>
       </button>
       {open && (
@@ -293,6 +296,10 @@ export function ActivityGroup({ entries, children }: ActivityGroupProps) {
     if (name && !names.includes(name)) names.push(name);
   }
   const namesLabel = names.join(isZh ? '、' : ', ');
+  const hasFollowUp = toolEntries.some((entry) => {
+    const args = parseArgs(entry.argsSummary ?? '');
+    return entry.toolName?.startsWith('call_') && typeof args?.session_id === 'string' && args.session_id.length > 0;
+  });
   // 组头文案:执行 N 命令(± 思考 M 次,带工具名);纯思考段「思考 M 次」。
   const label = toolCount > 0
     ? (names.length === 1
@@ -313,7 +320,7 @@ export function ActivityGroup({ entries, children }: ActivityGroupProps) {
       >
         <Icon icon={ChevronRight} size={12} className={s.caret} />
         <Icon icon={Terminal} size={13} className={s.groupIcon} />
-        <span className={s.groupLabel}>{running ? t('chat.activityGroup.running', { label }) : label}</span>
+        <span className={s.groupLabel}>{running ? t('chat.activityGroup.running', { label }) : label}{hasFollowUp ? ` · ${t('chat.subagent.followUp')}` : ''}</span>
         <span className={s.groupCount}>{entries.length}</span>
       </button>
       {open && (

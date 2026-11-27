@@ -22,6 +22,7 @@ use zhuye_protocol::{PermissionMode, ThreadId};
 use zhuye_tools::Sanitizer;
 
 use super::MinimalAgent;
+use super::sandbox_writable::merged_sandbox_writable;
 
 /// 按配置构造当前会话的本地 telemetry sink。
 ///
@@ -234,6 +235,23 @@ pub(crate) fn construct_thread(
         .with_context_window_overrides(cfg_snapshot.effective_context_window_overrides(&model_spec))
         // 工具级环境变量（web_search 的 BRAVE_API_KEY 等）。
         .with_tool_env(tool_env.clone());
+    // 治理配置在构建线程时快照，与上游运行时保持一致。
+    cfg.strict_tool_journal = cfg_snapshot.tool_journal.as_ref().is_some_and(|s| s.strict);
+    cfg.serial_turns = cfg_snapshot
+        .turn_scheduling
+        .as_ref()
+        .is_some_and(|s| s.serial);
+    cfg.task_budget_limits = cfg_snapshot.task_budget.as_ref().map(|s| s.limits());
+    cfg.dynamic_context = cfg_snapshot
+        .dynamic_context
+        .as_ref()
+        .is_some_and(|s| s.enabled);
+    cfg.provenance_mode = cfg_snapshot
+        .provenance
+        .as_ref()
+        .and_then(|s| s.mode.as_deref())
+        .and_then(zhuye_tools::sanitize::provenance::ProvenanceMode::parse)
+        .unwrap_or_default();
     // 权限层:与 CLI 同构的三层 store(config > project > user)+ YOLO 分类器。
     // 此前桌面端未挂解析器 —— CLI 里生效的 deny 规则在桌面端被静默忽略。
     cfg = super::permissions::apply_permission_layers(cfg, &cfg_snapshot, &agent.workspace());
@@ -246,6 +264,7 @@ pub(crate) fn construct_thread(
     elicitations.lock().clear();
     cfg.approval_context.mcp_elicitations = elicitations;
     let mut mounted_m4: Option<(ThreadId, zhuye_core::config::M4Deps)> = None;
+    let mut mounted_subagents = None;
     if let Some(sid) = sid {
         // 活跃 agent 名:桌面端偏好(缺省 "default",与 CLI 一致)——
         // 决定加载哪条 agent 定义,以及记忆目录(`.zhuye/agent-memory/<agent>/`)，
@@ -296,6 +315,7 @@ pub(crate) fn construct_thread(
         let subagent_runtime = Arc::new(zhuye_core::SubagentRuntimeRegistry::new());
         subagent_factory.set_runtime_registry(subagent_runtime.clone());
         cfg = cfg.with_subagent_runtime(subagent_runtime);
+        mounted_subagents = Some(subagent_factory);
         mounted_m4 = Some((sid, m4));
     }
     if !preload.is_empty() {
@@ -385,6 +405,9 @@ pub(crate) fn construct_thread(
     });
     let registry_for_mount = Arc::clone(&registry);
 
+    if let Some(factory) = mounted_subagents {
+        factory.set_parent_config(cfg.clone());
+    }
     let thread = Arc::new(AgentThread::new(
         cfg,
         registry,
@@ -423,67 +446,4 @@ pub(crate) fn construct_thread(
     }
 
     Ok(thread)
-}
-
-/// v1.11 桌面#5:把 GUI 附加目录并入 `[sandbox].writable_dirs`(纯函数,
-/// 便于单测绑定语义)。配置序在前、附加目录殿后;已在配置里的附加项
-/// 去重(同一路径写两次在沙箱 profile 里是无意义重复)。
-pub(crate) fn merged_sandbox_writable(
-    configured: Vec<std::path::PathBuf>,
-    extra: Vec<std::path::PathBuf>,
-) -> Vec<std::path::PathBuf> {
-    let mut dirs = configured;
-    for dir in extra {
-        if !dirs.contains(&dir) {
-            dirs.push(dir);
-        }
-    }
-    dirs
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    /// 附加目录并入且保序:配置序在前、附加序殿后。
-    #[test]
-    fn 附加目录并入且保序() {
-        let merged = merged_sandbox_writable(
-            vec![PathBuf::from("/cfg/a")],
-            vec![PathBuf::from("/extra/1"), PathBuf::from("/extra/2")],
-        );
-        assert_eq!(
-            merged,
-            vec![
-                PathBuf::from("/cfg/a"),
-                PathBuf::from("/extra/1"),
-                PathBuf::from("/extra/2"),
-            ],
-            "配置序在前,附加目录按设置顺序殿后"
-        );
-    }
-
-    /// 与配置重复的附加项去重;空附加 = 原样返回配置。
-    #[test]
-    fn 与配置重复的附加项去重() {
-        let merged = merged_sandbox_writable(
-            vec![PathBuf::from("/cfg/a"), PathBuf::from("/cfg/b")],
-            vec![PathBuf::from("/cfg/b"), PathBuf::from("/extra/1")],
-        );
-        assert_eq!(
-            merged,
-            vec![
-                PathBuf::from("/cfg/a"),
-                PathBuf::from("/cfg/b"),
-                PathBuf::from("/extra/1")
-            ],
-            "配置里已有的附加项不得重复出现"
-        );
-        assert_eq!(
-            merged_sandbox_writable(vec![PathBuf::from("/cfg/a")], Vec::new()),
-            vec![PathBuf::from("/cfg/a")],
-            "空附加目录 = 配置原样"
-        );
-    }
 }

@@ -179,7 +179,7 @@ function contentToItems(content: unknown, role: string): TurnItem[] {
         items.push({
           kind: 'tool_call',
           toolName: typeof b.name === 'string' ? b.name : 'tool',
-          argsSummary: summarizeArgs(b.args),
+          argsSummary: summarizeArgs(b.args, typeof b.name === 'string' ? b.name : undefined),
           callId,
           status: 'done',
         });

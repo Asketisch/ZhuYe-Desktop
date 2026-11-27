@@ -20,6 +20,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 
 import { reduceEvent } from './reducer';
+import { summarizeArgs } from './turns';
 import type { AgentState } from './types';
 import type { ZhuyeEvent, ZhuyeEventMsg } from '@/types/protocol';
 
@@ -314,4 +315,12 @@ describe('v1.10 流式重试与中断兜底', () => {
     ]);
     expect(state.turns[0].status).toBe('aborted');
   });
+});
+
+
+it('长续派参数保留可解析的子会话标识', () => {
+  const args = { prompt: '继续'.repeat(300), session_id: 'child-1' };
+  const summary = summarizeArgs(args, 'call_explorer');
+  expect(JSON.parse(summary).session_id).toBe('child-1');
+  expect(summary.length).toBeLessThan(250);
 });

@@ -100,17 +100,18 @@ pub(crate) async fn hot_reload_provider_stack(
     }
     let provider_changed = provider_stack_changed(old, new)
         || agent.inner.pending_model_discovery_error.lock().is_some();
-    // workspace-write:沙箱段(writable_dirs / allow_network)进了线程
-    // 配置快照,变更需强制重绑才对当前会话生效 —— 否则要等下次切换
-    // 会话。os_level 不在此列:submit 每轮盖章,无需重绑。
-    let sandbox_changed = old.sandbox != new.sandbox;
-    if sandbox_changed {
-        info!(
-            "[zhuye-gui] sandbox section changed; forcing rebind to refresh writable dirs / network"
-        );
+    // 沙箱与治理参数在线程构造时快照，变更后重绑才能生效。
+    let thread_config_changed = old.sandbox != new.sandbox
+        || old.tool_journal != new.tool_journal
+        || old.turn_scheduling != new.turn_scheduling
+        || old.task_budget != new.task_budget
+        || old.dynamic_context != new.dynamic_context
+        || old.provenance != new.provenance;
+    if thread_config_changed {
+        info!("[zhuye-gui] thread configuration changed; forcing rebind");
     }
     if !provider_changed
-        && !sandbox_changed
+        && !thread_config_changed
         && old.hooks == new.hooks
         && agent.inner.pending_rebind_error.lock().is_none()
     {

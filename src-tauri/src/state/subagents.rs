@@ -96,6 +96,7 @@ pub(crate) fn bootstrap_subagents(
     // 注入 M4Deps 里的 subagent registry —— `CallSubAgentTool::execute` 写
     // + `pre_loop` 读走同一 Arc。
     factory.set_subagent_registry(m4.subagent_registry.clone());
+    factory.set_workspace(workspace.to_path_buf());
     // 注入父 skills catalog,让 subagent 也能 LoadSkill / 使用 skill。
     factory.set_parent_skills(m4.skills.clone());
     // v1.12:子代理会话落盘(血缘挂父会话)—— 侧栏树形展示的数据源。

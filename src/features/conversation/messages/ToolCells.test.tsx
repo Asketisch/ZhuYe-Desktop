@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ToolCell } from './ToolCells';
+import { ActivityGroup, ToolCell } from './ToolCells';
 
 describe('ToolCell', () => {
   it('renders header with tool name + summary', () => {
@@ -11,6 +11,17 @@ describe('ToolCell', () => {
     const cell = screen.getByTestId('tool-cell-shell');
     expect(cell).toBeDefined();
     expect(cell.querySelector('[class*="summary"]')?.textContent).toBe('$ ls');
+  });
+
+  it('在折叠活动和工具行中显示子代理续派', () => {
+    const args = '{"prompt":"继续","session_id":"child-1"}';
+    render(<ActivityGroup entries={[{ toolName: 'call_reviewer', argsSummary: args, status: 'done' }]}>
+      <ToolCell toolName="call_reviewer" argsSummary={args} status="done" />
+    </ActivityGroup>);
+    const group = screen.getByTestId('activity-group');
+    expect(group.querySelector('button')?.textContent).toMatch(/继续子代理对话|Continuing subagent conversation/);
+    fireEvent.click(group.querySelector('button')!);
+    expect(screen.getByTestId('tool-cell-call_reviewer').textContent).toMatch(/继续子代理对话|Continuing subagent conversation/);
   });
 
   it('expands args on click', () => {

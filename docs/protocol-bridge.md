@@ -392,6 +392,13 @@ fallback spec，**跨模型降级**）。
 | `subagent_progress` | `SubagentProgressEvent`（通道一:推送） | Inspector 子代理区块滚动 feed（封顶 200 条）—— 父级 `CallSubAgentTool` 转发的子代理中间进度（message / tool_begin / tool_end） |
 | `subagent_status` | `SubagentStatusEvent`（通道二:查询应答） | Inspector 子代理区块状态快照（`zhuye_query_subagents` 发起;turn 收尾且 feed 非空时自动刷新,亦可手动） |
 
+续派沿用 `call_<role>`，参数 `session_id` 指向同角色已完成的子会话；活动组与工具行显示“继续子代理对话”，侧栏仍使用该子会话查看历史。
+
+| 变体 | 字段 | UI |
+|---|---|---|
+| `tool_execution_uncertain` | `session_id`、`turn_id`、`call_id`、`tool_name` | 恢复后提示工具执行结果待核实 |
+| `task_budget_snapshot` | 任务标识、回合标识及预算快照 | 暂无独立展示；快照不累加到 token 用量 |
+
 ### 3.11 Prompt layers / extensions rescan (3) — v1.6.1 / v1.x
 提示词按模型自动匹配外置到 `.zhuye/prompts/*.md`（`.zhuye/prompts/` 用户目录层 + 内置厂商层，三级回退 default → 厂商 → 精确模型名）。引擎侧经 `Op::PromptCommand` 暴露查询与重扫，两个动作都**不开 turn** —— 应答事件经 per-submission 通道 + 会话扇出双路送达。v1.x（submodule main）起 `Op::RescanExtensions` 把同样的「改完即生效」带到 skills 目录，应答 `extensions_rescanned`。
 

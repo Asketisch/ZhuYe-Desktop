@@ -111,7 +111,9 @@ export type EventMsgType =
   | 'stream_recovery_started'
   | 'stream_recovery_anchor_selected'
   | 'stream_recovery_tail_discarded'
-  | 'stream_recovery_retry_started';
+  | 'stream_recovery_retry_started'
+  | 'tool_execution_uncertain'
+  | 'task_budget_snapshot';
 
 // ============================================================================
 // EventMsg payload 结构体
@@ -866,6 +868,8 @@ export interface EventMsgByType {
   stream_recovery_anchor_selected: StreamRecoveryPayload;
   stream_recovery_tail_discarded: StreamRecoveryPayload;
   stream_recovery_retry_started: StreamRecoveryPayload;
+  tool_execution_uncertain: { session_id: string; turn_id: string; call_id: string; tool_name: string };
+  task_budget_snapshot: { task_id: string; turn_id: string; estimated_tokens: number; actual_tokens: number; reserved_tokens: number; unknown_estimated_tokens: number; unknown_calls: number; estimate_overrun_tokens: number; dispatched_subagents: number };
 }
 
 /** ZhuyeEvent 的单一联合变体 —— 通过 `msg.type` 收窄。 */

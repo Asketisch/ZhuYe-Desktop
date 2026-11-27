@@ -21,7 +21,7 @@
 
 | 文件 | 一句话职责 |
 |---|---|
-| `src/browser_backend.rs` + `src/browser_backend/` | 浏览器进程与页面会话：CDP 帧流确认、最近帧重放、导航、持久连接上的设备尺寸与输入注入；输入字段使用 camelCase，重新挂载面板需先订阅再调用幂等启动以重放最近帧 |
+| `src/browser_backend.rs` + `src/browser_backend/` | 浏览器进程与页面会话：本地 CDP 短连接适配、帧流确认、最近帧重放、导航、持久连接上的设备尺寸与输入注入；输入字段使用 camelCase，重新挂载面板需先订阅再调用幂等启动以重放最近帧 |
 | `src/events.rs` | 事件转发器：前台 `zhuye_event` + 后台 `zhuye_session_event` 两通道；Lagged 缺口另发 `zhuye_event_gap` 合成通知（v1.12，前端触发重放收敛） |
 | `src/agent_state.rs` | 活跃 agent 定义选择（当前生效的 agent def） |
 | `src/mcp.rs` | MCP 运行时接入：bootstrap + lifecycle 转发器（Started/Failed/Elicitation 登记 waiter 再推事件/ToolsChanged 注册表增量同步） |

@@ -48,6 +48,28 @@ pub(crate) fn rebind_session(
     rebind_session_inner(agent, sid, preload, initial_mode, false)
 }
 
+/// 恢复会话时仅向新建线程注入尚未结清的工具执行记录。
+pub(crate) fn rebind_session_with_recovery(
+    agent: &MinimalAgent,
+    sid: ThreadId,
+    preload: Vec<ChatMessage>,
+    initial_mode: Option<PermissionMode>,
+    unsettled: Vec<zhuye_protocol::ToolExecutionUncertainEvent>,
+) -> anyhow::Result<()> {
+    rebind_session_with(
+        agent,
+        sid,
+        preload,
+        initial_mode,
+        false,
+        move |agent, sid, preload, mode| {
+            let thread = construct_thread(agent, sid, preload, mode)?;
+            *thread.config().recovered_tool_executions.lock() = unsettled;
+            Ok(thread)
+        },
+    )
+}
+
 /// 强制重绑:跳过同 id 短路,无条件重建线程。
 ///
 /// coding plan 热切换路径(`state/reload.rs::hot_reload_provider_stack`)

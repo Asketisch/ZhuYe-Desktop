@@ -13,14 +13,14 @@
 | `state.rs` | facade：`MinimalAgent` 顶壳、子模块布线、thin 委托 |
 | `agent.rs` | `MinimalAgentInner` 共享内部状态（含后台线程表、**已应答 plan gate 注册表 `resolved_plan_gates`** —— 引擎上游 `Op::PlanApproval` 只摘 waiter 不清挂起注册表，桌面端在 `zhuye_plan_approval` 登记 plan_id、`zhuye_bind_session` 返回快照前滤除，防已确认弹窗随换绑复活） + `new_empty` + 状态诊断快照；初始 workspace = cwd，cwd 解析失败回退 `$HOME`（不落占位 `.`，与 `workspace_state::restore_last_used` 同口径） |
 | `model_spec.rs` | model spec 解析专题：降级原因 / 显式解析兜底（模型组 `[[model_group]]` 按组 id 查组内凭据）/ 动态清单发现（消费方 install / reload） |
-| `install.rs` / `thread_factory.rs` | 二段构造第二阶段 `install_agent_thread` / install 与 rebind 共享的线程构造路径；内置工具注册带 bundled 插件门（`register_builtin_tools_with_gates`；web_search 额外按 API key 门控，见 `web_search.rs`）与 verify-hooks 门控注入（启用即注入 verification / test_runner hook，判定源 `zhuye_plugin::bundled_plugin_enabled`）；线程构造注入 `with_tool_env`（web_search 的 BRAVE_API_KEY，主线程与侧通道线程同源） |
+| `install.rs` / `thread_factory.rs` | 二段构造第二阶段 `install_agent_thread` / install 与 rebind 共享的线程构造路径；子代理继承父线程配置与工作区，治理配置随线程快照；内置工具注册带 bundled 插件门（`register_builtin_tools_with_gates`；web_search 额外按 API key 门控，见 `web_search.rs`）与 verify-hooks 门控注入（启用即注入 verification / test_runner hook，判定源 `zhuye_plugin::bundled_plugin_enabled`）；线程构造注入 `with_tool_env`（web_search 的 BRAVE_API_KEY，主线程与侧通道线程同源） |
 | `submit.rs` / `session.rs` | per-turn 提交流水（submit / submit_op / interrupt）/ session broadcast 入口 |
 | `rebind.rs`（+ `rebind/tests.rs`） / `reload.rs`（+ `reload/tests.rs`） | 会话换绑（后台持续运行：demote/promote/后台表） / provider 栈热重载（plugins 段变更含门控工具差量同步），测试走 `#[cfg(test)] mod tests;` 目录形式 |
 | `plugins.rs` / `plugin_hooks.rs` / `plugin_status.rs` / `web_search.rs` | 插件运行时接线（含 `apply_bundled_tool_gates`：web_search / notebook_edit 门随配置差量 register/unregister 共享工具表；web_search 门 = 插件开关 **且** API key 已配置）/ 插件事件桥 / 加载快照 / web_search key 判定与 `tool_env` 构造（`[web_search].api_key` 或 `BRAVE_API_KEY` 任一非空） |
 | `autopilot.rs` / `quota.rs` / `remote_config.rs` | Autopilot 装配 / coding plan 配额接线 / 远端连接配置 |
 | `agent.rs` 内 `browser` 字段 | 受控浏览器管理器（`src-tauri/src/browser_backend.rs`）：启动/attach + screencast 帧流；tokio Mutex（命令体持锁跨 await） |
 | `remote.rs` | SSH 远程会话管理器：host 注册表（`$ZHUYE_HOME/remote-hosts.json`）+ serve 子进程传输（远端命令经 `sh -lc` 登录 shell）+ 事件泵（前台进 `session_tx`、后台进 `background_tx`）+ 远端 bootstrap 安装脚本；`foreground_remote` 插槽驱动 submit/submit_op 整条路由远端 stdin |
-| `permissions.rs` / `sandbox.rs` / `recorder_guard.rs` / `side_channel_forwarder.rs` / `subagents.rs` / `task_hooks.rs` / `activity.rs` / `discussion.rs` | 权限层装配 / OS 沙箱落点 / 会话写入协调 / 终态事件补发 / 子代理工具注册 / 任务生命周期转发 / activity 订阅 / 讨论运行态 |
+| `permissions.rs` / `sandbox.rs` / `sandbox_writable.rs` / `recorder_guard.rs` / `side_channel_forwarder.rs` / `subagents.rs` / `task_hooks.rs` / `activity.rs` / `discussion.rs` | 权限层装配 / OS 沙箱落点 / GUI 附加可写目录并入纯函数（自 `thread_factory.rs` 拆出，单测绑定合并语义）/ 会话写入协调 / 终态事件补发 / 子代理工具注册 / 任务生命周期转发 / activity 订阅 / 讨论运行态 |
 
 ## 本地契约与同步点
 
@@ -32,6 +32,8 @@
 - **rebind 代数信号**：`inner.rebind_generation`（watch）在每次成功换绑时自增；`submit` 里挂在插件挂载等待上的提交据此快速失败（旧实现靠 cancel 旧线程间接解挂，后台化后线程不再被取消）。
 - **一个线程一个 forwarder**：`AgentThread::subscribe_session()` 是**追加订阅者**语义（每次调用新建一条 mpsc 通道挂进 `session_subs`），同一线程挂两个 forwarder 会让每条事件被**双发**到前台通道（delta 文本翻倍）。线程的会话 id 终身不变，其 forwarder 自首次绑定起一直存活 —— promote（bind 回后台会话）**不得**再起 forwarder（`rebind.rs` 的 `promoted` 标记）。`inner.forwarder_count` 供回归断言（`rebind/tests.rs::promote_does_not_start_second_forwarder`）。
 - **沙箱配置进线程快照（workspace-write）**：`thread_factory.rs` 主线程与侧通道线程都带 `with_sandbox_writable`（`[sandbox].writable_dirs` ∪ GUI 附加目录）与 `with_sandbox_network`（`[sandbox].allow_network`，此前只写盘不被消费）。配置在 bind 时快照 → `[sandbox]` 段变更经 `reload.rs` 强制重绑对当前会话生效（`os_level` 例外：submit 每轮盖章，无需重绑）。审批「完全访问」**不改**沙箱 —— 它跳过审批弹窗，并经上游 `HookContext.approval_policy` 让 `PlanModeGate` 在计划模式下放开全部 bash（write/edit 仍受 `.zhuye/plan` 白名单约束）。
+
+- 恢复历史会话时，仅为新建线程注入未结清工具执行记录；后台线程 promote 不重复注入。治理配置变更需重绑线程。
 
 ## 禁止事项
 

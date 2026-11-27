@@ -163,10 +163,16 @@ pub async fn zhuye_bind_session(
         }),
         _ => None,
     });
-    crate::state::rebind::rebind_session(&agent, id, preload, initial_mode).map_err(|e| {
-        CommandError {
-            msg: format!("rebind_session failed: {e:#}"),
-        }
+    let unsettled = zhuye_core::resume::unsettled_tool_executions(&records);
+    crate::state::rebind::rebind_session_with_recovery(
+        &agent,
+        id,
+        preload,
+        initial_mode,
+        unsettled,
+    )
+    .map_err(|e| CommandError {
+        msg: format!("rebind_session failed: {e:#}"),
     })?;
     let mode = agent.inner.thread.lock().as_ref().map_or_else(
         || "auto".to_string(),

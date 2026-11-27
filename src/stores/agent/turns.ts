@@ -204,10 +204,20 @@ function mapTurn(turns: Turn[], turnId: string, map: (turn: Turn) => Turn): Turn
   return turns.map((turn, i) => (i === index ? map(turn) : turn));
 }
 
-export function summarizeArgs(args: unknown): string {
+export function summarizeArgs(args: unknown, toolName?: string): string {
   if (args == null) return '';
   try {
     const summary = typeof args === 'string' ? args : JSON.stringify(args);
+    if (summary.length > 200 && toolName?.startsWith('call_')) {
+      let parsed: unknown = args;
+      if (typeof args === 'string') {
+        try { parsed = JSON.parse(args); } catch { parsed = null; }
+      }
+      if (parsed && typeof parsed === 'object' && 'session_id' in parsed && typeof parsed.session_id === 'string') {
+        const prompt = 'prompt' in parsed && typeof parsed.prompt === 'string' ? parsed.prompt : '';
+        return JSON.stringify({ session_id: parsed.session_id, prompt: `${prompt.slice(0, 100)}…` });
+      }
+    }
     return summary.length > 200 ? `${summary.slice(0, 200)}…` : summary;
   } catch {
     return String(args);

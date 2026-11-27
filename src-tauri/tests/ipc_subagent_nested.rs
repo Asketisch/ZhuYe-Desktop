@@ -170,14 +170,18 @@ fn nested_subagents_return_grandchild_result_to_parent() {
         json!({"submission":{"id":"nested-parent-turn","op":{"type":"user_input","items":[{"type":"text","text":"nested-parent-marker"}]}}}),
     );
     let mut seen = Vec::new();
-    let approval = wait_for(&rx, &mut seen, |event| {
-        event["msg"]["type"] == "approval_request"
-            && event["msg"]["kind"]["tool_name"] == "call_nested"
-    });
-    common::invoke_ok(
-        "zhuye_tool_approval",
-        json!({"id":approval["msg"]["request_id"], "decision":"approve"}),
-    );
+    // 父回合与子代理各发一次 call_nested 审批 —— 子代理继承父线程的
+    // prompt 模式,嵌套派发同样要过审批弹窗(两次都人工批准)。
+    for _ in 0..2 {
+        let approval = wait_for(&rx, &mut seen, |event| {
+            event["msg"]["type"] == "approval_request"
+                && event["msg"]["kind"]["tool_name"] == "call_nested"
+        });
+        common::invoke_ok(
+            "zhuye_tool_approval",
+            json!({"id":approval["msg"]["request_id"], "decision":"approve"}),
+        );
+    }
     wait_for(&rx, &mut seen, |event| {
         event["id"] == "nested-parent-turn" && event["msg"]["type"] == "turn_complete"
     });
