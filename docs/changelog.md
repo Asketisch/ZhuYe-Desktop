@@ -2941,8 +2941,8 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
     (span 日志)目前**无 CLI / GUI 对应面**(CLI `zhuye traces` 只读
     model-io),桌面端 Traces 视图与 CLI 保持同口径;span 读取面留待
     后续有明确用户需求时再接。
-  - `zhuye::ReflectBuilder::with_telemetry` 不适用 —— 桌面端内嵌
-    `zhuye_core::AgentThread`(经 `MinimalAgent`),不走 `ReflectBuilder`。
+  - `zhuye::ZhuyeBuilder::with_telemetry` 不适用 —— 桌面端内嵌
+    `zhuye_core::AgentThread`(经 `MinimalAgent`),不走 `ZhuyeBuilder`。
 
 ### 新增 — 插件系统接线(v1.x):`[plugins]` 挂载 + `/plugin:*` 命令展开
 
