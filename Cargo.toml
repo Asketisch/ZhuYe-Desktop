@@ -191,7 +191,7 @@ rmcp               = { version = "=3.10.0", features = [
 opentelemetry         = "0.27"
 opentelemetry_sdk     = { version = "0.27", features = ["rt-tokio"] }
 opentelemetry-otlp    = { version = "0.27", features = ["http-proto", "reqwest-client", "trace"] }
-tracing-opentelemetry = "0.28"
+tracing-opentelemetry = "0.34"
 
 [profile.release]
 lto = "thin"
