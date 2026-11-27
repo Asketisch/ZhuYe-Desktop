@@ -146,3 +146,77 @@ describe('QuestionTakeover · 多题页签', () => {
     expect(screen.getByText('Choose a fruit?')).toBeDefined();
   });
 });
+
+describe('QuestionTakeover · 单选选中自动跳下一未答题', () => {
+  beforeEach(() => {
+    localStorage.setItem('zhuye.locale', 'en');
+  });
+  afterEach(() => cleanup());
+
+  const THREE_SINGLE = {
+    id: 'q-3',
+    kind: 'question',
+    turnId: 'turn-3',
+    payload: {
+      questions: [0, 1, 2].map((n) => ({
+        header: `Q${n}`,
+        question: `Question ${n}?`,
+        multi_select: false,
+        options: [
+          { label: `A${n}`, description: 'first' },
+          { label: `B${n}`, description: 'second' },
+        ],
+      })),
+    },
+  } as unknown as PendingQuestion;
+
+  it('单选选中即自动跳到下一个未答题', () => {
+    renderTakeover();
+    fireEvent.click(screen.getByText('Pear'));
+    // 未点页签,自动落到第二题。
+    expect(screen.getByText('Choose features?')).toBeDefined();
+    expect(screen.queryByText('Choose a fruit?')).toBeNull();
+  });
+
+  it('自动跳会越过已答题,落到下一个未答题', () => {
+    renderTakeover();
+    // 先答第二题(多选,勾 Auth 不跳),再回第一题单选 —— 应越过已答的第二题…
+    fireEvent.click(screen.getByTestId('question-tab-1'));
+    fireEvent.click(screen.getByText('Auth'));
+    fireEvent.click(screen.getByTestId('question-tab-0'));
+    fireEvent.click(screen.getByText('Pear'));
+    // 只有两题,前方无未答题 → 原地停留(不会跳到不存在的题)。
+    expect(screen.getByText('Choose a fruit?')).toBeDefined();
+  });
+
+  it('多选勾选不自动跳(连续勾选不被打断)', () => {
+    renderTakeover();
+    fireEvent.click(screen.getByTestId('question-tab-1'));
+    fireEvent.click(screen.getByText('Auth'));
+    expect(screen.getByText('Choose features?')).toBeDefined();
+    fireEvent.click(screen.getByText('Audit'));
+    expect(screen.getByText('Choose features?')).toBeDefined();
+  });
+
+  it('三道单选题逐题自动前进,末题答完原地停留', () => {
+    renderTakeover(THREE_SINGLE);
+    fireEvent.click(screen.getByText('A0'));
+    expect(screen.getByText('Question 1?')).toBeDefined();
+    fireEvent.click(screen.getByText('A1'));
+    expect(screen.getByText('Question 2?')).toBeDefined();
+    fireEvent.click(screen.getByText('A2'));
+    // 末题答完:停留原地(不越界),提交按钮由 allAnswered 门控出现。
+    expect(screen.getByText('Question 2?')).toBeDefined();
+    expect(screen.getByTestId('question-submit')).toBeDefined();
+  });
+
+  it('三题答完前自动跳会越过已答题落到未答题', () => {
+    renderTakeover(THREE_SINGLE);
+    // 先跳到第二题答掉它,再回第一题 —— 选完 A0 应越过 Q1(已答)落到 Q2。
+    fireEvent.click(screen.getByTestId('question-tab-1'));
+    fireEvent.click(screen.getByText('A1'));
+    fireEvent.click(screen.getByTestId('question-tab-0'));
+    fireEvent.click(screen.getByText('A0'));
+    expect(screen.getByText('Question 2?')).toBeDefined();
+  });
+});

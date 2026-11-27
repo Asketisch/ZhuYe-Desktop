@@ -8,6 +8,7 @@
  * 细分收进 tooltip，≥80% 转 warning 色。
  */
 import { useAgentStore } from '@/stores/agentStore';
+import { useShellUi } from '@/stores/shellUi';
 import { useI18n } from '@/utils/i18n';
 import s from '@/render/input/composer/Composer.module.css';
 
@@ -22,6 +23,8 @@ export function ContextUsage() {
   const { t } = useI18n();
   const tokens = useAgentStore((st) => st.tokens);
   const windowSize = useAgentStore((st) => st.contextWindowSize);
+  const openDockTab = useShellUi((st) => st.openDockTab);
+  const setInspectorTab = useShellUi((st) => st.setInspectorTab);
 
   const known = !!tokens && !!windowSize && windowSize > 0 && tokens.total > 0;
   const ratio = known ? Math.min(1, tokens.total / (windowSize as number)) : 0;
@@ -48,6 +51,12 @@ export function ContextUsage() {
       title={tooltip}
       data-testid="composer-context-usage"
       aria-label={tooltip}
+      style={{ cursor: 'pointer' }}
+      onClick={() => {
+        // 与状态栏圆环同口径:点击落右 dock 检查器概览页。
+        openDockTab('inspector');
+        setInspectorTab('overview');
+      }}
     >
       {/* 底环常驻灰、进度环按 dasharray 填充；r=10/stroke=4 的比例
           与底栏 pill 高度对齐。 */}

@@ -201,4 +201,24 @@ describe('StatusBar — OS 沙箱徽标', () => {
     // tooltip 是该徽标的兄弟节点(Tooltip 纯 CSS,label 常驻 DOM)。
     expect(sandbox.parentElement?.textContent).toContain('ZHUYE_SANDBOX_OS_LEVEL=0');
   });
+
+  it('点击上下文环打开检查器概览(hover 明细含输入/输出/缓存)', async () => {
+    const { useShellUi } = await import('@/stores/shellUi');
+    useShellUi.setState({ dockTabs: [], dockActiveId: null, inspectorTab: 'changes' });
+    useAgentStore.setState({
+      tokens: { input: 1200, output: 300, cached: 200, cacheWrite: 500, total: 1500, cost: null, sessionCost: 0 },
+      contextWindowSize: 10_000,
+    });
+    render(wrap(<StatusBar />));
+    const gauge = screen.getByTestId('statusbar-context');
+    // hover 明细:百分比 + 输入 / 输出 / 缓存三行。
+    const tip = gauge.parentElement?.textContent ?? '';
+    expect(tip).toContain('15%');
+    expect(tip).toContain('1,200');
+    // 点击落检查器概览页。
+    fireEvent.click(gauge);
+    const ui = useShellUi.getState();
+    expect(ui.dockActiveId).toBe('inspector');
+    expect(ui.inspectorTab).toBe('overview');
+  });
 });

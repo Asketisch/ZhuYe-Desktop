@@ -5,11 +5,15 @@
  * 1. ingest 复用主 reducer:后台事件驱动 running / pending 投影,形状与
  *    主 store 的 pending* 字段一致(审批/提问/plan 不漂移);
  * 2. demote 把前台在飞投影(turns + 待确认交互)播种进后台 scratch,
- *    mergePendingInto 在切回时把它们整体注回主 store —— gate 请求不落
- *    rollout、在飞回合的 assistant 消息也要等回合结束才落盘,两者都只能
- *    靠内存投影跨会话切换存活;
+ *    mergePendingInto 在切回时与回放历史**按 turn id 并集合并**后注回
+ *    主 store —— gate 请求不落 rollout、在飞回合的 assistant 消息也要
+ *    等回合结束才落盘,两者都只能靠内存投影跨会话切换存活;
  * 3. demote 播种切走时的运行态(turn_started 是前台事件,降级后的
  *    后台通道不会重发),后续 turn 收尾事件把它拉回 false。
+ *
+ * 并集合并契约(回归):回放历史是基,scratch 只补在飞 delta / 未落盘
+ * 新轮 —— scratch 从空初始化(空闲切走后引擎自续)时不得用只含新轮的
+ * 投影整表覆盖回放历史(切回后整段历史消失的最严重形态)。
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { __resetBackgroundScratchesForTests, useBackgroundSessions } from './backgroundSessions';
@@ -171,5 +175,42 @@ describe('backgroundSessions — demote / mergePendingInto', () => {
     useBackgroundSessions.getState().demote(SESSION_A, foregroundProjection());
     useBackgroundSessions.getState().clearSession(SESSION_A);
     expect(useBackgroundSessions.getState().sessions[SESSION_A]).toBeUndefined();
+  });
+
+  it('并集合并：回放历史为基 + 后台新轮补充,不再整表覆盖', () => {
+    // 切回 A:已按 rollout 水合出两轮历史。
+    const replayed = [
+      { id: 't-old-1', items: [{ kind: 'user_text' as const, text: 'old-1' }], status: 'done' as const },
+      { id: 't-old-2', items: [{ kind: 'user_text' as const, text: 'old-2' }], status: 'done' as const },
+    ];
+    useAgentStore.setState({ turns: replayed as never });
+    // 后台期间 scratch 从空初始化(空闲切走 → 引擎自续),只积攒了新轮。
+    useBackgroundSessions.getState().ingest(SESSION_A, ev('t-new', { type: 'turn_started' }));
+    useBackgroundSessions.getState().ingest(SESSION_A, ev('t-new', { type: 'agent_message_delta', delta: 'live' }));
+    useBackgroundSessions.getState().mergePendingInto(SESSION_A);
+    const turns = useAgentStore.getState().turns;
+    // 旧实现「scratch 非空即整表覆盖」这里会只剩 t-new —— 整段历史消失。
+    expect(turns.map((t) => t.id)).toEqual(['t-old-1', 't-old-2', 't-new']);
+    expect(turns[0].status).toBe('done');
+  });
+
+  it('并集合并同 id 轮取 items 更鲜的一份(后台 delta 不丢)', () => {
+    const base = [
+      { id: 't-live', items: [{ kind: 'user_text' as const, text: 'u' }], status: 'streaming' as const },
+    ];
+    useAgentStore.setState({ turns: base as never });
+    const { demote, ingest, mergePendingInto } = useBackgroundSessions.getState();
+    demote(SESSION_A, {
+      turns: base as never,
+      pendingApprovals: [],
+      pendingQuestions: [],
+      pendingAskUser: [],
+      pendingPlan: null,
+    });
+    // 后台期间又流出一条 delta(scratch 的 items 更多更鲜)。
+    ingest(SESSION_A, ev('t-live', { type: 'agent_message_delta', delta: 'more' }));
+    mergePendingInto(SESSION_A);
+    const turn = useAgentStore.getState().turns.find((t) => t.id === 't-live');
+    expect(turn?.items.length).toBeGreaterThan(base[0].items.length);
   });
 });

@@ -66,6 +66,42 @@ describe('deriveChangesFromTurn', () => {
     ]));
     expect(changes).toHaveLength(0);
   });
+
+  // 后端写类工具注册名逐字对齐（zhuye-tools Tool::name(),大小写敏感）——
+  // 白名单漏收时整类改动不进卡（历史 bug:只有 edit 能进卡）。
+  it('write 新建文件计入改动卡（metadata.path）', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'write', argsSummary: '{"path":"src/new.ts"}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: '', isError: false, path: 'src/new.ts', diff: '+hello' },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].path).toBe('src/new.ts');
+    expect(changes[0].toolName).toBe('write');
+  });
+
+  it('delete_file 无 diff 也计入（行数 0/0）', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'delete_file', argsSummary: '{}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: 'deleted /w/old.txt', isError: false, path: '/w/old.txt' },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].toolName).toBe('delete_file');
+    expect(changes[0].diff).toBe('');
+    expect(countDiffLines(changes[0].diff)).toEqual({ added: 0, removed: 0 });
+  });
+
+  it('PlanWrite（PascalCase）与 notebook_edit（args path 兜底）计入', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'PlanWrite', argsSummary: '{"path":"plans/p.md"}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: '', isError: false, path: 'plans/p.md', diff: '+plan' },
+      { kind: 'tool_call', toolName: 'notebook_edit', argsSummary: '{"action":"overwrite","path":"n.ipynb"}', callId: 'c2', status: 'done' },
+      { kind: 'tool_output', callId: 'c2', text: '', isError: false },
+    ]));
+    expect(changes).toHaveLength(2);
+    expect(changes[0].toolName).toBe('PlanWrite');
+    expect(changes[1].toolName).toBe('notebook_edit');
+    expect(changes[1].path).toBe('n.ipynb');
+  });
 });
 
 describe('countDiffLines', () => {

@@ -7,6 +7,9 @@
  * - LaTeX 公式:`$..$` 行内 / `$$..$$` 块级,KaTeX 渲染(流式中未闭合的
  *   公式按原文显示,写完后成式);
  * - 图片:token 化样式 + 点击 Lightbox 放大(B4)。
+ *
+ * Prism 语言注册与高亮管线在 `./highlight.ts`(文件预览 / diff 行内
+ * 高亮等场景共用同一份语言表)。
  */
 import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -14,65 +17,12 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import Prism from 'prismjs';
-// 常用语言静态注册(核心自带 markup/css/clike/javascript);
-// 依赖顺序:jsx 依赖 markup+javascript,tsx 依赖 jsx —— 顺序不可乱。
-import 'prismjs/components/prism-rust.js';
-import 'prismjs/components/prism-typescript.js';
-import 'prismjs/components/prism-bash.js';
-import 'prismjs/components/prism-json.js';
-import 'prismjs/components/prism-python.js';
-import 'prismjs/components/prism-go.js';
-import 'prismjs/components/prism-java.js';
-import 'prismjs/components/prism-c.js';
-import 'prismjs/components/prism-cpp.js';
-import 'prismjs/components/prism-csharp.js';
-// php 依赖 markup-templating(模板语法插入),必须先注册。
-import 'prismjs/components/prism-markup-templating.js';
-import 'prismjs/components/prism-php.js';
-import 'prismjs/components/prism-ruby.js';
-import 'prismjs/components/prism-sql.js';
-import 'prismjs/components/prism-yaml.js';
-import 'prismjs/components/prism-toml.js';
-import 'prismjs/components/prism-jsx.js';
-import 'prismjs/components/prism-tsx.js';
-import 'prismjs/components/prism-diff.js';
-import 'prismjs/components/prism-docker.js';
-import 'prismjs/components/prism-graphql.js';
-import 'prismjs/components/prism-kotlin.js';
-import 'prismjs/components/prism-swift.js';
-import 'prismjs/components/prism-lua.js';
-import 'prismjs/components/prism-markdown.js';
 import { Check, Copy } from 'lucide-react';
 import { Icon } from '@/features/harness/design-system';
 import { Lightbox } from './Lightbox';
 import { MermaidDiagram } from './MermaidDiagram';
+import { normalizeLang, highlight, escapeHtml } from './highlight';
 import s from './Markdown.module.css';
-
-/** 语言别名归一(大小写不敏感),未命中按原样查 Prism 语法表。 */
-const LANG_ALIASES: Record<string, string> = {
-  js: 'javascript',
-  ts: 'typescript',
-  sh: 'bash',
-  shell: 'bash',
-  zsh: 'bash',
-  yml: 'yaml',
-  py: 'python',
-  golang: 'go',
-  'c++': 'cpp',
-  cs: 'csharp',
-  kt: 'kotlin',
-  rb: 'ruby',
-  dockerfile: 'docker',
-  md: 'markdown',
-  html: 'markup',
-  xml: 'markup',
-};
-
-function normalizeLang(raw: string): string {
-  const lower = raw.toLowerCase();
-  return LANG_ALIASES[lower] ?? lower;
-}
 
 /**
  * URL 净化:react-markdown 默认 urlTransform 会清空 `data:` URL,把内联
@@ -92,13 +42,6 @@ function safeUrlTransform(url: string): string {
   } catch {
     return '';
   }
-}
-
-function highlight(code: string, rawLang: string): string | null {
-  const lang = normalizeLang(rawLang);
-  const g = (Prism.languages as unknown as Record<string, Prism.Grammar>)[lang];
-  if (!g) return null;
-  return Prism.highlight(code, g, lang);
 }
 
 interface Props {
@@ -179,11 +122,5 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
         />
       </pre>
     </div>
-  );
-}
-
-function escapeHtml(str: string): string {
-  return str.replace(/[&<>"]/g, (c) =>
-    c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;',
   );
 }

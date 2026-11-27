@@ -18,8 +18,9 @@
  * scratch 同时承载该会话的**实时 turns 投影**:引擎只在回合**结束**时
  * 才把 assistant 消息落进 rollout,回合未结束(阻塞在 plan 审批、被
  * 中断…)时解析 session 文件复现不出助手历史 —— 降级时把前台投影播种
- * 进 scratch(`demote`),切回时由 `mergePendingInto` 整体注回,历史 /
- * 运行态 / 待审批交互才不随会话切换丢失。
+ * 进 scratch(`demote`),切回时由 `mergePendingInto` 与回放历史**并集
+ * 合并**注回(按 turn id,回放为基、后台投影补缺),历史 / 运行态 /
+ * 待审批交互才不随会话切换丢失。
  *
  * 已知限制(注释与 docs 同步):后台会话不能远程停止/应答 —— 须切回
  * 该会话操作;徽标 + toast 引导用户切回。
@@ -88,10 +89,11 @@ interface BackgroundSessionsState {
    */
   demote: (sessionId: string, projection: ForegroundProjection) => void;
   /**
-   * 切回该会话后调用(bind → replay 水合完成时):把后台投影**整体**注回
-   * 主 store —— 待确认交互(rollout 不含 gate 请求)与在飞回合的实时
-   * 投影(rollout 尚未落盘)都必须合并,否则会话会静默卡在审批上 / 历史
-   * 凭空消失。之后该会话回到前台,事件重新走主 reducer。
+   * 切回该会话后调用(bind → replay 水合完成时):把后台投影与回放历史
+   * **并集合并**进主 store(按 turn id:回放为基,后台实时投影补在飞
+   * delta / 未落盘新轮)—— 待确认交互(rollout 不含 gate 请求)整体
+   * 替换为后台记录值,否则会话会静默卡在审批上 / 历史凭空消失。
+   * 之后该会话回到前台,事件重新走主 reducer。
    */
   mergePendingInto: (sessionId: string) => void;
   /** 会话删除 / 离开时清理投影与 scratch。 */
@@ -206,15 +208,31 @@ export const useBackgroundSessions = create<BackgroundSessionsState>((set, get) 
     if (!snapshot) return;
     const scratch = scratches.get(sessionId);
     // 水合已清过 pending(changedSession),这里整体替换为后台记录值。
-    // turns 同理:回放只含已落盘的记录,回合未结束时助手输出还没进
-    // rollout —— 用后台实时投影覆盖,否则切回后历史凭空消失、运行态
-    // 退化成「已结束」(停止按钮随之消失,卡住的回合再也停不下来)。
+    // turns 做**并集合并**(旧实现「scratch 非空即整表覆盖」):当前主
+    // store 的 turns = 回放历史 + promote 后窗口期的前台事件,是合并基;
+    // scratch 是后台实时投影(在飞 delta / 未落盘的新轮)。按 turn id:
+    // - 基里已有 → 取 items 更多的一份(scratch 持续叠加则更鲜;回放
+    //   更全则保回放),同长度取 scratch(后台投影);
+    // - scratch 独有 → 追加(后台期间新开、尚未落盘的轮)。
+    // 旧整表覆盖在「空闲切走 → 引擎自续产生后台事件 → scratch 从空
+    // 初始化」时会用只含新轮的投影抹掉整段回放历史(切回后历史凭空
+    // 消失的最严重形态)。
+    const base = useAgentStore.getState().turns;
+    let turns = base;
+    if (scratch && scratch.turns.length > 0) {
+      const byId = new Map(base.map((turn) => [turn.id, turn]));
+      for (const st of scratch.turns) {
+        const existing = byId.get(st.id);
+        byId.set(st.id, !existing || st.items.length >= existing.items.length ? st : existing);
+      }
+      turns = [...byId.values()];
+    }
     useAgentStore.setState({
       pendingApprovals: snapshot.pending.approvals,
       pendingQuestions: snapshot.pending.questions,
       pendingAskUser: snapshot.pending.askUser,
       ...(snapshot.pending.plan ? { pendingPlan: snapshot.pending.plan } : {}),
-      ...(scratch && scratch.turns.length > 0 ? { turns: scratch.turns } : {}),
+      ...(scratch && scratch.turns.length > 0 ? { turns } : {}),
     });
     scratches.delete(sessionId);
     set((state) => {

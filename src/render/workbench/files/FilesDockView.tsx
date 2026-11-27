@@ -31,7 +31,16 @@ export type FilesDockPreview =
   | { kind: 'loading'; path: string; badge: string; label: string }
   | { kind: 'error'; path: string; badge: string; label: string }
   | { kind: 'binary'; path: string; badge: string; label: string }
-  | { kind: 'ready'; path: string; badge: string; text: string; notice: string | null };
+  | {
+      kind: 'ready';
+      path: string;
+      badge: string;
+      /** Prism 语言 id（未注册语法为 null）。 */
+      lang: string | null;
+      /** 转义或 Prism 高亮后的正文 HTML。 */
+      codeHtml: string;
+      notice: string | null;
+    };
 
 export interface FilesDockFilterOption {
   id: FilesDockFilter;
@@ -151,7 +160,11 @@ export function FilesDockView(props: FilesDockViewProps) {
                 {props.preview.notice && (
                   <div className="fdock-sub" style={{ padding: '8px 10px' }}>{props.preview.notice}</div>
                 )}
-                <pre className="fp-code">{props.preview.text}</pre>
+                <pre
+                  className="fp-code"
+                  data-testid="files-dock-code"
+                  dangerouslySetInnerHTML={{ __html: props.preview.codeHtml }}
+                />
               </>
             )}
           </>

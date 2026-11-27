@@ -98,7 +98,9 @@ describe('FilesDock', () => {
   it('点击文件加载预览内容', async () => {
     renderDock();
     fireEvent.click(await screen.findByTestId('files-dock-file-README.md'));
-    expect(await screen.findByText('# hello')).toBeDefined();
+    // 预览正文走 Prism 高亮(文本被拆进 token span),按 textContent 断言。
+    const code = await screen.findByTestId('files-dock-code');
+    expect(code.textContent).toContain('# hello');
     // 预览头部：相对路径 + 扩展名徽标
     const preview = screen.getByTestId('files-dock-preview');
     expect(within(preview).getByText('README.md')).toBeDefined();

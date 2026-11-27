@@ -111,7 +111,8 @@ export const useAgentStore = create<AgentState>((set, get) => {
         worktreeIntent: null,
       } : {}),
       lastError: null,
-      queuedMessages: [],
+      // 队列按 sessionId 盖章隔离(queue.ts),不清空 —— 切走的排队消息
+      // 等它回到前台再排空(旧实现无条件清空会确定性丢失)。
       goalActive: false,
       goalSnapshot: null,
       subagents: EMPTY_SUBAGENTS,
@@ -156,7 +157,7 @@ export const useAgentStore = create<AgentState>((set, get) => {
       pendingPlan: null,
       plan: null,
       planDraft: null,
-      queuedMessages: [],
+      // 队列不按会话清空(条目自带 sessionId 盖章,见 hydrateSession 注释)。
       worktreeIntent: null, // 回到首页 = 新草稿,隔离意图一并清空
       // 会话域的遥测/路由数据一并重置:回到首页(或新会话首事件到来前)
       // 不应展示上一个会话的 token/压缩/路由;planFailover 的

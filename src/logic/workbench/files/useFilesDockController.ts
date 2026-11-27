@@ -22,6 +22,7 @@ import {
 } from '@/utils/commands';
 import { useI18n } from '@/utils/i18n';
 import { useCurrentWorkspace } from '@/logic/harness/shell/useCurrentWorkspace';
+import { escapeHtml, highlight, langFromPath } from '@/components/highlight';
 
 /** 过滤器档位。 */
 export type FilesDockFilter = 'all' | 'modified' | 'untracked';
@@ -45,18 +46,30 @@ export interface DockTreeNode {
   children: DockTreeNode[];
 }
 
-/** 预览模型：empty = 未选择；loading / error / binary 均携带已翻译提示文案。 */
+/** 预览模型：empty = 未选择；loading / error / binary 均携带已翻译提示文案。
+ *  ready 携带按扩展名推断语言后的高亮 HTML（超大文件 / 未注册语言为转义纯文本）。 */
 export type FilesDockPreview =
   | { kind: 'empty'; hint: string }
   | { kind: 'loading'; path: string; badge: string; label: string }
   | { kind: 'error'; path: string; badge: string; label: string }
   | { kind: 'binary'; path: string; badge: string; label: string }
-  | { kind: 'ready'; path: string; badge: string; text: string; notice: string | null };
+  | {
+      kind: 'ready';
+      path: string;
+      badge: string;
+      /** Prism 语言 id（未注册语法为 null）。 */
+      lang: string | null;
+      /** 转义或 Prism 高亮后的正文 HTML（dangerouslySetInnerHTML 直接消费）。 */
+      codeHtml: string;
+      notice: string | null;
+    };
 
 /** dock 内统一的查询键前缀，refresh 只失效这一族。 */
 const DOCK_KEY = 'files-dock';
 /** 预览正文展示上限（字符数，约 200KB），超出截断并提示。 */
 const PREVIEW_CHAR_CAP = 200_000;
+/** 同步语法高亮上限（字符数）：超过则退回转义纯文本，避免打开预览卡顿。 */
+const HIGHLIGHT_CHAR_CAP = 100_000;
 /** 目录列表缓存 10s（dock 场景允许手动刷新兜底）。 */
 const LIST_STALE_MS = 10_000;
 /** 文件内容缓存 30s。 */
@@ -230,9 +243,15 @@ export function useFilesDockController() {
       text = text.slice(0, PREVIEW_CHAR_CAP);
       notice = t('harness.files.truncated');
     }
-    return { kind: 'ready', path, badge, text, notice };
+    // 语法高亮:按扩展名推断语言;超大正文(同步高亮会卡)或语言未注册时
+    // 退回转义纯文本(语言徽标仍显示扩展名,与正文渲染解耦)。
+    const lang = langFromPath(selected);
+    const codeHtml =
+      lang && text.length <= HIGHLIGHT_CHAR_CAP
+        ? (highlight(text, lang) ?? escapeHtml(text))
+        : escapeHtml(text);
+    return { kind: 'ready', path, badge, lang, codeHtml, notice };
   }, [selected, fileQuery.isPending, fileQuery.error, fileQuery.data, workspace, t]);
-
   // ====== 顶栏与动作 ======
   const [treeCollapsed, setTreeCollapsed] = useState(false);
   const workspaceName = workspace ? basename(workspace) : '—';

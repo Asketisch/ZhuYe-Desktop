@@ -99,7 +99,7 @@ export function TurnDiffReview({ path, diff }: TurnDiffReviewProps) {
         >
           <div className={s.reviewHead} title={path}>{path}</div>
           <div className={s.reviewBody}>
-            <DiffViewer diff={diff} emptyMessage={t('turnChanges.noDiff')} />
+            <DiffViewer diff={diff} path={path} emptyMessage={t('turnChanges.noDiff')} />
           </div>
         </div>
       )}

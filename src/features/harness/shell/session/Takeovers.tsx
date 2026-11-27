@@ -105,6 +105,18 @@ export function QuestionTakeover({ question }: { question: PendingQuestion }) {
       }
       return { ...prev, [qIdx]: [optIdx] };
     });
+    // 单选选中即自动跳到下一个未答题(多选要连续勾选、自定义在打字,
+    // 都不跳免打断;末题或前方全答完则原地停留,提交交给 allAnswered 门控)。
+    if (!isMulti) {
+      setActiveIdx((cur) => {
+        const done = (qi: number) =>
+          (selections[qi]?.length ?? 0) > 0 || Boolean(custom[qi]?.trim());
+        for (let i = qIdx + 1; i < items.length; i += 1) {
+          if (!done(i)) return i;
+        }
+        return cur;
+      });
+    }
   };
 
   /** 该题是否已答(选了选项或填了自定义)。 */

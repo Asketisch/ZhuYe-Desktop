@@ -5,6 +5,7 @@ import { zhuye_agent_status, zhuye_list_sessions, zhuye_sandbox_status } from '@
 import { getTheme, setTheme, getResolvedTheme, subscribeTheme, type ThemeMode } from '@/logic/harness/preferences/theme';
 import { useContextRatio } from './useContextRatio';
 import { isUsableModelSpec } from './modelLabel';
+import { useShellUi } from '@/stores/shellUi';
 
 export function useStatusBarController() {
   const session = useAgentStore((state) => state.session);
@@ -27,9 +28,17 @@ export function useStatusBarController() {
   const status = statusQuery.data;
   const modelLabel = sessionModel ?? (status && status.has_model ? status.model : null);
   const modelKind: 'ok' | 'warn' | 'error' = status?.degraded_reason ? 'warn' : sessionModel != null || (status && status.has_model) ? 'ok' : 'error';
+  // 点击状态栏上下文环 → 打开右 dock 检查器并落到概览页(可编程切页签,
+  // 与 Inspector 内部子页签同一入口)。
+  const openDockTab = useShellUi((s) => s.openDockTab);
+  const setInspectorTab = useShellUi((s) => s.setInspectorTab);
+  const openInspectorOverview = () => {
+    openDockTab('inspector');
+    setInspectorTab('overview');
+  };
   return { session, permissionMode, cyclePermissionMode, mcpServers, lspServers, lastError, clearError, tokens,
     statusQuery, sessionsQuery, sandboxQuery, sessionCount: sessionsQuery.data?.length ?? 0, ctx,
     resolved, mode, cycleTheme, status, sessionModel, modelLabel, modelKind,
-    modelTooltip: status?.degraded_reason ?? undefined };
+    modelTooltip: status?.degraded_reason ?? undefined, openInspectorOverview };
 }
 export type StatusBarController = ReturnType<typeof useStatusBarController>;

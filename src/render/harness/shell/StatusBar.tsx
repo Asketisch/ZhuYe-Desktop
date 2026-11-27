@@ -39,15 +39,31 @@ export function StatusBar({ t, tp, ctrl }: StatusBarProps) {
         </button>
         {ctx.pct !== null && (
           <Tooltip
-            label={t('shell.contextStatus', {
-              pct: String(ctx.pct),
-              used: ctx.usedTokens.toLocaleString(),
-              total: (ctx.windowSize ?? 0).toLocaleString(),
-            })}
+            label={[
+              t('shell.contextStatus', {
+                pct: String(ctx.pct),
+                used: ctx.usedTokens.toLocaleString(),
+                total: (ctx.windowSize ?? 0).toLocaleString(),
+              }),
+              ...(tokens
+                ? [
+                    `${t('inspector.tokenInput')}: ${tokens.input.toLocaleString()}`,
+                    `${t('inspector.tokenOutput')}: ${tokens.output.toLocaleString()}`,
+                    `${t('inspector.tokenCached')}: ${tokens.cached.toLocaleString()}`,
+                  ]
+                : []),
+            ].join('\n')}
             side="top"
+            multiline
           >
-            {/* F52:环形仪表取代纯文本 —— 档位着色(Normal/Warning/Critical)。 */}
-            <span data-testid="statusbar-context" data-warn={ctx.warn || undefined}>
+            {/* F52:环形仪表取代纯文本 —— 档位着色(Normal/Warning/Critical)。
+                点击落右 dock 检查器概览页(用量明细的完整视图)。 */}
+            <span
+              data-testid="statusbar-context"
+              data-warn={ctx.warn || undefined}
+              style={{ cursor: 'pointer' }}
+              onClick={() => ctrl.openInspectorOverview()}
+            >
               <ContextGauge t={t} ratio={ctx.ratio ?? 0} pct={ctx.pct ?? 0} windowSize={ctx.windowSize ?? 0} usedTokens={ctx.usedTokens} />
             </span>
           </Tooltip>

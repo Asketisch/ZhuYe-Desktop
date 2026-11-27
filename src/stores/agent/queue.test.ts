@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockInvoke, resetMockInvoke } from '@/test/setup';
 import { useAgentStore } from './store';
+import { selectQueuedForActiveSession } from './selectors';
 import type { ZhuyeSubmission } from '@/types/protocol';
 
 describe('queuedMessages — 队列状态机', () => {
@@ -167,13 +168,25 @@ describe('queuedMessages — 队列状态机', () => {
     expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
   });
 
-  it('hydrateSession / clearSession 清空队列（会话切换不串消息）', () => {
-    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'q1' }]);
-    useAgentStore.getState().hydrateSession?.('sess-1', []);
-    expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
+  it('会话切换不清队列：条目按 sessionId 隔离,切回后仍在(不串消息)', () => {
+    useAgentStore.setState({ loadedSessionId: 'sess-a' });
+    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'a-queued' }]);
+    expect(useAgentStore.getState().queuedMessages).toHaveLength(1);
 
-    useAgentStore.getState().enqueueMessage([{ type: 'text', text: 'q2' }]);
+    // 切走/水合另一个会话:全局队列条目保留,但前台 selector 看不到 A 的项。
+    useAgentStore.getState().hydrateSession?.('sess-b', []);
+    const stateB = useAgentStore.getState();
+    expect(stateB.queuedMessages).toHaveLength(1);
+    expect(selectQueuedForActiveSession(stateB)).toHaveLength(0);
+
+    // 回到 A:条目仍在且重新可见、可排空(旧实现在 clear/hydrate 时清空 → 确定性丢失)。
+    useAgentStore.getState().hydrateSession?.('sess-a', []);
+    const stateA = useAgentStore.getState();
+    expect(selectQueuedForActiveSession(stateA).map((m) => m.text)).toEqual(['a-queued']);
+
+    // 回首页不清队列(下个会话也看不到 A 的项)。
     useAgentStore.getState().clearSession?.();
-    expect(useAgentStore.getState().queuedMessages).toHaveLength(0);
+    expect(useAgentStore.getState().queuedMessages).toHaveLength(1);
+    expect(selectQueuedForActiveSession(useAgentStore.getState())).toHaveLength(0);
   });
 });

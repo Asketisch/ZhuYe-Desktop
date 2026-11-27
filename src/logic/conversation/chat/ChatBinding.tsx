@@ -67,8 +67,11 @@ export function commandErrorMsg(e: unknown): string {
  *   只能靠内存投影跨会话切换存活(否则切回后审批框消失,回合永远
  *   挂着,连停止按钮都随之消失)。
  *
- * 无在飞工作(回合已收尾)的会话:rollout 即完整事实源,不留内存
- * 投影 —— 避免注册表随访问过的会话数无限膨胀。
+ * 播种条件:**只要前台有 turns 内容或有待确认交互就播种**,不再要求
+ * `running` —— 引擎自续(goal / cron / 子代理续派)会让「前台判断空闲」
+ * 与「引擎侧仍在跑」错配;此后台事件从空 scratch 起步,切回合并时
+ * 与回放按轮次并集(见 backgroundSessions)仍安全,但播种完整历史
+ * 更省事也更稳。空会话(无 turns 无 pending)不入注册表,避免膨胀。
  */
 function demotePreviousSession(): void {
   const state = useAgentStore.getState();
@@ -79,8 +82,7 @@ function demotePreviousSession(): void {
     state.pendingQuestions.length > 0 ||
     state.pendingAskUser.length > 0 ||
     state.pendingPlan !== null;
-  const running = state.turns.some((turn) => turn.status === 'streaming');
-  if (!running && !hasPending) {
+  if (state.turns.length === 0 && !hasPending) {
     useBackgroundSessions.getState().clearSession(previous);
     return;
   }

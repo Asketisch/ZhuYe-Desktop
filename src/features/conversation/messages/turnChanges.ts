@@ -12,17 +12,12 @@
  */
 import type { Turn, TurnItem } from '@/stores/agent/types';
 
-/** 写类工具名(改文件的才进改动卡)。 */
-const WRITE_TOOLS = new Set([
-  'write_file',
-  'file_write',
-  'edit',
-  'edit_file',
-  'create_file',
-  'plan_write',
-  'delete',
-  'file_delete',
-]);
+/** 写类工具名(改文件的才进改动卡)。与后端实际注册名逐字对齐
+ * （zhuye-tools `Tool::name()`,大小写敏感）:
+ * `write` / `edit` / `delete_file` / `notebook_edit` / `PlanWrite`。
+ * `bash` 有意排除 —— 它改文件但不产出 path/diff 元数据,进卡也只是空行。
+ */
+const WRITE_TOOLS = new Set(['write', 'edit', 'delete_file', 'notebook_edit', 'PlanWrite']);
 
 /** 从单条 turn 派生的一处文件改动。 */
 export interface TurnChange {

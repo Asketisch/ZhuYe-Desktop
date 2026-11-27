@@ -1680,6 +1680,36 @@ svg.i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-widt
   overflow: auto;
   font-family: var(--font-mono);
 }
+/* 文件预览的 Prism token 配色（与 Markdown.module.css 同款 palette，
+   全局作用域供 render 层复用）。 */
+.fp-code .token.comment,
+.fp-code .token.prolog,
+.fp-code .token.doctype,
+.fp-code .token.cdata { color: var(--fg-3); }
+.fp-code .token.punctuation { color: var(--fg-2); }
+.fp-code .token.property,
+.fp-code .token.tag,
+.fp-code .token.boolean,
+.fp-code .token.number,
+.fp-code .token.constant,
+.fp-code .token.symbol { color: var(--warn); }
+.fp-code .token.selector,
+.fp-code .token.attr-name,
+.fp-code .token.string,
+.fp-code .token.char,
+.fp-code .token.builtin { color: var(--ok); }
+.fp-code .token.operator,
+.fp-code .token.entity,
+.fp-code .token.url { color: var(--fg-2); }
+.fp-code .token.atrule,
+.fp-code .token.attr-value,
+.fp-code .token.keyword { color: var(--accent); }
+.fp-code .token.function { color: var(--info); }
+.fp-code .token.regex,
+.fp-code .token.important { color: var(--warn); }
+.fp-code .token.important,
+.fp-code .token.bold { font-weight: bold; }
+.fp-code .token.italic { font-style: italic; }
 
 /* ============================================================
    终端面板（底部停靠 · 真 PTY）
