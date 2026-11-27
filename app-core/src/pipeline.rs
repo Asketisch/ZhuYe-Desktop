@@ -1,6 +1,6 @@
 //! DAG 流水线 —— GUI 对应 CLI `zhuye pipeline run / team`。
 //!
-//! 两条入口,均镜像 CLI 的组装(registry 从配置引导、`REFLECT_MODEL=mock`
+//! 两条入口,均镜像 CLI 的组装(registry 从配置引导、`ZHUYE_MODEL=mock`
 //! 可离线跑通、factory 不带 recorder):
 //! - [`run_team_pipeline`]:用已注册 team(`~/.zhuye/teams/`)跑四阶段
 //!   预设(plan → prd → exec → verify),对应 `zhuye pipeline team`;
@@ -64,7 +64,7 @@ pub fn build_task_manager() -> Result<Arc<TaskManager>, PipelineRunError> {
 }
 
 /// 构造 SubAgentFactory —— 镜像 CLI `build_factory`:registry 从配置
-/// 引导(含 `REFLECT_MODEL=mock` 离线注册),默认 model 用 resolved spec,
+/// 引导(含 `ZHUYE_MODEL=mock` 离线注册),默认 model 用 resolved spec,
 /// 无 recorder(GUI 侧 spawn 的子 agent 各自走自己的 session)。
 ///
 /// `async`:`model = "free"`(运行时从 provider 清单里挑免费模型)在此

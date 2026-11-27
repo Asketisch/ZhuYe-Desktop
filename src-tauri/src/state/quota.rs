@@ -53,7 +53,7 @@ pub(crate) fn make_provider(
 ///
 /// 组 id 即 registry 池名 —— 配额按「组 id → 组内凭据 → quota 配置」
 /// 收集,池名与模型组一一对应。
-pub(crate) fn build_quota_tracker(cfg: &zhuye_config::ReflectConfig) -> Option<SharedQuotaTracker> {
+pub(crate) fn build_quota_tracker(cfg: &zhuye_config::ZhuyeConfig) -> Option<SharedQuotaTracker> {
     let tracker = std::sync::Arc::new(zhuye_llm::QuotaTracker::new());
     let mut any = false;
 
@@ -110,7 +110,7 @@ pub(crate) fn build_quota_tracker(cfg: &zhuye_config::ReflectConfig) -> Option<S
 
 /// install 阶段调用:构建 tracker 并写入 inner(随 `construct_thread` 进入
 /// 每个 AgentConfig)。
-pub(crate) fn install_quota_tracker(agent: &MinimalAgent, cfg: &zhuye_config::ReflectConfig) {
+pub(crate) fn install_quota_tracker(agent: &MinimalAgent, cfg: &zhuye_config::ZhuyeConfig) {
     let tracker = build_quota_tracker(cfg);
     *agent.inner.quota_tracker.lock() = tracker;
 }

@@ -1,4 +1,4 @@
-//! Reflect-app-core: Tauri 命令层的共享领域服务（UI 无关）。
+//! ZhuYe-app-core: Tauri 命令层的共享领域服务（UI 无关）。
 //!
 //! 每个模块对应一组 `zhuye_*` Tauri 命令的领域逻辑与数据类型，
 //! 由 `src-tauri` 消费；与渲染无关（GUI 渲染状态由前端 TS

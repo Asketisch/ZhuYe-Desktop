@@ -871,7 +871,7 @@ export function installFakeBackend(): FakeBackend {
   );
   handle(
     'zhuye_export_session',
-    handler(() => '/tmp/export.reflect'),
+    handler(() => '/tmp/export.zhuye'),
   );
   handle(
     'zhuye_export_session_markdown',

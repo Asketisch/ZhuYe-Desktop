@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use zhuye_config::ReflectConfig;
+use zhuye_config::ZhuyeConfig;
 use zhuye_lsp::{LspConnectionManager, LspLifecycleEvent, LspServerConfig, LspTool};
 use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg};
 use zhuye_tools::ToolSource;
@@ -15,7 +15,7 @@ use zhuye_tools::ToolSource;
 /// bootstrap LSP servers + 返回 manager 句柄。
 pub(crate) async fn bootstrap_lsp(
     agent: &crate::state::MinimalAgent,
-    cfg: &ReflectConfig,
+    cfg: &ZhuyeConfig,
 ) -> Result<Option<Arc<LspConnectionManager>>, String> {
     // 幂等:已启用(用户开关)时直接返回现有 manager,不重复注册/起 server。
     if let Some(existing) = agent.inner.lsp_manager.lock().clone() {

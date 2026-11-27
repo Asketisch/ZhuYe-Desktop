@@ -16,8 +16,8 @@ use std::path::PathBuf;
 
 use serde_json::json;
 
-const FIXTURE_ENV: &str = "REFLECT_COMPAT_FIXTURE";
-const HOME_ENV: &str = "REFLECT_TEST_HOME";
+const FIXTURE_ENV: &str = "ZHUYE_COMPAT_FIXTURE";
+const HOME_ENV: &str = "ZHUYE_TEST_HOME";
 const TEST_NAME: &str = "legacy_and_unknown_config_shapes_load_in_a_fresh_process";
 
 /// (文件名, 应在规范化读回配置中出现的标记 —— 全部是「已知键」的值,

@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const PHASE: &str = "REFLECT_SETTINGS_RESTART_PHASE";
-const BASE: &str = "REFLECT_TEST_HOME";
+const PHASE: &str = "ZHUYE_SETTINGS_RESTART_PHASE";
+const BASE: &str = "ZHUYE_TEST_HOME";
 const TEST: &str = "saved_token_budget_applies_in_a_new_process";
 
 fn tool_reply() -> String {

@@ -63,7 +63,6 @@ const shell: Record<string, StringEntry> = {
   'shell.title.designSystem':     { en: 'Design System',                                          'zh-CN': '设计系统' },
   'shell.title.memory':           { en: 'Memory',                                                 'zh-CN': '记忆' },
   'shell.title.search':           { en: 'Search',                                                 'zh-CN': '搜索' },
-  'shell.title.reflect':          { en: 'ZhuYe',                                                  'zh-CN': '烛夜' },
   'shell.title.tasks':            { en: 'Tasks',                                                  'zh-CN': '任务' },
   'shell.title.schedule':         { en: 'Schedule',                                               'zh-CN': '定时' },
   'shell.title.agents':           { en: 'Agents',                                                 'zh-CN': '智能体' },

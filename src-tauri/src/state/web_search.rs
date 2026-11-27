@@ -14,13 +14,13 @@
 
 use std::collections::HashMap;
 
-use zhuye_config::ReflectConfig;
+use zhuye_config::ZhuyeConfig;
 
 /// `WebSearchTool` 读取的进程环境变量名（与上游 headless 同口径）。
 pub(crate) const BRAVE_API_KEY_ENV: &str = "BRAVE_API_KEY";
 
 /// 配置里的 key 是否存在且非空白。
-fn config_key(cfg: &ReflectConfig) -> Option<&str> {
+fn config_key(cfg: &ZhuyeConfig) -> Option<&str> {
     cfg.web_search
         .as_ref()
         .and_then(|section| section.api_key.as_deref())
@@ -29,12 +29,12 @@ fn config_key(cfg: &ReflectConfig) -> Option<&str> {
 }
 
 /// 判定内核（纯函数，测试注入 env 值，避免改进程环境）。
-fn key_configured_with(cfg: &ReflectConfig, env_key: Option<&str>) -> bool {
+fn key_configured_with(cfg: &ZhuyeConfig, env_key: Option<&str>) -> bool {
     config_key(cfg).is_some() || env_key.is_some_and(|key| !key.trim().is_empty())
 }
 
 /// web_search 是否具备可用的 API key（配置或进程环境任一）。
-pub(crate) fn key_configured(cfg: &ReflectConfig) -> bool {
+pub(crate) fn key_configured(cfg: &ZhuyeConfig) -> bool {
     let env_key = std::env::var(BRAVE_API_KEY_ENV).ok();
     key_configured_with(cfg, env_key.as_deref())
 }
@@ -42,7 +42,7 @@ pub(crate) fn key_configured(cfg: &ReflectConfig) -> bool {
 /// 构造线程级工具环境变量（`AgentConfig.tool_env`）。
 ///
 /// 只注入配置里的 key；进程环境本身对工具可见，无需复制一份。
-pub(crate) fn tool_env(cfg: &ReflectConfig) -> HashMap<String, String> {
+pub(crate) fn tool_env(cfg: &ZhuyeConfig) -> HashMap<String, String> {
     let mut env = HashMap::new();
     if let Some(key) = config_key(cfg) {
         env.insert(BRAVE_API_KEY_ENV.to_string(), key.to_string());
@@ -54,10 +54,10 @@ pub(crate) fn tool_env(cfg: &ReflectConfig) -> HashMap<String, String> {
 mod tests {
     use super::*;
 
-    fn cfg_with_api_key(api_key: Option<&str>) -> ReflectConfig {
+    fn cfg_with_api_key(api_key: Option<&str>) -> ZhuyeConfig {
         match api_key {
             Some(key) => toml::from_str(&format!("[web_search]\napi_key = \"{key}\"\n")).unwrap(),
-            None => ReflectConfig::default(),
+            None => ZhuyeConfig::default(),
         }
     }
 

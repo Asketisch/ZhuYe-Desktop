@@ -53,7 +53,7 @@ jobs:
           echo "AUDIT_EXIT=$?" >> "$GITHUB_ENV"
 
       # cargo-audit 的 JSON 输出不是 SARIF,内联脚本转成 SARIF 2.1.0
-      # (与 Reflect-TUI 的 audit workflow 同款;audit.json 缺失或损坏时
+      # (与上游 ZhuYe TUI 的 audit workflow 同款;audit.json 缺失或损坏时
       # 输出 0 结果的合法 SARIF,上传步骤不会因此失败)。
       - name: Convert JSON to SARIF
         if: always()

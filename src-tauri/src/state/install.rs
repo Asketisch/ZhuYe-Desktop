@@ -65,12 +65,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     //     构建(Some);全无声明 → None(与 headless 行为对齐)。
     super::quota::install_quota_tracker(agent, &cfg_snapshot);
 
-    // 3b. 旧版桌面端记忆目录(`agent-memory/reflect/`)→ 当前活跃 agent
-    //     目录的迁移。记忆路径由 agent 名派生,不迁就会「GUI 写的记忆
-    //     agent 读不到」。失败只记日志,不阻断启动。
-    crate::memory_store::migrate_legacy_memory_dir(&workspace);
-
-    // 3c. 解析 model spec —— **必须**在 registry 建好之后:`model = "free"`
+    // 3b. 解析 model spec —— **必须**在 registry 建好之后:`model = "free"`
     //     这类动态值要从 provider 的模型清单里挑(清单来源就是 registry),
     //     解析要打网络。解析失败 → 降级原因如实上报,model 落 `stub/test`
     //     —— 绝不落占位串 `"provider/free"`:那是发给 provider 的假模型名,
@@ -83,7 +78,7 @@ pub(crate) async fn install_agent_thread(agent: &MinimalAgent) {
     *agent.inner.pending_model_discovery_error.lock() = discovery_error.clone();
     *agent.inner.degraded_reason.lock() =
         super::model_spec::compute_degraded_reason(&cfg_snapshot).or(discovery_error);
-    // 3d. 解析完成后再发布 registry —— bind 命令在这之前一律拒绝。
+    // 3c. 解析完成后再发布 registry —— bind 命令在这之前一律拒绝。
     *agent.inner.model_registry.lock() = Some(registry);
 
     // 4. 构造占位 AgentThread(sid = None,不挂 recorder / 不固定 id)。

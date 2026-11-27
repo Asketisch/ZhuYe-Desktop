@@ -69,7 +69,7 @@ describe('SegmentedControl', () => {
     expect(screen.getByText('Hint for C')).toBeDefined();
   });
 
-  it('data-size reflects size prop', () => {
+  it('data-size mirrors size prop', () => {
     const { container } = render(
       <SegmentedControl options={[...OPTIONS]} value="a" onChange={() => {}} size="sm" />,
     );

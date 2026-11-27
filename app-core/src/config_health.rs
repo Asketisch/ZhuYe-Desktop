@@ -5,7 +5,7 @@
 //! （`[[model_group]]`）。
 
 use serde::{Deserialize, Serialize};
-use zhuye_config::{ModelGroupSection, ReflectConfig};
+use zhuye_config::{ModelGroupSection, ZhuyeConfig};
 
 /// 配置健康问题的稳定标识与严重程度。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ pub struct ConfigHealthIssue {
 ///
 /// `None` = 没有活跃组：既没有 `[active].group`（或它指向不存在的组），
 /// 也没有任何带凭据的组可兜底。
-fn active_group(config: &ReflectConfig) -> Option<&ModelGroupSection> {
+fn active_group(config: &ZhuyeConfig) -> Option<&ModelGroupSection> {
     let id = config.active_group()?;
     config
         .model_group
@@ -49,7 +49,7 @@ fn group_has_credential(group: &ModelGroupSection) -> bool {
 ///
 /// 键名 `no-provider` 是**稳定标识**（前端 `ConfigHealthKey` 契约按它
 /// 取文案），不随口径变化改名；口径变化只体现在判定与本模块文案上。
-pub fn config_health_issues(config: &ReflectConfig) -> Vec<ConfigHealthIssue> {
+pub fn config_health_issues(config: &ZhuyeConfig) -> Vec<ConfigHealthIssue> {
     let mut issues = Vec::new();
     let missing_group = match active_group(config) {
         // 活跃组缺凭据 → 同样判为「没接上模型」。

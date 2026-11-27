@@ -4,11 +4,11 @@ use crate::state::MinimalAgent;
 #[tokio::test]
 async fn successful_model_reload_preserves_unresolved_rebind_diagnostic() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     *agent.inner.pending_rebind_error.lock() = Some("rebind failed".into());
     *agent.inner.degraded_reason.lock() = Some("rebind failed".into());
-    let old = zhuye_config::ReflectConfig::default();
+    let old = zhuye_config::ZhuyeConfig::default();
     let new = cfg_with_group("openai");
     *agent.inner.cfg.write() = new.clone();
     assert!(
@@ -55,7 +55,7 @@ fn unrelated_reload_keeps_existing_initialization_failure() {
     );
 }
 
-fn cfg_with_group(group: &str) -> zhuye_config::ReflectConfig {
+fn cfg_with_group(group: &str) -> zhuye_config::ZhuyeConfig {
     zhuye_config::load_from_str(&format!(
         "[[model_group]]\nid = \"{group}\"\nendpoint = \"openai\"\nmodel = \"test-model\"\n\n\
          [active]\ngroup = \"{group}\"\n"
@@ -64,7 +64,7 @@ fn cfg_with_group(group: &str) -> zhuye_config::ReflectConfig {
 }
 
 /// 无 model 配置的模型组快照(诚实化:spec 为 stub,降级原因给出指引)。
-fn cfg_with_group_no_model(group: &str) -> zhuye_config::ReflectConfig {
+fn cfg_with_group_no_model(group: &str) -> zhuye_config::ZhuyeConfig {
     zhuye_config::load_from_str(&format!(
         "[[model_group]]\nid = \"{group}\"\nendpoint = \"openai\"\n\n\
          [active]\ngroup = \"{group}\"\n"
@@ -283,13 +283,13 @@ async fn discovery_retries_unchanged_config_and_refreshes_changed_endpoint() {
     )).unwrap()
     };
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
         .unwrap();
     let old_thread = agent.inner.thread.lock().clone().unwrap();
     let old_registry = agent.inner.model_registry.lock().clone().unwrap();
-    let old = zhuye_config::ReflectConfig::default();
+    let old = zhuye_config::ZhuyeConfig::default();
     let first_cfg = config(&first.uri());
     *agent.inner.cfg.write() = first_cfg.clone();
     assert!(

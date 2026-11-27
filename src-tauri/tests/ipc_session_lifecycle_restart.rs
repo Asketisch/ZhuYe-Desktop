@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const PHASE: &str = "REFLECT_SESSION_LIFECYCLE_PHASE";
-const BASE: &str = "REFLECT_TEST_HOME";
+const PHASE: &str = "ZHUYE_SESSION_LIFECYCLE_PHASE";
+const BASE: &str = "ZHUYE_TEST_HOME";
 const TEST: &str = "session_lifecycle_survives_process_restart";
 
 fn reply() -> String {

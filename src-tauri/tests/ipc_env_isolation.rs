@@ -5,7 +5,7 @@ use std::process::Command;
 
 #[test]
 fn isolation_probe_child() {
-    if std::env::var_os("REFLECT_ISOLATION_PROBE").is_none() {
+    if std::env::var_os("ZHUYE_ISOLATION_PROBE").is_none() {
         return;
     }
     common::init_isolated_env();
@@ -52,8 +52,8 @@ fn inherited_external_paths_cannot_receive_test_data() {
     std::fs::write(outside.join("sentinel"), "unchanged").unwrap();
     let output = Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "isolation_probe_child", "--nocapture"])
-        .env("REFLECT_ISOLATION_PROBE", "1")
-        .env("REFLECT_TEST_HOME", temp.path().join("isolated"))
+        .env("ZHUYE_ISOLATION_PROBE", "1")
+        .env("ZHUYE_TEST_HOME", temp.path().join("isolated"))
         .env("ZHUYE_HOME", &outside)
         .env("ZHUYE_HUMAN_INPUT_DIR", &outside)
         .env("ZHUYE_ROLLOUT_BASE", &outside)
@@ -82,7 +82,7 @@ fn inherited_external_paths_cannot_receive_test_data() {
 
 #[test]
 fn stale_pid_directory_probe_child() {
-    if std::env::var_os("REFLECT_STALE_PID_PROBE").is_none() {
+    if std::env::var_os("ZHUYE_STALE_PID_PROBE").is_none() {
         return;
     }
     let old_base =
@@ -105,8 +105,8 @@ fn stale_pid_directory_is_not_reused() {
     let temp = tempfile::tempdir().unwrap();
     let output = Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "stale_pid_directory_probe_child", "--nocapture"])
-        .env("REFLECT_STALE_PID_PROBE", "1")
-        .env_remove("REFLECT_TEST_HOME")
+        .env("ZHUYE_STALE_PID_PROBE", "1")
+        .env_remove("ZHUYE_TEST_HOME")
         .env("TMPDIR", temp.path())
         .env("TMP", temp.path())
         .env("TEMP", temp.path())

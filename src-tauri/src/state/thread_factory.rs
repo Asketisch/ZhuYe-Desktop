@@ -29,7 +29,7 @@ use super::MinimalAgent;
 /// `enabled = false` 才关闭。model-io 文件名绑定会话 ID，便于 Traces 视图
 /// 与会话列表关联。
 fn build_telemetry_sink(
-    cfg: &zhuye_config::ReflectConfig,
+    cfg: &zhuye_config::ZhuyeConfig,
     sid: Option<ThreadId>,
 ) -> Option<Arc<zhuye_telemetry::TelemetrySink>> {
     let default_section = zhuye_config::TelemetrySection::default();
@@ -80,7 +80,7 @@ fn build_telemetry_sink(
 /// 构造共享 `ModelRegistry`。逻辑原 `install.rs:47-70` 整体搬过来:
 /// 模型组配置齐 → `cfg.to_registry()`;否则降级到空 registry,
 /// 让命令层不依赖 API key 也能启动(但实际 chat 跑不动)。
-pub(crate) fn build_registry(cfg_snapshot: &zhuye_config::ReflectConfig) -> SharedModelRegistry {
+pub(crate) fn build_registry(cfg_snapshot: &zhuye_config::ZhuyeConfig) -> SharedModelRegistry {
     let has_group = cfg_snapshot.active_group().is_some();
     if has_group {
         match cfg_snapshot.to_registry() {
@@ -144,7 +144,7 @@ pub(crate) fn construct_thread(
     // 会对每个 turn 跑 `cargo test`,无 toolchain 环境注入假失败并否决完成,
     // 纯问候也被迫连答数轮。需要 hook 的用户在 config 显式写
     // `[hooks] enabled = [...]`(或对应子段)。
-    let mut hooks_cfg = zhuye_hooks::config::HooksConfig::from_reflect_section(&cfg_snapshot.hooks);
+    let mut hooks_cfg = zhuye_hooks::config::HooksConfig::from_zhuye_section(&cfg_snapshot.hooks);
     if hooks_cfg.enabled.is_none() {
         hooks_cfg.enabled = Some(Vec::new());
     }

@@ -34,7 +34,7 @@
         <h1>烛夜（ZhuYe）<br/><span class="accent">桌面端 GUI</span></h1>
         <p class="lead">
           Tauri&nbsp;2 + React&nbsp;19 · 多栏聊天、会话侧栏、斜杠弹窗输入器、
-          进程内 <code>reflect_core::AgentThread</code> · 二进制 &lt; 20&nbsp;MB · macOS/Linux/Windows。
+          进程内 <code>zhuye_core::AgentThread</code> · 二进制 &lt; 20&nbsp;MB · macOS/Linux/Windows。
         </p>
         <div class="hero-actions">
           <a class="btn primary" href="#install">安装</a>
@@ -114,7 +114,7 @@ pnpm install
 git submodule update --init --recursive
 pnpm tauri build --bundles app
 bash scripts/install.sh
-# → /usr/local/bin/reflect-desktop
+# → /usr/local/bin/zhuye-desktop
 # → ~/Applications/ZhuYe.app</code></pre>
 
         <h3>开发模式</h3>
@@ -129,7 +129,7 @@ bash scripts/install.sh
         <h2>文档</h2>
         <ul class="docs-list">
           <li><a href="./codebase-map.html">codebase-map.md</a> — 任务导向「需要 X，编辑 Y」</li>
-          <li><a href="./protocol-bridge.html">protocol-bridge.md</a> — Tauri ↔ reflect-protocol 信封规范</li>
+          <li><a href="./protocol-bridge.html">protocol-bridge.md</a> — Tauri ↔ zhuye-protocol 信封规范</li>
           <li><a href="./architecture.html">architecture.md</a> — 顶层布局 + 状态流</li>
           <li><a href="./changelog.html">changelog.md</a> — 发布说明</li>
           <li><a href="./user-guide.html">user-guide.md</a> — 终端用户指南</li>

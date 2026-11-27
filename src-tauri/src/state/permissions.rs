@@ -78,7 +78,7 @@ impl PermissionResolver for FailsafePermissionResolver {
 /// - `workspace`:项目级权限文件所在的工作区根目录。
 pub(crate) fn apply_permission_layers(
     cfg: AgentConfig,
-    initial_cfg: &zhuye_config::ReflectConfig,
+    initial_cfg: &zhuye_config::ZhuyeConfig,
     workspace: &Path,
 ) -> AgentConfig {
     let user_store = match FilePermissionStore::with_default_home() {
@@ -93,7 +93,7 @@ pub(crate) fn apply_permission_layers(
 
 fn apply_permission_layers_with_user(
     mut cfg: AgentConfig,
-    initial_cfg: &zhuye_config::ReflectConfig,
+    initial_cfg: &zhuye_config::ZhuyeConfig,
     workspace: &Path,
     user_store: Option<Arc<dyn PermissionStore>>,
 ) -> AgentConfig {
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn apply_permission_layers_mounts_resolver_and_classifier() {
         let cfg = AgentConfig::new("stub/test", Path::new("/tmp"));
-        let initial = zhuye_config::ReflectConfig::default();
+        let initial = zhuye_config::ZhuyeConfig::default();
         let out = apply_permission_layers(cfg, &initial, Path::new("/tmp"));
         assert!(out.permission_resolver.is_some(), "必须挂上权限解析器");
         assert!(out.yolo_classifier.is_some(), "必须挂上 YOLO 分类器");
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn apply_permission_layers_tolerates_missing_workspace() {
         let cfg = AgentConfig::new("stub/test", Path::new("/tmp"));
-        let initial = zhuye_config::ReflectConfig::default();
+        let initial = zhuye_config::ZhuyeConfig::default();
         let missing = Path::new("/nonexistent/workspace/xyz");
         let out = apply_permission_layers(cfg, &initial, missing);
         assert!(out.permission_resolver.is_some());

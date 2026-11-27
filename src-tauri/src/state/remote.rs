@@ -4,7 +4,7 @@
 //! ## 结构
 //!
 //! - **host 注册表**:持久化 `$ZHUYE_HOME/remote-hosts.json`(不经上游
-//!   ReflectConfig —— 远程主机列表是桌面自有概念,改上游 schema 不划算)。
+//!   ZhuyeConfig —— 远程主机列表是桌面自有概念,改上游 schema 不划算)。
 //! - **传输**:`ssh -o BatchMode=yes -o ConnectTimeout=10 <host> -- zhuye
 //!   serve --cwd <path>` 子进程 stdin/stdout duplex(无 SSH 库,密钥认证);
 //!   二进制可用 `ZHUYE_REMOTE_SSH_BIN` 覆盖(测试 stub 注入点)。

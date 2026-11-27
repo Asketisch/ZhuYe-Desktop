@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use tokio::sync::broadcast;
-use zhuye_config::ReflectConfig;
+use zhuye_config::ZhuyeConfig;
 use zhuye_protocol::{Event, RolloutRecorder, ThreadId};
 use zhuye_tools::ToolRegistry;
 
@@ -199,7 +199,7 @@ impl MinimalAgent {
     }
 
     /// 共享 config 只读句柄(settings 读写命令、热重载用)。
-    pub fn cfg(&self) -> Arc<RwLock<ReflectConfig>> {
+    pub fn cfg(&self) -> Arc<RwLock<ZhuyeConfig>> {
         Arc::clone(&self.inner.cfg)
     }
 

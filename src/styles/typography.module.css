@@ -1,4 +1,4 @@
-/* ReflectDesktop 排版原子类 —— 消费 token，供 view 复用。
+/* ZhuYe Desktop 排版原子类 —— 消费 token，供 view 复用。
  *
  * 用法：import s from '@/styles/typography.module.css';
  *       <h1 className={s.h1}>...</h1>

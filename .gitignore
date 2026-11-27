@@ -1,4 +1,4 @@
-# ─── ReflectDesktop ─── Reflect Agent 的独立 Tauri 2 GUI ───
+# ─── ZhuYe Desktop ─── 烛夜 agent 引擎的桌面 GUI ───
 
 # Rust 构建产物
 **/target/
@@ -26,7 +26,6 @@ docs/screenshots/
 
 # 后端在工作区下落的运行时目录(记忆 / 任务 / spill 大输出落盘等;
 # 能力覆盖层已沙箱化,这条是兜底 —— 避免本地调试时误提交)
-**/.reflect/
 **/.zhuye/
 
 # 打包产物

@@ -137,9 +137,9 @@ pub async fn set_device(
 
 /// 打开短连接并 attach 第一个 page target(flatten)。
 /// 返回 (连接, sessionId) —— 命令用完即 drop。
-async fn attach_page() -> Result<(zhuye_browser::cdp::CdpConnection, String), String> {
+async fn attach_page() -> Result<(super::cdp::CdpConnection, String), String> {
     let ws_url = super::browser_ws_endpoint()?;
-    let mut conn = zhuye_browser::cdp::CdpConnection::connect(&ws_url)
+    let mut conn = super::cdp::CdpConnection::connect(&ws_url)
         .await
         .map_err(|e| format!("CDP 连接失败: {e}"))?;
     let target = super::first_page_target_on(&mut conn).await?;

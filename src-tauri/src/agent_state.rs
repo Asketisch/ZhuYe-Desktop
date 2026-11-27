@@ -18,7 +18,7 @@
 //!
 //! ## 与核心 config 的关系
 //!
-//! 核心的 `ReflectConfig` 没有 `[active].agent` 字段(CLI 用的是命令行
+//! 核心的 `ZhuyeConfig` 没有 `[active].agent` 字段(CLI 用的是命令行
 //! 旗标),且桌面端的 config 读写会把解析后的结构重新序列化 —— 手写到
 //! `config.toml` 里的自定义键会被抹掉。因此活跃 agent 放在**桌面端自己的
 //! 偏好文件**里,不动核心 config schema,也不与 config 往返冲突。

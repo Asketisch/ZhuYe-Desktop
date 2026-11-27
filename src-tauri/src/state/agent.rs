@@ -8,7 +8,7 @@ use std::sync::Arc;
 use parking_lot::{Mutex as ParkingMutex, RwLock};
 use serde::Serialize;
 use tokio::sync::broadcast;
-use zhuye_config::ReflectConfig;
+use zhuye_config::ZhuyeConfig;
 use zhuye_core::AgentThread;
 use zhuye_llm::SharedModelRegistry;
 use zhuye_protocol::{Event, ThreadId};
@@ -41,7 +41,7 @@ pub(crate) struct MinimalAgentInner {
     pub(crate) session_tx: broadcast::Sender<Event>,
     pub(crate) discussion_cancellations: DiscussionCancellations,
     /// 共享 config —— 热重载 / settings 读写命令共用。
-    pub(crate) cfg: Arc<RwLock<ReflectConfig>>,
+    pub(crate) cfg: Arc<RwLock<ZhuyeConfig>>,
     /// 共享 ToolRegistry —— MCP/LSP 后续 register_plugin_tool 用。
     pub(crate) tools: Arc<ToolRegistry>,
     /// 当前 model spec 字符串(诊断用,真实值从 cfg 解析)。
@@ -354,7 +354,7 @@ mod tests {
         assert!(!status.ready, "thread not installed yet");
     }
 
-    /// 验证 ReflectConfig 真实加载:从 ~/.zhuye/config.toml + env 读到非空 cfg。
+    /// 验证 ZhuyeConfig 真实加载:从 ~/.zhuye/config.toml + env 读到非空 cfg。
     /// 这是 settings UI 显示的源数据;若 cfg 加载失败,整个 settings 页会空。
     #[test]
     fn cfg_loads_from_real_config() {

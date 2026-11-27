@@ -5,14 +5,9 @@ import { AppProviders, router } from './router';
 import { RendererProvider } from '@/logic/harness/renderer/RendererProvider';
 import { renderer } from './render';
 import { bootstrapAppearance } from '@/logic/workbench/webview/bootstrapAppearance';
-import { migrateReflectStorageKeys } from './utils/localStorageMigrate';
 import './render/styles/tokens.css';
 import './render/styles/base.css';
 import './render/styles/harness.css';
-
-// 更名迁移先行：旧 `zhuye.*` 前缀的草稿/偏好键搬到 `zhuye.*`，
-// 必须发生在任何偏好读取之前。
-migrateReflectStorageKeys();
 
 // 启动时把持久化的主题模式 + UI 偏好 apply 到 <html>。
 bootstrapAppearance(renderer.appearance);

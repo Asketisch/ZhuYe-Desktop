@@ -273,7 +273,7 @@ mod tests {
     #[tokio::test]
     async fn queued_submissions_reject_a_replaced_thread() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
         agent.install_agent_thread().await;
         let transition = agent.inner.session_transition_lock.lock().await;
 
@@ -303,7 +303,7 @@ mod tests {
     #[tokio::test]
     async fn pending_plugin_mount_does_not_block_session_switch() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
         agent.install_agent_thread().await;
         let mount = agent.inner.plugin_mount_lock.lock().await;
         super::super::rebind::rebind_session(&agent, zhuye_protocol::ThreadId::new(), vec![], None)
@@ -340,7 +340,7 @@ mod tests {
     #[tokio::test]
     async fn closed_thread_rejects_submissions_and_can_be_rebound() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
         agent.install_agent_thread().await;
         let sid = zhuye_protocol::ThreadId::new();
         super::super::rebind::rebind_session(&agent, sid, vec![], None).unwrap();

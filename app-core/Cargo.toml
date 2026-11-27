@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Reflect Desktop 领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / traces / discussion / pipeline 等命令逻辑（UI 无关，供 src-tauri 复用）"
+description = "烛夜桌面（ZhuYe Desktop）领域服务层：activity / kms / media / squad / side-channel / tailscale / autopilot / traces / discussion / pipeline 等命令逻辑（UI 无关，供 src-tauri 复用）"
 
 [lints]
 workspace = true
@@ -16,7 +16,7 @@ name = "zhuye_app_core"
 path = "src/lib.rs"
 
 [dependencies]
-# Reflect crates（仅保留保留模块实际使用的）
+# zhuye-* 核心 crate（仅保留模块实际使用的）
 zhuye-protocol  = { workspace = true }
 zhuye-task      = { workspace = true }
 # traces:只读查询 telemetry model-io JSONL + rollout 标题映射

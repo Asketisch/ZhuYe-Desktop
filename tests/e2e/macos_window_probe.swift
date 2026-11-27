@@ -9,7 +9,7 @@ let windows = CGWindowListCopyWindowInfo(
 
 let matches = windows.filter { info in
     let owner = info[kCGWindowOwnerName as String] as? String ?? ""
-    return owner.localizedCaseInsensitiveContains("reflect-desktop")
+    return owner.localizedCaseInsensitiveContains("zhuye-desktop")
         || owner.localizedCaseInsensitiveContains("ZhuYe")
 }
 
@@ -30,6 +30,6 @@ let hasMainWindow = matches.contains { window in
 }
 
 if matches.isEmpty || !hasMainWindow {
-    fputs("未找到 ZhuYe / reflect-desktop 不小于 800×600 的在屏主窗口\n", stderr)
+    fputs("未找到 ZhuYe / zhuye-desktop 不小于 800×600 的在屏主窗口\n", stderr)
     exit(1)
 }

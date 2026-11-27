@@ -50,7 +50,7 @@
     "shortDescription": "ZhuYe AI coding agent GUI",
     "longDescription": "烛夜（ZhuYe）—— Standalone desktop GUI for the ZhuYe agent engine.",
     "publisher": "Asketisch",
-    "homepage": "https://github.com/Asketisch/ReflectDesktop",
+    "homepage": "https://github.com/Asketisch/ZhuYe-Desktop",
     "copyright": "Copyright © 2026 烛夜（ZhuYe）Contributors. Apache-2.0.",
     "icon": [
       "icons/32x32.png",

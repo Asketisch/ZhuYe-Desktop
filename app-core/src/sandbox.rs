@@ -74,7 +74,7 @@ pub fn sandbox_policy_for(enabled: bool) -> SandboxPolicy {
 /// 注：env 覆盖**不在这里**生效 —— env 是进程级逃生口，在真正决定
 /// 每轮策略时（[`resolve_os_sandbox_enabled`]）才叠加，避免把「临时
 /// 覆盖」烤进配置快照。
-pub fn load_config_with_sandbox_baseline() -> zhuye_config::ReflectConfig {
+pub fn load_config_with_sandbox_baseline() -> zhuye_config::ZhuyeConfig {
     let mut cfg = zhuye_config::load_default();
     cfg.sandbox.os_level = Some(normalize_os_level(cfg.sandbox.os_level));
     cfg

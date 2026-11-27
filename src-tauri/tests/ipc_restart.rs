@@ -2,7 +2,7 @@
 //!
 //! 夹具是「一进程一 app」;而桌面的真实生命周期是「退出 → 再启动」。
 //! 这里用**子进程重执行**复刻:父进程起一个子进程(`current_exe` +
-//! `--exact` 只跑本用例,`REFLECT_RESTART_PHASE=1` 进入阶段一),阶段一
+//! `--exact` 只跑本用例,`ZHUYE_RESTART_PHASE=1` 进入阶段一),阶段一
 //! 在共享 HOME 里写入各类持久化状态后退出;父进程再以**同一份 HOME**构建
 //! 全新 app(阶段二),逐项断言读回。
 //!
@@ -10,14 +10,14 @@
 //! 任务列表 / 定时任务 / 工作区历史。
 //!
 //! 本文件**只有一个用例**是有意的:父进程在首次 `harness()` 前就要设置
-//! `REFLECT_TEST_HOME`,不能让同进程其它用例先以默认基目录初始化夹具。
+//! `ZHUYE_TEST_HOME`,不能让同进程其它用例先以默认基目录初始化夹具。
 
 mod common;
 
 use serde_json::{Value, json};
 
-const PHASE_ENV: &str = "REFLECT_RESTART_PHASE";
-const HOME_ENV: &str = "REFLECT_TEST_HOME";
+const PHASE_ENV: &str = "ZHUYE_RESTART_PHASE";
+const HOME_ENV: &str = "ZHUYE_TEST_HOME";
 const TEST_NAME: &str = "persistent_state_survives_a_process_restart";
 
 fn invoke_ok(cmd: &str, body: Value) -> Value {

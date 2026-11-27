@@ -10,8 +10,8 @@ version = "0.0.8"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
-repository = "https://github.com/Asketisch/ReflectDesktop"
-homepage = "https://github.com/Asketisch/ReflectDesktop"
+repository = "https://github.com/Asketisch/ZhuYe-Desktop"
+homepage = "https://github.com/Asketisch/ZhuYe-Desktop"
 authors = ["ZhuYe Contributors"]
 
 # ── 成员 crate 统一 lint 策略 ──────────────────────────────────────

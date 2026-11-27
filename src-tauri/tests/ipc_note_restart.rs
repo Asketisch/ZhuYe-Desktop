@@ -8,8 +8,8 @@ use wiremock::matchers::{body_string_contains, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const TEST: &str = "session_note_survives_restart_and_is_injected";
-const PHASE: &str = "REFLECT_NOTE_RESTART_PHASE";
-const BASE: &str = "REFLECT_TEST_HOME";
+const PHASE: &str = "ZHUYE_NOTE_RESTART_PHASE";
+const BASE: &str = "ZHUYE_TEST_HOME";
 const MARKER: &str = "note-survives-process-restart";
 
 fn stream(tool: bool) -> String {

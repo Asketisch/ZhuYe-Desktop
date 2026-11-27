@@ -6,8 +6,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const PHASE: &str = "REFLECT_AUTOPILOT_RESTART_PHASE";
-const BASE: &str = "REFLECT_TEST_HOME";
+const PHASE: &str = "ZHUYE_AUTOPILOT_RESTART_PHASE";
+const BASE: &str = "ZHUYE_TEST_HOME";
 const TEST: &str = "autopilot_recovers_interrupted_run_after_process_restart";
 const PROMPT: &str = "autopilot-restart-recovery-marker";
 

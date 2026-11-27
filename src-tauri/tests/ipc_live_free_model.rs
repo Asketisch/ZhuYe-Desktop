@@ -27,30 +27,30 @@
 //! ## 跑法
 //!
 //! ```bash
-//! REFLECT_LIVE=1 cargo test --test ipc_live_free_model -- --ignored --nocapture
+//! ZHUYE_LIVE=1 cargo test --test ipc_live_free_model -- --ignored --nocapture
 //! ```
 //!
 //! 默认**不发起任何网络请求**:测试带 `#[ignore]`,且运行期还要
-//! `REFLECT_LIVE=1` 才放行(双保险 —— 有人手滑 `--ignored` 也不会误打上游)。
+//! `ZHUYE_LIVE=1` 才放行(双保险 —— 有人手滑 `--ignored` 也不会误打上游)。
 //!
 //! ## 环境变量
 //!
 //! | 变量 | 默认 | 说明 |
 //! |---|---|---|
-//! | `REFLECT_LIVE` | 空 | 设 `1` 才真跑 |
-//! | `REFLECT_LIVE_PROVIDER` | `openai` | provider 名(`openai` / `ollama`) |
-//! | `REFLECT_LIVE_BASE_URL` | `https://api.kilo.ai/api/gateway` | provider 端点 |
-//! | `REFLECT_LIVE_API_KEY` | 空 | 免 Key 端点留空;dsh 网关填 forwardKey |
-//! | `REFLECT_LIVE_MODELS` | 空 | 逗号分隔 model id;空则走 `free` 发现 |
-//! | `REFLECT_LIVE_RETRIES` | `0` | 限流重试次数(默认**不重试**,见下) |
-//! | `REFLECT_LIVE_RETRY_DELAY` | `65` | 重试间隔(秒)—— 必须 ≥ 凭据冷却窗(60s) |
-//! | `REFLECT_LIVE_DRAIN_TIMEOUT` | `180` | 事件流等待预算(秒) |
+//! | `ZHUYE_LIVE` | 空 | 设 `1` 才真跑 |
+//! | `ZHUYE_LIVE_PROVIDER` | `openai` | provider 名(`openai` / `ollama`) |
+//! | `ZHUYE_LIVE_BASE_URL` | `https://api.kilo.ai/api/gateway` | provider 端点 |
+//! | `ZHUYE_LIVE_API_KEY` | 空 | 免 Key 端点留空;dsh 网关填 forwardKey |
+//! | `ZHUYE_LIVE_MODELS` | 空 | 逗号分隔 model id;空则走 `free` 发现 |
+//! | `ZHUYE_LIVE_RETRIES` | `0` | 限流重试次数(默认**不重试**,见下) |
+//! | `ZHUYE_LIVE_RETRY_DELAY` | `65` | 重试间隔(秒)—— 必须 ≥ 凭据冷却窗(60s) |
+//! | `ZHUYE_LIVE_DRAIN_TIMEOUT` | `180` | 事件流等待预算(秒) |
 //!
 //! ### 为什么默认不重试
 //!
 //! 上游 429 会让凭据进入 **60s 冷却**,而冷却表是**进程内**的 —— 同一进程
 //! 内重试必然直接撞上冷却,拿到 `ALL_CREDENTIALS_EXHAUSTED(0 tried)`。
-//! 真要重试,得让 `REFLECT_LIVE_RETRIES > 0` **且** `REFLECT_LIVE_RETRY_DELAY`
+//! 真要重试,得让 `ZHUYE_LIVE_RETRIES > 0` **且** `ZHUYE_LIVE_RETRY_DELAY`
 //! 覆盖冷却窗(默认 65s)。与 submodule `tests/live/`「限流必须换新会话」的
 //! 结论同源。
 
@@ -453,25 +453,25 @@ fn run_chain(turn_seq: u64, drain_timeout: Duration) -> Outcome {
 // ============================================================================
 
 #[test]
-#[ignore = "实模型演练层:需 REFLECT_LIVE=1 显式开启(默认不发网络请求)"]
+#[ignore = "实模型演练层:需 ZHUYE_LIVE=1 显式开启(默认不发网络请求)"]
 fn live_free_model_practice() {
-    if env_or("REFLECT_LIVE", "") != "1" {
+    if env_or("ZHUYE_LIVE", "") != "1" {
         case(
             "live-free-model",
             "SKIP",
-            "未设 REFLECT_LIVE=1 —— 不发起任何网络请求",
+            "未设 ZHUYE_LIVE=1 —— 不发起任何网络请求",
         );
         finish();
         return;
     }
 
-    let provider = env_or("REFLECT_LIVE_PROVIDER", "openai");
-    let base_url = env_or("REFLECT_LIVE_BASE_URL", DEFAULT_BASE_URL);
-    let api_key = env_or("REFLECT_LIVE_API_KEY", "");
-    let explicit = env_or("REFLECT_LIVE_MODELS", "");
-    let retries = env_num("REFLECT_LIVE_RETRIES", 0);
-    let retry_delay = env_num("REFLECT_LIVE_RETRY_DELAY", 65);
-    let drain_timeout = Duration::from_secs(env_num("REFLECT_LIVE_DRAIN_TIMEOUT", 180));
+    let provider = env_or("ZHUYE_LIVE_PROVIDER", "openai");
+    let base_url = env_or("ZHUYE_LIVE_BASE_URL", DEFAULT_BASE_URL);
+    let api_key = env_or("ZHUYE_LIVE_API_KEY", "");
+    let explicit = env_or("ZHUYE_LIVE_MODELS", "");
+    let retries = env_num("ZHUYE_LIVE_RETRIES", 0);
+    let retry_delay = env_num("ZHUYE_LIVE_RETRY_DELAY", 65);
+    let drain_timeout = Duration::from_secs(env_num("ZHUYE_LIVE_DRAIN_TIMEOUT", 180));
 
     // 模型:显式指定优先,否则用 `free` —— 运行时从 provider 清单里挑。
     let model = if explicit.is_empty() {

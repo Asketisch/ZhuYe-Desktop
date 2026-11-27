@@ -21,7 +21,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use tokio::sync::broadcast;
-use zhuye_config::ReflectConfig;
+use zhuye_config::ZhuyeConfig;
 use zhuye_mcp::{McpConnectionManager, McpLifecycleEvent, McpServerConfig, McpToolAdapter};
 use zhuye_protocol::{EVENT_ID_NONE, Event, EventMsg, McpElicitationResponse};
 use zhuye_tools::{McpElicitationWaiters, ToolRegistry};
@@ -34,7 +34,7 @@ pub(crate) use crate::mcp_tools::McpTools;
 /// 经它推给所有前端订阅者。
 pub(crate) async fn bootstrap_mcp(
     agent: &crate::state::MinimalAgent,
-    cfg: &ReflectConfig,
+    cfg: &ZhuyeConfig,
     tools: Arc<ToolRegistry>,
     session_tx: broadcast::Sender<Event>,
 ) -> (Arc<McpConnectionManager>, tokio::sync::mpsc::Sender<Event>) {
@@ -305,7 +305,7 @@ pub(crate) fn spawn_mcp_lifecycle_forwarder(
 mod tests {
     use super::*;
 
-    fn server_config(name: &str) -> ReflectConfig {
+    fn server_config(name: &str) -> ZhuyeConfig {
         zhuye_config::load_from_str(&format!(
             "[mcp_servers.{name}]\ntype = \"stdio\"\ncommand = \"/nonexistent/zhuye-mcp-test\"\n"
         ))
@@ -318,7 +318,7 @@ mod tests {
         let mut events = agent.subscribe_session();
         let (manager, invoked) = bootstrap_mcp(
             &agent,
-            &ReflectConfig::default(),
+            &ZhuyeConfig::default(),
             agent.tools(),
             agent.session_tx(),
         )
@@ -372,7 +372,7 @@ mod tests {
         let guard = agent.inner.config_write_lock.lock().await;
         let (_manager, _invoked) =
             bootstrap_mcp(&agent, &config, agent.tools(), agent.session_tx()).await;
-        *agent.inner.cfg.write() = ReflectConfig::default();
+        *agent.inner.cfg.write() = ZhuyeConfig::default();
         drop(guard);
         let event =
             tokio::time::timeout(std::time::Duration::from_millis(150), events.recv()).await;

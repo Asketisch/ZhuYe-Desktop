@@ -4,7 +4,7 @@
 //! 点),加服务得手改 `config.toml` 的 `[mcp_servers.<name>]` —— MCP 是
 //! 基座最主要的扩展机制,却没有任何自助路径。
 //!
-//! 写路径:改内存里的 `ReflectConfig.mcp_servers` → 落盘
+//! 写路径:改内存里的 `ZhuyeConfig.mcp_servers` → 落盘
 //! (`~/.zhuye/config.toml`)→ 运行时起/停对应 server(注册/反注册其
 //! 工具)。与启动时的 `bootstrap_mcp` 同款语义(`mcp::start_one_server` /
 //! `stop_one_server`)。
@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use zhuye_config::{McpServerEntry, McpTransport, ReflectConfig};
+use zhuye_config::{McpServerEntry, McpTransport, ZhuyeConfig};
 
 use crate::commands::error::{CommandError, CommandResult};
 use crate::state::MinimalAgent;
@@ -369,7 +369,7 @@ fn validate_name(name: &str) -> CommandResult<()> {
 
 /// 便捷:把 `[mcp_servers]` 表读成有序 map(给内部测试用)。
 #[allow(dead_code)]
-pub(crate) fn servers_table(cfg: &ReflectConfig) -> BTreeMap<String, McpServerEntry> {
+pub(crate) fn servers_table(cfg: &ZhuyeConfig) -> BTreeMap<String, McpServerEntry> {
     cfg.mcp_servers.servers.clone().into_iter().collect()
 }
 

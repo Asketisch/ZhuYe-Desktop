@@ -110,7 +110,7 @@ mod tests {
     #[tokio::test]
     async fn background_thread_events_route_to_background_channel() {
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
         agent.install_agent_thread().await;
         // 先绑到 old_sid(install 占位线程被取消 —— 无会话可保活,旧行为),
         // 再切到新会话:old_sid 线程降级后台(不 cancel)。
@@ -152,7 +152,7 @@ mod tests {
     async fn background_running_tracks_turn_lifecycle() {
         use zhuye_protocol::{TurnId, TurnStartedEvent};
         let agent = MinimalAgent::new_empty();
-        *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+        *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
         agent.install_agent_thread().await;
         let sid = zhuye_protocol::ThreadId::new();
         track_running(

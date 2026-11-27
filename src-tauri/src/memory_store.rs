@@ -12,12 +12,8 @@
 //!
 //! 路径**经核心的 [`zhuye_memory::resolve_path`] 解析**,与运行时
 //! (`zhuye-core` 的 pre_loop 注入)逐字一致 —— 关键是 `<agent>` 这一段
-//! 由**活跃 agent 名**决定(`AgentState::active_agent()`)。此前桌面端
-//! 写死 `agent-memory/reflect/`,而运行时按 agent 定义名读,两边对不上:
-//! GUI 里编辑的记忆,agent 根本读不到。
-//!
-//! 旧版桌面端(agent 段写死 `reflect`)留下的数据在首次启动时迁移到当前
-//! 活跃 agent 的目录(见 [`migrate_legacy_memory_dir`]),不丢用户数据。
+//! 由**活跃 agent 名**决定(`AgentState::active_agent()`)。GUI 与运行时
+//! 共用同一条解析,GUI 里编辑的记忆 agent 一定读得到。
 
 use std::path::{Path, PathBuf};
 
@@ -25,9 +21,6 @@ use zhuye_memory::{MemoryScope, resolve_path, split_sections};
 
 use crate::agent_state::AgentState;
 use crate::commands::MemoryEntry;
-
-/// 旧版桌面端写死的 agent 目录名(迁移源)。
-const LEGACY_AGENT_DIR: &str = "reflect";
 
 #[derive(Default)]
 pub(crate) struct MemoryStore;
@@ -301,60 +294,6 @@ fn ensure_whole_document(scope: &str, key: &str, content: &str) -> anyhow::Resul
         anyhow::bail!("memory document changed; reload before replacing it");
     }
     Ok(())
-}
-
-/// 旧版桌面端(agent 段写死 `reflect`)留下的记忆文件 → 当前活跃 agent 目录。
-///
-/// 只在**目标不存在、源存在**时迁移(move)—— 不覆盖用户新写的记忆。
-/// 两个 scope 各迁一次;失败只记日志不阻断启动(记忆不是启动前提)。
-pub(crate) fn migrate_legacy_memory_dir(project_root: &Path) {
-    let active = AgentState::active_agent();
-    if active == LEGACY_AGENT_DIR {
-        return;
-    }
-    let home = match dirs::home_dir() {
-        Some(h) => h,
-        None => return,
-    };
-    for (scope, root) in [
-        ("project", project_root.to_path_buf()),
-        ("user", home.clone()),
-    ] {
-        let scope_enum = match scope {
-            "project" => MemoryScope::Project,
-            _ => MemoryScope::User,
-        };
-        let legacy = match resolve_path(scope_enum, &root, &home, LEGACY_AGENT_DIR) {
-            Ok(p) => p,
-            Err(_) => continue,
-        };
-        let target = match resolve_path(scope_enum, &root, &home, &active) {
-            Ok(p) => p,
-            Err(_) => continue,
-        };
-        if !legacy.exists() || target.exists() {
-            continue;
-        }
-        if let Some(parent) = target.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                tracing::warn!(error = %e, "创建迁移目标目录失败,跳过记忆迁移");
-                continue;
-            }
-        }
-        match std::fs::rename(&legacy, &target) {
-            Ok(()) => tracing::info!(
-                from = %legacy.display(),
-                to = %target.display(),
-                "已把旧版桌面端记忆迁移到当前活跃 agent 目录"
-            ),
-            Err(e) => tracing::warn!(
-                error = %e,
-                from = %legacy.display(),
-                to = %target.display(),
-                "记忆迁移失败,保留原文件"
-            ),
-        }
-    }
 }
 
 /// 在文本中查找整行恰为 `heading` 的行,返回 (行起始字节, 行尾字节,不含换行)。

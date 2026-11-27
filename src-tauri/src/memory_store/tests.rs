@@ -174,9 +174,8 @@ fn malformed_memory_keys_and_unreadable_files_are_rejected() {
 
 /// 不变量:GUI 写记忆的路径 == 运行时 pre_loop 注入记忆读的路径。
 ///
-/// 两者都经核心的 `resolve_path` + 同一个活跃 agent 名 —— 此前 GUI 写
-/// 死 `agent-memory/reflect/`、运行时读 `agent-memory/<agent>/`，
-/// 导致「GUI 里编辑的记忆,agent 根本读不到」。
+/// 两者都经核心的 `resolve_path` + 同一个活跃 agent 名派生,GUI 里
+/// 编辑的记忆 agent 一定读得到。
 #[test]
 fn memory_path_matches_core_resolution() {
     let ws = PathBuf::from("/tmp/zhuye-memory-path-test");
@@ -191,20 +190,4 @@ fn memory_path_matches_core_resolution() {
         let actual = store.path(scope, &ws).unwrap();
         assert_eq!(actual, expected, "{scope} scope 路径与核心不一致");
     }
-}
-
-/// 旧版桌面端遗留的 `agent-memory/reflect/` 数据在迁移后不再被读取 ——
-/// 迁移把文件搬到了当前活跃 agent 的目录。
-#[test]
-fn legacy_dir_is_not_the_active_path() {
-    let ws = PathBuf::from("/tmp/zhuye-memory-legacy-test");
-    let home = dirs::home_dir().unwrap_or_default();
-    let active = AgentState::active_agent();
-    if active == LEGACY_AGENT_DIR {
-        // 活跃 agent 就是旧目录名 —— 无需迁移,路径天然一致。
-        return;
-    }
-    let legacy = resolve_path(MemoryScope::Project, &ws, &home, LEGACY_AGENT_DIR).unwrap();
-    let current = resolve_path(MemoryScope::Project, &ws, &home, &active).unwrap();
-    assert_ne!(legacy, current);
 }

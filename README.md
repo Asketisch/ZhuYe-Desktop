@@ -13,13 +13,13 @@
 [![React 19](https://img.shields.io/badge/React-19-149eca)]()
 [![English](https://img.shields.io/badge/README-English-blue.svg)](README.en.md)
 
-> 烛夜（ZhuYe）独立桌面应用：Tauri 2 + React 19，通过 `reflect-protocol` 协议桥接烛夜 agent 核心。
+> 烛夜（ZhuYe）独立桌面应用：Tauri 2 + React 19，通过 `zhuye-protocol` 协议桥接烛夜 agent 核心。
 
 ---
 
 ## 项目说明
 
-烛夜的无头执行模式 (`zhuye exec "..."`) 与 SDK 共用同一个 `reflect-core::AgentThread`（上游 crate 已更名 `zhuye-core`，本仓库以 `reflect-core` 别名引用）。桌面 GUI 需要在 Tauri 窗口中运行相同的线程，但不希望将 Tauri 2 构建产物耦合到无头代理工具中。因此烛夜桌面端将全部 GUI 代码放在本仓库，仅通过 `zhuye-agent/` git submodule 消费代理核心。
+烛夜的无头执行模式 (`zhuye exec "..."`) 与 SDK 共用同一个 `zhuye_core::AgentThread`。桌面 GUI 需要在 Tauri 窗口中运行相同的线程，但不希望将 Tauri 2 构建产物耦合到无头代理工具中。因此烛夜桌面端将全部 GUI 代码放在本仓库，仅通过 `zhuye-agent/` git submodule 消费代理核心。
 
 ---
 
@@ -28,7 +28,7 @@
 ### 会话与工作区
 
 - 时间分组会话侧边栏：**当前 / 今天 / 昨天 / 本周 / 更早** (`useSessions`)
-- 恢复、回放 (`reflect_replay_session`)、重命名、归档、删除
+- 恢复、回放 (`zhuye_replay_session`)、重命名、归档、删除
 - 每个线程独立的持久化编辑器草稿
 
 ### 编辑器与代理控制
@@ -37,14 +37,14 @@
 - `/` 斜杠命令弹窗，由 `src/features/composer/slashCommands.ts` 驱动（与终端模式斜杠命令一致）
 - `@` 文件引用，拖拽/粘贴图片
 - 发送：`Cmd+Enter`（macOS）/ `Ctrl+Enter`（Linux/Windows）
-- 中断：`Cmd+.` / `Ctrl+.` → `reflect_interrupt`
+- 中断：`Cmd+.` / `Ctrl+.` → `zhuye_interrupt`
 - 模型选择器、努力级别切换、权限模式切换、批准规则
 - 编辑器归属于 `src/features/composer/`；`src/features/messages/Composer.tsx` 为薄重新导出层
 
 ### 聊天渲染
 
 - `react-markdown` + Shiki 代码块高亮
-- 通过 `AgentMessageDelta` 事件流式传输（单一 `reflect_event` 通道）
+- 通过 `AgentMessageDelta` 事件流式传输（单一 `zhuye_event` 通道）
 - 工具行折叠连续调用；`McpToolInvoked` 添加 `(via <server>)` 徽标
 - 可折叠的思考块 (`ThinkingDelta`)
 
@@ -66,8 +66,8 @@
 
 - **进程内** `Arc<AgentThread>`（无守护进程），与终端模式共用同一协议信封
 - Tauri 命令按领域拆分在 `src-tauri/src/commands/<domain>.rs`，由 `src-tauri/src/commands/mod.rs` 重新导出
-- 命令体封装 `reflect_protocol::Op` 及诊断 / 配置 / 工具 / 会话 / 文件 / Git / Shell / 允许列表 / 工作区 / 技能 / 记忆 / 钩子 / 搜索命令
-- 单一推送事件通道 `reflect_event`（负载 = `reflect_protocol::Event`）
+- 命令体封装 `zhuye_protocol::Op` 及诊断 / 配置 / 工具 / 会话 / 文件 / Git / Shell / 允许列表 / 工作区 / 技能 / 记忆 / 钩子 / 搜索命令
+- 单一推送事件通道 `zhuye_event`（负载 = `zhuye_protocol::Event`）
 - `tokio::sync::broadcast` 支持多订阅者会话事件广播
 
 ### 设置
@@ -104,7 +104,7 @@
 ```bash
 bash scripts/install.sh
 # 安装：
-#   /usr/local/bin/reflect-desktop           （二进制）
+#   /usr/local/bin/zhuye-desktop           （二进制）
 #   ~/Applications/ZhuYe.app                 （可启动包）
 ```
 
@@ -169,7 +169,7 @@ cd src-tauri && cargo check
 
 ```
 ZhuYe-Desktop/
-├── zhuye-agent/   # ZhuYe 仓库的 git submodule（reflect-* 核心 crate）
+├── zhuye-agent/   # ZhuYe 仓库的 git submodule（zhuye-* 核心 crate）
 │                    # 只读镜像，通过 git submodule update --remote 升级
 ├── app-core/       # 共享的 UI 无关 reducer 与状态模块
 ├── src/            # React 19 + Vite + 功能切片组件
@@ -179,8 +179,8 @@ ZhuYe-Desktop/
 │   ├── utils/      # bridge.ts（底层 invoke/listen）+ commands/<domain>.ts
 │   │                # + tauri.ts / commands.ts 兼容桶 + i18n/<domain>/
 │   ├── styles/     # tokens.css + base.css + typography.module.css
-│   └── types/      # 从 reflect-protocol 模式导出生成
-├── src-tauri/      # Tauri 2 Rust 后端（二进制名：reflect-desktop）
+│   └── types/      # 从 zhuye-protocol 模式导出生成
+├── src-tauri/      # Tauri 2 Rust 后端（二进制名：zhuye-desktop）
 │   └── src/
 │       ├── state.rs / events.rs / dock.rs / menu.rs / shortcut.rs
 │       │         / tray.rs / mcp.rs        # 顶层集成模块
@@ -196,11 +196,11 @@ ZhuYe-Desktop/
 
 ## Tauri IPC 命令表
 
-命令按领域定义在 `src-tauri/src/commands/<domain>.rs`，通过 `src-tauri/src/commands/mod.rs` 重新导出，在 `src-tauri/src/lib.rs` 中通过 `tauri::generate_handler!` 注册。命令覆盖 `reflect_*` 系列，包含 `Op` 提交、会话 I/O、配置持久化、工具/技能/记忆/钩子列表、文件 + Git + Shell + 工作区 + 允许列表 + 搜索，以及 `ping` 和 `reflect_set_dock_badge`。
+命令按领域定义在 `src-tauri/src/commands/<domain>.rs`，通过 `src-tauri/src/commands/mod.rs` 重新导出，在 `src-tauri/src/lib.rs` 中通过 `tauri::generate_handler!` 注册。命令覆盖 `zhuye_*` 系列，包含 `Op` 提交、会话 I/O、配置持久化、工具/技能/记忆/钩子列表、文件 + Git + Shell + 工作区 + 允许列表 + 搜索，以及 `ping` 和 `zhuye_set_dock_badge`。
 
 前端包装器位于 `src/utils/commands/<domain>.ts`（新代码），`src/utils/tauri.ts` 和 `src/utils/commands.ts` 保留为兼容桶。底层 `invoke` / `listen` 基元位于 `src/utils/bridge.ts`。
 
-推送事件：单一通道 `reflect_event`，携带 `reflect_protocol::Event`（snake_case JSON 判别符覆盖 `EventMsg` 各变体）。
+推送事件：单一通道 `zhuye_event`，携带 `zhuye_protocol::Event`（snake_case JSON 判别符覆盖 `EventMsg` 各变体）。
 
 完整规范：[`docs/protocol-bridge.md`](docs/protocol-bridge.md)。
 
@@ -241,7 +241,7 @@ git add zhuye-agent && git commit -m "chore: bump zhuye-agent submodule"
 | 文档 | 用途 |
 |---|---|
 | [`docs/codebase-map.md`](docs/codebase-map.md) | 面向任务的"需要改 X，编辑 Y"映射 |
-| [`docs/protocol-bridge.md`](docs/protocol-bridge.md) | Tauri ↔ reflect-protocol 协议信封规范 |
+| [`docs/protocol-bridge.md`](docs/protocol-bridge.md) | Tauri ↔ zhuye-protocol 协议信封规范 |
 | [`docs/architecture.md`](docs/architecture.md) | 顶层布局 + 状态流转 |
 | [`docs/user-guide.md`](docs/user-guide.md) | 终端用户手册 |
 | [`docs/changelog.md`](docs/changelog.md) | 版本更新日志 |

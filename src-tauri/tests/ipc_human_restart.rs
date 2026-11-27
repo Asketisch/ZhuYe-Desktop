@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use wiremock::matchers::{body_string_contains, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const PHASE: &str = "REFLECT_HUMAN_RESTART_PHASE";
-const BASE: &str = "REFLECT_TEST_HOME";
+const PHASE: &str = "ZHUYE_HUMAN_RESTART_PHASE";
+const BASE: &str = "ZHUYE_TEST_HOME";
 const TEST: &str = "human_input_files_survive_restart_and_retry_consumes_answer";
 const CONTEXT: &str = "restart-human-context";
 const ANSWER: &str = "answer-written-after-process-exit";

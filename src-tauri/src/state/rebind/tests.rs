@@ -35,7 +35,7 @@ async fn rebind_same_id_is_noop() {
 #[tokio::test]
 async fn same_session_rebind_retries_pending_configuration() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     let sid = ThreadId::new();
     rebind_session(&agent, sid, vec![], None).unwrap();
@@ -57,7 +57,7 @@ async fn same_session_rebind_retries_pending_configuration() {
 #[tokio::test]
 async fn stale_forced_rebind_does_not_restore_previous_session() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     let previous = zhuye_protocol::ThreadId::new();
     let current = zhuye_protocol::ThreadId::new();
@@ -84,7 +84,7 @@ async fn rebind_before_install_fails() {
 #[tokio::test]
 async fn failed_thread_construction_keeps_current_thread_running() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     let old = agent.inner.thread.lock().clone().unwrap();
     assert!(agent.inner.cron_driver.lock().is_some());
@@ -165,7 +165,7 @@ async fn rebind_restores_initial_permission_mode() {
 #[tokio::test]
 async fn rebind_demotes_old_thread_and_promotes_warm_thread() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     let session_a = ThreadId::new();
     rebind_session(&agent, session_a, vec![], None).unwrap();
@@ -226,7 +226,7 @@ async fn promote_does_not_start_second_forwarder() {
     use std::sync::atomic::Ordering;
 
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
 
     let session_a = ThreadId::new();
@@ -256,7 +256,7 @@ async fn promote_does_not_start_second_forwarder() {
 #[tokio::test]
 async fn in_place_rebuild_cancels_old_thread() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     let sid = ThreadId::new();
     rebind_session(&agent, sid, vec![], None).unwrap();
@@ -277,7 +277,7 @@ async fn in_place_rebuild_cancels_old_thread() {
 #[tokio::test]
 async fn forced_rebind_clears_background_threads() {
     let agent = MinimalAgent::new_empty();
-    *agent.inner.cfg.write() = zhuye_config::ReflectConfig::default();
+    *agent.inner.cfg.write() = zhuye_config::ZhuyeConfig::default();
     agent.install_agent_thread().await;
     let session_a = ThreadId::new();
     rebind_session(&agent, session_a, vec![], None).unwrap();

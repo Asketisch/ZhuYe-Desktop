@@ -2,7 +2,7 @@
 //! 降级原因计算 + 显式解析兜底 + 动态清单发现。消费方 `install.rs` /
 //! `reload.rs`（`super::model_spec::` 路径）。
 
-use zhuye_config::ReflectConfig;
+use zhuye_config::ZhuyeConfig;
 use zhuye_llm::ModelRegistry;
 
 /// 按配置快照计算降级原因(供 install / 热重载共用)。
@@ -10,7 +10,7 @@ use zhuye_llm::ModelRegistry;
 /// 两级缺失分开报:没有活跃模型组(组没接上凭据)与「有活跃组但没 model」。
 /// 上游 model 解析诚实化后,后者不再编造默认模型名 —— 状态栏如实显示
 /// "未配置模型",这里给出可行动的指引。
-pub(crate) fn compute_degraded_reason(cfg: &ReflectConfig) -> Option<String> {
+pub(crate) fn compute_degraded_reason(cfg: &ZhuyeConfig) -> Option<String> {
     if cfg.active_group().is_none() {
         return Some(
             "no model group configured — declare a [[model_group]] with an API key in Settings"
@@ -37,7 +37,7 @@ pub(crate) fn compute_degraded_reason(cfg: &ReflectConfig) -> Option<String> {
 /// 每次请求报 `ALL_CREDENTIALS_EXHAUSTED (0 tried)`,而池里明明有可用
 /// 凭证。这里与 `next_for` 对悬空 preferred 的「静默回落轮询」语义对齐:
 /// 有可用凭证就照常跑,不把可自愈的配置问题放大成硬故障。
-pub(crate) fn resolve_model_spec_with_fallback(cfg: &ReflectConfig) -> Option<String> {
+pub(crate) fn resolve_model_spec_with_fallback(cfg: &ZhuyeConfig) -> Option<String> {
     if let Some(spec) = cfg.resolved_model_spec() {
         return Some(spec);
     }
@@ -74,7 +74,7 @@ pub(crate) fn resolve_model_spec_with_fallback(cfg: &ReflectConfig) -> Option<St
 /// 静态路径的兜底(悬空 credential 钉住 → 第一个带 model 的凭证条目)
 /// 仍由 [`resolve_model_spec_with_fallback`] 承担。
 pub(crate) async fn resolve_model_spec_with_discovery(
-    cfg: &ReflectConfig,
+    cfg: &ZhuyeConfig,
     registry: &ModelRegistry,
 ) -> (Option<String>, Option<String>) {
     match zhuye_config::resolve_model_spec(cfg, registry).await {

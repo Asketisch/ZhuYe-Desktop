@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use wiremock::matchers::{body_string_contains, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const PHASE: &str = "REFLECT_CHAT_RESTART_PHASE";
-const BASE: &str = "REFLECT_TEST_HOME";
+const PHASE: &str = "ZHUYE_CHAT_RESTART_PHASE";
+const BASE: &str = "ZHUYE_TEST_HOME";
 const TEST: &str = "chat_history_replays_in_a_new_process";
 
 fn reply(text: &str) -> String {

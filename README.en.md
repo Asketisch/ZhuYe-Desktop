@@ -13,13 +13,13 @@
 [![React 19](https://img.shields.io/badge/React-19-149eca)]()
 [![中文](https://img.shields.io/badge/README-中文-red.svg)](README.md)
 
-> A standalone desktop app for the ZhuYe agent: Tauri 2 + React 19, bridging the ZhuYe core through the `reflect-protocol` envelope.
+> A standalone desktop app for the ZhuYe agent: Tauri 2 + React 19, bridging the ZhuYe core through the `zhuye-protocol` envelope.
 
 ---
 
 ## What is this?
 
-The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `reflect-core::AgentThread` (the upstream crate was renamed `zhuye-core`; this repo references it under the `reflect-core` alias). The desktop GUI needs to run the same thread inside a Tauri window without coupling Tauri 2 build artifacts into the headless agent tool. ZhuYe desktop therefore keeps all GUI code in this repository and consumes the agent core solely through the `zhuye-agent/` git submodule.
+The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `zhuye_core::AgentThread`. The desktop GUI needs to run the same thread inside a Tauri window without coupling Tauri 2 build artifacts into the headless agent tool. ZhuYe desktop therefore keeps all GUI code in this repository and consumes the agent core solely through the `zhuye-agent/` git submodule.
 
 ---
 
@@ -28,7 +28,7 @@ The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `ref
 ### Sessions & workspaces
 
 - Session sidebar with time grouping: **Now / Today / Yesterday / This week / Earlier** (`useSessions`)
-- Resume, replay (`reflect_replay_session`), rename, archive, delete
+- Resume, replay (`zhuye_replay_session`), rename, archive, delete
 - Per-thread persisted editor drafts
 
 ### Editor & agent controls
@@ -37,14 +37,14 @@ The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `ref
 - `/` slash-command palette driven by `src/features/composer/slashCommands.ts` (consistent with terminal slash commands)
 - `@` file references; drag-and-drop / paste images
 - Send: `Cmd+Enter` (macOS) / `Ctrl+Enter` (Linux/Windows)
-- Interrupt: `Cmd+.` / `Ctrl+.` → `reflect_interrupt`
+- Interrupt: `Cmd+.` / `Ctrl+.` → `zhuye_interrupt`
 - Model picker, effort level, permission mode, approval rules
 - The editor lives in `src/features/composer/`; `src/features/messages/Composer.tsx` is a thin re-export layer
 
 ### Chat rendering
 
 - `react-markdown` + Shiki code-block highlighting
-- Streaming via `AgentMessageDelta` events (single `reflect_event` channel)
+- Streaming via `AgentMessageDelta` events (single `zhuye_event` channel)
 - Collapsed consecutive tool calls; `McpToolInvoked` adds a `(via <server>)` badge
 - Collapsible thinking blocks (`ThinkingDelta`)
 
@@ -66,8 +66,8 @@ The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `ref
 
 - **In-process** `Arc<AgentThread>` (no daemon), sharing the same protocol envelope as terminal mode
 - Tauri commands split by domain in `src-tauri/src/commands/<domain>.rs`, re-exported by `src-tauri/src/commands/mod.rs`
-- Command bodies wrap `reflect_protocol::Op` covering diagnostics / config / tools / sessions / files / Git / Shell / allowlist / workspaces / skills / memory / hooks / search
-- Single push-event channel `reflect_event` (payload = `reflect_protocol::Event`)
+- Command bodies wrap `zhuye_protocol::Op` covering diagnostics / config / tools / sessions / files / Git / Shell / allowlist / workspaces / skills / memory / hooks / search
+- Single push-event channel `zhuye_event` (payload = `zhuye_protocol::Event`)
 - `tokio::sync::broadcast` fan-out for multi-subscriber session events
 
 ### Settings
@@ -75,7 +75,7 @@ The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `ref
 - Display (light / dark / system-follow theme, opacity, wallpaper)
 - Editor (Vim mode / output style)
 - Providers (default provider + API key placeholder)
-- `ConfigForm` covers every section of `zhuye-agent/crates/resources/reflect-config/src/schema.rs`; an advanced raw TOML editor remains as an escape hatch
+- `ConfigForm` covers every section of `zhuye-agent/crates/resources/zhuye-config/src/schema/`; an advanced raw TOML editor remains as an escape hatch
 
 ### Coding plans & quota failover
 
@@ -104,7 +104,7 @@ The headless mode (`zhuye exec "..."`) of ZhuYe and the SDKs share the same `ref
 ```bash
 bash scripts/install.sh
 # Installs:
-#   /usr/local/bin/reflect-desktop           (binary)
+#   /usr/local/bin/zhuye-desktop           (binary)
 #   ~/Applications/ZhuYe.app                 (launchable bundle)
 ```
 
@@ -160,7 +160,7 @@ cd src-tauri && cargo check
 
 ```
 ZhuYe-Desktop/
-├── zhuye-agent/   # git submodule of the ZhuYe repo (reflect-* core crates)
+├── zhuye-agent/   # git submodule of the ZhuYe repo (zhuye-* core crates)
 │                    # read-only mirror; upgrade via git submodule update --remote
 ├── app-core/       # shared UI-agnostic reducer & state modules
 ├── src/            # React 19 + Vite feature-sliced frontend
@@ -170,8 +170,8 @@ ZhuYe-Desktop/
 │   ├── utils/      # bridge.ts (low-level invoke/listen) + commands/<domain>.ts
 │   │                # + tauri.ts / commands.ts compat barrels + i18n/<domain>/
 │   ├── styles/     # tokens.css + base.css + typography.module.css
-│   └── types/      # generated from the reflect-protocol schemas
-├── src-tauri/      # Tauri 2 Rust backend (binary name: reflect-desktop)
+│   └── types/      # generated from the zhuye-protocol schemas
+├── src-tauri/      # Tauri 2 Rust backend (binary name: zhuye-desktop)
 │   └── src/
 │       ├── state.rs / events.rs / dock.rs / menu.rs / shortcut.rs
 │       │         / tray.rs / mcp.rs        # top-level integration modules
@@ -187,11 +187,11 @@ ZhuYe-Desktop/
 
 ## Tauri IPC command surface
 
-Commands are defined per domain in `src-tauri/src/commands/<domain>.rs`, re-exported via `src-tauri/src/commands/mod.rs`, and registered in `src-tauri/src/lib.rs` through `tauri::generate_handler!`. Commands cover the `reflect_*` family: `Op` submissions, session I/O, config persistence, tool/skill/memory/hook listings, files + Git + Shell + workspaces + allowlist + search, plus `ping` and `reflect_set_dock_badge`.
+Commands are defined per domain in `src-tauri/src/commands/<domain>.rs`, re-exported via `src-tauri/src/commands/mod.rs`, and registered in `src-tauri/src/lib.rs` through `tauri::generate_handler!`. Commands cover the `zhuye_*` family: `Op` submissions, session I/O, config persistence, tool/skill/memory/hook listings, files + Git + Shell + workspaces + allowlist + search, plus `ping` and `zhuye_set_dock_badge`.
 
 Frontend wrappers live in `src/utils/commands/<domain>.ts` (canonical); `src/utils/tauri.ts` and `src/utils/commands.ts` remain compat barrels. The low-level `invoke` / `listen` primitives are in `src/utils/bridge.ts`.
 
-Push events: a single channel `reflect_event` carrying `reflect_protocol::Event` (snake_case JSON discriminators covering every `EventMsg` variant).
+Push events: a single channel `zhuye_event` carrying `zhuye_protocol::Event` (snake_case JSON discriminators covering every `EventMsg` variant).
 
 Full specification: [`docs/protocol-bridge.md`](docs/protocol-bridge.md).
 
@@ -232,7 +232,7 @@ Complete runbook: [`docs/multi-agent-sync-runbook.md`](docs/multi-agent-sync-run
 | Document | Purpose |
 |---|---|
 | [`docs/codebase-map.md`](docs/codebase-map.md) | Task-oriented "to change X, edit Y" map |
-| [`docs/protocol-bridge.md`](docs/protocol-bridge.md) | Tauri ↔ reflect-protocol envelope spec |
+| [`docs/protocol-bridge.md`](docs/protocol-bridge.md) | Tauri ↔ zhuye-protocol envelope spec |
 | [`docs/architecture.md`](docs/architecture.md) | Top-level layout + state flow |
 | [`docs/user-guide.md`](docs/user-guide.md) | End-user manual |
 | [`docs/changelog.md`](docs/changelog.md) | Version changelog |

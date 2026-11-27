@@ -23,7 +23,7 @@
 //! ## 跑法
 //!
 //! ```bash
-//! REFLECT_LIVE=1 cargo test --test ipc_live_capabilities -- --ignored --nocapture
+//! ZHUYE_LIVE=1 cargo test --test ipc_live_capabilities -- --ignored --nocapture
 //! ```
 
 mod common;
@@ -252,7 +252,7 @@ fn set_permission_mode(mode: &str) -> Result<(), String> {
 /// 一轮回合的通用预算。
 fn turn_budget() -> Duration {
     Duration::from_secs(
-        std::env::var("REFLECT_LIVE_TURN_BUDGET")
+        std::env::var("ZHUYE_LIVE_TURN_BUDGET")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(120),
@@ -843,9 +843,9 @@ fn scenario_goal_mode() -> Verdict {
         return Verdict::Failed(format!("goal 首条消息提交失败:{e}"));
     }
     // goal 模式会**自动**多轮续作,且每轮结束还要多跑一次 LM 自校验 ——
-    // 预算给得比普通回合宽(可用 REFLECT_LIVE_GOAL_BUDGET 覆盖)。
+    // 预算给得比普通回合宽(可用 ZHUYE_LIVE_GOAL_BUDGET 覆盖)。
     let goal_budget = Duration::from_secs(
-        std::env::var("REFLECT_LIVE_GOAL_BUDGET")
+        std::env::var("ZHUYE_LIVE_GOAL_BUDGET")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or_else(|| turn_budget().as_secs() * 2),
@@ -1293,10 +1293,10 @@ type Scenario = (&'static str, fn() -> Verdict);
 
 /// 只跑指定场景(逗号分隔)—— 迭代单个场景时用。
 ///
-/// `REFLECT_LIVE_SCENARIOS=tool-call,tool-approval` → 只跑这两个。
+/// `ZHUYE_LIVE_SCENARIOS=tool-call,tool-approval` → 只跑这两个。
 /// 不设 = 全跑。
 fn scenario_selected(name: &str) -> bool {
-    let Ok(filter) = std::env::var("REFLECT_LIVE_SCENARIOS") else {
+    let Ok(filter) = std::env::var("ZHUYE_LIVE_SCENARIOS") else {
         return true;
     };
     if filter.trim().is_empty() {
@@ -1336,12 +1336,12 @@ fn is_quota_skip(reason: &str) -> bool {
 }
 
 #[test]
-#[ignore = "实模型演练层:需 REFLECT_LIVE=1 显式开启(默认不发网络请求)"]
+#[ignore = "实模型演练层:需 ZHUYE_LIVE=1 显式开启(默认不发网络请求)"]
 fn live_capability_matrix() {
-    if std::env::var("REFLECT_LIVE").unwrap_or_default() != "1" {
+    if std::env::var("ZHUYE_LIVE").unwrap_or_default() != "1" {
         report(
             "live-capability-matrix",
-            &Verdict::Skipped("未设 REFLECT_LIVE=1 —— 不发起任何网络请求".into()),
+            &Verdict::Skipped("未设 ZHUYE_LIVE=1 —— 不发起任何网络请求".into()),
         );
         return;
     }
@@ -1372,7 +1372,7 @@ fn live_capability_matrix() {
         if !scenario_selected(name) {
             report(
                 name,
-                &Verdict::Skipped("未被 REFLECT_LIVE_SCENARIOS 选择".into()),
+                &Verdict::Skipped("未被 ZHUYE_LIVE_SCENARIOS 选择".into()),
             );
             continue;
         }
@@ -1400,10 +1400,10 @@ fn live_capability_matrix() {
 
 /// 指向免费池的隔离配置 —— 与 `ipc_live_free_model.rs` 同口径。
 fn live_config_toml() -> String {
-    let base_url = std::env::var("REFLECT_LIVE_BASE_URL")
+    let base_url = std::env::var("ZHUYE_LIVE_BASE_URL")
         .unwrap_or_else(|_| "https://api.kilo.ai/api/gateway".into());
-    let api_key = std::env::var("REFLECT_LIVE_API_KEY").unwrap_or_default();
-    let explicit = std::env::var("REFLECT_LIVE_MODELS").unwrap_or_default();
+    let api_key = std::env::var("ZHUYE_LIVE_API_KEY").unwrap_or_default();
+    let explicit = std::env::var("ZHUYE_LIVE_MODELS").unwrap_or_default();
     let model = if explicit.trim().is_empty() {
         "free".to_string()
     } else {
@@ -1414,7 +1414,7 @@ fn live_config_toml() -> String {
             .trim()
             .to_string()
     };
-    let provider = std::env::var("REFLECT_LIVE_PROVIDER").unwrap_or_else(|_| "openai".into());
+    let provider = std::env::var("ZHUYE_LIVE_PROVIDER").unwrap_or_else(|_| "openai".into());
     if provider == "ollama" {
         return format!(
             r#"[hooks]

@@ -39,6 +39,7 @@ use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
 use zhuye_browser::chrome;
 
+mod cdp;
 mod input;
 mod nav;
 mod page;
@@ -119,9 +120,7 @@ fn browser_ws_endpoint() -> Result<String, String> {
 
 /// 浏览器级连接上取第一个 page target(targetInfo 带 url / title /
 /// targetId)。
-async fn first_page_target_on(
-    conn: &mut zhuye_browser::cdp::CdpConnection,
-) -> Result<Value, String> {
+async fn first_page_target_on(conn: &mut cdp::CdpConnection) -> Result<Value, String> {
     let result = conn
         .command("Target.getTargets", json!({}))
         .await
@@ -140,7 +139,7 @@ async fn first_page_target_on(
 
 /// 打开短连接解析第一个 page target(每次调用独立连接,用完即断)。
 async fn first_page_target(ws_url: &str) -> Result<Value, String> {
-    let mut conn = zhuye_browser::cdp::CdpConnection::connect(ws_url)
+    let mut conn = cdp::CdpConnection::connect(ws_url)
         .await
         .map_err(|e| format!("CDP 连接失败: {e}"))?;
     first_page_target_on(&mut conn).await

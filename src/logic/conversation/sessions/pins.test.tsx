@@ -100,7 +100,7 @@ describe('Sidebar pinned section', () => {
 });
 
 describe('useSessionPins hook', () => {
-  it('reflects toggles via the subscription', async () => {
+  it('mirrors toggles via the subscription', async () => {
     const probe: string[][] = [];
     function Probe() {
       const { pinnedIds, toggle } = useSessionPins();

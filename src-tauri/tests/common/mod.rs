@@ -111,12 +111,12 @@ pub fn isolated_home() -> std::path::PathBuf {
 /// **仓库里**(`src-tauri/.zhuye/...`)。能力覆盖层绝不能污染工作树,
 /// 所以连 cwd 一起沙箱化。
 ///
-/// 基目录可用 env `REFLECT_TEST_HOME` 覆盖；默认使用随机唯一临时目录。
+/// 基目录可用 env `ZHUYE_TEST_HOME` 覆盖；默认使用随机唯一临时目录。
 /// `ipc_restart.rs` 用覆盖项在**两个进程**间共享同一份
 /// `~/.zhuye`,复刻「退出后重启」的恢复场景。
 pub fn init_isolated_env() {
     ENV_INIT.call_once(|| {
-        let base = std::env::var_os("REFLECT_TEST_HOME").map_or_else(
+        let base = std::env::var_os("ZHUYE_TEST_HOME").map_or_else(
             || {
                 tempfile::Builder::new()
                     .prefix("zhuye-desktop-capability-")

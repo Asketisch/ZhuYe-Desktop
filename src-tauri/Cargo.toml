@@ -100,7 +100,7 @@ zhuye-plugin              = { workspace = true }
 zhuye-subagent            = { workspace = true }
 # 受控浏览器(收编上游 zhuye-browser):chrome.rs 的发现/启动契约 +
 # a11y 快照类型;real feature 启用 CDP(ws 栈)。
-zhuye-browser             = { workspace = true, features = ["real"] }
+zhuye-browser             = { workspace = true }
 futures-util                = { workspace = true }
 # 多 agent 讨论编排(CLI `zhuye discussion` 的 GUI 对应;逻辑在 app-core,
 # 这里仅 PipelineReport/类型直传需要 zhuye-pipeline)。

@@ -71,8 +71,8 @@ pub async fn zhuye_save_user_instructions(content: String) -> CommandResult<()> 
 /// 落盘 + 换内存快照),避免各自拼一套写盘逻辑。
 pub(crate) fn persist_config(
     agent: &MinimalAgent,
-    new_cfg: zhuye_config::ReflectConfig,
-) -> CommandResult<zhuye_config::ReflectConfig> {
+    new_cfg: zhuye_config::ZhuyeConfig,
+) -> CommandResult<zhuye_config::ZhuyeConfig> {
     let toml = toml::to_string_pretty(&new_cfg).map_err(|e| CommandError {
         msg: format!("serialize config: {e}"),
     })?;
@@ -111,7 +111,7 @@ pub(crate) fn persist_config(
 #[tauri::command]
 pub async fn zhuye_save_config(agent: State<'_, MinimalAgent>, toml: String) -> CommandResult<()> {
     let _config_write = agent.inner.config_write_lock.lock().await;
-    // 1. 校验:能否解析回 ReflectConfig(顺带跑上游的 v1→v2 迁移)。
+    // 1. 校验:能否解析回 ZhuyeConfig(顺带跑上游的 v1→v2 迁移)。
     let mut new_cfg = load_from_str(&toml)?;
     // 1.5 `[sandbox].os_level` 归一:核心 schema 是 `Option<bool>`,解析后
     //     即可区分「没写」(None)与「写了 false」(Some(false))。没写
@@ -218,7 +218,7 @@ pub async fn zhuye_set_model(
 /// 组语义:写 `[active].group`;model 写组级 `model` 或被钉住条目的
 /// `model`;`label` 缺省 → 清掉 `[active].credential`(不钉凭据)。
 fn apply_model_switch(
-    cfg: &mut zhuye_config::ReflectConfig,
+    cfg: &mut zhuye_config::ZhuyeConfig,
     group: &str,
     model: &str,
     label: Option<&str>,

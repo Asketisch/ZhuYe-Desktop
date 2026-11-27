@@ -27,8 +27,8 @@ use super::MinimalAgent;
 /// 三个固定段在读入时已被迁移成等价模型组 —— 改它们必然改
 /// `model_group`,无需单列。
 fn provider_stack_changed(
-    old: &zhuye_config::ReflectConfig,
-    new: &zhuye_config::ReflectConfig,
+    old: &zhuye_config::ZhuyeConfig,
+    new: &zhuye_config::ZhuyeConfig,
 ) -> bool {
     old.active != new.active
         // 模型组(`[[model_group]]`)变更也触发重建 —— 组 id 注册为
@@ -51,8 +51,8 @@ fn provider_stack_changed(
 /// `agent_status.degraded_reason`，调用方可据此提示用户。
 pub(crate) async fn hot_reload_provider_stack(
     agent: &MinimalAgent,
-    old: &zhuye_config::ReflectConfig,
-    new: &zhuye_config::ReflectConfig,
+    old: &zhuye_config::ZhuyeConfig,
+    new: &zhuye_config::ZhuyeConfig,
 ) -> Option<String> {
     // 调用方持有配置写锁；会话切换也遵循配置锁 → 会话锁的顺序。
     let _transition = agent.inner.session_transition_lock.lock().await;

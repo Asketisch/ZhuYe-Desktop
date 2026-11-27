@@ -380,7 +380,7 @@ mod tests {
             agent.clone(),
             rx,
         ));
-        let mut page = zhuye_browser::cdp::CdpConnection::connect(&page_ws)
+        let mut page = crate::browser_backend::cdp::CdpConnection::connect(&page_ws)
             .await
             .unwrap();
         page.command("Page.navigate", json!({"url": "data:text/html,<input id=field style='position:fixed;inset:0;width:100vw;height:100vh'>"})).await.unwrap();

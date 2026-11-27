@@ -302,7 +302,7 @@ async fn try_build_llm_orchestrator(
     recorder: Option<DiscussionRecorder>,
     cancel: CancellationToken,
 ) -> Option<LlmAssembly> {
-    // 1. provider + model spec(全走 ReflectConfig,与 exec / GUI 线程一致)。
+    // 1. provider + model spec(全走 ZhuyeConfig,与 exec / GUI 线程一致)。
     //    registry 先建 —— `model = "free"` 的解析要用它当清单来源。
     let zhuye_cfg = zhuye_config::load_default();
     let registry: SharedModelRegistry = Arc::new(ModelRegistry::new());
@@ -399,7 +399,7 @@ allowed_tools = ["send_message", "read_messages", "finish_discussion"]
     async fn run_discussion_noop_emits_boundary_events_and_returns_outcome() {
         // provider 可用性依环境而定,三种环境都必须有**显式断言**的合法结局:
         // 1. 无 provider(CI 裸 HOME)→ noop,llm_backed=false;
-        // 2. provider 可用(REFLECT_MODEL=mock)→ llm 路径,Collab 事件成对;
+        // 2. provider 可用(ZHUYE_MODEL=mock)→ llm 路径,Collab 事件成对;
         // 3. provider 配置了但不可达(开发者真实 ~/.zhuye 指向死端点)→
         //    `try_build_llm_orchestrator` 解析成功(resolve 不需要网络,
         //    静态 model id)、subagent spawn 失败 → Orchestrator/Llm 错误

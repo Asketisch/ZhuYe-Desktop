@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `5127f72`（上一审计 `ea7039d`）：范围 ea7039db..5127f722（1 提交，桌面授权的 submodule 直改落 main，已直推上游）—— **Seatbelt 放行 Mach IPC 三规则 + 修 /tmp 符号链接死规则**：`(deny default)` profile 补 `(allow mach-lookup)` / `(allow mach-register)` / `(allow ipc-posix-shm)` —— Chromium 系工具起进程即需 launchd 服务查询与 `bootstrap_check_in`（MachPortRendezvous），缺任一直接 `Abort trap: 6`，`--no-sandbox` 也绕不开（本机 sandbox-exec 消融实证，最小集即此三条）；`/tmp`、`/var/tmp` 是指向 `/private/*` 的符号链接，Seatbelt 按 vnode 真实路径匹配，字面规则不生效（生产会话实证 `> /tmp/x` EPERM、heredoc 建临时文件失败），改写 `/private/tmp`、`/private/var/tmp`。沙箱**写边界不变**（rm -rf 拦截 / git 保护等真实 sandbox-exec 集成用例全绿），新增 profile 内容断言；**协议 / 命令面 / 配置零变化**，桌面零适配。
+> 最近审计：submodule `c19211b`（上一审计 `5127f72`）。本轮接入子代理续派、线程治理配置与恢复告警；任务预算快照暂无独立界面，浏览器插件需另备上游可执行文件。
 >
 > 上一轮审计：submodule `ea7039d`（上一审计 `502a620`）：范围 502a620b..ea7039db（2 提交）—— `8a52b295` 托盘透明图标修复（纯资源，零代码）；`ea7039db` 桌面授权的 submodule 直改（已直推上游 main）：zhuye-subagent 两条事件转发白名单放行 `EventMsg::InteractionResolved`，子代理挂起交互的了结广播（§3.34 `interaction_resolved`）得以进入父会话事件流 —— **事件变体已存在，协议 / 命令面 / 配置零变化**，仅转发路径补全；桌面配套接线（reducer 移除连坐清理 + 提交门控）见 changelog「多 agent 同回合提问不再提前放行提交」条。
 >
@@ -42,7 +42,7 @@
 
 > 更早轮次：submodule `8da90e5`（上一审计 `0d51379`）：上游 0.1.16 门控型 bundled 插件基建 —— `zhuye-plugin::bundled`（`BUNDLED_PLUGIN_DEFAULTS` 表 + `bundled_plugin_enabled` / `bundled_tool_gates` 判定）+ `[plugins].disabled_plugins` 配置键（显式禁用 > 显式启用 > 默认开关；默认开 web-search / notebook，默认关 verify-hooks / lsp / goal-queue）+ 新增 `plugins/{lsp,notebook,verify-hooks,web-search}` 插件定义；另 `zhuye-kms` 从 abilities 归位 integrations（纯移动，桌面 Cargo.toml path 已随之改）。桌面配套接线：启动装配走 `register_builtin_tools_with_gates`、设置保存后 `apply_bundled_tool_gates` 差量同步共享工具表（web_search / notebook_edit register/unregister）、verify-hooks 门随线程构造注入 hook engine、lsp 手动开启在命令边界对禁用态显性报错、`zhuye_toggle_plugin` 语义对齐 CLI（bundled 停用写禁用表 / 启用清禁用表）；设置页 PluginsEditor 补 `disabled_plugins` 按行编辑。Op/EventMsg 零变化，无新增命令。
 
-> 最早轮次：submodule `0d51379`（完整 SHA `0d513790`；上一审计 `9cab0469`： `f5edab5` ∪ `feat/browser-plugin` 变基 tip）：模型组 `[[provider_group]]` schema/builder 装配 + `active_provider` String 化（env / `[active]` 均可点名组 id）+ anthropic `list_models`（`GET {base}/v1/models`，`model = "free"` 与 `zhuye models list` 对 anthropic 格式端点自此可用），桌面配套「模型组」统一设置页与 Composer 组切换，详见 §3.37。其上：上游 `34e19acf` 引入 `reflect_llm::models_dev` models.dev 社区目录 —— 窗口 / 输出上限 / 视觉 / 思考档位四维能力，跨厂商投票 + 兜底链 + 内嵌快照 + 24h 磁盘缓存，级联进 `context_window_for` / `output_budget` / `reasoning_effort`，策展静态表优先、目录只填空缺；桌面配套 `reflect_lookup_model_abilities` 命令 + 模型列表四维标签 + 一键填充最大上下文 + 视觉降级警示/确认弹窗 + provider `max_tokens` 表单，详见 §3.36。更早 `29aa9ad`：`ce57058` 回归测试之上上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。更早 `ce57058` 补齐组合穷举回归测试，见 §3.32。其上 `feat/browser-plugin`（f064c1cd 变基为 306dbc1d）新增 `zhuye-browser` crate + `plugins/browser`（F39 受控浏览器）—— 非 Op/EventMsg 变更，能力面为独立 MCP server 二进制 + 桌面显示通道（`zhuye_browser_*` 命令 + `zhuye_browser_frame` 事件），矩阵已补行（§3.38）。Op/EventMsg 与内置工具集合比对仍零变化。）
+> 最早轮次：submodule `0d51379`（完整 SHA `0d513790`；上一审计 `9cab0469`： `f5edab5` ∪ `feat/browser-plugin` 变基 tip）：模型组 `[[provider_group]]` schema/builder 装配 + `active_provider` String 化（env / `[active]` 均可点名组 id）+ anthropic `list_models`（`GET {base}/v1/models`，`model = "free"` 与 `zhuye models list` 对 anthropic 格式端点自此可用），桌面配套「模型组」统一设置页与 Composer 组切换，详见 §3.37。其上：上游 `34e19acf` 引入 `zhuye_llm::models_dev` models.dev 社区目录 —— 窗口 / 输出上限 / 视觉 / 思考档位四维能力，跨厂商投票 + 兜底链 + 内嵌快照 + 24h 磁盘缓存，级联进 `context_window_for` / `output_budget` / `reasoning_effort`，策展静态表优先、目录只填空缺；桌面配套 `zhuye_lookup_model_abilities` 命令 + 模型列表四维标签 + 一键填充最大上下文 + 视觉降级警示/确认弹窗 + provider `max_tokens` 表单，详见 §3.36。更早 `29aa9ad`：`ce57058` 回归测试之上上游 CI functional 套件（test_A8b_plan审批_工具路径全链路）证伪「非 Plan 模式调 ExitPlanMode」守卫 —— 该路径是被测试钉住的合法工作流，且 plan 审批走独立 PlanApprovalGate 永远人工弹窗、不经 approval policy 自动批准，守卫回退（历史保留注释）；另修 main 上预存 CI 红项：single_turn.rs 的 redundant clone 与 COVERAGE.md 计数过期。桌面配套：workspaces/tests.rs fmt、视觉基线重生成（WorkspacesView 新增移除按钮/已移除分区）。更早 `ce57058` 补齐组合穷举回归测试，见 §3.32。其上 `feat/browser-plugin`（f064c1cd 变基为 306dbc1d）新增 `zhuye-browser` crate + `plugins/browser`（F39 受控浏览器）—— 非 Op/EventMsg 变更，能力面为独立 MCP server 二进制 + 桌面显示通道（`zhuye_browser_*` 命令 + `zhuye_browser_frame` 事件），矩阵已补行（§3.38）。Op/EventMsg 与内置工具集合比对仍零变化。）
 
 
 ## 阅读约定
@@ -388,7 +388,7 @@ SDK 文档门禁进 CI、协议全集补齐；运行时新增 `[prompt_guard]`�
 的 `DevToolsActivePort` 发现契约(先启动者持有,后到 attach)。`status`
 无副作用(不拉起浏览器);`start` 的应用句柄检查先于一切浏览器探测 ——
 能力覆盖层不会误启真浏览器(L3 `ipc_browser.rs`)。**控制通道**(MCP 工具)
-需装 browser 插件；隔离 Chrome 测试覆盖帧流、导航与鼠标键盘输入，agent 联动仍为实机验收项。
+需装 browser 插件与其 `agent-browser` 可执行文件（上游提供构建脚本、PATH 和 `ZHUYE_AGENT_BROWSER` 入口）；隔离 Chrome 测试覆盖帧流、导航与鼠标键盘输入，agent 联动仍为实机验收项。
 
 **面板输入注入**(桌面半边自足,不依赖 browser 插件):`zhuye_browser_input`
 命令把面板上的鼠标 / 滚轮 / 键盘转成 CDP Input 域命令
@@ -531,3 +531,5 @@ toast（半成品输出被 `agent_message_reset` 清空后的显性反馈），�
 独立消费面（usage 面板保温收益对照、恢复明细 feed）与 `[cache_warming]`
 / `[tool_results]` 配置 UI 留待后续，见线格式 `docs/protocol-bridge.md`
 §3.14。
+
+子代理续派复用 `call_<role>` 的 `session_id` 参数；消息活动标识续派，子会话历史可在侧栏查看。任务预算等引擎治理参数经高级 TOML 配置，预算快照暂未提供独立界面。

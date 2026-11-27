@@ -8,7 +8,7 @@
   </defs>
   <rect width="1280" height="800" fill="url(#bg)"/>
   <g transform="translate(640 400)" text-anchor="middle" fill="#e8edf5" font-family="ui-sans-serif, system-ui">
-    <text y="-12" font-size="56" font-weight="700">Reflect</text>
+    <text y="-12" font-size="56" font-weight="700">ZhuYe</text>
     <text y="48" font-size="20" fill="#b2bccf">AI coding agent GUI · Tauri 2 + React 19</text>
     <text y="100" font-size="14" fill="#6ca2ff">[ screenshot placeholder · docs/assets/main.png ]</text>
   </g>

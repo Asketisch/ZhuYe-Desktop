@@ -1,10 +1,20 @@
 # 更新日志
 
-烛夜 ZhuYe 桌面端（仓库原名 ReflectDesktop）的所有重要变更均记录于此。格式遵循 [Keep a Changelog](https://keepachangelog.com/)，版本号遵守[语义化版本](https://semver.org/)。
+烛夜 ZhuYe 桌面端的所有重要变更均记录于此。格式遵循 [Keep a Changelog](https://keepachangelog.com/)，版本号遵守[语义化版本](https://semver.org/)。
 
 ## 未发布
 
-（空）
+- **旧品牌残留全量清除**：文档（README 双语 / SUBMODULE / SECURITY / 文档站）、
+  注释、品牌资产（占位图 / CNAME / npm 包名）与仓库 URL（`Asketisch/ZhuYe-Desktop`）
+  统一到 zhuye；环境变量与测试探针前缀统一为 `ZHUYE_*`（更新检查
+  `ZHUYE_UPDATE_URL`、L6 演练 `ZHUYE_LIVE*`、能力覆盖层 `ZHUYE_TEST_HOME` 等
+  —— 顺带修复 `ZHUYE_LIVE=1` 与用例读取变量名错位导致 L6 无法开启的断线）；
+  移除旧命名时代的一次性迁移逻辑（localStorage 旧前缀键搬运、agent 记忆旧目录
+  搬运）。上游 submodule 同步全量更名（`zhuye_config::ZhuyeConfig` /
+  `from_zhuye_section` 等），桌面随之切换并前移指针。
+- 更新引擎至 main `e52bfdac`：子代理可沿用已完成会话继续执行，消息活动中标识续派；恢复会话时提示未确认结果的工具调用。
+- 接入任务预算、工具日志、串行回合、动态上下文及来源治理配置，并让子代理继承父线程配置和工作区。
+- 适配上游浏览器插件的新后端，桌面浏览器面板保留 CDP 帧流和交互。插件控制还需安装上游 browser 插件及其 agent-browser 可执行文件。
 
 ## 0.0.8 — 2026-11-27
 
@@ -892,12 +902,10 @@
   **只出图、不判定** —— 截图写 `.test-results/visual-current/` 供人工翻看，
   基线保持原样、绝不被悄悄覆盖，缺基线/陈旧基线也不再点名失败。判定代码
   整段保留未删未改，界面稳定后把开关改回 `true` 即恢复。
-- **全仓更名 reflect → zhuye**：仓库内部命名（Cargo 别名 / crate 名 / 命令面
-  / 事件通道 / localStorage 键 / Tauri identifier）统一切到 `zhuye`。上游
-  crate 本就叫 `zhuye-*`，桌面侧此前的 `reflect-*` 别名层已删除；`~/.zhuye`
-  数据目录下 `reflect.*` 旧键首次启动自动迁移到 `zhuye.*`（草稿/偏好不丢）。
-  对外 Tauri identifier 改为 `com.asketisch.zhuyedesktop`。历史 changelog
-  条目保留当时的 `reflect_*` 命令名（史实记录，不改写已发布事实）。
+- **全仓统一命名到 zhuye**：仓库内部命名（Cargo crate 名 / 命令面 / 事件通道
+  / localStorage 键 / Tauri identifier）统一切到 `zhuye`。上游 crate 即
+  `zhuye-*`，桌面侧旧别名层已删除；`~/.zhuye` 数据目录下的偏好键统一为
+  `zhuye.*` 前缀。对外 Tauri identifier 为 `com.asketisch.zhuyedesktop`。
 - **右上角交互栈**：主窗口右上角新增常驻可折叠的「任务清单 / 目标 / 子代理
   / 建议」四组件（事件驱动实时刷新）：清单逐条显示 TodoWrite 进度；目标可
   内联进入/退出/刷新快照（含逐轮 verdict）；子代理可刷新状态、逐 child 中断、
@@ -921,26 +929,26 @@
   新增 shellUi store（窗口摆法持久化）、session badges / unread 投影、
   harness 快捷键组。旧路由页面全部保留（侧栏「更多」菜单可达），设置改为
   模态弹窗承载原 SettingsView。
-- **浏览器面板升级为可导航 dock**：新增 `reflect_browser_navigate /
+- **浏览器面板升级为可导航 dock**：新增 `zhuye_browser_navigate /
   back / forward / reload / set_device` 五个 CDP 命令（短连接逐命令下发，
   `Page.navigate` 等待 loadEventFired ≤10s；URL 归一化补全 scheme；
   `set_device` 经 `Emulation.setDeviceMetricsOverride` 提供桌面 / 平板 /
   手机三档视口）。screencast 循环跟踪 `Page.frameNavigated`，面板 URL 栏
   与状态随之更新。dock 组件 `BrowserDock` 提供后退 / 前进 / 刷新 / URL
   输入 / 设备档 / 启停（`docs/protocol-bridge.md` 浏览器节已同步）。
-- **终端 shell 选择（Windows）**：`reflect_pty_start` 在 Windows 下优先
+- **终端 shell 选择（Windows）**：`zhuye_pty_start` 在 Windows 下优先
   PowerShell（探测 PATH 内 pwsh.exe → powershell.exe 兜底），macOS/Linux
   维持 `$SHELL`（默认 zsh）。
 - **SSH 远程开发（会话层接缝）**：桌面端 SSH 到某台机器，agent 会话在远端
   跑 —— 远端执行 `zhuye serve`（stdio JSONL），桌面以 SSH 子进程为传输成为
   协议客户端。新增 host 注册表（`$ZHUYE_HOME/remote-hosts.json`，`/remote`
-  页 CRUD + `zhuye --version` 连通性探测）与 8 个命令（`reflect_remote_*`）；
-  连接 = 握手（session_configured）→ bind 置前台插槽 → `reflect_submit` /
-  `reflect_submit_op` 整条路由远端 stdin，事件经既有 session/background 通道
+  页 CRUD + `zhuye --version` 连通性探测）与 8 个命令（`zhuye_remote_*`）；
+  连接 = 握手（session_configured）→ bind 置前台插槽 → `zhuye_submit` /
+  `zhuye_submit_op` 整条路由远端 stdin，事件经既有 session/background 通道
   回前端（审批弹窗零改动）；断开杀本地 serve 子进程（远端 rollout 已落盘）。
   传输复用 BatchMode/ConnectTimeout argv 模式（无新 SSH 库），二进制可经
   `ZHUYE_REMOTE_SSH_BIN` 覆盖（测试 stub 注入点）。
-  **远端一键安装**：新增 `reflect_remote_bootstrap` —— 经 ssh 送 POSIX sh
+  **远端一键安装**：新增 `zhuye_remote_bootstrap` —— 经 ssh 送 POSIX sh
   脚本到远端执行（探测 OS/架构 → 解析上游 latest tag → 下载
   `zhuye-<版本>-<triple>.tar.gz`，curl/wget 自适应 → 装到 `~/.local/bin`
   免 sudo → 自验 `--version`），失败按退出码给可行动引导（OS/架构不支持、
@@ -958,16 +966,16 @@
   （导航 / 可及性快照 / 点击 / 填写 / 按键 / 滚动 / 截图），CDP 仅 loopback
   + 单 target 强制校验、隔离 profile（`$ZHUYE_HOME/browser-profile`）、
   `@eN` 元素引用 + 快照绑定（旧 ref 显式失效防误点）。桌面端新增 `/browser`
-  浏览器面板：CDP screencast 帧流只读渲染（`reflect_browser_start/stop/
-  status/env` 命令 + `reflect_browser_frame` 事件），与插件控制通道共享
+  浏览器面板：CDP screencast 帧流只读渲染（`zhuye_browser_start/stop/
+  status/env` 命令 + `zhuye_browser_frame` 事件），与插件控制通道共享
   同一发现契约；本机无浏览器或插件未装时双层优雅降级（Unavailable 文案 /
   面板空态引导）。submodule 指针升至上游 `feat/browser-plugin`（f064c1c），
   ModelInfo 适配上游 models.dev 新字段（supports_vision / max_output_tokens）。
 - **应用自更新（OTA）**：设置页从「只检查不安装」升级为完整自更新回路 ——
   检查 → 下载（进度条，minisign 签名校验）→ 安装 → 重启引导，基于
   tauri-plugin-updater + tauri 核心 `request_restart`（Rust 侧驱动，不经
-  插件 JS API）。新增命令 `reflect_download_install_update` /
-  `reflect_relaunch_app` 与 `reflect_update_progress` 事件；发布链产
+  插件 JS API）。新增命令 `zhuye_download_install_update` /
+  `zhuye_relaunch_app` 与 `zhuye_update_progress` 事件；发布链产
   latest.json 更新清单（`scripts/gen-latest-json.sh`），minisign 密钥生成
   见 `scripts/gen-update-keys.sh`（私钥走 GitHub secrets，未配置时 release
   构建硬失败）。updater 插件只在生产 runtime 注册（其初始化硬要求
@@ -983,7 +991,7 @@
   此前不可用）。桌面侧：设置页「Coding Plans」升级为「模型组」统一管理面
   （内置端口 plan 与自定义组平铺选默认；组保存后**自动拉取**组内模型清单，
   点选即设组默认模型；TTL memo 避免重复打网络）；Composer 模型选择器把组
-  作为与 plan 平级的可切换目标；`reflect_set_model` 的 `provider` 值域扩展
+  作为与 plan 平级的可切换目标；`zhuye_set_model` 的 `provider` 值域扩展
   为「内置段名或已声明组 id」（命令与负载结构不变）；热重载 diff 纳入
   `provider_group` 段。旧配置零迁移、内置三段行为不变。
 - **skills.sh 技能市场 + `.agents/skills` 加载链**：Skills 页新增「技能市场」——
@@ -996,20 +1004,20 @@
   收敛到唯一出口 `default_skill_dirs`:`<ws>/.zhuye/skills` → `<ws>/.agents/skills`
   → `~/.zhuye/skills` → `~/.agents/skills`(同名前者优先),业界通用
   `.agents/skills` 目录让烛夜与 Cursor/Codex 等 agent 共享技能。新命令:
-  `reflect_search_skill_market` / `reflect_install_skill_from_market` /
-  `reflect_refresh_skill_market_index`(上游 `26e0d040`)。
+  `zhuye_search_skill_market` / `zhuye_install_skill_from_market` /
+  `zhuye_refresh_skill_market_index`(上游 `26e0d040`)。
 - **模型能力智能化（models.dev 社区目录 + 四维能力接线）**：此前 provider 清单
   拉到了 `context_window` / `supports_vision` 但前端零消费，`max_output_tokens`
   根本不在元数据里，思考强度只靠代码内静态表，Anthropic 官方端口拿不到任何
   能力信息。借鉴 magpie 的多来源聚合思路：
-  **上游**（zhuye-agent `34e19acf`）—— 新增 `reflect_llm::models_dev`：models.dev
+  **上游**（zhuye-agent `34e19acf`）—— 新增 `zhuye_llm::models_dev`：models.dev
   社区目录（10,010 模型 / 324 provider，CC0），跨厂商投票（窗口/输出取众数、
   视觉/思考多数表决）、变体拼写与 `-128k` 名字后缀兜底链、内嵌 gzip 快照
   （`scripts/fetch-models-dev.sh` 产出）+ 磁盘缓存（24h TTL）+ 显式刷新，
   **引擎启动不联网**；窗口/输出上限/思考档位三个级联均插目录档（策展静态表
   优先、目录只填空缺，与 magpie Decorate 同语义），CLI/TUI/SDK 同享。
-  **桌面** —— 新命令 `reflect_lookup_model_abilities`（纯内存查询、不发网络）；
-  `reflect_list_provider_models` 的条目经目录补缺（Anthropic 官方端口从此有
+  **桌面** —— 新命令 `zhuye_lookup_model_abilities`（纯内存查询、不发网络）；
+  `zhuye_list_provider_models` 的条目经目录补缺（Anthropic 官方端口从此有
   窗口/输出/视觉/思考）；模型选择器与 Plan 列表展示「200K 上下文 · 32K 输出 ·
   支持视觉 · 支持思考」标签，点选模型时「最大上下文」留空则一键带入；Models
   页卡片展示当前模型四维能力；**视觉降级** —— 当前模型明确不支持视觉且带
@@ -1062,7 +1070,7 @@
 
 - **会话后台持续运行**：切换会话不再中断原会话的运行（此前换绑会取消旧
   线程的会话级令牌，等于 `Op::Shutdown`，「切走即停」）。后台会话经新
-  `reflect_session_event` 通道（载荷 `{session_id, event}`）继续上报；会话
+  `zhuye_session_event` 通道（载荷 `{session_id, event}`）继续上报；会话
   列表新增「运行中 / 待确认」徽标与 toast 引导；后台积攒的待确认交互
   （审批/提问/plan，不落 rollout）切回时自动合并，不再静默卡死；跟进消息
   队列按会话隔离，展示与排空只作用于前台会话。bind 回后台会话时复用
@@ -1083,8 +1091,8 @@
   `deny/bubble→auto` 与 StatusBar 回落口径一致），切换器恒为
   计划/询问/默认三态。
 - 对齐 DeepSeek chat demo 的三线增强（附件 / 渲染 / 消息操作，引擎协议零变更）：
-  **附件管线** —— 文件按钮经 `reflect_pick_files` 原生多选拿真实路径；粘贴 /
-  DOM drop 的字节流文件经 `reflect_ingest_upload` 落盘 `<workspace>/.zhuye/uploads/`
+  **附件管线** —— 文件按钮经 `zhuye_pick_files` 原生多选拿真实路径；粘贴 /
+  DOM drop 的字节流文件经 `zhuye_ingest_upload` 落盘 `<workspace>/.zhuye/uploads/`
   转 file mention（agent `/read` 沙箱内可读），不再产生 `(file) 名字` 假占位；
   附件带 pending/ready/error 状态机（失败可重试，非就绪禁发）；历史消息渲染
   真实附件（图片缩略图 + 文件 chip），live 提交与回放（image 字节数组 / `@path`
@@ -1107,7 +1115,7 @@
   submodule 已升级，L3 回归用例覆盖「首行必须是 session_meta + 列表归属」。
 - 修复「工作区删不掉」：移除是软删除（标记 hidden），但任何切换（在首页
   点击该项目旧会话等）都会把它自动复活。现在常规切换保留 hidden 状态，
-  恢复入口集中到工作区管理页新增的「已移除的工作区」分区（`reflect_set_workspace`
+  恢复入口集中到工作区管理页新增的「已移除的工作区」分区（`zhuye_set_workspace`
   新增可选 `unhide` 参数）；移除改按规范化路径匹配所有变体（相对/绝对/
   符号链接），并顺手清理 `/`、`.` 等占位条目；管理页可见卡片补上「移除」按钮。
 - 修复「plan 未在界面右侧渲染」三层根因：① 上游压缩摘要产生中置 System
@@ -1193,31 +1201,31 @@
 - **锁定发送**(桌面#4):设置 > 显示 > 编辑器新增「Enter 发送」开关
   (默认开启 = 旧行为)。关闭后 Enter 只换行,发送需 ⌘/Ctrl+Enter 或
   点发送按钮;composer 键位提示随开关切换(`composer.sendHintLocked`)。
-  持久化在 `reflect.uiprefs.v1`。
+  持久化在 `zhuye.uiprefs.v1`。
 - **复杂度路由说明**(桌面#3):设置 > 模型路由组描述文案新增
   `[routing.main.complexity]` 复杂度分级路由说明(effort 档位映射模型)
   与「切换模型使 provider prompt cache 失效」的缓存提示;上游引擎侧
   `model_call` 已按映射自动选模型(submodule 同步后生效)。
 - **Skill 市场**(桌面#1):技能面板市场行支持 `owner/repo` 输入一键安装
-  (`reflect_install_skill`),装完自动重扫,装好的技能立即可见;
+  (`zhuye_install_skill`),装完自动重扫,装好的技能立即可见;
   空输入禁用、失败 toast 化可重试。
 - **插件市场 UI**(桌面#2):插件面板支持市场内浏览
-  (`reflect_browse_marketplace`,含版本/描述/标签)与一键安装
-  (`reflect_install_from_marketplace`,依赖 DFS 后序解析);未注册
+  (`zhuye_browse_marketplace`,含版本/描述/标签)与一键安装
+  (`zhuye_install_from_marketplace`,依赖 DFS 后序解析);未注册
   市场 / 缓存缺失显性报错,兼容 Claude Code marketplace manifest 格式。
-- **多目录综合工作区**(桌面#5):`reflect_set_workspace_dirs` /
-  `reflect_current_workspace_dirs` 两命令 + 工作区页附加目录增删 UI;
+- **多目录综合工作区**(桌面#5):`zhuye_set_workspace_dirs` /
+  `zhuye_current_workspace_dirs` 两命令 + 工作区页附加目录增删 UI;
   附加目录拼进 `sandbox_writable`,文件类工具沙箱边界对其放行
   (主工作区仍是规范根)。
 - **SSH 远端执行**(基建#7):终端输入 `ssh <host> <cmd>` 前缀路由到远端
   (`BatchMode=yes` + `ConnectTimeout=10`,免交互防挂死),会话标注
   `ssh:<host>` 区分本地/远端;命令整体作为单参数由远端 shell 分词。
 - **远程状态页**(基建#12):内建 `GET /status` 只读诊断 JSON 服务器
-  (`reflect_status_server_start/state/stop`),tailnet 设备浏览器可达;
+  (`zhuye_status_server_start/state/stop`),tailnet 设备浏览器可达;
   `remote_config.auth_token` 非空时端点强制 token 校验(401/200)。
 - **外部 Agent 会话导入**(D9):`/import` 路由全链 —— Claude Code /
-  Codex 两 adapter(`reflect_import_discover` /
-  `reflect_import_sessions`),支持 dry-run 预演、成功/失败逐条展示,
+  Codex 两 adapter(`zhuye_import_discover` /
+  `zhuye_import_sessions`),支持 dry-run 预演、成功/失败逐条展示,
   导入的会话在会话列表照常可开。
 - **编辑历史消息**(F7+D6):消息列表每轮 hover 编辑入口
   (`Op::Rewind` 截断 + composer 预填原文的组合,零协议改动)—— 改完
@@ -1269,7 +1277,7 @@
 
 ### 修复 — 审查修正：命令重复注册、讨论失败路径泄漏、autopilot 停机不收口
 
-- `reflect_cancel_discussions` 此前在 `generate_handler` 中重复注册两次，删除
+- `zhuye_cancel_discussions` 此前在 `generate_handler` 中重复注册两次，删除
   Side-channel 分组处的冗余条目（clippy 门禁会阻断）。
 - 讨论 `build_context` 失败路径不再泄漏 20ms 轮询任务，且补发
   `collab_finished(failed)` 终态事件，前端会话不再停留在 `running`。
@@ -1345,7 +1353,7 @@
   Goal 控制器挂载/清除、压缩请求回执和状态栏 token 用量断言。
 - 新增权限规则运行态回归：保存用户级 deny 规则后无需重启，下一次模型
   发起的 bash 调用立即被拒绝，副作用不写入工作区，拒绝原因返回模型。
-- 新增 `reflect_steer` 运行态回归：真实模型回合运行中提交抢占输入，
+- 新增 `zhuye_steer` 运行态回归：真实模型回合运行中提交抢占输入，
   验证该输入进入后续模型请求，而非仅验证命令参数可反序列化。
 - 桌面接入 Autopilot 后台驱动：到期任务提交当前 AgentThread，按回合
   终态回填历史；本地模型回归验证到期触发、成功回填与禁用后不触发。
@@ -1393,7 +1401,7 @@
 - 讨论运行态补上取消链路：后端登记运行中讨论令牌并级联取消参与者，
   Collaboration 显示取消按钮；真实 IPC 回归验证模型挂起时停止并发出
   `collab_finished { outcome: "cancelled" }`。
-- 子代理 Inspector 增加运行态取消按钮；`reflect_interrupt` 可透传
+- 子代理 Inspector 增加运行态取消按钮；`zhuye_interrupt` 可透传
   `child_id` 定向取消子代理，真实 IPC 回归确认父回合继续。
 - 桌面讨论适配层实时转发消息路由、把模型失败映射为协作终态，并在
   无筛选历史中排除没有讨论记录的普通会话；真实 IPC 回归覆盖三条路径。
@@ -1493,28 +1501,28 @@ Op 类型层补齐协议全集(`sdks/` 发布面,协议 crate 本体零变更)�
 zhuye-llm `ChatEvent` 新增 `AgentMessage` 变体(非流式 provider 整段
 消息形态),`e2e_chat.rs` 穷举 match 补分支;前端协议面零变更。
 
-### 变更 — submodule 目录改名 `reflect-agent` → `zhuye-agent`
+### 变更 — submodule 目录统一为 `zhuye-agent`
 
 - 本仓库内的 submodule 路径与注册名统一为 `zhuye-agent`（`.gitmodules` 段名 + path、
   gitlink、本地 config 经 `git mv` + `git submodule sync` 一致迁移）；上游仓库
-  （`Asketisch/Reflect-Agent`）不变，升级流程见 `SUBMODULE.md`。
+  （`Asketisch/ZhuYe`）不变，升级流程见 `SUBMODULE.md`。
 - 全量同步引用面：根 `Cargo.toml` 的 50+ 处 path 依赖、测试（`tests/static/run.sh`
   的 submodule 状态/指针检查、`submodule-status.test.sh` 的 mock、`run_all.sh`
   banner）、CI 注释、`scripts/dump-ts-types.sh`、`docs/*` 与源码注释。
-  `reflect-agent-def` 依赖别名与 `reflect-*` 包别名**不受影响**（对应上游包
-  `zhuye-agent-def` 等，别名机制与目录名无关）。
+  依赖别名与包别名**不受影响**（对应上游包 `zhuye-agent-def` 等，别名机制
+  与目录名无关）。
 - `docs/changelog.md` 历史条目保持原样（历史记录不回写）。
 
 ### 变更 — submodule develop 重叠收敛（app-core 九模块切换上游单一事实源）
 
-submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个提交）后，上游把一批桌面自研领域逻辑收编进框架本体（多份提交自述「收编自 ReflectDesktop …」）。本轮把重叠面全部切到上游实现，桌面侧只保留真正的装配层（media / stats / tailscale / traces / discussion / pipeline）：
+submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个提交）后，上游把一批桌面自研领域逻辑收编进框架本体（多份提交自述「收编自 ZhuYe-Desktop …」）。本轮把重叠面全部切到上游实现，桌面侧只保留真正的装配层（media / stats / tailscale / traces / discussion / pipeline）：
 
-- **删除并切换**（7 个全重叠模块）：`paths` → `reflect_config::paths`（12 个消费文件机械重命名）；`actor` → `reflect_task::Actor`（Actor 下沉 protocol）；`squad` → `reflect_task::squad`（上游顺带修复 created_at 丢失 / NotFound 映射两个 bug）；`autopilot` → `reflect_stream::autopilot`（上游补真实 cron 到期判定 + `fire_if_due` 闭环）；`pricing` → `reflect_llm::providers` 公开费率表（桌面"合成用量反解"hack 退役）；`kms` → `reflect_kms`（API 逐字一致）；`side_channel` → `reflect_core::side_channel` 引擎原生（见下）。
-- **收缩为垫片**（2 个部分重叠）：`activity` 再导出 `reflect_telemetry::activity`（上游连 `map_event`/`pump_events` 都是桌面实现的移植版），桌面保留 `ActivityLog` 句柄支撑 Inbox「清空」；`sandbox` 解析/优先级走 `reflect_sandbox::os_sandbox`，桌面只留协议映射与配置归一两块胶水。
+- **删除并切换**（7 个全重叠模块）：`paths` → `zhuye_config::paths`（12 个消费文件机械重命名）；`actor` → `zhuye_task::Actor`（Actor 下沉 protocol）；`squad` → `zhuye_task::squad`（上游顺带修复 created_at 丢失 / NotFound 映射两个 bug）；`autopilot` → `zhuye_stream::autopilot`（上游补真实 cron 到期判定 + `fire_if_due` 闭环）；`pricing` → `zhuye_llm::providers` 公开费率表（桌面"合成用量反解"hack 退役）；`kms` → `zhuye_kms`（API 逐字一致）；`side_channel` → `zhuye_core::side_channel` 引擎原生（见下）。
+- **收缩为垫片**（2 个部分重叠）：`activity` 再导出 `zhuye_telemetry::activity`（上游连 `map_event`/`pump_events` 都是桌面实现的移植版），桌面保留 `ActivityLog` 句柄支撑 Inbox「清空」；`sandbox` 解析/优先级走 `zhuye_sandbox::os_sandbox`，桌面只留协议映射与配置归一两块胶水。
 - **Side-channel 引擎原生执行**（capability 升级）：`thread_factory` 构造 `SideChannelDriver` 注入 `AgentConfig` —— 旁路 agent 从此真的会跑（此前只有 registry 记账,执行从未接线）。registry 为进程级 Arc 共享,跨会话 rebind 存活;四个命令 wire 形状不变,内部改走协议 `Op::Start|Cancel|QuerySideChannels` 并等待配对应答事件。
 - **主仓 workspace 适配**：根 `Cargo.toml` 补齐 develop 新增的 workspace.dependencies 继承键（`zhuye-fs/git/kms/import/computer-use/shell/git-tools/exec/cli/py` + `rusqlite`），`pyo3` 0.23 → 0.30（与核心 workspace 对齐,pyo3-ffi 在 Python 3.14 下硬校验版本上限）。
 - **前端**：`side_channel_started/finished/status` 三个事件变体进类型联合 + reducer（`sideChannels` 进程级投影）；SideChannelView 订阅生命周期事件即时刷新（原来只能 5s 轮询）。
-- **桌面侧随 upstream 收编的两处行为差异**：markdown 导出标题从 `# Reflect session` 统一为上游 `# ZhuYe session`（渲染器切 `zhuye-rollout::export` 单一事实源,写盘仍保留桌面"替换 symlink"语义）；终端 shell 会话 id 从 UUID v4 改为上游池分配的 `sh-<8hex>`（执行与缓冲收编 `zhuye-shell`,Tauri 事件形状与逐行推送语义不变）。
+- **桌面侧随 upstream 收编的两处行为差异**：markdown 导出标题统一为上游 `# ZhuYe session`（渲染器切 `zhuye-rollout::export` 单一事实源,写盘仍保留桌面"替换 symlink"语义）；终端 shell 会话 id 从 UUID v4 改为上游池分配的 `sh-<8hex>`（执行与缓冲收编 `zhuye-shell`,Tauri 事件形状与逐行推送语义不变）。
 - **文档**：`docs/protocol-bridge.md` 补 side-channel 三 Op + 三事件（§3.13）；`docs/capabilities.md` 增 §3.25/§3.26 并刷新矩阵。
 
 ### 测试 — submodule 接线修复的配套测试面（含一处接线缺口修复）
@@ -1524,7 +1532,7 @@ submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个�
   （`SideChannelFinished` 仅覆盖启动失败路径）—— 前端此前只能等下一次
   快照查询才看到旁路 agent 完成。新增
   `state/side_channel_forwarder.rs` 订阅共享 registry 广播,把终态以
-  `EVENT_ID_NONE` 信封补发到 `reflect_event`（`Started` 不补发避免双计）;
+  `EVENT_ID_NONE` 信封补发到 `zhuye_event`（`Started` 不补发避免双计）;
   install 与能力覆盖层夹具各 spawn 一份,与 `forward_agent_events` 同待遇。
 - **L1 静态门禁新增「submodule 清单奇偶一致」**
   （`tests/static/manifest-parity.mjs` + 自测 `manifest-parity.test.sh`）：
@@ -1552,7 +1560,7 @@ submodule 升级到 develop（`0220677`，相对原 pin `d063a5f` 前进 41 个�
 
 ### 修复 — 会话标题 sidecar 写入跟随核心演进
 
-develop 把 `reflect_rollout::index::write_session_sidecar` 从核心移除（标题生成本就是桌面特性）。`_titles/<id>.title` 落盘改为桌面自有实现：链接位预检（拒绝 symlink/重解析点,防止写工作区外）+ 同目录临时文件 + rename 原子替换 —— 半截文件与链接写穿两个窗口都不存在。
+develop 把 `zhuye_rollout::index::write_session_sidecar` 从核心移除（标题生成本就是桌面特性）。`_titles/<id>.title` 落盘改为桌面自有实现：链接位预检（拒绝 symlink/重解析点,防止写工作区外）+ 同目录临时文件 + rename 原子替换 —— 半截文件与链接写穿两个窗口都不存在。
 
 ### 修复 — 思考型模型下会话标题生成必空
 
@@ -1565,7 +1573,7 @@ empty title`。放宽到 2048,标题仍经 `derive_title` 清洗截断(≤48 字
 
 免费模型池实测（L6 session-title 场景）复现：Cohere 系模型把正文全部写进
 `delta.reasoning`（`content` 恒为 `null`，curl 探针证实），而
-`reflect_generate_session_title` 只收集 `ChatEvent::ContentDelta`，得到空串后
+`zhuye_generate_session_title` 只收集 `ChatEvent::ContentDelta`，得到空串后
 误报 `model returned an empty title`。`src-tauri/src/commands/sessions.rs` 现在
 同时收集 `ThinkingDelta`，正文为空时以思考文本派生标题（标题走同一
 `derive_title` 清洗：折叠空白 + ≤48 字符）。
@@ -1577,7 +1585,7 @@ empty title`。放宽到 2048,标题仍经 `derive_title` 清洗截断(≤48 字
 - **tool-approval** 原来只批准第一条 `approval_request` —— prompt 模式下模型
   每次工具调用都要审批,第二条起回合卡在无人应答的审批门上,表现为
   「批准后等待终态超时」的假阳性。现在逐条批准直到终态,并对病理性工具
-  循环设 12 条上限(触顶先 `reflect_interrupt` 收摊、不污染后续场景,
+  循环设 12 条上限(触顶先 `zhuye_interrupt` 收摊、不污染后续场景,
   已发生的批准-执行链照常断言)。
 - **场景隔离**:矩阵主循环每个场景前把权限模式复位到 `bubble`(自动批准)
   —— tool-approval 留在 `prompt` 会让 goal-mode「无事件」、subagent
@@ -1615,14 +1623,14 @@ submodule 跟踪分支显式化为 **main**（`.gitmodules` 补 `branch = main`,
   内部降级为日志）→ `thread_factory` 主线程与 side-channel 工厂去掉
   `Result` 解包;`PermissionRule` 新增 `resource_glob` 资源维度 → 命令
   输入透传（serde default,旧线缆兼容）。
-- **新能力接线**：`Op::RescanExtensions` 桥接为 `reflect_rescan_extensions`
+- **新能力接线**：`Op::RescanExtensions` 桥接为 `zhuye_rescan_extensions`
   命令（四方一致 + `extensions_rescanned` 事件进前端类型联合 + reducer
   toast,skills 改动不重启即生效;GUI 触发按钮待接）;思考档位 `max` /
   `ultra` 全 UI 面（`parse_effort` / Composer / `/effort` slash /
   Models 视图 / i18n;超出模型支持上限时由上游 `zhuye_llm` 能力表在发送
   前钳制,桌面只放宽档位面）;`ThinkingDelta.kind` additive 字段进前端
   payload 类型。
-- **文档**:`docs/protocol-bridge.md` 补 `reflect_rescan_extensions` 行 +
+- **文档**:`docs/protocol-bridge.md` 补 `zhuye_rescan_extensions` 行 +
   `extensions_rescanned` 事件（§3.11）+ `thinking_delta.kind`;
   `docs/capabilities.md` 增 §3.27 审计（覆盖矩阵含 🟡 半接线项）。
 
@@ -1664,9 +1672,9 @@ mattpocock code-review 862K、apollographql rust-best-practices 22K）并对
   `collect`（改 `any` 短路）。现在桌面代码在 `-D perf -D redundant_clone
   -D needless_collect -D map_unwrap_or` 下与上游同纪律零告警。
 - **code-review 双轴发现修复**（Standards 轴）：
-  `protocol-bridge.md` 的 `reflect_get_effort` 行更新真实位置与档位;
+  `protocol-bridge.md` 的 `zhuye_get_effort` 行更新真实位置与档位;
   `SUBMODULE.md` 过时的 `app-core/src/paths.rs` 表述改为
-  `reflect_config::paths`;`thread_factory` side-driver 处重复的
+  `zhuye_config::paths`;`thread_factory` side-driver 处重复的
   registry lock+expect 改复用同函数已取的 Arc;`strip_exit_marker`
   被外层 guard 蕴含的不可达死分支删除;`list_shell_sessions` 中间人
   转发删除(与其余 shell 命令同款直通 `shell_sessions`)。
@@ -1838,10 +1846,10 @@ L3 真后端 + L5 真窗口 e2e），产物审查通过才出包，审查报告�
 
 ### 修复 — GitHub CI 全线失败（submodule 指针回退 / Node 20 / 缓存路径）
 
-- **submodule 指针回退**：路径安全批次（`53d62c1f`，14 个 commit）此前只存在于本地分支、从未推到上游，随后一次 GUI git 工具提交把指针退回上游 `main`（`ff2c51e`），桌面侧 `title_commit.rs` 依赖的 `reflect_rollout::index::write_session_sidecar` 随之消失，clippy / test 三平台全部编译失败。现把该批次 rebase 到上游 `main`（0.1.8，`4deeeea3`）之上（零冲突，`cargo metadata --locked` 通过）并推到上游，submodule 钉住 `d063a5f`——CI 从此能拉到它。
+- **submodule 指针回退**：路径安全批次（`53d62c1f`，14 个 commit）此前只存在于本地分支、从未推到上游，随后一次 GUI git 工具提交把指针退回上游 `main`（`ff2c51e`），桌面侧 `title_commit.rs` 依赖的 `zhuye_rollout::index::write_session_sidecar` 随之消失，clippy / test 三平台全部编译失败。现把该批次 rebase 到上游 `main`（0.1.8，`4deeeea3`）之上（零冲突，`cargo metadata --locked` 通过）并推到上游，submodule 钉住 `d063a5f`——CI 从此能拉到它。
 - **前端测试 worker 启动即崩**：npm audit 修复把 `jsdom` 升到 30，其依赖 `undici@8` 要求 Node ≥ 22.19（`decompress.js` 用到 zstd zlib API），CI 的 Node 20（2026-04 已 EOL）上 125 个 fork worker 全部启动失败。`ci.yml` / `release.yml` 统一升到 Node 24（与本地开发一致），`package.json` 补 `engines.node >= 22.19.0` 让需求显式化。
 - **static-audit 假失败**：该 job 配了 `cache: pnpm` 却从不 `pnpm install`，pnpm store 不存在时 `setup-node` 的 post 步骤以 "Path Validation Error" 判失败，把 21/21 通过的审查结果拖成红色。静态层只用 node 内置模块，去掉 pnpm 与缓存配置。
-- **升级适配 — `[active] bundled_skills`**：上游 0.1.8 把 15 个内置编码 skill 改为**默认关闭**（`m4_bootstrap` 只在开关为 true 时 `merge_bundled`）。`reflect_list_skills` 同按此开关决定是否列出内置技能，否则 GUI 会列出 agent 根本没加载、`load_skill` 也激活不了的技能；设置页 `[active]` 节补对应布尔开关（含 zh-CN / en 文案）。
+- **升级适配 — `[active] bundled_skills`**：上游 0.1.8 把 15 个内置编码 skill 改为**默认关闭**（`m4_bootstrap` 只在开关为 true 时 `merge_bundled`）。`zhuye_list_skills` 同按此开关决定是否列出内置技能，否则 GUI 会列出 agent 根本没加载、`load_skill` 也激活不了的技能；设置页 `[active]` 节补对应布尔开关（含 zh-CN / en 文案）。
 - `docs/capabilities.md` 审计基线更新为 `d063a5f`。
 
 ### 修复 — release.yml 全平台打包从未跑通的两个潜在 bug
@@ -1890,24 +1898,24 @@ L3 真后端 + L5 真窗口 e2e），产物审查通过才出包，审查报告�
 
 ### 变更 — 品牌更名烛夜（ZhuYe）
 
-- 对齐上游 submodule 的更名：用户可见品牌全部改为烛夜 / ZhuYe——`productName` 改为 `ZhuYe`（bundle 产物 `ZhuYe.app` / `ZhuYe.dmg` / `ZhuYe.msi` / `zhuye.deb` / `ZhuYe.AppImage`），窗口标题与页面标题「烛夜 ZhuYe」，托盘 tooltip、i18n 文案（应用名 / 欢迎语 / 输入器占位 / 关于页 / 通知）按语言分别使用「烛夜」（zh-CN）与「ZhuYe」（en）；bundle 描述与版权、Cargo 包描述、安装/构建脚本与全部文档同步。上游 CLI 命令引用从 `reflect …` 更正为 `zhuye …`（usage / traces 页与用户指南）。
-- 内部标识保持稳定：Tauri 命令名 `reflect_*`（协议不变量）、crate/二进制名 `reflect-desktop`、`reflect_desktop_lib`、环境变量 `REFLECT_*`、i18n key、bundle identifier `com.asketisch.reflectdesktop`（保护既有用户数据目录）均未改动。
+- 对齐上游 submodule 的更名：用户可见品牌全部改为烛夜 / ZhuYe——`productName` 改为 `ZhuYe`（bundle 产物 `ZhuYe.app` / `ZhuYe.dmg` / `ZhuYe.msi` / `zhuye.deb` / `ZhuYe.AppImage`），窗口标题与页面标题「烛夜 ZhuYe」，托盘 tooltip、i18n 文案（应用名 / 欢迎语 / 输入器占位 / 关于页 / 通知）按语言分别使用「烛夜」（zh-CN）与「ZhuYe」（en）；bundle 描述与版权、Cargo 包描述、安装/构建脚本与全部文档同步。上游 CLI 命令引用统一为 `zhuye …`（usage / traces 页与用户指南）。
+- 内部标识（Tauri 命令名、crate/二进制名、环境变量、i18n key、bundle identifier）未随本轮品牌更名改动，保护既有用户数据目录。
 - 联动修复：`scripts/install.sh` 安装 `ZhuYe.app`；`tests/artifact/run.sh` 的 MSI 解包检查增加 `ZhuYe*.exe` 模式；i18n 单测断言同步更新。
 
 ### 变更 — submodule 基准切到上游 main（0.1.7）
 
-- 主仓库不再依赖本地派生的 `zhuye-paths` crate 与 `reflect-compat` feature（上游没有这两者）。数据目录改用上游自己的口径：用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`；路径解析集中在新增的 `app-core/src/paths.rs`，桌面自有状态文件与核心读写同一个根。会话归档从 `reflect_rollout` 的 sessions 根派生（rollout 只认 `$HOME`），保证与活跃会话树同级。
-- OS 沙箱的进程级逃生口改读 `ZHUYE_SANDBOX_OS_LEVEL`（核心实际使用的名字）。此前桌面读的是 `REFLECT_SANDBOX_OS_LEVEL`：用户按上游文档设了变量，运行时照旧，状态栏却按另一个变量的值显示。
+- 主仓库不再依赖本地派生的 `zhuye-paths` crate 与 `zhuye-compat` feature（上游没有这两者）。数据目录改用上游自己的口径：用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`；路径解析集中在新增的 `app-core/src/paths.rs`，桌面自有状态文件与核心读写同一个根。会话归档从 `zhuye_rollout` 的 sessions 根派生（rollout 只认 `$HOME`），保证与活跃会话树同级。
+- OS 沙箱的进程级逃生口改读 `ZHUYE_SANDBOX_OS_LEVEL`（核心实际使用的名字），与上游文档口径一致 —— 变量名错位会导致用户设了变量、运行时照旧，状态栏却按另一个变量的值显示。
 - 上游删掉的两个 API 在桌面侧补齐等价实现：`state/permissions.rs` 的 failsafe resolver 保住「读不到规则就要求审批、用户级规则位置不可用时不自动放行」；`mcp.rs` 用 `register_if_absent_with_floor` + `get`/`Arc::ptr_eq` 实现按句柄注销，停止某个 MCP 服务不会删掉别人顶替上来的同名工具。
 - `persistence::write_atomic` 成为桌面状态文件唯一的写入口：配置保存、钩子启停偏好、审批白名单、pipeline 配置都走它（原先 `config.rs` 与 `hook_store.rs` 各有一份近似实现）。只读目标现在一律报权限错误，不再被重命名静默覆盖。
 
 ### 修复 — 落盘原子性、目录沙盒与审计日志
 
-- `reflect_write_file` 改为同目录临时文件 + 原子替换，保留原文件权限位；写入失败清理本次临时文件，只读目标不再被静默解锁覆盖。编辑器保存中途被杀不会留下半截文件。
-- `reflect_list_dir` 与 `reflect_search_files` 现在要求解析后的路径落在工作区内，与读写命令同一规则。此前两者接受任意绝对路径：目录列表可枚举工作区外文件名，搜索命中还会把匹配行的内容带进结果。新增 L3 用例 `listing_and_searching_outside_the_workspace_is_rejected`。
+- `zhuye_write_file` 改为同目录临时文件 + 原子替换，保留原文件权限位；写入失败清理本次临时文件，只读目标不再被静默解锁覆盖。编辑器保存中途被杀不会留下半截文件。
+- `zhuye_list_dir` 与 `zhuye_search_files` 现在要求解析后的路径落在工作区内，与读写命令同一规则。此前两者接受任意绝对路径：目录列表可枚举工作区外文件名，搜索命中还会把匹配行的内容带进结果。新增 L3 用例 `listing_and_searching_outside_the_workspace_is_rejected`。
 - Activity 审计日志逐条 flush：`BufWriter` 只在缓冲区满或轮转时落盘，进程退出会丢掉最近的记录（与文档所称「同步完成」不符）。轮转备份同时改用不被占用的名字，同一秒内二次轮转不再覆盖上一份。
-- 审批白名单文件损坏时不再被静默当成空表：`reflect_load_allowlist` / `reflect_check_allowlist` 返回错误，避免下一次整体保存把用户已有规则清零。
-- 用户级权限文件（`~/.zhuye/permissions.toml`）只读时，`reflect_add_permission_rule` 返回权限错误并原样保留文件：核心 store 的临时文件替换只查目录权限，只读位拦不住它，命令层在落盘前显式确认目标可写（与 `persistence::write_atomic` 同一口径）。
+- 审批白名单文件损坏时不再被静默当成空表：`zhuye_load_allowlist` / `zhuye_check_allowlist` 返回错误，避免下一次整体保存把用户已有规则清零。
+- 用户级权限文件（`~/.zhuye/permissions.toml`）只读时，`zhuye_add_permission_rule` 返回权限错误并原样保留文件：核心 store 的临时文件替换只查目录权限，只读位拦不住它，命令层在落盘前显式确认目标可写（与 `persistence::write_atomic` 同一口径）。
 
 
 ### 修复 — 文件、会话与交互稳定性
@@ -1915,7 +1923,7 @@ L3 真后端 + L5 真窗口 e2e），产物审查通过才出包，审查报告�
 - LSP 工具的路径校验走 `resolve_sandbox_path`：绝对 / 相对路径都在 canonicalize 后要求落在工作区内。
 - 更新活跃 Agent 时保留其他桌面偏好；偏好文件损坏或写入失败时保留原文件和当前 Agent。
 - 最近工作区历史读取失败时显示错误并保留原文件；更新历史时先写完整临时文件再替换，避免写入失败截断数据。
-- 数据目录以 submodule 为准：用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`。路径解析集中在 `app-core/src/paths.rs`，桌面自有状态文件（偏好 / 工作区历史 / 钩子启停 / 白名单 / agent 与子代理定义 / 技能 / 权限规则 / 导出）不再自拼目录名；会话归档从 `reflect_rollout` 的 sessions 根派生，与活跃会话树同级。
+- 数据目录以 submodule 为准：用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`。路径解析集中在 `app-core/src/paths.rs`，桌面自有状态文件（偏好 / 工作区历史 / 钩子启停 / 白名单 / agent 与子代理定义 / 技能 / 权限规则 / 导出）不再自拼目录名；会话归档从 `zhuye_rollout` 的 sessions 根派生，与活跃会话树同级。
 - 协议类型生成失败时保留已有生成文件，并清理本次使用的临时文件。
 - 用户权限目录不可用时仍装载配置和项目拒绝规则；其他权限状态无法确认时要求审批。
 - 权限文件读取或解析失败时在设置中显示出错作用域，避免将无法读取的规则误报为没有配置。
@@ -2001,14 +2009,14 @@ L3 真后端 + L5 真窗口 e2e），产物审查通过才出包，审查报告�
 
 ### 新增 — submodule v1.7 接线:目标模式快照读口 / 流式工具参数 / 跨模型降级
 
-reflect-agent submodule `e4bc182 → e4560bc`(60 提交,含上游 7 周归并)。
+zhuye-agent submodule `e4bc182 → e4560bc`(60 提交,含上游 7 周归并)。
 桌面端对**新增可观测面**完成接线:
 
 - **目标模式状态快照**(上游 v1.7 补 `GoalController::snapshot()` /
   `AgentThread::goal_snapshot()` 读口,闭合 CAPABILITIES §4.1(1)):
-  - 新命令 `reflect_goal_snapshot`(`commands/agent.rs` + `lib.rs` 注册):
+  - 新命令 `zhuye_goal_snapshot`(`commands/agent.rs` + `lib.rs` 注册):
     直读线程快照,未进入目标模式返回 `null`。
-  - IPC 包装 `reflect_goal_snapshot()`(`src/utils/commands/goal.ts`,
+  - IPC 包装 `zhuye_goal_snapshot()`(`src/utils/commands/goal.ts`,
     `GoalSnapshotPayload` 镜像 `GoalState`,snake_case)。
   - store 新增 `goalSnapshot` + `syncGoalSnapshot`:会话 hydrate 后与
     goal turn 收尾(`turn_complete`)拉取,**校准 `goalActive` 投影** ——
@@ -2035,7 +2043,7 @@ reflect-agent submodule `e4bc182 → e4560bc`(60 提交,含上游 7 周归并)�
   「写了 false」:桌面端的原始 TOML 嗅探 workaround
   (`sandbox_intent_from_toml` / `SandboxOsLevelIntent`)移除,
   `normalize_os_level(Option<bool>)` 直接归一(`None` → 基线开启),
-  `load_config_with_sandbox_baseline` / `reflect_save_config` 归一后
+  `load_config_with_sandbox_baseline` / `zhuye_save_config` 归一后
   恒写 `Some(有效值)`。env 优先级与每轮协议盖章行为不变,
   `SandboxStatus.os_level` 线上仍为 bool(前端契约不变)。
 - 新增 Rust 侧 `EventMsg::ToolCallArgsDelta` 分支(`state/activity.rs`
@@ -2044,7 +2052,7 @@ reflect-agent submodule `e4bc182 → e4560bc`(60 提交,含上游 7 周归并)�
 ### 修复 — 已知缺口全闭合：免 Key 端点可配 / Goal 状态可观测 / 清单回灌 / `os_level` 语义
 
 按 `docs/capabilities.md` §4 的清单逐条闭合（此前该节剩 4 项，其中 3 项
-需上游变更）。上游改动按 `SUBMODULE.md` 走「改 Reflect-Agent 仓库 → 升级
+需上游变更）。上游改动按 `SUBMODULE.md` 走「改 ZhuYe 仓库 → 升级
 submodule」，桌面端**不直接改** submodule。
 
 - **免 Key 端点（免费模型池）此前「引擎能跑、GUI 配不出来」** —— 两个硬门槛：
@@ -2055,7 +2063,7 @@ submodule」，桌面端**不直接改** submodule。
      （整份配置保存被拒）。
   上游 `122fc3e0`：`api_key` 改 `#[serde(default)]`；显式配了 `base_url`
   就注册 provider（空 key → 不发 Authorization 头，与 `OpenAIClient` 同口径）。
-  桌面端：`reflect_list_provider_models` / `reflect_test_provider_chat`
+  桌面端：`zhuye_list_provider_models` / `zhuye_test_provider_chat`
   接受空 key；plan 编辑器允许留空并标注「免 Key」、列表里显示「免 Key」徽标。
   连带修掉两个只因「key 为空就不显示」而藏着的问题：顶层免 Key plan 会
   **整条从列表消失**（用户看不到也删不掉）、免 Key 的 plan 永远不被选作
@@ -2067,7 +2075,7 @@ submodule」，桌面端**不直接改** submodule。
   上游 `2dc8ac3e`：`GoalController::snapshot()` + 把 controller 放进
   **会话级共享槽**（`AgentConfig.goal` 此前是普通字段，会被 clone 进
   submission loop —— enter/exit 只活在副本里，线程侧永远看不到）。
-  桌面端：接线 `reflect_goal_snapshot` 快照读口（详见下方「submodule v1.7
+  桌面端：接线 `zhuye_goal_snapshot` 快照读口（详见下方「submodule v1.7
   接线」节），composer 徽标显示「第 N 轮 · token · 状态」。
 - **todo 清单「只出不进」** —— `TodoWrite` 把清单写进 `ToolOutput.metadata`
   （输出通道），GUI 能展示，但**没有任何组件把它回灌进模型上下文** →
@@ -2080,10 +2088,10 @@ submodule」，桌面端**不直接改** submodule。
   改 `Option<bool>`（`None` = 未表态走基线，`Some(false)` = 显式关闭）。
   桌面端随之删掉整段 raw-TOML 绕行方案（`SandboxOsLevelIntent` 枚举 +
   二次 TOML 解析 + 5 条测试）。
-- **上游文档漂移订正**（`3a1bab4b`）：`reflect-task/src/lib.rs` 称 TodoWrite
+- **上游文档漂移订正**（`3a1bab4b`）：`zhuye-task/src/lib.rs` 称 TodoWrite
   走 `ToolContext.metadata["todos"]`，实现实际写在 `ToolOutput.metadata`；
-  `todo_write.rs` 称由「`reflect-tui` 的 reducer(Phase 6)」回填
-  `RenderState.todos` —— **submodule 里没有 `reflect-tui` crate，也没有
+  `todo_write.rs` 称由「`zhuye-tui` 的 reducer(Phase 6)」回填
+  `RenderState.todos` —— **submodule 里没有 `zhuye-tui` crate，也没有
   这样的 reducer**。
 - **工具参数「整包形态」丢失（真 bug，L6 实模型演练层抓出）**：provider 投递
   工具参数有**两种形态** ——
@@ -2110,7 +2118,7 @@ submodule」，桌面端**不直接改** submodule。
   桌面端的能力覆盖层补测：**目标模式没开成时状态读口必须返回 null**
   （不能有「幽灵目标」让徽标显示一个不存在的第 N 轮）。
 - **「中断」会杀掉整个会话（真 bug，L6 实模型演练层抓出）** ——
-  `reflect_interrupt` 此前直接取消 **AgentThread 的会话级 cancel token**。
+  `zhuye_interrupt` 此前直接取消 **AgentThread 的会话级 cancel token**。
   那是 `Op::Shutdown` 的语义：会话令牌是所有回合令牌的**父**，取消它虽然会
   级联取消在飞回合，但**会话就此报废** —— 之后每一次提交都会被立刻取消
   （回合令牌是 `cancel.child_token()`，父已取消 → 子一出生就是取消态）。
@@ -2170,8 +2178,8 @@ submodule」，桌面端**不直接改** submodule。
   的发布门禁只到「真后端 + 假模型」—— 真实 SSE 帧形状、真实模型的思考
   过程、真实限流（429）、真实截断续作这一格始终是空的。
 - **新增 L6 层**（`tests/live/run.sh` + `src-tauri/tests/ipc_live_free_model.rs`）：
-  走**生产同一条链** —— `reflect_submit` → AgentThread → 真 provider →
-  真 SSE → `reflect_event` 通道（同一个 `generate_handler!` 注册表、同一个
+  走**生产同一条链** —— `zhuye_submit` → AgentThread → 真 provider →
+  真 SSE → `zhuye_event` 通道（同一个 `generate_handler!` 注册表、同一个
   AgentThread、同一个事件通道，与 GUI 点一次「发送」同形）。
   - **模型不写死**：配置写 `model = "free"`，运行时从 provider 清单**实时
     发现**（免费集合由上游决定，写死必然腐烂）；断言解析出的是**真实
@@ -2184,7 +2192,7 @@ submodule」，桌面端**不直接改** submodule。
     tools —— 都是环境/配额状态，测的是配额不是代码。
   - **只用合成 prompt**，不喂真实仓库内容 / 凭据（免费池的模型卡明示
     prompt 可能被上游记录）。
-  - **默认不发任何网络请求**：用例带 `#[ignore]`，运行期还要 `REFLECT_LIVE=1`
+  - **默认不发任何网络请求**：用例带 `#[ignore]`，运行期还要 `ZHUYE_LIVE=1`
     才放行（双保险）；门禁层默认 SKIP，不进 CI。
 - **实测结论**（本机，Kilo 免费池免 Key）：模型清单 401 条里 **18 条
   `isFree: true`**（17 条支持 tools）；`model = "free"` 实时发现到
@@ -2192,7 +2200,7 @@ submodule」，桌面端**不直接改** submodule。
   token ≈3.5k、终态 `success`）；`minimax/minimax-m3.1-flash:free` /
   `nvidia/nemotron-3.5-lightning:free` / `poolside/laguna-s-2.1:free`
   同样通过。
-- **L6 顺带抓出并修掉一个真 bug（上游 `reflect-llm`）**：
+- **L6 顺带抓出并修掉一个真 bug（上游 `zhuye-llm`）**：
   `dsh-our-free-model` 网关在地区门 / 配额用尽时，不是用非 2xx 状态码
   报错，而是在 **HTTP 200 的流里**下发一帧 `data: {"error":{...}}`。
   该帧既无 `choices` 也无 `usage`，`parse_chunk` 此前**整块丢弃** →
@@ -2210,12 +2218,12 @@ submodule」，桌面端**不直接改** submodule。
   `[[openai.credentials]]` **数组形态** —— 顶层单值 `api_key = ""` 会让
   `build_openai_pool` 直接不注册该 provider（数组空 + key 空 → `None`）。
 - **设置页的「获取模型列表 / 测试连接 / 发送测试消息」也支持免 Key**：
-  `reflect_list_provider_models` / `reflect_test_provider_chat` 此前对空
+  `zhuye_list_provider_models` / `zhuye_test_provider_chat` 此前对空
   `api_key` 直接报 `api_key is empty` —— 免 Key 的免费池在 GUI 里连清单
   都拿不到。现在空 key 不再报错、不发 Authorization 头（与
-  `reflect-llm` 的 `OpenAIClient` 同口径）；Anthropic 协议仍要求 key。
+  `zhuye-llm` 的 `OpenAIClient` 同口径）；Anthropic 协议仍要求 key。
 - **门禁入口**：`tests/run_all.sh` 增加 `live` 套件（五层 → 六层），
-  `REFLECT_LIVE=1 bash tests/run_all.sh live` 真跑，否则整层 SKIP。
+  `ZHUYE_LIVE=1 bash tests/run_all.sh live` 真跑，否则整层 SKIP。
 - **`tests/lib.sh`**：`suite_absorb` 现在把 PASS/FAIL 的**原因**也落进
   `.cases`（发布审查报告里能直接看到「这轮跑的是哪个模型 / 多少
   token」），此前只落 SKIP 的原因。
@@ -2223,16 +2231,16 @@ submodule」，桌面端**不直接改** submodule。
 ### 修复 — submodule 升级接线:模型清单发现(`model = "free"`)+ `spec_fallback` + `[model_discovery]`
 
 - **背景**：submodule 升级到 `8d65825`（`e4bc182` → `8d65825`，12 个
-  提交；最后一个是 `reflect-py` 的 pyo3 升级，纯 CI / Python SDK，GUI
+  提交；最后一个是 `zhuye-py` 的 pyo3 升级，纯 CI / Python SDK，GUI
   无消费面）。上游新增「运行时才知道的模型 id」`model = "free"`（运行时去
   provider 清单里挑免费模型）、`[model_discovery]` 配置段、
-  `RoutingEventKind::SpecFallback`（跨模型降级）、`reflect-llm` 的
+  `RoutingEventKind::SpecFallback`（跨模型降级）、`zhuye-llm` 的
   `model_catalog`（免费判定规则）。桌面端此前**一处没接**。
 - **断点一 —— model spec 解析走同步路径（功能破损）**：桌面端全部用
-  `ReflectConfig::resolved_model_spec()`（同步），`model = "free"` 拿到
+  `ZhuyeConfig::resolved_model_spec()`（同步），`model = "free"` 拿到
   的是**占位串** `"provider/free"` —— 会被 routing 的 main slot 当成真
   模型发给 provider（表现为「模型不存在」），状态栏也显示一个不存在的
-  模型。上游已把统一入口换成 `reflect_config::resolve_model_spec()`
+  模型。上游已把统一入口换成 `zhuye_config::resolve_model_spec()`
   （async，动态值走清单发现）。
   - 新增 `state/agent.rs::resolve_model_spec_with_discovery(cfg, registry)`
     —— 返回 `(spec, error)`；静态值走同步解析，动态值走清单发现，失败
@@ -2245,8 +2253,8 @@ submodule」，桌面端**不直接改** submodule。
     也进入重载触发条件；解析失败**保留旧 model**（与上游
     `handle_reload` 同语义），原因进 `degraded_reason`。
   - `construct_thread` 不再自行解析 spec，只消费 `inner.model_spec`。
-  - `reflect_set_model` 返回**已解析**的 spec（`free` → 真实 id），
-    解析失败报 `Err`；`reflect_save_config` 不把解析失败报成保存失败。
+  - `zhuye_set_model` 返回**已解析**的 spec（`free` → 真实 id），
+    解析失败报 `Err`；`zhuye_save_config` 不把解析失败报成保存失败。
 - **断点二 —— `app-core` 两处上游镜像函数脱节**：`app-core/src/discussion.rs`
   与 `app-core/src/pipeline.rs` 各自镜像了一份上游 CLI 的
   `try_build_llm_orchestrator` / `build_factory`；上游已把两者改成
@@ -2258,7 +2266,7 @@ submodule」，桌面端**不直接改** submodule。
 - **断点四 —— `[model_discovery]` 无 UI 消费面**：五个字段
   （`enabled` / `timeout_secs` / `prefer` / `always_free` /
   `free_id_patterns`）进结构化配置表单（新增 i18n 键）。
-- **断点五 —— 模型列表不标免费**：`reflect_list_provider_models` 返回值
+- **断点五 —— 模型列表不标免费**：`zhuye_list_provider_models` 返回值
   增 `is_free` / `context_window` —— 免费判定规则取自**当前生效**的
   `[model_discovery]` 段（与引擎跑 `model = "free"` 同一套规则），
   Composer 模型选项追加「免费」标记；`null` = 未知，不标。
@@ -2356,8 +2364,8 @@ submodule」，桌面端**不直接改** submodule。
 
 ### 修复 — 配置兼容审计发现的线格式漂移(第 4 处)
 
-- `reflect_kms_list_pages`:真后端返回 `Vec<Page>` **对象数组**,前端按
-  `ReflectPage[]` 消费,而 fakeBackend 一直返回**文件名字符串** —— 即
+- `zhuye_kms_list_pages`:真后端返回 `Vec<Page>` **对象数组**,前端按
+  `ZhuyePage[]` 消费,而 fakeBackend 一直返回**文件名字符串** —— 即
   L2 从来没有任何测试在 /kms 点开过 wiki(一点开 `page.tags.map` 就崩,
   这次恰好成为错误边界测试的真实崩溃路径)。fake 对齐为对象数组,往返
   契约补 `kms_list_pages` 对(22 对);按实际行为对齐 `name` 带 `.md`
@@ -2374,10 +2382,10 @@ submodule」，桌面端**不直接改** submodule。
   - 纯文本回复:delta 按 submission id 配对累积 + `token_count`
     (来自 SSE usage)+ `turn_complete`;
   - bash 工具调用:`prompt` 审批模式下的 `approval_request`(完整参数在
-    `kind.args`)→ `reflect_tool_approval` 放行 → 工具真实执行 → 第二跳
+    `kind.args`)→ `zhuye_tool_approval` 放行 → 工具真实执行 → 第二跳
     请求携带 `tool_result` → 最终回复;断言恰好两次 HTTP 请求、自定义
     base_url 走 `Authorization: Bearer`(第三方网关兼容分支);
-  - HTTP 500:`error` 事件走同一 `reflect_event` 通道;随后提交仍被受理
+  - HTTP 500:`error` 事件走同一 `zhuye_event` 通道;随后提交仍被受理
     (循环不卡死;凭证进入冷却是诚实结果);
   - 流中 interrupt:25s 延迟回复被取消 —— 收尾有两条竞态路径
     (`error` code=CANCELLED 或 `turn_aborted` user_interrupt),任一即
@@ -2394,10 +2402,10 @@ submodule」，桌面端**不直接改** submodule。
   后 config.toml 仍为合法 TOML、不死锁 —— 「并发丢更新」按
   `tests/COVERAGE.md` §4 已知口径不在断言范围,盯的是写坏文件/卡死。
 - **`src-tauri/tests/ipc_restart.rs`** —— 「退出 → 重启」恢复:子进程
-  重执行两阶段(`current_exe --exact` + `REFLECT_TEST_HOME` 共享同一份
-  `~/.reflect`),阶段一写配置/记忆/白名单/agent 定义/squad/任务/工作区
+  重执行两阶段(`current_exe --exact` + `ZHUYE_TEST_HOME` 共享同一份
+  `~/.zhuye`),阶段一写配置/记忆/白名单/agent 定义/squad/任务/工作区
   后进程退出,阶段二以全新 app 逐项读回。夹具配套:
-  `REFLECT_TEST_HOME` 覆盖隔离基目录;默认 config.toml 改为**仅在不存在
+  `ZHUYE_TEST_HOME` 覆盖隔离基目录;默认 config.toml 改为**仅在不存在
   时写入**(不再覆盖阶段一留下的状态)。定时任务不在此列 ——
   `add_schedule` 当前为内存态(持久化留后续,见 `src-tauri/Cargo.toml`
   注释),重启后为空是已知口径。
@@ -2446,16 +2454,16 @@ submodule」，桌面端**不直接改** submodule。
   `autoConnect` / `isReady` / `dnsName` / `tailnetName` / `suggestedRemoteHost`;
   而前端接口与 `RemoteView` 读的是 snake_case —— 生产环境这些字段**永远是
   undefined**(就绪徽标永不亮、autoConnect 恒显示「否」),且
-  `reflect_update_remote_config` 发出的 snake_case 键被 Tauri 当缺参
+  `zhuye_update_remote_config` 发出的 snake_case 键被 Tauri 当缺参
   **静默丢弃**。`RemoteView.test.tsx` 自己的 mock 用了同样的错误形状,
   所以一直是绿的。前端(`src/utils/commands/remote.ts` /
   `useRemoteController.ts` / `RemoteView.tsx` 及其测试)与 fakeBackend
   全部对齐 camelCase;`docs/protocol-bridge.md` remote 行同步修正。
-- fakeBackend 的 `reflect_get_autopilot_config` 返回 `{enabled, max_turns}`,
+- fakeBackend 的 `zhuye_get_autopilot_config` 返回 `{enabled, max_turns}`,
   而真后端(与前端 `autopilot.ts` 声明)是 camelCase 的
   `{enabled, schedule, taskTemplate, agent, maxConcurrent}` —— 同批修正。
-- `reflect_kms_create` 对重名 wiki:fake 静默覆盖、真后端报错 —— fake
-  对齐为报错。`reflect_read_file` 的 fake 补齐 `size` / `binary` 字段。
+- `zhuye_kms_create` 对重名 wiki:fake 静默覆盖、真后端报错 —— fake
+  对齐为报错。`zhuye_read_file` 的 fake 补齐 `size` / `binary` 字段。
 
 ### 新增 — 发布门禁:分层严格功能测试脚本(对标 submodule 的严格测试标准)
 
@@ -2464,7 +2472,7 @@ submodule」，桌面端**不直接改** submodule。
 只在零散的单元测试里被碰到。模拟后端的 bug 会把真后端的 bug 遮住 ——
 与 submodule「能力覆盖层不经过任何 SDK」是同一个道理。
 
-本轮按 submodule `reflect-agent/tests/` 的标准建了一套**分层发布门禁**:
+本轮按 submodule `zhuye-agent/tests/` 的标准建了一套**分层发布门禁**:
 
 - **`tests/run_all.sh`** —— 唯一门禁入口,退出码 0 = 允许发布。四个分层
   可单跑:`static` / `frontend` / `backend` / `artifact`。逐套件结果落盘
@@ -2493,7 +2501,7 @@ submodule」，桌面端**不直接改** submodule。
   只会让前端静默地不更新 —— 正是最该被门禁盯住的那类。
   夹具把 `HOME` 与 **cwd** 沙箱化到进程专属临时目录（数据根随之为
   `$HOME/.zhuye`）—— 不污染开发者的真实数据目录,也不往仓库里写 `.zhuye/`。
-  **真后端 185 条 `reflect_*` 命令中,能力覆盖层直接驱动 179 条(96.8%)**;
+  **真后端 185 条 `zhuye_*` 命令中,能力覆盖层直接驱动 179 条(96.8%)**;
   余下 6 条(截屏 / 电脑操控 / 在文件管理器里打开目录 / 启停 tailscale
   守护进程 / cargo audit)在 `tests/COVERAGE.md` §3 逐条说明排除理由。
   该覆盖数是**棘轮**项(L1 静态审查盯住)—— 删用例而不改文档会失败。
@@ -2514,9 +2522,9 @@ submodule」，桌面端**不直接改** submodule。
 - `src-tauri/src/events.rs` 的 `forward_agent_events` 同样泛型化为
   `R: Runtime` —— 它只做「读 broadcast → emit 到 app」,没有任何 Wry 专属
   行为,写死 Wry 就等于把**链路的最后一环**(agent 事件 → 前端
-  `reflect_event` 通道)排除在自动测试之外。
-- 4 条命令不再把 `tauri::AppHandle` 当参数(`reflect_set_dock_badge` /
-  `reflect_run_shell` / `reflect_pick_workspace_folder` / `reflect_pick_file`)。
+  `zhuye_event` 通道)排除在自动测试之外。
+- 4 条命令不再把 `tauri::AppHandle` 当参数(`zhuye_set_dock_badge` /
+  `zhuye_run_shell` / `zhuye_pick_workspace_folder` / `zhuye_pick_file`)。
   `AppHandle` 等于 `AppHandle<Wry>`,与 runtime 绑死 —— 那几条命令**只能**
   注册到 Wry builder 上,mock runtime 装不下整张注册表,真命令体也就驱不动。
   应用句柄改由托管状态持有(`MinimalAgent::set_app_handle` / `app_handle`),
@@ -2528,13 +2536,13 @@ submodule」，桌面端**不直接改** submodule。
   `tests/run_all.sh static frontend backend`),build job 依赖它;并在出包后
   追加**产物审查**步骤(审刚打出来的包)。顺带修了一个真 bug ——
   build job 的 checkout **漏了 `submodules: recursive`**,核心 crate 全在
-  `reflect-agent/` 里,缺了就编不过。
+  `zhuye-agent/` 里,缺了就编不过。
 - `.github/workflows/ci.yml`:新增 `static-audit` job —— 每次 push/PR 都跑
   静态审查层,挡住接线漂移(秒级,不拖慢 CI)。
 
 ### 修复 — 能力覆盖层发现的问题
 
-- `tests/helpers/fakeBackend.ts` 的 `reflect_save_allowlist` 用 `entries` 键,
+- `tests/helpers/fakeBackend.ts` 的 `zhuye_save_allowlist` 用 `entries` 键,
   而**真后端**用 `prefixes`(前端 `src/utils/commands/allowlist.ts` 用的是
   `prefixes`,正确)。模拟层与真后端不一致 —— 这正是能力覆盖层存在的意义。
 - **10 处 clippy 拒绝项**(本仓库自有 crate,此前被 `app-core` 的编译失败
@@ -2551,9 +2559,9 @@ submodule」，桌面端**不直接改** submodule。
   这些此前会让 `cargo clippy --workspace --all-targets` 失败 —— 也就是
   仓库自己的 CI clippy job 一直是红的。发布门禁把它显式化了。
 - **测试替身漏了一条命令** —— `tests/helpers/fakeBackend.ts` 没有实现
-  `reflect_set_dock_badge`(前端 `src/utils/notify.ts` 在待办数变化时会
+  `zhuye_set_dock_badge`(前端 `src/utils/notify.ts` 在待办数变化时会
   调它)。之所以没人发现:契约测试提取后端命令名时只扫 `pub async fn`,
-  **同步命令整个漏掉**(全仓只有 `reflect_set_dock_badge` 一条同步命令)。
+  **同步命令整个漏掉**(全仓只有 `zhuye_set_dock_badge` 一条同步命令)。
   已补上替身实现,并把提取正则改成 `pub (?:async )?fn`;L1 静态审查新增
   「测试替身实现了全部已注册命令」一项,让第四方一致性也进发布门禁。
 
@@ -2584,32 +2592,32 @@ submodule」，桌面端**不直接改** submodule。
 `docs/capabilities.md`(核心能力 → GUI 覆盖矩阵)为纲,闭合其中六块:
 
 - **权限层接线(安全行为分叉修复)** —— CLI 装了三层权限 store
-  (`config.toml [permissions]` > `<workspace>/.reflect/permissions.toml` >
-  `~/.reflect/permissions.toml`),桌面端**根本没挂**
-  `AgentConfig::with_permission_resolver`(`reflect-permissions` 在
+  (`config.toml [permissions]` > `<workspace>/.zhuye/permissions.toml` >
+  `~/.zhuye/permissions.toml`),桌面端**根本没挂**
+  `AgentConfig::with_permission_resolver`(`zhuye-permissions` 在
   `src-tauri/Cargo.toml` 声明却从未使用):同一份配置在 CLI 里生效的
-  `deny` 规则,在桌面端被静默忽略。现按 CLI(`reflect-exec` 的
+  `deny` 规则,在桌面端被静默忽略。现按 CLI(`zhuye-exec` 的
   `apply_permission_layers`)同构装配(`state/permissions.rs`),
-  并新增 `reflect_list_permission_rules` + Settings → Permissions
+  并新增 `zhuye_list_permission_rules` + Settings → Permissions
   分节的「生效的权限规则」列表(只读,按匹配顺序展示)。
 - **Skills 列表与运行时对齐** —— 桌面端手写的扫描器扫的是 `cwd`
   而运行时扫 `<workspace>`,且**漏掉** `merge_bundled` 的内置技能:
   GUI 列出的技能少于 agent 实际能激活的。改用核心的
-  `reflect_skills::{scan_skills_dirs, bundled_skills}`,目录与合并
+  `zhuye_skills::{scan_skills_dirs, bundled_skills}`,目录与合并
   语义与运行时逐行一致;DTO 补 `bundled` / `whenPaths` / `version` /
   `body` / `pluginId`,UI 加「内置」徽标与路径自动激活条件。
 - **会话笔记只读面** —— agent 经 `AddSessionNoteTool` 写进
   `<notes_home>/session-notes/<thread_id>.jsonl` 的持久结论,此前
-  **只有写、没有读**。新增 `reflect_list_session_notes` /
-  `reflect_list_note_sessions` + Memory 视图的「会话笔记」面板。
+  **只有写、没有读**。新增 `zhuye_list_session_notes` /
+  `zhuye_list_note_sessions` + Memory 视图的「会话笔记」面板。
 - **Span 日志(trace 树)** —— Traces 视图此前只读 model-io,从不读
-  span 日志:turn → model → tool 的父子链、耗时归因、`reflect_goal`
+  span 日志:turn → model → tool 的父子链、耗时归因、`zhuye_goal`
   事件全部不可见。新增 `app-core::traces::{list_span_logs,
   read_span_log}`(含树深度推导,父链缺失/成环均有防护)+
-  `reflect_list_span_logs` / `reflect_read_span_log` + Traces 视图
+  `zhuye_list_span_logs` / `zhuye_read_span_log` + Traces 视图
   「Span 树」页。
 - **OS 沙箱有效状态** —— 设置页有 `[sandbox].os_level` 开关,却看不到
-  实际是否在 Seatbelt / Landlock 里跑。新增 `reflect_sandbox_status`
+  实际是否在 Seatbelt / Landlock 里跑。新增 `zhuye_sandbox_status`
   + 状态栏徽标。(口径后由下方「OS 沙箱开关真正生效」重做)
 - **OS 沙箱开关真正生效(此前是死旋钮)** —— `[sandbox].os_level` 是 GUI 里
   唯一一个**写了不生效**的安全开关:核心的 OS 沙箱有三条来源(配置 /
@@ -2645,36 +2653,36 @@ submodule」，桌面端**不直接改** submodule。
     唯一事实源仍是核心的表,桌面端不持第二份,表更新后 GUI 自动跟随。
   - 逐次压缩明细:`CompactionStats` 增 `records`(封顶 50 条),Inspector
     增可展开的明细列表(此前只有一行 hover 摘要)。
-  - 提示词生效正文:`reflect_get_effective_prompt` 返回当前模型经
-    `reflect_prompt::library().resolve(spec)` 解析后的 section 正文,
+  - 提示词生效正文:`zhuye_get_effective_prompt` 返回当前模型经
+    `zhuye_prompt::library().resolve(spec)` 解析后的 section 正文,
     PromptLayersModal 按需展开 —— 模型真正吃到的那段提示词。
 - **活跃 agent 接线(GUI 的 Agents 视图此前是死胡同)** —— 核心按
   **名字**找 agent 定义(CLI 用 `--agent`,缺省 `"default"`),桌面端却
   **硬编码 `"desktop"`**,导致两个后果:(1) 用户在 GUI 的 Agents 视图
   创建/编辑的 agent 定义,运行时**永远不加载**;(2) 记忆文件路径由
-  agent 名派生,GUI 写 `agent-memory/reflect/`、运行时读
+  agent 名派生,GUI 写死固定 agent 目录、运行时读
   `agent-memory/<agent>/` —— **GUI 里编辑的记忆,agent 根本读不到**。
   修复:新增 `src-tauri/src/agent_state.rs`(活跃 agent 名存桌面端
-  偏好 `~/.reflect/desktop.json`,缺省 `"default"` 与 CLI 一致);线程
-  构造改用该名;记忆路径改经**核心的 `reflect_memory::resolve_path`**
-  解析(与运行时 pre_loop 注入逐字一致);旧版 `agent-memory/reflect/`
-  数据在启动时一次性迁移(目标存在则不覆盖);新增
-  `reflect_get_active_agent` / `reflect_set_active_agent`(切换后
+  偏好 `~/.zhuye/desktop.json`,缺省 `"default"` 与 CLI 一致);线程
+  构造改用该名;记忆路径改经**核心的 `zhuye_memory::resolve_path`**
+  解析(与运行时 pre_loop 注入逐字一致);旧版固定目录的存量数据
+  在启动时一次性迁移(目标存在则不覆盖);新增
+  `zhuye_get_active_agent` / `zhuye_set_active_agent`(切换后
   replay 历史并强制重绑,与 provider 热重载同款语义),Agents 视图新增
   「当前活跃」卡片 + 逐条「设为活跃」按钮,Memory 视图新增提示:agent
   未声明 `memory` 作用域时写入内容不会被注入 system prompt。
   另加不变量测试:GUI 记忆路径 == 核心 `resolve_path` 结果。
 - **LSP 诊断(Problems)** —— LSP 开着、文件也预热了,但编译/检查器反馈
   **一条都看不到**:诊断只进了 core 的 `DiagnosticRegistry` 被动缓存。
-  新增 `reflect_lsp_diagnostics(path)`(读 core 的
+  新增 `zhuye_lsp_diagnostics(path)`(读 core 的
   `LspConnectionManager::diagnostics()`,与核心 `LspTool` 同款「只读被动
   缓存」语义),`LspStatus` 增诊断聚合,Files 视图编辑区下方新增
   **Problems 面板**(当前文件的诊断,随打开轮询)。
 - **任务产出 / 停止 / 释放** —— 任务板此前只能看到 subject / 状态 /
   认领人,**看不到 worker 产出了什么**,也停不下卡住的 worker。新增三个
-  命令,语义与核心工具**同款**(守卫在命令层):`reflect_get_task_output`
-  (读任务 `output_path`,不阻塞)、`reflect_stop_task`(守卫
-  `in_progress`,退回 pending + 清 owner)、`reflect_release_task`
+  命令,语义与核心工具**同款**(守卫在命令层):`zhuye_get_task_output`
+  (读任务 `output_path`,不阻塞)、`zhuye_stop_task`(守卫
+  `in_progress`,退回 pending + 清 owner)、`zhuye_release_task`
   (守卫存在 `claimed_by`,退回 pending + 清 claimed_by/claimed_at)。
   任务板行内加「详情 / 停止 / 释放」+ **详情抽屉**(描述 + 产出路径 +
   产出内容)。
@@ -2682,9 +2690,9 @@ submodule」，桌面端**不直接改** submodule。
   但 GUI 此前**只能观测**:加一个 server 必须手改 `config.toml` 的
   `[mcp_servers.<name>]`(Collaboration 视图空态原话就是「Add an
   `[mcp_servers.<name>]` section in Settings → Advanced」)。新增 4 个命令:
-  `reflect_list_mcp_servers`(配置 + 运行状态)、`reflect_mcp_catalog`
+  `zhuye_list_mcp_servers`(配置 + 运行状态)、`zhuye_mcp_catalog`
   (核心内置的**精选 catalog**,离线清单 + 安装提示,解决「我不知道能装
-  哪些」)、`reflect_upsert_mcp_server` / `reflect_delete_mcp_server`
+  哪些」)、`zhuye_upsert_mcp_server` / `zhuye_delete_mcp_server`
   (改内存 config → 经**核心 `mcp_server_configs()` 编译校验**(非法配置
   不落盘)→ 落盘 → 运行时起停 + 注册/反注册其工具)。运行时起停复用
   `mcp::start_one_server` / `stop_one_server`,与启动时的 `bootstrap_mcp`
@@ -2694,69 +2702,69 @@ submodule」，桌面端**不直接改** submodule。
 - **插件管理** —— GUI 此前只能看到插件带来的 **slash 命令**:装了什么、
   哪个加载失败、启用哪些、marketplace 有哪些全部不可见;启停只能手改
   `config.toml` 的 `[plugins] enabled_plugins`,卸载只能手改
-  `installed_plugins.json`。新增 `reflect_list_plugins`(已装 + 是否启用,
-  启用态与运行时挂载集合同源)、`reflect_list_marketplaces`、
-  `reflect_toggle_plugin`(改 config → 落盘 → 核心 `reload_plugins`
-  diff 同步,挂/卸不打断会话)、`reflect_uninstall_plugin` /
-  `reflect_install_plugin`(经核心 `PluginManager`,含 manifest 校验)。
+  `installed_plugins.json`。新增 `zhuye_list_plugins`(已装 + 是否启用,
+  启用态与运行时挂载集合同源)、`zhuye_list_marketplaces`、
+  `zhuye_toggle_plugin`(改 config → 落盘 → 核心 `reload_plugins`
+  diff 同步,挂/卸不打断会话)、`zhuye_uninstall_plugin` /
+  `zhuye_install_plugin`(经核心 `PluginManager`,含 manifest 校验)。
   Collaboration 视图新增 **PluginsPanel**(启停开关 + 卸载 + marketplace
-  + 本地安装表单,目录选择器复用既有的 `reflect_pick_workspace_folder`)。
+  + 本地安装表单,目录选择器复用既有的 `zhuye_pick_workspace_folder`)。
 - **工具注册表补齐(agent 侧「能不能用」的关键缺口)** —— 桌面端此前只注册
-  **15 个基础工具**,缺三族:① 任务工具(`reflect_task::register_task_tools`)
+  **15 个基础工具**,缺三族:① 任务工具(`zhuye_task::register_task_tools`)
   —— GUI 建的 task,agent **既看不到也改不了**,任务板对 agent 是单向的;
   ② 会话笔记工具(`AddSessionNoteTool`)—— agent 写不了笔记,本次新增的
   笔记读取面**永远是空的**;③ 子代理 `call_<role>` 工具 —— agent 无法
   委派子任务,Inspector 的子代理区块**永远是空的**。CLI 三族都注册
-  (`reflect-exec` 的 `bootstrap_m5` + `headless.rs`),两个前端能力不一致。
+  (`zhuye-exec` 的 `bootstrap_m5` + `headless.rs`),两个前端能力不一致。
   新增 `state/subagents.rs`:任务工具进程级注册、笔记工具每会话注册
   (store 路径含 thread id)、子代理按 CLI 口径合并 spec(TOML >
   workspace md > home md > 硬编码 explorer)并把 `call_<role>` 补进
   always-on 可见集(否则模型请求里没有子代理 schema,LLM 永远无法委派)。
 - **运行时状态可观测(S 级批量)** —— 四项基座有、GUI 完全看不到的「系统此刻
   怎么了」,补齐只读面:① **凭证池健康度**
-  (`reflect_credential_pool_status` → Inspector;核心的 cooldown 集合是私有
+  (`zhuye_credential_pool_status` → Inspector;核心的 cooldown 集合是私有
   字段,用 `healthy_clients()` 的健康集合反推「总数 − 健康 = 冷却中」,冷却
   **原因**在核心内不公开故不编造);② **已完成的子代理调用**
-  (`reflect_recovery_state` → Inspector;读 core 的 `SubagentRegistry` 快照,
+  (`zhuye_recovery_state` → Inspector;读 core 的 `SubagentRegistry` 快照,
   回答「agent 刚才派了哪些子代理、结论是什么」);③ **记忆分段**
-  (`reflect_memory_sections` → Memory 视图;用 core 的 `split_sections` 按
+  (`zhuye_memory_sections` → Memory 视图;用 core 的 `split_sections` 按
   `## ` 切分 + 注入预算占用 —— GUI 此前显示整份原文,而 agent 实际吃的是
   切分 + 筛选后的条目);④ **配置位置与分析健康度**
-  (`reflect_config_info` → Settings 侧栏顶部;手改 config.toml 的用户终于
+  (`zhuye_config_info` → Settings 侧栏顶部;手改 config.toml 的用户终于
   知道应用读的是哪个文件)。
   AST 语言网格**有意不接**:核心的 grammar 由 `lang-*` feature 编译,桌面端
   未启用任何 grammar → 列表恒为空,启用会把 tree-sitter 语法包拉进桌面
   构建(独立的构建决策,非接线缺口)。
-- **又一批能力面** —— ① **worktree 状态**(`reflect_list_worktrees` → Git
+- **又一批能力面** —— ① **worktree 状态**(`zhuye_list_worktrees` → Git
   视图;核心的 worktree 状态在 `ToolContext` 里读不到,但 worktree 文件系统
   可见 —— `git worktree list --porcelain` + 核心 `worktree_dirty` 判脏,
   标出 `isolated` 与 **`stranded`**(隔离 + 有未提交改动 → 改动还没落回
   主分支,丢工风险));② **MCP 资源 / prompt**
-  (`reflect_list_mcp_resources` / `_prompts` → McpManager;三大原语里此前
+  (`zhuye_list_mcp_resources` / `_prompts` → McpManager;三大原语里此前
   只有 tools 对用户可达,现直接问 rmcp peer,与核心 `ListMcp*Tool` 同源);
-  ③ **子代理 spec**(`reflect_list/get/save/delete_subagent_spec` → Agents
+  ③ **子代理 spec**(`zhuye_list/get/save/delete_subagent_spec` → Agents
   视图新增页签;与 agent 定义是两套东西,此前 `call_<role>` 工具的来源
   **无任何编辑面**,现按运行时同款口径合并(TOML > workspace md > home md
   > 硬编码 explorer),编辑器改原始 md,写前由后端 `parse_subagent_str` 校验);
-  ④ **BM25 搜索**(`reflect_search_files` 增 `rank` 参数 → Search 视图;
-  复用核心 `reflect_tools::bm25::{tokenize, rank_lines}`,`k1=1.2`/`b=0.75`
+  ④ **BM25 搜索**(`zhuye_search_files` 增 `rank` 参数 → Search 视图;
+  复用核心 `zhuye_tools::bm25::{tokenize, rank_lines}`,`k1=1.2`/`b=0.75`
   与核心 grep 工具逐字一致);⑤ **Hook 事件类型**
-  (`reflect_list_hook_events` → Hooks 视图;此前只列 name/kind/enabled,
+  (`zhuye_list_hook_events` → Hooks 视图;此前只列 name/kind/enabled,
   用户不知道能在哪些时机挂 hook、能做什么决策,现列出 12 个事件 + 可用决策)。
 - **Pipeline 配置编辑** —— 此前 GUI 只能**跑**一个已有的 TOML 文件(还得
   手写),新增拓扑只能靠「手改文件 + 跑失败才知道写错了」。新增
-  `reflect_validate_pipeline`(校验走核心 `Pipeline::from_toml`,与**实际运行
+  `zhuye_validate_pipeline`(校验走核心 `Pipeline::from_toml`,与**实际运行
   同一条路径**;结构摘要只读顶层 `nodes` 表,不复刻核心 schema)、
-  `reflect_list_pipeline_configs` / `reflect_save_pipeline_config`
-  (落盘 `~/.reflect/pipelines/<name>.toml`,**写前先校验,非法不落盘**)。
+  `zhuye_list_pipeline_configs` / `zhuye_save_pipeline_config`
+  (落盘 `~/.zhuye/pipelines/<name>.toml`,**写前先校验,非法不落盘**)。
   Collaboration 视图新增 Pipeline 编辑器(TOML 文本框 + 防抖实时校验 +
   节点徽标 + 缺 team 提示 + 保存)。
-- **安全扫描** —— 审计初稿把核心的 `reflect_integration::security_scan`
+- **安全扫描** —— 审计初稿把核心的 `zhuye_integration::security_scan`
   标为「上游 stub」,**核实后是错的**:它是**真实实现**(`cargo audit`、
   30s 超时、管道排空、IO 错误落结构化报告而非 panic)。新增
-  `reflect_run_security_scan`(阻塞调用放 `spawn_blocking`,不占住 async
+  `zhuye_run_security_scan`(阻塞调用放 `spawn_blocking`,不占住 async
   worker)+ Settings → Advanced 的「安全扫描」卡片。
-- **审计结论修正**:① `reflect-integration` 的安全扫描**不是** stub;② 核心的
+- **审计结论修正**:① `zhuye-integration` 的安全扫描**不是** stub;② 核心的
   `TodoWriteTool` **工具本身是实装的**(占位的只是它的 `manager` 字段 ——
   上游注释「Phase 1 不用,仅占位避免破坏 register_all 签名」指该字段)。
 - **agent 的 todo 清单(`TodoWrite`)** —— 核心把清单写进
@@ -2805,7 +2813,7 @@ submodule」，桌面端**不直接改** submodule。
     能力矩阵的「43/43 EventMsg」也过期 —— 实际是 **45/45**(逐条核对)。
   - **团队可建可改可删** —— §3.20 反向审计里唯一一个还属于**基座能力**
     的缺口。核心 `TaskManager::upsert_team` / `delete_team` 早已实现
-    (存储 `~/.reflect/teams/<name>.json`,与 CLI/TUI 共享),GUI 却只能
+    (存储 `~/.zhuye/teams/<name>.json`,与 CLI/TUI 共享),GUI 却只能
     在列表选择器里点一下切到某个 team —— 想加团队只能**手写 JSON**。
     任务板头部新增「团队」按钮 → 团队管理面板(列出 / 新建 / 编辑 /
     删除 + 成员增删行)。口径与核心对齐:`lead_agent_id` 前端按
@@ -2814,9 +2822,9 @@ submodule」，桌面端**不直接改** submodule。
     把 `created_at` / `joined_at` 标成 `number | string` 的类型错误 ——
     核心 `SystemTime` 的 JSON 形态是 `{ secs_since_epoch, nanos_since_epoch }`。
   - **「始终允许这条命令」写进核心权限层(消灭第二套真值)** —— 桌面端
-    原本有一套私有的 `~/.reflect/approval_allowlist.json`(前缀匹配),
+    原本有一套私有的 `~/.zhuye/approval_allowlist.json`(前缀匹配),
     后端注释描述的「审批弹窗勾选 Always allow」流程**从未在 GUI 存在**。
-    但核心 `reflect-permissions` 已是同一件事的正规实现,且真值唯一
+    但核心 `zhuye-permissions` 已是同一件事的正规实现,且真值唯一
     (CLI/GUI 共用)、**写完即生效**(核心 resolver 每次评估都重读文件)、
     可见(Settings → Permissions 列表实时显示)—— 所以本轮**没有**再接
     一套机制,而是把审批弹窗的「始终允许」直接写进核心的用户级权限文件。
@@ -2826,37 +2834,37 @@ submodule」，桌面端**不直接改** submodule。
     AcceptEdits)。
 - 审计结论(有意不接线的项):`Op::RegisterTools` /
   `Op::ToolExecutionResponse` / `EventMsg::ToolExecutionRequest` 为
-  serve 模式 SDK 远程工具专用(文档已记录);`reflect notes` 经 M4
+  serve 模式 SDK 远程工具专用(文档已记录);`zhuye notes` 经 M4
   bootstrap 自动装配(工具面已通);CLI `doctor` / `security audit`
   为维护工具,GUI 由 health / About 覆盖。
 
 ### 新增 — submodule 能力全量接线收尾:traces / discussion / pipeline + 协议类型对齐
 
 对照 submodule 全部 crate 能力面(protocol Op / EventMsg 全变体 + CLI
-`reflect` 子命令)审计 GUI 接线状态,补齐最后三块未接线能力与一处协议
+`zhuye` 子命令)审计 GUI 接线状态,补齐最后三块未接线能力与一处协议
 类型漂移:
 
-- **Traces(模型调用记录)**:新增 `reflect_list_traces` /
-  `reflect_get_trace` 命令(`app-core/src/traces.rs` 只读包装
-  `reflect-telemetry` 的 model-io JSONL,支持前 8 字符前缀定位)+
+- **Traces(模型调用记录)**:新增 `zhuye_list_traces` /
+  `zhuye_get_trace` 命令(`app-core/src/traces.rs` 只读包装
+  `zhuye-telemetry` 的 model-io JSONL,支持前 8 字符前缀定位)+
   `/traces` 路由的 TracesView(session 摘要列表 + 逐条调用详情:
   模型 / 耗时 / 来源 / token 用量 / 脱敏请求响应)。CLI
-  `reflect traces ls / show` 的 GUI 对应。
-- **多 agent 讨论**:新增 `reflect_list_discussions` /
-  `reflect_run_discussion`(`app-core/src/discussion.rs` 重组
-  `reflect-discussion` 的 LLM 组装,provider 不可用降级 `run_noop`,
+  `zhuye traces ls / show` 的 GUI 对应。
+- **多 agent 讨论**:新增 `zhuye_list_discussions` /
+  `zhuye_run_discussion`(`app-core/src/discussion.rs` 重组
+  `zhuye-discussion` 的 LLM 组装,provider 不可用降级 `run_noop`,
   与 CLI 同语义)。运行期间 Collab* 事件经 `event_sink` 桥进
   session broadcast —— 前端 collab_* reducer(此前为死代码路径)
   实时渲染,`agent store` 的 `collabSessions` 状态首次有了 UI 消费方。
   Collaboration 视图新增「多智能体讨论」区(历史列表 + TOML 配置
   选择 + 运行 + transcript 展示),替换原「后续阶段添加」占位卡。
-- **DAG 流水线**:新增 `reflect_run_team_pipeline` /
-  `reflect_run_pipeline`(`app-core/src/pipeline.rs`,registry 从配置
-  引导、`REFLECT_MODEL=mock` 可离线跑通)。team 预设四阶段
+- **DAG 流水线**:新增 `zhuye_run_team_pipeline` /
+  `zhuye_run_pipeline`(`app-core/src/pipeline.rs`,registry 从配置
+  引导、`ZHUYE_MODEL=mock` 可离线跑通)。team 预设四阶段
   (plan → prd → exec → verify)+ TOML DAG 两条入口,与 Squad 视图
-  共享 `~/.reflect/tasks|teams/` 存储。Collaboration 视图新增
+  共享 `~/.zhuye/tasks|teams/` 存储。Collaboration 视图新增
   「团队流水线」区。
-- **`reflect_pick_file`**:原生文件选择框(`tauri-plugin-dialog`
+- **`zhuye_pick_file`**:原生文件选择框(`tauri-plugin-dialog`
   Rust API,扩展名白名单过滤),discussion / pipeline 的 TOML 配置入口。
 - **协议类型对齐**:Rust `EventMsg` 的 `submission_closed` 变体补进
   TS `EventMsgType` / `EventMsgByType`(此前手动同步漂移;reducer 补
@@ -2864,7 +2872,7 @@ submodule」，桌面端**不直接改** submodule。
   专用),纯类型完整性修复。
 - 审计结论(有意不接线的项):`Op::RegisterTools` /
   `Op::ToolExecutionResponse` / `EventMsg::ToolExecutionRequest` 为
-  serve 模式 SDK 远程工具专用(文档已记录);`reflect notes` 经 M4
+  serve 模式 SDK 远程工具专用(文档已记录);`zhuye notes` 经 M4
   bootstrap 自动装配(工具面已通);CLI `doctor` / `security audit`
   为维护工具,GUI 由 health / About 覆盖。
 - 测试:app-core 新增 traces / discussion / pipeline 单测(81 通过);
@@ -2881,16 +2889,16 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
 - **提示词层(`/prompt`)**:`Op::PromptCommand { action }` 是新增 Op 变体
   (协议内联判别联合 `PromptAction::List` / `PromptAction::Switch`)——
   按 AGENTS.md 的「所有 Op 变体 → Tauri 命令」不变量,新增
-  `reflect_prompt_command`(`commands/prompts.rs`)+ 前端 IPC 包装
+  `zhuye_prompt_command`(`commands/prompts.rs`)+ 前端 IPC 包装
   (`utils/commands/prompts.ts`)。应答事件 `EventMsg::PromptList` /
   `EventMsg::PromptSwitched` 补进 TS `EventMsgType` / `EventMsgByType`
   + reducer(写 `store.prompt`,**进程级** —— 提示词库不随会话切换重置)。
   新增 `PromptLayersModal`(展示当前模型 / 生效层 / 可用层 + 「重新扫描」
   按钮),`/prompt` slash 展开它;重扫应答按协议约定弹「提示词已刷新」toast。
-- **模型级 token 统计**:新增 `reflect_session_stats` /
-  `reflect_all_model_usage`(`app-core/src/stats.rs` 只读包装
-  `reflect-rollout` 的 `session_stats` / `all_model_usage`,与 CLI
-  `reflect session stats` 同源,桌面端不复刻聚合)。新 `/usage` 视图
+- **模型级 token 统计**:新增 `zhuye_session_stats` /
+  `zhuye_all_model_usage`(`app-core/src/stats.rs` 只读包装
+  `zhuye-rollout` 的 `session_stats` / `all_model_usage`,与 CLI
+  `zhuye session stats` 同源,桌面端不复刻聚合)。新 `/usage` 视图
   (当前会话统计 + 按模型拆分表 + 全部会话合计),`/usage` slash 路由到
   该视图,ActivityBar 加「用量」入口。
 - **`TokenCountEvent.model`**:协议新增模型级字段(本轮命中的模型 spec),
@@ -2899,20 +2907,20 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
 - **记忆访问审计 + 压缩 token 前后量**:协议 `RolloutRecord` 新增
   `MemoryAccess` 变体,`Compaction` 新增 `before_tokens` /
   `after_tokens`,`TokenCount` 新增 `model` / `provider`。Markdown 导出
-  (`reflect_export_session_markdown`)据此补齐:记忆读写审计行、压缩前后
+  (`zhuye_export_session_markdown`)据此补齐:记忆读写审计行、压缩前后
   token 与节省量、文末「Usage」段(复用 `app_core::stats` 的规范聚合)。
   `SessionStats` 相应暴露 `memoryReads` / `memoryWrites` /
   `compactionTokensSaved`,在 `/usage` 视图展示。
 - **`AgentDefinition.source`(v1.6)**:协议新增 `source: SystemPromptSource`
   (`custom` / `builtin_default`)—— 决定 system prompt 用用户 md 原文
-  还是按模型从提示词库解析 `system.main`。前端 `ReflectAgentDef` 同步该
+  还是按模型从提示词库解析 `system.main`。前端 `ZhuyeAgentDef` 同步该
   字段;桌面端 agent 文件的 frontmatter **不写** `source`(上游 parser 对
   文件来源强制 `Custom`,写了也会被覆盖),`BuiltinDefault` 只属引擎自带
   的默认 agent。
 - **编译断裂修复**:新增协议变体打破了两处穷尽匹配 —— `state/activity.rs`
   的 `EventMsg` match(补 `PromptList` / `PromptSwitched`)与
   `commands/export.rs` 的 `RolloutRecord` match(补 `MemoryAccess`)。
-- **子模块指针**:`reflect-agent` → `e4bc182`。
+- **子模块指针**:`zhuye-agent` → `e4bc182`。
 - 测试:app-core 新增 stats 聚合单测(3 通过);`commands/export.rs` 抽出
   纯渲染函数并补 6 条单测(记忆审计 / 压缩 token / Usage 段);前端新增
   reducer 用例(`prompt_list` / `prompt_switched` / `token_count.model`)+
@@ -2922,24 +2930,24 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
 - 文档:`protocol-bridge.md` §2.0 命令表(三条新命令)+ §3.2
   (`token_count.model`)+ 新增 §3.11 提示词层事件表同步。
 - 审计结论(本轮新增的有意不接线项):
-  - `reflect_protocol::bash_command`(`BASH_COMMAND_KEYS` /
+  - `zhuye_protocol::bash_command`(`BASH_COMMAND_KEYS` /
     `resolve_bash_command` / `split_shell_segments`)是 BashTool 参数解析
-    与 `reflect-permissions` shell_pattern 匹配之间的**内部契约**,
+    与 `zhuye-permissions` shell_pattern 匹配之间的**内部契约**,
     桌面端不解析 Bash 工具参数、不做 shell 权限匹配 —— 由引擎承担。
-  - `reflect_protocol::text`(`truncate_chars` 等)是 Rust 侧按字符边界
+  - `zhuye_protocol::text`(`truncate_chars` 等)是 Rust 侧按字符边界
     截断的工具函数;桌面端的截断在 TS 侧(`String.slice` 本身按 UTF-16
     码元安全),不重复实现。
-  - `reflect_telemetry` 的 `list_span_log_files` / `read_span_log_file`
-    (span 日志)目前**无 CLI / GUI 对应面**(CLI `reflect traces` 只读
+  - `zhuye_telemetry` 的 `list_span_log_files` / `read_span_log_file`
+    (span 日志)目前**无 CLI / GUI 对应面**(CLI `zhuye traces` 只读
     model-io),桌面端 Traces 视图与 CLI 保持同口径;span 读取面留待
     后续有明确用户需求时再接。
-  - `reflect::ReflectBuilder::with_telemetry` 不适用 —— 桌面端内嵌
-    `reflect_core::AgentThread`(经 `MinimalAgent`),不走 `ReflectBuilder`。
+  - `zhuye::ReflectBuilder::with_telemetry` 不适用 —— 桌面端内嵌
+    `zhuye_core::AgentThread`(经 `MinimalAgent`),不走 `ReflectBuilder`。
 
 ### 新增 — 插件系统接线(v1.x):`[plugins]` 挂载 + `/plugin:*` 命令展开
 
-子模块 `f7a8f24 → b359883`(插件运行时自 reflect-exec 下沉为
-`reflect-plugin` 独立 crate)后,GUI 侧完成与 exec/serve 同构的接线
+子模块 `f7a8f24 → b359883`(插件运行时自 zhuye-exec 下沉为
+`zhuye-plugin` 独立 crate)后,GUI 侧完成与 exec/serve 同构的接线
 (`src-tauri/src/state/plugins.rs`):
 
 - **插件挂载**:真实会话 rebind 时异步挂载 enabled 插件的五类能力
@@ -2949,7 +2957,7 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
   (不注册内置子代理 spec)挂载;插件 MCP server 用挂载级专用 manager
   (lifecycle 事件 v1 暂不透传前端)。`PluginLoaded` 事件经 session
   broadcast 透传。
-- **命令展开**:`reflect_submit` 投递前对 `Op::UserInput` 首个 Text 条目
+- **命令展开**:`zhuye_submit` 投递前对 `Op::UserInput` 首个 Text 条目
   做 `/plugin:ns:name args` 展开(命中 → 命令正文 + `Submission.
   source_command` 标注;未命中透传;命令文件读取失败报错给前端,消息
   不投递)。steer 与其他 Op 不展开(与 exec submit 边界一致)。
@@ -2958,7 +2966,7 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
 - **插件 MCP lifecycle 透传**:插件 server 的 Started/Failed 复用
   `mcp::spawn_mcp_lifecycle_forwarder` 推 session broadcast,前端与
   用户 MCP 同通道可见。
-- **Composer 斜杠菜单**:新增 `reflect_list_plugin_commands` 命令 +
+- **Composer 斜杠菜单**:新增 `zhuye_list_plugin_commands` 命令 +
   `usePluginCommands` hook(Composer 挂载即重取),已挂载插件的命令
   追加进弹层候选(展示 frontmatter description);引擎对插件命令
   **直通提交**(内置命令优先,插件不可劫持内置语义),展开仍由后端
@@ -2972,19 +2980,19 @@ submodule `af0483b → e4bc182`(12 个提交)引入 v1.6.1 提示词层外置、
 - 文档:`protocol-bridge.md` §2 命令表 + §3 Submission 信封
   (`source_command`)同步。
 
-### 变更 — reflect-agent 子模块升级(v1.4 批次)+ steer / 子代理可观测全链路接线
+### 变更 — zhuye-agent 子模块升级(v1.4 批次)+ steer / 子代理可观测全链路接线
 
 子模块 `31c6e72 → f7a8f24`(本地 2 个与远端同补丁的重复提交已对齐为
 上游改写后的历史,合并冲突就地消解)。升级适配与接线:
 
-- **工作区清单**:根 `Cargo.toml` 镜像新增 `reflect-bm25`(自
-  reflect-tools 抽离的叶 crate)、`tiktoken-rs`、`pyo3`;`reqwest` 对齐
+- **工作区清单**:根 `Cargo.toml` 镜像新增 `zhuye-bm25`(自
+  zhuye-tools 抽离的叶 crate)、`tiktoken-rs`、`pyo3`;`reqwest` 对齐
   上游补 `gzip` feature(workspace 继承以外层声明为准,缺失会静默丢
   gzip 解压)。
 - **新事件(3)**:`tool_call_output_delta`(工具输出流式增量,reducer
   no-op 保穷尽)、`subagent_progress` / `subagent_status`(子代理可观测
   双通道);前端 `src/types/protocol/event.ts` 类型补全。
-- **新 Op(2)接线**:`reflect_steer` / `reflect_query_subagents`
+- **新 Op(2)接线**:`zhuye_steer` / `zhuye_query_subagents`
   (`commands/agent.rs` + IPC 包装)。
   - **Steer 真实化**:Composer「转向」模式从「中断 + 重发」升级为
     v1.4 A2 真·转向 —— 不打断当前 run,消息经 `Op::Steer` 进转向队列,
@@ -3008,7 +3016,7 @@ core 的 `EnterGoalMode` 只做一件事：构造 `GoalController` 挂入当前�
 新契约（GUI 语义：`/goal <描述>` = **开目标会话**）：
 
 - **会话守卫**：新增 `useEnsureSession` hook —— 无会话时
-  `reflect_create_session` + 路由切换,并轮询 `loadedSessionId` 等
+  `zhuye_create_session` + 路由切换,并轮询 `loadedSessionId` 等
   ChatView 的 bind → hydrate 序列完成（提交 op 前必须等绑定,否则 op
   落到 rebind 前的旧线程;超时 10s 显式报错而非静默挂错）。
 - **立即启动循环**：arm（`enter_goal_mode`）后**以目标文本为首条消息**
@@ -3037,7 +3045,7 @@ core 的 `EnterGoalMode` 只做一件事：构造 `GoalController` 挂入当前�
 - **降级判定同口径**：`compute_degraded_reason` 改用兜底后的结果 —— 有
   可用凭证就不再挂「未配置模型」黄点；真没有任何带 model 的凭证时仍诚实
   降级。
-- 彻底解法在上游 `reflect-config::resolve_model`（悬空钉住回落首个凭证），
+- 彻底解法在上游 `zhuye-config::resolve_model`（悬空钉住回落首个凭证），
   待随下次 submodule 升级生效；本修复已让桌面端不再受此配置形态影响。
 
 ### 新增 — 基于历史会话 fork 出子会话（支持按轮分叉）
@@ -3046,7 +3054,7 @@ core 的 `EnterGoalMode` 只做一件事：构造 `GoalController` 挂入当前�
 点击后内联输入分支名（默认 `manual`，与 CLI 一致），确认即把该会话的完整
 历史复制为一个新子会话，并自动切换过去（ChatView 挂载 → bind + replay
 即得全部历史，可从 fork 点继续对话）——原会话保持不变。GUI 此前完全没有
-fork 入口（CLI 专有 `reflect session fork`）。另外 ChatView 的「正在查看
+fork 入口（CLI 专有 `zhuye session fork`）。另外 ChatView 的「正在查看
 会话」横幅右侧也加了 Fork 按钮 —— 查看历史对话时一键开分支（默认分支名，
 成功后 toast 提示子会话 id 并切换）。
 
@@ -3055,7 +3063,7 @@ fork 入口（CLI 专有 `reflect session fork`）。另外 ChatView 的「正�
 点第 2 轮的按钮即得只含前两轮内容的子会话；分支名自动记为 `fork@<轮次>`
 （写入子会话自定义名，列表中可辨 fork 点）。流式中的 turn 不作为 fork 点。
 
-- **后端**：新增命令 `reflect_fork_session`（`commands/sessions.rs`），包装
+- **后端**：新增命令 `zhuye_fork_session`（`commands/sessions.rs`），包装
   core 既有的 `rollout_index::fork_with_history`（子会话继承父 SessionMeta
   model，父文件 append `Fork` 血缘 marker；`up_to_turn_id` 截至某 turn
   含——横幅按钮全量复制传 None，按轮入口传该轮 turn_id），并把分支名写成
@@ -3073,13 +3081,13 @@ fork 入口（CLI 专有 `reflect session fork`）。另外 ChatView 的「正�
   不可用。现在经 `getCurrentWebview().onDragDropEvent` 订阅原生拖拽事件
   （`src/utils/dragDrop.ts` 降级封装，非 Tauri 环境回退 DOM drop 兜底）：
   拖悬时输入卡片高亮 + 提示层；图片（png/jpg/jpeg/gif/webp/bmp）经新命令
-  `reflect_read_image_base64` 读字节转 data-URL 走 inline image 附件
+  `zhuye_read_image_base64` 读字节转 data-URL 走 inline image 附件
   （core 的 `LocalImage` item 尚未接通，必须以字节提交），其余文件添加
   真实路径的 file mention（由 agent 的 `/read` 按需读取）。
 - **图片缩略图预览**：附件条的 inline image 从文字 chip（`🖼 inline
   (image/png)`）改为真实缩略图（data-URL 直接作 `<img src>`，36px
   圆角 + mime 标签），粘贴 / 选择器 / 拖拽三条管线共用。
-- **后端**：新增应用命令 `reflect_read_image_base64`（`commands/files.rs`），
+- **后端**：新增应用命令 `zhuye_read_image_base64`（`commands/files.rs`），
   不做工作区沙盒（拖拽来源任意），扩展名白名单 + 20 MiB 上限防 IPC
   payload 失控。
 
@@ -3122,7 +3130,7 @@ hook 默认全开，其中 verification（Stop hook）对**每个 turn** 无条�
   语义 —— `[hooks]` 未配置 = 不挂任何内置 hook（与 headless serve 的
   `hooks_explicit_only` 同一原则）。需要 hook 的用户在 config 显式写
   `[hooks] enabled = [...]`。
-- **上游（Reflect-Agent `31c6e72`）**：verification hook 把 exit 127 /
+- **上游（ZhuYe `31c6e72`）**：verification hook 把 exit 127 /
   spawn 失败 / 信号终止视为「无法验证」→ 放行 + warn 日志，不再与真实
   测试失败（exit ≠ 0）混为一谈；超时仍按失败处理。
 
@@ -3140,7 +3148,7 @@ hook 默认全开，其中 verification（Stop hook）对**每个 turn** 无条�
   MiniMax-M3）会把标记照字面回显到答案里。渲染层在展示前剥离行首标记
   （容忍 `**` / `>` / 列表符修饰）及 `<answer>` 模板占位符行，正文数据
   原样保留。
-- **上游配合（Reflect-Agent，随下次 submodule 升级生效）**：运行时没有任何
+- **上游配合（ZhuYe，随下次 submodule 升级生效）**：运行时没有任何
   代码消费该标记（turn 收尾判定 = 模型不再调工具，ReAct 本就等待自然结束），
   常驻注入系统提示词纯属输出污染 —— 已从 ephemeral 提示词移除；收敛模板
   只保留在真正需要强收口压力的边路（nudge / max-iterations force-final /
@@ -3163,20 +3171,20 @@ hook 默认全开，其中 verification（Stop hook）对**每个 turn** 无条�
 ### 修复 — coding plan 切换空转 + 凭证钉住 + model 显示诚实化
 
 同 provider 的多个 coding plan（如顶层 stepfun + 凭证 MiniMax，均未配
-model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model` 只写
+model）此前在 Composer 下拉切换时**空转回弹**：`zhuye_set_model` 只写
 `[active].provider` + 段级 model，两个 plan 都不改任何字节 → 热重载跳过 →
 选中态兜底链把下拉挤回第一个 plan；同时状态栏在未配置任何模型时展示
 编造的 `anthropic/claude-3-5-sonnet-latest`（实际请求也会带着这个编造
-模型名打向第三方端点）。本次随 Reflect-Agent `2a1ea42` 全面修复：
+模型名打向第三方端点）。本次随 ZhuYe `2a1ea42` 全面修复：
 
-- **上游（Reflect-Agent）**：`[active]` 新增 `credential` 钉住字段，
+- **上游（ZhuYe）**：`[active]` 新增 `credential` 钉住字段，
   `CredentialConfig` 补齐 `model` 条目级字段（GUI 此前写入一直被忽略）；
   `apply_to_registry` 把钉住注册为 registry preferred label —— 钉住条目
   健康则始终优先派位，其余条目仅在其 cooldown 时 failover；
   `resolve_model`（取代 `model_for`）按 env > 钉住条目 model > 段级解析，
   **未显式配置返回 None，不再编造内置默认**；headless 对无 provider /
   无 model 分别 fail-fast 报因。
-- **`reflect_set_model(provider, model, label)`**：新增 `label` 参数写
+- **`zhuye_set_model(provider, model, label)`**：新增 `label` 参数写
   `[active].credential`；钉住条目时 model 写入条目自身（与 plan 编辑器
   同源），顶层隐式 plan 走段级；钉住 label 不存在时报错而非静默失效。
   同 provider 切 plan 现在真正改变请求路由。
@@ -3200,8 +3208,8 @@ model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model`
   `src/stores/agent/planFailover.ts`、`src-tauri/src/state/{quota,reload,rebind}.rs`），
   用户可见能力并入 README「功能特性 → Coding Plan 与额度自动切换」；
   `docs/protocol-bridge.md` / `docs/codebase-map.md` 中的引用改为直接指向代码。
-- 删除 `docs/reflect-agent-token-persistence.md`：会话 token/cost 持久化 PR
-  已在 Reflect-Agent 上游落地（`RolloutRecord::TokenCount` 变体 + `SessionInfo`
+- 删除 `docs/zhuye-agent-token-persistence.md`：会话 token/cost 持久化 PR
+  已在 ZhuYe 上游落地（`RolloutRecord::TokenCount` 变体 + `SessionInfo`
   聚合字段随 submodule 进入本仓库），PR 设计稿使命完成。
 - 删除 `docs/REVIEW_LEDGER.md`：2026-07-28 的逐文件审查快照，内容已随后续
   大规模重构过时，按「文档仅保留当前有效状态」的仓库约定移除。
@@ -3215,7 +3223,7 @@ model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model`
   不再保留。
 - app-core 定位收敛为「Tauri 命令层的 UI 无关领域服务」（activity / kms /
   media / squad / side-channel / tailscale / autopilot / actor），同步裁剪
-  7 个未使用依赖（reflect-core / llm / hooks / skills / memory /
+  7 个未使用依赖（zhuye-core / llm / hooks / skills / memory /
   permissions / tools）及 uuid / anyhow，更新 crate description。
 - 同步修订 AGENTS.md / SUBMODULE.md / docs/codebase-map.md /
   docs/architecture.md 中对 app-core 旧定位（reducer/state 共享层）的描述。
@@ -3226,18 +3234,18 @@ model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model`
 
 - **仓库地址统一为 GitHub `Asketisch` 组织**：`Cargo.toml`（repository +
   homepage + rust-version 1.85）、`src-tauri/tauri.conf.json`（identifier
-  `com.asketisch.reflectdesktop`、publisher、homepage、copyright）、
+  `com.asketisch.zhuyedesktop`、publisher、homepage、copyright）、
   README / SUBMODULE.md / USER_GUIDE / docs 站点中的克隆与链接地址。
   ⚠️ identifier 变更后应用数据目录从
-  `~/Library/Application Support/com.cnb.reflectdesktop.app` 变为
-  `~/Library/Application Support/com.asketisch.reflectdesktop`，旧目录数据
+  `~/Library/Application Support/com.cnb.zhuyedesktop.app` 变为
+  `~/Library/Application Support/com.asketisch.zhuyedesktop`，旧目录数据
   需手动迁移。
 - **更新检查端点修正**（`commands/update.rs`）：`DEFAULT_UPDATE_URL` 指向
-  `Asketisch/ReflectDesktop` 的 GitHub Releases。
+  `Asketisch/ZhuYe-Desktop` 的 GitHub Releases。
 - **许可证口径统一为 Apache-2.0**：LICENSE 替换为完整 Apache-2.0 文本；
   README / docs 站点此前误标 MIT 的地方已更正。
 
-开源社区与 CI 配套（对齐 Reflect-Agent / Reflect-TUI）：
+开源社区与 CI 配套（对齐 ZhuYe / 上游 TUI）：
 
 - 新增 `.github/workflows/ci.yml`（前端 typecheck+test；Rust fmt/clippy/test，
   ubuntu + macOS 矩阵，递归 checkout submodule）与 `audit.yml`（每周
@@ -3270,7 +3278,7 @@ model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model`
 - **editorStore 在 StrictMode 下永久失聪**：cleanup 摘除事件订阅但保留
   `subscribed` 标志,第二次 mount 短路成 no-op,dev 模式下 Files 页的
   agent 编辑 review 永不出现。cleanup 现重置标志（与 agentStore 一致）。
-- **提交失败后乐观 turn 永久卡 streaming**：`reflect_submit` reject 时
+- **提交失败后乐观 turn 永久卡 streaming**：`zhuye_submit` reject 时
   turn 无回滚,`selectIsTurnRunning` 恒真 → 队列永不排空,会话假死;
   `drainQueue` 先删队首再提交,失败即丢消息。现在失败落 turn 为
   aborted + 记录 lastError,队列消息放回队首。
@@ -3296,18 +3304,18 @@ model）此前在 Composer 下拉切换时**空转回弹**：`reflect_set_model`
 
 IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 
-- `reflect_kill_shell`（`session_id`→`sessionId`）、
-  `reflect_start_side_channel`（`agent_name`→`agentName`）此前每次调用
-  必报 `missing required key`;`reflect_create_task` 的 `active_form`
+- `zhuye_kill_shell`（`session_id`→`sessionId`）、
+  `zhuye_start_side_channel`（`agent_name`→`agentName`）此前每次调用
+  必报 `missing required key`;`zhuye_create_task` 的 `active_form`
   （→`activeForm`）被静默丢弃。相关测试/假后端已同步为新契约。
 
 后端安全边界：
 
 - **`resolve_under_workspace` 写路径 `..` 绕过**：目标不存在时
   canonicalize 失败退回原始 join 路径,`starts_with` 词法前缀挡不住
-  `ws/../etc/x`,渲染层可借 `reflect_write_file` 写工作区外任意文件。
+  `ws/../etc/x`,渲染层可借 `zhuye_write_file` 写工作区外任意文件。
   现拒绝 `..` 组件并对最深已存在祖先做 canonicalize。
-- **KMS 路径穿越**：`reflect_kms_delete/save_page` 等的名字直接
+- **KMS 路径穿越**：`zhuye_kms_delete/save_page` 等的名字直接
   `root.join(name)`,`name="../../x"` 可对任意目录执行 `remove_dir_all`。
   命令层新增 `validate_kms_name`（拒绝分隔符/`..`/控制字符等）。
 
@@ -3339,7 +3347,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 
 ### 修复 — Coding plan 保存后无法选择/切换模型
 
-- **「保存 Plan」写盘被后端拒绝（根因）**：`reflect_get_config` 返回的
+- **「保存 Plan」写盘被后端拒绝（根因）**：`zhuye_get_config` 返回的
   TOML 由 `toml::to_string_pretty` 序列化,空凭证池被写成段内内联
   `credentials = []`;前端追加 plan 是在文件末尾加 `[[provider.credentials]]`
   块 —— TOML 不允许同一 key 既是普通数组又被数组表扩展,
@@ -3350,17 +3358,17 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   内联值不受牵连）。
 - **「保存 Plan」只改内存不落盘**：Plans 页的保存 Plan / 删除 /
   设为默认三个操作此前只更新设置页内存中的 TOML 草稿,必须再点页面
-  底部「保存到 ~/.reflect/config.toml」才真正写盘 —— 漏点的话后端
+  底部「保存到 ~/.zhuye/config.toml」才真正写盘 —— 漏点的话后端
   config 从未更新,模型选择器与 Models 页读到的永远是旧配置。
-  现在三个操作即时落盘（reflect_save_config → 后端校验 + 热重载
+  现在三个操作即时落盘（zhuye_save_config → 后端校验 + 热重载
   provider 栈）,失败原因经设置页错误条展示。
 - **Models 页「设为默认」只切 provider 不切模型**：同 provider 下的
   多个 plan(如顶层 api_key 隐式 default + 自建的 credentials 条目)
   此前全部被标成「当前默认」且按钮禁用,无法切换;且切换只写
   `[active].provider`,段级模型名不变,实际使用的模型不变。改为按
   plan 粒度判定(provider + 段级模型名一致才算默认),切换走
-  `reflect_set_model`(同时写 provider 与模型名,热重载 + 强制重绑)。
-- **Composer 模型选择器切换失败静默**：`reflect_set_model` 被后端
+  `zhuye_set_model`(同时写 provider 与模型名,热重载 + 强制重绑)。
+- **Composer 模型选择器切换失败静默**：`zhuye_set_model` 被后端
   拒绝时此前无任何反馈,现以 toast 展示原因。
 
 ### 修复 — 全量 diff review 发现的八处缺陷
@@ -3371,7 +3379,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   没有任何路径把恢复值写回缓冲 —— 磁盘已恢复但编辑器显示 agent 版本。
   改为拒绝落盘成功后 `setQueryData` 直接写入恢复内容（内容已确定,
   无需等 refetch）。
-- **Git staged 语义**：`reflect_git_status` 的 `status` 是 trimmed 的
+- **Git staged 语义**：`zhuye_git_status` 的 `status` 是 trimmed 的
   porcelain 码,`"M "`（已暂存）与 `" M"`（仅工作区）折叠成同一个
   "M" —— GitView 新增的 staged tab 计数把未暂存修改也计入、列表里
   还混入 untracked 文件。后端 `GitStatusEntry` 新增 `staged: bool`
@@ -3394,7 +3402,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   整型（serde 拒绝）,`encode` 改为一律加引号；`weight` /
   `window_secs` / `max_tokens`（后端 u32/u64）非数字输入不再拼入
   （weight 回落默认 1,半截 quota 整体不声明）。
-- **bind 契约对齐（测试基建）**：fakeBackend 的 `reflect_bind_session`
+- **bind 契约对齐（测试基建）**：fakeBackend 的 `zhuye_bind_session`
   未随真实后端改为返回权限模式字符串 —— 测试环境下 ChatView 的
   `syncPermissionMode(undefined)` 会把徽标状态打成 undefined。
 - **CodeMirror 语言加载竞态**：快速切换文件时,旧文件的
@@ -3411,11 +3419,11 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   工作区自动恢复。关闭 = 反注册 `lsp` tool + 停掉全部 server——
   未开启时工具集中**不注入** LSP 工具。
 - **文件预热（VSCode 式按需索引）**：开启后仅当用户在编辑器里真正
-  打开代码文件时才触发 `reflect_lsp_warmup`（`ensure_open` → didOpen，
+  打开代码文件时才触发 `zhuye_lsp_warmup`（`ensure_open` → didOpen，
   server 侧建索引），后续 agent 的 LSP 查询即时可用；未打开的文件
   不预热。LSP 未开启或无匹配 server 时预热静默跳过。
-- 新命令 `reflect_lsp_set_enabled` / `reflect_lsp_status` /
-  `reflect_lsp_warmup`（`commands/lsp.rs` + `src/utils/commands/lsp.ts`）；
+- 新命令 `zhuye_lsp_set_enabled` / `zhuye_lsp_status` /
+  `zhuye_lsp_warmup`（`commands/lsp.rs` + `src/utils/commands/lsp.ts`）；
   `MinimalAgent` 新增 `lsp_manager` 常驻句柄，`bootstrap_lsp` 改为
   幂等（重复开启不重复起 server）。
 
@@ -3433,7 +3441,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - **Accept**：保留 agent 的修改，清除该块标记；
   - **Reject**：按内容锚定的 inverse-patch 从当前内容重建该块原文
     （`features/editor/diffHunks.ts`，容忍行号漂移；锚点歧义或写盘
-    失败则保持 pending 不变并提示），经新命令 `reflect_write_file`
+    失败则保持 pending 不变并提示），经新命令 `zhuye_write_file`
     （工作区沙盒内）写回磁盘。agent 刚编辑过的文件会自动在 Files 页
     聚焦打开，编辑即可 review。
 
@@ -3447,13 +3455,13 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   自动压缩（`stores/agent/autoCompact.ts`）：runtime 的压缩触发只认全局
   `[compact].trigger_tokens`、不感知模型窗口，因此 GUI 侧补齐——监听
   `token_count` 事件，已上报输入 tokens 达到 plan 最大上下文的 80% 时
-  自动触发 `reflect_compact`（Op::Compact），回落 50% 以下重新武装；
+  自动触发 `zhuye_compact`（Op::Compact），回落 50% 以下重新武装；
   30s 节流 + 触发闩防连环压缩；Plans 页提供开关（默认开，localStorage
-  `reflect.autoCompact`）。
+  `zhuye.autoCompact`）。
 - **连接测试（两种）**：Plans 表单新增「连接测试」区——
   ① **测试连接**：纯 API 测试，拉一次模型列表接口（GET /models，零
   token 消耗），显示连接正常/失败；
-  ② **发送测试消息**：新命令 `reflect_test_provider_chat`
+  ② **发送测试消息**：新命令 `zhuye_test_provider_chat`
   （`commands/models.rs`）发送固定「你好」——单条 user 消息，
   **刻意无 system 提示词、无 tools 定义**，`max_tokens = 32` 压低无效
   消耗，展示模型回复或失败原因。
@@ -3465,22 +3473,22 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 
 ### 新增 — 模型列表从接入端口拉取 + 图片附件链路修复
 
-- **模型列表拉取**：新增 `reflect_list_provider_models` 命令
+- **模型列表拉取**：新增 `zhuye_list_provider_models` 命令
   （`commands/models.rs` + `src/utils/commands/models.ts`）：对着
   base_url + api_key 拉取可用模型——`openai` 端口走 `GET {base}/models`
   （Bearer），`anthropic` 端口走 `GET {base}/v1/models`（`x-api-key` +
   `anthropic-version`）。两处 UI 接入：Composer 模型选择器新增拉取按钮
   （⟳），拉到的模型以「接口模型列表」分组进入下拉，选中即
-  `reflect_set_model` 切换；Coding Plans 新增/编辑表单的模型字段新增
+  `zhuye_set_model` 切换；Coding Plans 新增/编辑表单的模型字段新增
   「拉取模型列表」按钮，结果进 datalist（保留手输自由）。
 - **模型视觉能力标记**：部分兼容网关（OpenRouter 风格）在模型对象里带
   `input_modalities`，据此在下拉项标注「支持视觉 / 不支持视觉」；
   官方 API 不返回能力信息时为空、不标注，是否视觉可用由用户自行判断
   （对应「模型不支持视觉」场景的手动选择）。
 - **图片附件修复**：此前 GUI 粘贴/选择/拖拽的图片以 data-URL 字符串随
-  `reflect_submit` 发送，而协议 `UserInputItem::Image.data` 是
+  `zhuye_submit` 发送，而协议 `UserInputItem::Image.data` 是
   `Vec<u8>`（serde 要求数字数组）——提交会在后端反序列化阶段直接失败，
-  图片从未真正到达模型。现在 `reflect_submit` 在应用层把 image 条目的
+  图片从未真正到达模型。现在 `zhuye_submit` 在应用层把 image 条目的
   data-URL / 裸 base64 解码为字节数组再反序列化（`commands/agent.rs::
   normalize_image_data` + 手写 base64 解码器 + 单测），协议层不动。
   注：非图片文件仍以占位 chip 附件（运行时按设计跳过），不发送内容。
@@ -3525,7 +3533,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   选项与 `[ollama]` 字段组、模型页供应商切换均已移除 ollama。
   跨供应商自动切换顺序相应收敛为 anthropic → openai
   （`PLAN_PROVIDERS` / `pickFailoverProvider`）。后端 `[ollama]` 段
-  与 `reflect_set_model` 的参数校验保持不变（协议稳定；手写 TOML
+  与 `zhuye_set_model` 的参数校验保持不变（协议稳定；手写 TOML
   仍可用，但 GUI 不再展示）。
 
 ### 新增 — Coding Plans 手动查询用量
@@ -3537,8 +3545,8 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   开放。查询端点与 cc-switch 一致（Kimi
   `/coding/v1/usages`、智谱 `/api/monitor/usage/quota/limit`、MiniMax
   `/coding_plan/remains`、ZenMux base_url），实现复用
-  `reflect_llm::QuotaProvider`（与运行时 failover 判定共用，不在 GUI
-  重复逻辑）。新增命令 `reflect_query_plan_quota`（`commands/config.rs`
+  `zhuye_llm::QuotaProvider`（与运行时 failover 判定共用，不在 GUI
+  重复逻辑）。新增命令 `zhuye_query_plan_quota`（`commands/config.rs`
   + `src/utils/commands/config.ts`），传显式 baseUrl/apiKey，编辑中
   未保存的表单也能直接试查。`volcengine` / `anthropic_usage` /
   `open_a_i_usage` 的查询仍需上游实现（AK/SK 签名 / OAuth），选择后
@@ -3576,7 +3584,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 
 - **权限模式绑定会话**（此前表现为“全局”）：模式本就存于每个
   AgentThread，但 rebind 重建线程时静默落回默认 `Auto`，前端切换会话也
-  不清空显示 → 徽标与实际不一致。现在 `reflect_bind_session` 从该会话
+  不清空显示 → 徽标与实际不一致。现在 `zhuye_bind_session` 从该会话
   JSONL 审计轨迹末次 `PermissionModeChanged` 恢复初始模式
   （`with_initial_permission_mode`；`Bypass` 按 v1.3 安全基线降级
   `Prompt`），并把绑定后线程的实际模式随 bind 返回（返回 `null` →
@@ -3600,7 +3608,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 ### 修复 — macOS Overlay 标题栏原生窗口标题与自绘顶栏重叠
 
 - `titleBarStyle: "Overlay"` 下 macOS 仍会把原生窗口标题文字（config
-  `title: "ReflectDesktop"`）绘制在顶栏位置，压在自绘 TitleBar 的侧栏切换
+  `title: "ZhuYe-Desktop"`）绘制在顶栏位置，压在自绘 TitleBar 的侧栏切换
   按钮与视图标题上。主窗口配置增加 `"hiddenTitle": true`（Tauri 2 原生
   选项，等价 `NSWindow.titleVisibility = .hidden`），只隐藏文字绘制，
   窗口标题语义（Accessibility / Mission Control）保留；仅影响 macOS，
@@ -3614,7 +3622,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     删除/归档自动摘除置顶；置顶会话从项目分组中上移不重复。
   - 侧边栏归档区：底部可折叠「已归档」，菜单「恢复」直走 unarchive
     （此前归档列表只在 /sessions 底部）。
-  - 跨会话内容搜索：新命令 `reflect_search_sessions`（grep 会话 JSONL 的
+  - 跨会话内容搜索：新命令 `zhuye_search_sessions`（grep 会话 JSONL 的
     user/assistant 文本，ASCII 折叠大小写不敏感，覆盖活跃树 + 归档树，
     最近 120 会话扫描上限，返回命中片段）；搜索页改「会话 / 文件」双 tab，
     会话命中点击跳转 `/chat/$id`。
@@ -3624,25 +3632,25 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - Inspector 改「概览 / 文件 / 改动」三 tab：概览含上下文窗口仪表
     （占比条 + 80% 压缩阈值刻度线）+ Token 构成堆叠条（提示词/缓存命中/
     缓存写入/回复）+ 会话指标（轮数/累计 token/费用）；文件 tab 复用
-    FileTree（depth 2）；改动 tab 复用 DiffViewer（`reflect_git_diff`）。
+    FileTree（depth 2）；改动 tab 复用 DiffViewer（`zhuye_git_diff`）。
   - 主动压缩预警横幅：上下文 ≥80% 在消息流顶部出横幅 + 一键 /compact
     （此前只有 Composer 角落变色 tooltip）；占比回落自动重置，可手动关闭。
   - StatusBar 加 git 分支（含 ↑↓ ahead/behind）与上下文占比（≥80% warning 色）。
   - Composer 支持剪贴板粘贴图片/文件与拖拽投放（复用附件管线）。
 - **P3 生态补全**：
-  - `!` 终端直通：`! <cmd>` 经 `reflect_run_shell` 本地执行，输出面板
+  - `!` 终端直通：`! <cmd>` 经 `zhuye_run_shell` 本地执行，输出面板
     （Composer 卡片上方）流式呈现、可终止/折叠；不进 agent 循环、不写
-    会话历史（`useBangShell.ts` 新，共享 `reflect_terminal_output` 订阅）。
-  - Git 操作化：新命令 `reflect_git_stage` / `reflect_git_unstage` /
-    `reflect_git_commit`（`git add --` / `reset HEAD --` / `commit -m`；
+    会话历史（`useBangShell.ts` 新，共享 `zhuye_terminal_output` 订阅）。
+  - Git 操作化：新命令 `zhuye_git_stage` / `zhuye_git_unstage` /
+    `zhuye_git_commit`（`git add --` / `reset HEAD --` / `commit -m`；
     push/pull 仍留给终端）；GitView 条目可勾选 + Stage/Unstage selected
     + 提交框（成功 toast 短 hash）。
-  - 拉取请求：新命令 `reflect_gh_pr_list`（shell out `gh pr list --json`，
+  - 拉取请求：新命令 `zhuye_gh_pr_list`（shell out `gh pr list --json`，
     gh 缺失/非 repo 空态给原因）+ `/pulls` 视图（对标 Codex「拉取请求」，
     点击在系统浏览器打开）。
-  - Hooks 管理 UI：`/hooks` 视图（`reflect_list_hooks` /
-    `reflect_toggle_hook` 此前无任何 UI 消费），运行时启停 + 计数。
-  - SkillsView 接入真 skills 列表（`reflect_list_skills` 此前从未消费）：
+  - Hooks 管理 UI：`/hooks` 视图（`zhuye_list_hooks` /
+    `zhuye_toggle_hook` 此前无任何 UI 消费），运行时启停 + 计数。
+  - SkillsView 接入真 skills 列表（`zhuye_list_skills` 此前从未消费）：
     名称/描述/触发词/允许工具，空态提示安装路径。
   - 清理：31 个 no-op slash stub 标记 `hidden` 不再进弹层（手输仍给引导，
     engine case 保留）；删除死代码 ApprovalHistory（tsx/css/test 三件）；
@@ -3678,22 +3686,22 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   （low/medium/high）+ 权限模式分段（计划/询问/自动/Yolo，完整 7 段仍在
   Settings）；placeholder 提示补 `@ 文件` 语法。
 - **新命令**（见 `docs/protocol-bridge.md` §2.0）：
-  - `reflect_set_model { provider, model }`：运行中切换模型 —— 协议
+  - `zhuye_set_model { provider, model }`：运行中切换模型 —— 协议
     `Op` 不变，改 `[active].provider` + `[<provider>].model` 后复用
-    `reflect_save_config` 的写盘 + provider 栈热重载链路，下一个 turn 生效；
-  - `reflect_get_effort`：直读线程内 `AgentConfig::current_effort()`，
+    `zhuye_save_config` 的写盘 + provider 栈热重载链路，下一个 turn 生效；
+  - `zhuye_get_effort`：直读线程内 `AgentConfig::current_effort()`，
     修复 Models 页 effort 控件不回读后端值（此前固定显示 medium）。
 - i18n：`shell.nav.search` / `shell.nav.more` / `shell.more.*` /
   `settings.display.advancedViews*` / `chat.greeting.*` / `chat.hero.*` /
   `chat.quick.*` / `composer.controls.*`（zh/en）。
 - 测试：ActivityBar 双模式与浮层、ChatView 英雄态三用例、Composer
   内联控件三用例、Settings 开关持久化；`tests/helpers/fakeBackend.ts`
-  补 `reflect_set_model` / `reflect_get_effort` handler；测试 setup 增补
+  补 `zhuye_set_model` / `zhuye_get_effort` handler；测试 setup 增补
   新命令默认 mock + uiPrefs 跨用例复位。
 
 ### 功能 — Coding Plan 管理：计划配置入口 + 默认供应商切换 + 额度耗尽自动切换
 
-- **配置模型**（无新命令/线格式变更，复用 `~/.reflect/config.toml`）：
+- **配置模型**（无新命令/线格式变更，复用 `~/.zhuye/config.toml`）：
   - 一个 coding plan = `[[<provider>.credentials]]` 一条带 `label` 的凭证
     （`api_key` / `base_url` / `model` / `weight` / `quota`）；顶层
     `[provider].api_key` 视为隐式 `default` 计划；默认供应商 =
@@ -3704,15 +3712,15 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     `AgentConfig::with_quota_tracker` 进入每个线程（与 TUI/headless 对齐；
     此前桌面端从未接线）——额度窗口耗尽 → `quota_exhausted` 事件 + 凭证
     冷却 + 池内自动 failover。
-  - `src-tauri/src/state/reload.rs`（新）：`reflect_save_config` 检测
+  - `src-tauri/src/state/reload.rs`（新）：`zhuye_save_config` 检测
     provider 段（`active`/`anthropic`/`openai`/`ollama`/`routing`）变更 →
     重建 ModelRegistry + QuotaTracker → `rebind_session_forced`（新增
     `state/rebind.rs` 强制变体，跳过同 id 短路；preload 与 bind 命令同源，
     会话上下文保留）。
 - **前端自动切换**：`src/stores/agent/planFailover.ts`（新）消费
   `quota_exhausted` / 耗尽特征 `error` 事件，挑选下一个有可用计划的
-  供应商 → `reflect_save_config` → toast 告知；开关（默认开，
-  localStorage `reflect.plans.autoFailover`）+ 60s 防抖；失败 turn 不自动重发。
+  供应商 → `zhuye_save_config` → toast 告知；开关（默认开，
+  localStorage `zhuye.plans.autoFailover`）+ 60s 防抖；失败 turn 不自动重发。
 - **UI 入口**：
   - 设置页新增「编码计划」nav（`sections/PlansSection.tsx` 新）：计划卡片
     （增删改、密钥遮罩、额度徽标）、默认供应商一键设置、自动切换开关；
@@ -3727,12 +3735,12 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 ### 修复与体验 — 会话侧边栏打开项目 / 历史会话多选删除 / ActivityBar 溢出
 
 - **侧边栏「打开项目…」**：会话侧边栏底部新增入口，调起系统目录选择器
-  （复用 `reflect_pick_workspace_folder` → `reflect_set_workspace`，与
+  （复用 `zhuye_pick_workspace_folder` → `zhuye_set_workspace`，与
   WorkspacesView 同语义），切换后 toast 告知并刷新 workspaces / sessions /
   当前工作区缓存 —— 此前新增项目必须进 Workspaces 页。
 - **历史会话多选删除**：Threads 页新增「多选」模式 —— 行首勾选框 +
   顶栏操作条（已选计数 / 删除所选 / 完成），确认后逐条走既有
-  `reflect_delete_session`（无线格式变更）；删除含当前会话时先退出会话路由。
+  `zhuye_delete_session`（无线格式变更）；删除含当前会话时先退出会话路由。
 - **ActivityBar 溢出修复**：主导航 17 项在窗口高度不足时曾溢出栏体、
   叠在底部 StatusBar 上 —— 主导航组改为占满剩余高度并内部滚动
   （细滚动条），Settings / About 固定钉在栏底部。
@@ -3764,13 +3772,13 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - 排空时机：`turn_complete` / `turn_aborted` 后自动逐条发出；存在
     待审批 / 待提问 / 待输入 / 待 plan 时暂停。
   - Steer 语义：Composer 运行中显示 Queue（默认）/ Steer 模式切换 +
-    `Shift+Cmd/Ctrl+Enter` 单次反转；Steer = `reflect_interrupt()` →
+    `Shift+Cmd/Ctrl+Enter` 单次反转；Steer = `zhuye_interrupt()` →
     等 `turn_aborted` → 立即提交（已完成工具调用保留在会话历史）。
   - 会话切换（hydrate/clear）清空队列，消息不串会话。
 - **会话标题自动生成**（回来看结果；新命令，见 protocol-bridge §2）：
-  - `reflect_generate_session_title(id, force?)`：replay 取首条 User +
+  - `zhuye_generate_session_title(id, force?)`：replay 取首条 User +
     Assistant 种子 → MinimalAgent 的 SharedModelRegistry one-shot 调用
-    → `derive_title` 清洗 → 落盘 `~/.reflect/sessions/_titles/<id>.title`。
+    → `derive_title` 清洗 → 落盘 `~/.zhuye/sessions/_titles/<id>.title`。
   - 标题优先级升级为三级：自定义名（`_names`）> AI（`_titles`）> 首条
     消息派生；手动 rename 永不被覆盖。归档 / 删除同步搬移 / 清理 `_titles`。
   - 触发：会话首次 `turn_complete` 自动生成（后端幂等，失败静默）；
@@ -3781,22 +3789,22 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     （可设 30s/1m/2m/立即）、同 turn 1.5s 节流；通知正文改为 agent 最后
     一条回复（截断 200 字符），点击通知聚焦窗口并跳回当前会话。
   - 「需要你处理」通知：等待审批 / 提问 / 输入 / plan 时单独召回。
-  - Dock badge 接线：后端 `reflect_set_dock_badge` 此前无前端调用方，
+  - Dock badge 接线：后端 `zhuye_set_dock_badge` 此前无前端调用方，
     现按待处理交互数实时更新（命令体按领域约定移入
     `commands/dock.rs`；非 macOS 为 no-op）。
   - 设置项扩展（Settings → Notifications）：仅失焦通知 / 最短运行时长 /
     等待处理通知 / Dock 角标；持久化沿用 localStorage
-    `reflect.notify.options`。门控纯函数（`shouldNotifyTurnComplete`）
+    `zhuye.notify.options`。门控纯函数（`shouldNotifyTurnComplete`）
     独立可测。
 - **Composer 草稿按会话持久化**（发起任务）：
-  - `useComposerDraft`：草稿写入 localStorage `reflect.draft.<sessionId>`，
+  - `useComposerDraft`：草稿写入 localStorage `zhuye.draft.<sessionId>`，
     切换会话自动恢复各自草稿，发送后清除 —— 此前草稿是组件内 state，
     切会话即丢。
 - 测试：前端新增 `turns.test.ts` / `queue.test.ts` /
   `useComposerDraft.test.ts` / `QueuedMessages.test.tsx` / notify 门控
   用例 / Composer Queue-Steer 集成用例；fakeBackend 补齐 turn 生命周期
-  事件（`turn_started`/`turn_complete`）与 `reflect_tailscale_status`
-  线契约字段（修复 `RemoteView.ipv4` 偶发崩溃）、`reflect_generate_session_title`
+  事件（`turn_started`/`turn_complete`）与 `zhuye_tailscale_status`
+  线契约字段（修复 `RemoteView.ipv4` 偶发崩溃）、`zhuye_generate_session_title`
   与 dock badge 处理器；Rust 新增 `refine_session_titles` 三级优先级 /
   `ai_titles` / `extract_title_seed` / `truncate_seed` 用例。
 
@@ -3810,7 +3818,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     默认全展开，未归属分组默认折叠。搜索（标题 / session id / 项目名）时
     强制展开所有命中分组。
   - workspaces.json 中的已知项目即使无会话也显示，组头「+」可在该项目下
-    新建会话（先 `reflect_set_workspace` 再预分配 id 并导航）。
+    新建会话（先 `zhuye_set_workspace` 再预分配 id 并导航）。
   - 未归属旧会话（v1.x 之前创建、无 `SessionMeta.workspace`）归入「未归属」
     分组，固定最后。
 - **新模块**：
@@ -3822,18 +3830,18 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - `useSessions` 新增 `groups` 输出（`buckets` 保留，HomeView / ThreadsView
     仍用时间分桶）。
 - **行为修复**：点击其他项目的会话时，工作区跟随会话——先
-  `reflect_set_workspace(会话.workspace)`（失效 `current-workspace` /
-  `agent-status` / `workspaces` 缓存）再导航，保证 `reflect_bind_session`
+  `zhuye_set_workspace(会话.workspace)`（失效 `current-workspace` /
+  `agent-status` / `workspaces` 缓存）再导航，保证 `zhuye_bind_session`
   重建线程时烧入正确的 cwd（此前跨项目点选会以旧工作区续写）。
 - HomeView / ThreadsView / 线程页时间分桶不受影响。
 
 ### 功能 — GUI 会话持久化：M4 recorder 接线 + 跨轮记忆修复（v1.x）
 
-- **协议/引擎层**（reflect-agent submodule）：
+- **协议/引擎层**（zhuye-agent submodule）：
   - `SessionConfiguredEvent.session_id` 不再随机 —— `submission_loop` 在
     `SessionConfiguredEvent::new` 后覆盖为线程预分配 id（serve.rs 同），
     与 rollout 文件名 / `SessionMeta.session_id` / 前端路由 id 一致。
-  - 新模块 `reflect_core::resume::records_to_preload(&[RolloutRecord]) ->
+  - 新模块 `zhuye_core::resume::records_to_preload(&[RolloutRecord]) ->
     Vec<ChatMessage>`：rollout 记录 → LLM 历史映射（legacy String / 图文
     blocks / 工具对顺序 / compaction 摘要前置 System），`bootstrap_resume`
     与 GUI 回填共用单一实现。
@@ -3848,7 +3856,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     `effective_tools` 增并非 `Builtin` 源工具名 —— **M4 开启后 MCP/LSP/
     Plugin 工具不再被隐藏**（此前过滤为 always_on ∪ 已激活 skill，CLI 同受益）。
 - **Tauri 适配层**：
-  - 新命令 `reflect_bind_session({ id })`：replay 该 id 的 JSONL →
+  - 新命令 `zhuye_bind_session({ id })`：replay 该 id 的 JSONL →
     `records_to_preload` → `state::rebind::rebind_session`（换绑线程：
     `construct_thread` 带 `with_session_id` + 完整 M4（`build_default_m4`，
     recorder 覆写为同 id 的 `JsonlRolloutWriter`），旧 turn `cancel_token`
@@ -3857,25 +3865,25 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - 新模块 `state/thread_factory`：registry 构造 + `construct_thread(sid,
     preload)` 统一 install / rebind 两路径；M4 全量启用（skills / memory /
     compaction / notes），recorder base 统一到
-    `reflect_rollout::path::default_base()`。
+    `zhuye_rollout::path::default_base()`。
   - **cron 修复**：install 时 `let _driver_handle = driver.start(30)` 立即
     Drop 句柄 → driver 任务被 abort → **cron 任务从未真正触发**。句柄现
     存 `inner.cron_driver`，rebind 时 stop 旧 driver 后重启。
   - **rebind 写锁自死锁修复**：`rebind_session` step 5 的
     `if let ... = cron_scheduler.write().clone()` scrutinee 临时值（写
     guard）活到 if-let 块结束，块内再对同一把锁 `write()` 因 parking_lot
-    非重入自死锁 → 每次 `reflect_bind_session` 永久挂起 IPC 线程。改为
+    非重入自死锁 → 每次 `zhuye_bind_session` 永久挂起 IPC 线程。改为
     读锁 clone 释放 guard 后再取写锁写回。
   - **cron 换向提前**：旧 driver 的 stop 从新线程构造之后提前到旧线程
     cancel 之后立即执行 —— `CronScheduler::start` 按值捕获旧
     `sub_tx`，窗口内旧 driver 仍会把到期 job 投进已 cancel 的旧线程
     （静默丢触发）；新 driver 首个 tick 立即扫描补发，不丢触发。
   - `sessions_base()` 对齐 `default_base()`，杜绝列表/回放路径分叉。
-- **前端**：`reflect_bind_session(id)` IPC 包装；`ChatView` 加载序列改为
+- **前端**：`zhuye_bind_session(id)` IPC 包装；`ChatView` 加载序列改为
   **bind → replay → hydrate**（已水合同 id 也先 bind 再早退，后端幂等；
   retry 同构）—— 切换会话后续写该会话文件且 LLM 恢复上下文。
 - **行为变化**（需知）：
-  - GUI 会话开始落盘 `~/.reflect/sessions/YYYY/MM/DD/<id>.jsonl`（首行
+  - GUI 会话开始落盘 `~/.zhuye/sessions/YYYY/MM/DD/<id>.jsonl`（首行
     `SessionMeta.workspace` = 归属工作区）。
   - 多轮记忆恢复（此前每轮失忆）；系统 prompt / 工具表与 CLI 同款
     （M4 全量），prompt 变长由 compactor 收敛。
@@ -3885,12 +3893,12 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   cron rebind 用例；GUI 侧 rebind 4 用例 + install registry/cron 句柄用例；
   前端 ChatView bind→replay 顺序 / 切会话重绑 2 用例 + fakeBackend /
   mock / contract 同步。
-- **文档**：`docs/protocol-bridge.md` 补 `reflect_bind_session` 行 +
+- **文档**：`docs/protocol-bridge.md` 补 `zhuye_bind_session` 行 +
   `SessionConfigured.session_id` 语义。
 
 ### 功能 — 工作区 ↔ 会话归属 + Composer `@` 文件弹层（v1.x）
 
-- **协议层**（reflect-agent submodule，serde 全兼容 —— 新字段均带
+- **协议层**（zhuye-agent submodule，serde 全兼容 —— 新字段均带
   `#[serde(default, skip_serializing_if = "Option::is_none")]`）：
   - `UserInputItem` 新增 `File { path, range? }` 变体（`FileRange { start_line, end_line }`）；
     core 侧 `user_input_items_to_messages` 展开为 `@<path>`（含行区间时
@@ -3902,19 +3910,19 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - `rollout_index::list_sessions_in_workspace(base, ws)` —— 精确匹配过滤；
     旧会话（`workspace = None`）在过滤视图不出现（归属创建时确定，避免误归类）。
     JSONL 路径布局不变（`<base>/YYYY/MM/DD/<id>.jsonl`）。
-- **Tauri 适配层**：新命令 `reflect_create_session -> string`（无参纯 ID
+- **Tauri 适配层**：新命令 `zhuye_create_session -> string`（无参纯 ID
   分配，New Chat 先拿路由 id，workspace 归属经 `Submission.workspace`
-  注入）；`reflect_list_sessions` 增加可选 `workspace`
+  注入）；`zhuye_list_sessions` 增加可选 `workspace`
   过滤参数（老 IPC 传 `null` 兼容全量列表）。
 - **前端 — 会话归属**：新 hook `useCurrentWorkspace`（30s staleTime）；
-  `AppShell.handleNewChat` 改为 `reflect_create_session()` →
+  `AppShell.handleNewChat` 改为 `zhuye_create_session()` →
   `setActiveId` → 导航；`useSessions` 支持 `workspacePath` 过滤（queryKey 含
-  workspace 维度）；`reflect_set_workspace` 成功后失效 current-workspace +
+  workspace 维度）；`zhuye_set_workspace` 成功后失效 current-workspace +
   sessions 缓存；`SessionItem` 副标题显示归属项目名（basename，hover 全路径），
   未归属显示"未归属"。
 - **前端 — `@` 文件弹层**：`useComposerInput` 增 `MENTION_QUERY` 检测
   （`(^|\s)@([^@\s]*)$`）+ Escape 关闭；`MentionPicker` 切到文件源
-  （`reflect_list_dir(null, 2)` 浅层递归，跳过 node_modules/target/.git 等，
+  （`zhuye_list_dir(null, 2)` 浅层递归，跳过 node_modules/target/.git 等，
   复用 command-palette fuzzy，slice 50）；`useAttachments.addFileMention` +
   `toUserInputItems` file 映射；工具栏 `@` 按钮改为追加 `@` 并直接开弹层
   （显式 `setMentionVisible(true)` —— setState 不触发 onChange）；
@@ -3924,7 +3932,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   Chat / useCurrentWorkspace）；Rust `list_sessions_in_workspace` 过滤断言。
 - **文档**：`docs/protocol-bridge.md` 补 `File` / `FileRange` /
   `Submission.workspace` / `SessionInfo.workspace` schema 与
-  `reflect_create_session` 命令行。
+  `zhuye_create_session` 命令行。
 
 ### 修复 — 窗口拖拽 / 项目目录 / 会话归档（GUI 三项可用性补齐）
 
@@ -3940,12 +3948,12 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     属性 + JS 命中 + ACL 三件套）。
 - **项目目录**：WorkspacesView 接入真实历史列表 + 原生目录选择。
   - 后端 `commands/workspaces.rs`：
-    - `reflect_set_workspace` 切换即把当前项 upsert 进
-      `~/.reflect/workspaces.json`（去重 + last_used 刷新 + 截断到 20 条）。
-    - `reflect_pick_workspace_folder`：原生目录选择对话框（Rust 侧
+    - `zhuye_set_workspace` 切换即把当前项 upsert 进
+      `~/.zhuye/workspaces.json`（去重 + last_used 刷新 + 截断到 20 条）。
+    - `zhuye_pick_workspace_folder`：原生目录选择对话框（Rust 侧
       调 `tauri-plugin-dialog` 的 `DialogExt::pick_folder`，经 oneshot
       折回 async 返回；不走 JS IPC，无需 dialog capability）。
-    - `reflect_reveal_path`：在系统文件管理器中定位路径（macOS `open -R` /
+    - `zhuye_reveal_path`：在系统文件管理器中定位路径（macOS `open -R` /
       Windows `explorer /select,` / Linux `xdg-open`）。
   - 依赖：`src-tauri/Cargo.toml` 新增 `tauri-plugin-dialog = "2"`，
     `lib.rs` 注册 `tauri_plugin_dialog::init()`。
@@ -3956,10 +3964,10 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     `commands/mod.rs` 注册三个新命令 + `lib.rs::invoke_handler!` 同步。
 - **会话归档 / 恢复 / 删除**：共享 `SessionItemMenu` 让侧边栏与
   ThreadsView 都能执行 rename / export / archive / delete。
-  - 后端 `commands/sessions.rs`：新增 `reflect_archive_session` /
-    `reflect_unarchive_session` / `reflect_list_archived_sessions`。
+  - 后端 `commands/sessions.rs`：新增 `zhuye_archive_session` /
+    `zhuye_unarchive_session` / `zhuye_list_archived_sessions`。
     归档把 session 的所有文件（含轮转副本、文件名错位副本）+ 自定义名
-    搬到 `~/.reflect/sessions-archive`，相对路径不变（unarchive 沿同一
+    搬到 `~/.zhuye/sessions-archive`，相对路径不变（unarchive 沿同一
     相对路径搬回）。归档目录放在 sessions 树之外，避免被
     `rollout_index::list_sessions` 全树扫描命中。
   - 前端：抽出 `src/features/sessions/components/SessionItemMenu.tsx`
@@ -3977,7 +3985,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
   - `tests/sessions.lifecycle.test.tsx` 加侧边栏 kebab 归档 / 删除 /
     自动回 `/chat`、ThreadsView restore 归档全流程用例。
   - `tests/views.route-matrix.test.tsx` 改为校验
-    `reflect_list_workspaces` + `reflect_agent_status`。
+    `zhuye_list_workspaces` + `zhuye_agent_status`。
   - 新增 `src/features/sessions/components/SessionItemMenu.test.tsx`（6 用例）。
   - 后端 `commands/{workspaces,sessions}.rs` 加 7 个 Rust 单元测试（去重 /
     持久化 / 容量上限 / archive+restore 整树搬移），`cargo test --lib
@@ -4013,12 +4021,12 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 
 ### 新增 — goal 模式 GUI 触发面（Op 直通 + `/goal` 斜杠命令）
 
-- **背景**：上游 `reflect-protocol` v1.2 P1 已有 `Op::EnterGoalMode { goal,
+- **背景**：上游 `zhuye-protocol` v1.2 P1 已有 `Op::EnterGoalMode { goal,
   verify_command?, token_budget? }` / `Op::ExitGoalMode`（core 侧
   `GoalController` 每轮 turn 结束自校验、未完成自动续作），但 Desktop GUI
   此前无触发面（i18n 标注"后续阶段"）。
-- **后端**：`src-tauri/src/commands/agent.rs` 新增 `reflect_enter_goal_mode` /
-  `reflect_exit_goal_mode` 两个薄 Op 适配（与其他 14 个 Op 命令同模式，经
+- **后端**：`src-tauri/src/commands/agent.rs` 新增 `zhuye_enter_goal_mode` /
+  `zhuye_exit_goal_mode` 两个薄 Op 适配（与其他 14 个 Op 命令同模式，经
   `MinimalAgent::submit_op` 投递），`lib.rs` 注册表同步。
 - **前端**：新域文件 `src/utils/commands/goal.ts`（barrel 导出）；Composer
   新增 `/goal <description>` 斜杠命令（`/goal clear` 退出，与 TUI 约定一致），
@@ -4031,7 +4039,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 ### 新增 — `tests/` 应用级全量测试套件（168 测试，全绿）
 
 - **基础设施**：`tests/helpers/fakeBackend.ts` 实现 `lib.rs` 注册表中的
-  全部 `reflect_*` IPC 命令（带状态、失败注入、调用日志、线格式参数断言），
+  全部 `zhuye_*` IPC 命令（带状态、失败注入、调用日志、线格式参数断言），
   内置 ScriptedAgent 事件编排（`emit` / 审批·提问·计划 `gate` 挂起，
   复刻真实 agent 审批停顿与提交抢占）；`tests/helpers/appHarness.tsx`
   挂载完整真实应用（真实 reducer / React Query / 路由 / 事件总线订阅）。
@@ -4046,17 +4054,17 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 - 运行：`pnpm vitest run tests/`；全量 `pnpm test` 现共 77 文件 732 测试。
 - 详见 `tests/README.md`。
 
-### 修复 — reflect-sandbox seatbelt 临时 profile 并发写竞争（上游 submodule）
+### 修复 — zhuye-sandbox seatbelt 临时 profile 并发写竞争（上游 submodule）
 
-- **现象**：`cargo test --workspace` 多线程下 `reflect-sandbox` 的
+- **现象**：`cargo test --workspace` 多线程下 `zhuye-sandbox` 的
   `rm_rf_root_is_blocked_in_sandbox` 必挂（stdout 为空），单线程 / 单用例
   通过。**这不是测试问题,是 `seatbelt_argv` 的真实缺陷**:临时 profile
-  固定写 `reflect-sandbox-<pid>.sb`,同一进程内并发调用(桌面应用并行
+  固定写 `zhuye-sandbox-<pid>.sb`,同一进程内并发调用(桌面应用并行
   工具执行、并行测试)在 `fs::write` 截断重写窗口内互相踩踏 ——
   `sandbox-exec` 读到半截 profile 编译失败、子进程不启动(fail-closed);
   或读到他人完整 profile,workspace 写白名单错乱。
-- **修复**(Reflect-Agent 仓库,submodule 指针同步升级):文件名追加原子
-  自增序号(`reflect-sandbox-<pid>-<seq>.sb`),每次调用独立文件;新增
+- **修复**(ZhuYe 仓库,submodule 指针同步升级):文件名追加原子
+  自增序号(`zhuye-sandbox-<pid>-<seq>.sb`),每次调用独立文件;新增
   回归测试 `seatbelt_argv_temp_profiles_are_unique_per_call`。验证:
   `--lib` 多线程 5 连跑 15/15 全绿。
 - 顺带:全量测试亦确认根 workspace 经 path 依赖自动纳入全部子模块 crate
@@ -4064,7 +4072,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 
 ### 修复 — submodule 协议新增 `tool_execution_request` 变体导致编译失败
 
-- **`app-core` reducer 编译错误（根因）**：submodule `reflect-protocol` 新增
+- **`app-core` reducer 编译错误（根因）**：submodule `zhuye-protocol` 新增
   `EventMsg::ToolExecutionRequest(ToolExecutionRequestEvent)`（v1.3 SDK serve
   模式远程工具执行请求）后，`app-core/src/reducer/mod.rs` 的穷尽 match 未覆盖
   该变体，`cargo check` 报 E0004、整个后端无法编译。已将其加入协议层
@@ -4087,7 +4095,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
     实测 260 个会话全部停留在 JSON 脏标题 `[{"text":"…","type":"text"}]`，
     精化从未生效；修复后脏标题清零，GUI 实机复验通过）；
   - 回放/导出兜底 `session_files` 同样按 meta 命中错位文件；
-  - `reflect_delete_session` 此前删 `sessions/<id>/` 目录——真实布局是
+  - `zhuye_delete_session` 此前删 `sessions/<id>/` 目录——真实布局是
     `YYYY/MM/DD/<id>.jsonl`，删除永远是静默 no-op；现删除该 session 的
     全部文件（含错位/轮转副本）+ `_names/<id>.name` + 旧布局目录。
 - **事件层前向兼容**：
@@ -4108,13 +4116,13 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 - **历史会话回放修复（根因 ×2）**：
   - 前端 `turnsFromRollout`（`src/stores/replay.ts`）此前按一个不存在的
     `{ seq, kind, payload }` 事件信封解析回放记录，而
-    `reflect_replay_session` 实际返回的是 `reflect_protocol::RolloutRecord`
+    `zhuye_replay_session` 实际返回的是 `zhuye_protocol::RolloutRecord`
     tagged union（`{"type":"message","turn_id","role","content"}`）——
     所有记录都被丢弃，历史会话永远空白。已重写转换器：按 `turn_id` 分组，
     `content` 支持纯字符串与 `ContentBlock` 数组（text / tool_use /
     tool_result），`compaction` 记录渲染为单行 `compacted` 摘要（与 live
     `context_compacted` 一致）。
-  - 后端 `reflect_replay_session` / `reflect_export_session` 兜底：
+  - 后端 `zhuye_replay_session` / `zhuye_export_session` 兜底：
     submodule 的 `reader::replay` 只查「今天/昨天/前天」三日窗口，三日以上
     的历史会话拿到空结果。`src-tauri/src/commands/sessions.rs` 新增
     `replay_session()`：快路径为空时全树扫描该 session 的所有文件
@@ -4122,7 +4130,7 @@ IPC 参数契约（Tauri 2 平铺参数按 camelCase 匹配）：
 - **会话列表标题**：
   - `SessionInfo.title`（自定义名 / 首条 user 消息派生）此前未被前端使用，
     侧边栏固定显示 session_id 前 8 字符。`displayTitle`（`buckets.ts`）
-    现优先展示 `title`，无标题时回退 id 前缀；`ReflectSessionInfo`
+    现优先展示 `title`，无标题时回退 id 前缀；`ZhuyeSessionInfo`
     （`src/utils/types.ts`）补齐 `title` / token 字段镜像。
   - 后端标题精化（`src-tauri/src/commands/sessions.rs::refine_session_titles`）：
     submodule 派生标题对 block 数组 `content`（user 消息新格式）会退化成
@@ -4173,13 +4181,13 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
   i18n 键（en/zh-CN）。
 - **Phase 3 第 12 项：KMS（知识管理系统）**：
   - **新 `app-core::kms` 模块**（`app-core/src/kms.rs`）：`KnowledgeManager`，提供
-    基于 grep 的 wiki 存储（`~/.reflect/kms/<name>/pages/*.md`）、frontmatter
+    基于 grep 的 wiki 存储（`~/.zhuye/kms/<name>/pages/*.md`）、frontmatter
     解析（title/tags/description）、全文搜索和 `/dream` 会话挖掘。
     6 个单元测试全部通过。
   - **后端命令**（`src-tauri/src/commands/kms.rs`）：8 个命令 —
-    `reflect_kms_list` / `reflect_kms_create` / `reflect_kms_delete` /
-    `reflect_kms_save_page` / `reflect_kms_get_page` / `reflect_kms_list_pages` /
-    `reflect_kms_search` / `reflect_dream`。
+    `zhuye_kms_list` / `zhuye_kms_create` / `zhuye_kms_delete` /
+    `zhuye_kms_save_page` / `zhuye_kms_get_page` / `zhuye_kms_list_pages` /
+    `zhuye_kms_search` / `zhuye_dream`。
   - **前端包装**（`src/utils/commands/kms.ts`）：8 个函数 + 4 个类型。
   - **功能 UI**（`src/features/kms/`）：`KmsView.tsx`，含 wiki 选择 tab、
     页面列表、内联编辑器和全局搜索栏。
@@ -4190,8 +4198,8 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
     `AutopilotConfig`（enabled/schedule/taskTemplate/agent/maxConcurrent）+
     `AutopilotRun` + `AutopilotRunStatus`。4 个单元测试全部通过。
   - **后端命令**（`src-tauri/src/commands/autopilot.rs`）：3 个命令 —
-    `reflect_get_autopilot_config` / `reflect_update_autopilot_config` /
-    `reflect_autopilot_history`。
+    `zhuye_get_autopilot_config` / `zhuye_update_autopilot_config` /
+    `zhuye_autopilot_history`。
   - **前端包装**（`src/utils/commands/autopilot.ts`）：3 个函数 + 2 个类型。
   - **功能 UI**（`src/features/autopilot/`）：`AutopilotView.tsx`，含配置
     编辑表单（enable/schedule/template/agent/concurrency）+ 运行历史面板。
@@ -4199,7 +4207,7 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
 - **路由 + 导航**：注册 `/kms` + `/autopilot` 路由；
   `ActivityBar` 新增 KMS（BookOpen 图标）和 Autopilot（Zap 图标）入口；
   i18n `shell.nav.kms` + `shell.nav.autopilot`（en/zh-CN）。
-- **验证**：`cargo check` ✅、`cargo test -p reflect-app-core` ✅（42 通过）、
+- **验证**：`cargo check` ✅、`cargo test -p zhuye-app-core` ✅（42 通过）、
   `pnpm typecheck` ✅、`pnpm test` ✅（61 文件 / 524 测试）。
 
 ### 新增 — Phase 3 第 8/9/11/13 项（Squad + Activity + Actor + Media Studio）
@@ -4219,18 +4227,18 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
     角色检测、metadata 往返、默认 = user。
 - **Phase 3 第 9 项：Inbox + Activity 时间线 + @提及** —
   - `app-core/src/activity.rs`：`ActivityLogger`，内存环形缓冲（上限 500）+
-    JSONL 持久化到 `~/.reflect/activity/`（1 MB 轮转）+ `record` /
+    JSONL 持久化到 `~/.zhuye/activity/`（1 MB 轮转）+ `record` /
     `list(filter)` / `search_mentions(q)` / `clear_memory`。
     `ActivityEvent { id, ts_ms, kind, actor, summary, task_id?, team_name?,
     level }`；`ActivityFilter` 按 kind / level / actor_id / team_name /
     since_ms 匹配。
   - `src-tauri/src/state/activity.rs`：独立的 broadcast 订阅者，
-    将每条 `reflect_protocol::Event` 映射为 `ActivityEvent`
+    将每条 `zhuye_protocol::Event` 映射为 `ActivityEvent`
     并经 logger 写入。与 `forward_agent_events` 并行运行
     （互不干扰）。
   - `src-tauri/src/commands/activity.rs`：4 个命令 —
-    `reflect_list_activity` / `reflect_search_activity` /
-    `reflect_clear_activity` / `reflect_activity_count`。
+    `zhuye_list_activity` / `zhuye_search_activity` /
+    `zhuye_clear_activity` / `zhuye_activity_count`。
   - `src/utils/commands/activity.ts`：TypeScript 包装 + `Actor` /
     `ActivityKind` / `ActivityLevel` 类型 + `extractMentions(text)`
     辅助函数（regex `@[a-z0-9_@-]+`）。
@@ -4251,7 +4259,7 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
   - `app-core/src/squad.rs`：`SquadSpec`（name、description、
     leader_actor、members、created_at_ms）+ `SquadMember { actor,
     role, model, system_prompt, allowed_tools }` + 包装
-    `Arc<reflect_task::TaskManager>` 的 `SquadManager`。方法：
+    `Arc<zhuye_task::TaskManager>` 的 `SquadManager`。方法：
     `create_squad(spec)` 以 `TeamFile` upsert（`team-lead@<name>`
     lead + 映射后的 member spec）；`list_squads()` / `get_squad(name)` /
     `delete_squad(name)`；`delegate_next(squad_name, leader_id)`
@@ -4260,13 +4268,13 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
     `assign_task(squad_name, task_id, assignee)` 经 vendor `TaskPatch`
     写入 `owner` + `metadata.actor`。
   - 不重构 vendor Team/Task schema；squad 通过既有的
-    `~/.reflect/teams/<name>.json` 文件存储。
+    `~/.zhuye/teams/<name>.json` 文件存储。
   - `src-tauri/src/commands/squad.rs`：6 个命令 —
-    `reflect_list_squads` / `reflect_create_squad` /
-    `reflect_get_squad` / `reflect_delete_squad` /
-    `reflect_delegate_next` / `reflect_assign_squad_task`。
-  - `src/utils/commands/squad.ts`：包装 + `ReflectSquadSpec` /
-    `ReflectSquadMember` 类型。
+    `zhuye_list_squads` / `zhuye_create_squad` /
+    `zhuye_get_squad` / `zhuye_delete_squad` /
+    `zhuye_delegate_next` / `zhuye_assign_squad_task`。
+  - `src/utils/commands/squad.ts`：包装 + `ZhuyeSquadSpec` /
+    `ZhuyeSquadMember` 类型。
   - `src/features/squad/`：`SquadView`（master-detail：左侧 squad 列表
     + 创建表单，右侧所选 squad 的 members + tasks + "Delegate next"
     按钮 + 每任务 assignee 下拉）+ `useSquadController`（TanStack Query，
@@ -4291,12 +4299,12 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
     返回 `MediaError::Unavailable` 而非 panic，
     因此该功能在 dev / CI / headless 下可用。
   - `src-tauri/src/commands/media.rs`：5 个命令 —
-    `reflect_list_media` / `reflect_image_process` /
-    `reflect_screenshot`（base64 编码的 PNG 字符串）/
-    `reflect_computer_use` / `reflect_media_capabilities`。
+    `zhuye_list_media` / `zhuye_image_process` /
+    `zhuye_screenshot`（base64 编码的 PNG 字符串）/
+    `zhuye_computer_use` / `zhuye_media_capabilities`。
   - `src/utils/commands/media.ts`：包装 + 类型
-    （`ReflectMediaAsset` / `ReflectImageProcessSpec` /
-    `ReflectComputerUseAction` / `ReflectMediaCapabilities`）。
+    （`ZhuyeMediaAsset` / `ZhuyeImageProcessSpec` /
+    `ZhuyeComputerUseAction` / `ZhuyeMediaCapabilities`）。
   - `src/features/media/`：`MediaView`（经 `SegmentedControl` 的
     2 个 tab — **Studio** 列出用户输入目录中的 asset；
     **Computer Use** 提供 screenshot / click / move / scroll /
@@ -4313,7 +4321,7 @@ reducer 也已写入 `state.tokens`，但此前没有任何 UI 消费这些数�
   `ActivityBar` 新增 Squad（Users 图标）+ Media（Image 图标）
   入口；i18n `shell.nav.media`（en/zh-CN）。`shell.nav.squad`
   已在听写批次中加入。
-- **验证**：`cargo check` ✅、`cargo test -p reflect-app-core`
+- **验证**：`cargo check` ✅、`cargo test -p zhuye-app-core`
   ✅（90 通过；12 actor + 12 activity + 12 squad + 12 media + 42
   既有）、`pnpm typecheck` ✅、`pnpm test` ✅（63 文件 / 530
   测试）。
@@ -4329,7 +4337,7 @@ subagent）。每个 side-channel 在自己的 `CancelToken` 上与主 agent 并
   - 稳定 id `side-<8hex>`，冲突时确定性 salt 重试。
   - 经 `tokio::sync::broadcast::Sender<SideChannelEvent>` 发出
     `Started` / `Done` / `Cancelled` / `Error` / `Output` 事件 —— 既有
-    Tauri 事件转发器可接收，并以 `reflect_event` 消息（标记
+    Tauri 事件转发器可接收，并以 `zhuye_event` 消息（标记
     `kind: side_channel_*`）呈现给前端。
   - 6 个单元测试（start 返回 id + cancel token / cancel 发出事件 /
     对已终结的取消是 noop / finish done/error 状态迁移 /
@@ -4341,12 +4349,12 @@ subagent）。每个 side-channel 在自己的 `CancelToken` 上与主 agent 并
     `build_empty_inner` 中构建，故安装前即就绪）。
   - 供命令层使用的 facade `MinimalAgent::side_channels()`。
   - `src-tauri/src/commands/side_channel.rs` 新命令：
-    `reflect_start_side_channel` / `reflect_cancel_side_channel` /
-    `reflect_list_side_channels` / `reflect_get_side_channel`。
+    `zhuye_start_side_channel` / `zhuye_cancel_side_channel` /
+    `zhuye_list_side_channels` / `zhuye_get_side_channel`。
   - 6 个单元测试覆盖 start/get/cancel + finish 状态迁移。
 - **前端包装**（`src/utils/commands/side_channel.ts`）：
-  - 4 个函数 + `ReflectSideChannelInfo` / `ReflectSideChannelStatus` /
-    `ReflectStartSideChannelResult` 类型。
+  - 4 个函数 + `ZhuyeSideChannelInfo` / `ZhuyeSideChannelStatus` /
+    `ZhuyeStartSideChannelResult` 类型。
   - Index barrel 新增 re-export；`commands.test.ts` 增加 3 条转发
     断言（list/get 无参数、start 转发 `{ agent_name, prompt }`、
     cancel 转发 `{ id }`）。
@@ -4372,7 +4380,7 @@ subagent）。每个 side-channel 在自己的 `CancelToken` 上与主 agent 并
 
 Phase 2 第二个条目：桌面 daemon 状态呈现 + Tailscale 网络助手
 + iOS 配置入口。为远程客户端（iOS）经 Tailscale 连接到
-ReflectDesktop 实例提供建设基础。
+ZhuYe-Desktop 实例提供建设基础。
 
 - **新 `app-core::tailscale` 模块**（`app-core/src/tailscale.rs`）：
   - `TailscaleStatus` 结构体（installed/running/dns_name/ipv4/ipv6/suggested_remote_host）。
@@ -4396,17 +4404,17 @@ ReflectDesktop 实例提供建设基础。
     `build_empty_inner` 中以默认配置构建）。
   - 供命令层使用的 facade 访问器 `MinimalAgent::remote_config()`。
   - `src-tauri/src/commands/remote.rs` 新命令：
-    `reflect_get_remote_config` / `reflect_update_remote_config` /
-    `reflect_get_remote_status` / `reflect_tailscale_status` /
-    `reflect_tailscale_daemon_command_preview` /
-    `reflect_tailscale_daemon_start` / `reflect_tailscale_daemon_stop` /
-    `reflect_tailscale_daemon_status`。
+    `zhuye_get_remote_config` / `zhuye_update_remote_config` /
+    `zhuye_get_remote_status` / `zhuye_tailscale_status` /
+    `zhuye_tailscale_daemon_command_preview` /
+    `zhuye_tailscale_daemon_start` / `zhuye_tailscale_daemon_stop` /
+    `zhuye_tailscale_daemon_status`。
   - `RemoteConfigSnapshot`（camelCase serde）携带 endpoint + is_ready 标志。
   - 3 个单元测试：snapshot endpoint/ready 标志处理、端口默认、
     更新配置往返。
 - **前端包装**（`src/utils/commands/remote.ts`）：
-  - 8 个函数 + `ReflectRemoteConfigSnapshot` / `ReflectRemoteStatus` /
-    `ReflectTailscaleStatus` 类型。
+  - 8 个函数 + `ZhuyeRemoteConfigSnapshot` / `ZhuyeRemoteStatus` /
+    `ZhuyeTailscaleStatus` 类型。
   - Index barrel re-export；`commands.test.ts` 增加 8 条转发断言
     （带默认值的 config get/update、无参数的 tailscale status、
     无参数的 daemon 命令 preview/start/stop/status）。
@@ -4424,38 +4432,38 @@ ReflectDesktop 实例提供建设基础。
 - **路由 + 导航**：注册 `/remote` 路由；`ActivityBar`
   新增 Remote 入口（`Wifi` 图标）；i18n `shell.nav.remote`（en/zh-CN）。
 - **范围说明**（后续计划）：真正的 TCP JSON-RPC daemon 二进制
-  （`src-tauri/src/bin/reflect_daemon.rs`）尚未实现 —— 需要
+  （`src-tauri/src/bin/zhuye_daemon.rs`）尚未实现 —— 需要
   独立的 workspace crate 和交叉编译目标。iOS 客户端
   应用也尚未启动。当前实现先提供桌面配置
   界面与 Tailscale 网络检测作为前置。
-- **验证**：`cargo check` ✅、`cargo test -p reflect-app-core -- tailscale`
-  ✅（6 通过）、`cargo test -p reflect-desktop -- remote` ✅（7 通过）、
+- **验证**：`cargo check` ✅、`cargo test -p zhuye-app-core -- tailscale`
+  ✅（6 通过）、`cargo test -p zhuye-desktop -- remote` ✅（7 通过）、
   `pnpm typecheck` ✅、`pnpm test` ✅（61 文件 / 524 测试）。
 
 ### 新增 — Phase 1 第 3 项：Agent 定义管理（profile UI）
 
 落地 Phase 1 第 3 项的最后一个切片：端到端的 agent profile 管理。
 现在可以在桌面端创建 / 编辑 / 删除 agent 定义，
-以 Markdown + YAML frontmatter 形式存储于 `~/.reflect/agents/<name>.md`，
+以 Markdown + YAML frontmatter 形式存储于 `~/.zhuye/agents/<name>.md`，
 与 TUI/CLI 共享。
 
 - **依赖**：`src-tauri/Cargo.toml` 新增
-  `reflect-agent-def = { workspace = true }` + `serde_yaml`
+  `zhuye-agent-def = { workspace = true }` + `serde_yaml`
   （serde_yaml 用于保存时的 frontmatter 序列化；
   vendor crate 仅提供解析器）。
 - **后端命令**（`src-tauri/src/commands/agents.rs`）：
-  - `reflect_list_agent_defs` / `reflect_get_agent_def` /
-    `reflect_save_agent_def` / `reflect_delete_agent_def` /
-    `reflect_parse_agent_md`（无副作用的预览/校验）。
+  - `zhuye_list_agent_defs` / `zhuye_get_agent_def` /
+    `zhuye_save_agent_def` / `zhuye_delete_agent_def` /
+    `zhuye_parse_agent_md`（无副作用的预览/校验）。
   - 保存时序列化 frontmatter（YAML，省略空的 optional 字段）+ body，
     然后重新解析写入的文件做往返校验。
   - 路径安全：`path_for()` 拒绝名称中的空 / `..` / 斜杠 / 反斜杠 /
-    NUL，防止越出 `~/.reflect/agents/` 的路径穿越。
+    NUL，防止越出 `~/.zhuye/agents/` 的路径穿越。
   - 错误映射：`From<AgentDefError> for CommandError`。
   - 4 个单元测试：序列化往返、minimal 省略 optional、
     路径穿越拒绝、文件名构建。
 - **前端包装**（`src/utils/commands/agents.ts`）：5 个函数 +
-  `ReflectAgentDef` / `ReflectMemoryScope` 类型。`index.ts` re-export；
+  `ZhuyeAgentDef` / `ZhuyeMemoryScope` 类型。`index.ts` re-export；
   `commands.test.ts` 中 4 条转发断言。
 - **功能 UI**（`src/features/agents/`）：
   - `AgentsView.tsx` — PageShell + 列表行（name / description / model /
@@ -4474,28 +4482,28 @@ ReflectDesktop 实例提供建设基础。
 ### 新增 — Phase 1 第 2 项：Schedule（cron）命令面 + UI
 
 端到端落地 cron 驱动的自主触发（后端 → 包装 → UI）。vendor
-`reflect-stream::cron::CronScheduler` 现已接入桌面端：
+`zhuye-stream::cron::CronScheduler` 现已接入桌面端：
 `install_agent_thread` 注入真实的 `AgentThread::submission_sender()` 并
 启动 30s driver tick；到期的 job 会把其 `prompt` 作为
 `Submission::user_input` 发送到 agent 循环。
 
 - **依赖**：`src-tauri/Cargo.toml` 新增
-  `reflect-stream = { workspace = true }`。
+  `zhuye-stream = { workspace = true }`。
 - **状态注入**：`MinimalAgentInner.cron_scheduler:
   RwLock<Option<CronScheduler>>`（安装前为 None）。facade
   `MinimalAgent::install_cron_scheduler(sender)` 用真实 sender 构建调度器，
   迁移既有 job，启动 30s driver 并写回。
   供命令层使用的 `cron_scheduler()` 访问器。
 - **后端命令**（`src-tauri/src/commands/schedule.rs`）：
-  - `reflect_list_schedules` / `reflect_add_schedule` /
-    `reflect_update_schedule` / `reflect_remove_schedule` /
-    `reflect_get_schedule_status`。
+  - `zhuye_list_schedules` / `zhuye_add_schedule` /
+    `zhuye_update_schedule` / `zhuye_remove_schedule` /
+    `zhuye_get_schedule_status`。
   - 错误映射：新增 `From<CronParseError> for CommandError`；`thiserror`
     `Display` 保留 variant 信息。
   - 3 个单元测试覆盖 create/list/update/delete 链、非法表达式
     拒绝和错误映射。
 - **前端包装**（`src/utils/commands/schedule.ts`）：5 个函数 +
-  `ReflectCronJob` / `ReflectScheduleStatus` 类型（snake_case vendor payload；
+  `ZhuyeCronJob` / `ZhuyeScheduleStatus` 类型（snake_case vendor payload；
   camelCase 状态信封，对应 Rust `rename_all`）。`index.ts`
   新增 re-export；`commands.test.ts` 增加 4 条转发断言。
 - **功能 UI**（`src/features/schedule/`）：
@@ -4524,9 +4532,9 @@ ReflectDesktop 实例提供建设基础。
 - **新功能** `src/features/tasks-board/`：
   - `TasksBoardView.tsx` — 页面外壳，含 List / Board 视图切换
     （`SegmentedControl`）、活跃列表选择器（自由文本 list id + 来自
-    `reflect_list_teams` 的 team chip）和内联创建表单。
-  - `useTasksBoardController.ts` — `reflect_list_tasks` /
-    `reflect_list_teams` 的 TanStack Query + 四个 mutations（create /
+    `zhuye_list_teams` 的 team chip）和内联创建表单。
+  - `useTasksBoardController.ts` — `zhuye_list_tasks` /
+    `zhuye_list_teams` 的 TanStack Query + 四个 mutations（create /
     claim / advance-status / delete），带 toast + 缓存失效。沿用
     `useMemoryController` 的形状（2026-07-25 重构先例）。
   - `TaskRow.tsx` — 展示性行，含 id / subject / claimer / 状态
@@ -4553,14 +4561,14 @@ ReflectDesktop 实例提供建设基础。
 `@/utils/tauri`）调用。
 
 - **新包装**：
-  - `src/utils/commands/tasks.ts` — `reflect_list_tasks` /
-    `reflect_create_task` / `reflect_get_task` / `reflect_update_task` /
-    `reflect_claim_task` / `reflect_delete_task` + 类型 `ReflectTask`、
-    `ReflectTaskStatus`、`ReflectTaskPatch`、`ReflectTaskUpdateResult`、
-    `ReflectTaskStatusChange`。
-  - `src/utils/commands/teams.ts` — `reflect_list_teams` /
-    `reflect_upsert_team` / `reflect_get_team` / `reflect_delete_team` +
-    类型 `ReflectTeam`、`ReflectTeamMember`。
+  - `src/utils/commands/tasks.ts` — `zhuye_list_tasks` /
+    `zhuye_create_task` / `zhuye_get_task` / `zhuye_update_task` /
+    `zhuye_claim_task` / `zhuye_delete_task` + 类型 `ZhuyeTask`、
+    `ZhuyeTaskStatus`、`ZhuyeTaskPatch`、`ZhuyeTaskUpdateResult`、
+    `ZhuyeTaskStatusChange`。
+  - `src/utils/commands/teams.ts` — `zhuye_list_teams` /
+    `zhuye_upsert_team` / `zhuye_get_team` / `zhuye_delete_team` +
+    类型 `ZhuyeTeam`、`ZhuyeTeamMember`。
 - **类型保真**：`Task` / `TeamFile` / `TeamMemberSpec` 逐字对应
   vendor serde 形状（snake_case，因为 Rust 类型未
   derive `rename_all = "camelCase"`）。只有 `TaskUpdateResult` 信封是
@@ -4586,26 +4594,26 @@ ReflectDesktop 实例提供建设基础。
 10 个命令，让前端可以观察 / 驱动多 agent 协同。
 
 - **依赖**：`src-tauri/Cargo.toml` 新增
-  `reflect-task = { workspace = true }`。存储复用 vendor 默认 home
-  （`~/.reflect/tasks/<list>/`、`~/.reflect/teams/<name>.json`），与
+  `zhuye-task = { workspace = true }`。存储复用 vendor 默认 home
+  （`~/.zhuye/tasks/<list>/`、`~/.zhuye/teams/<name>.json`），与
   TUI/CLI 共享 —— 无新配置项，不改 vendor。
 - **状态注入**：`MinimalAgentInner` 现持有
-  `Arc<reflect_task::TaskManager>`（Phase 0 形态：无 `hook_engine` /
+  `Arc<zhuye_task::TaskManager>`（Phase 0 形态：无 `hook_engine` /
   `event_sink`；它们在前端 UI 订阅任务生命周期事件时落地）。
   新增 facade 访问器 `MinimalAgent::task_manager()`。
 - **命令**（`src-tauri/src/commands/tasks.rs`，注册于
   `src-tauri/src/lib.rs::invoke_handler`）：
-  - Task：`reflect_list_tasks` / `reflect_create_task` / `reflect_get_task` /
-    `reflect_update_task` / `reflect_claim_task` / `reflect_delete_task`。
-  - Team：`reflect_list_teams` / `reflect_upsert_team` / `reflect_get_team` /
-    `reflect_delete_team`。
-- **返回类型整形**：`reflect_update_task` 返回扁平化的
+  - Task：`zhuye_list_tasks` / `zhuye_create_task` / `zhuye_get_task` /
+    `zhuye_update_task` / `zhuye_claim_task` / `zhuye_delete_task`。
+  - Team：`zhuye_list_teams` / `zhuye_upsert_team` / `zhuye_get_team` /
+    `zhuye_delete_team`。
+- **返回类型整形**：`zhuye_update_task` 返回扁平化的
   `TaskUpdateResult { task, updatedFields, statusChange? }` 而非
   vendor `UpdateOutcome`（其 `(TaskStatus, TaskStatus)` 元组对前端
   不友好且类型缺 `Serialize`）。以 camelCase 序列化
   以匹配既有 IPC 约定。
 - **错误映射**：`commands/error.rs` 新增
-  `From<reflect_task::TaskError> for CommandError`；`TaskError` 的
+  `From<zhuye_task::TaskError> for CommandError`；`TaskError` 的
   `thiserror::Display` 确保不丢失
   variant 信息。
 - **测试**：`commands::tasks` 覆盖 task create→get→update→list→claim→
@@ -4661,7 +4669,7 @@ ReflectDesktop 实例提供建设基础。
     `UpdatesSection.tsx`（各自带适用的 `.ssr.test.tsx`）
   - `components/` —— `StructuredField.tsx`、`ComplexEditors.tsx`、`index.ts`
     （共享表单原子 + 复杂区块编辑器）
-  - `config/` —— `schema.ts`（按 `ReflectConfig` 区块的 FieldSpec 目录）、
+  - `config/` —— `schema.ts`（按 `ZhuyeConfig` 区块的 FieldSpec 目录）、
     `toml.ts`（保持未知键完整的纯读/写助手）、`index.ts`
     （barrel）、`toml.test.ts`
 
@@ -4732,12 +4740,12 @@ ReflectDesktop 实例提供建设基础。
   回退）。持久化到 `localStorage` 并在切换时同步到 `<html lang>`。
 
 - 新增持久化的英/简体中文本地化，Settings 中提供语言选择器，覆盖核心 shell、聊天、会话和设置 UI。
-- 用全结构化表单取代仅覆盖 provider 的窄表单，为 `vendor/reflect-config/src/schema.rs` 支持的每个区块渲染直接输入项：`active`、`anthropic`、`openai`、`ollama`、`compact`、`token_budget`、`sandbox`、`routing.{main,compact,subagent}`、`coordinator`、`ask_user_question`、`model`、`analytics`、`notifications`、`postgres_session`、`sse_redis`、`bridge`、`voice`、`dap`、`acp`、`sanitize`、`plugins`、`feature_flags`、`mcp_servers`、`lsp_servers`、`hooks`、`subagent_providers`、`config_version`。每个输入项就地编辑并序列化 TOML；高级 raw TOML 编辑器仍作为兜底出口。
+- 用全结构化表单取代仅覆盖 provider 的窄表单，为 `vendor/zhuye-config/src/schema.rs` 支持的每个区块渲染直接输入项：`active`、`anthropic`、`openai`、`ollama`、`compact`、`token_budget`、`sandbox`、`routing.{main,compact,subagent}`、`coordinator`、`ask_user_question`、`model`、`analytics`、`notifications`、`postgres_session`、`sse_redis`、`bridge`、`voice`、`dap`、`acp`、`sanitize`、`plugins`、`feature_flags`、`mcp_servers`、`lsp_servers`、`hooks`、`subagent_providers`、`config_version`。每个输入项就地编辑并序列化 TOML；高级 raw TOML 编辑器仍作为兜底出口。
 - 会话选择现在会重放所选 rollout、替换过期聊天轮次，并显示本地化的加载、空态、重试和错误状态。通过 request id ref 做竞态保护。
 
 ### 新增
 
-- **外观定制**：Settings → Display 现提供 system/dark/light 主题、自定义强调色、可调表面透明度、持久的本地或 URL 背景图以及背景图强度。外观偏好从既有 `reflect.uiprefs.v1` 数据安全迁移并经共享 design token 应用；开启「减少透明度」时强制不透明表面并隐藏壁纸。
+- **外观定制**：Settings → Display 现提供 system/dark/light 主题、自定义强调色、可调表面透明度、持久的本地或 URL 背景图以及背景图强度。外观偏好从既有 `zhuye.uiprefs.v1` 数据安全迁移并经共享 design token 应用；开启「减少透明度」时强制不透明表面并隐藏壁纸。
 - `ConfigForm` 组件（`src/features/settings/ConfigForm.tsx`）与 `configSchema` 助手（`src/features/settings/configSchema.tsx`）。
 - `src/features/messages/ChatView.test.tsx` 覆盖加载、空态、错误、重试、语言切换和会话清除流程（5 个用例）。
 - 扩展 `SettingsView.test.tsx`，覆盖全部 25+ 个结构化输入和 `configSchema` 助手（5 个新用例）。
@@ -4745,8 +4753,8 @@ ReflectDesktop 实例提供建设基础。
 ### 新增 — Batch 12（原生菜单接线 + 文档打磨）
 
 - **原生菜单基础设施**：`src-tauri/src/menu.rs` 已提供 5 个子菜单
-  （Reflect / Edit / Composer / View / Window），含 12 个带快捷键的菜单项：
-  - Reflect：About / Check for Updates / Settings (Cmd+,) / Quit
+  （ZhuYe / Edit / Composer / View / Window），含 12 个带快捷键的菜单项：
+  - ZhuYe：About / Check for Updates / Settings (Cmd+,) / Quit
   - Edit：Undo / Redo / Cut / Copy / Paste / Select All（Predefined）
   - Composer：Cycle Model (Cmd+M) / Cycle Reasoning (Cmd+R) / New Agent (Cmd+N) / Interrupt (Cmd+.)
   - View：Toggle Sidebar (Cmd+B) / Toggle Terminal (Cmd+T)
@@ -4760,20 +4768,20 @@ ReflectDesktop 实例提供建设基础。
   `bash scripts/install.sh` 的手动更新说明，以及 tauri-plugin-updater 集成备注。
 - **TitleBar ⌘K 提示**：右侧 Search 图标 + "⌘K" 键盘提示（带 tooltip），
   让 CommandPalette 更易被发现。
-- **StatusBar 会话计数**：来自 `reflect_list_sessions` 的 MessagesSquare 图标 + 会话数，
+- **StatusBar 会话计数**：来自 `zhuye_list_sessions` 的 MessagesSquare 图标 + 会话数，
   tooltip 为 "N sessions on disk"。
 - **文档**：changelog.md + protocol-bridge.md + codebase-map.md 更新覆盖
   全部 B1-B12 变更。342/342 测试全部通过；tsc 无错；cargo check 无错。
 
 ### 新增 — Batch 1 (协议层 + app-core 基础)
 
-- **协议类型生成 (B1-01)**:给 `vendor/reflect-protocol` 的 `EventMsg` / `Op` /
+- **协议类型生成 (B1-01)**:给 `vendor/zhuye-protocol` 的 `EventMsg` / `Op` /
   `Submission` / `UserInputItem` / `ContentBlock` / `Question` 等所有
   协议类型加上 `schemars::JsonSchema` derive。重写 `dump_schema` example
   真正从 Rust 导出 2944 行 JSON Schema(33 EventMsg + 15 Op variants +
   所有嵌套 payload)。新增 `scripts/dump-ts-types.sh` + `pnpm run types:gen`。
 
-- **ReflectEvent union 类型 (B1-02)**:用 `EventMsgByType` discriminated
+- **ZhuyeEvent union 类型 (B1-02)**:用 `EventMsgByType` discriminated
   union 重写 `src/types/protocol.ts`,使 `event.msg.type` 收窄 payload 形状。
   涵盖全部 33 个 EventMsg variant + 15 个 Op variant + 完整
   `UserInputItem` / `ContentBlock` / `ReviewDecision` / `AskUserAnswer` 等。
@@ -4798,23 +4806,23 @@ ReflectDesktop 实例提供建设基础。
   单元测试覆盖所有 33 个 EventMsg variant。
 
 - **agentEventBus fan-out 服务 (B1-06)**:新建 `src/services/agentEventBus.ts`
-  —— 单 Tauri `reflect_event` 订阅 + 引用计数 + 消费者错误隔离。`agentStore`
+  —— 单 Tauri `zhuye_event` 订阅 + 引用计数 + 消费者错误隔离。`agentStore`
   改用 bus 而非自开 listener;Inspector / Notifications / DevTools 可
   各自订阅同一事件流。7 个单元测试。
 
 - **后端域管理命令 (B1-07)**:新增 12 个 Tauri 命令 + 状态方法:
-  - `reflect_list_workspaces` / `reflect_set_workspace` / `reflect_current_workspace`(B9-06)
-  - `reflect_list_skills`(B11-06)— 扫描 `~/.reflect/skills/**/SKILL.md` + `<cwd>/.reflect/skills/**/SKILL.md`
-  - `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory`(B11-01)
-  - `reflect_list_hooks` / `reflect_toggle_hook`(B11-02)
+  - `zhuye_list_workspaces` / `zhuye_set_workspace` / `zhuye_current_workspace`(B9-06)
+  - `zhuye_list_skills`(B11-06)— 扫描 `~/.zhuye/skills/**/SKILL.md` + `<cwd>/.zhuye/skills/**/SKILL.md`
+  - `zhuye_list_memory` / `zhuye_add_memory` / `zhuye_remove_memory`(B11-01)
+  - `zhuye_list_hooks` / `zhuye_toggle_hook`(B11-02)
   全部 12 个命令注册到 `src-tauri/src/lib.rs::invoke_handler`;TS 包装
   在 `src/utils/commands.ts`。
 
 ### 验证
 
-- `cargo check -p reflect-protocol` ✓(76 单元测试通过)
+- `cargo check -p zhuye-protocol` ✓(76 单元测试通过)
 - `cargo check src-tauri` ✓
-- `cargo test -p reflect-desktop` ✓(5/5)
+- `cargo test -p zhuye-desktop` ✓(5/5)
 - `pnpm typecheck` ✓(0 errors)
 - `pnpm test` ✓(257/257 通过)
 
@@ -4849,7 +4857,7 @@ ReflectDesktop 实例提供建设基础。
 - **修复**:`AppShell` 改用 `<Outlet />`;同步更新 `AppShell.test.tsx` +
   `app.smoke.test.tsx` 的 Outlet mock,新增回归测试断言 Outlet 内容真的挂载。
 - **StatusBar 模型显示**:之前 store.session 为空时永远显示 "no model",
-  哪怕后端 `reflect_agent_status` 查询返回了真实 model —— 现在按
+  哪怕后端 `zhuye_agent_status` 查询返回了真实 model —— 现在按
   store.session → statusQuery.data.has_model → "no model" 三级 fallback,
   并把 `degraded_reason` 作为 tooltip 暴露。
 - **TitleBar session 文案**:`session: (waiting...)` → `(waiting…)`(排版),
@@ -4878,7 +4886,7 @@ ReflectDesktop 实例提供建设基础。
   overlay;`<600px` Main 占满。
 - **`MessageList` 空态优化**:从裸文字升级为 EmptyState 风格(图标 + 标题 +
   快捷键提示),加 `role="log"` + `aria-live="polite"` + `aria-label="Conversation"`。
-- **`Composer` a11y**:`textarea` 加 `aria-label="Message Reflect"` + `autoFocus`;
+- **`Composer` a11y**:`textarea` 加 `aria-label="Message ZhuYe"` + `autoFocus`;
   toolbar slash 按钮加 `aria-label`。
 - **`Input/Textarea` a11y**:`invalid` 映射 `aria-invalid`。
 - **`AppShell` a11y**:两个 `<aside>` 加 `aria-label="Sessions"|"Inspector"`。
@@ -4938,7 +4946,7 @@ ReflectDesktop 实例提供建设基础。
 ### 新增 — Batch 11（记忆管理视图）
 
 - **MemoryView (B11-01)**: 新 `src/features/memory/MemoryView.tsx`,
-  通过 `reflect_list_memory` / `reflect_add_memory` / `reflect_remove_memory`
+  通过 `zhuye_list_memory` / `zhuye_add_memory` / `zhuye_remove_memory`
   与后端同步持久记忆。
   - Scope 过滤: All / Global / Project / Session 四个 tab,
     实时计数;`filterBar` + `addBtn` 一行完成。
@@ -4967,7 +4975,7 @@ ReflectDesktop 实例提供建设基础。
 - **AppShell ⌘K 集成**: `AppShell.tsx` 添加全局 keydown listener(⌘K / Ctrl+K
   toggle palette, Esc close); `CommandPalette` 挂载在 AppShell 底部。
 - **TitleBar**: 右侧新增 `Search ⌘K` 键盘快捷提示(kbd hint + tooltip)。
-- **StatusBar session count**: 新增 `reflect_list_sessions` 查询,
+- **StatusBar session count**: 新增 `zhuye_list_sessions` 查询,
   在状态栏右侧显示 MessagesSquare 图标 + session 总数,
   带 tooltip(「N sessions on disk」)。
 - **测试**: fuzzy 7 + CommandPalette 6 = 13 个新 vitest。337/337 tests pass;
@@ -4975,11 +4983,11 @@ ReflectDesktop 实例提供建设基础。
 
 ### 新增 — Batch 9（文件树 + 代码编辑器 + 工作区切换器）
 
-- **Backend (B9-01)**:新 `reflect_list_dir(path?, maxDepth=4)` 返回
+- **Backend (B9-01)**:新 `zhuye_list_dir(path?, maxDepth=4)` 返回
   `DirListing { root, entries, truncated }`,跳过 dotfile + node_modules /
   target / dist 等;封顶 2000 entries,按 dir→file,名称排序。`DirEntry`
   含 name/path/kind/size/mtime/depth。
-- **Backend (B9-01)**:新 `reflect_read_file(path)` 返回
+- **Backend (B9-01)**:新 `zhuye_read_file(path)` 返回
   `FileReadResult { path, content, size, binary, truncated }`,1 MiB 上限,
   NUL byte 判 binary(返回空 content),`canonicalize` 后必须仍在 workspace
   下(防 `..` 逃逸)。
@@ -4995,23 +5003,23 @@ ReflectDesktop 实例提供建设基础。
   + 刷新按钮;empty / error / loading 三态;`width="lg"`。
 - **WorkspacesView 升级 (B9-04)**:每个非 active workspace 卡片右侧加
   "Use" 按钮(ghost sm size + ArrowRight 图标),点击调
-  `reflect_set_workspace` 后 invalidate `agent-status` 缓存 + toast 反馈
+  `zhuye_set_workspace` 后 invalidate `agent-status` 缓存 + toast 反馈
   (success / error)。
 - **测试**:FileTree 5 + CodeEditor 5 = 10 个新 vitest。324/324 tests pass;
   tsc clean;cargo check clean。
 
 ### 新增 — Batch 8（Terminal：真实 shell 执行 + 流式输出）
 
-- **Backend (B8-01)**:`reflect_run_shell(cmd) -> ShellSession { id, command, cwd }`
+- **Backend (B8-01)**:`zhuye_run_shell(cmd) -> ShellSession { id, command, cwd }`
   用 `tokio::process::Command` 启动 `/bin/zsh -lc` (macOS) / `/bin/sh -lc`。
   stdout/stderr 各起一个 `BufReader::lines()` 后台任务,通过
-  `app.emit("reflect_terminal_output", ShellOutputChunk)` 流式推给前端;
+  `app.emit("zhuye_terminal_output", ShellOutputChunk)` 流式推给前端;
   主任务 `wait()` 后再 emit 一条 `stream="exit"` 携带退出码。
   进程在 `MinimalAgent` 的 `shell_sessions: HashMap<id, Arc<Mutex<Child>>>`
-  中保留 kill handle。`reflect_kill_shell(id)` 幂等,`start_kill + wait`;
-  `reflect_list_shell_sessions()` 诊断。
-- **Frontend**:新增 `ReflectShellSession` / `ReflectShellOutputChunk` 类型
-  + `reflect_run_shell` / `reflect_kill_shell` / `reflect_list_shell_sessions` /
+  中保留 kill handle。`zhuye_kill_shell(id)` 幂等,`start_kill + wait`;
+  `zhuye_list_shell_sessions()` 诊断。
+- **Frontend**:新增 `ZhuyeShellSession` / `ZhuyeShellOutputChunk` 类型
+  + `zhuye_run_shell` / `zhuye_kill_shell` / `zhuye_list_shell_sessions` /
   `onTerminalOutput` 四个 IPC wrapper。
 - **TerminalView 重写**:多 session tab 流(可点击切换)+ 行级流式渲染
   (`stdout`/`stderr`/`exit`/`error`/`info`/`input` 不同色)+ Kill 按钮
@@ -5037,7 +5045,7 @@ ReflectDesktop 实例提供建设基础。
   - `ModalShell`:header(title + close IconButton)+ body + footer(Deny/Approve for session/
     Approve 三按钮层级),backdrop blur,z-modal。
   - 4 个 modal(Approval/Question/AskUser/PlanReady)全部消费 token + CSS Modules。
-- **品牌**:`index.html` title 改为 "Reflect Desktop"。
+- **品牌**:`index.html` title 改为 "ZhuYe Desktop"。
 - **审计**:全 23 个 view 文件(19 路由 + Chat 三件套 + DesignSystem)100% CSS Modules 覆盖;
   view 层 inline style 硬编码颜色彻底清零(仅 Spinner 的动态 size prop 保留);
   emoji 图标全部替换为 lucide-react;M1.x scaffold 字样全部移除。
@@ -5139,30 +5147,30 @@ ReflectDesktop 实例提供建设基础。
 - **CI workflow `.github/workflows/release.yml`(备用)**:`push tag v*` 触发,
   三平台并行构建(macos-14/macos-13/ubuntu-22.04/windows-latest),自动上传
   artifacts 到 workflow run + tag release。日常 push 不触发。本地构建不依赖它。
-- **`tauri.conf.json` 平台专属字段补全**:修正 `homepage` 指向 ReflectDesktop 仓库;
+- **`tauri.conf.json` 平台专属字段补全**:修正 `homepage` 指向 ZhuYe-Desktop 仓库;
   新增 `copyright`;`macOS.minimumSystemVersion = "11.0"`;`windows.webviewInstallMode =
   downloadBootstrapper`(用户无 WebView2 时自动下载);`linux.deb.depends` 对齐
   README 文档化的 webkit2gtk-4.1 / libayatana-appindicator3 / librsvg2 依赖。
 
 ### 新增
 - **真实 agent 集成(阶段 1)**:`MinimalAgent` 不再用空 `ModelRegistry` +
-  `EchoTool` stub。现在经 `reflect_config::load_default()` 读 `~/.reflect/config.toml`
+  `EchoTool` stub。现在经 `zhuye_config::load_default()` 读 `~/.zhuye/config.toml`
   + 环境变量(`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OLLAMA_HOST` /
-  `REFLECT_PROVIDER` / `REFLECT_MODEL`),`cfg.to_registry()` 构建真实 provider pool,
-  注册 16 个 reflect-tools 内置工具(Bash/Read/Write/Edit/Delete/Grep/Glob/
+  `ZHUYE_PROVIDER` / `ZHUYE_MODEL`),`cfg.to_registry()` 构建真实 provider pool,
+  注册 16 个 zhuye-tools 内置工具(Bash/Read/Write/Edit/Delete/Grep/Glob/
   NotebookEdit/EnterPlanMode/ExitPlanMode/EnterWorktree/ExitWorktree/WebFetch/
   WebSearch/ToolSearch/Echo)。
 - **降级策略**:开发环境无 API key 时 fallback 到空 registry + EchoTool + warn,
-  `pnpm tauri dev` 永远能起;新增 `reflect_agent_status` 命令暴露
+  `pnpm tauri dev` 永远能起;新增 `zhuye_agent_status` 命令暴露
   `{ready, has_model, model, workspace, degraded_reason}` 供前端显示状态徽标。
-- **12 个 Op 命令实装(阶段 2)**:`reflect_compact` / `reflect_rewind` /
-  `reflect_shutdown` / `reflect_tool_approval` / `reflect_hook_approval` /
-  `reflect_plan_approval` / `reflect_enter_plan_mode` / `reflect_exit_plan_mode` /
-  `reflect_set_effort` / `reflect_set_permission_mode` / `reflect_cycle_permission_mode` /
-  `reflect_ask_user_question_response` / `reflect_ask_user_input_response` 不再是
+- **12 个 Op 命令实装(阶段 2)**:`zhuye_compact` / `zhuye_rewind` /
+  `zhuye_shutdown` / `zhuye_tool_approval` / `zhuye_hook_approval` /
+  `zhuye_plan_approval` / `zhuye_enter_plan_mode` / `zhuye_exit_plan_mode` /
+  `zhuye_set_effort` / `zhuye_set_permission_mode` / `zhuye_cycle_permission_mode` /
+  `zhuye_ask_user_question_response` / `zhuye_ask_user_input_response` 不再是
   空 `Ok(())`,改为构造对应 `Op` 经 `MinimalAgent::submit_op` 真正驱动 AgentThread。
-- **新增命令**:`reflect_agent_status` / `reflect_get_config` / `reflect_save_config` /
-  `reflect_list_tools`(诊断 + 配置持久化 + 工具列表)。
+- **新增命令**:`zhuye_agent_status` / `zhuye_get_config` / `zhuye_save_config` /
+  `zhuye_list_tools`(诊断 + 配置持久化 + 工具列表)。
 - **Zustand agent store(阶段 3a)**:`src/stores/agentStore.ts` 单 store + 单次事件订阅,
   修复 M1.x 各组件持独立 turns 副本的结构 bug;`Turn` 模型从 `{user,reply,done}`
   升级为 `{id,items,status}`,`TurnItem` 覆盖完整 33 种 `EventMsg`(user_text /
@@ -5171,24 +5179,24 @@ ReflectDesktop 实例提供建设基础。
   可折叠(参数 + 输出 + 状态徽标)、thinking 可折叠、错误红框、compacted 提示。
 - **真 modals(阶段 3c)**:`ModalStack` 从 store 的 pending 队列渲染 ApprovalModal /
   QuestionModal / AskUserModal / PlanReadyModal,提交调 store action。
-- **MCP / LSP 运行时接入(阶段 3d)**:vendor `reflect-mcp` + `reflect-lsp` crate;
+- **MCP / LSP 运行时接入(阶段 3d)**:vendor `zhuye-mcp` + `zhuye-lsp` crate;
   `src-tauri/src/mcp.rs` 经 `McpConnectionManager` / `LspConnectionManager` 启动
   `[mcp_servers.*]` / `[lsp_servers.*]` 配置的 server,MCP 工具 `register_if_absent`
   到 ToolRegistry,LSP 单例 `LspTool`;lifecycle event 经 session broadcast 推前端。
-- **Settings 真持久化(阶段 4)**:SettingsView 经 `reflect_get_config` /
-  `reflect_save_config` 读写 `~/.reflect/config.toml`;结构化 API key / provider /
+- **Settings 真持久化(阶段 4)**:SettingsView 经 `zhuye_get_config` /
+  `zhuye_save_config` 读写 `~/.zhuye/config.toml`;结构化 API key / provider /
   model 编辑 + 高级 raw TOML 编辑器(MCP/LSP/sanitize);ModelsView 从真实
   `agent_status` 读当前 model。
 - **STUB view 真实化(阶段 5)**:Skills/Notifications/Collaboration 接 store 真实数据;
   Workspaces 从 sessions 聚合;Prompts/Files/Git/Terminal 改为"发送到对话"快捷面板;
   About/Update 用真实 `ping` + `agent_status`。
 - **Docs**: `docs/codebase-map.md` — 任务导向导航。
-- **Docs**: `docs/protocol-bridge.md` — Tauri ↔ reflect-protocol 信封规范。
+- **Docs**: `docs/protocol-bridge.md` — Tauri ↔ zhuye-protocol 信封规范。
 
 ### 变更
 - `ReviewDecision` TS 类型对齐 Rust `#[serde(rename_all = "snake_case")]`:
   从 `'approve'|'deny'|'abort'` 改为 `'approve'|'approve_for_session'|{deny:{reason}}`。
-- `reflect_*` Op 命令返回类型从 `void` 改为 `string`(submission id,供 pairing)。
+- `zhuye_*` Op 命令返回类型从 `void` 改为 `string`(submission id,供 pairing)。
 - `services/agent.ts` 改为 `stores/agentStore.ts` 的兼容 re-export 层。
 
 ### 移除
@@ -5214,15 +5222,15 @@ ReflectDesktop 实例提供建设基础。
 首个可对外发布的里程碑。应用可启动，三栏布局正常渲染，会话列表可用，Tauri 命令桥往返打通。
 
 ### 新增
-- **M1.1 脚手架** (commit `2c73335`): Tauri 2 + React 19 + Vite + TS 工作区；`reflect-desktop` 二进制名；5 个图标；capabilities。
-- **M1.2 协议桥** (M1.2): 14 个 Tauri 命令 + 1 个推送事件（`reflect_event`）；`forward_agent_events` 循环；4/4 E2E 测试。
+- **M1.1 脚手架** (commit `2c73335`): Tauri 2 + React 19 + Vite + TS 工作区；`zhuye-desktop` 二进制名；5 个图标；capabilities。
+- **M1.2 协议桥** (M1.2): 14 个 Tauri 命令 + 1 个推送事件（`zhuye_event`）；`forward_agent_events` 循环；4/4 E2E 测试。
 - **M1.3 三栏布局** (M1.3): 左侧栏 + 聊天 + 右侧面板 + 底部状态栏；会话列表占位。
 - **M1.4 聊天渲染** (M1.4): `MessageList`、`MessageRow`、`Composer` —— 流式 / Markdown / 工具行的占位实现。
 - **M1.5 Composer + Slash 弹层** (M1.5): `/` 弹层、`slashCommands.ts` 目录。
 - **M1.6 Modal 套件** (M1.6): `ModalShell` + `index.tsx`，覆盖 approval / question / plan / ask_user。
 - **M1.7 状态栏 + 设置** (M1.7): 顶部 + 底部栏；`SettingsView` 骨架，含 Display/Editor/Provider 区块。
 - **M1.8 打磨** (M1.8): macOS overlay 标题栏（`titleBarStyle: "Overlay"`）、`macOSPrivateApi: true`、USER_GUIDE。
-- **M2.x 真实后端** (commit `65bff4b`): `MinimalAgent` 换成真实 `reflect_core::AgentThread`（M2.x = stub 模型 + `EchoTool`；无网络依赖）。会话事件经 `tokio::sync::broadcast` 广播（fan-out）。
+- **M2.x 真实后端** (commit `65bff4b`): `MinimalAgent` 换成真实 `zhuye_core::AgentThread`（M2.x = stub 模型 + `EchoTool`；无网络依赖）。会话事件经 `tokio::sync::broadcast` 广播（fan-out）。
 - **4 项产品联动**: `tray.rs`、`menu.rs`、`shortcut.rs`、`dock.rs`（macOS 关闭到托盘）。
 - **路由** (commit `29044a4`): TanStack Router v1 + TanStack Query v5。
 - **B1..B6 功能切片** (commits `d7ddb03`, `1dee7c1`, `3a85fce`, `76d7717`): Home / Threads / Models / Settings / Files / Git / Skills / Workspaces / Plan / Prompts / Notifications / Terminal 视图全部渲染。
@@ -5230,7 +5238,7 @@ ReflectDesktop 实例提供建设基础。
 
 ### 说明
 - M2.x 后端有意保持 **stub**（单个 `EchoTool`、空 `ModelRegistry`）。网络 LLM 客户端和其余 21 个内置工具在 M3.x 落地。
-- `reflect_delete_session` 返回 `delete not implemented in M1; use archive in M2.4`，以防误删数据。
+- `zhuye_delete_session` 返回 `delete not implemented in M1; use archive in M2.4`，以防误删数据。
 - 所有事件在线上使用 `snake_case` 判别符（`#[serde(tag = "type", rename_all = "snake_case")]`）；Rust 的 `PascalCase` 结构体 variant 是内部细节。
 
 ---

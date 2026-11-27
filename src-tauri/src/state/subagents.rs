@@ -75,7 +75,7 @@ pub(crate) fn bootstrap_subagents(
     parent_recorder: Option<Arc<dyn zhuye_protocol::RolloutRecorder>>,
     m4: &M4Deps,
     tools: &Arc<ToolRegistry>,
-    cfg: &zhuye_config::ReflectConfig,
+    cfg: &zhuye_config::ZhuyeConfig,
 ) -> Arc<SubAgentFactory> {
     // v1.x 功能 1:从 `[subagent_providers]` 段构建独立 child registry,
     // 让 subagent 用独立的 base_url + api_key + model。`None` = 父子共享。

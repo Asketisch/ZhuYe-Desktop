@@ -1,6 +1,6 @@
 # ZhuYe Agent Submodule 复用指南
 
-本仓库(烛夜桌面端 ZhuYe)通过 **git submodule** 复用烛夜上游仓库（[ZhuYe](https://github.com/Asketisch/ZhuYe)，原名 Reflect-Agent）的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
+本仓库(烛夜桌面端 ZhuYe)通过 **git submodule** 复用烛夜上游仓库（[ZhuYe](https://github.com/Asketisch/ZhuYe)）的核心 crate。本文件取代旧的 `vendor-sync.sh` 手动同步流程。
 
 > 历史:本仓库之前用 `vendor/` 目录 + `scripts/vendor-sync.sh`(rsync 手动同步 21 个 crate)。该方式无版本指针、同步易漂移,已于本次重构迁移为 git submodule。
 
@@ -9,27 +9,27 @@
 ```
 ZhuYe Desktop (本仓库,workspace 消费端)
   ├─ app-core/        (Desktop 自有:UI 无关领域服务层,activity / kms / media / squad / side-channel / tailscale / autopilot)
-  ├─ src-tauri/       (Tauri 后端,嵌入 reflect_core::AgentThread)
+  ├─ src-tauri/       (Tauri 后端,嵌入 zhuye_core::AgentThread)
   └─ zhuye-agent/   (submodule → ZhuYe 仓库)
        └─ crates/{protocol,abilities,resources,orchestration,integrations,runtime}/zhuye-*
 ```
 
-**关键约束**:Cargo 不支持嵌套 workspace。本仓库**不**把核心 crate 列入 `workspace.members`,而是用 `path` 依赖引用(`reflect-core = { package = "zhuye-core", path = "zhuye-agent/crates/runtime/zhuye-core" }`)。
+**关键约束**:Cargo 不支持嵌套 workspace。本仓库**不**把核心 crate 列入 `workspace.members`,而是用 `path` 依赖引用(`zhuye-core = { path = "zhuye-agent/crates/runtime/zhuye-core" }`)。
 
 ⚠️ 核心 crate 用 `workspace = true` 继承依赖,会解析到**本仓库**根 `workspace.dependencies`。因此 `[workspace.dependencies]` 必须完整声明核心 crate 引用的全部 zhuye-* 与外部依赖。
 
-桌面端用 Cargo 包别名保留 `reflect_*` Rust 导入；**数据目录以 submodule 为准**：用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`。没有兼容 feature，也不改环境变量。
+桌面端以 `zhuye_*` 直接导入上游 crate；**数据目录以 submodule 为准**：用户级 `$ZHUYE_HOME` > `$HOME/.zhuye`，工作区级 `<workspace>/.zhuye/`。没有兼容 feature，也不改环境变量。
 
-`reflect_config::paths`（submodule）是这条解析规则的唯一入口（`user_data_dir` / `user_data_path` / `project_data_dir`）。桌面自有状态文件必须经它取路径,不要再自拼目录名,否则 GUI 与 agent 会各自读写一套数据。
+`zhuye_config::paths`（submodule）是这条解析规则的唯一入口（`user_data_dir` / `user_data_path` / `project_data_dir`）。桌面自有状态文件必须经它取路径,不要再自拼目录名,否则 GUI 与 agent 会各自读写一套数据。
 
-一处例外：会话 rollout 树走 `reflect_rollout::path::default_base()`，它只认 `$HOME`（不读 `ZHUYE_HOME`）。因此**必须与 sessions 同树**的目录（归档 `sessions-archive`）从它的父目录派生，而不是走 `user_data_dir()`——设置了 `ZHUYE_HOME` 时两者不同根，归档会找不到会话。
+一处例外：会话 rollout 树走 `zhuye_rollout::path::default_base()`，它只认 `$HOME`（不读 `ZHUYE_HOME`）。因此**必须与 sessions 同树**的目录（归档 `sessions-archive`）从它的父目录派生，而不是走 `user_data_dir()`——设置了 `ZHUYE_HOME` 时两者不同根，归档会找不到会话。
 
 ## 日常操作
 
 ### 克隆(带 submodule)
 
 ```bash
-git clone --recursive https://github.com/Asketisch/ReflectDesktop.git
+git clone --recursive https://github.com/Asketisch/ZhuYe-Desktop.git
 ```
 
 ### 已克隆仓库初始化
@@ -54,7 +54,7 @@ git commit -m "chore: bump zhuye-agent submodule"
 cd ../ZhuYe
 # ... 改代码 ...
 git push
-cd ../ReflectDesktop
+cd ../ZhuYe-Desktop
 git submodule update --remote zhuye-agent
 ```
 

@@ -25,9 +25,9 @@ pub struct UpdateInfo {
     pub error: Option<String>,
 }
 
-/// Default release manifest endpoint. 可通过 env `REFLECT_UPDATE_URL` 覆盖。
+/// Default release manifest endpoint. 可通过 env `ZHUYE_UPDATE_URL` 覆盖。
 const DEFAULT_UPDATE_URL: &str =
-    "https://api.github.com/repos/Asketisch/ReflectDesktop/releases/latest";
+    "https://api.github.com/repos/Asketisch/ZhuYe-Desktop/releases/latest";
 /// Release manifest 的响应体上限；GitHub release 说明可能很长，但
 /// 16 MiB 已远超正常 JSON，防止错误更新源占用无界内存。
 const UPDATE_RESPONSE_MAX: u64 = 16 * 1024 * 1024;
@@ -38,8 +38,7 @@ pub async fn zhuye_check_update() -> CommandResult<UpdateInfo> {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs() as i64);
     let current = env!("CARGO_PKG_VERSION").to_string();
-    let url =
-        std::env::var("REFLECT_UPDATE_URL").unwrap_or_else(|_| DEFAULT_UPDATE_URL.to_string());
+    let url = std::env::var("ZHUYE_UPDATE_URL").unwrap_or_else(|_| DEFAULT_UPDATE_URL.to_string());
 
     // 离线失败时不破坏 UI —— 返回 Ok(没有 update),附 error 给 toast 看。
     match probe_release(&url).await {
