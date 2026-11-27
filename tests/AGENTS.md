@@ -16,7 +16,7 @@
 | `backend/` | L3 真后端：cargo fmt / clippy / test（+ 可选 llvm-cov 行覆盖报告，重建树落 `target/llvm-cov-target/`，报告型无门槛，可经 `scripts/gc.sh` 回收） |
 | `artifact/` | L4 发布产物：.app / .deb / .AppImage / .msi 解包深度校验 + `stage.sh` |
 | `e2e/` | L5：WebDriver 真窗口冒烟 + 视觉回归（`run_visual()` 在此层内执行） |
-| `visual/` | 视觉回归 spec + `shims/` + `__baselines__/{linux,macos,windows}/` |
+| `visual/` | 视觉回归 spec + `shims/`（基线目录 `__baselines__/{linux,macos,windows}/` 已清空，见下方「像素判定当前关闭」） |
 | `live/` | L6 实模型演练（默认跳过）：`run.sh` 走桌面 IPC 链路 × 免费模型池。CLI headless 链路（`zhuye serve`）的**场景套件**（31 个场景：plan / goal / compact / cache / interact / session / ext / guard）**在上游**：`zhuye-agent/tests/live/cli_e2e.sh`（**本地专用，不进 CI**；配置模板 `cli_e2e.example.toml` + gitignore 的本地 `cli_e2e.toml`，直接对上游仓库运行，`ZHUYE_E2E_BIN` 可指桌面构建的二进制验 pin 态；`ZHUYE_E2E_MOCK=1` 为内置 mock provider 的离线自检模式） |
 | tests 根 `*.test.ts(x)` | 19 个应用级用例（分类见下表） |
 | `helpers/` | `fakeBackend.ts` / `appHarness.tsx` / `routeMatrix.ts` |
@@ -52,7 +52,7 @@
 - Shell 用例一律 source `lib.sh`，用 `tcase` / `tcase_log` / `tfinish` / `assert_*` 助手；mktemp HOME 隔离，不污染真实 `~/.zhuye`。
 - `helpers/fakeBackend.ts` 依赖 `../src/test/setup.tsx` 的 `mockInvoke` / `emitMockEvent`——改 IPC mock 面时两处联动。
 - `contracts/` 四份 JSON 是线格式契约证据，协议变更须同步更新（上游规范见 `../docs/protocol-bridge.md`）。
-- **视觉基线按平台三份**（linux / macos / windows），重写必须 `VISUAL_UPDATE=1` 显式声明；路由矩阵以 `helpers/routeMatrix.ts` 的 `ROUTES` 表为唯一源，新增路由三处（行为 / axe / 视觉）自动跟进。
+- **视觉基线按平台三份**（linux / macos / windows），重写必须 `VISUAL_UPDATE=1` 显式声明；路由矩阵以 `helpers/routeMatrix.ts` 的 `ROUTES` 表为唯一源，新增路由三处（行为 / axe / 视觉）自动跟进。**基线目录已于 2026-11 清空**（判定关闭期间基线无消费方，残留 254 张过时图徒占 15MB，含 `/import`、`settings-modal` 等已删路由/面的陈旧残留；旧图从 git 历史检出）。目录为空或不存在时 spec 自动进入首跑写入模式 —— 恢复判定时按下方「同平台生成」流程重建三平台并人工审查入库。
 - **⚠️ 像素判定当前关闭**：`visual/visual.spec.ts` 的 `VISUAL_DIFF_DETECTION = false` —— v3 harness 界面高频改版，逐像素判定带来的基线重生成 churn 大于收益。现行行为：**只出图、不判定**（截图写 `.test-results/visual-current/` 供人工翻看，基线保持原样、绝不被悄悄覆盖；缺基线/陈旧基线也不点名）。界面稳定后把开关改回 `true` 即恢复判定，基线用 `VISUAL_UPDATE=1` 重生成。
 - **会话侧栏交互实浏览器断言**：`visual/visual.spec.ts` 检查菜单锚点与视口边界、工作区折叠、单击主题切换及跟随系统变化，附菜单截图供人工审查。
 - **交互面（弹窗）也要进视觉门禁**：`visual/visual.spec.ts` 的 `SURFACES` 表登记「非路由的可见界面」（v3 起：设置弹窗）。路由矩阵只覆盖「一页一面」，弹窗对门禁隐形 —— 设置弹窗曾整页空白而路由基线张张正常。基线集合完整性校验的口径是「路由矩阵 + 交互面」× 双主题**恰好相等**。

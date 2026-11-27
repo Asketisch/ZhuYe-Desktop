@@ -38,7 +38,7 @@
    1. 建 `src/features/<族>/<slice>/` 绑定壳 + `src/render/<族>/<domain>/` 视图 + `src/logic/<族>/<slice>/` 控制器（测试随真身同目录；族 = conversation/input/harness/workbench/orchestration/telemetry/knowledge/connect/pages，与 render/logic/contracts 三层同构，见各层 AGENTS.md）；
    2. `src/router.tsx` 三处接线：import 视图 → `new Route(` → 挂入 `rootRoute.addChildren([...])`；
    3. `src/utils/i18n/strings/<domain>.ts` 新建文案模块并在 `utils/i18n/strings/index.ts` import + merge（挂载机制见 [utils/AGENTS.md](../utils/AGENTS.md)）；
-   4. 视觉基线：`tests/visual/__baselines__/{linux,macos,windows}/` 补 `<route>--{dark,light}.png`（路由 × 双主题，数量以基线目录为准）；
+   4. 视觉基线：判定开启时在 `tests/visual/__baselines__/{linux,macos,windows}/` 补 `<route>--{dark,light}.png`（路由 × 双主题）；**当前判定关闭、基线目录已清空**（v3 改版期），新路由暂不补基线，恢复判定时随三平台重生成一并补齐；
    5. 带测试——`tests/views.untested-slices.test.tsx` 为零就地测试视图（about/apps/debug/dictation/home/mobile/models/prompts/skills）提供行为级兜底，新切片不要进这份清单。
 3. **同名 Composer 分叉澄清**：`features/input/composer/Composer.tsx` 是编辑器运行时规范实现；`features/conversation/messages/Composer.tsx` 是一行薄 re-export（`export { Composer } from '@/features/input/composer/Composer'`）。二者同名不同物，改编辑器行为只动前者。
 4. **既有切片 README**：sessions / design-system / threads 三 slices 自带 README，进这些切片先读（链接见文末）；其余切片以本篇与根 AGENTS.md 为准。

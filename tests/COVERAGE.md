@@ -100,7 +100,7 @@ L6 与 submodule 的 `zhuye-agent/tests/live/` 同口径：默认 SKIP（不进 
 | **宿主壳层(菜单)** | 自定义菜单 id ↔ 常量表 ↔ 事件分支对齐;每个发事件的 id 逐个驱动,恰好发出对应 `menu-*` 事件 | `menu.rs` 内嵌单测(mock runtime) | — |
 | **视图渲染错误边界** | 视图 render 抛错 → 回退 + 壳层存活 / Retry 恢复 / 切路由复位(此前整树白屏) | — | `errors.boundary` |
 | **产物深度(Linux/Windows)** | .deb 解包(usr/bin 可执行 + .desktop(Exec) + 图标 + control 版本) / .AppImage(AppRun + .desktop) / .msi 管理映像(exe + ProductVersion) / 启动冒烟(CI 门控) | L4 `artifact/run.sh` | — |
-| **视觉回归** | 路由矩阵 + 交互面(设置弹窗)× dark/light 截图产出（像素比对**当前关闭**：`VISUAL_DIFF_DETECTION = false`，只出图不判定，截图落 `.test-results/visual-current/`）；比较器自测覆盖编码、尺寸和像素差异；真实浏览器断言侧栏菜单锚定、分组折叠、单击主题切换与系统主题变化；真实前端 + `fakeBackend` 浏览器态构建；构建入口必须引 `harness.css`（否则拍到无壳层样式的页面） | L5 `visual/visual.spec.ts` + `visual/png-compare.spec.ts` | — |
+| **视觉回归** | 路由矩阵 + 交互面(设置弹窗)× dark/light 截图产出（像素比对**当前关闭**：`VISUAL_DIFF_DETECTION = false`，只出图不判定，截图落 `.test-results/visual-current/`；基线目录已清空，恢复判定时重生成）；比较器自测覆盖编码、尺寸和像素差异；真实浏览器断言侧栏菜单锚定、分组折叠、单击主题切换与系统主题变化；真实前端 + `fakeBackend` 浏览器态构建；构建入口必须引 `harness.css`（否则拍到无壳层样式的页面） | L5 `visual/visual.spec.ts` + `visual/png-compare.spec.ts` | — |
 | **真窗口 E2E** | 聊天和工具审批回路、批准后沙箱写盘、流中中断与后续消息恢复、两条会话侧栏往返切换与历史隔离、Goal 控制器挂载/清除、压缩请求回执、终端 stdout/退出码/终止、文件编辑回读、任务创建推进与切页回读、导航浮层、路由矩阵和错误边界 | L5 `e2e/window.smoke.test.ts` + `e2e/mock-provider.mjs`（`tauri-driver` + WebKitWebDriver + Xvfb） | — |
 | **实模型全链路** | 有**真模型**的完整一轮:`zhuye_submit` → AgentThread → 真 provider(免费模型池)→ 真 SSE → `zhuye_event` 通道。断言:model spec 解析成真实 id(非占位串)、turn 有终态、usage 字段齐全、工具调用成对。**不断言回答文本** | L6 `ipc_live_free_model.rs`(默认 SKIP,`ZHUYE_LIVE=1` 开启) | — |
 | **模型发现(清单实时拉取)** | `model = "free"` → 运行时查 provider 清单 → 按免费规则挑一个 → 写进运行时配置;失败**如实上报**(不回落占位串) | L6 `ipc_live_free_model.rs`(随实模型层跑) | — |

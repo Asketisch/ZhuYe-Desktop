@@ -82,17 +82,17 @@ E2E_SKIP_WINDOW=1 bash tests/run_all.sh e2e  # 强制跳过窗口冒烟
   构建浏览器态前端 —— `vite.config.visual.ts` 用 `resolve.alias` 把
   `@tauri-apps/api/{core,event}` 与 `@/test/setup` 指到 `tests/visual/shims/`
   （复刻 `setup.tsx` 的 mockInvoke 注册表语义，fakeBackend 在浏览器闭环，
-  生产代码零改动）。Playwright 对 38 条路由 × dark/light 截图，与
-  `tests/visual/__baselines__/<platform>/` 的解码像素带容差比对（单通道 ±2 吸收字体反锯齿抖动，不同像素占比 ≤0.05% 视为一致；真实回归为十万像素级，仍硬失败）。确定性由三件套保证：
+  生产代码零改动）。Playwright 对「路由矩阵 + 交互面」× dark/light 截图；
+  判定开启时与 `tests/visual/__baselines__/<platform>/` 的解码像素带容差比对（单通道 ±2 吸收字体反锯齿抖动，不同像素占比 ≤0.05% 视为一致；真实回归为十万像素级，仍硬失败），本地缺基线时可生成，严格环境缺基线判失败。确定性由三件套保证：
   `addInitScript` 冻结 `Date`（fakeBackend 时间戳相对 `Date.now` 播种）、
   `reducedMotion: 'reduce'` + 注入 CSS 关闭动画/过渡/光标、
-  `document.fonts.ready` 等待字体。本地缺基线时可生成，门禁标记为跳过；
-  严格环境缺基线判失败。显式重生成也不算完成基线比对。
+  `document.fonts.ready` 等待字体。
   **⚠️ 像素判定当前关闭**（`visual.spec.ts` 的 `VISUAL_DIFF_DETECTION =
   false`）：v3 harness 界面高频改版，逐像素判定的重生成 churn 大于收益。
   现行行为是**只出图、不判定** —— 截图写 `.test-results/visual-current/`
-  供人工翻看，基线保持原样，缺基线/陈旧基线不再点名失败；界面稳定后把
-  开关改回 `true` 即恢复判定。
+  供人工翻看，缺基线/陈旧基线不再点名失败；基线目录已随之清空（2026-11，
+  残留基线内容过时且无消费方，旧图从 git 历史检出）。界面稳定后把开关改回
+  `true`，按「基线与消费它的 CI job 同平台生成」流程重建三平台基线。
 - **真窗口冒烟**（`window.smoke.test.ts` + `macos_window_smoke.sh`，应用在隔离工作区启动）：Linux
   用 `tauri-driver` + `webkit2gtk-driver`（`xvfb-run` 下），Windows 用
   `tauri-driver` + `msedgedriver`；macOS 无 WKWebView WebDriver，改用
@@ -351,8 +351,7 @@ tests/
 ├── visual/                                 # 视觉回归（L5 的视觉半边）
 │   ├── run.sh 所用的 spec：visual.spec.ts / vitest.config.ts
 │   ├── main.tsx / index.html               # 浏览器态入口（生产 main.tsx + visual globals）
-│   ├── shims/                              # alias shim：@tauri-apps/api + @/test/setup 浏览器替身
-│   └── __baselines__/                      # 截图基线（38 路由 × dark/light，人工审查入库）
+│   └── shims/                              # alias shim：@tauri-apps/api + @/test/setup 浏览器替身（基线目录已清空，恢复判定时重建）
 ├── helpers/                                # ↓ vitest 侧（应用级套件）
 │   ├── fakeBackend.ts                      # 全命令模拟后端 + ScriptedAgent 事件编排
 │   ├── appHarness.tsx                      # 真实应用挂载（renderApp / renderView）

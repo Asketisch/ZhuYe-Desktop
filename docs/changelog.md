@@ -4,6 +4,13 @@
 
 ## 未发布
 
+- **清空视觉基线目录 `tests/visual/__baselines__/`（254 张 / 15MB 出库）**：像素判定关闭
+  （`VISUAL_DIFF_DETECTION = false`）后基线无消费方，残留基线双重过时 —— `/import` 路由与
+  `settings-modal` 旧面已不存在（陈旧残留），其余内容停留在 2026-11-20 的界面，settings 14 个
+  分区面基线从未入库。判定恢复时按既有流程重建：本机 `VISUAL_UPDATE=1` 出 macos +
+  `visual-baselines` workflow 出 linux/windows；`__baselines__/<platform>/` 为空即首跑写入模式，
+  spec 无需改动；旧图可从 git 历史检出。`tests/AGENTS.md` / `tests/README.md` /
+  `tests/COVERAGE.md` / `src/features/AGENTS.md` 基线表述同步。
 - **旧品牌残留全量清除**：文档（README 双语 / SUBMODULE / SECURITY / 文档站）、
   注释、品牌资产（占位图 / CNAME / npm 包名）与仓库 URL（`Asketisch/ZhuYe-Desktop`）
   统一到 zhuye；环境变量与测试探针前缀统一为 `ZHUYE_*`（更新检查
