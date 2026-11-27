@@ -13,7 +13,7 @@
     optional = (binary == "ipc_live_capabilities" && name == "live_capability_matrix") ||
         (binary == "ipc_live_free_model" && name == "live_free_model_practice") ||
         (binary == "zhuye_desktop_lib" && name == "browser_backend::page::tests::chrome_streams_frames_after_navigation") ||
-        (binary == "zhuye_tools" && (name == "builtins::web_fetch::tests::fetches_html_and_returns_markdown" || name == "builtins::web_search::tests::real_brave_search"))
+        (binary == "zhuye_tools" && (name == "builtins::web::web_fetch::tests::fetches_html_and_returns_markdown" || name == "builtins::web::web_search::tests::real_brave_search"))
     if (optional) printf "INFO\t可选外网演练(%s)\t%s\n", name, binary
     else printf "SKIP\tRust 忽略的测试(%s)\t%s: %s\n", name, binary, line
 }
