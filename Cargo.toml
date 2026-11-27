@@ -167,7 +167,7 @@ sled               = "0.34"
 rusqlite           = { version = "0.41", features = ["bundled"] }
 # zhuye-secrets:HKDF-SHA256 每条目派生(per-entry salt),getrandom 由 aes-gcm
 # 默认 feature 提供(Nonce/Key 生成用 OsRng)。
-sha2               = "0.10"
+sha2               = "0.11"
 aes-gcm            = "0.10"
 hkdf               = "0.12"
 # v1.x WASM 插件宿主(zhuye-wasm,组件模型):features 裁剪只留运行时 +
