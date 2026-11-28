@@ -17,7 +17,7 @@
 | `artifact/` | L4 发布产物：.app / .deb / .AppImage / .msi 解包深度校验 + `stage.sh` |
 | `e2e/` | L5：WebDriver 真窗口冒烟 + 视觉回归（`run_visual()` 在此层内执行） |
 | `visual/` | 视觉回归 spec + `shims/`（基线目录 `__baselines__/{linux,macos,windows}/` 已清空，见下方「像素判定当前关闭」） |
-| `live/` | L6 实模型演练（默认跳过）：`run.sh` 走桌面 IPC 链路 × 免费模型池。CLI headless 链路（`zhuye serve`）的**场景套件**（31 个场景：plan / goal / compact / cache / interact / session / ext / guard）**在上游**：`zhuye-agent/tests/live/cli_e2e.sh`（**本地专用，不进 CI**；配置模板 `cli_e2e.example.toml` + gitignore 的本地 `cli_e2e.toml`，直接对上游仓库运行，`ZHUYE_E2E_BIN` 可指桌面构建的二进制验 pin 态；`ZHUYE_E2E_MOCK=1` 为内置 mock provider 的离线自检模式） |
+| `live/` | L6 实模型演练（默认跳过）：`run.sh` 走桌面 IPC 链路 × 免费模型池；`desktop_e2e.sh` 走**桌面 IPC 链路 × 上游 `cli_e2e.toml` 的 `[task]` 全任务**（plan → auto_mode 批准 → 开发 → continue_prompt 收尾 → 验收产物与沙箱内 git 提交；本体 `ipc_live_cli_e2e.rs`，配置查找 `ZHUYE_E2E_TOML` → 上游工作检出 → submodule 镜像，字段级 `ZHUYE_E2E_*` 覆盖；**本地专用，不进 CI**——真模型依赖本机可达端点，与上游 cli_e2e.sh 互补）。CLI headless 链路（`zhuye serve`）的**场景套件**（31 个场景：plan / goal / compact / cache / interact / session / ext / guard）**在上游**：`zhuye-agent/tests/live/cli_e2e.sh`（**本地专用，不进 CI**；配置模板 `cli_e2e.example.toml` + gitignore 的本地 `cli_e2e.toml`，直接对上游仓库运行，`ZHUYE_E2E_BIN` 可指桌面构建的二进制验 pin 态；`ZHUYE_E2E_MOCK=1` 为内置 mock provider 的离线自检模式） |
 | tests 根 `*.test.ts(x)` | 19 个应用级用例（分类见下表） |
 | `helpers/` | `fakeBackend.ts` / `appHarness.tsx` / `routeMatrix.ts` |
 | `fixtures/` | lsp / mcp stdio 模拟服务器 |

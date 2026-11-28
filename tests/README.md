@@ -121,6 +121,19 @@ L6 由**两个**测试二进制组成：
 | `src-tauri/tests/ipc_live_free_model.rs` | **主回合**：真模型 → 正文 → token → 终态 |
 | `src-tauri/tests/ipc_live_capabilities.rs` | **能力域矩阵**（15 个场景）：工具调用 / 工具审批 / 中断 / 压缩 / 回退 / plan 模式 / goal 模式 / 会话标题 / 任务工具 / 子代理 / 追问 / 讨论 / 流水线 / 团队流水线 |
 
+另有**全任务端到端**（本地专用，不进 CI 门禁链）：
+
+```bash
+ZHUYE_LIVE=1 bash tests/live/desktop_e2e.sh
+```
+
+`ipc_live_cli_e2e.rs` 消费上游 `tests/live/cli_e2e.toml`（查找顺序：`ZHUYE_E2E_TOML`
+→ 上游工作检出 `../ZhuYe/tests/live/cli_e2e.toml` → submodule 镜像；字段级
+`ZHUYE_E2E_*` 环境变量覆盖，与上游 `cli_e2e_lib.load_config` 同口径），跑 `[task]`
+段的完整任务：plan 模式提交 → plan_ready → auto_mode 批准 → 开发回合（真工具 +
+沙箱内 git init/add/commit）→ continue_prompt 收尾 → 验收产物与提交主题。模型
+收尾不交计划时驱动器先催稿再强制 exit 兜底；限流/地区门/配置缺失判 SKIP。
+
 能力域矩阵的纪律：**模型不配合 ≠ 产品缺陷** —— 模型没发起工具调用 /
 没提问 / 没进 plan，判**跳过**（附理由）而不是失败；这一层测的是
 **产品对模型输出的处理**，不是模型听不听话。上游限流 / 地区门 / 配额
