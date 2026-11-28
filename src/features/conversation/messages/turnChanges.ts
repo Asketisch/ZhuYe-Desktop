@@ -14,10 +14,18 @@ import type { Turn, TurnItem } from '@/stores/agent/types';
 
 /** 写类工具名(改文件的才进改动卡)。与后端实际注册名逐字对齐
  * （zhuye-tools `Tool::name()`,大小写敏感）:
- * `write` / `edit` / `delete_file` / `notebook_edit` / `PlanWrite`。
+ * `write` / `edit` / `delete_file` / `notebook_edit` / `PlanWrite` / `ast`。
+ * `ast` 的 rename/replace 同样产出 `unified_diff` + `metadata.diff`。
  * `bash` 有意排除 —— 它改文件但不产出 path/diff 元数据,进卡也只是空行。
  */
-const WRITE_TOOLS = new Set(['write', 'edit', 'delete_file', 'notebook_edit', 'PlanWrite']);
+const WRITE_TOOLS = new Set([
+  'write',
+  'edit',
+  'delete_file',
+  'notebook_edit',
+  'PlanWrite',
+  'ast',
+]);
 
 /** 从单条 turn 派生的一处文件改动。 */
 export interface TurnChange {
@@ -54,8 +62,11 @@ function argsPath(raw: string | undefined): string | null {
  * 从单条 turn 派生文件改动清单（纯函数）。
  *
  * 配对规则:一条 `tool_output` 找同 `callId` 的 `tool_call` 判工具名 ——
- * 只有写类工具的输出才算改动。同一文件在同一轮内多次改动**只留一条**
- * （保留最后一次的 diff,反映该轮结束时的净结果）。
+ * 只有写类工具的输出才算改动。同一文件在同一轮内多次改动**只留一条**,
+ * 但 diff 按**增量累计拼接** —— 引擎每次 edit 只产出「本次替换」的调用级
+ * diff（turn 开始 → 结束的净 diff 前端拿不到）,last-wins 会让统计永远
+ * 停在最后一次编辑的 +1 −1;拼接后卡头累计全轮增删,审查浮层展示全部
+ * 增量 hunk（`countDiffLines` 对多段 unified diff 的 `+++`/`---` 头已排除）。
  */
 export function deriveChangesFromTurn(turn: Turn): TurnChange[] {
   const out: TurnChange[] = [];
@@ -78,8 +89,11 @@ export function deriveChangesFromTurn(turn: Turn): TurnChange[] {
     };
     const existing = byPath.get(path);
     if (existing) {
-      // 同轮同文件多次改动:保留最后一条(净结果),但失败标记不丢。
-      existing.diff = change.diff;
+      // 同轮同文件多次改动:diff 增量累计(见上注);工具名取最后一次,
+      // 失败标记不丢。空 diff(delete_file / 非文本覆盖)不追加。
+      if (change.diff) {
+        existing.diff = existing.diff ? `${existing.diff}\n${change.diff}` : change.diff;
+      }
       existing.toolName = change.toolName;
       existing.isError = existing.isError || change.isError;
       continue;

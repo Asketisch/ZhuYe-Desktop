@@ -25,6 +25,7 @@ pub mod menu;
 mod persistence;
 mod shell_sessions;
 pub mod shortcut;
+mod shell_env;
 pub mod state;
 pub mod status_server;
 pub mod tray;
@@ -50,6 +51,11 @@ pub use commands_registry::configure;
 /// 命令面来自 [`configure`] —— 与能力覆盖层测试共用同一份。
 pub fn run() {
     tracing_subscriber::fmt::init();
+
+    // GUI 启动 PATH 补全:Finder/Dock/登录项启动时进程 PATH 只有 launchd
+    // 最小集,agent bash / MCP stdio / LSP 全部从本进程拷贝 PATH —— 必须
+    // 先于一切子进程派生执行(与下方 cwd 恢复同属「GUI 启动环境修复」)。
+    crate::shell_env::fix_process_path();
 
     configure(tauri::Builder::<tauri::Wry>::new())
         // 应用自更新（OTA）：Rust 侧 UpdaterExt 驱动（commands/update.rs），

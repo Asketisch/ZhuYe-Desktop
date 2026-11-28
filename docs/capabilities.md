@@ -9,7 +9,7 @@
 > `src-tauri/src/**`（命令层）+ `src/**`（前端）。
 > 历史各轮审计流水见文末「[历史审计记录](#历史审计记录)」。
 
-> 最近审计：submodule `e52bfda`（上一审计 `c19211b`，更早 `5127f72`）。本批为全仓统一更名（纯改名批次：类型 / API / 注释 / 文档名换写，协议面、命令面、配置面与工具集合零变化）；此前一轮接入子代理续派、线程治理配置与恢复告警；任务预算快照暂无独立界面，浏览器插件需另备上游可执行文件。
+> 最近审计：submodule `8b16ebd`（上一审计 `e52bfda`，更早 `c19211b`）。本批为引擎修复批（`ca7cc68` + 文档同步 `8b16ebd`）：safe_write 对系统管理 xattr（`com.apple.provenance`）与属组保留失败降级 —— write/edit 对带 provenance 属性文件不再误报 `Operation not permitted`；write/edit/delete_file/notebook_edit 对 workspace 写根之外改走 `ask_tool_forced` 强制审批（协议面新增的是**既有** `approval_request` 的新触发路径，命令面、配置面与工具集合零变化）；工具执行失败 metadata 新增结构化 `error: {type: ToolError::kind(), message}`（§3.3 `tool_call_end` 行已登记）；桌面配套 GUI 启动 PATH 补全（`shell_env.rs`，桌面自有模块非引擎能力）。此前一轮为全仓统一更名（纯改名批次）。
 >
 > 上一轮审计：submodule `ea7039d`（上一审计 `502a620`）：范围 502a620b..ea7039db（2 提交）—— `8a52b295` 托盘透明图标修复（纯资源，零代码）；`ea7039db` 桌面授权的 submodule 直改（已直推上游 main）：zhuye-subagent 两条事件转发白名单放行 `EventMsg::InteractionResolved`，子代理挂起交互的了结广播（§3.34 `interaction_resolved`）得以进入父会话事件流 —— **事件变体已存在，协议 / 命令面 / 配置零变化**，仅转发路径补全；桌面配套接线（reducer 移除连坐清理 + 提交门控）见 changelog「多 agent 同回合提问不再提前放行提交」条。
 >

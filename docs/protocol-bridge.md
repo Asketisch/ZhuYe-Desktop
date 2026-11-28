@@ -304,7 +304,7 @@ pub struct Submission {
 |---|---|---|
 | `tool_call_begin` | `ToolCallBeginEvent` | Tool row running indicator |
 | `tool_call_args_delta` | `ToolCallArgsDeltaEvent` (v1.5 additive) | 按 `call_id` 累积到对应 tool row 的 `argsStream`：模型仍在生成参数期间，ToolCell 头部直接展示已收到的片段（截断 80 字符），展开可见完整累积 JSON；JSON 拼完整后切回结构化摘要。整包形态的 provider（Ollama 原生格式）不发本事件 |
-| `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled；`tool_name == "TodoWrite"` 时另取 `output.metadata.todos` → Inspector「Todo 清单」面板（`{ content, status, activeForm }`，`activeForm` 为 camelCase） |
+| `tool_call_end` | `ToolCallEndEvent` | Tool row done / failed / cancelled；`tool_name == "TodoWrite"` 时另取 `output.metadata.todos` → Inspector「Todo 清单」面板（`{ content, status, activeForm }`，`activeForm` 为 camelCase）。v1.x additive：**执行失败**的 output metadata 新增结构化 `error: { type, message }`（`type` = 上游 `ToolError::kind()`：`io / path_escape / permission_denied / invalid_args / execution / timeout / cancelled / hook_denied / sandbox_unavailable`），前端可区分文件系统 EPERM / 路径越界 / 沙箱拒绝 / 审批拒绝等类别；`metadata.kind`（Debug 串）保留向后兼容。同批引擎语义：write/edit/delete_file/notebook_edit 对 workspace 写根之外的路径不再直接 `PathEscape`，而是经审批门强制询问（新增 `approval_request`，never-auto —— 完全访问/自动批准也不放行，权限规则与会话拒绝档仍生效；headless 无审批通道时维持 `PathEscape`） |
 | `tool_call_output_delta` | `ToolCallOutputDeltaEvent` (v1.4 A3) | none —— 长工具执行期间逐段 stdout/stderr 增量预览（完整输出仍以 `tool_call_end` 为准）；reducer no-op 保穷尽，避免高频重渲染 |
 | `tool_execution_request` | `ToolExecutionRequestEvent` (v1.3 SDK) | none —— serve 模式下 core 请求客户端本地执行其经 `Op::RegisterTools` 注册的远程工具（回执 `Op::ToolExecutionResponse`，`call_id` 配对）。Desktop 内嵌 AgentThread 不注册远程工具，reducer no-op 保穷尽 |
 

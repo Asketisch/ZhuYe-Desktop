@@ -4,6 +4,23 @@
 
 ## 未发布
 
+- **GUI 启动 PATH 补全 + write 工具 EPERM 根因修复 + workspace 外写走审批（引擎 ca7cc68）**：三件事出自同一会话实证
+  （ZhuYe-Pages 工作区：agent 拿不到 `/usr/local/bin/node`、write 报 `Operation not permitted`、改动卡恒 +1 −1）。
+  ① **PATH**：从 Finder/Dock/登录项启动的 GUI 进程 PATH 只有 launchd 最小集，agent bash（`env_clear` 白名单拷贝）/
+  MCP stdio / LSP 全部继承 —— 新增 `src-tauri/src/shell_env.rs` 在 `run()` 早期补全：快路径合并 bootstrap 目录
+  （`/usr/local/bin`、`/opt/homebrew/bin` 等）+ 后台 `$SHELL -ilc 'env -0'` 采样 login shell 完整 PATH（4s 超时、独立
+  进程组，覆盖 nvm 这类只在 interactive rc 注入的版本管理器）；`ZHUYE_NO_PATH_FIX=1` 逃生。口径对齐 ZCode 的
+  `runtimeLoginShellEnvCapture`。② **write EPERM**：根因在 PinnedWrite 的 stage+rename 原子写 —— macOS
+  `fcopyfile(ACL|XATTR)` 整包复制被系统管理的 `com.apple.provenance` xattr 拒绝（EPERM），`fchown` 保留 wheel 类
+  旧属组同样 EPERM；上游降级为 ACL 单独复制 + xattr 逐条复制（EPERM 跳过）、属组保留失败 warn+跳过（上游
+  zhuye-tools，随 ca7cc68 进桌面）。③ **越界写审批**：write/edit/delete_file/notebook_edit 对 workspace 写根之外
+  不再 `PathEscape` 硬拒，改经审批门新增的 `ask_tool_forced`（never-auto：完全访问/自动批准/模式直通全失效，
+  权限规则与会话拒绝档仍生效，审批卡「始终允许本会话」可记忆）—— 对齐 ZCode「审批管危险操作、不设路径硬墙」；
+  headless 无审批通道维持旧行为。④ **失败元数据结构化**：工具执行失败 output metadata 新增 `error: {type, message}`
+  （`ToolError::kind()` 九类），前端可区分 EPERM / 路径越界 / 沙箱拒绝 / 审批拒绝。⑤ **改动卡累计**：
+  `turnChanges.ts` 同轮同文件多次改动从 last-wins 改为 diff 增量拼接（引擎每次 edit 只产出本次替换的调用级 diff，
+  last-wins 让卡头恒停在最后一次的 +1 −1）；`WRITE_TOOLS` 补 `ast`。已知限制不变：bash heredoc 写文件在落盘记录里
+  无 diff/path，改动卡不可见（需上游在 bash 输出 metadata 增加写入检测，另行跟进）。
 - **思考 / 工具活动显示对齐 ZCode Reasoning 方案 —— 思考滚动、展开可滚动**：思考折叠块升级为有状态切片组件
   `ThinkingCollapsible`（render 层本地实现退役，经 messageList slots 注入）：折叠摘要不再倾泻 60 字符原文快照，
   流式显示「思考中」扫光文字（ZCode `animated-gradient-text` 同款），结束后显示「思考 持续了 N 秒」—— 打点数据

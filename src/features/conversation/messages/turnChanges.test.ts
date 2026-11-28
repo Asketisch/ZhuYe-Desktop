@@ -38,7 +38,7 @@ describe('deriveChangesFromTurn', () => {
     expect(changes[0].path).toBe('src/x.ts');
   });
 
-  it('同轮同文件多次改动合并为一条（保留最后的 diff）', () => {
+  it('同轮同文件多次改动合并为一条，diff 按增量累计拼接', () => {
     const changes = deriveChangesFromTurn(turnWith([
       { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'c1', status: 'done' },
       { kind: 'tool_output', callId: 'c1', text: '', isError: false, path: '/w/a.txt', diff: '+first' },
@@ -46,7 +46,48 @@ describe('deriveChangesFromTurn', () => {
       { kind: 'tool_output', callId: 'c2', text: '', isError: false, path: '/w/a.txt', diff: '+second' },
     ]));
     expect(changes).toHaveLength(1);
-    expect(changes[0].diff).toBe('+second');
+    // 引擎每次 edit 只产出「本次替换」的调用级 diff —— last-wins 会让
+    // 卡头永远停在最后一次的 +1 −1;累计拼接后统计全轮增删。
+    expect(changes[0].diff).toBe('+first\n+second');
+    expect(summarizeTurnChanges(changes)).toEqual({ files: 1, added: 2, removed: 0 });
+  });
+
+  it('同文件两次单行 edit:卡头 +2 −2,diff 含两个 hunk(审查可见全部增量)', () => {
+    const hunk1 = ['@@ -161,7 +161,7 @@', ' context', '-old line', '+new line'].join('\n');
+    const hunk2 = ['@@ -210,3 +210,3 @@', ' ctx', '-old2', '+new2'].join('\n');
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'e1', status: 'done' },
+      { kind: 'tool_output', callId: 'e1', text: '', isError: false, path: '/w/a.css', diff: hunk1 },
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'e2', status: 'done' },
+      { kind: 'tool_output', callId: 'e2', text: '', isError: false, path: '/w/a.css', diff: hunk2 },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].diff).toBe(`${hunk1}\n${hunk2}`);
+    expect(summarizeTurnChanges(changes)).toEqual({ files: 1, added: 2, removed: 2 });
+    // 多段 unified diff 的 @@ 头不计增删(既有 countDiffLines 口径)。
+    expect(countDiffLines(changes[0].diff).added).toBe(2);
+  });
+
+  it('空 diff 的后续改动(delete_file)不覆盖已累计的 diff', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'edit', argsSummary: '{}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: '', isError: false, path: '/w/a.txt', diff: '+kept' },
+      { kind: 'tool_call', toolName: 'delete_file', argsSummary: '{}', callId: 'c2', status: 'done' },
+      { kind: 'tool_output', callId: 'c2', text: 'deleted', isError: false, path: '/w/a.txt' },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].diff).toBe('+kept');
+    expect(changes[0].toolName).toBe('delete_file');
+  });
+
+  it('ast 工具(rename/replace 产出 unified_diff)计入改动卡', () => {
+    const changes = deriveChangesFromTurn(turnWith([
+      { kind: 'tool_call', toolName: 'ast', argsSummary: '{"action":"rename"}', callId: 'c1', status: 'done' },
+      { kind: 'tool_output', callId: 'c1', text: '', isError: false, path: '/w/a.rs', diff: '-fn old() {}\n+fn new() {}' },
+    ]));
+    expect(changes).toHaveLength(1);
+    expect(changes[0].toolName).toBe('ast');
+    expect(summarizeTurnChanges(changes)).toEqual({ files: 1, added: 1, removed: 1 });
   });
 
   it('失败标记不丢（成功 + 失败同文件合并后仍标失败）', () => {
